@@ -794,6 +794,50 @@ pub fn come_forward(app: &AppHandle) {
     raise_character(app);
 }
 
+/// A click on the character (beside the open island or in the fixed bar):
+/// the open island hidden behind another window comes to the front, and only
+/// one already in front is closed (asked by Edoardo on 4 Nov 2026). True when
+/// it was behind and is now in front; false when it was in front already.
+/// The character's window never activates, so the foreground still is the
+/// window the user was in before the click.
+pub fn to_front(app: &AppHandle) -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, SetForegroundWindow, GA_ROOT};
+    if !app_mode() {
+        // On top unless it stepped back behind a window (step_aside_for).
+        if !is_behind() {
+            return false;
+        }
+        come_forward(app);
+        return true;
+    }
+    let Some(win) = window(app) else { return false };
+    let Some(me) = hwnd_of(&win) else { return false };
+    if win.is_minimized().unwrap_or(false) {
+        let _ = win.unminimize();
+    } else {
+        let fg = unsafe { GetAncestor(GetForegroundWindow(), GA_ROOT) };
+        if fg == me {
+            return false;
+        }
+    }
+    unsafe {
+        // Only the app with the last input may take the foreground; a tapped
+        // Alt lets SetForegroundWindow through (as apps.rs::focus_app).
+        let key = |flags| INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: VK_MENU, dwFlags: flags, ..Default::default() } },
+        };
+        let _ = SendInput(&[key(Default::default()), key(KEYEVENTF_KEYUP)], std::mem::size_of::<INPUT>() as i32);
+        let _ = SetForegroundWindow(me);
+    }
+    let _ = win.set_focus();
+    raise_character(app);
+    true
+}
+
 /// Puts the island back at the top of the topmost band. The taskbar is topmost
 /// too and comes forward whenever it is touched; Tauri's set_always_on_top does
 /// nothing when the flag is already set, so this goes to Win32 directly.

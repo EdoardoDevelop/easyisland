@@ -169,6 +169,8 @@ export const Bridge = {
   focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
   /** 📌 on: the open island as an ordinary app window (taskbar, not always on top). island.rs → set_app_mode. */
   setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
+  /** Click on the character: the open island behind another window comes forward (true); in front, false. island.rs → to_front. */
+  islandToFront: () => call<boolean>("island_to_front"),
   minimizeIsland: () => call<void>("minimize_island"),
   /** Windows' preview of a picture (thumbs.rs); null for other files. */
   /** La Raccolta (collect.rs): the collection as JSON, "" for none. */
@@ -465,6 +467,18 @@ export const Bridge = {
   // Remote Desktop Manager (rdm.rs): never a password, only names, folders, hosts and ids.
   rdmSearch: async (query: string, limit = 8) => (await call<RdmEntry[]>("rdm_search", { query, limit })) ?? [],
   rdmByHost: async (host: string) => (await call<RdmEntry[]>("rdm_by_host", { host })) ?? [],
+  /** Devolutions Cloud (dvc.rs): on, entries, vaults, last sync, error. */
+  dvcStatus: () => call<DvcStatus>("dvc_status"),
+  dvcTest: () => callOrThrow<DvcVault[]>("dvc_test"),
+  /** A folder of a vault, from the list saved at the last sync. */
+  dvcBrowse: (vault: string, path: string) => call<DvcBrowse>("dvc_browse", { vault, path }),
+  dvcDetails: (vault: string, id: string) => callOrThrow<DvcDetails>("dvc_details", { vault, id }),
+  /** The password goes to the clipboard in Rust (private, emptied later): only the seconds come back. */
+  dvcCopyPassword: (vault: string, id: string, row: number | null) => callOrThrow<number>("dvc_copy_password", { vault, id, row }),
+  dvcNewCredential: (a: { vault: string; folder: string; name: string; user: string; domain: string; password: string; description: string; confirm: boolean }) =>
+    callOrThrow<DvcOutcome>("dvc_new_credential", a),
+  dvcNewPasswordList: (a: { vault: string; folder: string; name: string; source: string; recurse: boolean; confirm: boolean }) =>
+    callOrThrow<DvcOutcome>("dvc_new_password_list", a),
   rdmOpen: (entry: RdmEntry) => callOrThrow<void>("rdm_open", { entry }),
   rdmEdit: (id: string) => callOrThrow<void>("rdm_edit", { id }),
   rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
@@ -533,7 +547,7 @@ export const Bridge = {
   popoutWiden: (window: string, width: number) => call<void>("popout_widen", { window, width }),
   memoryGraph: (source: string) => call<import("../memory/data").MemGraph>("memory_graph", { source }),
   /** «Collega con l'IA» (memory_ai.rs): what the engine added. */
-  memoryLink: () => callOrThrow<string>("memory_link"),
+  memoryLink: (source = "") => callOrThrow<string>("memory_link", { source }),
   memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
@@ -585,6 +599,8 @@ export const Bridge = {
   /** Windows' accent colour ("#rrggbb", the shade for dark backgrounds), or null. */
   systemAccent: () => call<string | null>("system_accent"),
   systemLight: () => call<boolean>("system_light"),
+  /** Aspetto → Font: the families installed in Windows (lib.rs system_fonts). */
+  systemFonts: () => call<string[]>("system_fonts"),
   setWindowLight: (light: boolean) => call<void>("set_window_light", { light }),
   /** 🎤 records or stopped: the microphone in use is not a meeting (presence.rs). */
   chatDictation: (on: boolean) => call<void>("chat_dictation", { on }),
@@ -599,6 +615,14 @@ export const Bridge = {
   zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   /** «Prepara» on a ticket: the customer's page, similar tickets, the question (zammad.rs `prepare`). */
   zammadPrepare: (id: number) => callOrThrow<{ label: string; context: string; question: string }>("zammad_prepare", { id }),
+  /** The Zammad card: the overviews and the tickets of `view` (zammad.rs `tickets`). */
+  zammadTickets: (view: string | null) => callOrThrow<ZammadList>("zammad_tickets", { view }),
+  zammadTicket: (id: number) => callOrThrow<ZammadTicket>("zammad_ticket", { id }),
+  /** A select of the ticket: state (with the reminder when pending), owner, priority. */
+  zammadSet: (id: number, field: "state_id" | "owner_id" | "priority_id", value: number, pending: string | null) =>
+    callOrThrow<ZammadTicket>("zammad_set", { id, field, value, pending }),
+  /** An internal note, or (`email`) a reply Zammad sends to the customer. */
+  zammadReply: (id: number, text: string, email: boolean) => callOrThrow<ZammadTicket>("zammad_reply", { id, text, email }),
   /** «Parla» (talk.rs): starts listening or ends the question; true = listening now. */
   talkToggle: () => callOrThrow<boolean>("talk_toggle"),
   talkCancel: () => call<void>("talk_cancel"),
@@ -618,6 +642,9 @@ export const Bridge = {
   agentchatInfo: () => call<AgentchatInfo>("agentchat_info"),
   agentchatRestart: () => call<void>("agentchat_restart"),
   agentchatResume: () => call<void>("agentchat_resume"),
+  /** The card's field: a message as the owner (owner token, the name from the settings; agentchat.rs owner_send). */
+  agentchatOwnerSend: (room: string, text: string, thread: number | null, files: string[]) =>
+    callOrThrow<{ id: number }>("agentchat_owner_send", { room, text, thread, files }),
   agentchatListen: (on: boolean) => callOrThrow<void>("agentchat_listen", { on }),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
@@ -827,10 +854,68 @@ export interface MemoryHit {
   gist: string;
 }
 
+/** Devolutions Cloud (dvc.rs). */
+export interface DvcVault { id: string; name: string }
+export interface DvcStatus { on: boolean; count?: number; vaults?: DvcVault[]; at?: number; error?: string | null }
+/** An entry of a vault, never a secret: kind Group = a folder; cred PasswordList = a list. */
+export interface DvcItem { id: string; name: string; kind: string; folder: string; path: string; host: string; user: string; cred: string; vault: string }
+export interface DvcBrowse { vault: string; path: string; vaults: DvcVault[]; folders: { name: string; path: string; count: number }[]; entries: DvcItem[] }
+export interface DvcDetails {
+  name: string; kind: string; cred: string; folder: string; host: string; user: string; domain: string;
+  /** The password's length: never the password. */
+  length: number; description: string;
+  rows: { name: string; host: string; user: string; domain: string; length: number; description: string }[];
+}
+export interface DvcOutcome { preview: string[]; id: string; rows: { row: string; userOk: boolean; passwordOk: boolean }[] }
+
 /** A Zammad ticket found from the field at the top (zammad.rs TicketHit). */
 export interface TicketHit {
   title: string;
   url: string;
+}
+
+/** A choice of the Zammad card's selects (zammad.rs Opt); `kind` for a state: new, open, pending, closed. */
+export interface ZammadOpt {
+  id: number;
+  name: string;
+  kind?: string;
+}
+
+/** The Zammad card's list (zammad.rs TicketList). */
+export interface ZammadList {
+  overviews: { link: string; name: string; count: number }[];
+  view: string;
+  me: number;
+  tickets: {
+    id: number; number: string; title: string; who: string; state: string; kind: string;
+    priority: string; priority_id: number; owner: string; owner_id: number; updated: string; articles: number; url: string;
+  }[];
+}
+
+/** A message of a Zammad ticket (zammad.rs Article). */
+export interface ZammadArticle {
+  id: number;
+  from: string;
+  to: string;
+  sender: string;
+  kind: string;
+  internal: boolean;
+  at: string;
+  subject: string;
+  text: string;
+  files: string[];
+}
+
+/** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
+export interface ZammadTicket {
+  id: number; number: string; title: string; url: string;
+  customer: string; org: string; group: string;
+  state_id: number; priority_id: number; owner_id: number;
+  created: string; updated: string; pending: string;
+  states: ZammadOpt[]; priorities: ZammadOpt[]; owners: ZammadOpt[];
+  articles: ZammadArticle[];
+  me: number;
+  reply_to: string;
 }
 
 export interface ChatSummary {

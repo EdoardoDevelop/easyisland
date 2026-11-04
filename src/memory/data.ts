@@ -19,6 +19,8 @@ export interface MemEdge {
   from: string;
   to: string;
   label: string;
+  /** 3 written or judged by the AI, 2 the note names the page, 1 a guess (brain.rs). */
+  strength?: number;
 }
 
 export interface MemEvent {
@@ -64,6 +66,8 @@ export interface Neighbour {
   id: string;
   label: string;
   out: boolean;
+  /** 1 guess, 2 named, 3 written or judged by the AI. */
+  strength: number;
 }
 
 export class Model {
@@ -74,8 +78,9 @@ export class Model {
     for (const n of g.nodes) this.byId.set(n.id, n);
     for (const e of g.edges) {
       if (!this.byId.has(e.from) || !this.byId.has(e.to)) continue;
-      this.link(e.from, { id: e.to, label: e.label, out: true });
-      this.link(e.to, { id: e.from, label: e.label, out: false });
+      const strength = e.strength ?? 3;
+      this.link(e.from, { id: e.to, label: e.label, out: true, strength });
+      this.link(e.to, { id: e.from, label: e.label, out: false, strength });
     }
   }
 
@@ -87,6 +92,28 @@ export class Model {
 
   neighbours(id: string): Neighbour[] {
     return this.around.get(id) ?? [];
+  }
+
+  private grouped: { groups: Group[]; of: Map<string, number> } | null = null;
+
+  /** The groups of the memory (computed once per model). */
+  groups(): { groups: Group[]; of: Map<string, number> } {
+    if (!this.grouped) {
+      this.grouped = findGroups(this, (a, b) => this.neighbours(a).find((n) => n.id === b)?.strength ?? 1);
+    }
+    return this.grouped;
+  }
+
+  /** The group's colour of a node, or null when it is in none. */
+  groupColor(id: string): string | null {
+    const { groups, of } = this.groups();
+    const g = of.get(id);
+    return g == null ? null : groups[g]?.color ?? null;
+  }
+
+  /** Notes tied to nothing: to link. */
+  lonely(): MemNode[] {
+    return this.g.nodes.filter((n) => (n.kind === "note" || n.kind === "old") && !this.neighbours(n.id).length);
   }
 
   /** The node to start from: the most linked page. */
@@ -129,4 +156,144 @@ export function fit(ctx: CanvasRenderingContext2D, text: string, max: number): s
     else hi = mid - 1;
   }
   return `${text.slice(0, lo)}…`;
+}
+
+// ── What the views share: groups, freshness, paths, provenance ───────────────
+
+/** Colours of the groups (graph, galaxy, bubbles, stream): distinct on the dark sky. */
+export const GROUP_COLORS = ["#7c9cff", "#f5a524", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#fb7185", "#a3e635", "#fbbf24", "#2dd4bf", "#e879f9", "#94a3b8"];
+
+/** A group of nodes tied more among them than with the rest (a customer and its notes). */
+export interface Group {
+  id: number;
+  name: string;
+  color: string;
+  members: string[];
+}
+
+/** 0–1: how recent a date is (a note of today 1, of three months ago ~0.1); no date 0.35. */
+export function freshness(date: string): number {
+  const t = Date.parse(date.slice(0, 10));
+  if (!Number.isFinite(t)) return 0.35;
+  const days = Math.max(0, (Date.now() - t) / 86_400_000);
+  return Math.max(0.08, Math.exp(-days / 45));
+}
+
+/** Where a note came from, read from its text («(Agent Chat)», «(da casa)»…). */
+export type Provenance = "chat" | "agentchat" | "pc" | "ticket" | "mail" | "call" | "telegram" | "file";
+
+export function provenanceName(p: Provenance): string {
+  switch (p) {
+    case "chat": return t("Chat");
+    case "agentchat": return t("Agent Chat");
+    case "pc": return t("Altro PC");
+    case "ticket": return t("Ticket");
+    case "mail": return t("Mail");
+    case "call": return t("Chiamate");
+    case "telegram": return t("Telegram");
+    case "file": return t("File letti");
+  }
+}
+
+export function provenance(n: MemNode): Provenance {
+  if (n.kind === "source") return "file";
+  const x = n.text.toLowerCase();
+  if (x.includes("(agent chat)")) return "agentchat";
+  if (/\(da [\w.-]+\)/.test(x)) return "pc";
+  if (/\bticket\b|zammad/.test(x)) return "ticket";
+  if (/\bmail\b|\be-?mail\b|outlook/.test(x)) return "mail";
+  if (/chiamat|telefonat|3cx/.test(x)) return "call";
+  if (x.includes("telegram")) return "telegram";
+  return "chat";
+}
+
+/**
+ * Groups by label propagation: each node takes the group most of its
+ * neighbours have (stronger links count more), in a fixed order so the same
+ * memory gives the same groups. Groups under 3 nodes stay without colour.
+ */
+export function findGroups(m: Model, strength: (a: string, b: string) => number): { groups: Group[]; of: Map<string, number> } {
+  const ids = [...m.byId.keys()].sort();
+  const label = new Map<string, string>(ids.map((id) => [id, id]));
+  for (let round = 0; round < 24; round++) {
+    let changed = 0;
+    for (const id of ids) {
+      const votes = new Map<string, number>();
+      for (const nb of m.neighbours(id)) {
+        const l = label.get(nb.id)!;
+        votes.set(l, (votes.get(l) ?? 0) + strength(id, nb.id));
+      }
+      let best = label.get(id)!;
+      let bestV = 0;
+      for (const [l, v] of [...votes].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+        if (v > bestV) {
+          best = l;
+          bestV = v;
+        }
+      }
+      if (best !== label.get(id)) {
+        label.set(id, best);
+        changed++;
+      }
+    }
+    if (!changed) break;
+  }
+  const byLabel = new Map<string, string[]>();
+  for (const id of ids) {
+    const l = label.get(id)!;
+    const list = byLabel.get(l);
+    if (list) list.push(id);
+    else byLabel.set(l, [id]);
+  }
+  const big = [...byLabel.values()].filter((l) => l.length >= 3).sort((a, b) => b.length - a.length);
+  const groups: Group[] = [];
+  const of = new Map<string, number>();
+  big.forEach((members, i) => {
+    // Named after its most linked page, else its most linked node.
+    const pages = members.map((id) => m.byId.get(id)!).filter((n) => n.kind === "page");
+    const lead = (pages.length ? pages : members.map((id) => m.byId.get(id)!)).sort((a, b) => b.weight - a.weight)[0];
+    groups.push({ id: i, name: lead?.label ?? t("Gruppo"), color: GROUP_COLORS[i % GROUP_COLORS.length], members });
+    for (const id of members) of.set(id, i);
+  });
+  return { groups, of };
+}
+
+/** The shortest way from one node to another (its ids, both ends included), or null. */
+export function pathBetween(m: Model, from: string, to: string): string[] | null {
+  if (from === to) return [from];
+  const back = new Map<string, string>([[from, ""]]);
+  let ring = [from];
+  while (ring.length) {
+    const next: string[] = [];
+    for (const id of ring) {
+      for (const nb of m.neighbours(id)) {
+        if (back.has(nb.id)) continue;
+        back.set(nb.id, id);
+        if (nb.id === to) {
+          const path = [to];
+          let at = id;
+          while (at) {
+            path.push(at);
+            at = back.get(at) ?? "";
+          }
+          return path.reverse();
+        }
+        next.push(nb.id);
+      }
+    }
+    ring = next;
+  }
+  return null;
+}
+
+/** A node and what is within `depth` steps of it. */
+export function around(m: Model, id: string, depth: number): Set<string> {
+  const seen = new Set([id]);
+  let ring = [id];
+  for (let d = 0; d < depth; d++) {
+    const next: string[] = [];
+    for (const x of ring) for (const nb of m.neighbours(x)) if (!seen.has(nb.id)) { seen.add(nb.id); next.push(nb.id); }
+    ring = next;
+  }
+  return seen;
 }

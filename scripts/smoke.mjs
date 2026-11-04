@@ -41,14 +41,14 @@ const SCENES = [
   "rewrite", "diff", "finished", "stop", "capture", "strip&strip=approval", "strip&strip=call", "strip&strip=live",
   "strip&strip=work&compactStrip=left",
   "moment", "moment&moment=zip", "moment&moment=tray", "moment&moment=error", "moment&moment=port", "moment&moment=server",
-  "moment&moment=card", "daily", "daily&evening", "done", "done&alone", "search", "remember", "remember&empty", "talk", "talk&hearing", "remember&call", "moment&moment=call", "moment&moment=ticket", "moment&moment=agentchat", "agentchat", "agentchat&off", "agentchat&empty",
+  "moment&moment=card", "daily", "daily&evening", "done", "done&alone", "search", "remember", "remember&empty", "talk", "talk&hearing", "remember&call", "moment&moment=call", "moment&moment=ticket", "moment&moment=agentchat", "agentchat", "agentchat&busy&write", "agentchat&off", "agentchat&empty", "zammad", "zammad&open", "zammad&email", "rdm&cloud", "rdm&tied",
   // Random events, clicks and malformed data (dev/scenes.ts `fuzz`), a few seeds.
   "fuzz&seed=1", "fuzz&seed=2", "fuzz&seed=3", "fuzz&seed=4", "fuzz&seed=5",
 ];
 
 // The settings window, page by page: every select, switch and field changed.
 // Aspetto one tab at a time (src/settings/main.ts → LOOK_TABS).
-const SETTINGS = ["generale", ...["tema", "personaggio", "posizione", "barra", "chiusa", "aperta"].map((x) => `aspetto&tab=${x}`), "notifiche", "chat", "claude", "azioni", "compiti", "integrazioni", "widget", "notizie", "backup"];
+const SETTINGS = ["generale", ...["tema", "font", "personaggio", "posizione", "barra", "chiusa", "aperta"].map((x) => `aspetto&tab=${x}`), "notifiche", "chat", "claude", "azioni", "compiti", "integrazioni", "widget", "notizie", "backup"];
 
 const EDGE = [
   join(process.env["ProgramFiles(x86)"] ?? "", "Microsoft/Edge/Application/msedge.exe"),
@@ -126,6 +126,15 @@ class Runner {
   }
 
   async stop() {
+    // Edge closed from inside: the process started here is only a launcher on
+    // Windows, so kill() left Edge running, and the Edges left behind kept the
+    // ports (the next runs then found no page ready).
+    try {
+      this.ws?.send(JSON.stringify({ id: ++this.nextId, method: "Browser.close" }));
+      await sleep(300);
+    } catch {
+      // Already gone.
+    }
     this.ws?.close();
     this.edge.kill();
     await sleep(500);

@@ -69,9 +69,19 @@ Parla solo con EasyIsland via native messaging (niente rete); rivede la decision
 ## Remote Desktop Manager, dopo le prove
 - API REST di DVLS (`Search-DSEntry`/`Get-DSEntry`) o Hub (`Get-HubEntry`) se il modulo non va bene in azienda.
 - Creare una voce (`New-RDMSession`, `Set-RDMSession`) con i campi base.
-- Strumento per la chat «apri il server di Rossi» con le regole di `run_quick_action`.
-- Associazione esplicita cliente 3CX/organizzazione Zammad ↔ cartella RDM.
+- Associazione esplicita cliente 3CX/organizzazione Zammad ↔ cartella RDM: fatta per le cartelle di Devolutions Cloud (4/11, `rdmFolders`); manca per le cartelle lette dal modulo di RDM.
+- Strumento per la chat: fatti `rdm_search` e `rdm_open` (4/11).
 - Da non fare: legarlo a «davanti al cliente»; leggere password.
+
+### Devolutions Cloud (03/11, dal PC lavoro) — fatto il 4/11
+Fatti tutti e quattro i passi più lo strumento per la chat (`docs/integrazioni.md` → Devolutions Cloud); da provare sul PC lavoro (`docs/prove-dal-vivo.md`). Resta qui come appunto di cosa era stato provato.
+Prove di @claudio sul PC lavoro, dettagli in `RDM-Devolutions-Cloud-connessione.md` e nella skill `devolutions-cloud` (SKILL.md, `scripts/setup.ps1`, `scripts/DevolutionsCloud.psm1`), arrivati in Agent Chat il 03/11.
+- **Cosa funziona:** l'MCP di RDM e i cmdlet RDM non vedono il vault; vanno i **cmdlet Hub** (`Devolutions.PowerShell` in pwsh 7) con una **Application identity** (Is enabled, Can access user vaults, senza admin). Un'identità per PC (es. `Claude-RDM-Casa`): il Secret si vede una volta sola e rigenerarlo scollega l'altro PC.
+- **Credenziali:** URL, Key e Secret in una finestra di EasyIsland, salvati con DPAPI o in Gestione credenziali; mai in chat, mai copiati tra PC (il file DPAPI vale solo dove è stato creato).
+- **Lettura:** elenco vault e voci per cartella cliente (farmacie) senza password; strumento per la chat «apri/cerca il server di X».
+- **Password:** solo negli appunti, che si svuotano da soli; mai a schermo né al motore.
+- **Scrittura** (`New-DVCCredential`, `New-DVCPasswordList`): conferma nell'isola con anteprima `-DryRun`; dopo la scrittura rilettura con `-ResolvePasswords` e controllo che dice solo giusto/sbagliato. Trappola: al salvataggio la password passa in chiaro. Niente eliminazioni.
+- **Ordine:** 1) collegamento e lettura; 2) password negli appunti; 3) scrittura con anteprima e verifica; 4) associazione cliente 3CX/Zammad ↔ cartella del vault.
 
 ## Spunti dall'app originale
 - Plugin come quello di opencode per **Amp** e **Hermes**.
@@ -123,6 +133,12 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 - **Turni:** riordino, lettura di `da-leggere/` (per file) e pulizia li prende chi arriva prima, con scadenza se si spegne.
 - **Telegram:** un bot per EasyIsland.
 - Da decidere: protocollo (HTTPS o WebSocket con TLS e chiave), frequenza massima per file, come mostrare le pagine arrivate. Ordine: prova Tailscale, abbinamento, sincronizzazione, turni, altro.
+
+## File e cartelle cliccabili nelle risposte della chat (03/11)
+Nelle risposte della chat di EasyIsland i riferimenti a file e cartelle diventano link.
+- **Clic:** se il tipo è compatibile, anteprima nella finestra Anteprima accanto alla chat; se non lo è, si comporta come «Apri».
+- **Clic destro:** menu con «Apri», «Scarica» e «Apri percorso» (la cartella in Esplora file, col file selezionato).
+- Da decidere: quali percorsi riconoscere (assoluti, relativi alla cartella di lavoro o al progetto, `file:riga`), cosa fare se il file non esiste più, cosa fa «Scarica» per un file già sul PC, se vale anche in Agent Chat.
 
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri» (titolo della console + UI Automation): per ora non serve.

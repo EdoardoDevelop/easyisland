@@ -83,12 +83,29 @@ function thisPc(): MemGraph {
     [8, "Per l'Officina Verdi chiamare prima delle 9"],
     [15, "I preventivi con IVA al 22%"],
     [26, "Backup 3-2-1 anche per i clienti nuovi"],
+    [2, "Marco Rossi vuole il preventivo del NAS nuovo entro venerdì (Agent Chat)"],
+    [4, "Laura Bianchi ha aperto un ticket per la stampante dello Studio Rossi"],
+    [7, "L'Officina Verdi ha chiesto via mail l'aggiornamento del gestionale"],
+    [9, "Chiamata con Marco Rossi: rinnovo dell'assistenza a gennaio"],
+    [12, "Il gestionale dell'Officina Verdi va riavviato dopo gli aggiornamenti (da lavoro)"],
+    [20, "Certbot sui server dei clienti ogni 60 giorni"],
+    [33, "Una nota rimasta senza collegamenti"],
   ] as const;
   notes.forEach(([back, text], i) => {
     nodes.push({ id: `n:${i}`, kind: "note", label: text, date: day(back), text, weight: 0 });
     events.push({ date: day(back), lane: "note", text, node: `n:${i}` });
   });
-  edges.push({ from: "n:1", to: "p:studio-rossi", label: "" }, { from: "n:2", to: "p:nas-synology", label: "" }, { from: "n:3", to: "p:officina-verdi", label: "" }, { from: "n:5", to: "p:backup-3-2-1", label: "" });
+  // Strength as brain.rs gives it: 2 the note names the page, 1 a guess.
+  edges.push(
+    { from: "n:1", to: "p:studio-rossi", label: "", strength: 2 }, { from: "n:2", to: "p:nas-synology", label: "", strength: 2 },
+    { from: "n:3", to: "p:officina-verdi", label: "", strength: 2 }, { from: "n:5", to: "p:backup-3-2-1", label: "", strength: 2 },
+    { from: "n:6", to: "p:marco-rossi", label: "", strength: 2 }, { from: "n:6", to: "p:nas-synology", label: "", strength: 1 },
+    { from: "n:7", to: "p:laura-bianchi", label: "", strength: 2 }, { from: "n:7", to: "p:studio-rossi", label: "", strength: 2 },
+    { from: "n:8", to: "p:officina-verdi", label: "", strength: 2 }, { from: "n:8", to: "p:gestionale-officina", label: "", strength: 1 },
+    { from: "n:9", to: "p:marco-rossi", label: "", strength: 2 }, { from: "n:9", to: "p:assistenza-annuale", label: "", strength: 1 },
+    { from: "n:10", to: "p:gestionale-officina", label: "", strength: 1 }, { from: "n:10", to: "n:8", label: "", strength: 1 },
+    { from: "n:11", to: "p:certificati", label: "", strength: 1 }, { from: "n:4", to: "p:assistenza-annuale", label: "", strength: 1 },
+  );
   for (const [i, name] of ["verbale-riunione.md", "mail-rossi.eml", "manuale-nas.html"].entries()) {
     const id = `s:${name}`;
     nodes.push({ id, kind: "source", label: name, date: day(5 + i * 9), text: "", weight: 0 });

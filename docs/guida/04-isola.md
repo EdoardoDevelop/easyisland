@@ -9,7 +9,7 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 |---|---|
 | Porti il mouse sul personaggio | Si ingrandisce, fa un balzo, ti guarda e alza una mano |
 | Clicchi, o resti sopra per un attimo | Il personaggio fa un saltello e resta al suo posto; l'isola si apre accanto a lui (sotto, se sta in alto) con un'onda di luce, e nel menu compare una sua copia |
-| Clicchi il personaggio con l'isola aperta | L'isola si chiude |
+| Clicchi il personaggio (anche nella barra fissa) con l'isola aperta | Se l'isola è dietro un'altra finestra torna in primo piano; se è già davanti si chiude |
 | Trascini il personaggio | Si sposta dove lo lasci, anche su un altro schermo; la posizione resta nel profilo |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza fino ai bordi dello schermo. Doppio clic: misure predefinite |
 | Trascini l'isola aperta dalla barra in alto | Resta lì finché è aperta, poi torna al personaggio |

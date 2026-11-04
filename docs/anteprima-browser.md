@@ -215,7 +215,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |
 | `remote` | Accesso remoto | `guide`, `live`, `linked`, `error` |
-| `agentchat` | Agent Chat (con `activeIntegrations=integration_agentchat`) | `busy` (due motori rispondono), `off` (ascolto spento), `empty` (non configurata) |
+| `agentchat` | Agent Chat (con `activeIntegrations=integration_agentchat`) | `busy` (due motori rispondono, con chi sta lavorando, «preso da», «in coda», «nessuna risposta»), `write` (il campo per scrivere come te), `off` (ascolto spento), `empty` (non configurata) |
 | `teams` | Teams | `call` |
 | `threecx` | 3CX | — |
 | `capture` | il velo di «Riquadra e chiedi» (`window.capture` dice cosa ha chiesto a Rust) | — |
@@ -253,7 +253,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 
 | Pagina | Query |
 |---|---|
-| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto` |
+| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto` |
 | `memoria.html` | `tab=timeline\|graph\|graph3d\|mind\|concept`, `select=<id del nodo>` |
 | `anteprima.html` | `tab=<numero>` (di serie 2) |
 | `dev/character-preview.html` | `character=<id>` |

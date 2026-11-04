@@ -2,6 +2,19 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.23** — **Zammad nell'isola**: la scheda mostra le tue viste con i conteggi, apre il ticket con
+tutti i messaggi e ti fa cambiare stato (con il promemoria se è in attesa), proprietario e priorità,
+scrivere una nota interna o rispondere al cliente via email. **Devolutions Cloud** nella scheda RDM:
+vault e cartelle, «Copia password» negli appunti (svuotati dopo 30 secondi), nuove credenziali e
+Liste Password con anteprima e conferma, il cliente di Zammad o 3CX collegato alla sua cartella; anche
+dalla chat, con la password chiesta solo nella finestra di Windows. La **mappa della memoria** ha sei
+viste nuove (Galassia, Rete neurale, Bolle, Raggiera, Fiume, Da dove arriva) in un menu, i gruppi a
+colori, i filtri e «Come è collegato a…»; «Collega con l'IA» controlla i collegamenti stimati e tiene
+solo quelli giusti. Nella **chat** scrivi mentre risponde: i messaggi vanno in coda, con **Invia
+subito**. **Font** di titoli e testo da scegliere in Aspetto, anche per la barra fissa. **Agent Chat**
+dice chi sta lavorando e a cosa, e ci scrivi dall'isola con il tuo nome. Un clic sul personaggio con
+l'isola aperta dietro un'altra finestra la riporta **in primo piano** invece di chiuderla.
+
 **1.0.22** — **Chat e integrazioni in una finestra**: trascina la voce del menu fuori dall'isola, o premi
 la freccia in alto, e la chat o la scheda di un'integrazione diventa una finestra di Windows da spostare
 e allargare, con la barra delle applicazioni e Alt+Tab; lo stesso pulsante la rimette nell'isola.

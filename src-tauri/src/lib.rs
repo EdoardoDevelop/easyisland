@@ -7,6 +7,7 @@ mod appmenu;
 mod steps;
 mod collect;
 mod memory_ai;
+mod memory_links;
 mod preview;
 mod antigravity;
 mod agent;
@@ -61,6 +62,7 @@ mod todo;
 mod second;
 mod notion_page;
 mod rdm;
+mod dvc;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -549,6 +551,13 @@ fn set_app_mode(app: AppHandle, on: bool) {
     island::set_app_mode(&app, on);
 }
 
+/// A click on the character: the open island behind another window comes
+/// forward (true); already in front, false and the island closes it.
+#[tauri::command]
+fn island_to_front(app: AppHandle) -> bool {
+    island::to_front(&app)
+}
+
 /// A permission or a question while the pinned island is behind other windows.
 #[tauri::command]
 fn flash_if_behind(app: AppHandle) {
@@ -1005,6 +1014,57 @@ async fn rdm_status() -> rdm::Status {
 #[tauri::command]
 async fn rdm_data_sources() -> Result<Vec<serde_json::Value>, String> {
     rdm::data_sources().await
+}
+
+/// Devolutions Cloud (dvc.rs): on, entries, vaults, last sync, error.
+#[tauri::command]
+fn dvc_status() -> serde_json::Value {
+    dvc::summary()
+}
+
+/// Impostazioni → «Prova»: connects with the identity and lists the vaults.
+#[tauri::command]
+async fn dvc_test() -> Result<Vec<dvc::Vault>, String> {
+    dvc::test().await
+}
+
+/// The RDM card's cloud: a folder of a vault (from the saved list).
+#[tauri::command]
+fn dvc_browse(vault: String, path: String) -> dvc::Browse {
+    dvc::browse(&vault, &path)
+}
+
+/// An entry's details, passwords only as their length.
+#[tauri::command]
+async fn dvc_details(vault: String, id: String) -> Result<serde_json::Value, String> {
+    dvc::details(&vault, &id).await
+}
+
+/// «Copia password»: on the clipboard, private, emptied after a while; never to the front end.
+#[tauri::command]
+async fn dvc_copy_password(vault: String, id: String, row: Option<usize>) -> Result<u64, String> {
+    dvc::copy_password(&vault, &id, row).await.map(|_| dvc::CLIP_SECONDS)
+}
+
+/// A new credential: `confirm` false = the preview; true = written, read back and checked.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+async fn dvc_new_credential(app: AppHandle, vault: String, folder: String, name: String, user: String, domain: String, password: String, description: String, confirm: bool) -> Result<dvc::Outcome, String> {
+    let out = dvc::new_credential(dvc::NewCredential { vault, folder, name, user, domain, password, description }, confirm).await?;
+    if confirm {
+        rdm::changed(&app);
+    }
+    Ok(out)
+}
+
+/// A «Lista Password» from a folder's credentials: preview, or written and checked row by row.
+#[tauri::command]
+async fn dvc_new_password_list(app: AppHandle, vault: String, folder: String, name: String, source: String, recurse: bool, confirm: bool) -> Result<dvc::Outcome, String> {
+    let out = dvc::new_password_list(&vault, &folder, &name, dvc::Sources::Folder { path: source, recurse }, confirm).await?;
+    if confirm {
+        rdm::changed(&app);
+    }
+    Ok(out)
 }
 
 /// Impostazioni → Notion, first time: the databases that look like tasks or notes.
@@ -1592,6 +1652,12 @@ fn agentchat_restart() {
     agentchat::restart();
 }
 
+/// The island's Agent Chat card: a message as the owner (owner token, name from the settings).
+#[tauri::command]
+async fn agentchat_owner_send(app: AppHandle, room: String, text: String, thread: Option<i64>, files: Vec<String>) -> Result<agentchat::Msg, String> {
+    agentchat::owner_send(&app, &room, &text, thread, &files).await
+}
+
 /// «Riprendi» after a «stop» written in the chat.
 #[tauri::command]
 fn agentchat_resume() {
@@ -1916,10 +1982,23 @@ async fn memory_graph(app: AppHandle, source: Option<String>) -> Result<brain::G
     tauri::async_runtime::spawn_blocking(move || brain::graph_of(&source, other)).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
-/// «Collega con l'IA» (memory_ai.rs): the chosen engine ties the memory together; what was done.
+/// «Collega con l'IA»: on this PC the engine ties the memory together
+/// (memory_ai.rs), then judges the map's links (memory_links.rs); on the copy
+/// of another PC's memory only the links. What was done.
 #[tauri::command]
-async fn memory_link(app: AppHandle) -> Result<String, String> {
-    memory_ai::run(&app).await
+async fn memory_link(app: AppHandle, source: Option<String>) -> Result<String, String> {
+    let source = source.unwrap_or_default();
+    if !source.is_empty() {
+        return memory_links::judge(&app, &source).await;
+    }
+    let first = memory_ai::run(&app).await;
+    let links = memory_links::judge(&app, "").await;
+    match (first, links) {
+        (Ok(a), Ok(b)) => Ok(format!("{a} {b}")),
+        (Ok(a), Err(e)) => Ok(format!("{a} {e}")),
+        (Err(e), Ok(b)) => Ok(format!("{e} {b}")),
+        (Err(e), Err(_)) => Err(e),
+    }
 }
 
 /// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).
@@ -2009,6 +2088,30 @@ async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> 
 #[tauri::command]
 async fn zammad_prepare(id: i64) -> Result<zammad::TicketPrep, String> {
     zammad::prepare(id).await
+}
+
+/// The Zammad card: the overviews and the tickets of one.
+#[tauri::command]
+async fn zammad_tickets(view: Option<String>) -> Result<zammad::TicketList, String> {
+    zammad::tickets(view).await
+}
+
+/// The Zammad card: a ticket with its messages and the choices of its selects.
+#[tauri::command]
+async fn zammad_ticket(id: i64) -> Result<zammad::TicketDetail, String> {
+    zammad::ticket(id).await
+}
+
+/// The Zammad card: state, owner or priority changed in a select.
+#[tauri::command]
+async fn zammad_set(id: i64, field: String, value: i64, pending: Option<String>) -> Result<zammad::TicketDetail, String> {
+    zammad::set(id, &field, value, pending).await
+}
+
+/// The Zammad card: an internal note, or a reply by email after the second click.
+#[tauri::command]
+async fn zammad_reply(id: i64, text: String, email: bool) -> Result<zammad::TicketDetail, String> {
+    zammad::reply(id, &text, email).await
 }
 
 /// «Parla»: starts listening, or ends the question (talk.rs). Ok(true) = listening.
@@ -3627,6 +3730,32 @@ fn system_light() -> bool {
         .is_some_and(|v| v != 0)
 }
 
+/// Impostazioni → Aspetto → Font: the font families installed in Windows (GDI's
+/// list, vertical «@» faces left out), sorted.
+#[tauri::command]
+fn system_fonts() -> Vec<String> {
+    use windows::Win32::Foundation::LPARAM;
+    use windows::Win32::Graphics::Gdi::{EnumFontFamiliesExW, GetDC, ReleaseDC, DEFAULT_CHARSET, LOGFONTW, TEXTMETRICW};
+    unsafe extern "system" fn each(lf: *const LOGFONTW, _tm: *const TEXTMETRICW, _kind: u32, data: LPARAM) -> i32 {
+        // SAFETY: GDI hands a valid LOGFONTW; `data` is the set below, alive for the call.
+        let (lf, set) = unsafe { (&*lf, &mut *(data.0 as *mut std::collections::BTreeSet<String>)) };
+        let end = lf.lfFaceName.iter().position(|c| *c == 0).unwrap_or(lf.lfFaceName.len());
+        let name = String::from_utf16_lossy(lf.lfFaceName.get(..end).unwrap_or(&[]));
+        if !name.is_empty() && !name.starts_with('@') {
+            set.insert(name);
+        }
+        1
+    }
+    let mut set = std::collections::BTreeSet::<String>::new();
+    let lf = LOGFONTW { lfCharSet: DEFAULT_CHARSET, ..Default::default() };
+    unsafe {
+        let dc = GetDC(None);
+        EnumFontFamiliesExW(dc, &lf, Some(each), LPARAM(&mut set as *mut _ as isize), 0);
+        ReleaseDC(None, dc);
+    }
+    set.into_iter().collect()
+}
+
 /// The calling window's title bar, light or dark, with the page's scheme.
 #[tauri::command]
 fn set_window_light(window: tauri::WebviewWindow, light: bool) {
@@ -3904,6 +4033,7 @@ pub fn run() {
             save_settings,
             system_accent,
             system_light,
+            system_fonts,
             set_window_light,
             tasks_list,
             task_new,
@@ -3961,6 +4091,7 @@ pub fn run() {
             open_in_vscode,
             session_reply::session_reply,
             set_app_mode,
+            island_to_front,
             minimize_island,
             file_thumb,
             collect_load,
@@ -4048,6 +4179,10 @@ pub fn run() {
             memory_window_select,
             zammad_search,
             zammad_prepare,
+            zammad_tickets,
+            zammad_ticket,
+            zammad_set,
+            zammad_reply,
             talk_toggle,
             talk_cancel,
             talk_speak,
@@ -4185,6 +4320,13 @@ pub fn run() {
             rdm_quick,
             rdm_status,
             rdm_data_sources,
+            dvc_status,
+            dvc_test,
+            dvc_browse,
+            dvc_details,
+            dvc_copy_password,
+            dvc_new_credential,
+            dvc_new_password_list,
             notion_add_note,
             notion_forget_schemas,
             inbox_drag,
@@ -4227,6 +4369,7 @@ pub fn run() {
             agentchat_info,
             agentchat_restart,
             agentchat_resume,
+            agentchat_owner_send,
             agentchat_listen,
             work_list,
             work_open,

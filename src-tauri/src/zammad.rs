@@ -319,13 +319,8 @@ fn closed_state(ticket: &Value) -> bool {
 
 /// «Prepara» on ticket `id`.
 pub async fn prepare(id: i64) -> Result<TicketPrep, String> {
-    let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
-    if !base.starts_with("https://") && !base.starts_with("http://") {
-        return Err(t("Scrivi l'indirizzo di Zammad (https://…) in Impostazioni → Integrazioni").into());
-    }
-    let token = crate::secrets::get("zammad-token").ok_or_else(|| t("Incolla il token di accesso in Impostazioni → Integrazioni → Zammad").to_string())?;
-    let token = token.trim();
-    let c = client().ok_or_else(|| t("HTTP non disponibile").to_string())?;
+    let z = Conn::open()?;
+    let (c, base, token) = (&z.c, z.base.as_str(), z.token.as_str());
 
     let ticket = get_json(&c, &format!("{base}/api/v1/tickets/{id}?expand=true"), token).await?;
     let articles = get_json(&c, &format!("{base}/api/v1/ticket_articles/by_ticket/{id}"), token).await.unwrap_or(Value::Null);
@@ -376,6 +371,503 @@ pub async fn prepare(id: i64) -> Result<TicketPrep, String> {
         None => t("Ho questo ticket da gestire (i dati sono allegati). Cerca il cliente nella memoria con memory_search. Dimmi in breve cosa sappiamo di lui, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente."),
     };
     Ok(TicketPrep { label: title, context, question: question.to_string() })
+}
+
+// ── The card: tickets, their conversation, a reply, owner, state, priority ───
+// Asked by Edoardo on 4 November 2026: work a ticket without opening Zammad.
+// The lists are the agent's overviews (no Elasticsearch needed); a ticket is
+// `?all=true` (raw ids, users, group, the owners allowed per group in
+// `form_meta`) plus its articles. Writing: an internal note, or a reply by
+// email to the customer (the card asks a second click); state, owner and
+// priority are Zammad's selects, saved at once.
+
+/// Address, token and HTTP client, or what to set in the settings.
+struct Conn {
+    c: reqwest::Client,
+    base: String,
+    token: String,
+}
+
+impl Conn {
+    fn open() -> Result<Conn, String> {
+        let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
+        if !base.starts_with("https://") && !base.starts_with("http://") {
+            return Err(t("Scrivi l'indirizzo di Zammad (https://…) in Impostazioni → Integrazioni").into());
+        }
+        let token = crate::secrets::get("zammad-token").ok_or_else(|| t("Incolla il token di accesso in Impostazioni → Integrazioni → Zammad").to_string())?;
+        let c = client().ok_or_else(|| t("HTTP non disponibile").to_string())?;
+        Ok(Conn { c, base, token: token.trim().to_string() })
+    }
+
+    async fn get(&self, path: &str) -> Result<Value, String> {
+        get_json(&self.c, &format!("{}{path}", self.base), &self.token).await
+    }
+
+    /// A PUT or POST with a JSON body; Zammad's own message when it refuses.
+    async fn send(&self, method: reqwest::Method, path: &str, body: &Value) -> Result<Value, String> {
+        let resp = self
+            .c
+            .request(method, format!("{}{path}", self.base))
+            .header("Authorization", format!("Token token={}", self.token))
+            .header("Accept", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| if e.is_timeout() { t("Zammad non risponde (tempo scaduto)").to_string() } else { tf("Zammad non raggiungibile: {e}", &[("e", &e)]) })?;
+        let status = resp.status().as_u16();
+        let v: Value = resp.json().await.unwrap_or(Value::Null);
+        if (200..300).contains(&status) {
+            return Ok(v);
+        }
+        Err(refusal(status, &v))
+    }
+}
+
+/// Why Zammad refused a change: its `error_human`/`error`, else the status.
+fn refusal(status: u16, v: &Value) -> String {
+    let msg = ["error_human", "error"].iter().find_map(|k| v.get(*k).and_then(Value::as_str)).unwrap_or_default().trim();
+    match status {
+        401 => t("Token non valido o scaduto (401)").into(),
+        403 if msg.is_empty() => t("Zammad non permette questa modifica a questo utente (403)").into(),
+        _ if !msg.is_empty() => tf("Zammad: {e}", &[("e", &msg)]),
+        code => format!("Zammad: HTTP {code}"),
+    }
+}
+
+/// One choice of a select (a state, a priority, an agent).
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct Opt {
+    pub id: i64,
+    pub name: String,
+    /// A state's kind: new, open, pending, closed (`state_kind`); empty otherwise.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub kind: String,
+}
+
+/// States, priorities and who I am, read once every 10 minutes.
+#[derive(Clone)]
+struct Meta {
+    base: String,
+    at: std::time::Instant,
+    states: Vec<Opt>,
+    priorities: Vec<Opt>,
+    me: i64,
+}
+
+static META: Mutex<Option<Meta>> = Mutex::new(None);
+
+async fn meta(z: &Conn) -> Meta {
+    if let Some(m) = META.lock().unwrap().as_ref().filter(|m| m.base == z.base && m.at.elapsed().as_secs() < 600) {
+        return m.clone();
+    }
+    let states = z.get("/api/v1/ticket_states?expand=true").await.map(|v| options(&v, true)).unwrap_or_default();
+    let priorities = z.get("/api/v1/ticket_priorities").await.map(|v| options(&v, false)).unwrap_or_default();
+    let me = z.get("/api/v1/users/me").await.ok().and_then(|v| v.get("id")?.as_i64()).unwrap_or(0);
+    let m = Meta { base: z.base.clone(), at: std::time::Instant::now(), states, priorities, me };
+    if !m.states.is_empty() {
+        *META.lock().unwrap() = Some(m.clone());
+    }
+    m
+}
+
+/// The active records of a list as options; for states, with their kind.
+fn options(list: &Value, states: bool) -> Vec<Opt> {
+    list.as_array()
+        .into_iter()
+        .flatten()
+        .filter(|o| o.get("active").and_then(Value::as_bool) != Some(false))
+        .filter_map(|o| {
+            let name = o.get("name")?.as_str()?.to_string();
+            let kind = if states {
+                // `state_type` with ?expand=true; the name when it is missing.
+                state_kind(o.get("state_type").and_then(Value::as_str).unwrap_or(&name)).to_string()
+            } else {
+                String::new()
+            };
+            Some(Opt { id: o.get("id")?.as_i64()?, name, kind })
+        })
+        .collect()
+}
+
+/// Zammad's state type as new, open, pending, closed, or hidden (merged, removed).
+fn state_kind(kind: &str) -> &'static str {
+    let k = kind.to_lowercase();
+    if k.starts_with("pending") || k.contains("attesa") {
+        "pending"
+    } else if k == "new" || k == "nuovo" {
+        "new"
+    } else if k.contains("closed") || k.contains("chius") {
+        "closed"
+    } else if k == "merged" || k == "removed" || k.contains("unit") {
+        "hidden"
+    } else {
+        "open"
+    }
+}
+
+/// A user of the assets by id: "Nome Cognome", else the email or login.
+fn person(data: &Value, id: Option<i64>) -> String {
+    let Some(u) = id.and_then(|id| data.pointer(&format!("/assets/User/{id}"))) else { return String::new() };
+    user_name(u)
+}
+
+fn user_name(u: &Value) -> String {
+    let s = |k: &str| u.get(k).and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    let full = format!("{} {}", s("firstname"), s("lastname")).trim().to_string();
+    if !full.is_empty() && full != "-" {
+        full
+    } else if !s("email").is_empty() {
+        s("email")
+    } else {
+        s("login")
+    }
+}
+
+/// An overview of the agent (left in Zammad) with its count.
+#[derive(serde::Serialize)]
+pub struct OverviewTab {
+    pub link: String,
+    pub name: String,
+    pub count: i64,
+}
+
+/// A ticket in a list of the card.
+#[derive(Debug, serde::Serialize)]
+pub struct TicketRow {
+    pub id: i64,
+    pub number: String,
+    pub title: String,
+    /// The company, else the customer.
+    pub who: String,
+    pub state: String,
+    pub kind: String,
+    pub priority: String,
+    pub priority_id: i64,
+    /// Empty when nobody has it (owner 1 in Zammad).
+    pub owner: String,
+    pub owner_id: i64,
+    pub updated: String,
+    pub articles: i64,
+    pub url: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct TicketList {
+    pub overviews: Vec<OverviewTab>,
+    pub view: String,
+    pub tickets: Vec<TicketRow>,
+    pub me: i64,
+}
+
+fn name_of(list: &[Opt], id: i64) -> String {
+    list.iter().find(|o| o.id == id).map(|o| o.name.clone()).unwrap_or_default()
+}
+
+/// The tickets of an overview's data, in Zammad's order.
+fn rows(data: &Value, base: &str, states: &[Opt], priorities: &[Opt]) -> Vec<TicketRow> {
+    let Some(ids) = data.pointer("/index/tickets").and_then(Value::as_array) else { return Vec::new() };
+    ids.iter()
+        .filter_map(|x| {
+            let id = x.get("id").and_then(Value::as_i64).or_else(|| x.as_i64())?;
+            let tk = data.pointer(&format!("/assets/Ticket/{id}"))?;
+            let n = |k: &str| tk.get(k).and_then(Value::as_i64).unwrap_or(0);
+            let s = |k: &str| tk.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+            let state = states.iter().find(|o| o.id == n("state_id"));
+            let owner_id = n("owner_id");
+            Some(TicketRow {
+                id,
+                number: s("number"),
+                title: if s("title").is_empty() { t("(senza titolo)").to_string() } else { s("title") },
+                who: client_of(data, tk),
+                state: state.map(|o| o.name.clone()).unwrap_or_default(),
+                kind: state.map(|o| o.kind.clone()).unwrap_or_else(|| "open".into()),
+                priority: name_of(priorities, n("priority_id")),
+                priority_id: n("priority_id"),
+                owner: if owner_id > 1 { person(data, Some(owner_id)) } else { String::new() },
+                owner_id,
+                updated: s("updated_at"),
+                articles: n("article_count"),
+                url: format!("{base}/#ticket/zoom/{id}"),
+            })
+        })
+        .collect()
+}
+
+/// The overviews with their counts, and the tickets of `view` (else «assigned to me», else the first).
+pub async fn tickets(view: Option<String>) -> Result<TicketList, String> {
+    let z = Conn::open()?;
+    let list = z.get("/api/v1/ticket_overviews").await?;
+    let overviews: Vec<OverviewTab> = list
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|o| Some(OverviewTab {
+            link: o.get("link")?.as_str()?.to_string(),
+            name: o.get("name").and_then(Value::as_str).unwrap_or_default().to_string(),
+            count: o.get("count").and_then(Value::as_i64).unwrap_or(0),
+        }))
+        .collect();
+    if overviews.is_empty() {
+        return Err(t("Nessuna vista dei ticket: l'utente del token è un agente?").into());
+    }
+    let has = |l: &str| overviews.iter().any(|o| o.link == l);
+    let view = match view {
+        Some(v) if has(&v) => v,
+        _ if has(MY_ASSIGNED) => MY_ASSIGNED.to_string(),
+        _ => overviews[0].link.clone(),
+    };
+    let m = meta(&z).await;
+    let url = reqwest::Url::parse_with_params(&format!("{}/api/v1/ticket_overviews", z.base), &[("view", view.as_str())]).map_err(|e| e.to_string())?;
+    let data = get_json(&z.c, url.as_str(), &z.token).await?;
+    Ok(TicketList { tickets: rows(&data, &z.base, &m.states, &m.priorities), overviews, view, me: m.me })
+}
+
+/// A message of the ticket.
+#[derive(Debug, serde::Serialize)]
+pub struct Article {
+    pub id: i64,
+    pub from: String,
+    pub to: String,
+    /// Customer, Agent or System.
+    pub sender: String,
+    /// email, note, phone, web…
+    pub kind: String,
+    pub internal: bool,
+    pub at: String,
+    pub subject: String,
+    pub text: String,
+    pub files: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct TicketDetail {
+    pub id: i64,
+    pub number: String,
+    pub title: String,
+    pub url: String,
+    pub customer: String,
+    pub org: String,
+    pub group: String,
+    pub state_id: i64,
+    pub priority_id: i64,
+    pub owner_id: i64,
+    pub created: String,
+    pub updated: String,
+    pub pending: String,
+    pub states: Vec<Opt>,
+    pub priorities: Vec<Opt>,
+    pub owners: Vec<Opt>,
+    pub articles: Vec<Article>,
+    pub me: i64,
+    /// Where a reply by email goes: the customer's last address, else theirs.
+    pub reply_to: String,
+}
+
+/// The articles (by_ticket?expand=true) as the card's messages, oldest first.
+fn articles(list: &Value) -> Vec<Article> {
+    let mut out: Vec<Article> = list
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|a| {
+            let s = |k: &str| a.get(k).and_then(Value::as_str).unwrap_or_default().trim().to_string();
+            let body = s("body");
+            let text = if s("content_type").contains("html") { crate::brain::html_text(&body) } else { body };
+            let files = a.get("attachments").and_then(Value::as_array).into_iter().flatten()
+                .filter_map(|f| f.get("filename")?.as_str().map(str::to_string))
+                .collect();
+            Some(Article {
+                id: a.get("id")?.as_i64()?,
+                from: s("from"),
+                to: s("to"),
+                sender: s("sender"),
+                kind: s("type"),
+                internal: a.get("internal").and_then(Value::as_bool) == Some(true),
+                at: s("created_at"),
+                subject: s("subject"),
+                text: text.chars().take(20_000).collect(),
+                files,
+            })
+        })
+        .collect();
+    out.sort_by_key(|a| a.id);
+    out
+}
+
+/// The address of a reply by email: the customer's last message (reply-to, else from).
+fn reply_address(list: &[Article], raw: &Value) -> String {
+    let from_raw = |id: i64, k: &str| -> String {
+        raw.as_array().into_iter().flatten()
+            .find(|a| a.get("id").and_then(Value::as_i64) == Some(id))
+            .and_then(|a| a.get(k)?.as_str())
+            .unwrap_or_default().trim().to_string()
+    };
+    list.iter()
+        .rev()
+        .filter(|a| a.sender == "Customer" && !a.internal)
+        .map(|a| {
+            let r = from_raw(a.id, "reply_to");
+            if r.is_empty() { a.from.clone() } else { r }
+        })
+        .find(|x| x.contains('@'))
+        .unwrap_or_default()
+}
+
+/// The agents who can own a ticket of `group`: Zammad's `form_meta` of `?all=true`.
+fn owners_allowed(all: &Value, group: i64) -> Vec<i64> {
+    all.pointer(&format!("/form_meta/dependencies/group_id/{group}/owner_id"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|x| x.as_i64().or_else(|| x.as_str()?.parse().ok()))
+        .filter(|id| *id > 1)
+        .collect()
+}
+
+/// The states this ticket can take: `form_meta`'s filter, else every visible one.
+fn states_allowed(all: &Value, states: &[Opt], current: i64) -> Vec<Opt> {
+    let filter: Vec<i64> = all
+        .pointer("/form_meta/filter/state_id")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|x| x.as_i64().or_else(|| x.as_str()?.parse().ok()))
+        .collect();
+    states
+        .iter()
+        .filter(|o| o.id == current || if filter.is_empty() { o.kind != "hidden" } else { filter.contains(&o.id) })
+        .cloned()
+        .collect()
+}
+
+pub async fn ticket(id: i64) -> Result<TicketDetail, String> {
+    let z = Conn::open()?;
+    let all = z.get(&format!("/api/v1/tickets/{id}?all=true")).await?;
+    let tk = all.pointer(&format!("/assets/Ticket/{id}")).cloned().ok_or_else(|| t("Ticket non trovato").to_string())?;
+    let n = |k: &str| tk.get(k).and_then(Value::as_i64).unwrap_or(0);
+    let s = |k: &str| tk.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let m = meta(&z).await;
+    let raw = z.get(&format!("/api/v1/ticket_articles/by_ticket/{id}?expand=true")).await.unwrap_or(Value::Null);
+    let list = articles(&raw);
+
+    // Who can own it: the group's agents, else every active agent, with me and the owner there.
+    let group = n("group_id");
+    let mut owner_ids = owners_allowed(&all, group);
+    let mut owners: Vec<Opt> = owner_ids.iter().map(|uid| Opt { id: *uid, name: person(&all, Some(*uid)), kind: String::new() }).collect();
+    if owners.is_empty() || owners.iter().any(|o| o.name.is_empty()) {
+        let url = reqwest::Url::parse_with_params(&format!("{}/api/v1/users/search", z.base), &[("query", "*"), ("limit", "200"), ("role_ids[]", "2")]).map_err(|e| e.to_string())?;
+        if let Ok(found) = get_json(&z.c, url.as_str(), &z.token).await {
+            let agents: Vec<Opt> = found.as_array().into_iter().flatten()
+                .filter(|u| u.get("active").and_then(Value::as_bool) != Some(false))
+                .filter_map(|u| Some(Opt { id: u.get("id")?.as_i64()?, name: user_name(u), kind: String::new() }))
+                .filter(|o| o.id > 1)
+                .collect();
+            if owner_ids.is_empty() {
+                owners = agents;
+            } else {
+                for o in owners.iter_mut().filter(|o| o.name.is_empty()) {
+                    o.name = name_of(&agents, o.id);
+                }
+            }
+        }
+    }
+    owner_ids = owners.iter().map(|o| o.id).collect();
+    for uid in [n("owner_id"), m.me] {
+        if uid > 1 && !owner_ids.contains(&uid) {
+            let name = person(&all, Some(uid));
+            owners.push(Opt { id: uid, name: if name.is_empty() { format!("#{uid}") } else { name }, kind: String::new() });
+        }
+    }
+    for o in owners.iter_mut().filter(|o| o.name.is_empty()) {
+        o.name = format!("#{}", o.id);
+    }
+    owners.sort_by_key(|o| o.name.to_lowercase());
+    owners.insert(0, Opt { id: 1, name: t("— nessuno —").into(), kind: String::new() });
+
+    let customer_id = tk.get("customer_id").and_then(Value::as_i64);
+    let mut reply_to = reply_address(&list, &raw);
+    if reply_to.is_empty() {
+        reply_to = customer_id
+            .and_then(|c| all.pointer(&format!("/assets/User/{c}/email"))?.as_str().map(str::to_string))
+            .unwrap_or_default();
+    }
+    let org = tk.get("organization_id").and_then(Value::as_i64)
+        .and_then(|o| all.pointer(&format!("/assets/Organization/{o}/name"))?.as_str().map(str::to_string))
+        .unwrap_or_default();
+    let group_name = all.pointer(&format!("/assets/Group/{group}/name")).and_then(Value::as_str).unwrap_or_default().to_string();
+    Ok(TicketDetail {
+        id,
+        number: s("number"),
+        title: if s("title").is_empty() { t("(senza titolo)").to_string() } else { s("title") },
+        url: format!("{}/#ticket/zoom/{id}", z.base),
+        customer: person(&all, customer_id),
+        org,
+        group: group_name,
+        state_id: n("state_id"),
+        priority_id: n("priority_id"),
+        owner_id: n("owner_id"),
+        created: s("created_at"),
+        updated: s("updated_at"),
+        pending: s("pending_time"),
+        states: states_allowed(&all, &m.states, n("state_id")),
+        priorities: m.priorities.clone(),
+        owners,
+        articles: list,
+        me: m.me,
+        reply_to,
+    })
+}
+
+/// A select of the card: state (with the reminder's date when pending), owner or priority.
+pub async fn set(id: i64, field: &str, value: i64, pending: Option<String>) -> Result<TicketDetail, String> {
+    if !["state_id", "owner_id", "priority_id"].contains(&field) {
+        return Err(t("Campo non modificabile").into());
+    }
+    let z = Conn::open()?;
+    let mut body = serde_json::json!({ field: value });
+    if let Some(p) = pending.filter(|p| !p.trim().is_empty()) {
+        body["pending_time"] = Value::String(p);
+    }
+    z.send(reqwest::Method::PUT, &format!("/api/v1/tickets/{id}"), &body).await?;
+    ticket(id).await
+}
+
+/// Plain text as the HTML of an article: escaped, lines kept.
+fn text_html(text: &str) -> String {
+    text.trim()
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace("\r\n", "\n")
+        .replace('\n', "<br>")
+}
+
+/// An internal note, or a reply by email to the customer (sent by Zammad).
+pub async fn reply(id: i64, text: &str, email: bool) -> Result<TicketDetail, String> {
+    if text.trim().is_empty() {
+        return Err(t("Scrivi il messaggio").into());
+    }
+    let z = Conn::open()?;
+    let mut article = serde_json::json!({
+        "ticket_id": id,
+        "body": text_html(text),
+        "content_type": "text/html",
+        "type": "note",
+        "internal": true,
+        "sender": "Agent",
+    });
+    if email {
+        let now = ticket(id).await?;
+        if now.reply_to.is_empty() {
+            return Err(t("Il cliente non ha un indirizzo email: rispondi da Zammad").into());
+        }
+        article["type"] = "email".into();
+        article["internal"] = false.into();
+        article["to"] = now.reply_to.into();
+        article["subject"] = now.title.into();
+    }
+    z.send(reqwest::Method::POST, "/api/v1/ticket_articles", &article).await?;
+    ticket(id).await
 }
 
 pub async fn probe(w: &Widget) -> WidgetResult {
@@ -498,6 +990,72 @@ mod tests {
         assert_eq!(hits[0].url, "https://help.x.it/#ticket/zoom/7");
         assert_eq!(hits[1].title, "#10003 VPN — Anna Bianchi");
         assert!(tickets_found(&json!({}), "https://x", 5).is_empty());
+    }
+
+    #[test]
+    fn card_rows_in_zammads_order() {
+        let states = options(&json!([
+            {"id": 1, "name": "nuovo", "state_type": "new"},
+            {"id": 2, "name": "aperto", "state_type": "open"},
+            {"id": 3, "name": "in attesa", "state_type": "pending reminder"},
+            {"id": 4, "name": "chiuso", "state_type": "closed"},
+            {"id": 5, "name": "unito", "state_type": "merged"},
+            {"id": 9, "name": "vecchio", "active": false}
+        ]), true);
+        assert_eq!(states.iter().map(|o| o.kind.as_str()).collect::<Vec<_>>(), vec!["new", "open", "pending", "closed", "hidden"]);
+        let prios = options(&json!([{"id": 2, "name": "2 normale"}]), false);
+        let data = json!({
+            "index": {"tickets": [{"id": 12}, {"id": 7}]},
+            "assets": {
+                "Ticket": {
+                    "7": {"number": "31007", "title": "Stampante", "state_id": 3, "priority_id": 2, "owner_id": 4, "customer_id": 8, "article_count": 5, "updated_at": "2026-11-04T08:00:00Z"},
+                    "12": {"number": "31012", "title": "", "state_id": 1, "owner_id": 1, "organization_id": 6}
+                },
+                "User": {"4": {"firstname": "Edoardo", "lastname": "R"}, "8": {"firstname": "Anna", "lastname": "Bianchi"}},
+                "Organization": {"6": {"name": "Rossi Srl"}}
+            }
+        });
+        let r = rows(&data, "https://h.it", &states, &prios);
+        assert_eq!(r.len(), 2);
+        assert_eq!((r[0].id, r[0].title.as_str(), r[0].who.as_str(), r[0].kind.as_str(), r[0].owner.as_str()), (12, "(senza titolo)", "Rossi Srl", "new", ""));
+        assert_eq!((r[1].owner.as_str(), r[1].state.as_str(), r[1].priority.as_str(), r[1].articles), ("Edoardo R", "in attesa", "2 normale", 5));
+        assert_eq!(r[1].url, "https://h.it/#ticket/zoom/7");
+    }
+
+    #[test]
+    fn conversation_owners_and_states() {
+        let raw = json!([
+            {"id": 30, "from": "Agente", "sender": "Agent", "type": "note", "internal": true, "body": "provo io", "content_type": "text/plain"},
+            {"id": 21, "from": "Anna <anna@rossi.it>", "reply_to": "help@rossi.it", "sender": "Customer", "type": "email", "body": "<p>Non stampa</p><p>grazie</p>", "content_type": "text/html", "attachments": [{"filename": "foto.jpg"}]}
+        ]);
+        let list = articles(&raw);
+        assert_eq!(list.iter().map(|a| a.id).collect::<Vec<_>>(), vec![21, 30]);
+        assert_eq!(list[0].text, "Non stampa\ngrazie");
+        assert_eq!(list[0].files, vec!["foto.jpg"]);
+        assert!(list[1].internal);
+        assert_eq!(reply_address(&list, &raw), "help@rossi.it");
+
+        let all = json!({"form_meta": {
+            "dependencies": {"group_id": {"3": {"owner_id": [1, 4, "7"]}}},
+            "filter": {"state_id": [2, 4]}
+        }});
+        assert_eq!(owners_allowed(&all, 3), vec![4, 7]);
+        assert!(owners_allowed(&all, 9).is_empty());
+        let st = vec![
+            Opt { id: 1, name: "nuovo".into(), kind: "new".into() },
+            Opt { id: 2, name: "aperto".into(), kind: "open".into() },
+            Opt { id: 4, name: "chiuso".into(), kind: "closed".into() },
+            Opt { id: 5, name: "unito".into(), kind: "hidden".into() },
+        ];
+        assert_eq!(states_allowed(&all, &st, 1).iter().map(|o| o.id).collect::<Vec<_>>(), vec![1, 2, 4]);
+        assert_eq!(states_allowed(&json!({}), &st, 2).iter().map(|o| o.id).collect::<Vec<_>>(), vec![1, 2, 4]);
+    }
+
+    #[test]
+    fn writing_and_refusals() {
+        assert_eq!(text_html(" Ciao <Anna> & co\nriga 2 "), "Ciao &lt;Anna&gt; &amp; co<br>riga 2");
+        assert_eq!(refusal(422, &json!({"error_human": "Manca la data"})), "Zammad: Manca la data");
+        assert_eq!(refusal(500, &Value::Null), "Zammad: HTTP 500");
     }
 
     #[test]

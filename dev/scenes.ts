@@ -380,7 +380,18 @@ export async function runScene(island: Island, scene: string) {
             m(4, "vps/claude", "Buongiorno. Il backup di stanotte è andato a buon fine.", 400, { verified: false }),
             m(5, "edoardo", "aggiornate le dipendenze del progetto sito e fate girare i test", 120),
             m(6, "casa/claude", "Lo prendo io per le dipendenze. @casa/opencode tu fai girare i test quando ho finito e scrivi FATTO: con il risultato.", 100),
+            m(7, "edo", "@lia controlla anche lo spazio sul server", 30, { human: true }),
           ],
+          // &busy also shows who is working (GET /api/status); &write: the field to write as the owner.
+          names: { "casa/claude": "lia" },
+          activity: q.has("busy") ? {
+            now,
+            active: [{ by: "casa/claude", message: 7, state: "tools", detail: "Esegue", since: now - 12 }, { by: "casa/opencode", message: 5, state: "queued", since: now - 40 }],
+            claims: { 5: "casa/claude", 7: "casa/claude" },
+            outcomes: { 5: { "casa/antigravity": "silent" } },
+            online: { casa: true },
+          } : null,
+          canWrite: q.has("write"), ownerName: "edo", rooms: ["general", "lavoro"],
         },
       };
       State.setFocus("integration_agentchat");
@@ -722,13 +733,159 @@ export async function runScene(island: Island, scene: string) {
       });
       State.settings.integrationConfig.rdmPins = nolist ? [] : [list[4]];
       State.settings.integrationConfig.rdmRecent = nolist ? [] : [list[1], list[3]];
+      // &cloud: Devolutions Cloud with a made-up vault (dvc.ts); &tied: «Farmacia Falchi» tied to its folder.
+      const cloud = q.has("cloud") || q.has("tied");
+      if (cloud) {
+        const V = "11111111-1111-4111-8111-111111111111";
+        const item = (n: number, name: string, kind: string, folder: string, extra: Partial<{ host: string; user: string; cred: string; path: string }> = {}) =>
+          ({ id: id(100 + n), name, kind, folder, path: extra.path ?? "", host: extra.host ?? "", user: extra.user ?? "", cred: extra.cred ?? "", vault: V });
+        const items = [
+          item(1, "Easytech", "Group", "", { path: "Easytech" }),
+          item(2, "FARMACIA FALCHI", "Group", "Easytech", { path: "Easytech\\FARMACIA FALCHI" }),
+          item(3, "COMUNALE 1", "Group", "Easytech\\FARMACIA FALCHI", { path: "Easytech\\FARMACIA FALCHI\\COMUNALE 1" }),
+          item(4, "Server farmacia", "RDPConfigured", "Easytech\\FARMACIA FALCHI", { host: "192.168.10.5" }),
+          item(5, "Amministratore dominio", "Credential", "Easytech\\FARMACIA FALCHI", { user: "FALCHI\\admin", cred: "Default" }),
+          item(6, "Firewall", "Credential", "Easytech\\FARMACIA FALCHI", { user: "admin", cred: "Default" }),
+          item(7, "Lista Password", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { cred: "PasswordList" }),
+          item(8, "NAS", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { user: "admin", cred: "Default" }),
+          item(9, "ROSSI SRL", "Group", "Easytech", { path: "Easytech\\ROSSI SRL" }),
+        ];
+        const browse = (vault: string, path: string) => {
+          const p = path.replace(/\\$/, "");
+          const folders = new Map<string, { name: string; path: string; count: number }>();
+          for (const e of items) {
+            const at = e.kind === "Group" ? e.path : e.folder;
+            const rest = p ? (at.toLowerCase().startsWith(p.toLowerCase() + "\\") ? at.slice(p.length + 1) : "") : at;
+            const name = rest.split("\\")[0];
+            if (!name) continue;
+            const f = folders.get(name) ?? { name, path: p ? `${p}\\${name}` : name, count: 0 };
+            if (e.kind !== "Group") f.count++;
+            folders.set(name, f);
+          }
+          return { vault: vault || V, path: p, vaults: [{ id: V, name: "Edoardo" }], folders: [...folders.values()],
+            entries: items.filter((e) => e.kind !== "Group" && e.folder.toLowerCase() === p.toLowerCase()) };
+        };
+        Object.assign(Bridge, {
+          dvcBrowse: async (vault: string, path: string) => browse(vault, path),
+          dvcDetails: async (_v: string, eid: string) => {
+            await wait(200);
+            const e = items.find((x) => x.id === eid);
+            return e?.cred === "PasswordList"
+              ? { name: e.name, kind: "Credential", cred: "PasswordList", folder: e.folder, host: "", user: "", domain: "", length: 0, description: "",
+                rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 10, description: "" }] }
+              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
+          },
+          dvcCopyPassword: async () => { await wait(200); return 30; },
+          dvcNewCredential: async (a: { name: string; folder: string; user: string; password: string; confirm: boolean }) => {
+            await wait(300);
+            if (!a.confirm) return { preview: [`Nuova credenziale «${a.name}» in «${a.folder}»`, `Utente: ${a.user}`, `Password: ${a.password.length} caratteri`], id: "", rows: [] };
+            items.push(item(items.length + 1, a.name, "Credential", a.folder, { user: a.user, cred: "Default" }));
+            return { preview: [], id: id(999), rows: [{ row: a.name, userOk: true, passwordOk: true }] };
+          },
+          dvcNewPasswordList: async (a: { name: string; folder: string; confirm: boolean }) => {
+            await wait(300);
+            const src = items.filter((e) => e.folder === a.folder && e.kind === "Credential" && e.cred !== "PasswordList");
+            if (!a.confirm) return { preview: [`Nuova «${a.name}» in «${a.folder}» con ${src.length} righe:`, ...src.map((s) => `• ${s.name} — ${s.user}`), "Le credenziali di partenza restano dove sono."], id: "", rows: [] };
+            items.push(item(items.length + 1, a.name, "Credential", a.folder, { cred: "PasswordList" }));
+            return { preview: [], id: id(998), rows: src.map((s) => ({ row: s.name, userOk: true, passwordOk: true })) };
+          },
+        });
+        if (q.has("tied")) State.settings.integrationConfig.rdmFolders = { "farmacia falchi": { vault: V, path: "Easytech\\FARMACIA FALCHI" } };
+      }
       await wait(300);
-      State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true }, error: null, loaded: true, configured: true };
+      const cloudData = cloud ? { cloud: { on: true, count: 6, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
+      State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true, ...cloudData } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true, ...cloudData }, error: null, loaded: true, configured: true };
       State.setFocus("integration_rdm");
       island.alert("overview");
-      if (q.get("q")) {
+      if (q.get("q") || q.has("tied")) {
         await wait(600);
-        rdmLookFor(q.get("q") ?? "");
+        rdmLookFor(q.get("q") ?? "Farmacia Falchi");
+      }
+      await wait(1500);
+      break;
+    }
+    case "zammad": {
+      // ?activeIntegrations=integration_zammad — the card with made-up tickets (Bridge mocked);
+      // &open: ticket 31012 open; &email: and «Rispondi al cliente» chosen.
+      const q = new URLSearchParams(location.search);
+      const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+      const states = [
+        { id: 1, name: "nuovo", kind: "new" }, { id: 2, name: "aperto", kind: "open" },
+        { id: 3, name: "in attesa di promemoria", kind: "pending" }, { id: 4, name: "chiuso", kind: "closed" },
+      ];
+      const priorities = [{ id: 1, name: "1 bassa" }, { id: 2, name: "2 normale" }, { id: 3, name: "3 alta" }];
+      const owners = [{ id: 1, name: "— nessuno —" }, { id: 4, name: "Edoardo" }, { id: 5, name: "Marco Verdi" }, { id: 6, name: "Sara Neri" }];
+      const row = (id: number, title: string, who: string, state: number, prio: number, owner: number, min: number, articles: number) => ({
+        id, number: String(31000 + id), title, who, state: states[state - 1].name, kind: states[state - 1].kind,
+        priority: priorities[prio - 1].name, priority_id: prio, owner: owners.find((o) => o.id === owner && owner > 1)?.name ?? "", owner_id: owner,
+        updated: ago(min), articles, url: `https://help.example.it/#ticket/zoom/${id}`,
+      });
+      const lists: Record<string, ReturnType<typeof row>[]> = {
+        my_assigned: [
+          row(12, "VPN non si collega dallo smart working", "Farmacia Falchi", 2, 3, 4, 12, 4),
+          row(9, "Stampante etichette ferma in magazzino", "Rossi Srl", 3, 2, 4, 95, 6),
+          row(7, "Nuovo utente per la segreteria", "Studio Bianchi", 2, 1, 4, 60 * 26, 2),
+        ],
+        all_unassigned: [
+          row(14, "Posta non arriva su Outlook", "Comune di Prova", 1, 2, 1, 4, 1),
+          row(13, "Rinnovo certificato SSL del sito", "Rossi Srl", 1, 2, 1, 50, 1),
+        ],
+        all_escalated: [],
+      };
+      const detail = {
+        id: 12, number: "31012", title: "VPN non si collega dallo smart working", url: "https://help.example.it/#ticket/zoom/12",
+        customer: "Anna Bianchi", org: "Farmacia Falchi", group: "Assistenza", state_id: 2, priority_id: 3, owner_id: 4,
+        created: ago(60 * 5), updated: ago(12), pending: "", states, priorities, owners, me: 4, reply_to: "anna.bianchi@falchi.example.it",
+        articles: [
+          { id: 1, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(60 * 5), subject: "VPN",
+            text: "Buongiorno,\nda stamattina il client VPN dal portatile di casa resta su «Connessione in corso» e poi va in errore 809.\nIeri funzionava. Potete controllare?\n\nGrazie,\nAnna", files: ["errore-vpn.png"] },
+          { id: 2, from: "Edoardo", to: "", sender: "Agent", kind: "note", internal: true, at: ago(60 * 4), subject: "",
+            text: "Il firewall è stato aggiornato ieri sera: probabilmente la regola L2TP è sparita. Controllo.", files: [] },
+          { id: 3, from: "Edoardo <assistenza@example.it>", to: "anna.bianchi@falchi.example.it", sender: "Agent", kind: "email", internal: false, at: ago(60 * 3), subject: "VPN",
+            text: "Buongiorno Anna,\nstiamo verificando la configurazione del firewall. Le scrivo appena ho novità.", files: [] },
+          { id: 4, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(12), subject: "Re: VPN",
+            text: "Grazie! Mi serve entro le 15 per la riunione.", files: [] },
+        ],
+      };
+      Object.assign(Bridge, {
+        zammadTickets: async (view: string | null) => {
+          await wait(150);
+          const v = view && view in lists ? view : "my_assigned";
+          return {
+            overviews: [
+              { link: "my_assigned", name: "I miei ticket assegnati", count: lists.my_assigned.length },
+              { link: "all_unassigned", name: "Non assegnati e aperti", count: lists.all_unassigned.length },
+              { link: "all_escalated", name: "Ticket in escalation", count: 0 },
+            ],
+            view: v, me: 4, tickets: lists[v],
+          };
+        },
+        zammadTicket: async () => { await wait(150); return { ...detail }; },
+        zammadSet: async (_id: number, field: "state_id" | "owner_id" | "priority_id", value: number) => {
+          await wait(300);
+          Object.assign(detail, { [field]: value });
+          return { ...detail };
+        },
+        zammadReply: async (_id: number, text: string, email: boolean) => {
+          await wait(300);
+          detail.articles.push({ id: detail.articles.length + 1, from: "Edoardo", to: email ? detail.reply_to : "", sender: "Agent", kind: email ? "email" : "note",
+            internal: !email, at: new Date().toISOString(), subject: "", text, files: [] });
+          return { ...detail, articles: [...detail.articles] };
+        },
+        widgetRefresh: async () => {},
+      });
+      State.widgetStatus.integration_zammad = {
+        id: "integration_zammad", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
+        summary: "2 non assegnati · 3 assegnati a te", fields: [],
+      };
+      State.setFocus("integration_zammad");
+      State.isPinned = true;
+      island.alert("overview");
+      if (q.has("open") || q.has("email")) {
+        await wait(500);
+        document.querySelector<HTMLElement>(".zm-row")?.click();
+        await wait(400);
+        if (q.has("email")) document.querySelectorAll<HTMLElement>(".zm-mode")[1]?.click();
       }
       await wait(1500);
       break;

@@ -129,6 +129,20 @@ pub(crate) struct Msg {
     /// Who took it on (`claim`): one agent works on it.
     #[serde(default)]
     pub claimed_by: Option<String>,
+    /// Written by the owner: from the page, or from an app with the owner
+    /// token (`owner_send`), maybe under a name chosen there.
+    #[serde(default)]
+    pub human: bool,
+}
+
+/// A message of the owner signed with another name (EasyIsland's «Il tuo
+/// nome») is the owner's for every rule and prompt.
+pub(crate) fn as_owner(m: Msg, owner: &str) -> Msg {
+    if m.human && m.verified && !owner.is_empty() && m.sender.to_lowercase() != owner {
+        Msg { sender: owner.to_string(), ..m }
+    } else {
+        m
+    }
 }
 
 /// An attachment as the server describes it.
@@ -197,7 +211,17 @@ static CHAIN: LazyLock<Mutex<Chain>> = LazyLock::new(|| Mutex::new(Chain::defaul
 static LIMIT_TOLD: Mutex<Option<Instant>> = Mutex::new(None);
 /// The last messages of the followed rooms, for the island's card.
 static RECENT: Mutex<VecDeque<Msg>> = Mutex::new(VecDeque::new());
-const RECENT_MAX: usize = 40;
+const RECENT_MAX: usize = 100;
+/// Until when the card reads who is working (GET /api/status): a few minutes
+/// after a message, then nothing.
+static STIRRED: Mutex<Option<Instant>> = Mutex::new(None);
+/// The server's /api/status as last read (the card shows it).
+static ACTIVITY: Mutex<Value> = Mutex::new(Value::Null);
+const OWNER_TOKEN_KEY: &str = "agentchat-owner-token";
+
+fn stir() {
+    *STIRRED.lock().unwrap() = Some(Instant::now() + Duration::from_secs(180));
+}
 /// For `publish`, from wherever the status changes.
 static APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
 /// The names in the chat (`/api/aliases`): «lia» → «casa/claude».
@@ -331,6 +355,9 @@ fn set_status(change: impl FnOnce(&mut Status)) {
 }
 
 fn remember(list: &[Msg]) {
+    if !list.is_empty() {
+        stir();
+    }
     let mut r = RECENT.lock().unwrap();
     for m in list {
         if r.iter().all(|x| x.id != m.id) {
@@ -374,6 +401,10 @@ pub fn publish(app: &AppHandle) {
         "engines": engines,
         "names": names,
         "messages": RECENT.lock().unwrap().iter().cloned().collect::<Vec<_>>(),
+        "activity": ACTIVITY.lock().unwrap().clone(),
+        "canWrite": crate::secrets::get(OWNER_TOKEN_KEY).is_some_and(|t| !t.trim().is_empty()),
+        "ownerName": owner_name(app),
+        "rooms": cfg.rooms,
     });
     crate::integrations::emit(app, crate::integrations::IntegrationUpdate { id: ID, data, error: None, event: None });
 }
@@ -695,6 +726,35 @@ async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
 pub fn spawn(app: AppHandle) {
     let _ = APP.set(app.clone());
     crate::memshare::spawn(app.clone());
+    // Who is on it (the card): read only for a few minutes after a message.
+    tauri::async_runtime::spawn({
+        let app = app.clone();
+        async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(2500)).await;
+                let live = STIRRED.lock().unwrap().is_some_and(|t| Instant::now() < t) || WORKING.load(Ordering::SeqCst) > 0;
+                let Some(srv) = connected().filter(|_| live) else {
+                    let had = !ACTIVITY.lock().unwrap().is_null();
+                    if had && !live {
+                        *ACTIVITY.lock().unwrap() = Value::Null;
+                        publish(&app);
+                    }
+                    continue;
+                };
+                // An older server has no /api/status: nothing to show.
+                let now = get(&srv, "/api/status", 8).await.unwrap_or(Value::Null);
+                let changed = {
+                    let mut a = ACTIVITY.lock().unwrap();
+                    let same = strip_now(&a) == strip_now(&now);
+                    *a = now;
+                    !same
+                };
+                if changed {
+                    publish(&app);
+                }
+            }
+        }
+    });
     tauri::async_runtime::spawn(async move {
         let mut offset: i64 = 0;
         let mut ready_for = String::new();
@@ -736,6 +796,11 @@ pub fn spawn(app: AppHandle) {
                         offset = last;
                         save_cursor(&cursor_key, offset);
                         ready_for = key;
+                        // The card starts with the conversation, not empty.
+                        if let Ok(list) = messages(&srv, &config(&app).rooms.join(","), -60, 0, None).await {
+                            remember(&list);
+                            publish(&app);
+                        }
                     }
                     Err(e) => {
                         log::line(format!("agentchat: {e}"));
@@ -790,6 +855,139 @@ pub fn spawn(app: AppHandle) {
             }
         }
     });
+}
+
+/// /api/status without the server's clock, to tell a real change.
+fn strip_now(v: &Value) -> Value {
+    let mut v = v.clone();
+    if let Some(o) = v.as_object_mut() {
+        o.remove("now");
+    }
+    v
+}
+
+/// The name the owner writes with from here: the setting, else the owner's.
+fn owner_name(app: &AppHandle) -> String {
+    let set = app.state::<crate::Shared>().settings.lock().unwrap().integration_config.agentchat_owner_name.trim().to_lowercase();
+    if set.is_empty() { STATUS.lock().unwrap().owner.clone() } else { set }
+}
+
+/// The card's field: a message as the owner, with the owner token (not the
+/// agents' one), under the name chosen in the settings; files of this PC attached.
+pub async fn owner_send(app: &AppHandle, room: &str, text: &str, thread: Option<i64>, files: &[String]) -> Result<Msg, String> {
+    let url = crate::secrets::get(URL_KEY).and_then(|u| clean_url(&u)).ok_or_else(|| t("Manca l'indirizzo di Agent Chat (Impostazioni → Integrazioni → Agent Chat)."))?;
+    let token = crate::secrets::get(OWNER_TOKEN_KEY).filter(|t| !t.trim().is_empty())
+        .ok_or_else(|| t("Per scrivere come te serve il «Token per scrivere come te»: crealo nella pagina della chat (menu → Scrivere da un'app) e incollalo in Impostazioni → Integrazioni → Agent Chat."))?;
+    let srv = Server { url, token: token.trim().to_string() };
+    if text.trim().is_empty() && files.is_empty() {
+        return Err(t("Scrivi un messaggio.").into());
+    }
+    if files.len() > 10 {
+        return Err(t("Al massimo 10 allegati per messaggio.").into());
+    }
+    let mut ids = Vec::new();
+    for p in files {
+        ids.push(upload(&srv, p).await?.id);
+    }
+    let room = room.trim();
+    let room = if room.is_empty() || room == "*" || room.contains(',') {
+        config(app).rooms.into_iter().find(|r| r != "*").unwrap_or_else(|| "general".into())
+    } else {
+        room.to_string()
+    };
+    let set = app.state::<crate::Shared>().settings.lock().unwrap().integration_config.agentchat_owner_name.trim().to_lowercase();
+    let m = post_with(&srv, &room, text.trim(), &set, thread, "msg", &ids).await?;
+    remember(std::slice::from_ref(&m));
+    publish(app);
+    Ok(m)
+}
+
+/// What an engine is doing with a message, told to the server (/api/status)
+/// from the engine's own events: started, a tool, text coming, the end. No
+/// tokens, nothing in the chat. In order, one request at a time; the state is
+/// told again every 45 s while it lasts (the server forgets it after 2 minutes).
+struct Reporter {
+    tx: tokio::sync::mpsc::UnboundedSender<(String, String)>,
+    last: Mutex<(String, String, Option<Instant>)>,
+    ended: AtomicBool,
+}
+
+const WORKING_STATES: [&str; 4] = ["queued", "thinking", "tools", "writing"];
+
+impl Reporter {
+    fn start(srv: &Server, id: i64, by: &str) -> Reporter {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
+        let (srv, by) = (srv.clone(), by.to_string());
+        tauri::async_runtime::spawn(async move {
+            let mut now: Option<(String, String)> = None;
+            loop {
+                match tokio::time::timeout(Duration::from_secs(45), rx.recv()).await {
+                    Ok(Some(s)) => {
+                        send_status(&srv, id, &by, &s.0, &s.1).await;
+                        let end = !WORKING_STATES.contains(&s.0.as_str());
+                        now = Some(s);
+                        if end {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(_) => {
+                        if let Some(s) = &now {
+                            send_status(&srv, id, &by, &s.0, &s.1).await;
+                        }
+                    }
+                }
+            }
+        });
+        Reporter { tx, last: Mutex::new((String::new(), String::new(), None)), ended: AtomicBool::new(false) }
+    }
+
+    /// A working state; the same again only when its detail changed, at most every 1.5 s.
+    fn set(&self, state: &str, detail: &str) {
+        let mut l = self.last.lock().unwrap();
+        if l.0 == state && (l.1 == detail || l.2.is_some_and(|t| t.elapsed() < Duration::from_millis(1500))) {
+            return;
+        }
+        *l = (state.to_string(), detail.to_string(), Some(Instant::now()));
+        let _ = self.tx.send((state.to_string(), detail.to_string()));
+    }
+
+    /// "done", "silent" (nothing to say) or "failed".
+    fn end(&self, state: &str) {
+        if !self.ended.swap(true, Ordering::SeqCst) {
+            let _ = self.tx.send((state.to_string(), String::new()));
+        }
+    }
+
+    /// The streamed text so far: a tool step last («> ⚙ Legge · …») or words.
+    fn seen(&self, text: &str) {
+        let (state, detail) = activity_of(text);
+        self.set(state, &detail);
+    }
+}
+
+impl Drop for Reporter {
+    fn drop(&mut self) {
+        self.end("done");
+    }
+}
+
+/// From the shown text: "tools" with the tool's label only (never its
+/// argument: a command or a path stays on this PC), "writing", or "thinking".
+pub(crate) fn activity_of(text: &str) -> (&'static str, String) {
+    let last = text.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or_default().trim_start();
+    if let Some(step) = last.strip_prefix("> ⚙") {
+        let label: String = step.split('·').next().unwrap_or_default().trim().chars().take(40).collect();
+        return ("tools", label);
+    }
+    if text.trim().is_empty() { ("thinking", String::new()) } else { ("writing", String::new()) }
+}
+
+async fn send_status(srv: &Server, id: i64, by: &str, state: &str, detail: &str) {
+    let Ok(c) = client(10) else { return };
+    let body = json!({ "message": id, "state": state, "sender": by, "detail": detail });
+    // An older server answers 404: no status there, nothing else changes.
+    let _ = c.post(format!("{}/api/status", srv.url)).bearer_auth(&srv.token).json(&body).send().await;
 }
 
 /// What a message asks of this EasyIsland.
@@ -990,6 +1188,7 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
         let s = STATUS.lock().unwrap();
         (s.name.clone(), s.owner.clone())
     };
+    let m = as_owner(m, &owner);
     let cfg = config(app);
     let from_owner = m.sender.to_lowercase() == owner && m.verified;
     // «sì 1234» / «no 1234»: an answer to a permission, never a message for every engine.
@@ -1108,7 +1307,8 @@ fn transcript(list: &[Msg]) -> String {
                 "synthesis" => " (sintesi)",
                 _ => "",
             };
-            let who = shown(&x.sender);
+            let owner = STATUS.lock().unwrap().owner.clone();
+            let who = if x.human && x.verified && !owner.is_empty() { owner } else { shown(&x.sender) };
             let taken = x.claimed_by.as_deref().map(|c| tf(" (preso in carico da {who})", &[("who", &name_of(c))])).unwrap_or_default();
             if x.files.is_empty() {
                 format!("#{} [{who}{mark}]{kind}{taken}: {text}", x.id)
@@ -1155,14 +1355,14 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
     Some(clean.chars().take(MAX_REPLY).collect())
 }
 
-async fn engine_turn(app: &AppHandle, engine: &str, prompt: String, later: Option<crate::claude::Later>) -> Result<String, String> {
+async fn engine_turn(app: &AppHandle, engine: &str, prompt: String, later: Option<crate::claude::Later>, on_text: &(dyn Fn(&str) + Sync)) -> Result<String, String> {
     let chat = Chat::default();
     chat.set_channel("agentchat");
     if let Some(l) = later {
         chat.set_later(l);
     }
     let sent = prompt.chars().count();
-    let reply = crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::AgentChat, &|_| {}).await;
+    let reply = crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::AgentChat, on_text).await;
     if engine == "opencode" {
         crate::opencode::forget(chat.cli_session());
     }
@@ -1178,11 +1378,18 @@ async fn engine_turn(app: &AppHandle, engine: &str, prompt: String, later: Optio
 #[allow(clippy::too_many_arguments)]
 async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: String, m: Msg, engine: String, consult: bool, boss: Option<String>) -> bool {
     let gen = GEN.load(Ordering::SeqCst);
+    let sender = format!("{me}/{}", handle(&engine));
+    let rep = Reporter::start(&srv, m.id, &sender);
+    if TURNS.available_permits() == 0 {
+        rep.set("queued", "");
+    }
     let Ok(_permit) = TURNS.acquire().await else { return false };
     if gen != GEN.load(Ordering::SeqCst) {
         return true;
     }
+    rep.set("thinking", "");
     if !take_turn(cfg.per_hour) {
+        rep.end("failed");
         let mut told = LIMIT_TOLD.lock().unwrap();
         if told.is_none_or(|t| t.elapsed() > Duration::from_secs(3600)) {
             *told = Some(Instant::now());
@@ -1192,7 +1399,6 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
         }
         return false;
     }
-    let sender = format!("{me}/{}", handle(&engine));
     let history = if consult {
         messages(&srv, "*", 0, 0, Some(m.id)).await
     } else {
@@ -1239,16 +1445,19 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
             });
         })
     };
-    let reply = engine_turn(&app, &engine, prompt, Some(later)).await;
+    let reply = engine_turn(&app, &engine, prompt, Some(later), &|text| rep.seen(text)).await;
     if gen != GEN.load(Ordering::SeqCst) {
         return true;
     }
     match reply {
         Ok(text) => {
-            deliver(&app, &srv, &m.room, &sender, thread, m.id, &text, keeps).await;
+            rep.set("writing", "");
+            let posted = deliver(&app, &srv, &m.room, &sender, thread, m.id, &text, keeps).await;
+            rep.end(if posted { "done" } else { "silent" });
             true
         }
         Err(e) => {
+            rep.end("failed");
             note_last(tf("{who} non ha risposto: {err}", &[("who", &name_of(&sender)), ("err", &e)]));
             false
         }
@@ -1258,7 +1467,7 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
 /// An engine's answer to #`id` into the chat: memory lines kept, attachments
 /// uploaded, NIENTE left out.
 #[allow(clippy::too_many_arguments)]
-async fn deliver(app: &AppHandle, srv: &Server, room: &str, sender: &str, thread: Option<i64>, id: i64, text: &str, keeps: bool) {
+async fn deliver(app: &AppHandle, srv: &Server, room: &str, sender: &str, thread: Option<i64>, id: i64, text: &str, keeps: bool) -> bool {
     let (text, notes) = split_memory(text);
     if keeps {
         keep(app, &notes);
@@ -1271,11 +1480,17 @@ async fn deliver(app: &AppHandle, srv: &Server, room: &str, sender: &str, thread
     }
     if text.trim().is_empty() && ids.is_empty() {
         note_last(tf("{who}: niente da aggiungere al #{id}.", &[("who", &name_of(sender)), ("id", &id)]));
-        return;
+        return false;
     }
     match post_with(srv, room, text.trim(), sender, thread, "msg", &ids).await {
-        Ok(_) => note_last(tf("{who} ha risposto al #{id}.", &[("who", &name_of(sender)), ("id", &id)])),
-        Err(e) => note_last(e),
+        Ok(_) => {
+            note_last(tf("{who} ha risposto al #{id}.", &[("who", &name_of(sender)), ("id", &id)]));
+            true
+        }
+        Err(e) => {
+            note_last(e);
+            false
+        }
     }
 }
 
@@ -1312,7 +1527,7 @@ async fn synthesize(app: &AppHandle, srv: &Server, cfg: &Config, me: &str, owner
     prompt.push_str(&t("\n\nScrivi la sintesi di questa consulta: dove i pareri concordano, dove no e cosa consigli. Breve e concreta, cita chi ha detto cosa con @nome.\n\n"));
     prompt.push_str(&transcript(&thread));
     let gen = GEN.load(Ordering::SeqCst);
-    let Ok(text) = engine_turn(app, lead, prompt, None).await else { return };
+    let Ok(text) = engine_turn(app, lead, prompt, None, &|_| {}).await else { return };
     if gen != GEN.load(Ordering::SeqCst) {
         return;
     }
@@ -1489,7 +1704,7 @@ async fn catch_up(app: AppHandle, srv: Server, cfg: Config, me: String, owner: S
     });
     set_status(|s| s.last = tf("Recupero {n} messaggi arrivati a EasyIsland spento…", &[("n", &list.len())]));
     let _working = Working::start(&app);
-    let Ok(reply) = engine_turn(&app, &lead, prompt, None).await else {
+    let Ok(reply) = engine_turn(&app, &lead, prompt, None, &|_| {}).await else {
         note_last(tf("Recuperati {n} messaggi: il motore non ha risposto.", &[("n", &list.len())]));
         return;
     };
@@ -1503,7 +1718,7 @@ async fn catch_up(app: AppHandle, srv: Server, cfg: Config, me: String, owner: S
     if answer {
         if let Some(text) = clean_reply(&text) {
             // In the room of the last message of the owner, else of the last one.
-            let room = list.iter().rev().find(|m| m.sender.to_lowercase() == owner).or(list.last()).map(|m| m.room.clone()).unwrap_or_else(|| "general".into());
+            let room = list.iter().rev().find(|m| m.sender.to_lowercase() == owner || m.human).or(list.last()).map(|m| m.room.clone()).unwrap_or_else(|| "general".into());
             sent = post(&srv, &room, &text, &sender, None, "msg").await.is_ok();
         }
     }
@@ -1886,7 +2101,7 @@ pub async fn tool_engines(app: &AppHandle, args: &Value) -> Result<String, Strin
     }
     let prompt = tf("{q}\n\n(Altri motori ricevono la stessa domanda: dai il tuo parere indipendente, motivato e breve.)", &[("q", &question)]);
     // Together, inside this turn (not spawned: these turns may call tools again).
-    let replies = join_all(pick.iter().map(|(id, _)| engine_turn(app, id, prompt.clone(), None)).collect()).await;
+    let replies = join_all(pick.iter().map(|(id, _)| engine_turn(app, id, prompt.clone(), None, &|_| {})).collect()).await;
     let mut out = Vec::new();
     for ((_, name), reply) in pick.iter().zip(replies) {
         let text = match reply {
@@ -1930,7 +2145,28 @@ mod tests {
     use super::*;
 
     fn msg(sender: &str, text: &str) -> Msg {
-        Msg { id: 7, room: "general".into(), sender: sender.into(), text: text.into(), verified: true, thread: None, kind: "msg".into(), ts: 0.0, files: Vec::new(), claimed_by: None }
+        Msg { id: 7, room: "general".into(), sender: sender.into(), text: text.into(), verified: true, thread: None, kind: "msg".into(), ts: 0.0, files: Vec::new(), claimed_by: None, human: false }
+    }
+
+    #[test]
+    fn activity_from_the_streamed_text() {
+        assert_eq!(activity_of(""), ("thinking", String::new()));
+        assert_eq!(activity_of("Controllo.
+
+> ⚙ Esegue · `git status`
+"), ("tools", "Esegue".to_string()));
+        assert_eq!(activity_of("> ⚙ Legge · `C:/a.txt`
+
+Ecco"), ("writing", String::new()));
+    }
+
+    #[test]
+    fn the_owner_under_another_name_is_the_owner() {
+        let m = Msg { human: true, ..msg("edo", "ciao") };
+        assert_eq!(as_owner(m.clone(), "edoardo").sender, "edoardo");
+        // Not verified, or not written by the owner: as it is.
+        assert_eq!(as_owner(Msg { verified: false, ..m.clone() }, "edoardo").sender, "edo");
+        assert_eq!(as_owner(msg("casa/claude", "x"), "edoardo").sender, "casa/claude");
     }
 
     fn engines() -> Vec<String> {

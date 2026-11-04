@@ -36,6 +36,8 @@ export interface BarLook {
   items: BarPiece[];
   /** «Aspetto della barra». */
   look: import("./state").FixedBarLook;
+  /** Aspetto → Font in the bar (fonts.ts barFont); null = the bar's own. */
+  font?: { stack: string; weight: number } | null;
 }
 
 export type IslandToCharacter =

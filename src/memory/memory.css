@@ -29,7 +29,8 @@ body {
 #memory-root {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* The bar, the views' bar (main.ts viewBar), the map. */
+  grid-template-rows: auto auto 1fr;
 }
 
 .mem-bar {
@@ -390,4 +391,60 @@ body {
 
 .mem-drop.on {
   display: grid;
+}
+
+/* The views and the filters over them (main.ts viewBar). */
+.mem-viewbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: #0b0c10;
+  min-width: 0;
+}
+.mem-view-label { font-size: 12px; color: var(--dim); }
+.mem-view-pick { font-weight: 600; min-width: 170px; }
+.mem-select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.mem-select option { background: #14161c; }
+.mem-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* The legend filters: a click hides a kind. */
+.mem-legend { pointer-events: auto; }
+.mem-legend button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  color: var(--dim);
+  background: rgba(6, 7, 10, 0.55);
+  cursor: pointer;
+}
+.mem-legend button:hover { color: var(--ink); }
+.mem-legend button.off { opacity: 0.4; text-decoration: line-through; }
+.mem-legend i { width: 9px; height: 9px; border-radius: 50%; }
+
+/* The panel is a flex column that scrolls: its pieces keep their height
+   instead of shrinking (a page text was squeezed to one line). */
+.mem-panel > * {
+  flex-shrink: 0;
 }

@@ -14,6 +14,15 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 - **Island colour** and **opacity**: "The theme's" is Windows' grey or the Classic black, their light counterpart in light mode; a colour you pick stays yours.
 - **Background when closed**: off, only the character stays.
 
+## Font
+In **Appearance → Font** you pick two separate fonts, with a live preview:
+- **Titles' font**: titles and headings, names in cards and in the chat; also the fixed bar's elements (clock, widgets) when **Font from Appearance → Font** is on there.
+- **Text font**: the text of messages, cards, fields and Settings.
+
+For each: family, **size** and **weight**; **Reset** goes back to the system font. They apply in every window: island, chat, cards, popped-out windows and Settings.
+
+Four dot-matrix and retro fonts ship with the app (SIL Open Font License): **Doto** (dot matrix), **DotGothic16**, **VT323** and **Space Mono**. You can also pick any font installed in Windows. The dot font suits titles and clock; long texts read better in a plain font, for example Space Mono.
+
 ## Character
 - **In the island**: the character, the EasyIsland logo animated or still, your logo or the weather (see below).
 - **Character** and its **colour**.
@@ -42,6 +51,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
   - **Text size** and **Room between elements**.
   - **Shadow:** a light shadow under the bar, or above it when the bar is at the bottom.
   - **Cards come out of the bar:** a click on an element (clock, volume, an integration such as Clipboard, the news…) opens a small island that comes out of the bar right under it, with just its card, instead of the whole island. It is as tall as its content; a click outside closes it.
+  - **Font from Appearance → Font** (on by default): the bar's clock, widgets and actions use the titles' font chosen in Appearance → Font; off, the system font.
   - **The character grows under the mouse:** with the mouse over it the character (or the logo) grows and the bar swells smoothly around it.
   - **Hide by itself:** only a thin line stays on the edge; bring the mouse there and the bar comes out, then goes away shortly after the mouse leaves. Windows no longer keeps room for it, but the island opened from the bar still opens below it.
 - **Bar widgets:** «+ Add» opens the catalog.

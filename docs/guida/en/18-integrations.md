@@ -19,14 +19,14 @@
 | Integration | What it does | Needs |
 |---|---|---|
 | **[3CX](19-3cx.md)** | Phone on the PC, calls, contacts, team, chat, voicemail | 3CX V20 phone system |
-| **Zammad** | Tickets assigned to you, unassigned and escalated; alert on a new ticket to assign; when a ticket is assigned to you, **Prepare** opens the chat with what the memory knows of the customer, similar tickets and how they were solved, and a draft reply (never sent) | Address and token (`ticket.agent` permission) |
+| **Zammad** | Your Zammad views as tabs (assigned to you, unassigned, escalated…) with their tickets, a filter and the RDM button on the customer; click a ticket to read the whole conversation, change **state**, **owner** (or “Assign to me”) and **priority**, add an **internal note** or **reply to the customer** by email (confirmed with a second click); alert on a new ticket to assign; when a ticket is assigned to you, **Prepare** opens the chat with what the memory knows of the customer, similar tickets and how they were solved, and a draft reply (never sent) | Address and token (`ticket.agent` permission) |
 | **[Outlook](21-microsoft.md)** | Unread mail, today's and tomorrow's appointments, alert before a meeting | Classic Outlook open, or the Microsoft account |
 | **[Teams](21-microsoft.md#teams)** | Meeting controls, Join from the copied link, presence | Teams |
 | **[Notion](20-notion.md)** | Tasks with views, notes, pages, mini Notion in the island, alerts | An internal integration's token |
 | **[Telegram](22-telegram.md)** | The chat in your bot, tasks, permissions, files | A bot created with @BotFather |
 | **[Agent Chat](#agent-chat)** | EasyIsland answers by itself in your chat between AI agents, with several engines and consults | Your Agent Chat server and a token for this PC |
 | **[Remote access](23-remote-support.md)** | Temporary WinRM or SSH connection to a client's PC | Address, user, password (in memory only) |
-| **[Remote Desktop Manager](23-remote-support.md#remote-desktop-manager)** | Finds and opens RDM connections | RDM installed |
+| **[Remote Desktop Manager](23-remote-support.md#remote-desktop-manager)** | Finds and opens RDM connections; with Devolutions Cloud the vaults' folders, “Copy password” to the clipboard, new credentials and password lists, the customer tied to their folder | RDM installed; for the cloud an Application identity |
 | **Cal.com** | Bookings | API key |
 
 ## Development and services
@@ -71,6 +71,10 @@ How to call it:
 **Claude is the lead.** When you ask for something to be *done* (commands, changes, real operations), the other engines give their view and Claude decides who does it: itself or another engine, which it calls by name (`@notebook/codex run the tests`). A complex job can be split between them. Without Claude among the engines, the lead is the first in the list.
 
 On the island there is the **Agent Chat** card: who you are connected as, which engines answer (★ the lead), the last messages of the followed rooms and **Listening** / **Listening off** to turn listening off and on. The card's character works while an engine is answering and sleeps with listening off.
+
+**Who is working.** Under each message you see who **took** it ("taken by @lia"), who is **queued** to answer and who **did not answer** ("@oscar: no reply"). Over the field, while they work: "@lia is thinking…", "is using tools", "is writing…" with the time spent. If after a few seconds nobody took your message and no PC is connected, "no agent active" appears. EasyIsland sends these states from the engine's events: they cost no tokens and never go into the history. The chat's page shows them too (it needs the updated server).
+
+**Writing from the island.** The Agent Chat card (also popped out in a window) has a field to write **as you**: `@` to call an agent with completion (<kbd>Tab</kbd>), ↩ on a message to reply, 📎 to attach, the room if you follow more than one. It needs a token other than the PC's: in the chat's page, menu → **Write from an app** (*Scrivere da un'app*), create the token and paste it in Settings → Integrations → Agent Chat → **Token to write as you**. In **Your name** you choose the name you sign with (empty = the chat's one): for the agents you are still you, with the same priority, "yes 1234" and "stop" as from the site.
 
 **PC off.** EasyIsland remembers the last message it read. When it comes back on, Claude reads what came meanwhile (the last 24 hours) and answers **once** to what is still open for it, skipping what others have already solved. In Settings → Agent Chat → “PC off” you can also choose *only take notes* or *ignore*.
 

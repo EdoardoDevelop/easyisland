@@ -119,6 +119,13 @@ pub(crate) async fn move_to_work_folder(app: &AppHandle, args: &Value) -> Result
 }
 
 async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String> {
+    // The memory window's living network sees what is read and written.
+    match tool {
+        "memory_search" => crate::brain::activity(app, "read", arg(args, "query")),
+        "memory_page" => crate::brain::activity(app, "read", arg(args, "title")),
+        "memory_note" | "memory_page_write" => crate::brain::activity(app, "write", &format!("{} {}", arg(args, "title"), arg(args, "text"))),
+        _ => {}
+    }
     match tool {
         "get_foreground_app" => {
             let fg = crate::context::foreground().ok_or("Nessuna app in primo piano.")?;
@@ -284,6 +291,36 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             }
             crate::actions::open_app(target, arg(args, "args"))?;
             Ok(format!("Aperto {target}."))
+        }
+
+        "rdm_search" => {
+            let query = arg(args, "query");
+            if query.trim().is_empty() {
+                return Err("Manca query.".into());
+            }
+            let mut lines: Vec<String> = crate::rdm::search(query, 15)
+                .into_iter()
+                .map(|e| format!("connessione {} «{}» in «{}»{} id {}", e.kind, e.name, e.group, if e.host.is_empty() { String::new() } else { format!(", host {}", e.host) }, e.id))
+                .collect();
+            let cloud = crate::dvc::search_text(query);
+            if !cloud.is_empty() {
+                lines.push(format!("Devolutions Cloud:\n{cloud}"));
+            }
+            Ok(if lines.is_empty() { format!("Nessuna connessione trovata per «{query}» (se l'elenco è vecchio, l'utente preme Sincronizza nella scheda RDM).") } else { lines.join("\n") })
+        }
+
+        "dvc_vaults" => crate::dvc::tool_vaults(),
+        "dvc_entries" => crate::dvc::tool_entries(args).await,
+        "dvc_folder_id" => crate::dvc::tool_folder_id(args),
+        "dvc_show" => crate::dvc::tool_show(args).await,
+        "dvc_password_list_preview" => crate::dvc::tool_password_list(args, false).await,
+        "dvc_new_password_list" => crate::dvc::tool_password_list(args, true).await,
+        "dvc_new_credential" => crate::dvc::tool_new_credential(args).await,
+
+        "rdm_open" => {
+            let id = arg(args, "id").trim().trim_matches(['{', '}']).to_string();
+            crate::rdm::open(&id)?;
+            Ok("Aperta in Remote Desktop Manager.".into())
         }
 
         "open_url" => {

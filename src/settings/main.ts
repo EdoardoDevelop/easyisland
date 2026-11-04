@@ -18,6 +18,7 @@ import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle, uiStyle } from "../core/uistyle";
+import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type FontPick } from "../core/fonts";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
 import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
@@ -974,8 +975,18 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: t("Token"), placeholder: "ntn_…", secret: true }],
     hint: t("Le tue attività da un database (oggi e scadute, spuntate con un clic), le note veloci in una pagina o in un database, le pagine che tieni a portata e la ricerca. Le pagine si aprono nell'app Notion se è installata. Crea un'integrazione interna su notion.so/profile/integrations (leggere, aggiornare e inserire contenuti), copia il token e condividi con lei le pagine e i database che vuoi usare (… → Connessioni)."),
     extra: () => notionRows() },
-  { id: "integration_rdm", name: "Remote Desktop Manager", color: "#E8542A", fields: [], extra: () => rdmRows(),
-    hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo.") },
+  { id: "integration_rdm", name: "Remote Desktop Manager", color: "#E8542A", extra: () => rdmRows(),
+    options: [{
+      label: "Devolutions Cloud", type: "select", placeholder: "",
+      choices: [["no", t("Non usato")], ["si", t("Usato: vault su Devolutions Cloud o Hub")]],
+      get: (c) => (c.dvcOn ? "si" : "no"), set: (c, v) => { c.dvcOn = v === "si"; },
+    }],
+    fields: [
+      { key: "dvc-url", label: t("Indirizzo cloud"), placeholder: "https://<nome>.devolutions.app", secret: false, when: (c) => !!c.dvcOn },
+      { key: "dvc-key", label: t("Application Key"), placeholder: "…", secret: true, when: (c) => !!c.dvcOn },
+      { key: "dvc-secret", label: t("Application Secret"), placeholder: "…", secret: true, when: (c) => !!c.dvcOn },
+    ],
+    hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo. Con Devolutions Cloud (un'Application identity) la card mostra anche le cartelle dei vault: credenziali e liste password, «Copia password» negli appunti, nuove credenziali e liste dopo un'anteprima, il cliente di Zammad o 3CX collegato alla sua cartella.") },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
   { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [], extra: () => msAccountRows(),
@@ -998,6 +1009,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [
       { key: "agentchat-url", label: t("Indirizzo"), placeholder: "https://chat.example.com", secret: false },
       { key: "agentchat-token", label: t("Token"), placeholder: t("il token personale di questo PC"), secret: true },
+      { key: "agentchat-owner-token", label: t("Token per scrivere come te"), placeholder: t("dalla pagina della chat: menu → Scrivere da un'app"), secret: true },
     ],
     options: [
       { label: t("Stanze"), type: "text", placeholder: "general", unit: t("separate da virgola, * = tutte"),
@@ -1021,6 +1033,8 @@ const INTEGRATIONS: IntegrationDef[] = [
       { label: t("Condividi la memoria"), type: "select", placeholder: "",
         choices: [["off", t("No, la memoria di questo PC resta qui")], ["on", t("Sì: gli altri PC della chat la leggono, la interrogano e ci lasciano note")]],
         get: (c) => (c.agentchatShareMemory ? "on" : "off"), set: (c, v) => { c.agentchatShareMemory = v === "on"; } },
+      { label: t("Il tuo nome"), type: "text", placeholder: t("vuoto = quello della chat"), unit: t("il nome con cui scrivi dalla scheda Agent Chat dell'isola; per gli agenti resti tu, l'owner"),
+        get: (c) => c.agentchatOwnerName ?? "", set: (c, v) => { c.agentchatOwnerName = v.trim().replace(/^@+/, "").toLowerCase(); } },
       { label: t("Memoria di un altro PC"), type: "text", placeholder: t("es. lavoro"), unit: t("il nome in chat del PC di cui leggere la memoria, tenuta separata (vuoto = nessuno)"),
         get: (c) => c.agentchatMemoryFrom ?? "", set: (c, v) => { c.agentchatMemoryFrom = v.trim().toLowerCase(); } },
     ],
@@ -1562,7 +1576,7 @@ function rdmRows(): HTMLElement {
     reread.disabled = true;
     reread.textContent = t("Sincronizzo…");
     await Bridge.refreshIntegration("integration_rdm");
-    await check();
+    await checkAll();
     reread.disabled = false;
     reread.textContent = t("Sincronizza");
   });
@@ -1594,13 +1608,53 @@ function rdmRows(): HTMLElement {
     load.disabled = false;
   });
 
+  // Devolutions Cloud (dvc.rs): the identity's test and what the last sync read.
+  const cloud = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
+  const cloudNote = h("span", { class: "hint note" });
+  const test = h("button", { text: t("Prova") }) as HTMLButtonElement;
+  test.addEventListener("click", async () => {
+    test.disabled = true;
+    cloudNote.textContent = t("Mi collego…");
+    try {
+      const vaults = await Bridge.dvcTest();
+      const useful = vaults.filter((v) => v.name !== "System Vault");
+      cloudNote.textContent = useful.length
+        ? t("Collegato. Vault: {list}. Premi Sincronizza per leggerli.", { list: useful.map((v) => v.name).join(", ") })
+        : t("Collegato, ma nessun vault utile: dai i permessi sul vault all'identità, o «Can access user vaults» per il vault personale.");
+    } catch (e) {
+      cloudNote.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+    test.disabled = false;
+  });
+  const checkCloud = async () => {
+    clear(cloud);
+    if (!c.dvcOn) return;
+    const s = await Bridge.dvcStatus();
+    cloud.append(
+      line(!!s?.on && (s.count ?? 0) > 0 ? true : s?.error ? false : null, "Devolutions Cloud",
+        !s?.on ? t("manca indirizzo, Key o Secret qui sopra")
+          : (s.count ?? 0) > 0 ? t("{n} voci da {v}", { n: s.count ?? 0, v: (s.vaults ?? []).map((v) => v.name).join(", ") }) + (s.at ? " · " + t("sincronizzato il {d}", { d: new Date(s.at * 1000).toLocaleString() }) : "") + (s.error ? " · " + s.error : "")
+          : s.error ?? t("non ancora sincronizzato")),
+      h("div", { class: "row" }, test, cloudNote),
+      h("div", { class: "hint", text: t("In Devolutions Cloud: Administration → Application identities → Add (es. «EasyIsland-PC-lavoro»), lascia «Is enabled», non spuntare «Is administrator»; per il vault personale spunta «Can access user vaults», per un vault condiviso dai all'identità i permessi sul vault. Copia Key e Secret (il Secret si vede una volta sola). Un'identità per PC: rigenerare il Secret scollega l'altro. L'indirizzo è quello del workspace nella barra del browser. Servono PowerShell 7 e il modulo Devolutions.PowerShell, come sopra. Le password non compaiono mai: «Copia password» le mette negli appunti, fuori dalla cronologia, e li svuota dopo 30 secondi.") }));
+  };
+  const check0 = check;
+  const checkAll = async () => { await check0(); await checkCloud(); };
+
   box.append(
     state,
+    cloud,
     h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("l'elenco resta su questo PC, cifrato per il tuo utente Windows: si aggiorna solo quando premi Sincronizza") })),
     h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Origine dati") }), source, load, sourceNote),
     h("div", { class: "hint", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
   );
-  void check();
+  void checkAll();
+  // «Devolutions Cloud» chosen or not just above: its rows follow.
+  let wasOn = !!c.dvcOn;
+  const watch = window.setInterval(() => {
+    if (!box.isConnected) { window.clearInterval(watch); return; }
+    if (!!c.dvcOn !== wasOn) { wasOn = !!c.dvcOn; void checkCloud(); }
+  }, 800);
   return box;
 }
 
@@ -2519,6 +2573,7 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
     ],
+    font: () => fontSections(commit),
     personaggio: () => [
       intro(t("Chi sta nell'isola e come si comporta.")),
       h("section", {},
@@ -2760,9 +2815,10 @@ function appearanceSections(): HTMLElement[] {
 }
 
 /** The tabs of Aspetto, in order. */
-type LookTab = "tema" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
+type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
 const LOOK_TABS = (): [LookTab, string][] => [
   ["tema", t("Tema")],
+  ["font", t("Font")],
   ["personaggio", t("Personaggio")],
   ["posizione", t("Posizione")],
   ["barra", t("Barra fissa")],
@@ -2784,6 +2840,97 @@ function lookTab(): LookTab {
   }
   lookTabNow = want(new URLSearchParams(location.search).get("tab")) ?? want(saved) ?? "tema";
   return lookTabNow;
+}
+
+/** Installed families, read once (lib.rs system_fonts). */
+let installedFonts: string[] | null = null;
+
+/**
+ * Aspetto → Font: the titles' font and the text's font, each with family,
+ * size and weight, a live preview and «Ripristina» (src/core/fonts.ts).
+ */
+function fontSections(commit: () => void): HTMLElement[] {
+  const th = settings.theme;
+  const fonts = themeFonts(th.fonts);
+  th.fonts = fonts;
+  const preview = h("div", { class: "font-preview" });
+  const drawPreview = () => {
+    const f = themeFonts(th.fonts);
+    const title = `font-family:${fontStack(f.title.family)};${f.title.weight ? `font-weight:${f.title.weight};` : ""}zoom:${f.title.size / 100}`;
+    const text = `font-family:${fontStack(f.text.family)};${f.text.weight ? `font-weight:${f.text.weight};` : ""}font-size:${(12.5 * f.text.size) / 100}px`;
+    const now = new Date();
+    preview.replaceChildren(
+      h("div", { class: "fp-clock", style: title, text: now.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) }),
+      h("div", { class: "fp-title", style: title, text: t("Chat · Agent Chat · Integrazioni") }),
+      h("div", { class: "fp-text", style: text, text: t("Il testo dei messaggi, delle schede e dei campi. 0123456789 — àèéìòù") }),
+    );
+  };
+  const changed = () => {
+    applyFonts(th.fonts);
+    drawPreview();
+    commit();
+  };
+  const familySelect = (p: FontPick) => {
+    const el = h("select", {}) as HTMLSelectElement;
+    const fill = () => {
+      el.replaceChildren(h("option", { value: "", text: t("Di sistema (Segoe UI)") }));
+      const bundled = [...new Set(BUNDLED_FONTS.map((f) => f.family))];
+      el.append(h("optgroup", { label: t("Nell'app: a puntini e retrò") },
+        ...bundled.map((f) => h("option", { value: f, text: f, style: `font-family:${fontStack(f)}` }))));
+      const mine = (installedFonts ?? []).filter((f) => !bundled.includes(f));
+      if (mine.length) el.append(h("optgroup", { label: t("Installati in Windows") }, ...mine.map((f) => h("option", { value: f, text: f }))));
+      else if (installedFonts == null) el.append(h("option", { value: "__loading", text: t("Leggo i font di Windows…"), disabled: "true" }));
+      // A family no longer installed stays chosen and visible.
+      if (p.family && !Array.from(el.options).some((o) => o.value === p.family)) el.append(h("option", { value: p.family, text: p.family }));
+      el.value = p.family;
+    };
+    fill();
+    if (installedFonts == null) {
+      void Bridge.systemFonts().then((list) => {
+        installedFonts = list ?? [];
+        fill();
+      });
+    }
+    el.addEventListener("change", () => { p.family = el.value; changed(); });
+    return el;
+  };
+  const weightSelect = (p: FontPick) => select<string>(
+    [["0", t("Come disegnato")], ["300", t("Leggero")], ["400", t("Normale")], ["500", t("Medio")],
+      ["600", t("Semigrassetto")], ["700", t("Grassetto")], ["900", t("Nero")]],
+    String(p.weight),
+    (v) => { p.weight = Number(v); changed(); },
+  );
+  const block = (title: string, what: string, p: FontPick) => h("section", {},
+    h("h2", {}, h("span", { text: title }), profileChip()),
+    h("div", { class: "row" },
+      h("label", { text: t("Font") }),
+      familySelect(p),
+      h("span", { class: "hint note", text: what }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Dimensione") }),
+      slider(80, 150, 5, p.size, "%", (v) => { p.size = v; changed(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Spessore") }),
+      weightSelect(p),
+      h("button", { text: t("Ripristina"), title: t("Torna al font di sistema"),
+        onclick: () => { Object.assign(p, DEFAULT_FONT); changed(); render(); } }),
+    ),
+  );
+  drawPreview();
+  return [
+    h("div", { class: "hint tab-intro", text: t("Il font dei titoli e quello del testo, in tutte le finestre: isola, chat, schede, finestre staccate e Impostazioni.") }),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Anteprima") })),
+      preview,
+    ),
+    block(t("Font dei titoli"), t("titoli e intestazioni, nomi nelle schede e in chat; nella barra fissa se lì è acceso «Font di Aspetto → Font»"), fonts.title),
+    block(t("Font del testo"), t("testo dei messaggi, delle schede, dei campi e delle Impostazioni"), fonts.text),
+    h("section", {},
+      h("div", { class: "hint", text: t("Doto, DotGothic16, VT323 e Space Mono sono inclusi nell'app con licenza SIL Open Font License.") }),
+    ),
+  ];
 }
 
 /** Rows of one setting with its picture (pictures.ts) on the left. */
@@ -2932,6 +3079,10 @@ function barLookRows(commit: () => void): HTMLElement[] {
       h("label", { text: t("Le schede escono dalla barra") }),
       toggle(look().popover !== false, (v) => set("popover", v)),
       h("span", { class: "hint note", text: t("un clic su un elemento apre una piccola isola sotto di lui invece dell'isola intera") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Font di Aspetto → Font") }),
+      toggle(look().font !== false, (v) => set("font", v)),
+      h("span", { class: "hint note", text: t("gli elementi della barra (orologio, widget, azioni) usano il font dei titoli scelto in Aspetto → Font; spento, quello di sistema") })),
     h("div", { class: "row bar-row" },
       h("label", { text: t("Il personaggio cresce sotto il mouse") }),
       toggle(look().grow !== false, (v) => set("grow", v)),
@@ -5539,6 +5690,7 @@ async function main() {
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
   applyUiStyle(settings.theme.style, settings.theme.scheme);
+  applyFonts(settings.theme.fonts);
   // settings.html paints the body dark inline (no white flash while loading): the styles take over now.
   document.body.removeAttribute("style");
   const status = (await Bridge.hooksStatus()) ?? {
@@ -5617,6 +5769,7 @@ async function main() {
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
     applyUiStyle(settings.theme.style, settings.theme.scheme);
+    applyFonts(settings.theme.fonts);
     // The echo of a save made here (Rust may tidy a value) is taken without
     // redrawing: a redraw closed the open integration and the page jumped up.
     if (redraw && Date.now() - savedAt > 2000) render();

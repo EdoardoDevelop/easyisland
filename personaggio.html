@@ -91,6 +91,9 @@
       .bar-icon svg, .bar-icon img { width: calc(15px * var(--s, 1)); height: calc(15px * var(--s, 1)); }
       .bar-icon img.bar-app-icon { width: calc(17px * var(--s, 1)); height: calc(17px * var(--s, 1)); }
       .bar-text { overflow: hidden; text-overflow: ellipsis; }
+      /* Aspetto → Font in the bar (character-window/main.ts layBar). */
+      body.own-font .bar-btn { font-family: var(--bar-font); }
+      body.own-weight .bar-btn, body.own-weight .bar-strip-text strong { font-weight: var(--bar-weight); }
       /* A changing value with the room of its widest (bar.ts → widest): both in one cell. */
       .bar-steady { display: inline-grid; }
       .bar-steady > span { grid-area: 1 / 1; white-space: nowrap; }

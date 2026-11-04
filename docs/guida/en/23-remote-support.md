@@ -25,3 +25,20 @@ If you use Devolutions' **Remote Desktop Manager**, the integration brings it in
 - **Search** by name, folder or host, from the tab and the island's top field; a click opens the session in RDM.
 - **Without the module**: search opens inside RDM, and you can connect to an address without saving it (RDP or SSH).
 - In Settings you see the state of RDM, PowerShell 7 and the module, with the commands to copy to install them (EasyIsland never runs them).
+- **In the chat**: “find Rossi's server” finds connections, folders and credentials (never passwords); “open it” asks **Allow / Deny** before opening the connection in RDM.
+
+### Devolutions Cloud
+If your entries live in a **Devolutions Cloud** (or Hub) vault that RDM's module cannot see, connect EasyIsland with an **Application identity**:
+1. In Devolutions Cloud: **Administration → Application identities → Add** (one name per PC, e.g. “EasyIsland-work-PC”). Leave *Is enabled*, do not tick *Is administrator*. For the personal vault tick **Can access user vaults**; for a shared vault give the identity permissions on it.
+2. Copy **Application Key** and **Application Secret** (the Secret is shown only once).
+3. In **Settings → Remote Desktop Manager** choose “Devolutions Cloud: Used”, paste the workspace address (the one in the browser's address bar), Key and Secret, press **Test**, then **Sync**.
+
+The RDM tab gets **Devolutions Cloud**: the vaults' folders with connections, credentials and password lists.
+- **Details** of an entry: user, domain, host, description; of the password only its length.
+- **Copy password** puts it on the **clipboard**, out of the Windows history and EasyIsland's Clipboard, and **empties it after 30 seconds** (unless you copied something else meanwhile). The password never shows on screen or in the chat.
+- **+ Credential** and **+ Password list from this folder** (joins the folder's credentials into a “Password List” entry): first a **preview**, then **Confirm and create**; EasyIsland reads the entry back and tells you whether users and passwords match. It never deletes anything.
+- **Customer**: tie a Zammad or 3CX customer to their folder. From the RDM button of a ticket or a call of that customer, the tab opens right there.
+
+**From the chat** you can do the same: “which credentials are in Rossi's folder?”, “details of the Password List”, “join the passwords of the Server folder into a Password List” (first the preview, then **Allow**), “create the Firewall credential in CLIENTE, user admin”. For a credential with a password the **Windows credentials window** opens: you type it twice and it goes straight into the vault, never through the chat. Passwords never reach the chat engine.
+
+The keys are in the Windows Credential Manager; the list of entries (no passwords) is encrypted for your user on this PC. Use a different identity per PC: regenerating the Secret disconnects the other.

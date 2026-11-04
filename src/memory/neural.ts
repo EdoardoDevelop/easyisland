@@ -1,0 +1,265 @@
+// Rete neurale viva: the memory as neurons, gathered in lobes by group, with
+// their links as curved axons. When the memory is read or written — from the
+// chat, from Agent Chat, from another PC (memory-activity, main.ts) — pulses
+// of light leave the centre for the neurons touched and run on to their
+// neighbours: the memory «thinking». At rest nothing moves and no frame is
+// drawn; a click sends a pulse from the picked neuron too.
+
+import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
+import { Camera, type View } from "./stage";
+
+interface Neuron {
+  n: MemNode;
+  x: number;
+  y: number;
+  r: number;
+  colour: string;
+  /** Last time a pulse reached it (ms): it glows for a moment. */
+  lit: number;
+}
+
+interface Pulse {
+  from: Neuron | null;
+  to: Neuron;
+  start: number;
+  dur: number;
+  colour: string;
+  /** Steps left to run on to the neighbours. */
+  hops: number;
+}
+
+const GLOW_MS = 1600;
+
+export class NeuralView implements View {
+  private cam = new Camera();
+  private neurons: Neuron[] = [];
+  private index = new Map<string, Neuron>();
+  private axons: [Neuron, Neuron][] = [];
+  private pulses: Pulse[] = [];
+  private model: Model | null = null;
+  private selected: string | null = null;
+  private filter: Set<string> | null = null;
+  private framed = false;
+  private size = { w: 0, h: 0 };
+  /** When the memory was last read or written: the centre glows. */
+  private saidAt = 0;
+
+  setModel(model: Model) {
+    this.model = model;
+    const { groups, of } = model.groups();
+    this.neurons = [];
+    let seed = 5;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // Lobes on a ring around the centre, the loose neurons in a halo outside.
+    const lobes = Math.max(1, groups.length);
+    groups.forEach((g, gi) => {
+      const a = (gi / lobes) * Math.PI * 2 - Math.PI / 2;
+      const d = lobes === 1 ? 0 : 230 + Math.sqrt(g.members.length) * 8;
+      const cx = Math.cos(a) * d;
+      const cy = Math.sin(a) * d * 0.8;
+      const spread = 30 + Math.sqrt(g.members.length) * 22;
+      g.members.forEach((id, i) => {
+        const n = model.byId.get(id)!;
+        const t = Math.sqrt((i + 0.5) / g.members.length);
+        const ang = i * 2.399 + rnd() * 0.4;
+        this.add(n, cx + Math.cos(ang) * t * spread, cy + Math.sin(ang) * t * spread, g.color);
+      });
+    });
+    const loose = model.g.nodes.filter((n) => !of.has(n.id));
+    loose.forEach((n, i) => {
+      const a = (i / Math.max(1, loose.length)) * Math.PI * 2 + rnd() * 0.2;
+      const d = 470 + rnd() * 110;
+      this.add(n, Math.cos(a) * d, Math.sin(a) * d * 0.8, KIND_COLOR[n.kind]);
+    });
+    this.index = new Map(this.neurons.map((x) => [x.n.id, x]));
+    this.axons = [];
+    for (const e of model.g.edges) {
+      const a = this.index.get(e.from);
+      const b = this.index.get(e.to);
+      if (a && b) this.axons.push([a, b]);
+    }
+    this.framed = false;
+  }
+
+  private add(n: MemNode, x: number, y: number, colour: string) {
+    this.neurons.push({ n, x, y, r: (n.kind === "page" ? 4 : 2.4) + Math.min(5, Math.sqrt(n.weight)), colour, lit: 0 });
+  }
+
+  setSelected(id: string | null) {
+    this.selected = id;
+    const x = id ? this.index.get(id) : null;
+    if (x) this.fire(null, [x], 2);
+  }
+
+  setFilter(ids: Set<string> | null) {
+    this.filter = ids;
+  }
+
+  /** The memory was read or written: pulses from the centre to what it touched. */
+  activity(ids: string[], kind: "read" | "write") {
+    const hit = ids.map((id) => this.index.get(id)).filter((x): x is Neuron => !!x).slice(0, 24);
+    this.saidAt = performance.now();
+    this.fire(null, hit, 2, kind === "write" ? "#f5a524" : "#7dd3fc");
+  }
+
+  private fire(from: Neuron | null, to: Neuron[], hops: number, colour?: string) {
+    const now = performance.now();
+    to.forEach((t, i) => this.pulses.push({ from, to: t, start: now + i * 60, dur: 600 + Math.random() * 300, colour: colour ?? t.colour, hops }));
+  }
+
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+    this.size = { w, h };
+    if (!this.framed && this.neurons.length) {
+      this.cam.frame(box(this.neurons), w, h, true, 50);
+      this.framed = true;
+    }
+    let moving = this.cam.step();
+    const now = performance.now();
+    const bg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
+    bg.addColorStop(0, "#0b1020");
+    bg.addColorStop(1, "#04050a");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.save();
+    this.cam.apply(ctx);
+    const k = this.cam.k;
+    const sel = this.selected;
+    // Axons: thin, curved, the ones of lit neurons brighter.
+    for (const [a, b] of this.axons) {
+      const glow = Math.max(0, 1 - (now - Math.max(a.lit, b.lit)) / GLOW_MS);
+      const on = sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
+      ctx.strokeStyle = glow > 0 ? alpha(a.colour, 0.15 + glow * 0.6) : `rgba(140,160,220,${on ? 0.13 : 0.04})`;
+      ctx.lineWidth = (0.7 + glow * 1.4) / Math.sqrt(k);
+      const [mx, my] = bend(a, b);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(mx, my, b.x, b.y);
+      ctx.stroke();
+      if (glow > 0) moving = true;
+    }
+    // Pulses: a bright head with a tail, then they run on.
+    ctx.globalCompositeOperation = "lighter";
+    const done: Pulse[] = [];
+    for (const p of this.pulses) {
+      const u = (now - p.start) / p.dur;
+      if (u < 0) {
+        moving = true;
+        continue;
+      }
+      if (u >= 1) {
+        done.push(p);
+        continue;
+      }
+      moving = true;
+      const fx = p.from?.x ?? 0;
+      const fy = p.from?.y ?? 0;
+      const [mx, my] = p.from ? bend(p.from, p.to) : [(fx + p.to.x) / 2, (fy + p.to.y) / 2];
+      for (let s = 0; s < 5; s++) {
+        const v = Math.max(0, u - s * 0.04);
+        const q = 1 - v;
+        const x = q * q * fx + 2 * q * v * mx + v * v * p.to.x;
+        const y = q * q * fy + 2 * q * v * my + v * v * p.to.y;
+        ctx.fillStyle = alpha(p.colour, 0.9 - s * 0.17);
+        ctx.beginPath();
+        ctx.arc(x, y, (3.2 - s * 0.5) / Math.sqrt(k), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    for (const p of done) {
+      p.to.lit = now;
+      if (p.hops > 0 && this.model) {
+        const next = this.model.neighbours(p.to.n.id).map((nb) => this.index.get(nb.id)).filter((x): x is Neuron => !!x).slice(0, 5);
+        this.fire(p.to, next, p.hops - 1, p.colour);
+      }
+    }
+    this.pulses = this.pulses.filter((p) => !done.includes(p));
+    // The centre, where a read or a write comes from.
+    if (now - this.saidAt < GLOW_MS * 2) {
+      const g = 1 - (now - this.saidAt) / (GLOW_MS * 2);
+      const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 40);
+      core.addColorStop(0, `rgba(255,255,255,${0.7 * g})`);
+      core.addColorStop(1, "rgba(125,211,252,0)");
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(0, 0, 40, 0, Math.PI * 2);
+      ctx.fill();
+      moving = true;
+    }
+    // Neurons.
+    for (const x of this.neurons) {
+      const glow = Math.max(0, 1 - (now - x.lit) / GLOW_MS);
+      const dim = (sel && x.n.id !== sel) || (this.filter && !this.filter.has(x.n.id));
+      const r = x.r * (1 + glow * 0.8);
+      const halo = ctx.createRadialGradient(x.x, x.y, 0, x.x, x.y, r * (3 + glow * 4));
+      halo.addColorStop(0, alpha(x.colour, (dim ? 0.15 : 0.55) + glow * 0.4));
+      halo.addColorStop(1, alpha(x.colour, 0));
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(x.x, x.y, r * (3 + glow * 4), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = glow > 0.2 ? "#ffffff" : alpha(x.colour, dim ? 0.35 : 0.95);
+      ctx.beginPath();
+      ctx.arc(x.x, x.y, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+    // Labels of the lit, the picked and the pages up close.
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = `500 ${11 / k}px system-ui, "Segoe UI", sans-serif`;
+    for (const x of this.neurons) {
+      const glow = now - x.lit < GLOW_MS;
+      if (!(glow || x.n.id === sel || this.filter?.has(x.n.id) || (k > 1.3 && x.n.kind === "page") || k > 2.4)) continue;
+      ctx.fillStyle = glow ? "#ffffff" : "rgba(210,220,240,0.8)";
+      ctx.fillText(fit(ctx, x.n.label, 150 / k), x.x, x.y + x.r + 6 / k);
+    }
+    ctx.restore();
+    return moving;
+  }
+
+  hit(x: number, y: number): string | null {
+    const p = this.cam.toWorld(x, y);
+    let best: Neuron | null = null;
+    let bestD = Infinity;
+    for (const n of this.neurons) {
+      const d = Math.hypot(n.x - p.x, n.y - p.y);
+      if (d < Math.max(n.r * 2, 7 / this.cam.k) && d < bestD) {
+        best = n;
+        bestD = d;
+      }
+    }
+    return best?.n.id ?? null;
+  }
+
+  hover(): { text: string; sub: string } | null {
+    return null;
+  }
+
+  pan(dx: number, dy: number) {
+    this.cam.pan(dx, dy);
+  }
+
+  zoom(f: number, x: number, y: number) {
+    this.cam.zoom(f, x, y);
+  }
+
+  reset() {
+    this.cam.frame(box(this.neurons), this.size.w, this.size.h, false, 50);
+  }
+}
+
+/** The control point of an axon: curved a little, always the same way. */
+function bend(a: { x: number; y: number }, b: { x: number; y: number }): [number, number] {
+  return [(a.x + b.x) / 2 + (b.y - a.y) * 0.18, (a.y + b.y) / 2 - (b.x - a.x) * 0.18];
+}
+
+function box(list: { x: number; y: number }[]) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const s of list) {
+    x0 = Math.min(x0, s.x);
+    y0 = Math.min(y0, s.y);
+    x1 = Math.max(x1, s.x);
+    y1 = Math.max(y1, s.y);
+  }
+  return Number.isFinite(x0) ? { x0, y0, x1, y1 } : { x0: -100, y0: -100, x1: 100, y1: 100 };
+}

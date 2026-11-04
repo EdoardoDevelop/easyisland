@@ -1,27 +1,42 @@
 // The memory window (Impostazioni → Chat → Memoria → «Mappa»): the memory of
-// brain.rs drawn four ways — Timeline, Knowledge Graph, Mind Map, Concept
-// Map — with the picked thing on the right, and «Leggi adesso» / «Controlla»
-// to hand the agent the sources to learn and the fixes to propose.
+// brain.rs drawn many ways — the graphs (flat, 3D, galaxy, living network,
+// bubbles, rings), the maps, the river of subjects, where it comes from and
+// the timeline — with the picked thing on the right, filters over them
+// (kinds from the legend, period, only sure links, colours by kind or group),
+// «Come sono collegati?» between two nodes, and «Leggi adesso» / «Collega con
+// l'IA» / «Controlla» to hand the agent the sources, the links and the fixes.
 
 import "./memory.css";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import { t } from "../core/i18n";
 import { h, clear } from "../views/dom";
-import { KIND_COLOR, Model, kindName, type MemGraph, type NodeKind } from "./data";
-import { Stage, type View } from "./stage";
+import { KIND_COLOR, Model, kindName, pathBetween, type MemGraph, type NodeKind } from "./data";
+import { Stage, type Colouring, type View } from "./stage";
+import { GalaxyView } from "./galaxy";
+import { NeuralView } from "./neural";
+import { SunburstView } from "./sunburst";
+import { StreamView } from "./stream";
+import { SankeyView } from "./sankey";
+import { BubblesView } from "./bubbles";
 import { GraphView } from "./graph";
 import { Graph3DView } from "./graph3d";
 import { MindMapView } from "./mindmap";
 import { ConceptView } from "./concept";
 import { TimelineView } from "./timeline";
 
-type Tab = "timeline" | "graph" | "graph3d" | "mind" | "concept";
+type Tab = "timeline" | "graph" | "graph3d" | "galaxy" | "neural" | "bubbles" | "sunburst" | "mind" | "concept" | "stream" | "sankey";
 
 const TABS: { id: Tab; name: string; hint: string }[] = [
-  { id: "graph", name: t("Grafo"), hint: t("Ogni pagina, nota, fonte e giorno di chat, uniti dai collegamenti. Clic per vedere, rotellina per lo zoom, doppio clic per vedere tutto.") },
+  { id: "graph", name: t("Grafo"), hint: t("Ogni pagina, nota, fonte e giorno di chat, uniti dai collegamenti (tratteggiati quelli solo stimati). Clic per vedere, rotellina per lo zoom, doppio clic su un nodo per mettere a fuoco lui e i vicini, sullo sfondo per vedere tutto.") },
   { id: "graph3d", name: t("Grafo 3D"), hint: t("Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.") },
+  { id: "galaxy", name: t("Galassia"), hint: t("Ogni gruppo è una galassia del suo colore: le pagine nel nucleo, le note lungo i bracci. Le note nuove brillano; cercando si accende la scia fra le stelle trovate.") },
+  { id: "neural", name: t("Rete neurale"), hint: t("La memoria come neuroni: quando la chat, Agent Chat o un altro PC la leggono o la scrivono, gli impulsi corrono verso ciò che toccano. Clic su un neurone per mandarne uno.") },
+  { id: "bubbles", name: t("Bolle"), hint: t("Una bolla per gruppo, grande quanto ciò che contiene, con dentro le sue pagine e note.") },
+  { id: "sunburst", name: t("Raggiera"), hint: t("Al centro la memoria, intorno le pagine larghe quanto le loro note, fuori le note di ogni pagina.") },
   { id: "mind", name: t("Mappa mentale"), hint: t("Un argomento al centro e ciò che ne nasce. Clic su un ramo per portarlo al centro.") },
   { id: "concept", name: t("Mappa concettuale"), hint: t("Le pagine a livelli, con le frecce che dicono come sono legate («- relazione: [[Pagina]]»).") },
+  { id: "stream", name: t("Fiume"), hint: t("Gli argomenti nel tempo: ogni gruppo è una striscia larga quanto se ne è scritto in quella settimana. Rotellina per lo zoom sul tempo.") },
+  { id: "sankey", name: t("Da dove arriva"), hint: t("Da dove arriva la memoria (chat, Agent Chat, altro PC, ticket, mail, chiamate, file letti) e in quali pagine finisce.") },
   { id: "timeline", name: t("Timeline"), hint: t("La memoria nel tempo. Rotellina per lo zoom sul tempo, trascina per spostarti.") },
 ];
 
@@ -29,9 +44,46 @@ const views: Record<Tab, View> = {
   timeline: new TimelineView(),
   graph: new GraphView(),
   graph3d: new Graph3DView(),
+  galaxy: new GalaxyView(),
+  neural: new NeuralView(),
+  bubbles: new BubblesView(),
+  sunburst: new SunburstView(),
   mind: new MindMapView(),
   concept: new ConceptView(),
+  stream: new StreamView(),
+  sankey: new SankeyView(),
 };
+const TAB_IDS = new Set<string>(TABS.map((x) => x.id));
+
+/** Filters over every view, remembered on this PC. */
+interface Filters {
+  hidden: NodeKind[];
+  period: "all" | "30" | "90" | "365";
+  sure: boolean;
+  colours: Colouring;
+}
+const FILTERS_KEY = "easyisland.memory.filters";
+function rememberedFilters(): Filters {
+  const base: Filters = { hidden: [], period: "all", sure: false, colours: "group" };
+  try {
+    return { ...base, ...JSON.parse(localStorage.getItem(FILTERS_KEY) ?? "{}") };
+  } catch {
+    return base;
+  }
+}
+let filters = rememberedFilters();
+function saveFilters() {
+  try {
+    localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+  } catch {
+    /* no storage */
+  }
+}
+/** The whole memory as read; `model` is it with the filters applied. */
+let full: MemGraph | null = null;
+/** «Come sono collegati?»: the first node, waiting for the second; then the path. */
+let pathFrom: string | null = null;
+let path: string[] | null = null;
 
 let model: Model | null = null;
 let tab: Tab = remembered();
@@ -41,14 +93,10 @@ let query = "";
 let source = rememberedSource();
 
 const root = document.getElementById("memory-root")!;
-const tabButtons = new Map<Tab, HTMLButtonElement>();
-const tabsBox = h("div", { class: "mem-tabs" });
-for (const tb of TABS) {
-  const b = h("button", { text: tb.name }) as HTMLButtonElement;
-  b.addEventListener("click", () => show(tb.id));
-  tabButtons.set(tb.id, b);
-  tabsBox.append(b);
-}
+// The views in one menu (Edoardo, 4 Nov 2026: eleven tabs took a whole line).
+const viewPick = h("select", { class: "mem-select mem-view-pick", title: t("Come disegnare la memoria") }) as HTMLSelectElement;
+for (const tb of TABS) viewPick.append(h("option", { value: tb.id, text: tb.name }));
+viewPick.addEventListener("change", () => show(viewPick.value as Tab));
 // Which memory, shown only when another PC's is copied here.
 const sourcesBox = h("div", { class: "mem-tabs mem-sources", style: "display:none" });
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
@@ -59,18 +107,43 @@ const checkBtn = h("button", { text: t("Controlla"), title: t("Un compito contro
 const reloadBtn = h("button", { text: "↻", title: t("Aggiorna") }) as HTMLButtonElement;
 const bar = h("div", { class: "mem-bar" },
   h("div", { class: "mem-title" }, h("i"), h("span", { text: t("Memoria") })),
-  tabsBox, sourcesBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
+  sourcesBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
+// The views, and the filters over them.
+const periodPick = h("select", { class: "mem-select", title: t("Solo ciò che ha una data in questo periodo (le pagine senza data restano)") }) as HTMLSelectElement;
+for (const [v, label] of [["all", t("Sempre")], ["30", t("Ultimo mese")], ["90", t("Ultimi 3 mesi")], ["365", t("Ultimo anno")]] as const) periodPick.append(h("option", { value: v, text: label }));
+periodPick.value = filters.period;
+const colourPick = h("select", { class: "mem-select", title: t("I colori dei nodi: per tipo (pagina, nota, fonte…) o per gruppo (gli argomenti che vanno insieme)") }) as HTMLSelectElement;
+for (const [v, label] of [["group", t("Colori per gruppo")], ["kind", t("Colori per tipo")]] as const) colourPick.append(h("option", { value: v, text: label }));
+colourPick.value = filters.colours;
+const sureBox = h("input", { type: "checkbox" }) as HTMLInputElement;
+sureBox.checked = filters.sure;
+const sureLabel = h("label", { class: "mem-check", title: t("Nascondi i collegamenti solo stimati dalle parole in comune: restano quelli scritti nelle pagine, le note che nominano la pagina e quelli controllati dall'IA") }, sureBox, h("span", { text: t("Solo collegamenti sicuri") }));
+const viewBar = h("div", { class: "mem-viewbar" }, h("span", { class: "mem-view-label", text: t("Vista") }), viewPick, colourPick, periodPick, sureLabel);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
 const empty = h("div", { class: "mem-empty" });
 const hint = h("div", { class: "mem-hint" });
 const legend = h("div", { class: "mem-legend" });
-for (const kind of ["page", "missing", "note", "source", "day", "old"] as NodeKind[]) {
-  legend.append(h("span", {}, h("i", { style: `background:${KIND_COLOR[kind]}` }), h("span", { text: kindName(kind) })));
+// The legend also filters: a click hides that kind from every view.
+function renderLegend() {
+  clear(legend);
+  for (const kind of ["page", "missing", "note", "source", "day", "old"] as NodeKind[]) {
+    const off = filters.hidden.includes(kind);
+    const b = h("button", { class: off ? "off" : "", title: off ? t("Mostra di nuovo") : t("Nascondi questo tipo") },
+      h("i", { style: `background:${KIND_COLOR[kind]}` }), h("span", { text: kindName(kind) }));
+    b.addEventListener("click", () => {
+      filters.hidden = off ? filters.hidden.filter((k) => k !== kind) : [...filters.hidden, kind];
+      saveFilters();
+      renderLegend();
+      applyFilters();
+    });
+    legend.append(b);
+  }
 }
+renderLegend();
 const panel = h("aside", { class: "mem-panel" });
-root.append(bar, h("div", { class: "mem-main" }, stageBox, panel));
+root.append(bar, viewBar, h("div", { class: "mem-main" }, stageBox, panel));
 
 const stage = new Stage(stageBox, {
   select: (id) => select(id),
@@ -95,10 +168,10 @@ stageBox.append(legend, hint, empty, tip);
 function remembered(): Tab {
   // ?tab=… (screenshots, smoke) wins.
   const asked = new URLSearchParams(location.search).get("tab");
-  if (asked === "timeline" || asked === "graph" || asked === "graph3d" || asked === "mind" || asked === "concept") return asked;
+  if (asked && TAB_IDS.has(asked)) return asked as Tab;
   try {
     const v = localStorage.getItem("easyisland.memory.tab");
-    if (v === "timeline" || v === "graph" || v === "graph3d" || v === "mind" || v === "concept") return v;
+    if (v && TAB_IDS.has(v)) return v as Tab;
   } catch {
     /* no storage */
   }
@@ -155,7 +228,7 @@ function show(next: Tab) {
   } catch {
     /* no storage */
   }
-  for (const [id, b] of tabButtons) b.classList.toggle("on", id === next);
+  viewPick.value = next;
   hint.textContent = TABS.find((x) => x.id === next)!.hint;
   legend.style.display = next === "timeline" ? "none" : "flex";
   hint.classList.toggle("low", next === "timeline");
@@ -197,6 +270,14 @@ function showEmpty() {
 }
 
 function select(id: string | null) {
+  if (pathFrom && id && id !== pathFrom && model) {
+    path = pathBetween(model, pathFrom, id);
+    pathFrom = null;
+    for (const v of Object.values(views)) v.setPath?.(path);
+    feedback.textContent = path ? "" : t("Questi due non sono collegati, nemmeno passando da altri.");
+  } else if (!id) {
+    clearPath();
+  }
   selected = id;
   for (const v of Object.values(views)) v.setSelected(id);
   stage.wake();
@@ -206,6 +287,34 @@ function select(id: string | null) {
 // ── The panel ────────────────────────────────────────────────────────────────
 
 const feedback = h("div", { class: "mem-feedback" });
+
+function clearPath() {
+  pathFrom = null;
+  path = null;
+  for (const v of Object.values(views)) v.setPath?.(null);
+}
+
+/** «Come sono collegati?»: the path, step by step, under the node. */
+function renderPath() {
+  if (!path || !model) return;
+  panel.append(h("h3", { text: t("Come sono collegati ({n} passi)", { n: path.length - 1 }) }));
+  const list = h("div", { class: "mem-links" });
+  for (const id of path) {
+    const n = model.byId.get(id);
+    if (!n) continue;
+    const b = h("button", {}, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: n.label }), h("small", { text: kindName(n.kind) })) as HTMLButtonElement;
+    b.addEventListener("click", () => {
+      selected = n.id;
+      for (const v of Object.values(views)) v.setSelected(n.id);
+      stage.wake();
+      renderPanel();
+    });
+    list.append(b);
+  }
+  const off = h("button", { text: t("Togli la strada") }) as HTMLButtonElement;
+  off.addEventListener("click", () => { clearPath(); stage.wake(); renderPanel(); });
+  panel.append(list, h("div", { class: "mem-row" }, off));
+}
 
 function renderPanel() {
   clear(panel);
@@ -236,7 +345,16 @@ function renderPanel() {
     }
     panel.append(list);
   }
+  renderPath();
   const row = h("div", { class: "mem-row" });
+  const way = h("button", { text: pathFrom === n.id ? t("Scegli l'altro nodo…") : t("Come è collegato a…"), title: t("Poi clicca un altro nodo: si illumina la strada più corta fra i due") }) as HTMLButtonElement;
+  way.addEventListener("click", () => {
+    clearPath();
+    pathFrom = n.id;
+    feedback.textContent = t("Clicca l'altro nodo nella mappa.");
+    renderPanel();
+  });
+  row.append(way);
   if (n.kind !== "missing") {
     const open = h("button", { text: t("Apri il file") }) as HTMLButtonElement;
     open.addEventListener("click", () => void Bridge.memoryNodeOpen(n.id).catch(fail));
@@ -272,6 +390,18 @@ function renderOverview() {
     panel.append(ul, h("div", { class: "mem-note", text: t("«Leggi adesso» le fa leggere all'agente, che ne scrive le pagine collegate e sposta i file in fonti. Lo fa anche il riordino della sera.") }));
   } else {
     panel.append(h("div", { class: "mem-note", text: t("Nessun file. Metti nella cartella da-leggere articoli, appunti, trascrizioni o mail (.md, .txt, .html, .eml…): l'agente ne ricava pagine collegate, con la fonte.") }));
+  }
+  // Notes tied to nothing (red ring in the graph): to link.
+  const alone = model?.lonely() ?? [];
+  if (alone.length) {
+    panel.append(h("h3", { text: t("Note senza collegamenti ({n})", { n: alone.length }) }));
+    const list = h("div", { class: "mem-links" });
+    for (const n of alone.slice(0, 12)) {
+      const b = h("button", {}, h("i", { style: "background:#f4505e" }), h("span", { text: n.label }), h("small", { text: n.date })) as HTMLButtonElement;
+      b.addEventListener("click", () => select(n.id));
+      list.append(b);
+    }
+    panel.append(list, h("div", { class: "mem-note", text: t("«Collega con l'IA» le guarda una per una e le lega alle pagine giuste, o crea la pagina dell'argomento.") }));
   }
   panel.append(h("h3", { text: t("Controllo") }));
   if (g?.check.length) {
@@ -342,10 +472,12 @@ async function load() {
     // Both: the other PCs' things say whose they are.
     if (source === "*") for (const n of g.nodes) if (n.origin) n.label = `${n.label} · ${n.origin}`;
     renderSources(g.sources ?? []);
-    // Reading, linking and checking work on this PC's memory only.
+    // Reading and checking work on this PC's memory only; the links of a copy can be judged here too.
     const copy = !!source && source !== "*";
-    for (const b of [inboxBtn, readBtn, linkBtn, checkBtn]) b.style.display = copy ? "none" : "";
-    model = new Model(g);
+    for (const b of [inboxBtn, readBtn, checkBtn]) b.style.display = copy ? "none" : "";
+    linkBtn.style.display = source === "*" ? "none" : "";
+    full = g;
+    model = new Model(filtered(g));
     // ?select=… on the first load; a page chosen in the island's field (memory-select) any time.
     const asked = wanted ?? new URLSearchParams(location.search).get("select");
     if (asked && (wanted || !loadedAt) && model.byId.has(asked)) selected = asked;
@@ -371,6 +503,48 @@ async function load() {
     loading = false;
   }
 }
+
+/** The graph with the filters: kinds hidden, period, only sure links. */
+function filtered(g: MemGraph): MemGraph {
+  const from = filters.period === "all" ? 0 : Date.now() - Number(filters.period) * 86_400_000;
+  const keep = new Set(g.nodes.filter((n) => {
+    if (filters.hidden.includes(n.kind)) return false;
+    if (!from || !n.date) return true;
+    const d = Date.parse(n.date.slice(0, 10));
+    return !Number.isFinite(d) || d >= from;
+  }).map((n) => n.id));
+  return {
+    ...g,
+    nodes: g.nodes.filter((n) => keep.has(n.id)),
+    edges: g.edges.filter((e) => keep.has(e.from) && keep.has(e.to) && (!filters.sure || (e.strength ?? 3) >= 2)),
+    events: g.events.filter((e) => !e.node || keep.has(e.node) || !from || Date.parse(e.date.slice(0, 10)) >= from),
+  };
+}
+
+function applyFilters() {
+  if (!full) return;
+  clearPath();
+  model = new Model(filtered(full));
+  for (const v of Object.values(views)) {
+    v.setModel(model);
+    v.setColouring?.(filters.colours);
+  }
+  if (selected && !model.byId.has(selected)) selected = null;
+  applySearch();
+  showEmpty();
+  renderPanel();
+  stage.wake();
+}
+
+periodPick.addEventListener("change", () => { filters.period = periodPick.value as Filters["period"]; saveFilters(); applyFilters(); });
+colourPick.addEventListener("change", () => {
+  filters.colours = colourPick.value as Colouring;
+  saveFilters();
+  for (const v of Object.values(views)) v.setColouring?.(filters.colours);
+  stage.wake();
+});
+sureBox.addEventListener("change", () => { filters.sure = sureBox.checked; saveFilters(); applyFilters(); });
+for (const v of Object.values(views)) v.setColouring?.(filters.colours);
 
 function applySearch() {
   const ids = query.trim() && model ? model.matches(query) : null;
@@ -410,7 +584,7 @@ linkBtn.addEventListener("click", async () => {
   feedback.textContent = t("Il motore sta collegando la memoria…");
   if (!selected) renderPanel();
   try {
-    feedback.textContent = await Bridge.memoryLink();
+    feedback.textContent = await Bridge.memoryLink(source && source !== "*" ? source : "");
     await load();
   } catch (e) {
     fail(e);
@@ -460,6 +634,22 @@ window.addEventListener("drop", async (e) => {
     feedback.textContent = t("In da-leggere: {list}. «Leggi adesso» per farli imparare.", { list: added.join(", ") });
     await load();
   }
+});
+
+// The memory read or written elsewhere (memory-activity, brain.rs): the living
+// network lights what it touched. Words of four letters or more, any of them.
+void onEvent<{ kind: "read" | "write"; text: string }>("memory-activity", (p) => {
+  if (!model) return;
+  const words = p.text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4).slice(0, 12);
+  if (!words.length) return;
+  const ids: string[] = [];
+  for (const n of model.g.nodes) {
+    const hay = `${n.label} ${n.text}`.toLowerCase();
+    if (words.some((w) => hay.includes(w))) ids.push(n.id);
+    if (ids.length >= 40) break;
+  }
+  for (const v of Object.values(views)) v.activity?.(ids, p.kind);
+  stage.wake();
 });
 
 // Fresh data when the window is opened again or comes back to the front.
