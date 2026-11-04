@@ -139,13 +139,34 @@ export class Stage {
     this.wake();
   }
 
-  /** One more frame, and more while the view says it moves. */
+  /** A frame asked and not drawn yet by requestAnimationFrame: drawn by a timer. */
+  private fallback = 0;
+
+  /**
+   * One more frame, and more while the view says it moves. WebView2 may hold
+   * back requestAnimationFrame in this window when it thinks it is covered (the
+   * island's transparent window over it): the animation then moved only with
+   * the mouse (4 Nov 2026). A frame not drawn within 50 ms is drawn by a timer;
+   * the animations are short, so this costs nothing at rest.
+   */
   wake() {
-    if (this.frame || document.hidden) return;
+    if (this.frame) return;
+    if (document.hidden) {
+      this.frame = window.setTimeout(() => this.tick(performance.now()), 100);
+      return;
+    }
     this.frame = requestAnimationFrame((time) => this.tick(time));
+    window.clearTimeout(this.fallback);
+    const asked = this.frame;
+    this.fallback = window.setTimeout(() => {
+      if (this.frame !== asked) return;
+      cancelAnimationFrame(asked);
+      this.tick(performance.now());
+    }, 50);
   }
 
   private tick(time: number) {
+    window.clearTimeout(this.fallback);
     this.frame = 0;
     if (!this.view || this.w < 2) return;
     this.ctx.save();
