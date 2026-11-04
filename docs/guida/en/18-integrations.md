@@ -19,7 +19,7 @@
 | Integration | What it does | Needs |
 |---|---|---|
 | **[3CX](19-3cx.md)** | Phone on the PC, calls, contacts, team, chat, voicemail | 3CX V20 phone system |
-| **Zammad** | Tickets assigned to you, unassigned and escalated; alert on a new ticket to assign; when a ticket is assigned to you, **Prepare** opens the chat with what the memory knows of the customer, similar tickets and how they were solved, and a draft reply (never sent) | Address and token (`ticket.agent` permission) |
+| **Zammad** | Your Zammad views as tabs (assigned to you, unassigned, escalated…) with their tickets, a filter and the RDM button on the customer; click a ticket to read the whole conversation, change **state**, **owner** (or “Assign to me”) and **priority**, add an **internal note** or **reply to the customer** by email (confirmed with a second click); alert on a new ticket to assign; when a ticket is assigned to you, **Prepare** opens the chat with what the memory knows of the customer, similar tickets and how they were solved, and a draft reply (never sent) | Address and token (`ticket.agent` permission) |
 | **[Outlook](21-microsoft.md)** | Unread mail, today's and tomorrow's appointments, alert before a meeting | Classic Outlook open, or the Microsoft account |
 | **[Teams](21-microsoft.md#teams)** | Meeting controls, Join from the copied link, presence | Teams |
 | **[Notion](20-notion.md)** | Tasks with views, notes, pages, mini Notion in the island, alerts | An internal integration's token |

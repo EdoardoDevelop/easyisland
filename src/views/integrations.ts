@@ -11,11 +11,12 @@ import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge, type NotionPage } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
-import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
+import { RDM, rdmCard } from "./rdm";
 import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
 import { REMOTE, remoteCard } from "./remote";
 import { AGENTCHAT, agentchatCard } from "./agentchat";
+import { ZAMMAD, zammadCard } from "./zammad";
 import { weatherCard } from "./weather";
 import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
@@ -954,6 +955,8 @@ export interface IntegrationCardHooks {
   runQuick(id: string): void;
   holdOpen(on: boolean): void;
   showNotice(n: Notice): void;
+  /** Zammad: «Prepara» on a ticket in the chat (island.ts prepareTicket). */
+  prepareTicket(m: { id: number; title: string; url: string }): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */
@@ -1009,7 +1012,7 @@ function copyInfoButton(color: string): HTMLElement {
 
 /**
  * A configurable widget, or an integration run as a check (Stato del PC,
- * Outlook, Zammad…): status line, its fields, Aggiorna.
+ * Outlook…): status line, its fields, Aggiorna. Zammad has its own card (zammad.ts).
  */
 function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () => void): HTMLElement {
   const isWidget = task.id.startsWith("widget:");
@@ -1022,13 +1025,9 @@ function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () =
   // Every field, each value wrapping onto more lines when long: the island
   // grows to show them all (see the overview's fitHeight).
   for (const f of st?.fields ?? []) {
-    // A Zammad ticket "… — Rossi Srl": its client's connections in RDM.
-    const client = kind === "zammad" && rdmActive() ? f.value.split(" — ")[1]?.trim() ?? "" : "";
     rows.append(h("div", { class: "int-row w-field" },
       h("span", { class: "int-name", text: f.label }),
-      h("span", { class: "w-value", text: f.value }),
-      client ? h("button", { class: "link-btn rdm-link", text: "RDM", title: t("Connessioni di «{c}» in Remote Desktop Manager", { c: client }),
-        onclick: (e: Event) => { e.stopPropagation(); rdmLookFor(client); } }) : null));
+      h("span", { class: "w-value", text: f.value })));
   }
   const color = st ? LEVEL_COLOR[st.level] : "#8E939C";
   return h(
@@ -1050,10 +1049,6 @@ function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () =
         : null,
       // Everything a ticket asks for (name, serial, IP, Windows…), one click.
       kind === "system" || kind === "network" ? copyInfoButton(task.color) : null,
-      kind === "zammad"
-        ? h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Apri Zammad"),
-          onclick: () => void Bridge.openZammad() })
-        : null,
       h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }),
     ),
   );
@@ -1083,6 +1078,7 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
     ensureLoaded(AGENTCHAT);
     return agentchatCard(hooks.openSettings);
   }
+  if (task.id === ZAMMAD) return zammadCard(hooks.openSettings, hooks.prepareTicket);
   if (task.id === "integration_weather") {
     const card = weatherCard(task, hooks.openSettings);
     if (card) return card;

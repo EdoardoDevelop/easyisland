@@ -601,6 +601,14 @@ export const Bridge = {
   zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   /** «Prepara» on a ticket: the customer's page, similar tickets, the question (zammad.rs `prepare`). */
   zammadPrepare: (id: number) => callOrThrow<{ label: string; context: string; question: string }>("zammad_prepare", { id }),
+  /** The Zammad card: the overviews and the tickets of `view` (zammad.rs `tickets`). */
+  zammadTickets: (view: string | null) => callOrThrow<ZammadList>("zammad_tickets", { view }),
+  zammadTicket: (id: number) => callOrThrow<ZammadTicket>("zammad_ticket", { id }),
+  /** A select of the ticket: state (with the reminder when pending), owner, priority. */
+  zammadSet: (id: number, field: "state_id" | "owner_id" | "priority_id", value: number, pending: string | null) =>
+    callOrThrow<ZammadTicket>("zammad_set", { id, field, value, pending }),
+  /** An internal note, or (`email`) a reply Zammad sends to the customer. */
+  zammadReply: (id: number, text: string, email: boolean) => callOrThrow<ZammadTicket>("zammad_reply", { id, text, email }),
   /** «Parla» (talk.rs): starts listening or ends the question; true = listening now. */
   talkToggle: () => callOrThrow<boolean>("talk_toggle"),
   talkCancel: () => call<void>("talk_cancel"),
@@ -836,6 +844,50 @@ export interface MemoryHit {
 export interface TicketHit {
   title: string;
   url: string;
+}
+
+/** A choice of the Zammad card's selects (zammad.rs Opt); `kind` for a state: new, open, pending, closed. */
+export interface ZammadOpt {
+  id: number;
+  name: string;
+  kind?: string;
+}
+
+/** The Zammad card's list (zammad.rs TicketList). */
+export interface ZammadList {
+  overviews: { link: string; name: string; count: number }[];
+  view: string;
+  me: number;
+  tickets: {
+    id: number; number: string; title: string; who: string; state: string; kind: string;
+    priority: string; priority_id: number; owner: string; owner_id: number; updated: string; articles: number; url: string;
+  }[];
+}
+
+/** A message of a Zammad ticket (zammad.rs Article). */
+export interface ZammadArticle {
+  id: number;
+  from: string;
+  to: string;
+  sender: string;
+  kind: string;
+  internal: boolean;
+  at: string;
+  subject: string;
+  text: string;
+  files: string[];
+}
+
+/** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
+export interface ZammadTicket {
+  id: number; number: string; title: string; url: string;
+  customer: string; org: string; group: string;
+  state_id: number; priority_id: number; owner_id: number;
+  created: string; updated: string; pending: string;
+  states: ZammadOpt[]; priorities: ZammadOpt[]; owners: ZammadOpt[];
+  articles: ZammadArticle[];
+  me: number;
+  reply_to: string;
 }
 
 export interface ChatSummary {

@@ -6513,3 +6513,90 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .ac-card .ac-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .ac-card .ac-list { flex: 1 1 auto; min-height: 260px; max-height: none; }
 #island.popwin .ac-card .ac-list { min-height: 120px; }
+
+/* Zammad card (views/zammad.ts): overviews as tabs, the tickets, a ticket open
+   with its messages, the selects and the field. As big as the island, like
+   Agent Chat (also popped out, popout.ts). */
+.view:has(.zm-card), .view:has(.zm-card) .left, .view:has(.zm-card) .card, .view:has(.zm-card) .left-body { height: 100%; min-height: 0; box-sizing: border-box; }
+.view:has(.zm-card) .card, .view:has(.zm-card) .left-body { display: flex; flex-direction: column; }
+.zm-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.zm-head { flex-wrap: wrap; row-gap: 2px; }
+.zm-head .zm-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zm-head-actions { margin-left: auto; display: inline-flex; gap: 2px; }
+.zm-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 7px; padding: 4px 2px 2px; }
+.zm-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.zm-tab { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; height: 24px; padding: 0 4px 0 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; background: transparent; color: var(--dim); font: 500 calc(11px + var(--fs-up, 0px)) var(--font); cursor: default; }
+.zm-tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zm-tab b { min-width: 18px; padding: 0 5px; border-radius: 9px; background: rgba(255, 255, 255, 0.08); color: var(--ink); font-weight: 600; text-align: center; }
+.zm-tab:hover { border-color: rgba(245, 158, 11, 0.45); }
+.zm-tab.on { border-color: rgba(245, 158, 11, 0.7); background: rgba(245, 158, 11, 0.16); color: var(--ink); }
+.zm-tab.on b { background: rgba(245, 158, 11, 0.4); }
+.zm-filter { height: 28px; padding: 0 10px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.25); color: var(--ink); font: 400 calc(12px + var(--fs-up, 0px)) var(--font); outline: none; }
+.zm-filter:focus { border-color: rgba(245, 158, 11, 0.7); }
+.zm-list { flex: 1 1 auto; min-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+#island.popwin .zm-list { min-height: 120px; }
+.zm-row { display: flex; flex-direction: column; gap: 2px; padding: 6px 9px 6px 10px; border-radius: 9px; background: rgba(255, 255, 255, 0.04); border-left: 3px solid rgba(255, 255, 255, 0.12); cursor: default; outline: none; min-width: 0; }
+.zm-row:hover, .zm-row:focus-visible { background: rgba(245, 158, 11, 0.1); }
+.zm-row.prio-1 { border-left-color: #5c6069; }
+.zm-row.prio-2 { border-left-color: rgba(245, 158, 11, 0.45); }
+.zm-row.prio-3 { border-left-color: #f4505e; }
+.zm-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.zm-line .int-ago { margin-left: auto; white-space: nowrap; }
+.zm-line.sub { font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-num { font: 500 calc(10.5px + var(--fs-up, 0px)) var(--mono); color: #8e939c; white-space: nowrap; }
+.zm-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.zm-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zm-free { color: #fbbf24; }
+.zm-me { color: #6ee7b7; }
+.zm-count { white-space: nowrap; }
+.zm-line .rdm-link { margin-left: auto; }
+.zm-state { flex: 0 0 auto; padding: 0 7px; border-radius: 8px; font: 600 calc(10px + var(--fs-up, 0px))/16px var(--font); text-transform: lowercase; white-space: nowrap; background: rgba(255, 255, 255, 0.08); color: var(--dim); }
+.zm-state.new { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+.zm-state.open { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+.zm-state.pending { background: rgba(167, 139, 250, 0.18); color: #c4b5fd; }
+.zm-state.closed { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+.zm-loading { font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+/* A ticket open. */
+.zm-bar { display: flex; align-items: center; gap: 8px; }
+.zm-grow { flex: 1 1 auto; }
+.zm-back { color: var(--ink) !important; font-weight: 600; }
+.zm-ticket-title { font: 600 calc(14px + var(--fs-up, 0px))/1.3 var(--font); color: var(--ink); overflow-wrap: anywhere; }
+.zm-ticket-sub { display: flex; flex-wrap: wrap; gap: 4px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-props { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 8px; }
+.zm-prop { display: flex; flex-direction: column; gap: 3px; min-width: 0; font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-prop .link-btn { align-self: flex-start; padding: 0; }
+.zm-select, .zm-date { height: 28px; min-width: 0; padding: 0 6px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.3); color: var(--ink); font: 400 calc(12px + var(--fs-up, 0px)) var(--font); color-scheme: dark; outline: none; }
+.zm-select:focus, .zm-date:focus { border-color: rgba(245, 158, 11, 0.7); }
+.zm-pending { color: #c4b5fd; }
+.zm-pending-set { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.zm-mini { height: 26px; padding: 0 10px; }
+.teams-btn.light.zm-mini, .teams-btn.light.zm-send { background: #F59E0B; color: #2a1a02; }
+.zm-saved { min-height: 0; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #6ee7b7; }
+.zm-saved:empty { display: none; }
+.zm-saved.bad { color: #fca5a5; }
+.zm-thread { flex: 1 1 auto; min-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+#island.popwin .zm-thread { min-height: 70px; }
+.zm-msg { max-width: 92%; padding: 6px 9px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); min-width: 0; align-self: flex-start; }
+.zm-msg.agent { align-self: flex-end; background: rgba(245, 158, 11, 0.12); }
+.zm-msg.internal { background: rgba(250, 204, 21, 0.07); border: 1px dashed rgba(250, 204, 21, 0.4); }
+.zm-msg.system { align-self: center; background: transparent; opacity: 0.75; }
+.zm-meta { display: flex; align-items: baseline; gap: 6px; min-width: 0; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-meta b { font: 600 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zm-meta .int-ago { margin-left: auto; white-space: nowrap; padding-left: 8px; }
+.zm-to { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zm-note-tag { padding: 0 6px; border-radius: 7px; background: rgba(250, 204, 21, 0.18); color: #fde68a; white-space: nowrap; }
+.zm-text { margin-top: 2px; font: 400 calc(12px + var(--fs-up, 0px))/1.45 var(--font); color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.zm-more { padding: 0; margin-top: 2px; color: #fcd34d !important; }
+.zm-file { display: block; max-width: 100%; margin-top: 3px; padding: 0; border: 0; background: transparent; color: #fcd34d; font: 500 calc(11px + var(--fs-up, 0px)) var(--font); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.zm-compose { display: flex; flex-direction: column; gap: 5px; }
+.zm-compose-top, .zm-compose-bottom { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.zm-modes { display: inline-flex; gap: 4px; }
+.zm-mode { height: 24px; padding: 0 10px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; background: transparent; color: var(--dim); font: 500 calc(11px + var(--fs-up, 0px)) var(--font); cursor: default; }
+.zm-mode.on { background: rgba(245, 158, 11, 0.18); border-color: rgba(245, 158, 11, 0.6); color: var(--ink); }
+.zm-reply-to { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-field { width: 100%; box-sizing: border-box; max-height: 160px; }
+.zm-field:focus { border-color: rgba(250, 204, 21, 0.6); }
+.zm-field.email:focus { border-color: rgba(245, 158, 11, 0.85); }
+.zm-keys { margin-right: auto; font: 400 calc(10px + var(--fs-up, 0px)) var(--font); color: #6b7079; }
+.zm-send:disabled { opacity: 0.45; filter: none; }
+.teams-btn.zm-send.red { background: #f4505e; color: #2a0508; }

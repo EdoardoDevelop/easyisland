@@ -744,6 +744,92 @@ export async function runScene(island: Island, scene: string) {
       await wait(1500);
       break;
     }
+    case "zammad": {
+      // ?activeIntegrations=integration_zammad — the card with made-up tickets (Bridge mocked);
+      // &open: ticket 31012 open; &email: and «Rispondi al cliente» chosen.
+      const q = new URLSearchParams(location.search);
+      const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+      const states = [
+        { id: 1, name: "nuovo", kind: "new" }, { id: 2, name: "aperto", kind: "open" },
+        { id: 3, name: "in attesa di promemoria", kind: "pending" }, { id: 4, name: "chiuso", kind: "closed" },
+      ];
+      const priorities = [{ id: 1, name: "1 bassa" }, { id: 2, name: "2 normale" }, { id: 3, name: "3 alta" }];
+      const owners = [{ id: 1, name: "— nessuno —" }, { id: 4, name: "Edoardo" }, { id: 5, name: "Marco Verdi" }, { id: 6, name: "Sara Neri" }];
+      const row = (id: number, title: string, who: string, state: number, prio: number, owner: number, min: number, articles: number) => ({
+        id, number: String(31000 + id), title, who, state: states[state - 1].name, kind: states[state - 1].kind,
+        priority: priorities[prio - 1].name, priority_id: prio, owner: owners.find((o) => o.id === owner && owner > 1)?.name ?? "", owner_id: owner,
+        updated: ago(min), articles, url: `https://help.example.it/#ticket/zoom/${id}`,
+      });
+      const lists: Record<string, ReturnType<typeof row>[]> = {
+        my_assigned: [
+          row(12, "VPN non si collega dallo smart working", "Farmacia Falchi", 2, 3, 4, 12, 4),
+          row(9, "Stampante etichette ferma in magazzino", "Rossi Srl", 3, 2, 4, 95, 6),
+          row(7, "Nuovo utente per la segreteria", "Studio Bianchi", 2, 1, 4, 60 * 26, 2),
+        ],
+        all_unassigned: [
+          row(14, "Posta non arriva su Outlook", "Comune di Prova", 1, 2, 1, 4, 1),
+          row(13, "Rinnovo certificato SSL del sito", "Rossi Srl", 1, 2, 1, 50, 1),
+        ],
+        all_escalated: [],
+      };
+      const detail = {
+        id: 12, number: "31012", title: "VPN non si collega dallo smart working", url: "https://help.example.it/#ticket/zoom/12",
+        customer: "Anna Bianchi", org: "Farmacia Falchi", group: "Assistenza", state_id: 2, priority_id: 3, owner_id: 4,
+        created: ago(60 * 5), updated: ago(12), pending: "", states, priorities, owners, me: 4, reply_to: "anna.bianchi@falchi.example.it",
+        articles: [
+          { id: 1, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(60 * 5), subject: "VPN",
+            text: "Buongiorno,\nda stamattina il client VPN dal portatile di casa resta su «Connessione in corso» e poi va in errore 809.\nIeri funzionava. Potete controllare?\n\nGrazie,\nAnna", files: ["errore-vpn.png"] },
+          { id: 2, from: "Edoardo", to: "", sender: "Agent", kind: "note", internal: true, at: ago(60 * 4), subject: "",
+            text: "Il firewall è stato aggiornato ieri sera: probabilmente la regola L2TP è sparita. Controllo.", files: [] },
+          { id: 3, from: "Edoardo <assistenza@example.it>", to: "anna.bianchi@falchi.example.it", sender: "Agent", kind: "email", internal: false, at: ago(60 * 3), subject: "VPN",
+            text: "Buongiorno Anna,\nstiamo verificando la configurazione del firewall. Le scrivo appena ho novità.", files: [] },
+          { id: 4, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(12), subject: "Re: VPN",
+            text: "Grazie! Mi serve entro le 15 per la riunione.", files: [] },
+        ],
+      };
+      Object.assign(Bridge, {
+        zammadTickets: async (view: string | null) => {
+          await wait(150);
+          const v = view && view in lists ? view : "my_assigned";
+          return {
+            overviews: [
+              { link: "my_assigned", name: "I miei ticket assegnati", count: lists.my_assigned.length },
+              { link: "all_unassigned", name: "Non assegnati e aperti", count: lists.all_unassigned.length },
+              { link: "all_escalated", name: "Ticket in escalation", count: 0 },
+            ],
+            view: v, me: 4, tickets: lists[v],
+          };
+        },
+        zammadTicket: async () => { await wait(150); return { ...detail }; },
+        zammadSet: async (_id: number, field: "state_id" | "owner_id" | "priority_id", value: number) => {
+          await wait(300);
+          Object.assign(detail, { [field]: value });
+          return { ...detail };
+        },
+        zammadReply: async (_id: number, text: string, email: boolean) => {
+          await wait(300);
+          detail.articles.push({ id: detail.articles.length + 1, from: "Edoardo", to: email ? detail.reply_to : "", sender: "Agent", kind: email ? "email" : "note",
+            internal: !email, at: new Date().toISOString(), subject: "", text, files: [] });
+          return { ...detail, articles: [...detail.articles] };
+        },
+        widgetRefresh: async () => {},
+      });
+      State.widgetStatus.integration_zammad = {
+        id: "integration_zammad", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
+        summary: "2 non assegnati · 3 assegnati a te", fields: [],
+      };
+      State.setFocus("integration_zammad");
+      State.isPinned = true;
+      island.alert("overview");
+      if (q.has("open") || q.has("email")) {
+        await wait(500);
+        document.querySelector<HTMLElement>(".zm-row")?.click();
+        await wait(400);
+        if (q.has("email")) document.querySelectorAll<HTMLElement>(".zm-mode")[1]?.click();
+      }
+      await wait(1500);
+      break;
+    }
     case "usage": {
       // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card;
       // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header).

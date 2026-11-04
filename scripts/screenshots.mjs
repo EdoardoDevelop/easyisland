@@ -71,6 +71,9 @@ const SHOTS = {
   "moment-error": { url: `/?scene=moment&moment=port&activeIntegrations=${PILLS}` },
   "moment-card": { url: `/?scene=moment&moment=card&activeIntegrations=${PILLS}` },
   daily: { url: `/?scene=daily&activeIntegrations=${PILLS}` },
+  // The Zammad card: the tickets, and one open with its messages (dev/scenes.ts `zammad`).
+  zammad: { url: `/?scene=zammad&islandHeight=560&activeIntegrations=${PILLS}` },
+  "zammad-ticket": { url: `/?scene=zammad&email&islandHeight=640&activeIntegrations=${PILLS}` },
   // Every character but the cube, without the island (dev/characters.html).
   characters: { url: "/dev/characters.html" },
   // Whole windows, not an island.

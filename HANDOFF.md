@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_3 novembre 2026. **1.0.22** in `main` (tag `v1.0.22`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_4 novembre 2026. **1.0.22** in `main` (tag `v1.0.22`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 4/11 — Scheda Zammad: ticket, conversazione, risposta, proprietario e stato (`claude/zammad-ticket`)
+Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con i conteggi, filtro, righe con stato/cliente/proprietario/priorità; ticket aperto con tutti i messaggi, select Stato (data del promemoria se «in attesa»), Proprietario (tecnici del gruppo, «Assegna a me»), Priorità salvate subito; nota interna o risposta al cliente via email con secondo clic. Rust: `zammad::tickets`, `ticket`, `set`, `reply` (`docs/integrazioni.md` → Scheda Zammad). Provato con test Rust, anteprima `?scene=zammad` (`open`, `email`) e smoke; **non ancora su Zammad vero** (`docs/prove-dal-vivo.md`).
+
 ### 3/11 — Mappa della memoria: viste nuove, gruppi, collegamenti giudicati dall'IA (`claude/mappa-memoria`)
 - Viste Galassia, Rete neurale (impulsi su `memory-activity`), Bolle, Raggiera, Fiume, Da dove arriva; gruppi a colori, freschezza, filtri (legenda, periodo, solo sicuri), «Come è collegato a…», doppio clic = messa a fuoco, note sole (`src/memory/`).
 - Collegamenti: forza 1–3, stime più severe (`Rarity`), niente catene di parole rare; «Collega con l'IA» giudica le note e salva `collegamenti.json` (`memory_links.rs`), anche per la copia di lavoro da casa. Provato nell'anteprima con i dati finti e con test Rust; non sulla memoria vera né con un motore vero. `docs/chat.md` → Finestra Memoria.
@@ -64,6 +67,3 @@ Clic destro, pulsante o voce trascinata fuori dall'isola → finestra (`popout.t
 
 ### 2/11 — Finestra Memoria: Questo PC / altro PC / Tutte (1.0.22)
 Con la copia di un altro PC (`memoria-condivise`) la barra della finestra Memoria sceglie quale memoria disegnare (`memory_graph` con `source`, `brain::graph_of`). Nome dell'altro PC dalla cartella o dall'impostazione. `docs/chat.md` → Finestra Memoria. Provato nell'anteprima con «ufficio» finto e `cargo check`; non ancora nell'app con la copia vera.
-
-### 2/11 — Chat: barra delle conversazioni, più conversazioni aperte (1.0.22)
-Barra a sinistra (Ctrl+B; allarga l'isola con `chatSideRoom`, galleggia se stretta), colonna centrale di 780 px. Ogni conversazione ha il suo `Chat` in Rust (`Chats`, comandi con `sid`), processo e «Ferma»; max 8 (`MAX_OPEN_CHATS`). `docs/chat.md` → Cronologia. Provato con test, smoke e `?scene=chat&history`, non con due motori veri insieme.

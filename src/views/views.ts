@@ -31,6 +31,7 @@ import { Bridge } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { softphoneVersion } from "../core/softphone";
 import { THREECX } from "./threecx";
+import { ZAMMAD, zammadKey } from "./zammad";
 import { t } from "../core/i18n";
 
 export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHandlers, TalkHandlers, MomentActions {
@@ -383,6 +384,7 @@ function buildOverview(actions: ViewActions): ViewHost {
     },
     holdOpen: (on) => actions.holdOpen(on),
     showNotice: (n) => actions.showNotice(n),
+    prepareTicket: (m) => actions.prepareTicket({ kind: "ticket", ...m }),
   };
 
   return {
@@ -491,7 +493,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       } else if (task) {
         const info = State.integrations[task.id];
-        const key = [
+        // Zammad's card redraws itself (zammad.ts): a ticket open is never rebuilt under the caret.
+        const key = task.id === ZAMMAD ? `~${zammadKey()}` : [
           task.id, detailOpen, task.state, task.steps.join("|"),
           info?.loaded, info?.error, info?.configured,
           // A Notion page open in the card redraws itself (notionpage.ts): not rebuilt while typing.
@@ -567,6 +570,7 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
     },
     holdOpen: () => {},
     showNotice: (n) => actions.showNotice(n),
+    prepareTicket: (m) => actions.prepareTicket({ kind: "ticket", ...m }),
   };
   return {
     el,
@@ -582,7 +586,7 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
       left.style.setProperty("--wash", `color-mix(in srgb, ${task.color} 45%, transparent)`);
       const info = State.integrations[task.id];
       // As the island's card (buildOverview): rebuilt only when what it shows changes.
-      const key = [
+      const key = task.id === ZAMMAD ? `~${zammadKey()}` : [
         task.id, detailOpen, task.state, task.steps.join("|"),
         info?.loaded, info?.error, info?.configured,
         task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),

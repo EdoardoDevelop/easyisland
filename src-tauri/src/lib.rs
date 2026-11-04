@@ -2031,6 +2031,30 @@ async fn zammad_prepare(id: i64) -> Result<zammad::TicketPrep, String> {
     zammad::prepare(id).await
 }
 
+/// The Zammad card: the overviews and the tickets of one.
+#[tauri::command]
+async fn zammad_tickets(view: Option<String>) -> Result<zammad::TicketList, String> {
+    zammad::tickets(view).await
+}
+
+/// The Zammad card: a ticket with its messages and the choices of its selects.
+#[tauri::command]
+async fn zammad_ticket(id: i64) -> Result<zammad::TicketDetail, String> {
+    zammad::ticket(id).await
+}
+
+/// The Zammad card: state, owner or priority changed in a select.
+#[tauri::command]
+async fn zammad_set(id: i64, field: String, value: i64, pending: Option<String>) -> Result<zammad::TicketDetail, String> {
+    zammad::set(id, &field, value, pending).await
+}
+
+/// The Zammad card: an internal note, or a reply by email after the second click.
+#[tauri::command]
+async fn zammad_reply(id: i64, text: String, email: bool) -> Result<zammad::TicketDetail, String> {
+    zammad::reply(id, &text, email).await
+}
+
 /// «Parla»: starts listening, or ends the question (talk.rs). Ok(true) = listening.
 #[tauri::command]
 fn talk_toggle(app: AppHandle) -> Result<bool, String> {
@@ -4095,6 +4119,10 @@ pub fn run() {
             memory_window_select,
             zammad_search,
             zammad_prepare,
+            zammad_tickets,
+            zammad_ticket,
+            zammad_set,
+            zammad_reply,
             talk_toggle,
             talk_cancel,
             talk_speak,
