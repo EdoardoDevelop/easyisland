@@ -174,7 +174,18 @@ Da provare dove c'è RDM (`docs/prove-dal-vivo.md`). RDM si collega; EasyIsland 
 - 0 connessioni = errore spiegato (`empty_read`, `hub_read`).
 - **Ricerca** (`score`): ogni parola in nome, cartella o host; senza risultati basta una parola ≥ 3 lettere (`loose_score`).
 - Impostazioni: stato di RDM, PowerShell 7, modulo, elenco, comandi da copiare (mai eseguiti); origine (`rdmDataSource`, caricata a richiesta).
-- Prove `rdm::tests`, `cargo test --lib rdm::tests::live -- --ignored --nocapture`; scena `rdm&activeIntegrations=integration_rdm` (`&nolist`, `&q=`).
+- Prove `rdm::tests`, `cargo test --lib rdm::tests::live -- --ignored --nocapture`; scena `rdm&activeIntegrations=integration_rdm` (`&nolist`, `&q=`, `&cloud`, `&tied`).
+- **Chat:** `rdm_search` (sola lettura: connessioni di RDM e del cloud, cartelle e credenziali del cloud, mai password) e `rdm_open` (apre per id; Consenti/Nega ogni volta, delicato per Agent Chat come `remote_run`).
+
+### Devolutions Cloud (`dvc.rs`, `src/views/dvc.ts`, 4/11)
+Dalle prove di @claudio (`docs/idee.md`, file `DevolutionsCloud.psm1`/`setup.ps1`/`SKILL.md`): il modulo e l'MCP di RDM non vedono i vault cloud; i cmdlet **Hub** di `Devolutions.PowerShell` sì, con un'**Application identity**. Niente skill né modulo installati: gli script sono in `dvc.rs`, eseguiti con `rdm::run` (pwsh nascosto, `-EncodedCommand`).
+- **Impostazioni → RDM:** «Devolutions Cloud: Usato» (`dvcOn`), indirizzo, Key, Secret in Gestione credenziali (`dvc-url`, `dvc-key`, `dvc-secret`), «Prova» (`dvc_test`, vault visibili), stato (`dvc_status`). Le chiavi arrivano a pwsh come variabili d'ambiente del solo processo, azzerate dopo `Connect-HubAccount`; mai sulla riga di comando, mai nel log.
+- **Lettura:** con «Sincronizza» di RDM (`rdm::refresh` → `dvc::refresh`): ogni vault tranne System Vault, ogni voce con nome, tipo, cartella (per le cartelle `Group` contiene anche il nome), host, utente, tipo di credenziale. Cifrata DPAPI in `dvc-cache.bin`. Le connessioni entrano in `rdm::search`/`by_host` (`with_cloud`) e si aprono con `/Vault:<id>`; origine dati = quella letta o `rdmDataSource`.
+- **Scheda:** schede «Connessioni / Devolutions Cloud» nella card RDM (`rdm.tab`, cambio sul posto con `rdm.swap`); vista persistente (`dvcView`) con percorso, cartelle (conteggio), voci, dettagli (`Get-HubEntryResolved -ResolvePasswords`, solo lunghezze), righe delle liste password.
+- **Password:** `dvc_copy_password` legge la password in pwsh, Rust la scrive negli appunti con `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory = 0`, `CanUploadToCloudClipboard = 0` (gli Appunti di EasyIsland la saltano), e svuota dopo `CLIP_SECONDS` (30) se il numero di sequenza non è cambiato. Al front end torna solo il numero di secondi.
+- **Scrittura** (`dvc_new_credential`, `dvc_new_password_list`): prima `confirm: false` = anteprima calcolata dall'elenco (cartella esistente, nome libero, righe), poi «Conferma e crea»: pwsh crea come `New-DVCEntryObject` (Connection + PSEntryMetadata con `ParentId` = id della cartella), rilegge con le password risolte e confronta (`-ceq`): tornano solo `userOk`/`passwordOk`. La password passa in chiaro al Hub, che la cifra al salvataggio. Poi nuova lettura. Nessuna eliminazione.
+- **Cliente ↔ cartella:** `rdmFolders` (cliente in minuscolo → `{vault, path}`), collegato dalla cartella nella scheda; `rdmLookFor` (pulsante RDM di Zammad, «Connessioni in RDM» di 3CX) apre quella cartella.
+- Prove: `dvc::tests`; sintassi degli script controllata con il parser di PowerShell; scena `rdm&cloud`, `rdm&tied`, schermate `rdm-cloud`, `rdm-cloud-lista`.
 
 ## Integrazioni personali (`custom.rs`, `src/views/custom.ts`)
 La chat scrive una **descrizione**, mai codice; EasyIsland la disegna e la esegue; cosa può fare un'azione lo decide il codice.

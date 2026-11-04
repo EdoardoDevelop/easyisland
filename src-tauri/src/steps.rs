@@ -15,6 +15,8 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "run_quick_action" => t("Esegue un'azione rapida"),
         "open_app" => t("Apre un programma"),
         "open_url" => t("Apre un link"),
+        "rdm_search" => t("Cerca in Remote Desktop Manager"),
+        "rdm_open" => t("Apre una connessione in RDM"),
         "read_clipboard" => t("Legge gli appunti"),
         "write_clipboard" => t("Copia negli appunti"),
         "show_notice" => t("Mostra un avviso nell'isola"),

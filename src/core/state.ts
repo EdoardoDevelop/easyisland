@@ -876,6 +876,10 @@ export interface IntegrationConfig {
   /** Remote Desktop Manager: connections kept in the card, and the last opened (rdm.rs). */
   rdmPins?: RdmRef[];
   rdmRecent?: RdmRef[];
+  /** Devolutions Cloud / Hub with an Application identity (dvc.rs); keys in the Credential Manager. */
+  dvcOn?: boolean;
+  /** A customer (Zammad organization, 3CX contact), lower case → its folder in a cloud vault (rdm.ts). */
+  rdmFolders?: Record<string, { vault: string; path: string }>;
   /** Telegram (telegram.rs): the linked chat (0 = none) and its name. */
   telegramChatId?: number;
   telegramName?: string;

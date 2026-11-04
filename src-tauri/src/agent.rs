@@ -293,6 +293,28 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(format!("Aperto {target}."))
         }
 
+        "rdm_search" => {
+            let query = arg(args, "query");
+            if query.trim().is_empty() {
+                return Err("Manca query.".into());
+            }
+            let mut lines: Vec<String> = crate::rdm::search(query, 15)
+                .into_iter()
+                .map(|e| format!("connessione {} «{}» in «{}»{} id {}", e.kind, e.name, e.group, if e.host.is_empty() { String::new() } else { format!(", host {}", e.host) }, e.id))
+                .collect();
+            let cloud = crate::dvc::search_text(query);
+            if !cloud.is_empty() {
+                lines.push(format!("Devolutions Cloud:\n{cloud}"));
+            }
+            Ok(if lines.is_empty() { format!("Nessuna connessione trovata per «{query}» (se l'elenco è vecchio, l'utente preme Sincronizza nella scheda RDM).") } else { lines.join("\n") })
+        }
+
+        "rdm_open" => {
+            let id = arg(args, "id").trim().trim_matches(['{', '}']).to_string();
+            crate::rdm::open(&id)?;
+            Ok("Aperta in Remote Desktop Manager.".into())
+        }
+
         "open_url" => {
             let url = arg(args, "url");
             if !(url.starts_with("https://") || url.starts_with("http://")) {

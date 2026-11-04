@@ -6600,3 +6600,47 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .zm-keys { margin-right: auto; font: 400 calc(10px + var(--fs-up, 0px)) var(--font); color: #6b7079; }
 .zm-send:disabled { opacity: 0.45; filter: none; }
 .teams-btn.zm-send.red { background: #f4505e; color: #2a0508; }
+
+/* Devolutions Cloud in the RDM card (views/dvc.ts). */
+.dvc-tabs { display: flex; gap: 6px; margin: 2px 0 6px; }
+.rec-chip.dvc-tab.on { background: rgba(232, 84, 42, 0.18); border-color: rgba(232, 84, 42, 0.55); color: var(--ink); }
+.dvc-view { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dvc-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 4px; font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.dvc-crumbs .link-btn { padding: 0; }
+.dvc-sep { color: #8e939c; }
+.dvc-vault { height: 26px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.3); color: var(--ink); color-scheme: dark; }
+.dvc-icon { flex: 0 0 auto; width: 22px; text-align: center; }
+.dvc-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.dvc-tools .link-btn { padding: 0 2px; }
+.dvc-chev { color: #8e939c; width: 10px; }
+.dvc-entry { display: flex; flex-direction: column; min-width: 0; }
+.dvc-details { margin: 0 0 4px 26px; padding: 6px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; gap: 3px; }
+.dvc-kv { display: flex; align-items: baseline; gap: 8px; min-width: 0; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.dvc-kv > span { min-width: 74px; }
+.dvc-kv b { color: var(--ink); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.dvc-kv .link-btn { padding: 0; margin-left: auto; }
+.dvc-rows { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.dvc-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.dvc-row b { color: var(--ink); font-weight: 500; white-space: nowrap; }
+.dvc-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dvc-row .link-btn, .dvc-row small { margin-left: auto; padding: 0; white-space: nowrap; }
+.dvc-form { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(232, 84, 42, 0.35); background: rgba(232, 84, 42, 0.06); }
+.dvc-form > b { font: 600 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.dvc-field { display: flex; align-items: center; gap: 8px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.dvc-field > span { min-width: 80px; }
+.dvc-input { flex: 1 1 auto; min-width: 0; }
+.dvc-check { display: flex; align-items: center; gap: 6px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim); }
+.dvc-preview { padding: 6px 9px; border-radius: 8px; background: rgba(0, 0, 0, 0.25); font: 400 calc(11.5px + var(--fs-up, 0px))/1.45 var(--font); color: var(--ink); }
+.dvc-actions { display: flex; gap: 6px; }
+.dvc-actions .teams-btn { height: 28px; }
+.teams-btn.light.dvc-go { background: #E8542A; color: #fff; }
+.dvc-result { margin-top: 6px; padding: 6px 9px; border-radius: 8px; display: flex; flex-direction: column; gap: 2px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim); }
+.dvc-result.ok { background: rgba(34, 197, 94, 0.12); }
+.dvc-result.bad { background: rgba(244, 80, 94, 0.14); }
+.dvc-result b { color: var(--ink); }
+.dvc-result .link-btn { align-self: flex-start; padding: 0; }
+.dvc-tie { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.dvc-tie-label { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.dvc-tie .dvc-input { max-width: 260px; }
+.dvc-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 9px; border-radius: 10px; background: rgba(232, 84, 42, 0.16); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.dvc-chip button { border: 0; background: transparent; color: #8e939c; cursor: pointer; }

@@ -35,7 +35,7 @@ use crate::probes::reg;
 pub const ID: &str = "integration_rdm";
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 /// Reading a big workspace (a server with thousands of entries) takes a while.
-const READ_TIMEOUT: Duration = Duration::from_secs(120);
+pub(crate) const READ_TIMEOUT: Duration = Duration::from_secs(120);
 const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
 
 // ── Finding RDM and PowerShell ────────────────────────────────────────────────
@@ -74,7 +74,7 @@ fn protocol() -> bool {
 }
 
 /// PowerShell 7 (pwsh.exe): the module needs 7.2 or later.
-fn pwsh() -> Option<PathBuf> {
+pub(crate) fn pwsh() -> Option<PathBuf> {
     if let Some(p) = crate::find_on_path("pwsh") {
         return Some(p);
     }
@@ -93,7 +93,7 @@ fn encoded(script: &str) -> String {
 
 /// Runs a script in a hidden pwsh with no profile and no prompts; its output
 /// (UTF-8) or a message in Italian. `env` reaches the script as $env:… (ids only).
-async fn run(script: &str, env: &[(&str, &str)], limit: Duration) -> Result<String, String> {
+pub(crate) async fn run(script: &str, env: &[(&str, &str)], limit: Duration) -> Result<String, String> {
     let exe = pwsh().ok_or_else(|| t("Manca PowerShell 7 (pwsh): serve al modulo di Remote Desktop Manager.").to_string())?;
     let mut cmd = tokio::process::Command::new(exe);
     cmd.args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded(script)])
@@ -119,7 +119,7 @@ async fn run(script: &str, env: &[(&str, &str)], limit: Duration) -> Result<Stri
 }
 
 /// PowerShell's error, in a sentence the user can act on.
-fn problem(stderr: &str) -> String {
+pub(crate) fn problem(stderr: &str) -> String {
     let s = stderr.to_lowercase();
     if s.contains("devolutions.powershell") && (s.contains("not loaded") || s.contains("was not") || s.contains("non è stato") || s.contains("no valid module")) {
         return t("Manca il modulo Devolutions.PowerShell. In PowerShell 7: Install-Module Devolutions.PowerShell -Scope CurrentUser").into();
@@ -133,13 +133,13 @@ fn problem(stderr: &str) -> String {
 }
 
 /// The installed module's version, or None.
-async fn module_version() -> Option<String> {
+pub(crate) async fn module_version() -> Option<String> {
     let script = "$m = Get-Module -ListAvailable Devolutions.PowerShell | Sort-Object Version -Descending | Select-Object -First 1; if ($m) { \"$($m.Version)\" }";
     run(script, &[], CHECK_TIMEOUT).await.ok().filter(|v| !v.is_empty())
 }
 
 /// The output prefix of every script: errors stop it, the text is UTF-8.
-const PRELUDE: &str = "$ErrorActionPreference = 'Stop'\n$ProgressPreference = 'SilentlyContinue'\n[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\nImport-Module Devolutions.PowerShell\n";
+pub(crate) const PRELUDE: &str = "$ErrorActionPreference = 'Stop'\n$ProgressPreference = 'SilentlyContinue'\n[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\nImport-Module Devolutions.PowerShell\n";
 
 /// The workspaces (data sources) RDM knows on this PC.
 const DATA_SOURCES: &str = "$list = @(Get-RDMDataSource | ForEach-Object { [pscustomobject]@{ id = \"$($_.ID)\"; name = \"$($_.Name)\"; kind = \"$($_.Type)\" } })\nConvertTo-Json -InputObject $list -Compress -Depth 3";
@@ -188,7 +188,7 @@ struct Index {
 static INDEX: Mutex<Option<Index>> = Mutex::new(None);
 
 /// Types that are not connections: folders and stored credentials.
-fn is_connection(kind: &str) -> bool {
+pub(crate) fn is_connection(kind: &str) -> bool {
     let k = kind.to_ascii_lowercase();
     !(k == "group" || k.starts_with("credential"))
 }
@@ -285,6 +285,10 @@ pub async fn refresh(app: &AppHandle) {
             }
         }
     }
+    // Devolutions Cloud (dvc.rs): its vaults with the same «Sincronizza».
+    if crate::dvc::on() {
+        crate::dvc::refresh().await;
+    }
     emit(app);
 }
 
@@ -348,7 +352,13 @@ fn summary() -> Value {
         "exe": exe().is_some(),
         "protocol": protocol(),
         "running": running(),
+        "cloud": crate::dvc::summary(),
     })
+}
+
+/// The card again after a change elsewhere (a cloud entry written, dvc.rs).
+pub fn changed(app: &AppHandle) {
+    emit(app);
 }
 
 fn emit(app: &AppHandle) {
@@ -408,31 +418,46 @@ fn loose_score(e: &Entry, words: &[String]) -> u32 {
 pub fn search(query: &str, limit: usize) -> Vec<Entry> {
     let words = words(query);
     let Ok(g) = INDEX.lock() else { return Vec::new() };
-    let Some(index) = g.as_ref() else { return Vec::new() };
-    let mut found: Vec<(u32, &Entry)> = index.entries.iter().map(|e| (score(e, &words), e)).filter(|(s, _)| *s > 0).collect();
+    let empty = Index::default();
+    let index = g.as_ref().unwrap_or(&empty);
+    let all = with_cloud(&index.entries);
+    let mut found: Vec<(u32, &Entry)> = all.iter().map(|e| (score(e, &words), e)).filter(|(s, _)| *s > 0).collect();
     if found.is_empty() && words.len() > 1 {
-        found = index.entries.iter().map(|e| (loose_score(e, &words), e)).filter(|(s, _)| *s > 0).collect();
+        found = all.iter().map(|e| (loose_score(e, &words), e)).filter(|(s, _)| *s > 0).collect();
     }
     found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase())));
     found.into_iter().take(limit.clamp(1, 50)).map(|(_, e)| e.clone()).collect()
 }
 
+/// RDM's list and the connections of Devolutions Cloud (dvc.rs), each id once.
+fn with_cloud(local: &[Entry]) -> Vec<Entry> {
+    let mut all = local.to_vec();
+    for e in crate::dvc::connections() {
+        if !all.iter().any(|x| x.id == e.id) {
+            all.push(e);
+        }
+    }
+    all
+}
+
 /// The connections whose host is exactly this (an IP or a name selected).
 pub fn by_host(host: &str) -> Vec<Entry> {
     let h = host.trim().to_lowercase();
-    let Ok(g) = INDEX.lock() else { return Vec::new() };
-    g.as_ref()
-        .map(|i| i.entries.iter().filter(|e| {
+    let local = INDEX.lock().ok().and_then(|g| g.as_ref().map(|i| i.entries.clone())).unwrap_or_default();
+    with_cloud(&local)
+        .into_iter()
+        .filter(|e| {
             let eh = e.host.to_lowercase();
             eh == h || eh.split(':').next() == Some(h.as_str())
-        }).take(10).cloned().collect())
-        .unwrap_or_default()
+        })
+        .take(10)
+        .collect()
 }
 
 // ── Opening, editing, searching in RDM ───────────────────────────────────────
 
 /// A GUID as RDM writes them (with or without braces).
-fn guid(s: &str) -> bool {
+pub(crate) fn guid(s: &str) -> bool {
     let s = s.trim_matches(['{', '}']);
     s.len() == 36 && s.chars().enumerate().all(|(i, c)| if [8, 13, 18, 23].contains(&i) { c == '-' } else { c.is_ascii_hexdigit() })
 }
@@ -447,8 +472,14 @@ fn clean_filter(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ").chars().filter(|c| !matches!(c, '"' | '&' | '?' | '=' | '%' | '^')).take(100).collect()
 }
 
+/// The workspace read, else the one chosen in the settings (a cloud
+/// connection opens in RDM's Hub workspace).
 fn data_source_id() -> Option<String> {
-    INDEX.lock().ok().and_then(|g| g.as_ref().and_then(|i| i.data_source.as_ref().map(|d| d.0.clone())))
+    INDEX.lock().ok().and_then(|g| g.as_ref().and_then(|i| i.data_source.as_ref().map(|d| d.0.clone()))).or_else(|| {
+        crate::brain_watch::app()
+            .and_then(|app| app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.rdm_data_source.clone()))
+            .filter(|d| guid(d))
+    })
 }
 
 /// What to ask RDM (pure, tested): the exe's arguments and the same as an rdm:// link.
@@ -530,8 +561,8 @@ pub fn edit(session: &str) -> Result<(), String> {
 
 /// The vault an entry was read from, if any.
 fn repository_of(session: &str) -> Option<String> {
-    let g = INDEX.lock().ok()?;
-    g.as_ref()?.entries.iter().find(|e| e.id == session).map(|e| e.repository.clone()).filter(|r| guid(r))
+    let local = INDEX.lock().ok().and_then(|g| g.as_ref().and_then(|i| i.entries.iter().find(|e| e.id == session).map(|e| e.repository.clone())));
+    local.or_else(|| crate::dvc::connections().into_iter().find(|e| e.id == session).map(|e| e.repository)).filter(|r| guid(r))
 }
 
 /// RDM opened with its search filled in.

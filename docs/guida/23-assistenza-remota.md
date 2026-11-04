@@ -25,3 +25,18 @@ Se usi **Remote Desktop Manager** di Devolutions, l'integrazione lo porta nell'i
 - **Ricerca** per nome, cartella o host, dalla scheda e dal campo in alto dell'isola; un clic apre la sessione in RDM.
 - **Senza modulo**: la ricerca si apre dentro RDM, e ci si collega a un indirizzo senza salvarlo (RDP o SSH).
 - In Impostazioni vedi lo stato di RDM, di PowerShell 7 e del modulo, con i comandi da copiare per installarli (EasyIsland non li esegue mai).
+- **Nella chat**: «cerca il server di Rossi» trova connessioni, cartelle e credenziali (mai le password); «aprilo» chiede **Consenti / Nega** prima di aprire la connessione in RDM.
+
+### Devolutions Cloud
+Se le tue voci stanno in un vault di **Devolutions Cloud** (o Hub) che il modulo di RDM non vede, collega EasyIsland con un'**Application identity**:
+1. In Devolutions Cloud: **Administration → Application identities → Add** (un nome per PC, es. «EasyIsland-PC-lavoro»). Lascia *Is enabled*, non spuntare *Is administrator*. Per il vault personale spunta **Can access user vaults**; per un vault condiviso dai all'identità i permessi sul vault.
+2. Copia **Application Key** e **Application Secret** (il Secret si vede una volta sola).
+3. In **Impostazioni → Remote Desktop Manager** scegli «Devolutions Cloud: Usato», incolla l'indirizzo del workspace (quello nella barra del browser), Key e Secret, premi **Prova** e poi **Sincronizza**.
+
+Nella scheda RDM compare **Devolutions Cloud**: le cartelle dei vault con connessioni, credenziali e liste password.
+- **Dettagli** di una voce: utente, dominio, host, descrizione; della password solo la lunghezza.
+- **Copia password** la mette negli **appunti**, fuori dalla cronologia di Windows e dagli Appunti di EasyIsland, e li **svuota dopo 30 secondi** (se nel frattempo non hai copiato altro). La password non compare mai a schermo né nella chat.
+- **+ Credenziale** e **+ Lista password da questa cartella** (unisce le credenziali della cartella in una voce «Lista Password»): prima un'**anteprima**, poi **Conferma e crea**; EasyIsland rilegge la voce e ti dice se utenti e password tornano. Non elimina mai nulla.
+- **Cliente**: collega un cliente di Zammad o 3CX alla sua cartella. Dal pulsante RDM di un ticket o di una chiamata di quel cliente la scheda si apre direttamente lì.
+
+Le chiavi stanno in Gestione credenziali di Windows; l'elenco delle voci (senza password) è cifrato per il tuo utente su questo PC. Usa un'identità diversa per ogni PC: rigenerare il Secret scollega l'altro.

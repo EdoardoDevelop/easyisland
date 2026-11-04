@@ -26,7 +26,7 @@
 | **[Telegram](22-telegram.md)** | La chat nel tuo bot, compiti, permessi, file | Un bot creato con @BotFather |
 | **[Agent Chat](#agent-chat)** | EasyIsland risponde da solo nella tua chat fra agenti IA, con più motori e le consulte | Il tuo server Agent Chat e un token per questo PC |
 | **[Accesso remoto](23-assistenza-remota.md)** | Collegamento temporaneo WinRM o SSH al PC di un cliente | Indirizzo, utente, password (solo in memoria) |
-| **[Remote Desktop Manager](23-assistenza-remota.md#remote-desktop-manager)** | Cerca e apre le connessioni di RDM | RDM installato |
+| **[Remote Desktop Manager](23-assistenza-remota.md#remote-desktop-manager)** | Cerca e apre le connessioni di RDM; con Devolutions Cloud le cartelle dei vault, «Copia password» negli appunti, nuove credenziali e liste password, il cliente collegato alla sua cartella | RDM installato; per il cloud un'Application identity |
 | **Cal.com** | Prenotazioni | Chiave API |
 
 ## Sviluppo e servizi

@@ -975,8 +975,18 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: t("Token"), placeholder: "ntn_…", secret: true }],
     hint: t("Le tue attività da un database (oggi e scadute, spuntate con un clic), le note veloci in una pagina o in un database, le pagine che tieni a portata e la ricerca. Le pagine si aprono nell'app Notion se è installata. Crea un'integrazione interna su notion.so/profile/integrations (leggere, aggiornare e inserire contenuti), copia il token e condividi con lei le pagine e i database che vuoi usare (… → Connessioni)."),
     extra: () => notionRows() },
-  { id: "integration_rdm", name: "Remote Desktop Manager", color: "#E8542A", fields: [], extra: () => rdmRows(),
-    hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo.") },
+  { id: "integration_rdm", name: "Remote Desktop Manager", color: "#E8542A", extra: () => rdmRows(),
+    options: [{
+      label: "Devolutions Cloud", type: "select", placeholder: "",
+      choices: [["no", t("Non usato")], ["si", t("Usato: vault su Devolutions Cloud o Hub")]],
+      get: (c) => (c.dvcOn ? "si" : "no"), set: (c, v) => { c.dvcOn = v === "si"; },
+    }],
+    fields: [
+      { key: "dvc-url", label: t("Indirizzo cloud"), placeholder: "https://<nome>.devolutions.app", secret: false, when: (c) => !!c.dvcOn },
+      { key: "dvc-key", label: t("Application Key"), placeholder: "…", secret: true, when: (c) => !!c.dvcOn },
+      { key: "dvc-secret", label: t("Application Secret"), placeholder: "…", secret: true, when: (c) => !!c.dvcOn },
+    ],
+    hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo. Con Devolutions Cloud (un'Application identity) la card mostra anche le cartelle dei vault: credenziali e liste password, «Copia password» negli appunti, nuove credenziali e liste dopo un'anteprima, il cliente di Zammad o 3CX collegato alla sua cartella.") },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
   { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [], extra: () => msAccountRows(),
@@ -1566,7 +1576,7 @@ function rdmRows(): HTMLElement {
     reread.disabled = true;
     reread.textContent = t("Sincronizzo…");
     await Bridge.refreshIntegration("integration_rdm");
-    await check();
+    await checkAll();
     reread.disabled = false;
     reread.textContent = t("Sincronizza");
   });
@@ -1598,13 +1608,53 @@ function rdmRows(): HTMLElement {
     load.disabled = false;
   });
 
+  // Devolutions Cloud (dvc.rs): the identity's test and what the last sync read.
+  const cloud = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
+  const cloudNote = h("span", { class: "hint note" });
+  const test = h("button", { text: t("Prova") }) as HTMLButtonElement;
+  test.addEventListener("click", async () => {
+    test.disabled = true;
+    cloudNote.textContent = t("Mi collego…");
+    try {
+      const vaults = await Bridge.dvcTest();
+      const useful = vaults.filter((v) => v.name !== "System Vault");
+      cloudNote.textContent = useful.length
+        ? t("Collegato. Vault: {list}. Premi Sincronizza per leggerli.", { list: useful.map((v) => v.name).join(", ") })
+        : t("Collegato, ma nessun vault utile: dai i permessi sul vault all'identità, o «Can access user vaults» per il vault personale.");
+    } catch (e) {
+      cloudNote.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+    test.disabled = false;
+  });
+  const checkCloud = async () => {
+    clear(cloud);
+    if (!c.dvcOn) return;
+    const s = await Bridge.dvcStatus();
+    cloud.append(
+      line(!!s?.on && (s.count ?? 0) > 0 ? true : s?.error ? false : null, "Devolutions Cloud",
+        !s?.on ? t("manca indirizzo, Key o Secret qui sopra")
+          : (s.count ?? 0) > 0 ? t("{n} voci da {v}", { n: s.count ?? 0, v: (s.vaults ?? []).map((v) => v.name).join(", ") }) + (s.at ? " · " + t("sincronizzato il {d}", { d: new Date(s.at * 1000).toLocaleString() }) : "") + (s.error ? " · " + s.error : "")
+          : s.error ?? t("non ancora sincronizzato")),
+      h("div", { class: "row" }, test, cloudNote),
+      h("div", { class: "hint", text: t("In Devolutions Cloud: Administration → Application identities → Add (es. «EasyIsland-PC-lavoro»), lascia «Is enabled», non spuntare «Is administrator»; per il vault personale spunta «Can access user vaults», per un vault condiviso dai all'identità i permessi sul vault. Copia Key e Secret (il Secret si vede una volta sola). Un'identità per PC: rigenerare il Secret scollega l'altro. L'indirizzo è quello del workspace nella barra del browser. Servono PowerShell 7 e il modulo Devolutions.PowerShell, come sopra. Le password non compaiono mai: «Copia password» le mette negli appunti, fuori dalla cronologia, e li svuota dopo 30 secondi.") }));
+  };
+  const check0 = check;
+  const checkAll = async () => { await check0(); await checkCloud(); };
+
   box.append(
     state,
+    cloud,
     h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("l'elenco resta su questo PC, cifrato per il tuo utente Windows: si aggiorna solo quando premi Sincronizza") })),
     h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Origine dati") }), source, load, sourceNote),
     h("div", { class: "hint", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
   );
-  void check();
+  void checkAll();
+  // «Devolutions Cloud» chosen or not just above: its rows follow.
+  let wasOn = !!c.dvcOn;
+  const watch = window.setInterval(() => {
+    if (!box.isConnected) { window.clearInterval(watch); return; }
+    if (!!c.dvcOn !== wasOn) { wasOn = !!c.dvcOn; void checkCloud(); }
+  }, 800);
   return box;
 }
 

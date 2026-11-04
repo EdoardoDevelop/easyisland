@@ -465,6 +465,18 @@ export const Bridge = {
   // Remote Desktop Manager (rdm.rs): never a password, only names, folders, hosts and ids.
   rdmSearch: async (query: string, limit = 8) => (await call<RdmEntry[]>("rdm_search", { query, limit })) ?? [],
   rdmByHost: async (host: string) => (await call<RdmEntry[]>("rdm_by_host", { host })) ?? [],
+  /** Devolutions Cloud (dvc.rs): on, entries, vaults, last sync, error. */
+  dvcStatus: () => call<DvcStatus>("dvc_status"),
+  dvcTest: () => callOrThrow<DvcVault[]>("dvc_test"),
+  /** A folder of a vault, from the list saved at the last sync. */
+  dvcBrowse: (vault: string, path: string) => call<DvcBrowse>("dvc_browse", { vault, path }),
+  dvcDetails: (vault: string, id: string) => callOrThrow<DvcDetails>("dvc_details", { vault, id }),
+  /** The password goes to the clipboard in Rust (private, emptied later): only the seconds come back. */
+  dvcCopyPassword: (vault: string, id: string, row: number | null) => callOrThrow<number>("dvc_copy_password", { vault, id, row }),
+  dvcNewCredential: (a: { vault: string; folder: string; name: string; user: string; domain: string; password: string; description: string; confirm: boolean }) =>
+    callOrThrow<DvcOutcome>("dvc_new_credential", a),
+  dvcNewPasswordList: (a: { vault: string; folder: string; name: string; source: string; recurse: boolean; confirm: boolean }) =>
+    callOrThrow<DvcOutcome>("dvc_new_password_list", a),
   rdmOpen: (entry: RdmEntry) => callOrThrow<void>("rdm_open", { entry }),
   rdmEdit: (id: string) => callOrThrow<void>("rdm_edit", { id }),
   rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
@@ -839,6 +851,20 @@ export interface MemoryHit {
   title: string;
   gist: string;
 }
+
+/** Devolutions Cloud (dvc.rs). */
+export interface DvcVault { id: string; name: string }
+export interface DvcStatus { on: boolean; count?: number; vaults?: DvcVault[]; at?: number; error?: string | null }
+/** An entry of a vault, never a secret: kind Group = a folder; cred PasswordList = a list. */
+export interface DvcItem { id: string; name: string; kind: string; folder: string; path: string; host: string; user: string; cred: string; vault: string }
+export interface DvcBrowse { vault: string; path: string; vaults: DvcVault[]; folders: { name: string; path: string; count: number }[]; entries: DvcItem[] }
+export interface DvcDetails {
+  name: string; kind: string; cred: string; folder: string; host: string; user: string; domain: string;
+  /** The password's length: never the password. */
+  length: number; description: string;
+  rows: { name: string; host: string; user: string; domain: string; length: number; description: string }[];
+}
+export interface DvcOutcome { preview: string[]; id: string; rows: { row: string; userOk: boolean; passwordOk: boolean }[] }
 
 /** A Zammad ticket found from the field at the top (zammad.rs TicketHit). */
 export interface TicketHit {

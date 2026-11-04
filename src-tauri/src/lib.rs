@@ -62,6 +62,7 @@ mod todo;
 mod second;
 mod notion_page;
 mod rdm;
+mod dvc;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -1006,6 +1007,57 @@ async fn rdm_status() -> rdm::Status {
 #[tauri::command]
 async fn rdm_data_sources() -> Result<Vec<serde_json::Value>, String> {
     rdm::data_sources().await
+}
+
+/// Devolutions Cloud (dvc.rs): on, entries, vaults, last sync, error.
+#[tauri::command]
+fn dvc_status() -> serde_json::Value {
+    dvc::summary()
+}
+
+/// Impostazioni → «Prova»: connects with the identity and lists the vaults.
+#[tauri::command]
+async fn dvc_test() -> Result<Vec<dvc::Vault>, String> {
+    dvc::test().await
+}
+
+/// The RDM card's cloud: a folder of a vault (from the saved list).
+#[tauri::command]
+fn dvc_browse(vault: String, path: String) -> dvc::Browse {
+    dvc::browse(&vault, &path)
+}
+
+/// An entry's details, passwords only as their length.
+#[tauri::command]
+async fn dvc_details(vault: String, id: String) -> Result<serde_json::Value, String> {
+    dvc::details(&vault, &id).await
+}
+
+/// «Copia password»: on the clipboard, private, emptied after a while; never to the front end.
+#[tauri::command]
+async fn dvc_copy_password(vault: String, id: String, row: Option<usize>) -> Result<u64, String> {
+    dvc::copy_password(&vault, &id, row).await.map(|_| dvc::CLIP_SECONDS)
+}
+
+/// A new credential: `confirm` false = the preview; true = written, read back and checked.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+async fn dvc_new_credential(app: AppHandle, vault: String, folder: String, name: String, user: String, domain: String, password: String, description: String, confirm: bool) -> Result<dvc::Outcome, String> {
+    let out = dvc::new_credential(dvc::NewCredential { vault, folder, name, user, domain, password, description }, confirm).await?;
+    if confirm {
+        rdm::changed(&app);
+    }
+    Ok(out)
+}
+
+/// A «Lista Password» from a folder's credentials: preview, or written and checked row by row.
+#[tauri::command]
+async fn dvc_new_password_list(app: AppHandle, vault: String, folder: String, name: String, source: String, recurse: bool, confirm: bool) -> Result<dvc::Outcome, String> {
+    let out = dvc::new_password_list(&vault, &folder, &name, &source, recurse, confirm).await?;
+    if confirm {
+        rdm::changed(&app);
+    }
+    Ok(out)
 }
 
 /// Impostazioni → Notion, first time: the databases that look like tasks or notes.
@@ -4260,6 +4312,13 @@ pub fn run() {
             rdm_quick,
             rdm_status,
             rdm_data_sources,
+            dvc_status,
+            dvc_test,
+            dvc_browse,
+            dvc_details,
+            dvc_copy_password,
+            dvc_new_credential,
+            dvc_new_password_list,
             notion_add_note,
             notion_forget_schemas,
             inbox_drag,

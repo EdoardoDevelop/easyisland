@@ -122,6 +122,14 @@ pub struct IntegrationConfig {
     /// Remote Desktop Manager: the last ones opened from EasyIsland (newest first, 8).
     #[serde(default)]
     pub rdm_recent: Vec<RdmRef>,
+    /// Devolutions Cloud / Hub with an Application identity (dvc.rs): its
+    /// address, key and secret are in the Credential Manager.
+    #[serde(default)]
+    pub dvc_on: bool,
+    /// A customer (Zammad organization, 3CX contact), lower case → its folder
+    /// in a Devolutions Cloud vault, tied by the user in the RDM card.
+    #[serde(default)]
+    pub rdm_folders: std::collections::HashMap<String, CloudFolder>,
     /// Telegram (telegram.rs): the one chat the bot answers, linked with a
     /// code from the settings (0 = none yet), and its name, to show there.
     #[serde(default)]
@@ -227,6 +235,13 @@ pub struct RdmRef {
     pub kind: String,
 }
 
+/// A folder of a Devolutions Cloud vault (dvc.rs), tied to a customer.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct CloudFolder {
+    pub vault: String,
+    pub path: String,
+}
+
 fn ten_minutes() -> u32 {
     10
 }
@@ -324,6 +339,8 @@ impl Default for IntegrationConfig {
             rdm_data_source: String::new(),
             rdm_pins: Vec::new(),
             rdm_recent: Vec::new(),
+            dvc_on: false,
+            rdm_folders: Default::default(),
             telegram_chat_id: 0,
             telegram_name: String::new(),
             telegram_auto: false,

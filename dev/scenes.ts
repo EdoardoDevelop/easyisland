@@ -733,13 +733,73 @@ export async function runScene(island: Island, scene: string) {
       });
       State.settings.integrationConfig.rdmPins = nolist ? [] : [list[4]];
       State.settings.integrationConfig.rdmRecent = nolist ? [] : [list[1], list[3]];
+      // &cloud: Devolutions Cloud with a made-up vault (dvc.ts); &tied: «Farmacia Falchi» tied to its folder.
+      const cloud = q.has("cloud") || q.has("tied");
+      if (cloud) {
+        const V = "11111111-1111-4111-8111-111111111111";
+        const item = (n: number, name: string, kind: string, folder: string, extra: Partial<{ host: string; user: string; cred: string; path: string }> = {}) =>
+          ({ id: id(100 + n), name, kind, folder, path: extra.path ?? "", host: extra.host ?? "", user: extra.user ?? "", cred: extra.cred ?? "", vault: V });
+        const items = [
+          item(1, "Easytech", "Group", "", { path: "Easytech" }),
+          item(2, "FARMACIA FALCHI", "Group", "Easytech", { path: "Easytech\\FARMACIA FALCHI" }),
+          item(3, "COMUNALE 1", "Group", "Easytech\\FARMACIA FALCHI", { path: "Easytech\\FARMACIA FALCHI\\COMUNALE 1" }),
+          item(4, "Server farmacia", "RDPConfigured", "Easytech\\FARMACIA FALCHI", { host: "192.168.10.5" }),
+          item(5, "Amministratore dominio", "Credential", "Easytech\\FARMACIA FALCHI", { user: "FALCHI\\admin", cred: "Default" }),
+          item(6, "Firewall", "Credential", "Easytech\\FARMACIA FALCHI", { user: "admin", cred: "Default" }),
+          item(7, "Lista Password", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { cred: "PasswordList" }),
+          item(8, "NAS", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { user: "admin", cred: "Default" }),
+          item(9, "ROSSI SRL", "Group", "Easytech", { path: "Easytech\\ROSSI SRL" }),
+        ];
+        const browse = (vault: string, path: string) => {
+          const p = path.replace(/\\$/, "");
+          const folders = new Map<string, { name: string; path: string; count: number }>();
+          for (const e of items) {
+            const at = e.kind === "Group" ? e.path : e.folder;
+            const rest = p ? (at.toLowerCase().startsWith(p.toLowerCase() + "\\") ? at.slice(p.length + 1) : "") : at;
+            const name = rest.split("\\")[0];
+            if (!name) continue;
+            const f = folders.get(name) ?? { name, path: p ? `${p}\\${name}` : name, count: 0 };
+            if (e.kind !== "Group") f.count++;
+            folders.set(name, f);
+          }
+          return { vault: vault || V, path: p, vaults: [{ id: V, name: "Edoardo" }], folders: [...folders.values()],
+            entries: items.filter((e) => e.kind !== "Group" && e.folder.toLowerCase() === p.toLowerCase()) };
+        };
+        Object.assign(Bridge, {
+          dvcBrowse: async (vault: string, path: string) => browse(vault, path),
+          dvcDetails: async (_v: string, eid: string) => {
+            await wait(200);
+            const e = items.find((x) => x.id === eid);
+            return e?.cred === "PasswordList"
+              ? { name: e.name, kind: "Credential", cred: "PasswordList", folder: e.folder, host: "", user: "", domain: "", length: 0, description: "",
+                rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 10, description: "" }] }
+              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
+          },
+          dvcCopyPassword: async () => { await wait(200); return 30; },
+          dvcNewCredential: async (a: { name: string; folder: string; user: string; password: string; confirm: boolean }) => {
+            await wait(300);
+            if (!a.confirm) return { preview: [`Nuova credenziale «${a.name}» in «${a.folder}»`, `Utente: ${a.user}`, `Password: ${a.password.length} caratteri`], id: "", rows: [] };
+            items.push(item(items.length + 1, a.name, "Credential", a.folder, { user: a.user, cred: "Default" }));
+            return { preview: [], id: id(999), rows: [{ row: a.name, userOk: true, passwordOk: true }] };
+          },
+          dvcNewPasswordList: async (a: { name: string; folder: string; confirm: boolean }) => {
+            await wait(300);
+            const src = items.filter((e) => e.folder === a.folder && e.kind === "Credential" && e.cred !== "PasswordList");
+            if (!a.confirm) return { preview: [`Nuova «${a.name}» in «${a.folder}» con ${src.length} righe:`, ...src.map((s) => `• ${s.name} — ${s.user}`), "Le credenziali di partenza restano dove sono."], id: "", rows: [] };
+            items.push(item(items.length + 1, a.name, "Credential", a.folder, { cred: "PasswordList" }));
+            return { preview: [], id: id(998), rows: src.map((s) => ({ row: s.name, userOk: true, passwordOk: true })) };
+          },
+        });
+        if (q.has("tied")) State.settings.integrationConfig.rdmFolders = { "farmacia falchi": { vault: V, path: "Easytech\\FARMACIA FALCHI" } };
+      }
       await wait(300);
-      State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true }, error: null, loaded: true, configured: true };
+      const cloudData = cloud ? { cloud: { on: true, count: 6, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
+      State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true, ...cloudData } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true, ...cloudData }, error: null, loaded: true, configured: true };
       State.setFocus("integration_rdm");
       island.alert("overview");
-      if (q.get("q")) {
+      if (q.get("q") || q.has("tied")) {
         await wait(600);
-        rdmLookFor(q.get("q") ?? "");
+        rdmLookFor(q.get("q") ?? "Farmacia Falchi");
       }
       await wait(1500);
       break;

@@ -19,6 +19,7 @@ const OTHERS: Record<string, string> = {
   run_quick_action: t("Eseguire un'azione rapida"),
   open_app: t("Aprire un programma"),
   open_url: t("Aprire un link"),
+  rdm_open: t("Aprire una connessione in RDM"),
   write_clipboard: t("Scrivere negli appunti"),
   notion_delete_row: t("Eliminare righe di Notion"),
   remote_run: t("Eseguire un comando sul PC remoto"),

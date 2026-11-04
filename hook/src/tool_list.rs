@@ -56,6 +56,18 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "rdm_search",
+            "Cerca tra le connessioni di Remote Desktop Manager dell'utente e, se è collegato, in Devolutions Cloud (cartelle dei clienti, connessioni, credenziali e liste password): nome, cartella, host, tipo, utente e id. Mai password. query: parole (cliente, server, IP). Per aprirne una usa rdm_open con l'id.",
+            json!({ "type": "object", "properties": { "query": { "type": "string" } }, "required": ["query"] }),
+            true,
+        ),
+        (
+            "rdm_open",
+            "Apre in Remote Desktop Manager una connessione trovata con rdm_search (RDP, SSH, web…). id: l'id della connessione.",
+            json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),
+            false,
+        ),
+        (
             "read_clipboard",
             "Legge il testo attualmente negli appunti dell'utente.",
             none.clone(),

@@ -71,6 +71,20 @@ const SHOTS = {
   "moment-error": { url: `/?scene=moment&moment=port&activeIntegrations=${PILLS}` },
   "moment-card": { url: `/?scene=moment&moment=card&activeIntegrations=${PILLS}` },
   daily: { url: `/?scene=daily&activeIntegrations=${PILLS}` },
+  // RDM with Devolutions Cloud: a customer tied to its folder (dev/scenes.ts `rdm&tied`).
+  "rdm-cloud": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}` },
+  // A password list's rows, then «+ Lista password» with its preview.
+  "rdm-cloud-lista": { url: `/?scene=rdm&tied&islandHeight=640&activeIntegrations=integration_rdm,${PILLS}`,
+    then: `const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      await wait(900);
+      [...document.querySelectorAll(".dvc-folder")].find((x) => x.textContent.includes("COMUNALE"))?.click();
+      await wait(300);
+      [...document.querySelectorAll(".dvc-entry .rdm-row")].find((x) => x.textContent.includes("Lista Password"))?.click();
+      await wait(500);
+      [...document.querySelectorAll(".dvc-view .link-btn")].find((x) => x.textContent.includes("Lista password"))?.click();
+      await wait(200);
+      [...document.querySelectorAll(".dvc-form .teams-btn")].find((x) => x.textContent.includes("Anteprima"))?.click();
+      await wait(600);` },
   // The Zammad card: the tickets, and one open with its messages (dev/scenes.ts `zammad`).
   zammad: { url: `/?scene=zammad&islandHeight=560&activeIntegrations=${PILLS}` },
   "zammad-ticket": { url: `/?scene=zammad&email&islandHeight=640&activeIntegrations=${PILLS}` },
@@ -158,6 +172,11 @@ async function shoot(name, s) {
     }
     if (!rect) throw new Error("la scena non è pronta");
     clip = { ...rect, scale: 1 };
+    // `then` on a scene too: clicks in the island before the shot.
+    if (s.then) {
+      await evaluate(`(async () => { ${s.then} })()`);
+      await sleep(800);
+    }
   } else {
     // `wait`: windows that draw slowly (the memory graph) get longer.
     await sleep(s.wait ?? 1500);
