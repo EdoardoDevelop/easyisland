@@ -80,7 +80,7 @@ In **Settings → Chat and AI engines → Memory → Memory engine** you can pic
 ## The Memory window
 The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn many ways. A note links to the pages it names, to those the AI confirmed and, until the AI has looked at it, to those it shares rare words with (a name, a device); links only guessed are dashed. Archived notes tied to nothing do not crowd the graph.
 
-Above the views:
+At the top, «View» picks the drawing; beside it the filters:
 - **Colours by group / by kind**: groups are the subjects that go together (a customer with its people and notes), found by themselves, each with its colour and name.
 - **Period**: only what is from the last month, 3 months or year.
 - **Only sure links**: hides those only guessed.

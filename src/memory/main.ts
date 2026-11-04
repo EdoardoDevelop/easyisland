@@ -93,14 +93,10 @@ let query = "";
 let source = rememberedSource();
 
 const root = document.getElementById("memory-root")!;
-const tabButtons = new Map<Tab, HTMLButtonElement>();
-const tabsBox = h("div", { class: "mem-tabs" });
-for (const tb of TABS) {
-  const b = h("button", { text: tb.name }) as HTMLButtonElement;
-  b.addEventListener("click", () => show(tb.id));
-  tabButtons.set(tb.id, b);
-  tabsBox.append(b);
-}
+// The views in one menu (Edoardo, 4 Nov 2026: eleven tabs took a whole line).
+const viewPick = h("select", { class: "mem-select mem-view-pick", title: t("Come disegnare la memoria") }) as HTMLSelectElement;
+for (const tb of TABS) viewPick.append(h("option", { value: tb.id, text: tb.name }));
+viewPick.addEventListener("change", () => show(viewPick.value as Tab));
 // Which memory, shown only when another PC's is copied here.
 const sourcesBox = h("div", { class: "mem-tabs mem-sources", style: "display:none" });
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
@@ -122,7 +118,7 @@ colourPick.value = filters.colours;
 const sureBox = h("input", { type: "checkbox" }) as HTMLInputElement;
 sureBox.checked = filters.sure;
 const sureLabel = h("label", { class: "mem-check", title: t("Nascondi i collegamenti solo stimati dalle parole in comune: restano quelli scritti nelle pagine, le note che nominano la pagina e quelli controllati dall'IA") }, sureBox, h("span", { text: t("Solo collegamenti sicuri") }));
-const viewBar = h("div", { class: "mem-viewbar" }, tabsBox, h("span", { class: "mem-spacer" }), colourPick, periodPick, sureLabel);
+const viewBar = h("div", { class: "mem-viewbar" }, h("span", { class: "mem-view-label", text: t("Vista") }), viewPick, colourPick, periodPick, sureLabel);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
@@ -232,7 +228,7 @@ function show(next: Tab) {
   } catch {
     /* no storage */
   }
-  for (const [id, b] of tabButtons) b.classList.toggle("on", id === next);
+  viewPick.value = next;
   hint.textContent = TABS.find((x) => x.id === next)!.hint;
   legend.style.display = next === "timeline" ? "none" : "flex";
   hint.classList.toggle("low", next === "timeline");

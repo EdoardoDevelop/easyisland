@@ -80,7 +80,7 @@ In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi sceglier
 ## La finestra Memoria
 Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in tanti modi. Una nota si collega alle pagine che nomina, a quelle che l'IA ha confermato e, finché l'IA non l'ha guardata, a quelle con cui ha in comune parole rare (un nome, un apparecchio); i collegamenti solo stimati sono tratteggiati. Le note archiviate che non c'entrano con niente non affollano il grafo.
 
-Sopra le viste:
+In alto, «Vista» sceglie il disegno; accanto i filtri:
 - **Colori per gruppo / per tipo**: i gruppi sono gli argomenti che vanno insieme (un cliente con le sue persone e note), trovati da soli, ognuno col suo colore e il suo nome.
 - **Periodo**: solo ciò che è dell'ultimo mese, dei 3 mesi o dell'anno.
 - **Solo collegamenti sicuri**: toglie quelli solo stimati.

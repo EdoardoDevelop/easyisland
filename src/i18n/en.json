@@ -4354,5 +4354,6 @@
   "Controllate {n} note ({k} collegamenti tenuti), poi: {err}": "Checked {n} notes ({k} links kept), then: {err}",
   "Controllate {n} note, {k} collegamenti tenuti; ne restano {left}: premi ancora «Collega con l'IA».": "Checked {n} notes, {k} links kept; {left} left: press «Link with AI» again.",
   "Controllate {n} note, {k} collegamenti tenuti.": "Checked {n} notes, {k} links kept.",
-  "Non riesco a salvare i collegamenti: {e}": "Can't save the links: {e}"
+  "Non riesco a salvare i collegamenti: {e}": "Can't save the links: {e}",
+  "Come disegnare la memoria": "How to draw the memory"
 }
