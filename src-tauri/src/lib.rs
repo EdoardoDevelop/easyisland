@@ -1110,6 +1110,12 @@ fn open_in_vscode(path: Option<String>) -> bool {
     false
 }
 
+/// Is VS Code on this PC? The Claude Code card offers it only then.
+#[tauri::command]
+fn vscode_installed() -> bool {
+    apps::find_vscode().is_some()
+}
+
 /// The diff view's ↗: the edited file in VS Code, at the changed line.
 #[tauri::command]
 fn open_file_in_vscode(file: String, line: u32) -> bool {
@@ -4134,6 +4140,7 @@ pub fn run() {
             open_in_vscode,
             session_reply::session_reply,
             set_app_mode,
+            vscode_installed,
             island_to_front,
             minimize_island,
             file_thumb,

@@ -4512,5 +4512,7 @@
   "Apri in RDM": "Open in RDM",
   "Lista password": "Password list",
   "Credenziale": "Credential",
-  "Nessun utente né password in questa voce.": "No user or password in this entry."
+  "Nessun utente né password in questa voce.": "No user or password in this entry.",
+  "Hook attivi · nessuna sessione di Claude Code": "Hooks on · no Claude Code session",
+  "Connesso · caricamento…": "Connected · loading…"
 }

@@ -249,6 +249,7 @@ export const Bridge = {
 
   /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */
   openInVSCode: (path: string | null) => call<boolean>("open_in_vscode", { path }),
+  vscodeInstalled: () => call<boolean>("vscode_installed"),
   /** `code -g file:line`, for the diff view's ↗. */
   openFileInVSCode: (file: string, line: number) => call<boolean>("open_file_in_vscode", { file, line }),
   /** The newer version on GitHub, or null (throws when the check fails). */
