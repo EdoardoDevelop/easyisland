@@ -29,7 +29,8 @@ body {
 #memory-root {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* The bar, the views' bar (main.ts viewBar), the map. */
+  grid-template-rows: auto auto 1fr;
 }
 
 .mem-bar {
@@ -395,6 +396,7 @@ body {
 /* The views and the filters over them (main.ts viewBar). */
 .mem-viewbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 6px 14px;
@@ -402,9 +404,9 @@ body {
   background: #0b0c10;
   min-width: 0;
 }
+/* Every view in sight: on a narrow window the tabs go on a second line. */
 .mem-viewbar .mem-tabs {
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
   min-width: 0;
   flex: 0 1 auto;
 }
