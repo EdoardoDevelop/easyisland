@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 3/11 — Chat e integrazioni in una finestra, Anteprima nella finestra della chat (1.0.22)
+Clic destro, pulsante o voce trascinata fuori dall'isola → finestra (`popout.ts`, `popout_window` in `lib.rs`); tutto resta nella pagina dell'isola. Pagina `about:blank` (una dell'app restava vuota); la vista va al sicuro nell'isola a ogni `pagehide` e torna nella pagina nuova, la ✕ è trattenuta da Rust finché la vista non è rientrata: prima la chat tornava con i pulsanti morti. Finestre per nome (`popout_take`, `get_window`): cercate come webview window sparivano con l'Anteprima dentro, che andava e tornava. Smoke in parallelo (~2,5 min) e `smoke:rapido` (~30 s). «Rimetti» chiude da Rust (`popout_close`). L'Anteprima agganciata segue la chat (`preview::chat_dock` la rifà, `reopen` aspetta che la vecchia sparisca). Bordo della barra delle conversazioni trascinabile. Provato nell'anteprima con un iframe; da provare nell'app l'Anteprima nella finestra della chat. `docs/architettura.md` → Viste, `docs/chat.md` → Anteprima.
+
 ### 2/11 — Finestra Memoria: Questo PC / altro PC / Tutte (1.0.22)
 Con la copia di un altro PC (`memoria-condivise`) la barra della finestra Memoria sceglie quale memoria disegnare (`memory_graph` con `source`, `brain::graph_of`). Nome dell'altro PC dalla cartella o dall'impostazione. `docs/chat.md` → Finestra Memoria. Provato nell'anteprima con «ufficio» finto e `cargo check`; non ancora nell'app con la copia vera.
 

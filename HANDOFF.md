@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_4 novembre 2026. **1.0.22** in `main` (tag `v1.0.22`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_4 novembre 2026. **1.0.23** in `main` (tag `v1.0.23`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 4/11 — Versione 1.0.23
+Uniti in `claude/sviluppo` e `main`: scheda Zammad, Devolutions Cloud, mappa della memoria (più Galassia meno abbagliante, testo delle pagine non più schiacciato nel pannello), coda della chat, font, stato di Agent Chat. Clic sul personaggio (anche nella barra fissa) con l'isola aperta dietro un'altra finestra: torna davanti (`island::to_front`, comando `island_to_front`), si chiude solo se è già in primo piano; con «Come un'app» guarda la finestra in primo piano, altrimenti `BEHIND`.
+
 ### 4/11 — Devolutions Cloud nella scheda RDM (`claude/devolutions-cloud`, sopra `claude/zammad-ticket`)
 Tutti i passi di `docs/idee.md` → Devolutions Cloud senza skill né modulo installati (`dvc.rs`, `src/views/dvc.ts`): Application identity in Impostazioni → RDM (Gestione credenziali), vault e voci senza password con Sincronizza (DPAPI), connessioni del cloud nella ricerca RDM; Copia password negli appunti privati svuotati dopo 30 s; nuova credenziale e Lista Password con anteprima, conferma, rilettura e verifica; cliente Zammad/3CX ↔ cartella; `rdm_search`/`rdm_open` per la chat, più gli strumenti della skill in chat (`dvc_vaults`, `dvc_entries`, `dvc_folder_id`, `dvc_show`, anteprima e creazione di Lista Password e credenziali; password chiesta nella finestra di Windows, due volte). Provato con test Rust, parser di PowerShell, anteprima `rdm&cloud`/`rdm&tied` e smoke; **non ancora sul Devolutions Cloud vero** (`docs/prove-dal-vivo.md`).
 
@@ -64,6 +67,3 @@ Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con 
 - Chat: si scrive mentre risponde, messaggi in coda con Invia subito / Modifica / ✕ (`chat.ts`); Ctrl+Invio = Ferma e manda.
 - Aspetto → Font: titoli e testo separati (`src/core/fonts.ts`, `theme.fonts`), Doto/DotGothic16/VT323/Space Mono in `public/fonts/` (OFL), più i font di Windows (`system_fonts`). Anche nella barra fissa, con «Font di Aspetto → Font» (acceso di serie). Scheda Agent Chat a tutta isola. Smoke: Edge chiusi con `Browser.close` (restavano appesi).
 - Agent Chat: stato per motore dagli eventi del turno (`Reporter` → `/api/status`), «preso da», «nessuna risposta», «nessun agente attivo» nella scheda e nella pagina; campo nella scheda per scrivere come l'owner con un token a parte e un nome scelto (`owner_send`, `as_owner`). Server cambiato in `C:\Users\Edoardo\agentchat` (token owner, `human`, `/api/status`): da pubblicare. Provato con server locale, anteprima, smoke e test Rust; non con i motori veri. `docs/integrazioni.md` → Agent Chat.
-
-### 3/11 — Chat e integrazioni in una finestra, Anteprima nella finestra della chat (1.0.22)
-Clic destro, pulsante o voce trascinata fuori dall'isola → finestra (`popout.ts`, `popout_window` in `lib.rs`); tutto resta nella pagina dell'isola. Pagina `about:blank` (una dell'app restava vuota); la vista va al sicuro nell'isola a ogni `pagehide` e torna nella pagina nuova, la ✕ è trattenuta da Rust finché la vista non è rientrata: prima la chat tornava con i pulsanti morti. Finestre per nome (`popout_take`, `get_window`): cercate come webview window sparivano con l'Anteprima dentro, che andava e tornava. Smoke in parallelo (~2,5 min) e `smoke:rapido` (~30 s). «Rimetti» chiude da Rust (`popout_close`). L'Anteprima agganciata segue la chat (`preview::chat_dock` la rifà, `reopen` aspetta che la vecchia sparisca). Bordo della barra delle conversazioni trascinabile. Provato nell'anteprima con un iframe; da provare nell'app l'Anteprima nella finestra della chat. `docs/architettura.md` → Viste, `docs/chat.md` → Anteprima.

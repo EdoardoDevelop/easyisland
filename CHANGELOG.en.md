@@ -2,6 +2,19 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.23** — **Zammad on the island**: the card shows your views with their counts, opens the ticket
+with every message and lets you change state (with the reminder when pending), owner and priority,
+write an internal note or answer the customer by email. **Devolutions Cloud** in the RDM card: vaults
+and folders, «Copy password» to the clipboard (emptied after 30 seconds), new credentials and Password
+Lists with a preview and a confirmation, the Zammad or 3CX customer tied to their folder; from the chat
+too, with the password asked only in the Windows window. The **memory map** has six new views
+(Galaxy, Neural network, Bubbles, Rings, River, Where it comes from) in a menu, coloured groups,
+filters and «How is it linked to…»; «Link with AI» checks the guessed links and keeps only the right
+ones. In the **chat** you write while it answers: messages wait in a queue, with **Send now**. Title
+and text **fonts** to pick in Appearance, the fixed bar too. **Agent Chat** says who is working and on
+what, and you write in it from the island with your own name. A click on the character with the island
+open behind another window brings it **to the front** instead of closing it.
+
 **1.0.22** — **Chat and integrations in a window**: drag the menu entry out of the island, or press
 the arrow at the top, and the chat or an integration's card becomes a Windows window to move and
 resize, with taskbar and Alt+Tab; the same button puts it back in the island. The **Preview** stays
