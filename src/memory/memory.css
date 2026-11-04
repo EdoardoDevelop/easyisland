@@ -442,3 +442,9 @@ body {
 .mem-legend button:hover { color: var(--ink); }
 .mem-legend button.off { opacity: 0.4; text-decoration: line-through; }
 .mem-legend i { width: 9px; height: 9px; border-radius: 50%; }
+
+/* The panel is a flex column that scrolls: its pieces keep their height
+   instead of shrinking (a page text was squeezed to one line). */
+.mem-panel > * {
+  flex-shrink: 0;
+}

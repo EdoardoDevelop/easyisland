@@ -16,6 +16,8 @@ interface Star {
   fresh: number;
   /** Its twinkle's phase. */
   phase: number;
+  /** Below 1 where stars crowd: their light adds up, so each one shines less. */
+  damp: number;
 }
 
 interface Galaxy {
@@ -28,6 +30,10 @@ interface Galaxy {
 
 /** How long the sky twinkles after it changes, ms. */
 const TWINKLE_MS = 5000;
+/** At most this many lines from the picked star: its strongest links. */
+const MAX_LINES = 40;
+/** At most this many names around the picked star. */
+const MAX_NAMES = 18;
 
 export class GalaxyView implements View {
   private cam = new Camera();
@@ -77,13 +83,14 @@ export class GalaxyView implements View {
       this.add(n, Math.cos(a) * d, Math.sin(a) * d * 0.72, KIND_COLOR[n.kind], rnd());
     }
     this.index = new Map(this.stars.map((s) => [s.n.id, s]));
+    crowding(this.stars);
     this.framed = false;
     this.since = performance.now();
   }
 
   private add(n: MemNode, x: number, y: number, colour: string, phase: number) {
     const page = n.kind === "page" || n.kind === "missing";
-    this.stars.push({ n, x, y, r: (page ? 2.6 : 1.4) + Math.min(4, Math.sqrt(n.weight) * 0.7), colour, fresh: freshness(n.date), phase: phase * Math.PI * 2 });
+    this.stars.push({ n, x, y, r: (page ? 2.6 : 1.4) + Math.min(4, Math.sqrt(n.weight) * 0.7), colour, fresh: freshness(n.date), phase: phase * Math.PI * 2, damp: 1 });
   }
 
   setSelected(id: string | null) {
@@ -121,8 +128,8 @@ export class GalaxyView implements View {
     // Each galaxy's glow: a wide soft disc and a bright core.
     for (const g of this.galaxies) {
       const disc = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r * 1.5);
-      disc.addColorStop(0, alpha(g.colour, 0.32));
-      disc.addColorStop(0.25, alpha(g.colour, 0.12));
+      disc.addColorStop(0, alpha(g.colour, 0.18));
+      disc.addColorStop(0.25, alpha(g.colour, 0.07));
       disc.addColorStop(1, alpha(g.colour, 0));
       ctx.fillStyle = disc;
       ctx.save();
@@ -136,22 +143,34 @@ export class GalaxyView implements View {
     }
     const sel = this.selected;
     const near = new Set<string>();
-    if (sel && this.model) for (const nb of this.model.neighbours(sel)) near.add(nb.id);
-    // The constellation of the picked star: thin lines to its neighbours.
-    if (sel) {
-      const a = this.index.get(sel);
-      if (a) {
-        ctx.strokeStyle = "rgba(220,230,255,0.45)";
-        ctx.lineWidth = 0.8 / k;
-        for (const id of near) {
-          const b = this.index.get(id);
-          if (!b) continue;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
+    // The picked star's strongest links, most linked first: a page like a
+    // client's has hundreds, and drawing them all burns the sky white.
+    const model = this.model;
+    const lines = sel && model
+      ? model.neighbours(sel)
+          .filter((nb) => !this.filter || this.filter.has(nb.id))
+          .sort((a, b) => b.strength - a.strength || (model.byId.get(b.id)?.weight ?? 0) - (model.byId.get(a.id)?.weight ?? 0))
+          .slice(0, MAX_LINES)
+      : [];
+    for (const nb of lines) near.add(nb.id);
+    // The constellation of the picked star: thin lines to its neighbours,
+    // brighter the surer the link. Not added up, or they whiten where they cross.
+    const a0 = sel ? this.index.get(sel) : null;
+    if (a0) {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.lineWidth = 0.8 / k;
+      for (const nb of lines) {
+        const b = this.index.get(nb.id);
+        if (!b) continue;
+        ctx.strokeStyle = `rgba(200,215,255,${nb.strength >= 3 ? 0.42 : nb.strength === 2 ? 0.26 : 0.13})`;
+        ctx.setLineDash(nb.strength >= 2 ? [] : [3 / k, 4 / k]);
+        ctx.beginPath();
+        ctx.moveTo(a0.x, a0.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
       }
+      ctx.setLineDash([]);
+      ctx.globalCompositeOperation = "lighter";
     }
     // The trail of a search, star to star.
     if (this.filter?.size) {
@@ -169,18 +188,20 @@ export class GalaxyView implements View {
     for (const s of this.stars) {
       const dim = (sel && s.n.id !== sel && !near.has(s.n.id)) || (this.filter && !this.filter.has(s.n.id));
       const tw = twinkling ? 0.75 + 0.25 * Math.sin(time / 180 + s.phase * 3) * (s.fresh > 0.6 ? 1.6 : 0.6) : 1;
-      const a = (dim ? 0.18 : 0.55 + s.fresh * 0.45) * tw;
-      const r = s.r * (s.n.id === sel ? 1.8 : 1);
-      const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 4);
+      const picked = s.n.id === sel;
+      const a = (dim ? 0.16 : 0.5 + s.fresh * 0.4) * tw * (picked ? 1 : s.damp);
+      const r = s.r * (picked ? 1.6 : 1);
+      const reach = r * (picked ? 4 : 3);
+      const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, reach);
       glow.addColorStop(0, `rgba(255,255,255,${a})`);
-      glow.addColorStop(0.25, alpha(s.colour, a * 0.8));
+      glow.addColorStop(0.3, alpha(s.colour, a * 0.6));
       glow.addColorStop(1, alpha(s.colour, 0));
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, r * 4, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, reach, 0, Math.PI * 2);
       ctx.fill();
-      // A cross of light on the bright ones.
-      if (!dim && (s.r > 3 || s.n.id === sel)) {
+      // A cross of light on the bright ones, where there is room for it.
+      if (!dim && ((s.r > 3.5 && s.damp > 0.6) || picked)) {
         ctx.strokeStyle = `rgba(255,255,255,${a * 0.5})`;
         ctx.lineWidth = 0.6 / k;
         ctx.beginPath();
@@ -202,13 +223,30 @@ export class GalaxyView implements View {
         ctx.fillText(fit(ctx, g.name, 240 / k), g.x, g.y + g.r * 0.75);
       }
     }
+    // Stars' names: the picked one first, then its surest neighbours, the
+    // found ones and the pages; one that would overlap a name already written
+    // is left out (it shows on hover and closer up).
     ctx.font = `500 ${11 / k}px system-ui, "Segoe UI", sans-serif`;
-    for (const s of this.stars) {
-      const show = s.n.id === sel || near.has(s.n.id) || this.filter?.has(s.n.id) || (k > 1.6 && (s.n.kind === "page" || k > 2.6));
-      if (!show) continue;
-      ctx.fillStyle = s.n.id === sel ? "#ffffff" : "rgba(220,226,240,0.85)";
-      ctx.fillText(fit(ctx, s.n.label, 160 / k), s.x, s.y + s.r + 9 / k);
+    const nearRank = new Map(lines.map((nb, i) => [nb.id, i]));
+    const order = (s: Star) => (s.n.id === sel ? -1 : nearRank.get(s.n.id) ?? 100 - s.r);
+    const named = this.stars
+      .filter((s) => s.n.id === sel || (nearRank.get(s.n.id) ?? MAX_NAMES) < MAX_NAMES || this.filter?.has(s.n.id) || (k > 1.6 && (s.n.kind === "page" || k > 2.6)))
+      .sort((a, b) => order(a) - order(b));
+    const taken: { x0: number; y0: number; x1: number; y1: number }[] = [];
+    const lineH = 14 / k;
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 4;
+    for (const s of named) {
+      const text = fit(ctx, s.n.label, 160 / k);
+      const half = ctx.measureText(text).width / 2 + 3 / k;
+      const y = s.y + s.r + 9 / k;
+      const b = { x0: s.x - half, y0: y - lineH / 2, x1: s.x + half, y1: y + lineH / 2 };
+      if (s.n.id !== sel && taken.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0)) continue;
+      taken.push(b);
+      ctx.fillStyle = s.n.id === sel ? "#ffffff" : "rgba(220,226,240,0.88)";
+      ctx.fillText(text, s.x, y);
     }
+    ctx.shadowBlur = 0;
     ctx.restore();
     if (twinkling) moving = true;
     return moving;
@@ -238,6 +276,26 @@ export class GalaxyView implements View {
 
   reset() {
     this.cam.frame(box(this.stars), this.size.w, this.size.h, false, 40);
+  }
+}
+
+/** How crowded each star's corner of the sky is: with additive light ten
+ * stars in a spot make a white blot, so each shines less the more it has
+ * around (a grid, so thousands of notes stay cheap). */
+function crowding(stars: Star[]) {
+  const cell = 28;
+  const grid = new Map<string, number>();
+  const key = (cx: number, cy: number) => `${cx},${cy}`;
+  for (const s of stars) {
+    const kk = key(Math.floor(s.x / cell), Math.floor(s.y / cell));
+    grid.set(kk, (grid.get(kk) ?? 0) + 1);
+  }
+  for (const s of stars) {
+    const cx = Math.floor(s.x / cell);
+    const cy = Math.floor(s.y / cell);
+    let n = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) n += grid.get(key(cx + dx, cy + dy)) ?? 0;
+    s.damp = Math.min(1, 2.2 / Math.sqrt(n));
   }
 }
 
