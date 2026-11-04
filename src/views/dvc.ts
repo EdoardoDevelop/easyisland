@@ -50,6 +50,15 @@ export function dvcGoTo(vault: string, path: string) {
   void go(path);
 }
 
+/** The cloud view on an entry's folder, with its pane open (the search field, rdm.ts rdmShowEntry). */
+export async function dvcShowEntry(e: DvcItem) {
+  dv.vault = e.vault;
+  await go(e.folder);
+  const here = dv.browse?.entries.find((x) => x.id === e.id) ?? e;
+  if (dv.sel !== here.id) await toggleDetails(here);
+  dv.el?.querySelector(".dvc-entry.on")?.scrollIntoView({ block: "nearest" });
+}
+
 /** The customers tied to folders, lower case → folder. */
 function ties(): Record<string, { vault: string; path: string }> {
   return State.settings.integrationConfig.rdmFolders ?? {};

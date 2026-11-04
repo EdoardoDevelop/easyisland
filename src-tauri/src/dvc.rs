@@ -347,6 +347,41 @@ pub fn connections() -> Vec<crate::rdm::Entry> {
         .unwrap_or_default()
 }
 
+/// The island's search field (src/views/search.ts) and the RDM card's: every
+/// entry — folders, connections, credentials, password lists — whose name,
+/// folder, user or host has every word typed (asked by Edoardo on 4 Nov 2026:
+/// the cloud's folders too, and all of it). Best first: name, then the rest.
+pub fn search(query: &str, limit: usize) -> Vec<Item> {
+    if !on() {
+        return Vec::new();
+    }
+    let words: Vec<String> = query.to_lowercase().split_whitespace().take(6).map(String::from).collect();
+    if words.is_empty() {
+        return Vec::new();
+    }
+    load_cache();
+    let Ok(g) = INDEX.lock() else { return Vec::new() };
+    let Some(index) = g.as_ref() else { return Vec::new() };
+    let mut found: Vec<(u32, &Item)> = index
+        .entries
+        .iter()
+        .filter_map(|e| {
+            let (name, rest) = (e.name.to_lowercase(), format!("{} {} {}", e.folder, e.user, e.host).to_lowercase());
+            let mut total = 0;
+            for w in &words {
+                total += if name.starts_with(w.as_str()) { 6 } else if name.contains(w.as_str()) { 4 } else if rest.contains(w.as_str()) { 2 } else { return None };
+            }
+            // A folder named like the words first: «rossi» → the customer's folder.
+            if e.kind == "Group" {
+                total += 1;
+            }
+            Some((total, e))
+        })
+        .collect();
+    found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase())));
+    found.into_iter().take(limit.clamp(1, 50)).map(|(_, e)| e.clone()).collect()
+}
+
 /// For the card and the settings: on, how many entries, vaults, when, the error.
 pub fn summary() -> Value {
     if !on() {

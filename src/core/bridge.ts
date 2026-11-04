@@ -473,6 +473,8 @@ export const Bridge = {
   dvcTest: () => callOrThrow<DvcVault[]>("dvc_test"),
   /** A folder of a vault, from the list saved at the last sync. */
   dvcBrowse: (vault: string, path: string) => call<DvcBrowse>("dvc_browse", { vault, path }),
+  /** The search field: credentials and password lists of Devolutions Cloud (no secret). */
+  dvcSearch: (query: string, limit = 5) => call<DvcItem[]>("dvc_search", { query, limit }),
   dvcDetails: (vault: string, id: string) => callOrThrow<DvcDetails>("dvc_details", { vault, id }),
   /** The password goes to the clipboard in Rust (private, emptied later): only the seconds come back. */
   dvcCopyPassword: (vault: string, id: string, row: number | null) => callOrThrow<number>("dvc_copy_password", { vault, id, row }),

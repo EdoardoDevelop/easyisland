@@ -73,6 +73,8 @@ const SHOTS = {
   "moment-card": { url: `/?scene=moment&moment=card&activeIntegrations=${PILLS}` },
   daily: { url: `/?scene=daily&activeIntegrations=${PILLS}` },
   // RDM with Devolutions Cloud: a customer tied to its folder (dev/scenes.ts `rdm&tied`).
+  // The search field finding the cloud (folders and entries) and a 3CX contact (dev/scenes.ts `search`).
+  "search-ovunque": { url: `/?scene=search&q=rossi&islandHeight=560&activeIntegrations=integration_rdm,integration_3cx,${PILLS}` },
   "rdm-cloud": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}` },
   // An entry picked: its pane with user and the password shown with the eye.
   "rdm-cloud-voce": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}`,

@@ -13,8 +13,8 @@ import { ICONS } from "./icons";
 import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
-import { Bridge, type ChatSummary, type MemoryHit, type NotionPage, type RdmEntry, type TicketHit } from "../core/bridge";
-import { kindLabel } from "./rdm";
+import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
+import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
 import { t } from "../core/i18n";
 
 export interface SearchActions {
@@ -34,7 +34,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -52,11 +52,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Memoria: 3, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 3, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -87,24 +87,27 @@ export function buildSearch(actions: SearchActions): SearchHost {
   let notion: { q: string; pages: NotionPage[] } = { q: "", pages: [] };
   let notionTimer = 0;
   // Remote Desktop Manager's connections (rdm.rs keeps the list in memory).
-  let rdmFound: { q: string; list: RdmEntry[] } = { q: "", list: [] };
+  // With Devolutions Cloud, also its credentials and password lists (dvc.rs search).
+  let rdmFound: { q: string; list: RdmEntry[]; cloud: DvcItem[] } = { q: "", list: [], cloud: [] };
   const askRdm = (q: string) => {
     if (q.length < 2 || !State.settings.activeIntegrations.includes("integration_rdm") || rdmFound.q === q) return;
-    void Bridge.rdmSearch(q, 5).then((list) => {
-      rdmFound = { q, list };
-      if (input.value.trim() === q && list.length) refresh(true);
-    });
+    rdmFound = { q, list: [], cloud: [] };
+    const show = () => { if (rdmFound.q === q && input.value.trim() === q) refresh(true); };
+    // With the cloud only its folders and entries, opened in the card on the island;
+    // without it RDM's own list, opened in RDM.
+    if (cloudOn()) void Bridge.dvcSearch(q, 8).then((cloud) => { if (rdmFound.q === q && cloud?.length) { rdmFound.cloud = cloud; show(); } });
+    else void Bridge.rdmSearch(q, 5).then((list) => { if (rdmFound.q === q && list.length) { rdmFound.list = list; show(); } });
   };
 
   // The memory, the past conversations and Zammad: asked together as the user
   // stops typing; each answers when it can.
-  let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[] } = { q: "", pages: [], chats: [], tickets: [] };
+  let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[]; contacts: ThreecxContact[] } = { q: "", pages: [], chats: [], tickets: [], contacts: [] };
   let moreTimer = 0;
   const askMore = (q: string) => {
     window.clearTimeout(moreTimer);
     if (q.length < 3 || more.q === q) return;
     moreTimer = window.setTimeout(() => {
-      more = { q, pages: [], chats: [], tickets: [] };
+      more = { q, pages: [], chats: [], tickets: [], contacts: [] };
       const show = () => { if (more.q === q && input.value.trim() === q) refresh(true); };
       void Bridge.memoryFind(q).then((pages) => { if (more.q === q && pages?.length) { more.pages = pages; show(); } });
       if (State.settings.chatHistory !== false) {
@@ -112,6 +115,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
       }
       if (State.settings.activeIntegrations.includes("integration_zammad")) {
         void Bridge.zammadSearch(q).then((tickets) => { if (more.q === q && tickets?.length) { more.tickets = tickets; show(); } });
+      }
+      // The 3CX phonebook (company and personal contacts, colleagues).
+      if (State.settings.activeIntegrations.includes("integration_3cx")) {
+        void Bridge.threecxContacts(q).then((contacts) => { if (more.q === q && contacts?.length) { more.contacts = contacts.filter((c) => c.numbers.length); show(); } }).catch(() => {});
       }
     }, 400);
   };
@@ -196,6 +203,13 @@ export function buildSearch(actions: SearchActions): SearchHost {
           icon: () => h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
           run: () => void Bridge.rdmOpen(e).catch(() => {}) });
       }
+      // The cloud: a folder opens in the RDM card, an entry with its pane (user, password with the eye).
+      for (const e of rdmFound.cloud) {
+        const mark = e.kind === "Group" ? "📁" : e.cred === "PasswordList" ? "📋" : e.kind.startsWith("Credential") ? "🔑" : "";
+        out.push({ kind: "Cloud", name: e.folder ? `${e.name} · ${e.folder.split(/[\\/]/).pop()}` : e.name, score: Math.max(1, score(e.name, q)),
+          icon: () => mark ? h("span", { text: mark }) : h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
+          run: () => { actions.openTask("integration_rdm"); rdmShowEntry(e); } });
+      }
     }
     if (more.q === input.value.trim()) {
       for (const p of more.pages) {
@@ -209,6 +223,15 @@ export function buildSearch(actions: SearchActions): SearchHost {
       for (const tk of more.tickets) {
         out.push({ kind: "Ticket", name: tk.title, score: Math.max(1, score(tk.title, q)),
           icon: () => markIcon("integration_zammad", 14) ?? svg(ICONS.doc, 13), run: () => void Bridge.openUrl(tk.url) });
+      }
+      // A contact: «Chiama …» with its first number (the 3CX card shows the call).
+      for (const c of more.contacts) {
+        const number = c.numbers[0];
+        const who = [c.name, c.company].filter(Boolean).join(" · ");
+        // Never above a page or an integration: Enter on the first result must not place a call by surprise.
+        out.push({ kind: "Contatto", name: t("Chiama {who} · {n}", { who, n: number }), score: 1,
+          icon: () => markIcon("integration_3cx", 14) ?? svg(ICONS.bubble, 13),
+          run: () => { actions.openTask("integration_3cx"); void Bridge.threecxCall(number, null).catch(() => {}); } });
       }
     }
     // Best match first; at equal match, the order of the kinds above.

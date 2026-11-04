@@ -1030,6 +1030,12 @@ async fn dvc_test() -> Result<Vec<dvc::Vault>, String> {
     dvc::test().await
 }
 
+/// The search field: credentials and password lists of Devolutions Cloud.
+#[tauri::command]
+fn dvc_search(query: String, limit: Option<usize>) -> Vec<dvc::Item> {
+    dvc::search(&query, limit.unwrap_or(5))
+}
+
 /// The RDM card's cloud: a folder of a vault (from the saved list).
 #[tauri::command]
 fn dvc_browse(vault: String, path: String) -> dvc::Browse {
@@ -4382,6 +4388,7 @@ pub fn run() {
             dvc_details,
             dvc_copy_password,
             dvc_reveal,
+            dvc_search,
             dvc_new_credential,
             dvc_new_password_list,
             notion_add_note,

@@ -4514,5 +4514,7 @@
   "Credenziale": "Credential",
   "Nessun utente né password in questa voce.": "No user or password in this entry.",
   "Hook attivi · nessuna sessione di Claude Code": "Hooks on · no Claude Code session",
-  "Connesso · caricamento…": "Connected · loading…"
+  "Connesso · caricamento…": "Connected · loading…",
+  "Chiama {who} · {n}": "Call {who} · {n}",
+  "Niente nel cloud con queste parole.": "Nothing in the cloud with these words."
 }

@@ -8,10 +8,10 @@
 import { h, svg, clear, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
-import { Bridge, type RdmEntry } from "../core/bridge";
+import { Bridge, type DvcItem, type RdmEntry } from "../core/bridge";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
-import { dvcFolderFor, dvcGoTo, dvcView } from "./dvc";
+import { dvcFolderFor, dvcGoTo, dvcShowEntry, dvcView } from "./dvc";
 
 export const RDM = "integration_rdm";
 const COLOR = "#E8542A";
@@ -19,6 +19,8 @@ const COLOR = "#E8542A";
 const rdm = {
   query: "",
   found: [] as RdmEntry[],
+  /** With Devolutions Cloud: its folders and entries matching (dvc.rs search). */
+  cloudFound: [] as DvcItem[],
   timer: 0,
   search: null as HTMLInputElement | null,
   note: "",
@@ -44,19 +46,33 @@ function searchSoon(now = false) {
   const q = rdm.query.trim();
   if (!q) {
     rdm.found = [];
+    rdm.cloudFound = [];
     rdm.redraw?.();
     return;
   }
   rdm.timer = window.setTimeout(async () => {
-    const found = await Bridge.rdmSearch(q, 12);
-    if (rdm.query.trim() !== q) return;
-    rdm.found = found;
+    // With the cloud: every folder and entry of its vaults, opened here in the card.
+    if (cloudOn()) {
+      const found = (await Bridge.dvcSearch(q, 40)) ?? [];
+      if (rdm.query.trim() !== q) return;
+      rdm.cloudFound = found;
+      rdm.found = [];
+    } else {
+      const found = await Bridge.rdmSearch(q, 12);
+      if (rdm.query.trim() !== q) return;
+      rdm.found = found;
+    }
     rdm.redraw?.();
   }, now ? 0 : 120);
 }
 
+/** A cloud folder's own path (dvc.rs Item: `path` for a folder, else parent + name). */
+export function dvcFolderPath(e: DvcItem): string {
+  return e.path || [e.folder, e.name].filter(Boolean).join("\\");
+}
+
 /** Devolutions Cloud is on (rdm.rs summary `cloud`). */
-function cloudOn(): boolean {
+export function cloudOn(): boolean {
   const cloud = (State.integrations[RDM]?.data as { cloud?: { on?: boolean } } | undefined)?.cloud;
   return !!cloud?.on;
 }
@@ -77,6 +93,18 @@ export function rdmLookFor(query: string) {
   rdm.query = query.trim();
   if (rdm.search) rdm.search.value = rdm.query;
   searchSoon(true);
+  State.setFocus(RDM);
+  State.notify();
+}
+
+/** A cloud entry found in the search field: the card, its folder, its pane open. */
+export function rdmShowEntry(e: DvcItem) {
+  rdm.query = "";
+  rdm.cloudFound = [];
+  if (rdm.search) rdm.search.value = "";
+  if (e.kind === "Group") dvcGoTo(e.vault, dvcFolderPath(e));
+  else void dvcShowEntry(e).then(() => rdm.redraw?.());
+  rdm.redraw?.();
   State.setFocus(RDM);
   State.notify();
 }
@@ -142,6 +170,19 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     e.host ? tool(ICONS.copy, t("Copia l'indirizzo"), () => void navigator.clipboard.writeText(e.host).then(() => say(t("Copiato: {h}", { h: e.host })), fail)) : null,
     tool(ICONS.pin, pinned(e) ? t("Togli dalla card") : t("Tieni nella card"), () => togglePin(e), pinned(e))));
 
+  // A folder or an entry of the cloud found: its folder in the card, the entry's pane open.
+  const cloudRow = (e: DvcItem) => {
+    const folder = e.kind === "Group";
+    const where = folder ? e.folder : e.folder.split(/[\\/]/).slice(-2).join(" › ");
+    const mark = folder ? "📁" : e.cred === "PasswordList" ? "📋" : e.kind.startsWith("Credential") ? "🔑" : "";
+    return h("div", { class: "int-page rdm-row", role: "button", title: [e.folder, e.host].filter(Boolean).join(" · ") || e.name,
+      onclick: () => rdmShowEntry(e) },
+    mark ? h("span", { class: "dvc-icon", text: mark }) : h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
+    h("span", { class: "int-name", text: e.name }),
+    e.user && !folder ? h("span", { class: "int-ago", text: e.user }) : null,
+    where ? h("span", { class: "int-ago", text: where }) : null);
+  };
+
   const section = (label: string, extra?: Node | null) => h("div", { class: "notion-section" }, h("span", { text: label }), extra ?? null);
 
   const search = rdm.search ?? (rdm.search = h("input", {
@@ -156,6 +197,12 @@ export function rdmCard(openSettings: () => void): HTMLElement {
         (k.target as HTMLInputElement).value = "";
         searchSoon(true);
       } else if (k.key === "Enter") {
+        // The cloud: the first found, in the card.
+        if (cloudOn()) {
+          const top = rdm.cloudFound[0];
+          if (top) rdmShowEntry(top);
+          return;
+        }
         const first = rdm.found[0];
         if (first) open(first);
         else if (rdm.query.trim()) void Bridge.rdmFilter(rdm.query).catch(fail);
@@ -168,6 +215,12 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     clear(body);
     say("");
     const q = rdm.query.trim();
+    if (q && cloudOn()) {
+      // The cloud: folders and entries, opened here in the card (not in RDM).
+      for (const e of rdm.cloudFound) body.append(cloudRow(e));
+      if (!rdm.cloudFound.length) body.append(h("div", { class: "notion-note", text: t("Niente nel cloud con queste parole.") }));
+      return;
+    }
     if (q) {
       for (const e of rdm.found) body.append(row(e));
       const actions = h("div", { class: "rdm-actions" },

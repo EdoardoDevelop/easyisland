@@ -1254,8 +1254,16 @@ export async function runScene(island: Island, scene: string) {
           { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
           { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },
         ],
+        // RDM with Devolutions Cloud and the 3CX phonebook (search.ts).
+        dvcSearch: async () => [
+          { id: "g1", name: "ROSSI SRL", kind: "Group", folder: "Easytech", path: "Easytech\\ROSSI SRL", host: "", user: "", cred: "", vault: "v" },
+          { id: "r1", name: "Server Rossi", kind: "RDPConfigured", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.5", user: "", cred: "", vault: "v" },
+          { id: "d1", name: "Admin NAS Rossi", kind: "Credential", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.20", user: "admin", cred: "Default", vault: "v" },
+        ],
+        threecxContacts: async () => [{ name: "Mario Rossi", company: "Rossi Srl", numbers: ["+39 0583 123456"], colleague: false }],
       });
-      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad"];
+      State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };
+      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"];
       await wait(300);
       island.setView("overview");
       island.setPinned(true);
