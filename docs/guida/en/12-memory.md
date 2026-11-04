@@ -57,10 +57,10 @@ EasyIsland keeps the pages of people and customers up to date by itself, but **w
 - **when one of your Zammad tickets closes**, the problem and the solution;
 - **important mails** (with the Microsoft account connected): those marked important and those from someone who already has a page.
 
-Ten minutes later, a task proposes the lines to add and the **commitments made** ("I'll send you the quote tomorrow") as reminders in To Do: answer **Do all**, **None** or the numbers you want. On **Friday at 5 pm** comes the **weekly recap**: what the memory learnt and what is still open. Everything is switched on and off in Settings → Flows → Second brain (Take a note in Settings → Notifications → Proposals).
+Ten minutes later, a task proposes the lines to add and the **commitments made** ("I'll send you the quote tomorrow") as reminders in To Do: tick the ones to do and, if one is nearly right, press **Comment** and write what is wrong. On **Friday at 5 pm** comes the **weekly recap**: what the memory learnt and what is still open. Everything is switched on and off in Settings → Flows → Second brain (Take a note in Settings → Notifications → Proposals).
 
 ## The check
-EasyIsland finds by itself: similar notes or notes older than six months, links to pages that don't exist, pages that are isolated, old or about the same subject. The agent adds the **contradictions** it notices and proposes the fixes in the island, one per line, with **Do all** / **None** (or write which ones). It applies **only the approved ones** and **never deletes**: at most it moves a note to `archivio.md` or a page to `archivio/pagine`.
+EasyIsland finds by itself: similar notes or notes older than six months, links to pages that don't exist, pages that are isolated, old or about the same subject. The agent adds the **contradictions** it notices and proposes the fixes in the island, **one checkbox per fix**, with the whole text: untick the ones you don't want and, if one is nearly right, press **Comment** and write what is wrong (the agent fixes it before doing it); **All** / **None** change every checkbox, at the bottom a note for all. If you don't answer right away the question stays in Settings → Flows, with the same checkboxes. It applies **only the approved ones** and **never deletes**: at most it moves a note to `archivio.md` or a page to `archivio/pagine`.
 
 It runs on Sunday evening with the digest, if there's something to fix, or right away with **Check**.
 

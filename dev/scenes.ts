@@ -1163,7 +1163,16 @@ export async function runScene(island: Island, scene: string) {
         handleHook(island, { hook_event_name: "PreToolUse", tool_name: "Compito", tool_input: { step }, ...task });
         handleHook(island, { hook_event_name: "PostToolUse", tool_name: "Compito", tool_input: { step }, ...task });
       }
-      if (new URLSearchParams(location.search).has("ask")) {
+      if (new URLSearchParams(location.search).has("proposte")) {
+        // &proposte: the memory check's corrections, a checkbox and a comment each (proposals.ts).
+        handleHook(island, { hook_event_name: "PermissionRequest", request_id: "ask-2", tool_name: "AskUserQuestion", ...task,
+          tool_input: { questions: [{ question: "Ho trovato tre cose da sistemare nella memoria. Quali faccio?", header: "Compito", options: [], multiSelect: false,
+            items: [
+              "Unire «Farmacia Falchi» e «Farmacie Falchi»: sono lo stesso cliente, tengo il testo più recente e i collegamenti di tutte e due.",
+              "Correggere «Proxmox»: la nota del 12/10 dice che il server è a Pisa, quella del 28/10 a Livorno; tengo Livorno.",
+              "Archiviare la nota «chiamare Rossi per il preventivo» del 3/9: il preventivo è stato inviato il 10/9.",
+            ] }] } });
+      } else if (new URLSearchParams(location.search).has("ask")) {
         handleHook(island, { hook_event_name: "PermissionRequest", request_id: "ask-1", tool_name: "AskUserQuestion", ...task,
           tool_input: { questions: [{ question: "Includo anche le ore di ottobre fatturate a parte?", header: "Compito",
             options: [{ label: "Sì", description: "" }, { label: "No", description: "" }], multiSelect: false }] } });

@@ -415,6 +415,8 @@ export interface AskQuestion {
   header: string;
   options: { label: string; description: string }[];
   multiSelect: boolean;
+  /** Proposals to tick one by one, each with a comment (a task's task_ask, proposals.ts). */
+  items?: string[];
 }
 
 /**
@@ -1902,6 +1904,8 @@ export interface AgentTaskItem {
   when: string;
   lastFired: string;
   question: string;
+  /** The proposals of the question waiting (task_ask `items`). */
+  items?: string[];
   answer: string;
   result: string;
   last: string;

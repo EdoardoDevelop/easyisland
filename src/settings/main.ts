@@ -22,6 +22,7 @@ import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type Fo
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
 import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
+import { freshPicks, proposalsAnswer, proposalsBox, setAll, type ProposalPicks } from "../views/proposals";
 import "./settings-windows.css";
 import "./settings-light.css";
 
@@ -4675,6 +4676,8 @@ let taskItems: AgentTaskItem[] = [];
 let taskLogOpen = "";
 /** The task whose engines are being changed. */
 let taskEnginesOpen = "";
+/** What is ticked and written on a task's proposals, kept across repaints (task id|question). */
+const taskPicks = new Map<string, ProposalPicks>();
 
 const TASK_STATE: Record<TaskState, [string, string]> = {
   scheduled: [t("Programmato"), "off"],
@@ -4876,7 +4879,35 @@ function taskRow(task: AgentTaskItem): HTMLElement {
     reply.addEventListener("keydown", (e) => {
       if (e.key === "Enter") void go();
     });
-    body.append(h("div", { class: "notice warn", text: task.question }), h("div", { class: "row" }, reply, send));
+    if (task.items?.length) {
+      // Proposals: a checkbox and a comment each (proposals.ts), the field above as a note for all.
+      const items = task.items;
+      const key = `${task.id}|${task.question}`;
+      const picks = taskPicks.get(key) ?? freshPicks(items);
+      taskPicks.set(key, picks);
+      const note = h("input", { type: "text", placeholder: t("Nota per tutte (facoltativa)"), style: "flex:1 1 260px" }) as HTMLInputElement;
+      const answerAll = async () => {
+        try {
+          await Bridge.taskAnswer(task.id, proposalsAnswer(items, picks, note.value));
+          taskPicks.delete(key);
+        } catch (e) {
+          console.warn(e);
+        }
+        await refreshTasks();
+      };
+      const list = h("div", {}, proposalsBox(items, picks, false, () => void answerAll()));
+      const redraw = () => list.replaceChildren(proposalsBox(items, picks, false, () => void answerAll()));
+      const sendAll = h("button", { class: "primary", text: t("Rispondi") }) as HTMLButtonElement;
+      sendAll.addEventListener("click", () => void answerAll());
+      note.addEventListener("keydown", (e) => { if (e.key === "Enter") void answerAll(); });
+      body.append(h("div", { class: "notice warn task-ask" }, h("div", { text: task.question }), list,
+        h("div", { class: "row" },
+          h("button", { text: t("Tutte"), onclick: () => { setAll(picks, true); redraw(); } }),
+          h("button", { text: t("Nessuna"), onclick: () => { setAll(picks, false); redraw(); } }))),
+        h("div", { class: "row" }, note, sendAll));
+    } else {
+      body.append(h("div", { class: "notice warn", text: task.question }), h("div", { class: "row" }, reply, send));
+    }
   }
   body.append(buttons);
   if (taskEnginesOpen === task.id && task.state !== "running") {

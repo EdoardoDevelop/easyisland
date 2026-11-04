@@ -2866,13 +2866,14 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* ── AskUserQuestion ────────────────────────────────────────────────────── */
 
+/* The whole question, scrolling when long (it was cut at three lines). */
 .ask-q {
   font-size: calc(14px + var(--fs-up, 0px));
   line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  max-height: calc(5.2em + var(--extra-h, 0px) / 4);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ask-options {
@@ -6654,3 +6655,24 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .dvc-tie .dvc-input { max-width: 260px; }
 .dvc-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 9px; border-radius: 10px; background: rgba(232, 84, 42, 0.16); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
 .dvc-chip button { border: 0; background: transparent; color: #8e939c; cursor: pointer; }
+
+/* Proposals of a task's question (src/views/proposals.ts): a checkbox and a
+   comment each; the whole text, never cut. */
+.prop-list { display: flex; flex-direction: column; gap: 4px; }
+.prop-item { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 10px; padding: 6px 9px; border-radius: 9px; background: rgba(255, 255, 255, 0.05); }
+.prop-main { display: flex; align-items: flex-start; gap: 7px; flex: 1 1 220px; min-width: 0; line-height: 1.38; cursor: default; }
+.prop-main input { flex: 0 0 auto; margin: 2px 0 0; accent-color: #22d3ee; }
+.prop-n { flex: 0 0 auto; opacity: 0.6; }
+.prop-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.prop-item.off .prop-text { opacity: 0.45; text-decoration: line-through; }
+.prop-btn { flex: 0 0 auto; padding: 0; font-size: 11px; opacity: 0.7; }
+.prop-btn.on { color: #22d3ee; opacity: 1; }
+.prop-comment { flex: 1 1 100%; min-width: 0; border-radius: 8px; padding: 5px 9px; outline: none; }
+.prop-main { font: 400 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.prop-btn { color: var(--dim); }
+.prop-comment { font: 400 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hairline); }
+.prop-comment:focus { border-color: rgba(34, 211, 238, 0.5); }
+.ask-has-items .ask-q { max-height: calc(2.7em + var(--extra-h, 0px) / 6); }
+.ask-has-items .ask-options { flex-direction: column; flex-wrap: nowrap; max-height: calc(150px + var(--extra-h, 0px)); }
+.ask-has-items .ask-foot { display: flex; align-items: center; gap: 12px; }
+.ask-has-items .ask-go { margin-left: auto; }

@@ -54,6 +54,7 @@ const SHOTS = {
   custom: { url: "/?scene=custom" },
   "custom-dati": { url: "/?scene=custom&dati" },
   "compiti-ask": { url: "/?scene=compiti&ask" },
+  "compiti-proposte": { url: "/?scene=compiti&proposte&islandHeight=520" },
   recap: { url: "/?scene=recap" },
   drop: { url: "/?scene=drop" },
   actions: { url: "/?scene=actions&activeIntegrations=" },

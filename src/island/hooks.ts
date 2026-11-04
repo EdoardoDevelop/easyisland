@@ -604,6 +604,7 @@ function askQuestions(input: Record<string, unknown>): AskQuestion[] | null {
       question: r.question,
       header: typeof r.header === "string" ? r.header : "",
       multiSelect: r.multiSelect === true,
+      items: Array.isArray(r.items) ? r.items.filter((x): x is string => typeof x === "string" && !!x.trim()).slice(0, 40) : undefined,
       options: r.options
         .filter((o): o is Record<string, unknown> => !!o && typeof o === "object" && typeof (o as Record<string, unknown>).label === "string")
         .map((o) => ({ label: o.label as string, description: typeof o.description === "string" ? o.description : "" })),
