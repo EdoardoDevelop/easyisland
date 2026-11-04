@@ -2,6 +2,16 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.24** — **Agent Chat with a map**: the chat is split into topics (your requests, who works on them,
+done, open or blocked) and every agent gets it besides the last messages, so it knows what was already decided;
+in the card, **Topics** lists them and a click shows that topic's messages. **AI advice** on Zammad tickets: the
+chat opens with the ticket, the customer and similar tickets, the answer stays as the ticket's advice and is
+updated when new messages arrive, with its history. **RDM with Devolutions Cloud** only from the cloud, with a
+pane for each entry: user, password hidden with the eye and Copy. The **field at the top** also finds RDM
+entries and folders (opened in the card) and 3CX contacts. In the chat's replies **files and folders are
+clickable**: Preview, Open, Download, Open location. The **memory check** proposes its fixes with a checkbox and
+a comment each. The memory map's neural network moves with the mouse still too.
+
 **1.0.23** — **Zammad on the island**: the card shows your views with their counts, opens the ticket
 with every message and lets you change state (with the reminder when pending), owner and priority,
 write an internal note or answer the customer by email. **Devolutions Cloud** in the RDM card: vaults

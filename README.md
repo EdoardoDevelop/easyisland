@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.24** — **Agent Chat with a map** of topics for the agents and the «Topics» tab; **AI advice** on Zammad tickets; **RDM from the cloud only** with user and password (eye, Copy); RDM and 3CX in the top field; **clickable files** in the chat's replies.
 - **1.0.23** — **Zammad card** (tickets, state, owner, reply), **Devolutions Cloud** in the RDM card and in the chat; **memory map** with six new views, groups and links checked by the AI; a **queue** in the chat; **fonts** to pick; **Agent Chat** says who is working.
 - **1.0.22** — **chat and integrations in a window** (dragged out of the island or with a button), with the **Preview** inside; a resizable **conversations bar** and several conversations open; **Memory** of this PC, of another PC or both.
 - **1.0.21** — **Agent Chat** engines fully **autonomous** (nothing asked, deleting included); the result of a **background script** reaches the chat when it ends.
-- **1.0.20** — **Agent Chat** answers **once** (the first PC takes the message on), **names** for the engines, turns and tokens per engine, **who is on**; **memory shared between two PCs** (work at home, kept apart); **autonomous** engines that ask in the chat; attachments with SHA-256.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
