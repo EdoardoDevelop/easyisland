@@ -50,6 +50,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 4/11 — Agent Chat: Jeeves, incarichi, programmate, capacità (`claude/agentchat-coordinatore`)
+EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi («📋 Incarico #N») nel loro thread; le regole del turno spiegano incarichi e jeeves (`docs/integrazioni.md` → Agent Chat). Il server (repo `agentchat`, branch `coordinatore`) ha incarichi, programmate, rilascio dei messaggi di un PC spento e Jeeves via OpenRouter. Provato in locale con un OpenRouter finto e test Rust; **non ancora con il modello vero né con i due PC**.
+
+### 4/11 — Chat: Ferma o «Invia subito» non perdono più la conversazione (`claude/chat-ferma-sessione`)
+La sessione di Claude Code si registrava solo a fine turno: fermato il primo messaggio (anche con «Invia subito»), il successivo ripartiva da zero. Ora `claude_cli::read_lines` la prende dalla riga `init` appena arriva (`init_session`) e il messaggio dopo fa `--resume`; uguale in `antigravity.rs` con `conversation_id`. Provato con `live_kept` sul Claude Code vero (primo messaggio fermato, poi ricorda la parola).
+
 ### 4/11 — Versione 1.0.24
 - Agent Chat: mappa ad argomenti senza IA (`agentchat_map.rs`) nel prompt e `agentchat_topic`; scheda «Argomenti». Ogni PC la costruisce per sé; riassunti IA e mappa sul server non fatti.
 - Zammad «Consiglio IA» (`ticket_advice.rs`), RDM solo dal cloud con pannello e occhio (`dvc.rs` `CREDS`, `dvc_reveal`), ricerca in RDM/3CX dal campo in alto, file cliccabili nella chat (`chatpaths.rs`), controllo della memoria con caselle (`proposals.ts`).
@@ -60,10 +66,3 @@ Uniti in `claude/sviluppo` e `main`: scheda Zammad, Devolutions Cloud, mappa del
 
 ### 4/11 — Devolutions Cloud nella scheda RDM (`claude/devolutions-cloud`, sopra `claude/zammad-ticket`)
 Tutti i passi di `docs/idee.md` → Devolutions Cloud senza skill né modulo installati (`dvc.rs`, `src/views/dvc.ts`): Application identity in Impostazioni → RDM (Gestione credenziali), vault e voci senza password con Sincronizza (DPAPI), connessioni del cloud nella ricerca RDM; Copia password negli appunti privati svuotati dopo 30 s; nuova credenziale e Lista Password con anteprima, conferma, rilettura e verifica; cliente Zammad/3CX ↔ cartella; `rdm_search`/`rdm_open` per la chat, più gli strumenti della skill in chat (`dvc_vaults`, `dvc_entries`, `dvc_folder_id`, `dvc_show`, anteprima e creazione di Lista Password e credenziali; password chiesta nella finestra di Windows, due volte). Provato con test Rust, parser di PowerShell, anteprima `rdm&cloud`/`rdm&tied` e smoke; **non ancora sul Devolutions Cloud vero** (`docs/prove-dal-vivo.md`).
-
-### 4/11 — Scheda Zammad: ticket, conversazione, risposta, proprietario e stato (`claude/zammad-ticket`)
-Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con i conteggi, filtro, righe con stato/cliente/proprietario/priorità; ticket aperto con tutti i messaggi, select Stato (data del promemoria se «in attesa»), Proprietario (tecnici del gruppo, «Assegna a me»), Priorità salvate subito; nota interna o risposta al cliente via email con secondo clic. Rust: `zammad::tickets`, `ticket`, `set`, `reply` (`docs/integrazioni.md` → Scheda Zammad). Provato con test Rust, anteprima `?scene=zammad` (`open`, `email`) e smoke; **non ancora su Zammad vero** (`docs/prove-dal-vivo.md`).
-
-### 3/11 — Mappa della memoria: viste nuove, gruppi, collegamenti giudicati dall'IA (`claude/mappa-memoria`)
-- Viste Galassia, Rete neurale (impulsi su `memory-activity`), Bolle, Raggiera, Fiume, Da dove arriva; gruppi a colori, freschezza, filtri (legenda, periodo, solo sicuri), «Come è collegato a…», doppio clic = messa a fuoco, note sole (`src/memory/`).
-- Collegamenti: forza 1–3, stime più severe (`Rarity`), niente catene di parole rare; «Collega con l'IA» giudica le note e salva `collegamenti.json` (`memory_links.rs`), anche per la copia di lavoro da casa. Provato nell'anteprima con i dati finti e con test Rust; non sulla memoria vera né con un motore vero. `docs/chat.md` → Finestra Memoria.

@@ -232,7 +232,13 @@ pub async fn send(
             Ok(Err(e)) => return Err(tf("Antigravity si è interrotto: {e}", &[("e", &e)])),
             Ok(Ok(None)) => break,
             Ok(Ok(Some(line))) => {
-                if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
+                let known = progress.conversation.clone();
+                let changed = progress.feed(&line);
+                // Kept at once: a turn stopped before its end is resumed by the next message.
+                if progress.conversation != known {
+                    chat.set_cli_session(progress.conversation.clone());
+                }
+                if changed && emitted.elapsed() >= STREAM_EVERY {
                     emitted = std::time::Instant::now();
                     on_text(&progress.shown);
                 }

@@ -4531,5 +4531,6 @@
   "id: l'argomento (un suo messaggio), oppure query: le parole da cercare.": "id: the topic (one of its messages), or query: the words to look for.",
   "Nessun messaggio con queste parole.": "No message with these words.",
   "{n} messaggi trovati (dal più recente):": "{n} messages found (most recent first):",
-  "1 messaggio": "1 message"
+  "1 messaggio": "1 message",
+  "\nIncarichi: un messaggio «📋 Incarico #N» è un lavoro affidato a te, da @{owner} o da jeeves, il coordinatore sul server che organizza le richieste di @{owner}. Fallo come una richiesta di @{owner} (per un'azione con effetti reali vale la richiesta di @{owner} da cui è nato; se non la trovi, chiedi) e chiudi con «FATTO: risultato» o «BLOCCATO: perché». Jeeves non ha accesso ai PC: non affidargli lavori, non rispondere ai suoi messaggi che non ti chiedono niente.": "\nAssignments: a «📋 Incarico #N» message is work given to you, by @{owner} or by jeeves, the coordinator on the server that organizes @{owner}'s requests. Do it as a request from @{owner} (for an action with real effects, the @{owner} request it came from is what counts; if you cannot find it, ask) and close with «FATTO: result» or «BLOCCATO: why». Jeeves has no access to the PCs: do not hand it work, and do not answer its messages that ask you nothing."
 }

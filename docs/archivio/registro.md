@@ -2,6 +2,16 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 5/11 — Versione 1.0.25
+Ferma e «Invia subito» tengono la sessione; Agent Chat: capacità del PC al server, risposte agli incarichi nel loro thread, regole su incarichi e Jeeves.
+
+### 4/11 — Scheda Zammad: ticket, conversazione, risposta, proprietario e stato (`claude/zammad-ticket`)
+Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con i conteggi, filtro, righe con stato/cliente/proprietario/priorità; ticket aperto con tutti i messaggi, select Stato (data del promemoria se «in attesa»), Proprietario (tecnici del gruppo, «Assegna a me»), Priorità salvate subito; nota interna o risposta al cliente via email con secondo clic. Rust: `zammad::tickets`, `ticket`, `set`, `reply` (`docs/integrazioni.md` → Scheda Zammad). Provato con test Rust, anteprima `?scene=zammad` (`open`, `email`) e smoke; **non ancora su Zammad vero** (`docs/prove-dal-vivo.md`).
+
+### 3/11 — Mappa della memoria: viste nuove, gruppi, collegamenti giudicati dall'IA (`claude/mappa-memoria`)
+- Viste Galassia, Rete neurale (impulsi su `memory-activity`), Bolle, Raggiera, Fiume, Da dove arriva; gruppi a colori, freschezza, filtri (legenda, periodo, solo sicuri), «Come è collegato a…», doppio clic = messa a fuoco, note sole (`src/memory/`).
+- Collegamenti: forza 1–3, stime più severe (`Rarity`), niente catene di parole rare; «Collega con l'IA» giudica le note e salva `collegamenti.json` (`memory_links.rs`), anche per la copia di lavoro da casa. Provato nell'anteprima con i dati finti e con test Rust; non sulla memoria vera né con un motore vero. `docs/chat.md` → Finestra Memoria.
+
 ### 3/11 — Coda della chat, font, Agent Chat: chi lavora e scrivere dall'isola (`claude/sviluppo`)
 - Chat: si scrive mentre risponde, messaggi in coda con Invia subito / Modifica / ✕ (`chat.ts`); Ctrl+Invio = Ferma e manda.
 - Aspetto → Font: titoli e testo separati (`src/core/fonts.ts`, `theme.fonts`), Doto/DotGothic16/VT323/Space Mono in `public/fonts/` (OFL), più i font di Windows (`system_fonts`). Anche nella barra fissa, con «Font di Aspetto → Font» (acceso di serie). Scheda Agent Chat a tutta isola. Smoke: Edge chiusi con `Browser.close` (restavano appesi).

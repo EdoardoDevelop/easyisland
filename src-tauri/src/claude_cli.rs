@@ -586,9 +586,12 @@ type OutLines = tokio::io::Lines<tokio::io::BufReader<tokio::process::ChildStdou
 /// Reads the turn as it streams, the steps (and the text and the reasoning) to
 /// `on_text`. Back: the last JSON line, what was shown, and whether the
 /// turn's `result` came. `until_result`: a kept process (`Live`) goes on after it.
+/// `on_session`: the session as soon as Claude Code names it (its `init` line),
+/// so a turn stopped halfway (Ferma, «Invia subito») is resumed, not lost.
 async fn read_lines(
     lines: &mut OutLines,
     on_text: &(dyn Fn(&str) + Sync),
+    on_session: &(dyn Fn(&str) + Sync),
     limit: Duration,
     late: &str,
     until_result: bool,
@@ -606,6 +609,9 @@ async fn read_lines(
                 if !line.trim_start().starts_with('{') {
                     continue;
                 }
+                if let Some(id) = init_session(&line) {
+                    on_session(&id);
+                }
                 if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
                     emitted = std::time::Instant::now();
                     on_text(&progress.view());
@@ -620,11 +626,24 @@ async fn read_lines(
     }
 }
 
+/// The session named by Claude Code's `{"type":"system","subtype":"init",…}` line.
+fn init_session(line: &str) -> Option<String> {
+    if !line.contains("\"init\"") {
+        return None;
+    }
+    let v: Value = serde_json::from_str(line.trim()).ok()?;
+    if v.get("type").and_then(Value::as_str) != Some("system") || v.get("subtype").and_then(Value::as_str) != Some("init") {
+        return None;
+    }
+    v.get("session_id").and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string)
+}
+
 /// One process, one turn: the output to its end. Back: the last JSON line
 /// (the result), what was shown, stderr, and the exit.
 async fn read_stream(
     child: &mut tokio::process::Child,
     on_text: &(dyn Fn(&str) + Sync),
+    on_session: &(dyn Fn(&str) + Sync),
     limit: Duration,
     late: &str,
 ) -> Result<(String, String, String, bool), String> {
@@ -639,7 +658,7 @@ async fn read_stream(
         s
     });
     let mut lines = tokio::io::BufReader::new(stdout).lines();
-    let (last, shown, _, _) = match read_lines(&mut lines, on_text, limit, late, false).await {
+    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, limit, late, false).await {
         Ok(r) => r,
         Err(e) => {
             let _ = child.start_kill();
@@ -769,6 +788,7 @@ async fn live_turn(
     live: &mut Live,
     prompt: &str,
     on_text: &(dyn Fn(&str) + Sync),
+    on_session: &(dyn Fn(&str) + Sync),
     limit: Duration,
     late: &str,
 ) -> Result<(String, String, usize), Option<String>> {
@@ -776,7 +796,7 @@ async fn live_turn(
     if live.stdin.write_all(format!("{line}\n").as_bytes()).await.is_err() || live.stdin.flush().await.is_err() {
         return Err(None);
     }
-    match read_lines(&mut live.lines, on_text, limit, late, true).await {
+    match read_lines(&mut live.lines, on_text, on_session, limit, late, true).await {
         Ok((last, shown, true, pending)) => Ok((last, shown, pending)),
         Ok((_, _, false, _)) => Err(None),
         Err(e) => Err(Some(e)),
@@ -800,7 +820,7 @@ fn follow(mut live: Live, later: Option<Later>, mut pending: usize) {
                 crate::log::line("claude: comandi in background oltre il limite, lascio perdere".to_string());
                 return;
             };
-            match read_lines(&mut live.lines, &|_| {}, left, "", true).await {
+            match read_lines(&mut live.lines, &|_| {}, &|_| {}, left, "", true).await {
                 Ok((last, _, true, still)) => {
                     pending = still;
                     log_usage(&last);
@@ -998,6 +1018,8 @@ async fn send_mode(
     } else {
         (TIMEOUT, t("Claude Code non ha risposto in tempo."))
     };
+    // Kept at once: a turn stopped before its end is resumed by the next message.
+    let on_session = |id: &str| chat.set_cli_session(Some(id.to_string()));
 
     let (stdout, shown, stderr, success) = if keep {
         let print = fingerprint(&make(None), &dir);
@@ -1010,7 +1032,7 @@ async fn send_mode(
                 Some(l) => l,
                 None => spawn_live(make(session.as_deref()), id, print.clone())?,
             };
-            match live_turn(&mut live, &prompt, on_text, limit, late).await {
+            match live_turn(&mut live, &prompt, on_text, &on_session, limit, late).await {
                 Ok((last, shown, pending)) => {
                     answer = Some((last, shown, live, pending));
                     break;
@@ -1052,7 +1074,7 @@ async fn send_mode(
                 .map_err(|e| e.to_string())?;
             // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
         }
-        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, limit, late).await?;
+        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, limit, late).await?;
         (last, if terminal.is_some() { shown } else { String::new() }, stderr, ok)
     };
 
@@ -1385,6 +1407,14 @@ mod tests {
             ask("Rispondi solo: ok").await.expect("new conversation");
             assert_eq!(alive(), 1);
             assert_ne!(chat.cli_session().as_deref(), Some(session.as_str()));
+            // «Invia subito» on a conversation's first message: the next one goes on in it.
+            chat.reset();
+            let stopped = tokio::time::timeout(std::time::Duration::from_secs(8), ask("Ricorda la parola: kiwi. Poi scrivi una poesia di 60 righe sul mare.")).await;
+            assert!(stopped.is_err(), "stopped before the end");
+            assert!(chat.cli_session().is_some(), "the session is known from the start of the turn");
+            let r = ask("Quale parola ti ho chiesto di ricordare? Solo quella.").await.expect("after a stopped first message");
+            println!("primo messaggio fermato → {}", r.text);
+            assert!(r.text.to_lowercase().contains("kiwi"), "{}", r.text);
             super::shutdown();
             assert_eq!(alive(), 0);
             println!("tempi: {times:?}");
@@ -1452,6 +1482,10 @@ mod tests {
     fn terminal_steps_and_text_as_shown() {
         let mut p = Progress::default();
         assert!(!p.feed(r#"{"type":"system","subtype":"init"}"#));
+        // The session from the start of the turn, for a turn stopped halfway.
+        assert_eq!(super::init_session(r#"{"type":"system","subtype":"init","session_id":"s9","tools":[]}"#).as_deref(), Some("s9"));
+        assert_eq!(super::init_session(r#"{"type":"system","subtype":"init"}"#), None);
+        assert_eq!(super::init_session(r#"{"type":"result","subtype":"success","session_id":"s9","result":"init"}"#), None);
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Controllo."},{"type":"tool_use","name":"Bash","input":{"command":"git status"}}]}}"#));
         assert!(!p.feed(r#"{"type":"assistant","parent_tool_use_id":"t1","message":{"content":[{"type":"text","text":"dentro"}]}}"#));
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__plugin_Notion_notion__notion-search","input":{}}]}}"#));
