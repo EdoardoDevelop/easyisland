@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.25** — **Ferma e «Invia subito»** non perdono più la conversazione: anche se fermi la prima risposta,
+il messaggio dopo continua la stessa sessione. **Agent Chat con Jeeves**: il PC dice al server cosa sa fare
+(integrazioni, motori, cartelle), così il coordinatore affida gli incarichi al PC giusto; le risposte a un incarico
+restano nel suo thread.
+
 **1.0.24** — **Agent Chat con la mappa**: la chat è divisa in argomenti (le tue richieste, chi ci lavora,
 fatto, aperto o bloccato) e ogni agente la riceve oltre agli ultimi messaggi, così sa cosa si è già deciso; nella
 scheda, **Argomenti** li elenca e un clic mostra i messaggi di quell'argomento. **Consiglio IA** sui ticket di

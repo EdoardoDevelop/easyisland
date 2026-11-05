@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.25** — **Stop and «Send now»** no longer lose the conversation: even when the first answer is stopped,
+the next message carries on the same session. **Agent Chat with Jeeves**: the PC tells the server what it can do
+(integrations, engines, folders), so the coordinator gives each task to the right PC; the answers to a task stay
+in its thread.
+
 **1.0.24** — **Agent Chat with a map**: the chat is split into topics (your requests, who works on them,
 done, open or blocked) and every agent gets it besides the last messages, so it knows what was already decided;
 in the card, **Topics** lists them and a click shows that topic's messages. **AI advice** on Zammad tickets: the

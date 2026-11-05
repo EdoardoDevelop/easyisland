@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 5/11 — Versione 1.0.25
+Ferma e «Invia subito» tengono la sessione; Agent Chat: capacità del PC al server, risposte agli incarichi nel loro thread, regole su incarichi e Jeeves.
+
 ### 4/11 — Scheda Zammad: ticket, conversazione, risposta, proprietario e stato (`claude/zammad-ticket`)
 Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con i conteggi, filtro, righe con stato/cliente/proprietario/priorità; ticket aperto con tutti i messaggi, select Stato (data del promemoria se «in attesa»), Proprietario (tecnici del gruppo, «Assegna a me»), Priorità salvate subito; nota interna o risposta al cliente via email con secondo clic. Rust: `zammad::tickets`, `ticket`, `set`, `reply` (`docs/integrazioni.md` → Scheda Zammad). Provato con test Rust, anteprima `?scene=zammad` (`open`, `email`) e smoke; **non ancora su Zammad vero** (`docs/prove-dal-vivo.md`).
 

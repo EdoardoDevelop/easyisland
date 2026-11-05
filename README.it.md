@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.25** — **Ferma** e «Invia subito» non perdono più la conversazione; **Agent Chat** con il coordinatore **Jeeves**: il PC dice cosa sa fare e le risposte agli incarichi restano nel loro thread.
 - **1.0.24** — **Agent Chat con la mappa** ad argomenti per gli agenti e la scheda «Argomenti»; **Consiglio IA** sui ticket Zammad; **RDM solo dal cloud** con utente e password (occhio, Copia); ricerca in RDM e 3CX dal campo in alto; **file cliccabili** nelle risposte della chat.
 - **1.0.23** — **scheda Zammad** (ticket, stato, proprietario, risposta), **Devolutions Cloud** nella scheda RDM e in chat; **mappa della memoria** con sei viste nuove, gruppi e collegamenti controllati dall'IA; **coda** nella chat; **font** a scelta; **Agent Chat** dice chi lavora.
 - **1.0.22** — **chat e integrazioni in una finestra** (trascinate fuori dall'isola o con un pulsante), con l'**Anteprima** dentro; **barra delle conversazioni** allargabile e più conversazioni aperte; **Memoria** di questo PC, di un altro PC o tutte e due.
-- **1.0.21** — motori di **Agent Chat** del tutto **autonomi** (non chiedono niente, nemmeno per cancellare); il risultato di uno **script in background** arriva in chat quando finisce.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
