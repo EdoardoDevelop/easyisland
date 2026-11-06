@@ -4121,6 +4121,7 @@
   "{who}: niente da aggiungere al #{id}.": "{who}: nothing to add to #{id}.",
   "{who} ha risposto al #{id}.": "{who} answered #{id}.",
   "{who} non ha risposto: {err}": "{who} did not answer: {err}",
+  "BLOCCATO: @{owner} {me} non ha potuto rispondere al #{id}. {why}": "BLOCCATO: @{owner} {me} could not answer #{id}. {why}",
   "\n\nScrivi la sintesi di questa consulta: dove i pareri concordano, dove no e cosa consigli. Breve e concreta, cita chi ha detto cosa con @nome.\n\n": "\n\nWrite the synthesis of this consult: where the opinions agree, where they do not and what you recommend. Short and concrete, citing who said what with @name.\n\n",
   "Sintesi della consulta #{id} scritta.": "Synthesis of consult #{id} written.",
   "Agent Chat non è configurato: indirizzo e token in Impostazioni → Integrazioni → Agent Chat.": "Agent Chat is not set up: address and token in Settings → Integrations → Agent Chat.",

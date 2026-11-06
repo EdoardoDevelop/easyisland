@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.29** — **Mappa della memoria** senza collegamenti falsi; in **Agent Chat** chi non può rispondere lo dice.
 - **1.0.28** — **Multi agent** nella chat: più motori lavorano insieme, uno guida e un altro **controlla il lavoro** prima della risposta.
 - **1.0.27** — la riga che si scrive mostra **frasi intere** e finisce sempre ciò che ha iniziato.
 - **1.0.26** — **risposte piene** e **parola per parola**, **Progetto…** con la cartella per conversazione e i **gruppi per progetto** nella barra; l'attività che **si scrive da sola**, passi più leggeri, nuove icone.
-- **1.0.25** — **Ferma** e «Invia subito» non perdono più la conversazione; **Agent Chat** con il coordinatore **Jeeves**: il PC dice cosa sa fare e le risposte agli incarichi restano nel loro thread.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
