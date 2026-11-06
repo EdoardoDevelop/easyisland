@@ -18,6 +18,7 @@
 - **Modifica** (sulle tue domande): il testo torna nel campo e la conversazione riparte da lì.
 - **↻ Rigenera** (sull'ultima risposta).
 - **⑂ Dirama da qui**: una conversazione nuova che parte da quel punto; quella di prima resta intera nella cronologia.
+- **Multi agent**: in Impostazioni → Chat scegli i motori che lavorano insieme, poi accendi il pulsante nella conversazione. Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro e vedi una riga per ognuno. Prima della risposta un altro motore controlla il lavoro: sotto trovi **✓ Controllato da…**, oppure **⚠** con ciò che resta da guardare. Ne bastano due, meglio di due marche diverse. Costa di più e può metterci il doppio: accendilo per i lavori veri. Le azioni chiedono Consenti/Nega come sempre.
 - **⇄ Seconda opinione**: un altro motore rilegge l'ultima domanda e la risposta e segnala errori, mancanze o rischi (oppure «va bene»). Il suo parere arriva anche al motore principale, che può correggersi.
 
 ## Allegare

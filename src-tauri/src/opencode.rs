@@ -101,6 +101,8 @@ pub struct Options {
     /// Agent Chat with «Letture libere» (`reads_ok`): reading anywhere but the
     /// secret places, and read-only commands, answered "once" without the island.
     pub reads: bool,
+    /// A helper of «Multi agent» (team.rs): what is not a reading is refused, with no card.
+    pub read_only: bool,
 }
 
 /// `o.config` with the easyisland MCP server added (opencode 2's shape:
@@ -403,10 +405,20 @@ pub fn rules() -> Value {
 /// nothing (as Claude Code pre-allows them) and reading the work folder.
 fn rules_for(o: &Options) -> Value {
     let mut r = vec![
-        json!({ "action": "*", "resource": "*", "effect": "ask" }),
+        json!({ "action": "*", "resource": "*", "effect": if o.read_only { "deny" } else { "ask" } }),
     ];
     for action in ["read", "glob", "grep", "todowrite", "skill"] {
         r.push(json!({ "action": action, "resource": "*", "effect": "allow" }));
+    }
+    if o.read_only {
+        for action in ["webfetch", "websearch", "list"] {
+            r.push(json!({ "action": action, "resource": "*", "effect": "allow" }));
+        }
+        for command in ["git status*", "git diff*", "git log*", "git show*"] {
+            for action in ["shell", "bash"] {
+                r.push(json!({ "action": action, "resource": command, "effect": "allow" }));
+            }
+        }
     }
     for env in ["*.env", "*.env.*"] {
         r.push(json!({ "action": "read", "resource": env, "effect": "deny" }));
@@ -1171,6 +1183,74 @@ mod tests {
             let word = self.0.to_string();
             Box::pin(async move { Some(word) })
         }
+    }
+
+    /// A permission reaching the user: a read-only turn must never get here.
+    #[derive(Clone)]
+    struct Counted(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+
+    impl Ask for Counted {
+        fn decide(&self, _payload: Value) -> Decision {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Box::pin(async move { Some("allow".to_string()) })
+        }
+    }
+
+    /// A helper of «Multi agent» cannot write nor run, reads, and asks nobody:
+    /// `cargo test --lib opencode::tests::live_read_only -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_read_only() {
+        let dir = std::env::temp_dir().join(format!("oc-read-only-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("dati.txt"), "il codice segreto del test è 4711
+").unwrap();
+        let asked = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        tauri::async_runtime::block_on(async {
+            let model = std::env::var("OPENCODE_TEST_MODEL").unwrap_or_else(|_| "opencode/mimo-v2.6-flash-free".into());
+            let o = Options { folder: Some(dir.clone()), read_only: true, ..Default::default() };
+            let ask = |q: &str| {
+                let (model, o, q, asked) = (model.clone(), &o, q.to_string(), asked.clone());
+                async move {
+                    let chat = Chat::default();
+                    run_turn(&chat, &model, q, None, &|_| {}, Counted(asked), o).await.expect("turn").text
+                }
+            };
+            let read = ask("Leggi il file dati.txt e dimmi il codice che contiene.").await;
+            println!("--- lettura
+{read}");
+            assert!(read.contains("4711"), "reading must work");
+            let write = ask("Crea il file nuovo.txt con scritto ciao, poi esegui il comando: echo x > altro.txt  e dimmi com'è andata.").await;
+            println!("--- scrittura
+{write}");
+            // The check: a planted bug, the state read for real, with git.
+            let git = |a: &[&str]| { let _ = std::process::Command::new("git").args(a).current_dir(&dir).output(); };
+            git(&["init", "-q"]);
+            std::fs::write(dir.join("media.py"), "def media(a):
+    return sum(a) / (len(a) - 1)
+").unwrap();
+            let status = ask("Esegui il comando git status e dimmi quali file non sono tracciati.").await;
+            println!("--- git
+{status}");
+            assert!(status.contains("media.py"), "git status must work");
+            let work = "Ho scritto media() in media.py: calcola la media dei numeri della lista. È corretta.";
+            let wrong = ask(&crate::team::check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str())).await;
+            println!("--- sbagliato
+{wrong}
+{:?}", crate::team::verdict(&wrong));
+            assert!(!matches!(crate::team::verdict(&wrong), crate::team::Verdict::Fine), "the planted bug went unseen");
+            std::fs::write(dir.join("media.py"), "def media(a):
+    return sum(a) / len(a) if a else 0
+").unwrap();
+            let right = ask(&crate::team::check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str())).await;
+            println!("--- giusto
+{right}
+{:?}", crate::team::verdict(&right));
+        });
+        shutdown();
+        assert!(!dir.join("nuovo.txt").exists() && !dir.join("altro.txt").exists(), "a read-only turn wrote");
+        assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 0, "a read-only turn asked the user");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Against the opencode installed on this PC (2.x, a free model):

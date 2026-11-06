@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.28** — **Multi agent nella chat**: in Impostazioni → Chat scegli i motori e accendi il pulsante nella conversazione.
+Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro in sola lettura e vedi una riga per ognuno. Prima
+della risposta un motore di un'altra marca **controlla il lavoro** senza sapere chi l'ha fatto e guardando file e git:
+chi guida valuta i rilievi e corregge, e sotto la risposta trovi **✓ Controllato da…** o ciò che resta da guardare.
+
 **1.0.27** — **La riga che si scrive non taglia più**: del ragionamento mostra solo frasi intere, finisce sempre ciò che
 ha iniziato e non cancella più lettera per lettera: il testo nuovo parte da riga vuota. Se arrivano più passi insieme
 mostra l'ultimo, gli altri restano nell'elenco.

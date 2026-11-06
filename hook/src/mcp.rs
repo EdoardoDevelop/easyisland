@@ -46,7 +46,7 @@ fn offered() -> Vec<(&'static str, &'static str, Value, bool)> {
 
 /// The tools a task uses on itself (tasks.rs): only in the app's own turns.
 fn inside_task(name: &str) -> bool {
-    matches!(name, "task_plan" | "task_step" | "task_note" | "task_ask" | "task_done" | "task_delegate")
+    matches!(name, "task_plan" | "task_step" | "task_note" | "task_ask" | "task_done" | "task_delegate" | "team_delegate")
 }
 
 /// Names of the tools that change nothing (or nothing that matters). The app

@@ -220,6 +220,44 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     });
 }
 
+/// The last answer as it ended up (team.rs: after the check).
+pub fn amend(chat: &Chat, reply: &str) {
+    let Some(id) = chat.log_id() else { return };
+    with_store(|s| {
+        let Some(c) = s.list.iter_mut().find(|c| c.id == id) else { return };
+        let Some(line) = c.lines.iter_mut().rev().find(|l| l.role == "assistant") else { return };
+        line.content = reply.to_string();
+        s.save();
+    });
+}
+
+/// The end of the conversation, for an engine that has not seen it (team.rs).
+pub fn tail(chat: &Chat, max: usize) -> String {
+    let Some(id) = chat.log_id() else { return String::new() };
+    let lines = with_store(|s| s.list.iter().find(|c| c.id == id).map(|c| c.lines.clone())).unwrap_or_default();
+    tail_of(&lines, max)
+}
+
+fn tail_of(lines: &[Line], max: usize) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let mut left = max;
+    for l in lines.iter().rev() {
+        let text = l.content.lines().filter(|x| !x.trim_start().starts_with("> ")).collect::<Vec<_>>().join("\n");
+        let text = text.trim();
+        let size = text.chars().count();
+        if text.is_empty() {
+            continue;
+        }
+        if size > left {
+            break;
+        }
+        left -= size;
+        out.push(format!("{}: {text}", if l.role == "user" { t("Utente") } else { t("Assistente") }));
+    }
+    out.reverse();
+    out.join("\n\n")
+}
+
 /// Lines said elsewhere (desktop.rs: in Claude Desktop), after the conversation's own.
 pub fn append(chat: &Chat, engine: &str, lines: &[Line]) {
     let Some(id) = chat.log_id() else { return };

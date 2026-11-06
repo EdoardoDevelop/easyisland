@@ -91,6 +91,8 @@ export const ICONS = {
   // mic / mic.slash — mute on a call of "Questo PC" (drawn with a stroke)
   // a paper plane — sends the chat's message
   plane: "M3.4 20.4 21 12 3.4 3.6v6.6L15 12 3.4 13.8v6.6z",
+  // two people — «Multi agent» in the chat
+  team: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 19.5C2.5 16.2 5.4 14 9 14s6.5 2.2 6.5 5.5h-13zm14.6 0c0-2-.8-3.7-2.2-5 .6-.1 1.1-.2 1.7-.2 3 0 5.9 1.9 5.9 5.2h-5.4z",
   mic: "M12 3.5a2.8 2.8 0 0 0-2.8 2.8v5.4a2.8 2.8 0 0 0 5.6 0V6.3A2.8 2.8 0 0 0 12 3.5zM6 11.2a6 6 0 0 0 12 0M12 17.2v3.3",
   micOff: "M12 3.5a2.8 2.8 0 0 0-2.8 2.8v5.4a2.8 2.8 0 0 0 5.6 0V6.3A2.8 2.8 0 0 0 12 3.5zM6 11.2a6 6 0 0 0 12 0M12 17.2v3.3M4 4l16 16",
   // bell / bell.slash — the island's notice of an incoming call (drawn with a stroke)

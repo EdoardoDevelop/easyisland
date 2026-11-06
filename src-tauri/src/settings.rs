@@ -973,6 +973,12 @@ pub struct Settings {
     /// Its working folder; "" = the user's home.
     #[serde(default)]
     pub chat_folder: String,
+    /// «Multi agent» (team.rs): the engines that work with the conversation's.
+    #[serde(default)]
+    pub chat_team: Vec<String>,
+    /// Another engine checks the work before the answer.
+    #[serde(default = "default_true")]
+    pub chat_team_check: bool,
     /// «Anteprima» (preview.rs): the chat's links and the files «Modalità
     /// terminale» edits open in the preview window.
     #[serde(default = "default_true")]
@@ -1263,6 +1269,8 @@ impl Default for Settings {
             agent_tools: true,
             tools_allowed: Vec::new(),
             chat_terminal: false,
+            chat_team: Vec::new(),
+            chat_team_check: true,
             chat_folder: String::new(),
             chat_preview: true,
             preview_docked: false,

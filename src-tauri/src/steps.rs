@@ -65,7 +65,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "task_note" => t("Prende nota per il compito"),
         "task_ask" => t("Ti fa una domanda sul compito"),
         "task_done" => t("Chiude il compito"),
-        "task_delegate" => t("Affida una parte del lavoro a un altro motore"),
+        "task_delegate" | "team_delegate" => t("Affida una parte del lavoro a un altro motore"),
         "skill_list" => t("Guarda le abilità"),
         "skill_read" => t("Legge un'abilità"),
         "skill_save" => t("Salva un'abilità"),

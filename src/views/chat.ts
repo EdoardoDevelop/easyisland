@@ -5,7 +5,7 @@ import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -319,6 +319,7 @@ export function buildPrompt(
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
+  const teamBtn = h("button", { class: "auto-btn team-btn" }, svg(ICONS.team, 12), h("span", { text: t("Multi agent") })) as HTMLButtonElement;
   // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
   // «Anteprima» (src/preview/): files and pages of the chat's work, in their window.
@@ -331,7 +332,7 @@ export function buildPrompt(
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, folderBtn, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, exportBtn, popBtn, engineMenu);
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, folderBtn, engineBtn, remoteBtn, teamBtn, autoBtn, previewBtn, desktopBtn, exportBtn, popBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -657,7 +658,7 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder);
+        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team);
       if (reply.log) c.logId = reply.log;
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
@@ -683,6 +684,7 @@ export function buildPrompt(
       c.sending = false;
       c.stopping = false;
       c.streamed = "";
+      c.teamRows = [];
       c.at = Date.now();
       if (c !== State.chat) c.unread = true;
       if (!State.chats.some((x) => x.sending)) State.stateOverride = null;
@@ -1119,6 +1121,7 @@ export function buildPrompt(
       // An engine picked in the menu was for that conversation only; so was "Automatica".
       c.engineOverride = null;
       c.auto = false;
+      c.team = false;
       c.desktop = false;
       c.assistant = null;
       c.folder = null;
@@ -1843,6 +1846,7 @@ export function buildPrompt(
       c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
       c.folder = got.folder || null;
       c.auto = false;
+      c.team = false;
       c.desktop = false;
       c.at = Date.now();
       if (c.assistant) {
@@ -1884,6 +1888,12 @@ export function buildPrompt(
     }
     input.focus();
   });
+  teamBtn.addEventListener("click", () => {
+    State.chat.team = !State.chat.team;
+    Sound.play("blip");
+    State.notify();
+    input.focus();
+  });
   autoBtn.addEventListener("click", () => {
     State.chatAuto = !State.chatAuto;
     Sound.play("blip");
@@ -1898,6 +1908,12 @@ export function buildPrompt(
     const c = State.chats.find((x) => x.sid === p.sid);
     if (!c?.sending) return;
     c.streamed = p.text;
+    if (c === State.chat) State.notify();
+  });
+  void onEvent<{ sid?: string; rows: TeamRow[] }>("chat-team", (p) => {
+    const c = State.chats.find((x) => x.sid === p.sid);
+    if (!c?.sending) return;
+    c.teamRows = p.rows;
     if (c === State.chat) State.notify();
   });
 
@@ -1915,7 +1931,34 @@ export function buildPrompt(
     if (stick) log.scrollTop = log.scrollHeight;
     else jumpBtn.style.display = "";
   }
-  const typeLine = new TypeLine(() => State.mode === "expanded" || isPopped("chat"), toBottom);
+  const lineShows = () => State.mode === "expanded" || isPopped("chat");
+  const typeLine = new TypeLine(lineShows, toBottom);
+  // «Multi agent»: a line per engine at work, under the reply.
+  const teamEl = h("div", { class: "team-rows" });
+  const teamLines = new Map<number, { el: HTMLElement; line: TypeLine }>();
+  function drawTeam(rows: TeamRow[]) {
+    for (const [id, x] of teamLines) {
+      if (rows.some((r) => r.id === id)) continue;
+      x.line.reset();
+      x.el.remove();
+      teamLines.delete(id);
+    }
+    for (const r of rows) {
+      let x = teamLines.get(r.id);
+      if (!x) {
+        const line = new TypeLine(lineShows, toBottom);
+        x = { el: h("div", { class: "team-row" }, h("span", { class: "team-dot" }), h("span", { class: "team-name", text: r.engine }), line.el), line };
+        teamLines.set(r.id, x);
+        teamEl.append(x.el);
+        line.set(r.job);
+      }
+      x.el.dataset.state = r.state;
+      if (r.state === "work") {
+        const { status } = splitStatus(r.status);
+        if (status) x.line.set(status);
+      } else x.line.set(r.state === "error" ? r.status : r.job);
+    }
+  }
 
   folderBtn.addEventListener("click", () => void toggleFolderMenu());
   mic.addEventListener("click", () => void dictate());
@@ -2133,6 +2176,12 @@ export function buildPrompt(
       const terminal = State.settings.chatTerminal === true && !asked;
       const auto = terminal && State.chatAuto;
       autoBtn.style.display = terminal ? "" : "none";
+      const team = (State.settings.chatTeam ?? []).some((e) => e !== engineOf(State.chat)) && !State.chat.session;
+      teamBtn.style.display = team ? "" : "none";
+      teamBtn.classList.toggle("on", team && State.chat.team);
+      teamBtn.title = State.chat.team
+        ? t("Multi agent acceso: questo motore guida, gli altri scelti in Impostazioni aiutano e controllano. Clic per spegnerlo")
+        : t("Multi agent: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo");
       previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
       const away = isPopped("chat");
       if (away !== popShown) {
@@ -2177,7 +2226,7 @@ export function buildPrompt(
           streamEl = h("div", { class: "chat-row" });
           log.append(streamEl);
         }
-        if (thinking) log.append(h("div", { class: "chat-row" }, typeLine.el));
+        if (thinking) log.append(h("div", { class: "chat-row" }, typeLine.el), teamEl);
         toBottom();
       }
       // The growing reply: only its bubble is redrawn.
@@ -2191,6 +2240,10 @@ export function buildPrompt(
       // What it is doing now types itself under the reply.
       if (thinking) typeLine.set(streamed ? status : null);
       else typeLine.reset();
+      const rows = thinking ? State.chat.teamRows : [];
+      drawTeam(rows);
+      // With the team at work, an empty line of the lead's would only blink there.
+      typeLine.el.style.display = rows.length && !status ? "none" : "";
       // The waiting permission, always the last thing in the conversation.
       const req = State.pendingApproval?.source === "chat" && (!State.pendingApproval.chatSid || State.pendingApproval.chatSid === State.chatSid)
         ? State.pendingApproval : null;

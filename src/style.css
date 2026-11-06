@@ -1400,6 +1400,18 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75);
 }
 
+/* «Multi agent» (team.rs): the button, and a line per engine at work under the reply. */
+.team-btn.on { color: #06202e; background: var(--win-accent, #4cc2ff); }
+.team-rows { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+.team-rows:empty { display: none; }
+.team-row { display: flex; align-items: baseline; gap: 6px; font-size: calc(11.5px + var(--fs-up, 0px)); line-height: 1.45; color: var(--dim); }
+.team-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--win-accent, #4cc2ff); transform: translateY(-1px); }
+.team-row[data-state="done"] .team-dot { background: #4cc38a; }
+.team-row[data-state="error"] .team-dot { background: #ef5350; }
+.team-row:not([data-state="work"]) .type-caret { display: none; }
+.team-name { flex: 0 0 auto; font-weight: 600; color: var(--ink-2); }
+.team-row .type-line { flex: 1 1 auto; min-width: 0; }
+
 /* Accesso remoto's 🔌 (remote.ts): teal when the chat works on the remote PC. */
 .remote-btn .remote-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 .remote-btn.on { color: #042f2e; background: #14b8a6; }

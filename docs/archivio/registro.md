@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 4/11 — Chat: Ferma o «Invia subito» non perdono più la conversazione (`claude/chat-ferma-sessione`)
+La sessione di Claude Code si registrava solo a fine turno: fermato il primo messaggio (anche con «Invia subito»), il successivo ripartiva da zero. Ora `claude_cli::read_lines` la prende dalla riga `init` appena arriva (`init_session`) e il messaggio dopo fa `--resume`; uguale in `antigravity.rs` con `conversation_id`. Provato con `live_kept` sul Claude Code vero (primo messaggio fermato, poi ricorda la parola).
+
 ### 4/11 — Versione 1.0.24
 - Agent Chat: mappa ad argomenti senza IA (`agentchat_map.rs`) nel prompt e `agentchat_topic`; scheda «Argomenti». Ogni PC la costruisce per sé; riassunti IA e mappa sul server non fatti.
 - Zammad «Consiglio IA» (`ticket_advice.rs`), RDM solo dal cloud con pannello e occhio (`dvc.rs` `CREDS`, `dvc_reveal`), ricerca in RDM/3CX dal campo in alto, file cliccabili nella chat (`chatpaths.rs`), controllo della memoria con caselle (`proposals.ts`).

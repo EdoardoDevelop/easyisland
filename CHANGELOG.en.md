@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.28** — **Multi agent in the chat**: in Settings → Chat pick the engines and turn the button on in the conversation.
+The chat's engine leads and answers you, the others do pieces of the work read-only and you see a line for each. Before
+the answer an engine from another maker **checks the work** without knowing who did it, looking at files and git: the
+lead weighs the findings and fixes, and under the answer you find **✓ Checked by…** or what is left to look at.
+
 **1.0.27** — **The line that types itself no longer cuts off**: of the reasoning it shows whole sentences only, it always
 finishes what it started and no longer erases letter by letter: new text starts on an empty line. When several steps
 arrive together it shows the latest, the others stay in the list.
