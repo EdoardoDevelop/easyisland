@@ -18,7 +18,7 @@
 - **Edit** (on your questions): the text goes back to the field and the conversation restarts from there.
 - **↻ Regenerate** (on the last answer).
 - **⑂ Branch from here**: a new conversation starting from that point; the previous one stays whole in the history.
-- **Multi agent**: in Settings → Chat pick the engines that work together, then turn the button on in the conversation. The chat's engine leads and answers you, the others do pieces of the work and you see a line for each. Before the answer another engine checks the work: underneath you find **✓ Checked by…**, or **⚠** with what is left to look at. Two are enough, better from two different makers. It costs more and can take twice as long: turn it on for real work. Actions ask Allow/Deny as always.
+- **Multi agent**: in Settings → Chat pick the engines that work together, then turn the button on in the conversation. The chat's engine leads and answers you, the others do pieces of the work and you see a line for each. Before you see it, the answer is checked by another engine and fixed if needed: only one arrives, already reviewed, with **✓ Checked** underneath. Meanwhile you see the steps, not the draft. Two are enough, better from two different makers. It costs more and can take twice as long: turn it on for real work. Actions ask Allow/Deny as always.
 - **⇄ Second opinion**: another engine rereads the last question and answer and points out mistakes, gaps or risks (or "looks good"). Its review also reaches the main engine, which can correct itself.
 
 ## Attaching

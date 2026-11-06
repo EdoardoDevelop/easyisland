@@ -10,8 +10,10 @@
 //   Another engine, of another family when there is one, sees the request and
 //   the work without knowing who did it, and looks at the real state of things
 //   in read-only mode. The lead weighs what it found against what the user
-//   asked; no dialogue between the engines. Two checks at most: what is still
-//   open goes under the answer, for the user to see.
+//   asked; no dialogue between the engines. Two checks at most.
+// - One voice: with the check on the user sees the steps, not the draft, and then
+//   one answer. Serious findings are rewritten into it by the lead; the engines
+//   and their findings never appear in it (Edoardo, 6 Nov 2026).
 //
 // Only the lead's turn counts as the conversation; helpers' turns stay out of
 // the history. A failed helper or check never costs the lead's answer.
@@ -87,9 +89,19 @@ fn cut(text: &str, max: usize) -> String {
     format!("{}…", text.chars().take(max).collect::<String>())
 }
 
-/// The reply without the lines that only say what it was doing, a refused step included.
+/// A line that only says what it was doing, a refused step included.
+fn is_step(line: &str) -> bool {
+    ["> ⚙", "> 💭", "> ✗"].iter().any(|m| line.trim_start().starts_with(m))
+}
+
+/// The reply without those lines.
 fn clean(text: &str) -> String {
-    text.lines().filter(|l| !["> ⚙", "> 💭", "> ✗"].iter().any(|m| l.trim_start().starts_with(m))).collect::<Vec<_>>().join("\n").trim().to_string()
+    text.lines().filter(|l| !is_step(l)).collect::<Vec<_>>().join("\n").trim().to_string()
+}
+
+/// Only those lines: what the chat shows of a draft.
+fn steps_of(text: &str) -> String {
+    text.lines().filter(|l| is_step(l)).collect::<Vec<_>>().join("\n\n")
 }
 
 /// Which makers' models an engine runs: two of a family tend to make the same mistakes.
@@ -114,6 +126,12 @@ fn order(lead: &str, picked: &[String], ready: Vec<(String, String)>, model_of: 
     members
 }
 
+/// Can this engine open files and data? One that cannot only guesses at facts: at
+/// the first real check it denied a line it had no way of reading.
+fn can_look(id: &str, terminal: bool) -> bool {
+    terminal || !crate::openai::ENGINES.contains(&id)
+}
+
 fn members(app: &AppHandle, lead: &str) -> Vec<(String, String)> {
     let (picked, models) = {
         let shared = app.state::<crate::Shared>();
@@ -125,16 +143,14 @@ fn members(app: &AppHandle, lead: &str) -> Vec<(String, String)> {
 }
 
 /// What the lead is told in front of the question.
-fn brief(sid: &str, members: &[(String, String)], check: bool) -> String {
+fn brief(sid: &str, members: &[(String, String)]) -> String {
     let list = members.iter().map(|(id, name)| format!("{id} ({name})")).collect::<Vec<_>>().join(", ");
     let mut text = tf(
         "[Multi agent. Guidi tu e con l'utente parli solo tu. Con lo strumento team_delegate (team: \"{sid}\") puoi affidare pezzi del lavoro a questi motori: {list}.\nDelega quando ci sono parti indipendenti, quando un altro modello è più adatto a quel pezzo o quando dati riservati devono restare su un motore locale. Una domanda semplice o ciò che fai subito da solo non si delega. Al massimo {max} incarichi per turno; quelli indipendenti mandali insieme.\nOgni incarico dice l'obiettivo, il risultato atteso, dove guardare e cosa non fare. L'aiutante vede solo la richiesta e la fine della conversazione, non ciò che hai letto o deciso: scrivigli ciò che gli serve.\nGli aiutanti leggono e riferiscono: le modifiche le fai tu. Usa write: true solo per un pezzo che quel motore fa meglio di te. Quello che ricevi è un parere da verificare, non un fatto.",
         &[("sid", &sid), ("list", &list), ("max", &MAX_JOBS)],
     );
-    if check {
-        text.push(' ');
-        text.push_str(t("Alla fine un altro motore controllerà il lavoro."));
-    }
+    text.push(' ');
+    text.push_str(t("Scrivi sempre come unico autore: non nominare gli altri motori, gli incarichi o i controlli."));
     text.push_str("]\n\n");
     text
 }
@@ -167,16 +183,22 @@ fn job_prompt(task: &str, output: &str, question: &str, tail: &str, write: bool)
 
 /// What the checker gets: the request and the work, not who did it. Knowing
 /// the author makes a judge lean; so does the author's reasoning.
-pub(crate) fn check_prompt(question: &str, work: &str, folder: Option<&str>) -> String {
+pub(crate) fn check_prompt(question: &str, work: &str, folder: Option<&str>, tools: bool) -> String {
     let mut text = t("Controlla in modo indipendente il lavoro qui sotto, fatto per l'utente da un collega. Non modificare nulla.").to_string();
     if let Some(f) = folder {
         text.push(' ');
         text.push_str(&tf("Il lavoro riguarda la cartella {f}: guarda lo stato reale (file, git diff, dati) invece di fidarti del racconto.", &[("f", &f)]));
     }
+    if !tools {
+        text.push(' ');
+        text.push_str(t("Non puoi aprire file o dati: guarda solo se il lavoro regge da sé, e non dire che qualcosa non esiste."));
+    }
     text.push_str("\n\n");
-    text.push_str(t("Cerca solo problemi reali: errori di fatto o di logica, parti della richiesta non fatte, cose date per certe e non verificate, rischi. Niente stile né gusti, niente lavoro in più."));
+    text.push_str(t("Cerca solo problemi che cambierebbero ciò che l'utente decide o fa: errori di fatto o di logica, parti della richiesta non fatte, certezze senza prova, rischi. Non sono problemi lo stile, il lavoro in più, un dubbio dichiarato, una domanda all'utente, un limite detto apertamente. Ciò che non puoi verificare non segnalarlo."));
     text.push_str("\n\n");
     text.push_str(t("Se non trovi problemi reali scrivi solo VA BENE. Altrimenti al massimo 5 punti, uno per riga: [GRAVE] o [MINORE], il problema e la prova."));
+    text.push(' ');
+    text.push_str(t("[GRAVE] solo se la risposta così sbaglia o può fare danni."));
     text.push_str("\n\n");
     text.push_str(&tf("Richiesta dell'utente:\n{q}", &[("q", &cut(question, MAX_QUESTION))]));
     text.push_str("\n\n");
@@ -187,7 +209,7 @@ pub(crate) fn check_prompt(question: &str, work: &str, folder: Option<&str>) -> 
 /// What goes back to the lead: it knows what the user asked, so it decides.
 fn fix_prompt(findings: &str) -> String {
     tf(
-        "[Un controllo indipendente ha trovato questi punti sul tuo lavoro. Valuta ognuno: correggi davvero ciò che è fondato, scarta ciò che è sbagliato o esce da ciò che ha chiesto l'utente, e non aggiungere altro. Poi scrivi la risposta definitiva per l'utente, completa perché sostituisce la precedente. Se scarti un punto dillo in una riga, con il motivo.]\n\n{f}",
+        "[Rileggendo il tuo lavoro sono emersi questi punti. Verificali tu: correggi davvero ciò che è fondato e ignora il resto, senza aggiungere altro. Poi scrivi la risposta per l'utente, che non ha visto quella di prima: deve leggersi come la tua prima e unica risposta, completa. Non parlare di controlli, revisioni, altri motori o punti scartati. Se un dubbio resta, dillo come dubbio tuo.]\n\n{f}",
         &[("f", &findings)],
     )
 }
@@ -323,7 +345,7 @@ pub async fn tool_delegate(app: &AppHandle, args: &Value) -> Result<String, Stri
 async fn look(app: &AppHandle, turn: &Turn, checker: &(String, String), work: &str, terminal: bool) -> Result<Verdict, String> {
     let row = add_row(app, turn, &checker.1, t("Controlla il lavoro"));
     let folder = terminal.then(|| turn.chat.folder()).flatten();
-    let prompt = check_prompt(&turn.question, work, folder.as_deref());
+    let prompt = check_prompt(&turn.question, work, folder.as_deref(), can_look(&checker.0, terminal));
     let so_far = Mutex::new(String::new());
     let reply = side_turn(app, turn, &checker.0, prompt, true, row, CHECK_TIME, &so_far).await;
     match reply {
@@ -342,35 +364,35 @@ async fn look(app: &AppHandle, turn: &Turn, checker: &(String, String), work: &s
     }
 }
 
-/// The lead's answer through the check, with what became of it underneath.
+/// The lead's answer through the check. The user sees one answer in one voice:
+/// only a serious finding goes back to the lead, who rewrites it as its own; what
+/// the checker wrote never reaches the chat, and the log says who it was.
 /// Whatever fails here, the answer stays.
 #[allow(clippy::too_many_arguments)]
 async fn reviewed(app: &AppHandle, turn: &Turn, checker: &(String, String), engine: Option<String>, auto: bool, terminal: bool, first: String, on_text: &(dyn Fn(&str) + Sync)) -> String {
-    let name = &checker.1;
+    let steps = steps_of(&first);
     let mut answer = first;
-    let mut seen = 0;
     for round in 0..2 {
-        on_text(&answer);
         crate::log::line(format!("chat: multi agent, controllo di {} ({})", checker.0, round + 1));
         match look(app, turn, checker, &answer, terminal).await {
-            Err(e) if e == crate::stopped_text() => return with_note(&answer, t("⚠ Controllo fermato")),
-            Err(e) => return with_note(&answer, &tf("⚠ Controllo di {r} non riuscito: {e}", &[("r", name), ("e", &e)])),
-            Ok(Verdict::Empty) => return with_note(&answer, &tf("⚠ Controllo di {r} non riuscito: {e}", &[("r", name), ("e", &t("nessuna risposta"))])),
-            Ok(Verdict::Fine) if seen == 0 => return with_note(&answer, &tf("✓ Controllato da {r}", &[("r", name)])),
-            Ok(Verdict::Fine) => return with_note(&answer, &tf("✓ Controllato da {r} · rilievi valutati: {n}", &[("r", name), ("n", &seen)])),
-            Ok(Verdict::Findings { text, count, serious }) => {
-                let open = format!("{}\n{text}", tf("⚠ {r} segnala:", &[("r", name)]));
-                if round == 1 {
-                    return with_note(&answer, &open);
-                }
+            Err(e) if e == crate::stopped_text() => return answer,
+            Err(e) => {
+                crate::log::line(format!("chat: multi agent, controllo non riuscito: {e}"));
+                return with_note(&answer, t("⚠ Controllo non riuscito"));
+            }
+            Ok(Verdict::Empty) => return with_note(&answer, t("⚠ Controllo non riuscito")),
+            Ok(Verdict::Fine) => return with_note(&answer, t("✓ Controllato")),
+            Ok(Verdict::Findings { text, serious: false, .. }) => {
+                crate::log::line(format!("chat: multi agent, rilievi minori lasciati: {}", cut(&text, 400)));
+                return with_note(&answer, t("✓ Controllato"));
+            }
+            Ok(Verdict::Findings { text, .. }) => {
                 let fix = Box::pin(crate::chat_turn(app, &turn.chat, fix_prompt(&text), None, engine.clone(), None, auto, crate::Channel::Revision, on_text)).await;
                 match fix {
-                    Ok(r) => answer = r.text,
-                    Err(_) => return with_note(&answer, &open),
-                }
-                seen = count;
-                if !serious {
-                    return with_note(&answer, &tf("✓ Controllato da {r} · rilievi valutati: {n}", &[("r", name), ("n", &seen)]));
+                    Ok(r) if steps.is_empty() => answer = r.text,
+                    Ok(r) => answer = format!("{steps}\n\n{}", r.text),
+                    Err(e) if e == crate::stopped_text() => return answer,
+                    Err(_) => return with_note(&answer, t("⚠ Da ricontrollare: la revisione non è riuscita")),
                 }
             }
         }
@@ -403,12 +425,15 @@ pub(crate) async fn run(app: &AppHandle, chat: Arc<Chat>, sid: &str, query: Stri
     let _registered = Registered(sid.to_string());
     // Only an engine with our tools can hand work over; any can be checked.
     let delegates = agent && (terminal || !crate::openai::ENGINES.contains(&lead.as_str()));
-    let told = delegates.then(|| brief(sid, &members, check));
+    let told = delegates.then(|| brief(sid, &members));
     if let Some(b) = &told {
         let before = chat.take_preamble().unwrap_or_default();
         chat.put_back_preamble(format!("{before}{b}"));
     }
-    let reply = crate::chat_turn(app, &chat, query, context, engine.clone(), None, auto, crate::Channel::Island, on_text).await;
+    // With a check to come the draft stays here: the chat gets the steps, then one answer.
+    let steps = |text: &str| on_text(&steps_of(text));
+    let shown: &(dyn Fn(&str) + Sync) = if check { &steps } else { on_text };
+    let reply = crate::chat_turn(app, &chat, query, context, engine.clone(), None, auto, crate::Channel::Island, shown).await;
     let reply = match reply {
         Ok(r) => r,
         Err(e) => {
@@ -425,7 +450,9 @@ pub(crate) async fn run(app: &AppHandle, chat: Arc<Chat>, sid: &str, query: Stri
     if !check || !worth_checking(&reply.text) {
         return Ok(reply);
     }
-    let text = reviewed(app, &turn, &members[0], engine, auto, terminal, reply.text, on_text).await;
+    // The first that can look: the families' order stays among them.
+    let Some(checker) = members.iter().find(|(id, _)| can_look(id, terminal)).or(members.first()) else { return Ok(reply) };
+    let text = reviewed(app, &turn, checker, engine, auto, terminal, reply.text, shown).await;
     crate::chat_log::amend(&chat, &text);
     Ok(ChatReply { text })
 }
@@ -459,12 +486,12 @@ mod tests {
 
             std::fs::write(&file, "def media(a):\n    return sum(a) / (len(a) - 1)\n").unwrap();
             let work = "Ho scritto media() in media.py: calcola la media dei numeri della lista. È corretta.";
-            let wrong = ask(check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str())).await;
+            let wrong = ask(check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str(), true)).await;
             println!("--- sbagliato\n{wrong}\n{:?}", verdict(&wrong));
             assert!(matches!(verdict(&wrong), Verdict::Findings { .. }), "the planted bug went unseen");
 
             std::fs::write(&file, "def media(a):\n    return sum(a) / len(a) if a else 0\n").unwrap();
-            let right = ask(check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str())).await;
+            let right = ask(check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str(), true)).await;
             println!("--- giusto\n{right}\n{:?}", verdict(&right));
             let _ = std::fs::remove_dir_all(&dir);
         });
@@ -508,15 +535,17 @@ mod tests {
 
     #[test]
     fn the_checker_does_not_know_the_author() {
-        let p = check_prompt("Fai X", "Ho fatto X", Some("C:\\Lavoro"));
+        let p = check_prompt("Fai X", "Ho fatto X", Some("C:\\Lavoro"), true);
         assert!(p.contains("Fai X") && p.contains("Ho fatto X") && p.contains("C:\\Lavoro") && p.contains("VA BENE"));
         assert!(!p.contains("Claude") && !p.contains("Gemini"));
+        assert!(!p.contains("Non puoi aprire") && check_prompt("Fai X", "Ho fatto X", None, false).contains("Non puoi aprire"));
     }
 
     #[test]
     fn prompts_say_what_counts() {
-        let b = brief("c1", &[("gemini".into(), "Gemini".into())], true);
-        assert!(b.contains("team: \"c1\"") && b.contains("gemini (Gemini)") && b.ends_with("]\n\n"));
+        let b = brief("c1", &[("gemini".into(), "Gemini".into())]);
+        assert!(b.contains("team: \"c1\"") && b.contains("gemini (Gemini)") && b.contains("unico autore") && b.ends_with("]\n\n"));
+        assert!(fix_prompt("[GRAVE] x").contains("prima e unica risposta"));
         let read = job_prompt("Leggi", "Un elenco", "Domanda", "", false);
         assert!(read.contains("sola lettura") && read.contains("Un elenco") && !read.contains("Fine della conversazione"));
         assert!(job_prompt("Scrivi", "", "Domanda", "Utente: ciao", true).contains("Puoi modificare"));
@@ -524,7 +553,10 @@ mod tests {
 
     #[test]
     fn notes_stay_out_of_the_folded_steps() {
-        assert_eq!(with_note("Risposta\n", "⚠ Gemini segnala:\n[GRAVE] x"), "Risposta\n\n> ⚠ Gemini segnala:\n> [GRAVE] x");
+        assert_eq!(with_note("Risposta\n", "✓ Controllato"), "Risposta\n\n> ✓ Controllato");
+        // The chat gets the steps of a draft, never its words.
+        assert_eq!(steps_of("> ⚙ Legge · `a`\n\nBozza da non mostrare\n\n> ✗ Negato"), "> ⚙ Legge · `a`\n\n> ✗ Negato");
+        assert_eq!(steps_of("Bozza"), "");
         assert_eq!(clean("Testo\n> 💭 _penso_\n> ⚙ Legge"), "Testo");
         assert_eq!(last_block("uno\n\n> ⚙ Legge"), "> ⚙ Legge");
     }

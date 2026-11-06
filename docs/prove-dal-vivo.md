@@ -129,3 +129,4 @@ Funzioni verificate solo con test o anteprima. Togli una voce quando è provata;
 - [ ] **Widget:** script del certificato TLS, calendario ICS reale. **«Davanti al cliente»** con Teams e assistenza remota veri.
 - [ ] **Multi agent** (1.0.28): turno con Claude Code che guida e delega davvero (`team_delegate`); sola lettura di Claude Code (`team::tests::live_check`); aiutante con `write: true` e card Consenti/Nega; «Ferma» durante un incarico e durante il controllo.
 - [ ] **Agent Chat, motore fermo** (1.0.29): con un motore che fallisce, `@pc` passa all'altro motore; se nessuno risponde, «BLOCCATO» col motivo in chat e nel thread dell'incarico.
+- [ ] **Multi agent, una voce sola** (1.0.30): nessuna bozza a schermo col controllo acceso; un `[GRAVE]` riscritto senza parlare del controllo; Ferma durante il lavoro.

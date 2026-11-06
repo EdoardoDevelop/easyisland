@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
+Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Passi piccoli e senza barra, piegati in «N passi» a turno finito (`foldSteps`; «✗» resta in vista); Ferma neutro, rosso al passaggio del mouse; azioni sotto i propri messaggi solo al passaggio. Scena `?scene=chat&pensa`. Provato nel browser, anche in chiaro; il turno vero va guardato nell'app.
+
 ### 4/11 — Agent Chat: Jeeves, incarichi, programmate, capacità (`claude/agentchat-coordinatore`)
 EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi («📋 Incarico #N») nel loro thread; le regole del turno spiegano incarichi e jeeves (`docs/integrazioni.md` → Agent Chat). Il server (repo `agentchat`, branch `coordinatore`) ha incarichi, programmate, rilascio dei messaggi di un PC spento e Jeeves via OpenRouter. Provato in locale con un OpenRouter finto e test Rust; **non ancora con il modello vero né con i due PC**.
 
