@@ -25,7 +25,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **opencode:** card per `question` anche nella chat, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Agent Chat** (1.0.18–1.0.21): server sulla VPS, token `casa` collegato. Server pubblicato sulla VPS (uguale a `main` del repo `agentchat`, controllato il 6/11): provare stati e scrittura dall'isola con i due PC. Da provare: risposte dei motori, capo che affida un lavoro, ascolto spento dall'isola, un «ciao» con due PC accesi (risponde uno solo), `@nome`, nome già preso. Memoria condivisa (lavoro «Condividi la memoria» Sì; casa «Memoria di un altro PC» = lavoro): ricerca da casa con lavoro acceso e spento; nota di lavoro da casa a lavoro spento, poi riaccenderlo.
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo come immagine, GitHub (`docs/idee.md`).
-- [ ] **Modalità chiara:** guardare schede dell'isola e Impostazioni con l'app vera, correggere in `src/style-light.css` / `settings-light.css` (i colori in linea nel TS non cambiano).
+- [ ] **Modalità chiara:** funziona, poco usata: provare schede dell'isola e Impostazioni con l'app vera, correggere in `src/style-light.css` / `settings-light.css` (i colori in linea nel TS non cambiano).
 - [ ] **Flussi** (`docs/flussi.md`): da provare con flussi veri, soprattutto agente con campi, scelta del modello, ripresa dopo riavvio.
 - [ ] **Isola fissa, barra riservata** con tre aree scelte dall'utente, personaggio non trascinabile: decisa; primo passo una prova della barra di Windows (`docs/idee.md`).
 - [ ] **Modello integrato** (accantonato 27/10): branch `claude/modello-integrato`, manca la prova dal vivo.
@@ -39,7 +39,6 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
-- **Occhi troppo grandi** nello stato felice per alcuni personaggi (14/10, quali da capire).
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro; torna davanti al cambio di finestra. Verificare con Start aperto.
 - **Limiti del piano da Anthropic:** `/api/oauth/usage` non è documentato; se smette, il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
 - **Rinnovo dell'accesso di Claude Code** (`renew.rs`): parte invisibile, apre `/usage`, si chiude senza processi; il rinnovo di un accesso scaduto va visto alla prossima scadenza. Dopo, Claude Code può usare una volta il renderer classico.
@@ -49,7 +48,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
-Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Scena `?scene=chat&pensa`. Provato nel browser; il turno vero va guardato nell'app.
+Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Passi piccoli e senza barra, piegati in «N passi» a turno finito (`foldSteps`; «✗» resta in vista); Ferma neutro, rosso al passaggio del mouse; azioni sotto i propri messaggi solo al passaggio. Scena `?scene=chat&pensa`. Provato nel browser, anche in chiaro; il turno vero va guardato nell'app.
 
 ### 4/11 — Agent Chat: Jeeves, incarichi, programmate, capacità (`claude/agentchat-coordinatore`)
 EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi («📋 Incarico #N») nel loro thread; le regole del turno spiegano incarichi e jeeves (`docs/integrazioni.md` → Agent Chat). Il server (repo `agentchat`, branch `coordinatore`) ha incarichi, programmate, rilascio dei messaggi di un PC spento e Jeeves via OpenRouter. Provato in locale con un OpenRouter finto e test Rust; **non ancora con il modello vero né con i due PC**.

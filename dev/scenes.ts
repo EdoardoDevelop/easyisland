@@ -173,11 +173,12 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
-      // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only.
+      // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over.
       const pensa = new URLSearchParams(location.search).get("pensa");
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
-        State.chat.sending = true;
+        if (pensa === "fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", content: "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`\n\n> ⚙ Cerca nella memoria · `NAS Rossi`\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB." });
+        State.chat.sending = pensa !== "fine";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
         State.isPinned = true;

@@ -210,7 +210,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many` |
 | `files` | il Vassoio | `fresh`: una zona appena aggiunta |
 | `approval` | il permesso con il tempo rimasto | — |
-| `chat` | la chat | `terminal` (modalità terminale), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`) |
+| `chat` | la chat | `terminal` (modalità terminale), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati) |
 | `clipboard` | gli appunti | `long` |
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |

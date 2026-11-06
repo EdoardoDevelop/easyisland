@@ -29,6 +29,32 @@ export function splitStatus(text: string): { body: string; status: string } {
   return { body: at < 0 ? "" : text.slice(0, at), status };
 }
 
+/**
+ * A turn's steps in the blocks of a reply: small, and once the turn is over
+ * (`done`) a run of them folds into one line. An error («✗») stays in the open.
+ */
+export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  let run: HTMLElement[] = [];
+  const flush = () => {
+    if (run.length > 1 && done) {
+      out.push(h("details", { class: "md-steps" }, h("summary", { text: t("{n} passi", { n: run.length }) }), ...run));
+    } else out.push(...run);
+    run = [];
+  };
+  for (const b of blocks) {
+    if (b.tagName === "BLOCKQUOTE" && /^(⚙|💭)/u.test(b.textContent ?? "")) {
+      b.classList.add("md-step");
+      run.push(b);
+    } else {
+      flush();
+      out.push(b);
+    }
+  }
+  flush();
+  return out;
+}
+
 export class TypeLine {
   private text = h("span", { class: "type-text" });
   readonly el = h("div", { class: "type-line" }, this.text, h("span", { class: "type-caret" }));

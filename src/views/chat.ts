@@ -11,7 +11,7 @@ import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
-import { TypeLine, splitStatus } from "./typeline";
+import { TypeLine, foldSteps, splitStatus } from "./typeline";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -120,7 +120,7 @@ function saveDraft(text: string) {
   }
 }
 
-function bubble(message: ChatMessage): HTMLElement {
+function bubble(message: ChatMessage, live = false): HTMLElement {
   if (message.role === "user") {
     const b = h("div", { class: "bubble", text: message.content });
     if (message.file) b.prepend(h("div", { class: "bubble-file", text: `📎 ${message.file}` }));
@@ -133,7 +133,7 @@ function bubble(message: ChatMessage): HTMLElement {
         h("div", { class: "second-head", text: `⇄ ${t("Seconda opinione · {e}", { e: message.reviewer })}` }),
         ...renderMarkdown(message.content, MD_HOOKS)));
   }
-  const reply = h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS));
+  const reply = h("div", { class: "reply md" }, ...foldSteps(renderMarkdown(message.content, MD_HOOKS), !live));
   void checkPaths(reply);
   return h("div", { class: "chat-row" }, reply);
 }
@@ -2033,7 +2033,7 @@ export function buildPrompt(
       if (streamEl && streamEl.dataset.len !== String(body.length)) {
         streamEl.dataset.len = String(body.length);
         streamEl.style.display = body ? "" : "none";
-        streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }).firstChild!] : []));
+        streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }, true).firstChild!] : []));
         toBottom();
       }
       // What it is doing now types itself under the reply.
