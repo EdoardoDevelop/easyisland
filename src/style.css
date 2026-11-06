@@ -1948,31 +1948,33 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.typing {
-  display: flex;
-  gap: 4px;
-  padding: 4px 2px;
+/* The line that types itself during a turn (typeline.ts). */
+.type-line {
+  min-height: 1.45em;
+  padding: 2px;
+  font-size: calc(12.5px + var(--fs-up, 0px));
+  line-height: 1.45;
+  color: var(--dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.typing i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--dim-3);
-  animation: typing 0.9s ease-in-out infinite;
+.type-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: -10%;
+  background: var(--win-accent, #4cc2ff);
+  animation: type-caret 1s steps(2) infinite;
 }
 
-.typing i:nth-child(2) {
-  animation-delay: 0.14s;
+@keyframes type-caret {
+  50% { opacity: 0; }
 }
 
-.typing i:nth-child(3) {
-  animation-delay: 0.28s;
-}
-
-@keyframes typing {
-  0%, 100% { transform: scale(0.6); }
-  50% { transform: scale(1.2); }
+@media (prefers-reduced-motion: reduce) {
+  .type-caret { animation: none; }
 }
 
 .chat-bar {

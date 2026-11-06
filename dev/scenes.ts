@@ -173,6 +173,18 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only.
+      const pensa = new URLSearchParams(location.search).get("pensa");
+      if (pensa != null) {
+        State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
+        State.chat.sending = true;
+        State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
+          : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
+        State.isPinned = true;
+        island.alert("prompt");
+        await wait(1200);
+        break;
+      }
       // ?terminal: Modalità terminale on, the "Automatica" switch in the head (&auto: on).
       if (new URLSearchParams(location.search).has("terminal")) {
         State.settings.chatTerminal = true;

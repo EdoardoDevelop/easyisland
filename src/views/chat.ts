@@ -11,6 +11,7 @@ import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
+import { TypeLine, splitStatus } from "./typeline";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -211,14 +212,6 @@ export function openChatPath(path: string, el: HTMLElement | null, direct = fals
     return;
   }
   chatPathAction(target, "preview");
-}
-
-function typingDots(): HTMLElement {
-  return h(
-    "div",
-    { class: "chat-row" },
-    h("div", { class: "typing" }, h("i"), h("i"), h("i")),
-  );
 }
 
 /**
@@ -1776,6 +1769,7 @@ export function buildPrompt(
     if (stick) log.scrollTop = log.scrollHeight;
     else jumpBtn.style.display = "";
   }
+  const typeLine = new TypeLine(() => State.mode === "expanded" || isPopped("chat"), toBottom);
 
   mic.addEventListener("click", () => void dictate());
   // 📎: the same menu as «@», with File… and Cartella…
@@ -2030,15 +2024,21 @@ export function buildPrompt(
         if (thinking && streamed) {
           streamEl = h("div", { class: "chat-row" });
           log.append(streamEl);
-        } else if (thinking) log.append(typingDots());
+        }
+        if (thinking) log.append(h("div", { class: "chat-row" }, typeLine.el));
         toBottom();
       }
       // The growing reply: only its bubble is redrawn.
-      if (streamEl && streamEl.dataset.len !== String(streamed.length)) {
-        streamEl.dataset.len = String(streamed.length);
-        streamEl.replaceChildren(bubble({ id: 0, role: "assistant", content: streamed }).firstChild!);
+      const { body, status } = splitStatus(streamed);
+      if (streamEl && streamEl.dataset.len !== String(body.length)) {
+        streamEl.dataset.len = String(body.length);
+        streamEl.style.display = body ? "" : "none";
+        streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }).firstChild!] : []));
         toBottom();
       }
+      // What it is doing now types itself under the reply.
+      if (thinking) typeLine.set(streamed ? status : null);
+      else typeLine.reset();
       // The waiting permission, always the last thing in the conversation.
       const req = State.pendingApproval?.source === "chat" && (!State.pendingApproval.chatSid || State.pendingApproval.chatSid === State.chatSid)
         ? State.pendingApproval : null;

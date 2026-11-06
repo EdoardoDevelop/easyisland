@@ -6,7 +6,7 @@
 
 ## Writing
 - The field is **multi-line**: <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. What you're writing survives a restart. <kbd>↑</kbd> in an empty field brings back the last question.
-- Answers are in **markdown**: headings, lists, tables, code with **Copy**. While the engine works you see its reasoning and the tools it uses.
+- Answers are in **markdown**: headings, lists, tables, code with **Copy**. While the engine works you see its reasoning and the tools it uses: the current one types itself at the bottom, with a caret.
 - **■ Stop** interrupts the answer in progress (and the pending permission).
 - **You can keep writing while it answers**: <kbd>Enter</kbd> puts the message **in the queue**, under the conversation as "waiting", and it goes by itself as soon as the answer ends, one after the other. On each queued message: **Send now** (stops the answer and sends it now), **Edit** (back in the field) and ✕. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends it at once, skipping the queue. With an empty field the button stays **■ Stop**.
 - If you scroll up to read, incoming text doesn't pull you down: ↓ goes back to the bottom.

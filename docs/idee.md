@@ -74,7 +74,7 @@ Parla solo con EasyIsland via native messaging (niente rete); rivede la decision
 - Da non fare: legarlo a «davanti al cliente»; leggere password.
 
 ### Devolutions Cloud (03/11, dal PC lavoro) — fatto il 4/11
-Fatti tutti e quattro i passi più lo strumento per la chat (`docs/integrazioni.md` → Devolutions Cloud); da provare sul PC lavoro (`docs/prove-dal-vivo.md`). Resta qui come appunto di cosa era stato provato.
+Fatti tutti e quattro i passi più lo strumento per la chat (`docs/integrazioni.md` → Devolutions Cloud). Resta qui come appunto di cosa era stato provato.
 Prove di @claudio sul PC lavoro, dettagli in `RDM-Devolutions-Cloud-connessione.md` e nella skill `devolutions-cloud` (SKILL.md, `scripts/setup.ps1`, `scripts/DevolutionsCloud.psm1`), arrivati in Agent Chat il 03/11.
 - **Cosa funziona:** l'MCP di RDM e i cmdlet RDM non vedono il vault; vanno i **cmdlet Hub** (`Devolutions.PowerShell` in pwsh 7) con una **Application identity** (Is enabled, Can access user vaults, senza admin). Un'identità per PC (es. `Claude-RDM-Casa`): il Secret si vede una volta sola e rigenerarlo scollega l'altro PC.
 - **Credenziali:** URL, Key e Secret in una finestra di EasyIsland, salvati con DPAPI o in Gestione credenziali; mai in chat, mai copiati tra PC (il file DPAPI vale solo dove è stato creato).

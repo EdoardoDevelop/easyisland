@@ -16,16 +16,14 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Agente personale** (priorità alta, 23/10): fatti Compiti, motori aiutanti, Battito, Abilità, permessi per livelli (1.0.16: «Sempre» sulle reversibili, permessi per compito, «Cosa ho fatto» con Annulla; `docs/chat.md`). Da provare dal vivo. Prossimi: proattività su ticket e chiamate, memoria per cliente (`docs/idee.md`).
 - [ ] **Prove dal vivo** delle versioni 0.6.3–0.9.7: elenco in `docs/prove-dal-vivo.md`.
 - [ ] **La giornata di oggi e domani** (priorità alta): fatti `/oggi` e `/domani` (Telegram, chat), voce nel campo in alto e azione rapida, riassunto IA in Buongiorno/Fine giornata con motore a scelta, invio Telegram all'ora scelta (orari in `giornata.rs`). Da provare dal vivo.
-- [ ] **3CX team e chat**, **3CX «Questo PC»** (WebRTC, suoneria): da provare sul centralino vero (`docs/prove-dal-vivo.md`; il log scrive `3cx: event type …`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Notion, seconda parte:** «Manda a Notion», scheda cliente su 3CX/Zammad, scadenze (`docs/idee.md`).
 - [ ] **Account Microsoft (Graph):** predisposto; da provare registrando l'app in Entra, poi avvisi mail, chat, automazioni (`docs/integrazioni.md`).
 - [ ] **Secondo cervello**, **chat nuova e memoria**: da provare con memoria e motori veri (`docs/chat.md`, `docs/prove-dal-vivo.md`).
-- [ ] **Accesso remoto:** WinRM e SSH (Windows/Linux) da provare su un PC cliente.
-- [ ] **Remote Desktop Manager:** predisposto; prova sul PC con RDM, poi passi in `docs/idee.md`. **Devolutions Cloud** (4/11, branch `claude/devolutions-cloud`): da provare sul PC lavoro.
+- [ ] **Remote Desktop Manager:** predisposto; prova sul PC con RDM, poi passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file** («Manda a EasyIsland», azioni sui file; deciso l'11/10, `docs/idee.md`).
 - [ ] **opencode:** card per `question` anche nella chat, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (1.0.18–1.0.21): server sulla VPS, token `casa` collegato. Server nuovo (token owner, `/api/status`) da pubblicare, poi provare stati e scrittura dall'isola con i due PC. Da provare: risposte dei motori, capo che affida un lavoro, ascolto spento dall'isola, un «ciao» con due PC accesi (risponde uno solo), `@nome`, nome già preso. Memoria condivisa (lavoro «Condividi la memoria» Sì; casa «Memoria di un altro PC» = lavoro): ricerca da casa con lavoro acceso e spento; nota di lavoro da casa a lavoro spento, poi riaccenderlo.
+- [ ] **Agent Chat** (1.0.18–1.0.21): server sulla VPS, token `casa` collegato. Server pubblicato sulla VPS (uguale a `main` del repo `agentchat`, controllato il 6/11): provare stati e scrittura dall'isola con i due PC. Da provare: risposte dei motori, capo che affida un lavoro, ascolto spento dall'isola, un «ciao» con due PC accesi (risponde uno solo), `@nome`, nome già preso. Memoria condivisa (lavoro «Condividi la memoria» Sì; casa «Memoria di un altro PC» = lavoro): ricerca da casa con lavoro acceso e spento; nota di lavoro da casa a lavoro spento, poi riaccenderlo.
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo come immagine, GitHub (`docs/idee.md`).
 - [ ] **Modalità chiara:** guardare schede dell'isola e Impostazioni con l'app vera, correggere in `src/style-light.css` / `settings-light.css` (i colori in linea nel TS non cambiano).
 - [ ] **Flussi** (`docs/flussi.md`): da provare con flussi veri, soprattutto agente con campi, scelta del modello, ripresa dopo riavvio.
@@ -50,6 +48,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
+Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Scena `?scene=chat&pensa`. Provato nel browser; il turno vero va guardato nell'app.
+
 ### 4/11 — Agent Chat: Jeeves, incarichi, programmate, capacità (`claude/agentchat-coordinatore`)
 EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi («📋 Incarico #N») nel loro thread; le regole del turno spiegano incarichi e jeeves (`docs/integrazioni.md` → Agent Chat). Il server (repo `agentchat`, branch `coordinatore`) ha incarichi, programmate, rilascio dei messaggi di un PC spento e Jeeves via OpenRouter. Provato in locale con un OpenRouter finto e test Rust; **non ancora con il modello vero né con i due PC**.
 
@@ -63,6 +64,3 @@ La sessione di Claude Code si registrava solo a fine turno: fermato il primo mes
 
 ### 4/11 — Versione 1.0.23
 Uniti in `claude/sviluppo` e `main`: scheda Zammad, Devolutions Cloud, mappa della memoria (più Galassia meno abbagliante, testo delle pagine non più schiacciato nel pannello), coda della chat, font, stato di Agent Chat. Clic sul personaggio (anche nella barra fissa) con l'isola aperta dietro un'altra finestra: torna davanti (`island::to_front`, comando `island_to_front`), si chiude solo se è già in primo piano; con «Come un'app» guarda la finestra in primo piano, altrimenti `BEHIND`.
-
-### 4/11 — Devolutions Cloud nella scheda RDM (`claude/devolutions-cloud`, sopra `claude/zammad-ticket`)
-Tutti i passi di `docs/idee.md` → Devolutions Cloud senza skill né modulo installati (`dvc.rs`, `src/views/dvc.ts`): Application identity in Impostazioni → RDM (Gestione credenziali), vault e voci senza password con Sincronizza (DPAPI), connessioni del cloud nella ricerca RDM; Copia password negli appunti privati svuotati dopo 30 s; nuova credenziale e Lista Password con anteprima, conferma, rilettura e verifica; cliente Zammad/3CX ↔ cartella; `rdm_search`/`rdm_open` per la chat, più gli strumenti della skill in chat (`dvc_vaults`, `dvc_entries`, `dvc_folder_id`, `dvc_show`, anteprima e creazione di Lista Password e credenziali; password chiesta nella finestra di Windows, due volte). Provato con test Rust, parser di PowerShell, anteprima `rdm&cloud`/`rdm&tied` e smoke; **non ancora sul Devolutions Cloud vero** (`docs/prove-dal-vivo.md`).
