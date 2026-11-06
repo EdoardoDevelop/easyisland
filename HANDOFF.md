@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_6 novembre 2026. **1.0.26** in `main` (tag `v1.0.26`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_6 novembre 2026. **1.0.27** in `main` (tag `v1.0.27`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -47,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 6/11 — Chat: la riga che si scrive non taglia più
+`typeline.ts`: finisce sempre la riga iniziata, dei passi in arrivo tiene solo l'ultimo (gli altri sono nell'elenco); del ragionamento mostra solo frasi intere; niente più cancellazione a lettere. Le frasi di attesa cedono appena scritte. Scena `pensa=corsa`.
+
 ### 6/11 — Versione 1.0.26: risposte piene, progetto per conversazione, parola per parola
 Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `claude.rs`); `--include-partial-messages` con `Progress::delta`; «Progetto…» sceglie la cartella della conversazione, la predefinita resta quella di Impostazioni. Nella barra laterale gruppi per progetto con «+». Provato con `live_words` su Claude Code vero; da confrontare con l'uso i due modi.
 
@@ -58,8 +61,3 @@ EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi (
 
 ### 4/11 — Chat: Ferma o «Invia subito» non perdono più la conversazione (`claude/chat-ferma-sessione`)
 La sessione di Claude Code si registrava solo a fine turno: fermato il primo messaggio (anche con «Invia subito»), il successivo ripartiva da zero. Ora `claude_cli::read_lines` la prende dalla riga `init` appena arriva (`init_session`) e il messaggio dopo fa `--resume`; uguale in `antigravity.rs` con `conversation_id`. Provato con `live_kept` sul Claude Code vero (primo messaggio fermato, poi ricorda la parola).
-
-### 4/11 — Versione 1.0.24
-- Agent Chat: mappa ad argomenti senza IA (`agentchat_map.rs`) nel prompt e `agentchat_topic`; scheda «Argomenti». Ogni PC la costruisce per sé; riassunti IA e mappa sul server non fatti.
-- Zammad «Consiglio IA» (`ticket_advice.rs`), RDM solo dal cloud con pannello e occhio (`dvc.rs` `CREDS`, `dvc_reveal`), ricerca in RDM/3CX dal campo in alto, file cliccabili nella chat (`chatpaths.rs`), controllo della memoria con caselle (`proposals.ts`).
-- WebView2 senza `CalculateNativeWinOcclusion` (`BROWSER_ARGS` e `tauri.conf.json`): la finestra Memoria non presentava i fotogrammi senza muovere il mouse. Da confermare nell'app; nomi dei campi delle connessioni di Devolutions Cloud dedotti, non visti.

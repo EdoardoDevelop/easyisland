@@ -173,7 +173,8 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
-      // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over.
+      // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over,
+      // =corsa steps and reasoning arriving faster than the line can write them.
       const pensa = new URLSearchParams(location.search).get("pensa");
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
@@ -184,6 +185,21 @@ export async function runScene(island: Island, scene: string) {
         State.isPinned = true;
         island.alert("prompt");
         await wait(1200);
+        if (pensa === "corsa") {
+          const flow = "Il backup si è fermato e cerco il motivo nei log della notte. Il backup si ferma alle 02:14 e il log parla di spazio esaurito. Controllo quanto resta sul disco di destinazione del NAS. Poi confronto la dimensione con quella dei giorni scorsi per capire se è cresciuta di colpo.";
+          const said: string[] = [];
+          for (let i = 20; i <= flow.length; i += 12) {
+            State.chat.streamed = `> 💭 _${i > 240 ? "…" : ""}${flow.slice(Math.max(0, i - 240), i)}_`;
+            State.notify();
+            await wait(400);
+          }
+          for (const step of ["Legge · `backup.log`", "Esegue · `Get-PSDrive`", "Cerca nella memoria · `NAS Rossi`", "Legge · `nas.log`"]) {
+            said.push(`> ⚙ ${step}`);
+            State.chat.streamed = said.join("\n\n");
+            State.notify();
+            await wait(300);
+          }
+        }
         break;
       }
       // ?terminal: Modalità terminale on, the "Automatica" switch in the head (&auto: on).
