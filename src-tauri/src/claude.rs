@@ -109,7 +109,7 @@ const MAX_INLINE_TEXT: u64 = 200_000;
 
 pub const DEFAULT_MODEL: &str = "claude-opus-5-5";
 
-const SYSTEM_PROMPT: &str = "You are a personal AI assistant living at the top of the user's screen. \
+const SYSTEM_PROMPT: &str = "You are the user's personal AI assistant in the chat of the EasyIsland desktop app. \
 You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions. \
 Respond in Italian unless the user writes in another language. Be thorough and complete — use as much detail as the task requires. \
 Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help.";
@@ -134,6 +134,9 @@ pub struct Chat {
     /// Assistenti): its instructions go in front of the first question. Not
     /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
     persona: Mutex<Option<String>>,
+    /// The folder picked for this conversation of the island (Modalità
+    /// terminale), else the one of the settings. Not cleared by `reset`, like the persona.
+    folder: Mutex<Option<String>>,
     /// The session went on in Claude Desktop (desktop.rs): where the island left it.
     desktop: Mutex<Option<crate::desktop::Mark>>,
     /// "agentchat" for a turn of Agent Chat: its permissions follow «Permessi
@@ -191,6 +194,14 @@ impl Chat {
 
     pub(crate) fn set_log_id(&self, id: Option<String>) {
         *self.log_id.lock().unwrap() = id;
+    }
+
+    pub(crate) fn set_folder(&self, folder: Option<String>) {
+        *self.folder.lock().unwrap() = folder.filter(|f| !f.trim().is_empty());
+    }
+
+    pub(crate) fn folder(&self) -> Option<String> {
+        self.folder.lock().unwrap().clone()
     }
 
     pub(crate) fn set_persona(&self, text: Option<String>) {

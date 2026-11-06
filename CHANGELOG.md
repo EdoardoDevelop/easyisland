@@ -2,6 +2,12 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.26** — **La chat lavora come uno strumento vero**: risposte piene, non più pensate per una finestrella; il testo
+arriva **parola per parola**; con **Progetto…** ogni conversazione lavora nella sua cartella e legge regole e git del
+progetto, e nella barra laterale le conversazioni si **raggruppano per progetto**, con «+» per iniziarne una lì. Mentre
+l'agente lavora, l'attività in corso **si scrive da sola** col cursore; i passi sono più leggeri e a risposta finita si
+raccolgono in «N passi». **Ferma** è neutro e diventa rosso al passaggio del mouse; nuove icone di microfono e invio.
+
 **1.0.25** — **Ferma e «Invia subito»** non perdono più la conversazione: anche se fermi la prima risposta,
 il messaggio dopo continua la stessa sessione. **Agent Chat con Jeeves**: il PC dice al server cosa sa fare
 (integrazioni, motori, cartelle), così il coordinatore affida gli incarichi al PC giusto; le risposte a un incarico

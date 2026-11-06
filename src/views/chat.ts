@@ -11,6 +11,7 @@ import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
+import { TypeLine, foldSteps, splitStatus } from "./typeline";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -93,6 +94,23 @@ function loadSide(): boolean {
     return true;
   }
 }
+/** Projects closed in the sidebar (lower-case folders): a convenience of this PC. */
+const PROJECTS_KEY = "chat.projects.closed";
+function readClosedProjects(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(PROJECTS_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+function saveClosedProjects(closed: Set<string>) {
+  try {
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify([...closed]));
+  } catch {
+    /* storage off: they open again next time */
+  }
+}
+
 function saveSide(open: boolean) {
   try {
     localStorage.setItem(SIDE_KEY, open ? "1" : "0");
@@ -119,7 +137,7 @@ function saveDraft(text: string) {
   }
 }
 
-function bubble(message: ChatMessage): HTMLElement {
+function bubble(message: ChatMessage, live = false): HTMLElement {
   if (message.role === "user") {
     const b = h("div", { class: "bubble", text: message.content });
     if (message.file) b.prepend(h("div", { class: "bubble-file", text: `📎 ${message.file}` }));
@@ -132,8 +150,9 @@ function bubble(message: ChatMessage): HTMLElement {
         h("div", { class: "second-head", text: `⇄ ${t("Seconda opinione · {e}", { e: message.reviewer })}` }),
         ...renderMarkdown(message.content, MD_HOOKS)));
   }
-  const reply = h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS));
-  void checkPaths(reply);
+  const reply = h("div", { class: "reply md" }, ...foldSteps(renderMarkdown(message.content, MD_HOOKS), !live));
+  // While it streams this runs many times a second: the finished reply checks them.
+  if (!live) void checkPaths(reply);
   return h("div", { class: "chat-row" }, reply);
 }
 
@@ -160,16 +179,19 @@ async function checkPaths(root: HTMLElement) {
   const els = Array.from(root.querySelectorAll<HTMLElement>(".md-path[data-path]"));
   if (!els.length) return;
   const now = Date.now();
+  // A relative path means something else in another conversation's folder.
+  const base = State.chat.folder;
+  const key = (p: string) => `${base ?? ""}|${p}`;
   const want = [...new Set(els.map((e) => e.dataset.path ?? ""))].filter((p) => {
-    const seen = pathSeen.get(p);
+    const seen = pathSeen.get(key(p));
     return p && (!seen || (seen.info.kind === "missing" && now - seen.at > 10_000));
   });
   if (want.length) {
-    const infos = await Bridge.pathsInfo(want).catch(() => null);
-    for (const i of infos ?? []) pathSeen.set(i.path, { info: i, at: now });
+    const infos = await Bridge.pathsInfo(want, base).catch(() => null);
+    for (const i of infos ?? []) pathSeen.set(key(i.path), { info: i, at: now });
   }
   for (const e of els) {
-    const info = pathSeen.get(e.dataset.path ?? "")?.info;
+    const info = pathSeen.get(key(e.dataset.path ?? ""))?.info;
     if (!info) continue;
     e.dataset.kind = info.kind;
     e.dataset.resolved = info.resolved;
@@ -211,14 +233,6 @@ export function openChatPath(path: string, el: HTMLElement | null, direct = fals
     return;
   }
   chatPathAction(target, "preview");
-}
-
-function typingDots(): HTMLElement {
-  return h(
-    "div",
-    { class: "chat-row" },
-    h("div", { class: "typing" }, h("i"), h("i"), h("i")),
-  );
 }
 
 /**
@@ -293,6 +307,7 @@ export function buildPrompt(
   const chipRow = h("div", { class: "chip-row" });
   // The engine and model, above the chat: a click picks another one.
   const engineBtn = h("button", { class: "engine-pick", title: t("Cambia motore della chat") }) as HTMLButtonElement;
+  const folderBtn = h("button", { class: "engine-pick folder-pick" }) as HTMLButtonElement;
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
   // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
@@ -316,7 +331,7 @@ export function buildPrompt(
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, exportBtn, popBtn, engineMenu);
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, folderBtn, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, exportBtn, popBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -364,10 +379,11 @@ export function buildPrompt(
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
   }
-  const send = h("button", { class: "send-btn", title: t("Invia") }, svg(ICONS.arrowUp, 14));
+  const send = h("button", { class: "send-btn", title: t("Invia") }, svg(ICONS.plane, 14));
   const fresh = h("button", { class: "new-chat-btn", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
   // 🎤: dictation — the service of Telegram's «Vocali» if one is chosen, else Windows' own (Win+H).
-  const mic = h("button", { class: "mic-btn", title: t("Detta (clic per iniziare e per finire)"), text: "🎤" }) as HTMLButtonElement;
+  const micIcon = () => svg(ICONS.mic, 15, { stroke: 1.8 });
+  const mic = h("button", { class: "mic-btn", title: t("Detta (clic per iniziare e per finire)") }, micIcon()) as HTMLButtonElement;
   // What goes with the next question (📎, Ctrl+V, a drop, @): in the field, over the text.
   const attachRow = h("div", { class: "chat-attach" });
   const field = h("div", { class: "chat-field" }, attachRow, input);
@@ -641,7 +657,7 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true);
+        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder);
       if (reply.log) c.logId = reply.log;
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
@@ -748,7 +764,7 @@ export function buildPrompt(
     const mode = stopMode ? "stop" : "send";
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
-      send.replaceChildren(svg(stopMode ? ICONS.stop : ICONS.arrowUp, stopMode ? 12 : 14));
+      send.replaceChildren(svg(stopMode ? ICONS.stop : ICONS.plane, stopMode ? 12 : 14));
       send.classList.toggle("stop", stopMode);
     }
     send.title = stopMode ? t("Ferma") : c.sending ? t("Metti in coda: parte a fine risposta (Ctrl+Invio: subito)") : t("Invia");
@@ -840,7 +856,7 @@ export function buildPrompt(
         window.setTimeout(() => void Bridge.chatDictation(false), 3000);
         recorder = null;
         mic.classList.remove("on");
-        mic.textContent = "🎤";
+        mic.replaceChildren(micIcon());
         const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
         if (!blob.size) return;
         flash(t("Trascrivo…"), true);
@@ -859,8 +875,8 @@ export function buildPrompt(
       };
       rec.start();
       mic.classList.add("on");
-      mic.textContent = "■";
-      flash(`🎤 ${t("Parla… clic su ■ per finire")}`, true);
+      mic.replaceChildren(svg(ICONS.stop, 11));
+      flash(t("Parla… clic su ■ per finire"), true);
     } catch (err) {
       recorder = null;
       void Bridge.chatDictation(false);
@@ -1105,6 +1121,7 @@ export function buildPrompt(
       c.auto = false;
       c.desktop = false;
       c.assistant = null;
+      c.folder = null;
       c.logId = null;
       void Bridge.chatReset(c.sid);
     }
@@ -1427,6 +1444,52 @@ export function buildPrompt(
     engineMenu.style.display = "";
   }
 
+  /** «Progetto…»: where this conversation works; the default stays the folder of Impostazioni → Chat. */
+  async function toggleFolderMenu() {
+    if (engineMenu.style.display !== "none") {
+      engineMenu.style.display = "none";
+      return;
+    }
+    const recent = await Bridge.chatFolders().catch(() => [] as string[]);
+    const own = State.chat.folder;
+    const list = own && !recent.some((f) => f.toLowerCase() === own.toLowerCase()) ? [own, ...recent] : recent;
+    clear(engineMenu);
+    engineMenu.append(h("button", {
+      class: `engine-item${own ? "" : " on"}`, title: State.settings.chatFolder || t("la tua cartella utente"), text: t("Cartella predefinita"),
+      onclick: () => pickFolder(null),
+    }));
+    for (const f of list) {
+      engineMenu.append(h("button", {
+        class: `engine-item${f === own ? " on" : ""}`, title: f, text: folderName(f),
+        onclick: () => pickFolder(f),
+      }));
+    }
+    engineMenu.append(h("button", {
+      class: "engine-item", text: t("Scegli una cartella…"),
+      onclick: () => {
+        engineMenu.style.display = "none";
+        void Bridge.chatPickFolder(own ?? (State.settings.chatFolder || null))
+          .then((f) => { if (f) pickFolder(f); })
+          .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
+      },
+    }));
+    engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat: legge le regole e il git del progetto. La predefinita: Impostazioni → Chat") }));
+    engineMenu.style.display = "";
+  }
+
+  function folderName(path: string): string {
+    return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+  }
+
+  function pickFolder(folder: string | null) {
+    engineMenu.style.display = "none";
+    if (folder === State.chat.folder || State.chat.sending) return;
+    // Another folder is another conversation (Claude Code's sessions belong to theirs).
+    if (State.chatHistory.length) startOver();
+    State.chat.folder = folder;
+    State.notify();
+  }
+
   /** Only for the conversation in progress: the default stays in Impostazioni → Chat. */
   function pickEngine(id: ChatEngine) {
     engineMenu.style.display = "none";
@@ -1494,6 +1557,7 @@ export function buildPrompt(
   let lastList: ChatSummary[] = [];
   let lastQuery = "";
   let historyRead = false;
+  const closedProjects = readClosedProjects();
 
   async function loadHistory(query: string): Promise<ChatSummary[]> {
     const q = query.trim();
@@ -1541,16 +1605,18 @@ export function buildPrompt(
     // Open conversations the history does not have yet (no answer saved): on top.
     const fresh = query.trim() ? [] : State.chats.filter((c) => (!c.logId || !list.some((x) => x.id === c.logId))
       && (c.history.length || c.sending || c.sid === State.chatSid));
-    if (fresh.length) historyRows.append(h("div", { class: "side-group", text: t("Aperte") }));
-    for (const c of fresh) {
+    const freshRow = (c: ChatSessionState): HTMLElement => {
       const first = c.history.find((m) => m.role === "user")?.content ?? "";
       const name = CHAT_ENGINES.find((e) => e.id === engineOf(c))?.name ?? engineOf(c);
-      historyRows.append(h("div", { class: `history-item${c.sid === State.chatSid ? " on" : ""}`, title: first || t("Nuova chat"), onclick: () => switchTo(c.sid) },
+      return h("div", { class: `history-item${c.sid === State.chatSid ? " on" : ""}`, title: first || t("Nuova chat"), onclick: () => switchTo(c.sid) },
         h("div", { class: "history-text" },
           h("span", { class: "history-title", text: first || t("Nuova chat") }),
           h("span", { class: "history-meta", text: name })),
-        ...[badge(c)].filter((b): b is HTMLElement => !!b)));
-    }
+        ...[badge(c)].filter((b): b is HTMLElement => !!b));
+    };
+    const loose = fresh.filter((c) => !c.folder);
+    if (loose.length) historyRows.append(h("div", { class: "side-group", text: t("Aperte") }));
+    for (const c of loose) historyRows.append(freshRow(c));
     if (!list.length && !fresh.length) {
       historyRows.append(h("div", { class: "engine-note", text: query.trim()
         ? t("Nessuna conversazione con queste parole.")
@@ -1558,19 +1624,13 @@ export function buildPrompt(
           ? t("La cronologia è spenta: Impostazioni → Chat.")
           : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
     }
-    let group = "";
-    for (const c of list) {
+    const savedRow = (c: ChatSummary): HTMLElement => {
       const engine = CHAT_ENGINES.find((e) => e.id === c.engine)?.name ?? c.engine;
-      const g = groupOf(c);
-      if (g !== group) {
-        group = g;
-        historyRows.append(h("div", { class: "side-group", text: g }));
-      }
       const open = State.chats.find((x) => x.logId === c.id);
       const del = h("button", { class: "history-del", title: t("Elimina"), text: "✕" });
       del.addEventListener("click", (e) => {
         e.stopPropagation();
-        void Bridge.chatHistoryDelete(c.id);
+        void Promise.resolve(Bridge.chatHistoryDelete(c.id)).then(() => refreshHistory());
         historyDemo = historyDemo.filter((x) => x.id !== c.id);
         // Open: it closes too (another one, or a new one, takes the screen).
         if (open && !open.sending) {
@@ -1645,9 +1705,87 @@ export function buildPrompt(
           h("span", { class: "history-meta", text: `${when(c.updated)} · ${engine} · ${tn("{n} domanda", "{n} domande", c.turns)}` })),
         ...[badge(open)].filter((b): b is HTMLElement => !!b),
         edit, pin, del);
-      historyRows.append(row);
-    }
+      return row;
+    };
+    // Fissate on top, then the projects, then the rest by date. With no
+    // project at all the list is the same as ever.
+    let group = "";
+    const dated = (c: ChatSummary) => {
+      const g = groupOf(c);
+      if (g !== group) {
+        group = g;
+        historyRows.append(h("div", { class: "side-group", text: g }));
+      }
+      historyRows.append(savedRow(c));
+    };
+    list.filter((c) => c.pinned).forEach(dated);
+    for (const p of projectsOf(list.filter((c) => !c.pinned && c.folder), fresh.filter((c) => c.folder))) drawProject(p, query.trim() !== "", savedRow, freshRow);
+    list.filter((c) => !c.pinned && !c.folder).forEach(dated);
     onHeightChange();
+  }
+
+  interface Project {
+    folder: string;
+    saved: ChatSummary[];
+    fresh: ChatSessionState[];
+    at: number;
+  }
+
+  /** The conversations by folder, the project used last first. */
+  function projectsOf(saved: ChatSummary[], fresh: ChatSessionState[]): Project[] {
+    const map = new Map<string, Project>();
+    const of = (folder: string) => {
+      const key = folder.toLowerCase();
+      let p = map.get(key);
+      if (!p) map.set(key, p = { folder, saved: [], fresh: [], at: 0 });
+      return p;
+    };
+    for (const c of saved) {
+      const p = of(c.folder!);
+      p.saved.push(c);
+      p.at = Math.max(p.at, c.updated);
+    }
+    for (const c of fresh) {
+      const p = of(c.folder!);
+      p.fresh.push(c);
+      p.at = Math.max(p.at, c.at);
+    }
+    return [...map.values()].sort((a, b) => b.at - a.at);
+  }
+
+  /** A project: its head (closes it, «+» starts a chat in it) and its conversations. */
+  function drawProject(p: Project, searching: boolean, savedRow: (c: ChatSummary) => HTMLElement, freshRow: (c: ChatSessionState) => HTMLElement) {
+    const key = p.folder.toLowerCase();
+    const opened = p.saved.map((c) => State.chats.find((x) => x.logId === c.id)).concat(p.fresh);
+    // The conversation on screen is never hidden, nor is the search's result.
+    const shut = closedProjects.has(key) && !searching && !opened.some((c) => c?.sid === State.chatSid);
+    // Closed, it still says that something in it works or asks.
+    const alert = shut ? opened.map((c) => badge(c)).find((b) => b) : null;
+    const toggle = h("button", { class: "side-project-toggle", title: p.folder, onclick: () => {
+      if (closedProjects.has(key)) closedProjects.delete(key);
+      else closedProjects.add(key);
+      saveClosedProjects(closedProjects);
+      renderSide();
+    } },
+      h("span", { class: "side-project-arrow", text: shut ? "▸" : "▾" }),
+      h("span", { class: "side-project-name", text: folderName(p.folder) }),
+      h("span", { class: "side-project-count", text: String(p.saved.length + p.fresh.length) }));
+    historyRows.append(h("div", { class: "side-project" }, toggle, alert ?? null,
+      // A folder only counts in Modalità terminale.
+      State.settings.chatTerminal === true && h("button", { class: "side-project-new", title: t("Nuova chat in questo progetto"), text: "+", onclick: () => newInProject(p.folder) })));
+    if (shut) return;
+    for (const c of p.fresh) historyRows.append(freshRow(c));
+    for (const c of p.saved) historyRows.append(savedRow(c));
+  }
+
+  function newInProject(folder: string) {
+    if (overlay) showSide(false);
+    const c = !State.chat.history.length && !State.chat.sending ? State.chat : openNew();
+    c.folder = folder;
+    closedProjects.delete(folder.toLowerCase());
+    saveClosedProjects(closedProjects);
+    input.focus();
+    State.notify();
   }
 
   async function refreshHistory() {
@@ -1703,6 +1841,7 @@ export function buildPrompt(
       c.attach = [];
       c.session = null;
       c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
+      c.folder = got.folder || null;
       c.auto = false;
       c.desktop = false;
       c.at = Date.now();
@@ -1776,7 +1915,9 @@ export function buildPrompt(
     if (stick) log.scrollTop = log.scrollHeight;
     else jumpBtn.style.display = "";
   }
+  const typeLine = new TypeLine(() => State.mode === "expanded" || isPopped("chat"), toBottom);
 
+  folderBtn.addEventListener("click", () => void toggleFolderMenu());
   mic.addEventListener("click", () => void dictate());
   // 📎: the same menu as «@», with File… and Cartella…
   clip.addEventListener("click", () => {
@@ -1917,6 +2058,11 @@ export function buildPrompt(
       const assistant = State.chat.assistant;
       const sending = State.chat.sending;
       const streamed = State.chat.streamed;
+      const ownFolder = State.chat.folder;
+      folderBtn.style.display = State.settings.chatTerminal === true && !asked ? "" : "none";
+      const folderLabel = ownFolder ? folderName(ownFolder) : t("Progetto…");
+      if (folderBtn.textContent !== folderLabel) folderBtn.textContent = folderLabel;
+      folderBtn.title = ownFolder ?? t("Scegli la cartella del progetto per questa chat");
       const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${assistant?.id ?? ""}`;
       if (chipRow.dataset.label !== chipKey) {
         chipRow.dataset.label = chipKey;
@@ -2013,7 +2159,7 @@ export function buildPrompt(
         void refreshHistory();
       }
       // The sidebar follows the conversations' states (working, answered, asking).
-      const sideKey = `${State.chatSid}|${State.pendingApproval?.chatSid ?? ""}|${State.chats.map((c) => `${c.sid}${c.sending ? "s" : ""}${c.unread ? "u" : ""}${c.logId ?? ""}${c.history.length ? "h" : ""}`).join(",")}`;
+      const sideKey = `${State.chatSid}|${State.pendingApproval?.chatSid ?? ""}|${State.chats.map((c) => `${c.sid}${c.sending ? "s" : ""}${c.unread ? "u" : ""}${c.logId ?? ""}${c.history.length ? "h" : ""}${c.folder ?? ""}`).join(",")}`;
       if (sideKey !== side.dataset.key) {
         side.dataset.key = sideKey;
         renderSide();
@@ -2030,15 +2176,21 @@ export function buildPrompt(
         if (thinking && streamed) {
           streamEl = h("div", { class: "chat-row" });
           log.append(streamEl);
-        } else if (thinking) log.append(typingDots());
+        }
+        if (thinking) log.append(h("div", { class: "chat-row" }, typeLine.el));
         toBottom();
       }
       // The growing reply: only its bubble is redrawn.
-      if (streamEl && streamEl.dataset.len !== String(streamed.length)) {
-        streamEl.dataset.len = String(streamed.length);
-        streamEl.replaceChildren(bubble({ id: 0, role: "assistant", content: streamed }).firstChild!);
+      const { body, status } = splitStatus(streamed);
+      if (streamEl && streamEl.dataset.len !== String(body.length)) {
+        streamEl.dataset.len = String(body.length);
+        streamEl.style.display = body ? "" : "none";
+        streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }, true).firstChild!] : []));
         toBottom();
       }
+      // What it is doing now types itself under the reply.
+      if (thinking) typeLine.set(streamed ? status : null);
+      else typeLine.reset();
       // The waiting permission, always the last thing in the conversation.
       const req = State.pendingApproval?.source === "chat" && (!State.pendingApproval.chatSid || State.pendingApproval.chatSid === State.chatSid)
         ? State.pendingApproval : null;

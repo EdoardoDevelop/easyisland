@@ -41,9 +41,13 @@ fn split_line(s: &str) -> (&str, Option<u32>) {
     (path, line)
 }
 
-fn info(app: &AppHandle, raw: &str) -> PathInfo {
+fn info(app: &AppHandle, raw: &str, base: Option<&str>) -> PathInfo {
     let (path, line) = split_line(raw.trim());
-    let resolved = crate::preview::resolve_path(app, path);
+    // Relative to the folder picked for the conversation, when there is one.
+    let resolved = match base {
+        Some(b) if std::path::Path::new(path).is_relative() && !path.starts_with('~') => PathBuf::from(b).join(path),
+        _ => crate::preview::resolve_path(app, path),
+    };
     let kind = if resolved.is_file() {
         "file"
     } else if resolved.is_dir() {
@@ -54,14 +58,14 @@ fn info(app: &AppHandle, raw: &str) -> PathInfo {
     PathInfo { path: raw.to_string(), resolved: resolved.to_string_lossy().into_owned(), kind, line }
 }
 
-pub fn infos(app: &AppHandle, paths: &[String]) -> Vec<PathInfo> {
-    paths.iter().take(MAX).map(|p| info(app, p)).collect()
+pub fn infos(app: &AppHandle, paths: &[String], base: Option<&str>) -> Vec<PathInfo> {
+    paths.iter().take(MAX).map(|p| info(app, p, base)).collect()
 }
 
 /// "open" (its program, or Explorer for a folder), "reveal" (Explorer, selected),
 /// "download" (a copy in Downloads, shown selected; returns where).
 pub fn act(app: &AppHandle, path: &str, action: &str) -> Result<String, String> {
-    let i = info(app, path);
+    let i = info(app, path, None);
     let p = PathBuf::from(&i.resolved);
     if i.kind == "missing" {
         return Err(tf("«{p}» non c'è più.", &[("p", &i.resolved)]));

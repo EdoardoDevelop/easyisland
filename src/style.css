@@ -1127,6 +1127,40 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--dim-3);
 }
 .side-group:first-child { padding-top: 2px; }
+/* A project in the sidebar: closes, says what it holds, starts a chat in it. */
+.side-project { display: flex; align-items: center; gap: 2px; margin-top: 6px; padding-right: 4px; border-radius: 6px; }
+.side-project:hover { background: rgba(255, 255, 255, 0.04); }
+.side-project-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  background: none;
+  font: 600 calc(11.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink-2);
+  text-align: left;
+}
+.side-project-arrow { flex: 0 0 auto; width: 10px; color: var(--dim-3); }
+.side-project-name { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-project-count { flex: 0 0 auto; font-weight: 500; color: var(--dim-3); }
+.side-project-new {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  font: 500 14px var(--font);
+  line-height: 1;
+  color: var(--dim-2);
+  opacity: 0;
+}
+.side-project:hover .side-project-new, .side-project-new:focus-visible { opacity: 1; }
+.side-project-new:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
 .chat-side .history-item { padding: 5px 6px 5px 10px; gap: 4px; cursor: pointer; }
 /* Rinomina, fissa, elimina: only under the pointer, so the titles keep the room. */
 .chat-side .history-edit,
@@ -1263,6 +1297,10 @@ input[type="range"]::-webkit-slider-thumb {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* «Progetto…»: stays readable in a narrow island, the title gives way. */
+.engine-pick.folder-pick { flex: 0 0 auto; max-width: 150px; }
+.folder-pick + .engine-pick { margin-left: 0; }
 
 .engine-pick:hover {
   background: rgba(167, 139, 250, 0.22);
@@ -1502,7 +1540,9 @@ input[type="range"]::-webkit-slider-thumb {
   opacity: 0;
   transition: opacity 0.12s ease-out;
 }
-.chat-row:hover .msg-actions, .msg-actions.last { opacity: 1; }
+.chat-row:hover .msg-actions, .msg-actions:focus-within, .msg-actions.last { opacity: 1; }
+/* Under your own messages only on hover: always there, they were noise. */
+.chat-row.user:not(:hover) .msg-actions.last:not(:focus-within) { opacity: 0; }
 .msg-act {
   padding: 0 7px;
   border: 0;
@@ -1948,31 +1988,58 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.typing {
-  display: flex;
-  gap: 4px;
-  padding: 4px 2px;
+/* A turn's steps (typeline.ts): quiet, so the answer stands out. */
+.md-quote.md-step {
+  margin: 2px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: calc(11.5px + var(--fs-up, 0px));
+  line-height: 1.45;
+  color: var(--dim-2);
+}
+.md-step .md-p { margin: 0; color: inherit; font: inherit; }
+.md-step code { padding: 0; font: inherit; color: inherit; background: none; }
+.md-steps { margin: 2px 0; }
+.md-steps > summary {
+  width: fit-content;
+  font-size: calc(11.5px + var(--fs-up, 0px));
+  line-height: 1.45;
+  color: var(--dim-2);
+  list-style: none;
+  cursor: default;
+}
+.md-steps > summary::-webkit-details-marker { display: none; }
+.md-steps > summary::before { content: "▸"; display: inline-block; width: 1.1em; }
+.md-steps[open] > summary::before { content: "▾"; }
+.md-steps > summary:hover { color: var(--ink); }
+
+/* The step in progress: the same line, a little brighter (typeline.ts). */
+.type-line {
+  min-height: 1.45em;
+  font-size: calc(11.5px + var(--fs-up, 0px));
+  line-height: 1.45;
+  color: var(--dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.typing i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--dim-3);
-  animation: typing 0.9s ease-in-out infinite;
+.type-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: -10%;
+  background: var(--win-accent, #4cc2ff);
+  animation: type-caret 1s steps(2) infinite;
 }
 
-.typing i:nth-child(2) {
-  animation-delay: 0.14s;
+@keyframes type-caret {
+  50% { opacity: 0; }
 }
 
-.typing i:nth-child(3) {
-  animation-delay: 0.28s;
-}
-
-@keyframes typing {
-  0%, 100% { transform: scale(0.6); }
-  50% { transform: scale(1.2); }
+@media (prefers-reduced-motion: reduce) {
+  .type-caret { animation: none; }
 }
 
 .chat-bar {
@@ -2062,7 +2129,9 @@ input[type="range"]::-webkit-slider-thumb {
   transition: transform 0.08s ease-out;
 }
 
-.send-btn.stop { background: #f4505e; color: #fff; }
+/* Stopping is not an alarm: neutral while all goes well, red under the pointer. */
+.send-btn.stop { background: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--ink); }
+.send-btn.stop:hover { background: #f4505e; color: #fff; }
 
 /* 🎤: dictation; red while it records. */
 .mic-btn {
@@ -2072,7 +2141,10 @@ input[type="range"]::-webkit-slider-thumb {
   padding: 0;
   border: 0;
   border-radius: 50%;
+  display: grid;
+  place-items: center;
   font-size: calc(13px + var(--fs-up, 0px));
+  color: var(--ink);
   background: transparent;
   opacity: 0.7;
 }

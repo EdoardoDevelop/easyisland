@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 4/11 — Versione 1.0.23
+Uniti in `claude/sviluppo` e `main`: scheda Zammad, Devolutions Cloud, mappa della memoria (più Galassia meno abbagliante, testo delle pagine non più schiacciato nel pannello), coda della chat, font, stato di Agent Chat. Clic sul personaggio (anche nella barra fissa) con l'isola aperta dietro un'altra finestra: torna davanti (`island::to_front`, comando `island_to_front`), si chiude solo se è già in primo piano; con «Come un'app» guarda la finestra in primo piano, altrimenti `BEHIND`.
+
+### 4/11 — Devolutions Cloud nella scheda RDM (`claude/devolutions-cloud`, sopra `claude/zammad-ticket`)
+Tutti i passi di `docs/idee.md` → Devolutions Cloud senza skill né modulo installati (`dvc.rs`, `src/views/dvc.ts`): Application identity in Impostazioni → RDM (Gestione credenziali), vault e voci senza password con Sincronizza (DPAPI), connessioni del cloud nella ricerca RDM; Copia password negli appunti privati svuotati dopo 30 s; nuova credenziale e Lista Password con anteprima, conferma, rilettura e verifica; cliente Zammad/3CX ↔ cartella; `rdm_search`/`rdm_open` per la chat, più gli strumenti della skill in chat (`dvc_vaults`, `dvc_entries`, `dvc_folder_id`, `dvc_show`, anteprima e creazione di Lista Password e credenziali; password chiesta nella finestra di Windows, due volte). Provato con test Rust, parser di PowerShell, anteprima `rdm&cloud`/`rdm&tied` e smoke; **non ancora sul Devolutions Cloud vero** (`docs/prove-dal-vivo.md`).
+
 ### 5/11 — Versione 1.0.25
 Ferma e «Invia subito» tengono la sessione; Agent Chat: capacità del PC al server, risposte agli incarichi nel loro thread, regole su incarichi e Jeeves.
 

@@ -54,8 +54,8 @@ pub fn base_url(engine: &str, custom: Option<&str>) -> Result<String, String> {
     Ok(if url.ends_with("/v1") { url.to_string() } else { format!("{url}/v1") })
 }
 
-const SYSTEM_PROMPT: &str = "You are the personal assistant living in a small chat bubble at the top of the user's screen (the EasyIsland desktop app). \
-Respond in Italian unless the user writes in another language. Be thorough but keep it readable in a small window. \
+const SYSTEM_PROMPT: &str = "You are the user's personal assistant in the chat of the EasyIsland desktop app. \
+Respond in Italian unless the user writes in another language. Be thorough and complete: use as much detail as the task requires. \
 Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help. \
 You cannot browse the web or run anything: say so when a question needs it.";
 
