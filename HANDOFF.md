@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_6 novembre 2026. **1.0.27** in `main` (tag `v1.0.27`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_6 novembre 2026. **1.0.28** in `main` (tag `v1.0.28`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -47,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 6/11 — Chat: Multi agent
+`team.rs`: chi guida delega con `team_delegate` ai motori di Impostazioni → Chat, aiutanti in sola lettura, un solo scrittore, controllo finale lanciato dall'app da un motore di altra famiglia. Provati dal vivo con opencode sola lettura, git e bug piantato; `docs/chat.md` → Multi agent.
+
 ### 6/11 — Chat: la riga che si scrive non taglia più
 `typeline.ts`: finisce sempre la riga iniziata, dei passi in arrivo tiene solo l'ultimo (gli altri sono nell'elenco); del ragionamento mostra solo frasi intere; niente più cancellazione a lettere. Le frasi di attesa cedono appena scritte. Scena `pensa=corsa`.
 
@@ -58,6 +61,3 @@ Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto 
 
 ### 4/11 — Agent Chat: Jeeves, incarichi, programmate, capacità (`claude/agentchat-coordinatore`)
 EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi («📋 Incarico #N») nel loro thread; le regole del turno spiegano incarichi e jeeves (`docs/integrazioni.md` → Agent Chat). Il server (repo `agentchat`, branch `coordinatore`) ha incarichi, programmate, rilascio dei messaggi di un PC spento e Jeeves via OpenRouter. Provato in locale con un OpenRouter finto e test Rust; **non ancora con il modello vero né con i due PC**.
-
-### 4/11 — Chat: Ferma o «Invia subito» non perdono più la conversazione (`claude/chat-ferma-sessione`)
-La sessione di Claude Code si registrava solo a fine turno: fermato il primo messaggio (anche con «Invia subito»), il successivo ripartiva da zero. Ora `claude_cli::read_lines` la prende dalla riga `init` appena arriva (`init_session`) e il messaggio dopo fa `--resume`; uguale in `antigravity.rs` con `conversation_id`. Provato con `live_kept` sul Claude Code vero (primo messaggio fermato, poi ricorda la parola).

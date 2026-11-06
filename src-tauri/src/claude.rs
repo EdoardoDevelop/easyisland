@@ -147,9 +147,19 @@ pub struct Chat {
     later: Mutex<Option<Later>>,
     /// «Ferma» on this conversation of the island (each one has its own, lib.rs `chat_stop`).
     pub(crate) stop: tokio::sync::Notify,
+    /// Reads only, and asks nobody (team.rs): what is not allowed is refused.
+    read_only: std::sync::atomic::AtomicBool,
 }
 
 impl Chat {
+    pub(crate) fn set_read_only(&self, on: bool) {
+        self.read_only.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn read_only(&self) -> bool {
+        self.read_only.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub fn set_channel(&self, channel: &'static str) {
         *self.channel.lock().unwrap() = channel;
     }

@@ -309,8 +309,8 @@ export const Bridge = {
    */
   chatFolders: () => callOrThrow<string[]>("chat_folders"),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
-  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null) =>
-    callOrThrow<{ text: string; log: string | null }>("chat_send", { sid, query, context, engine, auto, folder }),
+  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false) =>
+    callOrThrow<{ text: string; log: string | null }>("chat_send", { sid, query, context, engine, auto, folder, team }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */

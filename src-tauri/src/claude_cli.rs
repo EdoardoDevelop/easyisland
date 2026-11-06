@@ -437,6 +437,20 @@ fn args(
     a
 }
 
+/// A helper of «Multi agent» (team.rs): `dontAsk` refuses what is not listed,
+/// with no card for the user; on the list only what reads.
+fn read_only(a: &mut Vec<String>) {
+    const READS: &str = "Read,Grep,Glob,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*)";
+    match a.iter().position(|x| x == "--permission-mode") {
+        Some(i) if i + 1 < a.len() => "dontAsk".clone_into(&mut a[i + 1]),
+        _ => a.extend(["--permission-mode".into(), "dontAsk".into()]),
+    }
+    match a.iter().position(|x| x == "--allowedTools") {
+        Some(i) if i + 1 < a.len() => a[i + 1] = format!("{},{READS}", a[i + 1]),
+        _ => a.extend(["--allowedTools".into(), READS.into()]),
+    }
+}
+
 /// "Modalità terminale": the arguments of a turn. No `--tools` (all of
 /// Claude Code's), no `--strict-mcp-config` (the user's own servers and
 /// plugins), `default` permissions: what is not allowed by the user's own
@@ -1029,12 +1043,17 @@ async fn send_mode(
     }
     prompt.push_str(&query);
 
+    let locked = chat.read_only();
     let make = |resume: Option<&str>| {
         let mut cmd = command(&exe);
-        match terminal {
-            Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, resume, extra_dir.as_deref(), &connectors, auto)),
-            None => cmd.current_dir(&dir).args(args(&dir, model, resume, extra_dir.as_deref(), &connectors)),
+        let mut a = match terminal {
+            Some(_) => terminal_args(&dir, model, resume, extra_dir.as_deref(), &connectors, auto),
+            None => args(&dir, model, resume, extra_dir.as_deref(), &connectors),
         };
+        if locked {
+            read_only(&mut a);
+        }
+        cmd.current_dir(terminal.unwrap_or(&dir)).args(a);
         // The work folder (workdir.rs): readable with Read outside terminal mode too.
         if let (None, Some(w)) = (terminal, work) {
             cmd.arg("--add-dir").arg(w);

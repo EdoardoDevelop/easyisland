@@ -174,7 +174,7 @@ export async function runScene(island: Island, scene: string) {
     case "chat": {
       await wait(300);
       // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over,
-      // =corsa steps and reasoning arriving faster than the line can write them.
+      // =corsa steps and reasoning arriving faster than the line can write them, =squadra «Multi agent» at work, =squadra-fine its answer.
       const pensa = new URLSearchParams(location.search).get("pensa");
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
@@ -182,6 +182,17 @@ export async function runScene(island: Island, scene: string) {
         State.chat.sending = pensa !== "fine";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
+        if (pensa.startsWith("squadra")) {
+          State.settings.chatTeam = ["subscription", "gemini"];
+          State.chat.team = true;
+          State.chat.sending = pensa === "squadra";
+          State.chat.streamed = pensa === "squadra" ? "> ⚙ Legge · `backup.log`\n\n> ⚙ Affida una parte del lavoro a un altro motore" : "";
+          State.chat.teamRows = pensa === "squadra" ? [
+            { id: 1, engine: "Gemini", job: "Legge i log del NAS della settimana", status: "> ⚙ Legge · `nas-02.log`", state: "work" },
+            { id: 2, engine: "Ollama", job: "Cerca i dati del cliente nello storico", status: "", state: "done" },
+          ] : [];
+          if (pensa === "squadra-fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", content: "> ⚙ Legge · `backup.log`\n\n> ⚙ Affida una parte del lavoro a un altro motore\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB.\n\n> ✓ Controllato da Gemini · rilievi valutati: 2" });
+        }
         State.isPinned = true;
         island.alert("prompt");
         await wait(1200);

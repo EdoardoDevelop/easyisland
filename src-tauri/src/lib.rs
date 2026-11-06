@@ -92,6 +92,7 @@ mod teams;
 mod custom;
 mod skills;
 mod tasks;
+mod team;
 mod telegram;
 mod agentchat;
 mod agentchat_map;
@@ -1300,13 +1301,19 @@ async fn chat_send(
     engine: Option<String>,
     auto: Option<bool>,
     folder: Option<String>,
+    team: Option<bool>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
     chat.set_folder(folder);
     let on_text = |text: &str| {
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
-    let reply = chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), Channel::Island, &on_text).await?;
+    let auto = auto.unwrap_or(false);
+    let reply = if team == Some(true) {
+        team::run(&app, chat.clone(), &sid, query, context, engine, auto, &on_text).await?
+    } else {
+        chat_turn(&app, &chat, query, context, engine, None, auto, Channel::Island, &on_text).await?
+    };
     Ok(IslandReply { text: reply.text, log: chat.log_id() })
 }
 
@@ -1368,12 +1375,15 @@ pub(crate) enum Channel {
     /// A turn of Agent Chat (agentchat.rs): like a helper, plus «Permessi in
     /// Agent Chat» (reads without asking, `agentchatPermissions`).
     AgentChat,
+    /// The lead of «Multi agent» going over its answer (team.rs): the island's
+    /// conversation, but what it is told is not what the user asked.
+    Revision,
 }
 
 impl Channel {
     fn slot(self) -> usize {
         match self {
-            Channel::Island => 0,
+            Channel::Island | Channel::Revision => 0,
             Channel::Telegram => 1,
             Channel::Task | Channel::Helper | Channel::AgentChat => 2,
         }
@@ -1406,7 +1416,7 @@ async fn until_stopped_at<T>(channel: Channel, turn: impl std::future::Future<Ou
 
 /// A turn of one of the island's conversations: its own «Ferma» (`Chat::stop`), the others go on.
 pub(crate) async fn until_stopped_in<T>(chat: &Chat, channel: Channel, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
-    if channel == Channel::Island { until_notified(&chat.stop, turn).await } else { until_stopped_at(channel, turn).await }
+    if matches!(channel, Channel::Island | Channel::Revision) { until_notified(&chat.stop, turn).await } else { until_stopped_at(channel, turn).await }
 }
 
 async fn until_notified<T>(notify: &tokio::sync::Notify, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
@@ -1479,7 +1489,10 @@ pub(crate) async fn chat_turn(
     // read-only commands without the island; writing, running, sending still ask.
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
-    let own = if channel == Channel::Island { own_folder(chat) } else { None };
+    let own = if matches!(channel, Channel::Island | Channel::Revision | Channel::Helper) { own_folder(chat) } else { None };
+    // Prompts of ours, not the user's questions: nothing to learn from them.
+    let learns = !matches!(channel, Channel::Helper | Channel::Revision);
+    let read_only = chat.read_only();
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
@@ -1539,7 +1552,7 @@ pub(crate) async fn chat_turn(
     let preamble = chat.take_preamble();
     let asked = query.clone();
     // Recipes (recipes.rs): how a similar question was answered, right before it.
-    let recipe_hint = if agent && (has_tools || engine == "api") { recipes::hint(&asked) } else { None };
+    let recipe_hint = if learns && agent && (has_tools || engine == "api") { recipes::hint(&asked) } else { None };
     let query = match &recipe_hint {
         Some(h) => format!("{h}{query}"),
         None => query,
@@ -1593,7 +1606,7 @@ pub(crate) async fn chat_turn(
     let recipe_mark = recipes::begin();
     let work_turn = async { match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
-            let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), reads, ..Default::default() };
+            let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), reads, read_only, ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
         // "Modalità terminale" for an engine without tools: through opencode.
@@ -1607,6 +1620,7 @@ pub(crate) async fn chat_turn(
                     o.agent = agent;
                     o.work = work.clone();
                     o.reads = reads;
+                    o.read_only = read_only;
                     opencode::send(app, chat, &m, query, context, &o, on_text).await
                 }
                 Ok(_) => Err(t("La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.").into()),
@@ -1624,7 +1638,7 @@ pub(crate) async fn chat_turn(
             claude::send_with(chat, &model, query, context, tools).await
         }
         (None, "opencode") => {
-            let o = opencode::Options { telegram, agent, work: work.clone(), reads, ..Default::default() };
+            let o = opencode::Options { telegram, agent, work: work.clone(), reads, read_only, ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
@@ -1634,14 +1648,14 @@ pub(crate) async fn chat_turn(
     let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
     log::line(format!(
         "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
-        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Helper => " di un aiutante", Channel::AgentChat => " di Agent Chat", Channel::Island => "" },
+        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Helper => " di un aiutante", Channel::AgentChat => " di Agent Chat", Channel::Revision => " di correzione", Channel::Island => "" },
         started.elapsed().as_secs_f64(),
         if reply.is_err() { ", non riuscito" } else { "" },
         recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
     ));
-    recipes::end(recipe_mark, &asked, reply.is_ok());
+    recipes::end(recipe_mark, &asked, learns && reply.is_ok());
     match &reply {
-        Ok(r) if channel != Channel::Helper && channel != Channel::AgentChat && shared.settings.lock().unwrap().chat_history => {
+        Ok(r) if !matches!(channel, Channel::Helper | Channel::AgentChat | Channel::Revision) && shared.settings.lock().unwrap().chat_history => {
             chat_log::record(chat, &engine, &asked, &r.text, match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" });
             memory::diary(&engine, &asked, &r.text, telegram);
         }

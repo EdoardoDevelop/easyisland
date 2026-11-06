@@ -522,6 +522,18 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "team_delegate",
+            "Solo con «Multi agent» acceso, che lo annuncia in testa al messaggio: affida un pezzo del lavoro a uno dei motori indicati lì e ne restituisce il risultato (entro 5 minuti). team: l'identificativo indicato; task: obiettivo, dove guardare e cosa non fare; output: il risultato atteso; write: true solo se deve modificare (uno alla volta), di serie legge e riferisce.",
+            json!({ "type": "object", "properties": {
+                "team": { "type": "string" },
+                "engine": { "type": "string" },
+                "task": { "type": "string" },
+                "output": { "type": "string" },
+                "write": { "type": "boolean" }
+            }, "required": ["team", "engine", "task"] }),
+            true,
+        ),
+        (
             "consult_engines",
             "Aggregatore: fa la stessa domanda a più motori della chat di questo PC insieme (Claude, Codex, Gemini, opencode…), ognuno in una conversazione sua, e restituisce le risposte per confrontarle. Usalo quando l'utente vuole più pareri o «chiedi anche agli altri motori». question: la domanda con tutto il contesto (non vedono questa conversazione); engines: gli id dei motori (vuoto = quelli di Agent Chat o tutti i pronti, al massimo 4). Poi fai tu la sintesi: dove concordano, dove no, cosa consigli.",
             json!({ "type": "object", "properties": {

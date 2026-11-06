@@ -648,12 +648,37 @@ function terminalRow(): HTMLElement {
   const folderRow = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
     h("div", { class: "row" }, h("label", { text: t("Cartella di lavoro") }), folder, pickBtn, bad),
     h("span", { class: "hint note", text: t("La chat (con gli strumenti di EasyIsland) e Telegram la consultano e ci spostano i file; la trovi anche in «File e schermo». Con la modalità terminale è la cartella in cui la chat lavora; vuota = la tua cartella utente.") }));
+  // «Multi agent» (team.rs): which engines work with the conversation's.
+  const team = h("div", { class: "row", style: "flex-wrap:wrap;gap:10px" }, h("label", { text: t("Multi agent") }));
+  void Bridge.enginesReady().then((list) => {
+    const all = list ?? CHAT_ENGINES.map((e): [string, string, boolean] => [e.id, e.name, true]);
+    for (const [id, name, ok] of all) {
+      const cb = h("input", { type: "checkbox" }) as HTMLInputElement;
+      cb.checked = (settings.chatTeam ?? []).includes(id);
+      cb.disabled = !ok && !cb.checked;
+      cb.addEventListener("change", () => {
+        const chosen = new Set(settings.chatTeam ?? []);
+        if (cb.checked) chosen.add(id); else chosen.delete(id);
+        settings.chatTeam = all.map(([i]) => i).filter((i) => chosen.has(i));
+        void save();
+      });
+      team.append(h("label", { style: "display:flex;gap:4px;align-items:center;min-width:0", title: ok ? "" : t("non pronto") }, cb, h("span", { text: name })));
+    }
+  });
+  const teamBox = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+    team,
+    h("span", { class: "hint note", text: t("i motori che lavorano insieme quando accendi «Multi agent» in una conversazione: il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro. Ne bastano due, meglio di due marche diverse.") }),
+    h("div", { class: "row" },
+      h("label", { text: t("Controllo finale") }),
+      toggle(settings.chatTeamCheck !== false, (v) => { settings.chatTeamCheck = v; void save(); }),
+      h("span", { class: "hint note", text: t("prima della risposta un altro motore controlla il lavoro senza sapere chi l'ha fatto; salta le risposte brevi senza azioni. Più sicuro, ma può metterci il doppio.") })));
   return h("div", { style: "display:flex;flex-direction:column;gap:8px" },
     h("div", { class: "row" },
       h("label", { text: t("Modalità terminale") }),
       toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); }),
       h("span", { class: "hint note", text: t("la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato") })),
     folderRow,
+    teamBox,
     h("div", { class: "row" },
       h("label", { text: t("Anteprima") }),
       // One choice: off, its own window, or stuck to the island (preview.rs).

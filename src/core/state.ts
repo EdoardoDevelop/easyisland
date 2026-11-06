@@ -427,11 +427,24 @@ export interface AskQuestion {
  * closes nothing. The State fields of the chat (chatHistory, chatAuto…) are
  * those of the one on screen.
  */
+/** An engine at work in a «Multi agent» turn (team.rs). */
+export interface TeamRow {
+  id: number;
+  engine: string;
+  job: string;
+  /** The last thing it said. */
+  status: string;
+  state: "work" | "done" | "error";
+}
+
 export interface ChatSessionState {
   sid: string;
   history: ChatMessage[];
   engineOverride: ChatEngine | null;
   auto: boolean;
+  /** «Multi agent» on, for this conversation. */
+  team: boolean;
+  teamRows: TeamRow[];
   desktop: boolean;
   text: { label: string; text: string } | null;
   window: WindowShot | null;
@@ -463,7 +476,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, auto: false, team: false, teamRows: [], desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
@@ -800,6 +813,10 @@ export interface Settings {
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
   chatFolder?: string;
+  /** «Multi agent» (team.rs): the engines that work with the conversation's. */
+  chatTeam?: string[];
+  /** Another engine checks the work before the answer. */
+  chatTeamCheck?: boolean;
   /** «Anteprima» (src/preview/): the chat's links and the files terminal mode edits open in the preview window. */
   chatPreview?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */
@@ -1382,6 +1399,8 @@ export const DEFAULT_SETTINGS: Settings = {
   agentTools: true,
   chatTerminal: false,
   chatFolder: "",
+  chatTeam: [],
+  chatTeamCheck: true,
   chatPreview: true,
   previewDocked: false,
   previewWidth: 0,
