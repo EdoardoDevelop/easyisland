@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.27** — **The line that types itself no longer cuts off**: of the reasoning it shows whole sentences only, it always
+finishes what it started and no longer erases letter by letter: new text starts on an empty line. When several steps
+arrive together it shows the latest, the others stay in the list.
+
 **1.0.26** — **The chat works like a real tool**: full answers, no longer written for a tiny window; the text arrives
 **word by word**; with **Project…** each conversation works in its own folder and reads the project's rules and git,
 and the sidebar **groups conversations by project**, with «+» to start one there. While the agent works, the current

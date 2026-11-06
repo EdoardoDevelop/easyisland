@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.27** — **La riga che si scrive non taglia più**: del ragionamento mostra solo frasi intere, finisce sempre ciò che
+ha iniziato e non cancella più lettera per lettera: il testo nuovo parte da riga vuota. Se arrivano più passi insieme
+mostra l'ultimo, gli altri restano nell'elenco.
+
 **1.0.26** — **La chat lavora come uno strumento vero**: risposte piene, non più pensate per una finestrella; il testo
 arriva **parola per parola**; con **Progetto…** ogni conversazione lavora nella sua cartella e legge regole e git del
 progetto, e nella barra laterale le conversazioni si **raggruppano per progetto**, con «+» per iniziarne una lì. Mentre

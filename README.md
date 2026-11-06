@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.27** — the line that types itself shows **whole sentences** and always finishes what it started.
 - **1.0.26** — **full answers** and **word by word** text, **Project…** with a folder per conversation and **project groups** in the sidebar; activity that **types itself**, lighter steps, new icons.
 - **1.0.25** — **Stop** and «Send now» no longer lose the conversation; **Agent Chat** with the **Jeeves** coordinator: the PC says what it can do and answers to tasks stay in their thread.
 - **1.0.24** — **Agent Chat with a map** of topics for the agents and the «Topics» tab; **AI advice** on Zammad tickets; **RDM from the cloud only** with user and password (eye, Copy); RDM and 3CX in the top field; **clickable files** in the chat's replies.
-- **1.0.23** — **Zammad card** (tickets, state, owner, reply), **Devolutions Cloud** in the RDM card and in the chat; **memory map** with six new views, groups and links checked by the AI; a **queue** in the chat; **fonts** to pick; **Agent Chat** says who is working.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
