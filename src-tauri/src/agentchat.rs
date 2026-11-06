@@ -1046,6 +1046,8 @@ pub(crate) struct Plan {
     pub claim: bool,
     /// Who took it on (`on_message`).
     pub boss: Option<String>,
+    /// Called by the name of this PC: any of its engines may answer.
+    pub to_pc: bool,
 }
 
 /// The @names in a text, lower case, without the final punctuation.
@@ -1074,6 +1076,9 @@ fn bare(text: &str) -> String {
         .trim_matches(|c: char| !c.is_alphanumeric())
         .to_lowercase()
 }
+
+/// How much of the reason a failed turn shows in the chat.
+const MAX_WHY: usize = 240;
 
 pub(crate) fn plan(m: &Msg, me: &str, owner: &str, engines: &[String], synthesis: bool) -> Plan {
     let sender = m.sender.to_lowercase();
@@ -1140,6 +1145,7 @@ pub(crate) fn plan(m: &Msg, me: &str, owner: &str, engines: &[String], synthesis
             p.claim = true;
             engines.to_vec()
         } else if x == me {
+            p.to_pc = true;
             lead(engines).cloned().into_iter().collect()
         } else {
             let h = x.get(me.len() + 1..).unwrap_or_default();
@@ -1305,15 +1311,20 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
 
 /// The answers of the engines to one message, then the synthesis of a consult.
 async fn respond(app: AppHandle, srv: Server, cfg: Config, me: String, owner: String, m: Msg, p: Plan) {
-    if p.exclusive {
+    if p.exclusive || (p.to_pc && p.engines.len() == 1) {
         // One answer: the lead, else the next engine when it fails (a free
         // engine out of messages, an error), so that what was taken on is answered.
+        let mut answered = false;
         let mut order = p.engines.clone();
         order.extend(cfg.engines.iter().filter(|e| !p.engines.contains(e)).cloned());
         for engine in order {
             if STOPPED.load(Ordering::SeqCst) || turn(app.clone(), srv.clone(), cfg.clone(), me.clone(), owner.clone(), m.clone(), engine, false, p.boss.clone()).await {
+                answered = true;
                 break;
             }
+        }
+        if !answered {
+            say_blocked(&srv, &me, &owner, &m).await;
         }
         publish(&app);
         return;
@@ -1324,13 +1335,30 @@ async fn respond(app: AppHandle, srv: Server, cfg: Config, me: String, owner: St
         track(job.abort_handle());
         jobs.push(job);
     }
+    let alone = jobs.len() == 1 && !p.consult && !p.claim;
     for j in jobs {
-        let _ = j.await;
+        if matches!(j.await, Ok(false)) && alone && !STOPPED.load(Ordering::SeqCst) {
+            say_blocked(&srv, &me, &owner, &m).await;
+        }
     }
     if p.synthesis && !STOPPED.load(Ordering::SeqCst) {
         synthesize(&app, &srv, &cfg, &me, &owner, &m).await;
     }
     publish(&app);
+}
+
+/// Nobody here could answer the owner or an assignment: said in the chat, not only
+/// in the log (6 Nov 2026: an expired login left a whole PC silent for a day). In an
+/// assignment's thread it also closes the assignment.
+async fn say_blocked(srv: &Server, me: &str, owner: &str, m: &Msg) {
+    let assignment = is_assignment(&m.text);
+    if m.sender.to_lowercase() != owner && !assignment {
+        return;
+    }
+    let why: String = STATUS.lock().unwrap().last.chars().take(MAX_WHY).collect();
+    let text = tf("BLOCCATO: @{owner} {me} non ha potuto rispondere al #{id}. {why}", &[("owner", &owner), ("me", &me), ("id", &m.id), ("why", &why)]);
+    let thread = if assignment { Some(m.id) } else { m.thread };
+    let _ = post(srv, &m.room, &text, "", thread, "msg").await;
 }
 
 /// The room's last messages (or a consult's thread) as lines for the prompt.
@@ -2284,6 +2312,11 @@ Ecco"), ("writing", String::new()));
         // The owner to nobody: one engine, the lead, of whoever takes it on first.
         let one = plan(&msg("edoardo", "ciao"), "notebook", "edoardo", &e, true);
         assert!(one.engines == vec!["subscription"] && one.exclusive);
+        // By the PC's name another engine may step in; by an engine's name, no.
+        let pc = plan(&msg("edoardo", "@notebook fai il backup"), "notebook", "edoardo", &e, true);
+        assert!(pc.to_pc && pc.engines.len() == 1 && !pc.exclusive);
+        let named = plan(&msg("edoardo", "@notebook/claude fai il backup"), "notebook", "edoardo", &e, true);
+        assert!(!named.to_pc);
         assert_eq!(plan(&msg("edoardo", "@edoardo promemoria"), "notebook", "edoardo", &e, true).engines, vec!["subscription"]);
         assert_eq!(plan(&msg("edoardo", "ciao"), "notebook", "edoardo", &e[1..], true).engines, vec!["codex"]);
         assert!(plan(&msg("vps", "ciao a chi c'è"), "notebook", "edoardo", &e, true).engines.is_empty());

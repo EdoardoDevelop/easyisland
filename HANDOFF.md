@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_6 novembre 2026. **1.0.28** in `main` (tag `v1.0.28`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_6 novembre 2026. **1.0.29** in `main` (tag `v1.0.29`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -47,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 6/11 — Mappa e Agent Chat
+Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non può rispondere lo dice in chat (`say_blocked`), con `@pc` subentra l'altro motore. Jeeves (`wants`, repo agentchat) traduce i nomi e non si sveglia se un agente parla di lui.
+
 ### 6/11 — Chat: Multi agent
 `team.rs`: chi guida delega con `team_delegate` ai motori di Impostazioni → Chat, aiutanti in sola lettura, un solo scrittore, controllo finale lanciato dall'app da un motore di altra famiglia. Provati dal vivo con opencode sola lettura, git e bug piantato; `docs/chat.md` → Multi agent.
 
@@ -58,6 +61,3 @@ Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `cl
 
 ### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
 Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Passi piccoli e senza barra, piegati in «N passi» a turno finito (`foldSteps`; «✗» resta in vista); Ferma neutro, rosso al passaggio del mouse; azioni sotto i propri messaggi solo al passaggio. Scena `?scene=chat&pensa`. Provato nel browser, anche in chiaro; il turno vero va guardato nell'app.
-
-### 4/11 — Agent Chat: Jeeves, incarichi, programmate, capacità (`claude/agentchat-coordinatore`)
-EasyIsland pubblica le sue capacità al collegamento e risponde agli incarichi («📋 Incarico #N») nel loro thread; le regole del turno spiegano incarichi e jeeves (`docs/integrazioni.md` → Agent Chat). Il server (repo `agentchat`, branch `coordinatore`) ha incarichi, programmate, rilascio dei messaggi di un PC spento e Jeeves via OpenRouter. Provato in locale con un OpenRouter finto e test Rust; **non ancora con il modello vero né con i due PC**.

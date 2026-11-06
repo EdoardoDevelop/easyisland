@@ -1147,7 +1147,9 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
     // A name written with a capital in two or three notes or pages (a customer,
     // a server) ties them even when nothing else does. Before 3 Nov 2026 any
     // rare word chained its holders one to the next, and unrelated notes ended
-    // up tied (Edoardo, on the work PC).
+    // up tied (Edoardo, on the work PC). A page holds only the names of its title
+    // and aliases, and two pages are never tied this way: until 6 Nov «Diego» in
+    // two bodies drew an arrow between an Imec user and a pharmacy group.
     {
         let capital = |text: &str, w: &str| {
             text.split(|c: char| !c.is_alphanumeric())
@@ -1157,7 +1159,7 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
             .iter()
             .filter(|n| !n.judged)
             .map(|n| (n.id.clone(), &n.words, n.text.clone()))
-            .chain(all.iter().zip(page_words.iter()).map(|(p, (slug, w))| (format!("p:{slug}"), w, format!("{} {}", p.title, cut(&p.body, 600)))))
+            .chain(all.iter().zip(title_words.iter()).map(|(p, w)| (format!("p:{}", p.slug), w, format!("{} {}", p.title, p.aliases.join(" ")))))
             .collect();
         let mut holders: HashMap<&str, Vec<usize>> = HashMap::new();
         for (i, (_, w, _)) in docs.iter().enumerate() {
@@ -1173,6 +1175,9 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
             for (k, a) in h.iter().enumerate() {
                 for b in h.iter().skip(k + 1) {
                     let (Some(x), Some(y)) = (docs.get(*a), docs.get(*b)) else { continue };
+                    if x.0.starts_with("p:") && y.0.starts_with("p:") {
+                        continue;
+                    }
                     add_edge_at(&mut edges, &mut seen, &mut degree, x.0.clone(), y.0.clone(), String::new(), 1);
                     tied.insert(x.0.clone());
                     tied.insert(y.0.clone());
@@ -1659,6 +1664,29 @@ mod tests {
         assert!(found.contains("«Bianchi», che non esiste"), "{found}");
         assert!(found.contains("isolata, senza collegamenti: «Verdi»"), "{found}");
         assert!(found.contains("da oltre 6 mesi: «Verdi»"), "{found}");
+    }
+
+    /// Two pages are tied only by what is written: a first name in both bodies
+    /// is no link, and a note with that name reaches the page titled with it.
+    #[test]
+    fn a_name_in_two_bodies_ties_no_pages() {
+        let dir = std::env::temp_dir().join(format!("easyisland-names-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("pagine")).unwrap();
+        for (file, text) in [
+            ("claudio-lopopolo.md", "# Claudio Lopopolo\nDisco da chiarire con Diego.\n"),
+            ("iaso-farmacie.md", "# Iaso Farmacie\nUtenti VPN: Betti, Diego.\n"),
+            ("diego-bernardi.md", "# Diego Bernardi\nCollega.\n"),
+        ] {
+            std::fs::write(dir.join("pagine").join(file), text).unwrap();
+        }
+        std::fs::write(dir.join("MEMORIA.md"), "- 2026-11-06: Sentito Diego per le ferie\n").unwrap();
+        let g = graph_in(&dir, false);
+        let pages: Vec<_> = g.edges.iter().filter(|e| e.from.starts_with("p:") && e.to.starts_with("p:")).map(|e| (&e.from, &e.to)).collect();
+        assert!(pages.is_empty(), "{pages:?}");
+        let tied = |page: &str| g.edges.iter().any(|e| (e.from.starts_with("n:") && e.to == page) || (e.to.starts_with("n:") && e.from == page));
+        assert!(tied("p:diego-bernardi") && !tied("p:iaso-farmacie"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The map's links: a common word ties nothing, a name with a capital in

@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.29** — **Mappa della memoria**: fra due pagine restano solo i collegamenti scritti, un nome in comune nel testo non
+le lega più. **Agent Chat**: se un motore non può rispondere (per esempio login scaduto) ora lo dice in chat con il motivo
+e chiudendo l'incarico, e chiamando il PC per nome subentra l'altro motore.
+
 **1.0.28** — **Multi agent nella chat**: in Impostazioni → Chat scegli i motori e accendi il pulsante nella conversazione.
 Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro in sola lettura e vedi una riga per ognuno. Prima
 della risposta un motore di un'altra marca **controlla il lavoro** senza sapere chi l'ha fatto e guardando file e git:

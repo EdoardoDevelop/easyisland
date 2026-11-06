@@ -64,7 +64,7 @@ export class ConceptView implements View {
     const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
     const arrows: [string, string, string][] = [];
     for (const e of m.g.edges) {
-      if (!set.has(e.from) || !set.has(e.to)) continue;
+      if (!set.has(e.from) || !set.has(e.to) || (e.strength ?? 3) < 3) continue; // only what is written
       arrows.push([e.from, e.to, e.label]);
       (out.get(e.from) ?? out.set(e.from, []).get(e.from)!).push(e.to);
       indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);

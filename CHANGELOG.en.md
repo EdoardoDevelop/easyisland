@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.29** — **Memory map**: between two pages only the written links remain, a name shared in the text no longer ties
+them. **Agent Chat**: when an engine cannot answer (an expired login, say) it now says so in the chat with the reason,
+closing the assignment, and calling the PC by name lets the other engine step in.
+
 **1.0.28** — **Multi agent in the chat**: in Settings → Chat pick the engines and turn the button on in the conversation.
 The chat's engine leads and answers you, the others do pieces of the work read-only and you see a line for each. Before
 the answer an engine from another maker **checks the work** without knowing who did it, looking at files and git: the
