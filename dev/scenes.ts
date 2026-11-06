@@ -223,14 +223,17 @@ export async function runScene(island: Island, scene: string) {
       // the one on screen, one answering in the background, one answered while away.
       if (new URLSearchParams(location.search).has("history")) {
         const now = Date.now();
+        // &progetti: conversations grouped by project.
+        const progetto = new URLSearchParams(location.search).has("progetti") ? "C:\\Lavoro\\rossi-nas" : undefined;
         setHistoryDemo([
           { id: "a", title: "Come si rinnova un certificato Let's Encrypt su IIS?", engine: "subscription", updated: now - 600_000, turns: 3 },
-          { id: "d", title: "Backup del NAS di Rossi fallito stanotte", engine: "subscription", updated: now - 1_800_000, turns: 2, pinned: true },
-          { id: "b", title: "Riassumi questo PDF del preventivo per il cliente Rossi in tre punti", engine: "api", updated: now - 86_400_000, turns: 1 },
+          { id: "d", title: "Backup del NAS di Rossi fallito stanotte", engine: "subscription", updated: now - 1_800_000, turns: 2, pinned: !progetto, folder: progetto },
+          { id: "b", title: "Riassumi questo PDF del preventivo per il cliente Rossi in tre punti", engine: "api", updated: now - 86_400_000, turns: 1, folder: progetto },
           { id: "c", title: "Script PowerShell per elencare le stampanti di rete", engine: "opencode", updated: now - 9 * 86_400_000, turns: 5 },
         ]);
         const busy = newChatSession();
         busy.logId = "d";
+        busy.folder = progetto ?? null;
         busy.sending = true;
         busy.history = [{ id: 11, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
         const away = newChatSession();

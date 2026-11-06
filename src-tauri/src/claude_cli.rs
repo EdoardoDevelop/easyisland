@@ -83,22 +83,22 @@ pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDE_CODE_REMOTE_SESSION_ID",
 ];
 
-const SYSTEM_PROMPT: &str = "You are the personal assistant living in a small chat bubble at the top of the user's screen (the EasyIsland desktop app). \
+const SYSTEM_PROMPT: &str = "You are the user's personal assistant in the chat of the EasyIsland desktop app. \
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
-Respond in Italian unless the user writes in another language. Be thorough but keep it readable in a small window. \
-Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help.";
+Respond in Italian unless the user writes in another language. Be thorough and complete: use as much detail as the task requires. \
+Markdown is rendered: use lists, tables and code blocks when they help.";
 
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
 /// the terminal); this goes after it. `{folder}` is the working folder.
-const TERMINAL_PROMPT: &str = "You are working on the user's Windows PC from the chat bubble of the EasyIsland desktop app, \
+const TERMINAL_PROMPT: &str = "You are working on the user's Windows PC from the chat of the EasyIsland desktop app, \
 as Claude Code does in a terminal: run commands (PowerShell or Bash), read and edit files, use the user's MCP servers and skills. \
 The working folder is {folder}; work elsewhere on the PC when the user asks. \
-Every command or change that Claude Code would ask about in a terminal waits for the user's click on Consenti / Nega in the island: \
+Every command or change that Claude Code would ask about in a terminal waits for the user's click on Consenti / Nega: \
 a refusal is final for that request. Nobody can type into a running command: never start interactive programs \
 (text interfaces, editors, logins or prompts that wait for input); tell the user to run those in their own terminal. \
-Respond in Italian unless the user writes in another language. The reply is shown in a small window with markdown rendered: \
-keep it readable, short paragraphs and lists, code blocks for commands and output.";
+Respond in Italian unless the user writes in another language. Be thorough and complete: \
+use as much detail as the task requires. Markdown is rendered.";
 
 /// Where `claude` lives: %PATH% first (npm installs `claude.cmd`), then the
 /// native installer's and npm's default folders, which a GUI app launched at
@@ -376,6 +376,7 @@ fn args(
         "--output-format".into(),
         "stream-json".into(),
         "--verbose".into(),
+        "--include-partial-messages".into(),
         "--settings".into(),
         dir.join("chat-settings.json")
             .to_string_lossy()
@@ -457,6 +458,7 @@ fn terminal_args(
         "--output-format".into(),
         "stream-json".into(),
         "--verbose".into(),
+        "--include-partial-messages".into(),
         "--settings".into(),
         dir.join("chat-settings.json").to_string_lossy().into_owned(),
         "--append-system-prompt-file".into(),
@@ -492,6 +494,8 @@ struct Progress {
     shown: String,
     /// The reasoning being written, shown under the rest only while it lasts.
     thinking: String,
+    /// The text block being written, word by word.
+    writing: String,
     /// Commands still running in the background (`background_tasks_changed`):
     /// when one ends Claude Code starts another turn by itself (`follow`).
     pending: usize,
@@ -505,12 +509,14 @@ impl Progress {
             self.pending = v.get("tasks").and_then(Value::as_array).map_or(0, Vec::len);
             return false;
         }
-        if v.get("type").and_then(Value::as_str) != Some("assistant") {
-            return false;
-        }
         // A sub-agent's own steps stay inside its one step.
         if v.get("parent_tool_use_id").is_some_and(|p| !p.is_null()) {
             return false;
+        }
+        match v.get("type").and_then(Value::as_str) {
+            Some("stream_event") => return self.delta(&v),
+            Some("assistant") => {}
+            _ => return false,
         }
         let mut changed = false;
         for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
@@ -538,6 +544,7 @@ impl Progress {
                 }
                 self.shown.push_str(&p);
                 self.thinking.clear();
+                self.writing.clear();
                 changed = true;
             }
         }
@@ -546,9 +553,38 @@ impl Progress {
 }
 
 impl Progress {
+    /// A piece of the block being written (`--include-partial-messages`); the
+    /// whole block follows as an `assistant` line and takes its place.
+    fn delta(&mut self, v: &Value) -> bool {
+        if v.pointer("/event/type").and_then(Value::as_str) != Some("content_block_delta") {
+            return false;
+        }
+        let piece = |key: &str| v.pointer("/event/delta").and_then(|d| d.get(key)).and_then(Value::as_str).unwrap_or_default();
+        match v.pointer("/event/delta/type").and_then(Value::as_str) {
+            Some("text_delta") if !piece("text").is_empty() => {
+                self.writing.push_str(piece("text"));
+                self.thinking.clear();
+                true
+            }
+            Some("thinking_delta") if !piece("thinking").is_empty() => {
+                self.thinking.push_str(piece("thinking"));
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// What is shown while the turn goes on.
     fn view(&self) -> String {
-        crate::opencode::with_thinking(self.shown.clone(), &self.thinking)
+        let mut text = self.shown.clone();
+        let writing = self.writing.trim();
+        if !writing.is_empty() {
+            if !text.is_empty() {
+                text.push_str("\n\n");
+            }
+            text.push_str(writing);
+        }
+        crate::opencode::with_thinking(text, &self.thinking)
     }
 }
 
@@ -617,7 +653,10 @@ async fn read_lines(
                     on_text(&progress.view());
                 }
                 let result = line.contains("\"type\":\"result\"") && serde_json::from_str::<Value>(&line).ok().and_then(|v| v.get("type").and_then(Value::as_str).map(|t| t == "result")) == Some(true);
-                last = line;
+                // The pieces of a block are not what the turn ended on.
+                if !line.trim_start().starts_with("{\"type\":\"stream_event\"") {
+                    last = line;
+                }
                 if result && until_result {
                     return Ok((last, progress.shown, true, progress.pending));
                 }
@@ -1340,6 +1379,26 @@ mod tests {
         });
     }
 
+    /// A folder of its own, word by word, on the kept process:
+    /// `cargo test --lib claude_cli::tests::live_words -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_words() {
+        tauri::async_runtime::block_on(async {
+            let chat = crate::claude::Chat::default();
+            let folder = std::path::PathBuf::from(std::env::var("WORDS_DIR").unwrap_or_else(|_| "..".into())).canonicalize().unwrap();
+            for q in ["In che cartella sei e come si chiama il progetto secondo il suo CLAUDE.md? Poi scrivi otto frasi sui pinguini.", "Che parola hai usato per gli animali? Una riga."] {
+                let start = std::time::Instant::now();
+                let seen = std::sync::Mutex::new(Vec::<(f32, usize)>::new());
+                let on_text = |t: &str| seen.lock().unwrap().push((start.elapsed().as_secs_f32(), t.chars().count()));
+                let r = super::send_kept(&chat, "haiku", &[], false, q.to_string(), None, Some(folder.as_path()), false, &on_text, false, None).await;
+                let seen = seen.lock().unwrap();
+                println!("{:.1} s, {} aggiornamenti: {:?}", start.elapsed().as_secs_f32(), seen.len(), seen.iter().take(8).collect::<Vec<_>>());
+                println!("{:?}", r.map(|x| x.text));
+            }
+        });
+    }
+
     /// A real question with EasyIsland's tools (the app must be running), timed:
     /// `cargo test --lib claude_cli::tests::live_speed -- --ignored --nocapture`.
     #[test]
@@ -1497,6 +1556,18 @@ mod tests {
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Totale."}]}}"#));
         assert!(!p.view().contains("💭"));
         assert_eq!(step_line("Edit", &serde_json::json!({ "file_path": "C:/a.txt" })), "> ⚙ Modifica · `C:/a.txt`");
+        // Word by word, then the whole block in its place: nothing shown twice.
+        let mut w = super::Progress::default();
+        let delta = |t: &str| format!(r#"{{"type":"stream_event","event":{{"type":"content_block_delta","index":0,"delta":{{"type":"text_delta","text":"{t}"}}}},"parent_tool_use_id":null}}"#);
+        assert!(w.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Primo."}]}}"#));
+        assert!(w.feed(&delta("Ciao ")));
+        assert!(w.feed(&delta("a tutti")));
+        assert_eq!(w.view(), "Primo.\n\nCiao a tutti");
+        assert!(w.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Ciao a tutti"}]}}"#));
+        assert_eq!(w.view(), "Primo.\n\nCiao a tutti");
+        assert_eq!(w.shown, "Primo.\n\nCiao a tutti");
+        assert!(!w.feed(r#"{"type":"stream_event","event":{"type":"message_stop"},"parent_tool_use_id":null}"#));
+        assert!(!w.feed(r#"{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"dentro"}},"parent_tool_use_id":"t1"}"#));
     }
 
     #[test]

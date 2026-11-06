@@ -307,8 +307,10 @@ export const Bridge = {
    * One chat turn in the open conversation `sid` (lib.rs Chats). The API key and
    * any file bytes never leave Rust. `log`: its id in the history, once saved.
    */
-  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false) =>
-    callOrThrow<{ text: string; log: string | null }>("chat_send", { sid, query, context, engine, auto }),
+  chatFolders: () => callOrThrow<string[]>("chat_folders"),
+  chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
+  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null) =>
+    callOrThrow<{ text: string; log: string | null }>("chat_send", { sid, query, context, engine, auto, folder }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
@@ -332,7 +334,7 @@ export const Bridge = {
     callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
-  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { sid, id }),
+  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { sid, id }),
   chatHistoryDelete: (id: string) => call<void>("chat_history_delete", { id }),
   chatHistoryClear: () => call<void>("chat_history_clear"),
   /** Quick actions. */
@@ -696,7 +698,7 @@ export const Bridge = {
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
   fileOpen: (path: string, reveal: boolean) => callOrThrow<void>("file_open", { path, reveal }),
   /** Paths named in a chat reply: which exist, resolved (chatpaths.rs). */
-  pathsInfo: (paths: string[]) => callOrThrow<PathInfo[]>("paths_info", { paths }),
+  pathsInfo: (paths: string[], base: string | null = null) => callOrThrow<PathInfo[]>("paths_info", { paths, base }),
   /** A path of a reply: open it, show it in Explorer, or copy it into Downloads. */
   pathAction: (path: string, action: "open" | "reveal" | "download") => callOrThrow<string>("path_action", { path, action }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
@@ -971,6 +973,8 @@ export interface ChatSummary {
   turns: number;
   /** 📌: on top, never dropped. */
   pinned?: boolean;
+  /** The folder picked for it (Progetto…): the sidebar groups by it. */
+  folder?: string;
 }
 
 /** Something attached to the chat's question (files.rs → ChatAttachment). */

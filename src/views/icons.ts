@@ -89,6 +89,8 @@ export const ICONS = {
   // phone.arrow.down.left — 3CX missed calls (drawn with a stroke)
   missed: "M3.5 7.5 10 14l4.5-4.5L20.5 15.5M20.5 10v5.5H15",
   // mic / mic.slash — mute on a call of "Questo PC" (drawn with a stroke)
+  // a paper plane — sends the chat's message
+  plane: "M3.4 20.4 21 12 3.4 3.6v6.6L15 12 3.4 13.8v6.6z",
   mic: "M12 3.5a2.8 2.8 0 0 0-2.8 2.8v5.4a2.8 2.8 0 0 0 5.6 0V6.3A2.8 2.8 0 0 0 12 3.5zM6 11.2a6 6 0 0 0 12 0M12 17.2v3.3",
   micOff: "M12 3.5a2.8 2.8 0 0 0-2.8 2.8v5.4a2.8 2.8 0 0 0 5.6 0V6.3A2.8 2.8 0 0 0 12 3.5zM6 11.2a6 6 0 0 0 12 0M12 17.2v3.3M4 4l16 16",
   // bell / bell.slash — the island's notice of an incoming call (drawn with a stroke)

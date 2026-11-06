@@ -49,6 +49,8 @@ struct Conversation {
     lines: Vec<Line>,
     /// The engine's own messages, for the engines that resend them each turn.
     messages: Vec<Value>,
+    /// The folder picked for it; empty = the one of the settings.
+    folder: String,
 }
 
 /// One row of the list in the chat.
@@ -58,6 +60,8 @@ pub struct Summary {
     pub id: String,
     pub title: String,
     pub engine: String,
+    /// The folder picked for it (the sidebar groups by it); empty = none.
+    pub folder: String,
     pub updated: i64,
     pub turns: usize,
     pub pinned: bool,
@@ -69,6 +73,7 @@ pub struct Summary {
 pub struct Opened {
     pub engine: String,
     pub lines: Vec<Line>,
+    pub folder: String,
 }
 
 static STORE: Mutex<Option<Store>> = Mutex::new(None);
@@ -200,8 +205,12 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     });
     let messages = if resends(engine) { without_files(chat.snapshot()) } else { Vec::new() };
     let now = now();
+    let folder = chat.folder().unwrap_or_default();
     with_store(|s| {
         s.record(&id, engine, query, reply, messages, now);
+        if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
+            c.folder = folder;
+        }
         if !prefix.is_empty() {
             if let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.lines.len() == 2) {
                 c.title = format!("{prefix}{}", c.title);
@@ -230,7 +239,7 @@ pub fn append(chat: &Chat, engine: &str, lines: &[Line]) {
 }
 
 fn summary(c: &Conversation) -> Summary {
-    Summary { id: c.id.clone(), title: c.title.clone(), engine: c.engine.clone(), updated: c.updated, turns: c.lines.len() / 2, pinned: c.pinned }
+    Summary { id: c.id.clone(), title: c.title.clone(), engine: c.engine.clone(), folder: c.folder.clone(), updated: c.updated, turns: c.lines.len() / 2, pinned: c.pinned }
 }
 
 /// Pinned first, then most recent first.
@@ -325,7 +334,24 @@ pub fn open(chat: &Chat, id: &str, key: &str) -> Result<Opened, String> {
         .ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
     let preamble = if resends(&c.engine) && !c.messages.is_empty() { None } else { Some(preamble(&c.lines)) };
     chat.restore(key, c.messages, Some(c.id), preamble);
-    Ok(Opened { engine: c.engine, lines: c.lines })
+    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder })
+}
+
+pub fn folder_of(id: &str) -> Option<String> {
+    with_store(|s| s.list.iter().find(|c| c.id == id).map(|c| c.folder.clone())).filter(|f| !f.is_empty())
+}
+
+/// The folders of the latest conversations, the most recent first.
+pub fn folders() -> Vec<String> {
+    let mut seen: Vec<String> = Vec::new();
+    with_store(|s| {
+        for c in &s.list {
+            if !c.folder.is_empty() && !seen.iter().any(|f| f.eq_ignore_ascii_case(&c.folder)) {
+                seen.push(c.folder.clone());
+            }
+        }
+    });
+    seen.into_iter().filter(|f| std::path::Path::new(f).is_dir()).take(8).collect()
 }
 
 pub fn engine_of(id: &str) -> Option<String> {

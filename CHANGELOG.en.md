@@ -2,6 +2,12 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.26** — **The chat works like a real tool**: full answers, no longer written for a tiny window; the text arrives
+**word by word**; with **Project…** each conversation works in its own folder and reads the project's rules and git,
+and the sidebar **groups conversations by project**, with «+» to start one there. While the agent works, the current
+activity **types itself** with a caret; steps are lighter and fold into «N steps» when the answer is done. **Stop** is
+neutral and turns red under the pointer; new microphone and send icons.
+
 **1.0.25** — **Stop and «Send now»** no longer lose the conversation: even when the first answer is stopped,
 the next message carries on the same session. **Agent Chat with Jeeves**: the PC tells the server what it can do
 (integrations, engines, folders), so the coordinator gives each task to the right PC; the answers to a task stay

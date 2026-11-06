@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_4 novembre 2026. **1.0.24** in `main` (tag `v1.0.24`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_6 novembre 2026. **1.0.26** in `main` (tag `v1.0.26`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -47,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 6/11 — Versione 1.0.26: risposte piene, progetto per conversazione, parola per parola
+Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `claude.rs`); `--include-partial-messages` con `Progress::delta`; «Progetto…» sceglie la cartella della conversazione, la predefinita resta quella di Impostazioni. Nella barra laterale gruppi per progetto con «+». Provato con `live_words` su Claude Code vero; da confrontare con l'uso i due modi.
+
 ### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
 Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Passi piccoli e senza barra, piegati in «N passi» a turno finito (`foldSteps`; «✗» resta in vista); Ferma neutro, rosso al passaggio del mouse; azioni sotto i propri messaggi solo al passaggio. Scena `?scene=chat&pensa`. Provato nel browser, anche in chiaro; il turno vero va guardato nell'app.
 
@@ -60,6 +63,3 @@ La sessione di Claude Code si registrava solo a fine turno: fermato il primo mes
 - Agent Chat: mappa ad argomenti senza IA (`agentchat_map.rs`) nel prompt e `agentchat_topic`; scheda «Argomenti». Ogni PC la costruisce per sé; riassunti IA e mappa sul server non fatti.
 - Zammad «Consiglio IA» (`ticket_advice.rs`), RDM solo dal cloud con pannello e occhio (`dvc.rs` `CREDS`, `dvc_reveal`), ricerca in RDM/3CX dal campo in alto, file cliccabili nella chat (`chatpaths.rs`), controllo della memoria con caselle (`proposals.ts`).
 - WebView2 senza `CalculateNativeWinOcclusion` (`BROWSER_ARGS` e `tauri.conf.json`): la finestra Memoria non presentava i fotogrammi senza muovere il mouse. Da confermare nell'app; nomi dei campi delle connessioni di Devolutions Cloud dedotti, non visti.
-
-### 4/11 — Versione 1.0.23
-Uniti in `claude/sviluppo` e `main`: scheda Zammad, Devolutions Cloud, mappa della memoria (più Galassia meno abbagliante, testo delle pagine non più schiacciato nel pannello), coda della chat, font, stato di Agent Chat. Clic sul personaggio (anche nella barra fissa) con l'isola aperta dietro un'altra finestra: torna davanti (`island::to_front`, comando `island_to_front`), si chiude solo se è già in primo piano; con «Come un'app» guarda la finestra in primo piano, altrimenti `BEHIND`.

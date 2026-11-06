@@ -1252,6 +1252,20 @@ fn chat_key(engine: &str, model: &str, terminal: bool) -> String {
     if terminal { format!("{engine}:{model}:terminal") } else { format!("{engine}:{model}") }
 }
 
+/// A folder picked for the conversation is another conversation too (Claude
+/// Code's sessions belong to the folder they started in).
+fn in_folder(key: String, folder: Option<&std::path::Path>) -> String {
+    match folder {
+        Some(f) => format!("{key}:{}", f.to_string_lossy()),
+        None => key,
+    }
+}
+
+/// The folder picked for `chat`, while it exists.
+fn own_folder(chat: &Chat) -> Option<std::path::PathBuf> {
+    chat.folder().map(std::path::PathBuf::from).filter(|p| p.is_dir())
+}
+
 /// The key `chat_turn` will use for `engine` with its default model (Telegram's /riprendi).
 pub(crate) fn chat_key_for(app: &AppHandle, engine: &str) -> String {
     let shared = app.state::<Shared>();
@@ -1285,8 +1299,10 @@ async fn chat_send(
     context: Option<ChatContext>,
     engine: Option<String>,
     auto: Option<bool>,
+    folder: Option<String>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
+    chat.set_folder(folder);
     let on_text = |text: &str| {
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
@@ -1463,6 +1479,7 @@ pub(crate) async fn chat_turn(
     // read-only commands without the island; writing, running, sending still ask.
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
+    let own = if channel == Channel::Island { own_folder(chat) } else { None };
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
@@ -1476,7 +1493,7 @@ pub(crate) async fn chat_turn(
             (None, _) => {}
         }
         let url = s.engine_urls.get(&e).cloned();
-        let terminal = s.chat_terminal.then(|| chat_folder(&s.chat_folder));
+        let terminal = s.chat_terminal.then(|| own.clone().unwrap_or_else(|| chat_folder(&s.chat_folder)));
         (e, model, cli_model, s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
     };
     // The work folder, when one is chosen (workdir.rs): the engines may read it.
@@ -1486,7 +1503,7 @@ pub(crate) async fn chat_turn(
     // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
     let key_model = picked.as_deref().unwrap_or(&other_model);
-    chat.use_engine(&chat_key(&engine, key_model, terminal.is_some()));
+    chat.use_engine(&in_folder(chat_key(&engine, key_model, terminal.is_some()), own.as_deref().filter(|_| terminal.is_some())));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
@@ -1814,7 +1831,9 @@ fn chat_history_open(shared: State<'_, Shared>, chats: State<'_, Chats>, sid: St
         let s = shared.settings.lock().unwrap();
         (s.engine_models.get(&engine).cloned().unwrap_or_default(), s.chat_terminal)
     };
-    let opened = chat_log::open(&chat, &id, &chat_key(&engine, &model, terminal))?;
+    chat.set_folder(chat_log::folder_of(&id));
+    let own = own_folder(&chat);
+    let opened = chat_log::open(&chat, &id, &in_folder(chat_key(&engine, &model, terminal), own.as_deref().filter(|_| terminal)))?;
     opencode::forget(before);
     Ok(opened)
 }
@@ -2908,6 +2927,18 @@ async fn work_pick(app: AppHandle) -> Result<Option<String>, String> {
     Ok(picked)
 }
 
+/// «Progetto…» in the chat: Windows' folder dialog, for this conversation only.
+#[tauri::command]
+async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || workdir::pick_folder(start)).await.map_err(|e| e.to_string())?
+}
+
+/// The folders of the latest conversations, for the menu of «Progetto…».
+#[tauri::command]
+fn chat_folders() -> Vec<String> {
+    chat_log::folders()
+}
+
 /// Drags a file of the tray out of the island into another app. Returns when
 /// the drag is over, so the island can ignore its own file meanwhile.
 #[tauri::command]
@@ -2990,8 +3021,8 @@ fn file_open(path: String, reveal: bool) -> Result<(), String> {
 
 /// The chat's reply names these paths: which exist, and where (chatpaths.rs).
 #[tauri::command]
-fn paths_info(app: AppHandle, paths: Vec<String>) -> Vec<chatpaths::PathInfo> {
-    chatpaths::infos(&app, &paths)
+fn paths_info(app: AppHandle, paths: Vec<String>, base: Option<String>) -> Vec<chatpaths::PathInfo> {
+    chatpaths::infos(&app, &paths, base.as_deref())
 }
 
 /// A path of a reply: "open", "reveal" or "download" (a copy in Downloads).
@@ -4198,6 +4229,8 @@ pub fn run() {
             chat_reset,
             chat_history_list,
             chat_history_open,
+            chat_pick_folder,
+            chat_folders,
             chat_history_delete,
             chat_history_clear,
             claude_cli_status,

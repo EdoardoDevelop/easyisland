@@ -7,6 +7,7 @@
 ## Writing
 - The field is **multi-line**: <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. What you're writing survives a restart. <kbd>↑</kbd> in an empty field brings back the last question.
 - Answers are in **markdown**: headings, lists, tables, code with **Copy**. While the engine works you see its reasoning and the tools it uses: the current one types itself at the bottom, with a caret. When the answer is done the steps fold into **N steps**: a click opens them.
+- With Terminal mode, **Project…** at the top picks this chat's folder, so it reads the project's rules and git. **Default folder** uses the one in Settings. Changing it opens a new conversation.
 - **■ Stop** interrupts the answer in progress (and the pending permission).
 - **You can keep writing while it answers**: <kbd>Enter</kbd> puts the message **in the queue**, under the conversation as "waiting", and it goes by itself as soon as the answer ends, one after the other. On each queued message: **Send now** (stops the answer and sends it now), **Edit** (back in the field) and ✕. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends it at once, skipping the queue. With an empty field the button stays **■ Stop**.
 - If you scroll up to read, incoming text doesn't pull you down: ↓ goes back to the bottom.
@@ -78,6 +79,8 @@ From any program press <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> and speak: the
 The microphone turns on **only** when you press the shortcut, never by itself. It needs the voice message service (Settings → Telegram → Voice messages); the voice that replies is there with OpenAI and Google AI. The shortcut and the spoken reply are in Settings → Quick actions.
 
 ## History
+Conversations with a **Project** are grouped by project in the sidebar: a click on the name closes or opens the group, **+** starts a new chat there. The others stay sorted by date.
+
 On the left of the chat is the **conversations bar**: **New chat**, the search and your previous conversations (up to 100, only on this PC) grouped by day. The button at the top left of the chat (or <kbd>Ctrl</kbd>+<kbd>B</kbd>) opens and closes it; while it is open the island grows to make room. Drag its right edge to make it wider or narrower (it stays so); a double click on the edge brings it back as it was.
 
 You can keep **several conversations open at once**: switching to another one does not close the one before, and if it was answering it goes on. In the bar a spinning ring shows who is answering, a dot an answer that came while you were elsewhere, **!** a conversation asking for permission (and a line above the field takes you there). **New chat** leaves the current one open. Beyond 8 open conversations, the least used idle one closes by itself: it stays in the history.
