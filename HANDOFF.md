@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_6 novembre 2026. **1.0.29** in `main` (tag `v1.0.29`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_6 novembre 2026. **1.0.30** in `main` (tag `v1.0.30`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -47,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 6/11 — Multi agent: una voce sola
+Dopo la prima conversazione vera: bozza nascosta, solo i `[GRAVE]` tornano a chi guida, che riscrive; niente testo del revisore né nomi dei motori. Controlla chi può aprire i dati (`can_look`). `docs/chat.md` → Multi agent.
+
 ### 6/11 — Mappa e Agent Chat
 Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non può rispondere lo dice in chat (`say_blocked`), con `@pc` subentra l'altro motore. Jeeves (`wants`, repo agentchat) traduce i nomi e non si sveglia se un agente parla di lui.
 
@@ -58,6 +61,3 @@ Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non p
 
 ### 6/11 — Versione 1.0.26: risposte piene, progetto per conversazione, parola per parola
 Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `claude.rs`); `--include-partial-messages` con `Progress::delta`; «Progetto…» sceglie la cartella della conversazione, la predefinita resta quella di Impostazioni. Nella barra laterale gruppi per progetto con «+». Provato con `live_words` su Claude Code vero; da confrontare con l'uso i due modi.
-
-### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
-Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Passi piccoli e senza barra, piegati in «N passi» a turno finito (`foldSteps`; «✗» resta in vista); Ferma neutro, rosso al passaggio del mouse; azioni sotto i propri messaggi solo al passaggio. Scena `?scene=chat&pensa`. Provato nel browser, anche in chiaro; il turno vero va guardato nell'app.

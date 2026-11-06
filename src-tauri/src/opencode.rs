@@ -1234,7 +1234,7 @@ mod tests {
 {status}");
             assert!(status.contains("media.py"), "git status must work");
             let work = "Ho scritto media() in media.py: calcola la media dei numeri della lista. È corretta.";
-            let wrong = ask(&crate::team::check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str())).await;
+            let wrong = ask(&crate::team::check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str(), true)).await;
             println!("--- sbagliato
 {wrong}
 {:?}", crate::team::verdict(&wrong));
@@ -1242,7 +1242,7 @@ mod tests {
             std::fs::write(dir.join("media.py"), "def media(a):
     return sum(a) / len(a) if a else 0
 ").unwrap();
-            let right = ask(&crate::team::check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str())).await;
+            let right = ask(&crate::team::check_prompt("Scrivi una funzione che calcola la media di una lista", work, dir.to_str(), true)).await;
             println!("--- giusto
 {right}
 {:?}", crate::team::verdict(&right));

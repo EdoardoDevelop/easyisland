@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.30** — **Multi agent con una voce sola**: mentre i motori lavorano vedi i passi, poi arriva una sola risposta già
+rivista, con **✓ Controllato** sotto. Il testo del revisore e i nomi dei motori non entrano più nella risposta: solo un errore
+grave la fa riscrivere, e a controllare è per primo un motore che può aprire file e dati.
+
 **1.0.29** — **Mappa della memoria**: fra due pagine restano solo i collegamenti scritti, un nome in comune nel testo non
 le lega più. **Agent Chat**: se un motore non può rispondere (per esempio login scaduto) ora lo dice in chat con il motivo
 e chiudendo l'incarico, e chiamando il PC per nome subentra l'altro motore.

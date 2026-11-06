@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.30** — **Multi agent** with one voice: a single answer, already reviewed.
 - **1.0.29** — **Memory map** without false links; in **Agent Chat** whoever cannot answer says so.
 - **1.0.28** — **Multi agent** in the chat: several engines work together, one leads and another **checks the work** before the answer.
 - **1.0.27** — the line that types itself shows **whole sentences** and always finishes what it started.
-- **1.0.26** — **full answers** and **word by word** text, **Project…** with a folder per conversation and **project groups** in the sidebar; activity that **types itself**, lighter steps, new icons.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 

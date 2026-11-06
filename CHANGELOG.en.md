@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.30** — **Multi agent with one voice**: while the engines work you see the steps, then a single answer arrives already
+reviewed, with **✓ Checked** underneath. The reviewer's text and the engines' names no longer enter the answer: only a serious
+error has it rewritten, and an engine that can open files and data checks first.
+
 **1.0.29** — **Memory map**: between two pages only the written links remain, a name shared in the text no longer ties
 them. **Agent Chat**: when an engine cannot answer (an expired login, say) it now says so in the chat with the reason,
 closing the assignment, and calling the PC by name lets the other engine step in.

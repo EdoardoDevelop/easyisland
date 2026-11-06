@@ -191,7 +191,7 @@ export async function runScene(island: Island, scene: string) {
             { id: 1, engine: "Gemini", job: "Legge i log del NAS della settimana", status: "> ⚙ Legge · `nas-02.log`", state: "work" },
             { id: 2, engine: "Ollama", job: "Cerca i dati del cliente nello storico", status: "", state: "done" },
           ] : [];
-          if (pensa === "squadra-fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", content: "> ⚙ Legge · `backup.log`\n\n> ⚙ Affida una parte del lavoro a un altro motore\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB.\n\n> ✓ Controllato da Gemini · rilievi valutati: 2" });
+          if (pensa === "squadra-fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", content: "> ⚙ Legge · `backup.log`\n\n> ⚙ Affida una parte del lavoro a un altro motore\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB.\n\n> ✓ Controllato" });
         }
         State.isPinned = true;
         island.alert("prompt");
