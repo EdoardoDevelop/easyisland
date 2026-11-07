@@ -1,8 +1,9 @@
 // Chat view — DOM port of PromptView / ChatBubble / TypingDotsView from
 // IslandViewContent.swift.
 
-import { h, svg, clear } from "./dom";
+import { h, svg, clear, clipMark } from "./dom";
 import { ICONS } from "./icons";
+import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow } from "../core/state";
@@ -140,7 +141,7 @@ function saveDraft(text: string) {
 function bubble(message: ChatMessage, live = false): HTMLElement {
   if (message.role === "user") {
     const b = h("div", { class: "bubble", text: message.content });
-    if (message.file) b.prepend(h("div", { class: "bubble-file", text: `📎 ${message.file}` }));
+    if (message.file) b.prepend(h("div", { class: "bubble-file" }, clipMark(), message.file));
     return h("div", { class: "chat-row user" }, b);
   }
   // Claude answers in markdown: rendered as DOM, never as HTML (core/markdown.ts).
@@ -305,9 +306,12 @@ export function buildPrompt(
   },
 ): ViewHost {
   const chipRow = h("div", { class: "chip-row" });
-  // The engine and model, above the chat: a click picks another one.
+  // The engine and model, under the field: a click picks another one.
   const engineBtn = h("button", { class: "engine-pick", title: t("Cambia motore della chat") }) as HTMLButtonElement;
   const folderBtn = h("button", { class: "engine-pick folder-pick" }) as HTMLButtonElement;
+  /** Each project's git branch, as last read, and what that read was for. */
+  const branches = new Map<string, string>();
+  let branchRead = "";
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
   // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
@@ -323,7 +327,7 @@ export function buildPrompt(
   // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
   // «Anteprima» (src/preview/): files and pages of the chat's work, in their window.
-  const previewBtn = h("button", { class: "history-btn", title: t("Anteprima: file e pagine web accanto alla chat") }, svg(ICONS.preview, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const previewBtn = h("button", { class: "history-btn head-end", title: t("Anteprima: file e pagine web accanto alla chat") }, svg(ICONS.preview, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // Opens the Anteprima, and closes it when it is open in the island.
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
@@ -332,7 +336,7 @@ export function buildPrompt(
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, folderBtn, engineBtn, remoteBtn, teamBtn, autoBtn, previewBtn, desktopBtn, exportBtn, popBtn, engineMenu);
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, previewBtn, desktopBtn, exportBtn, popBtn);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -380,7 +384,7 @@ export function buildPrompt(
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
   }
-  const send = h("button", { class: "send-btn", title: t("Invia") }, svg(ICONS.plane, 14));
+  const send = h("button", { class: "send-btn", title: t("Invia") }, planeIcon(14));
   const fresh = h("button", { class: "new-chat-btn", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
   // 🎤: dictation — the service of Telegram's «Vocali» if one is chosen, else Windows' own (Win+H).
   const micIcon = () => svg(ICONS.mic, 15, { stroke: 1.8 });
@@ -389,8 +393,12 @@ export function buildPrompt(
   const attachRow = h("div", { class: "chat-attach" });
   const field = h("div", { class: "chat-field" }, attachRow, input);
   // 📎: files or folders, from Windows' dialog.
-  const clip = h("button", { class: "mic-btn", title: t("Allega file o cartelle"), text: "📎" }) as HTMLButtonElement;
-  const bar = h("div", { class: "chat-bar" }, fresh, field, clip, mic, send);
+  const clip = h("button", { class: "mic-btn clip-btn", title: t("Allega file o cartelle") }, clipIcon(15)) as HTMLButtonElement;
+  // Two rows: the text on the whole width, under it what goes with the message.
+  const contextPct = h("span", { class: "ctx-pct" });
+  const contextMeter = h("span", { class: "ctx-meter" }, h("span", { class: "ctx-ring" }), contextPct);
+  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
+  const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
   slashMenu.style.display = "none";
@@ -428,14 +436,16 @@ export function buildPrompt(
     }
   }
 
-  // The sidebar: «Nuova chat», the search, and the conversations (the open
+  // The sidebar: «Nuovo» and «Cerca» side by side, the search field, and the conversations (the open
   // ones and the history), grouped by day. A click switches; the others go on.
-  const sideNew = h("button", { class: "side-new", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
+  const sideNew = h("button", { class: "side-new", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuovo") }));
+  const sideFind = h("button", { class: "side-new", title: t("Cerca nelle conversazioni…") }, lensIcon(12), h("span", { text: t("Cerca") }));
   const historySearch = h("input", { class: "history-search", type: "text", placeholder: t("Cerca nelle conversazioni…"), spellcheck: "false" }) as HTMLInputElement;
+  historySearch.style.display = "none";
   const historyRows = h("div", { class: "history-rows" });
   // Its right edge, dragged: wider or narrower, remembered on this PC.
   const sideGrip = h("div", { class: "chat-side-grip", title: t("Trascina per allargare o stringere le conversazioni") });
-  const side = h("div", { class: "chat-side" }, sideNew, historySearch, historyRows, sideGrip);
+  const side = h("div", { class: "chat-side" }, h("div", { class: "side-top" }, sideNew, sideFind), historySearch, historyRows, sideGrip);
   // Another open conversation asks a permission: a line over the field takes there.
   const otherAsk = h("button", { class: "chat-other-ask" }) as HTMLButtonElement;
   otherAsk.style.display = "none";
@@ -451,9 +461,8 @@ export function buildPrompt(
   const el = h(
     "div",
     { class: "view" },
-    h("div", { class: "card wash chat-card" }, layout),
+    h("div", { class: "card chat-card" }, layout),
   );
-  (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
   layout.style.setProperty("--side-w", `${sideWidth}px`);
   let gripFrom: { x: number; w: number } | null = null;
   let gripFrame = 0;
@@ -656,10 +665,11 @@ export function buildPrompt(
       const reply = session
         ? await Bridge.sessionAsk(session.sessionId, session.fork, session.cwd, query).then((r) => {
           if (c.session === session) session.fork = r.fork;
-          return { text: r.text, log: null };
+          return { text: r.text, log: null, context: null };
         })
         : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team);
       if (reply.log) c.logId = reply.log;
+      c.context = reply.context ?? null;
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
@@ -766,8 +776,15 @@ export function buildPrompt(
     const mode = stopMode ? "stop" : "send";
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
-      send.replaceChildren(svg(stopMode ? ICONS.stop : ICONS.plane, stopMode ? 12 : 14));
       send.classList.toggle("stop", stopMode);
+      if (!stopMode) send.replaceChildren(planeIcon(14));
+      else {
+        // Sent: the plane flies off first, then «Ferma» takes its place.
+        playIcon(send);
+        window.setTimeout(() => {
+          if (send.dataset.mode === "stop") send.replaceChildren(svg(ICONS.stop, 12));
+        }, ICON_PLAY_MS);
+      }
     }
     send.title = stopMode ? t("Ferma") : c.sending ? t("Metti in coda: parte a fine risposta (Ctrl+Invio: subito)") : t("Invia");
   }
@@ -1520,6 +1537,7 @@ export function buildPrompt(
     }
     applySide();
     if (open) void refreshHistory();
+    else showSearch(false);
   }
 
   function applySide(quiet = false) {
@@ -1611,10 +1629,8 @@ export function buildPrompt(
     const freshRow = (c: ChatSessionState): HTMLElement => {
       const first = c.history.find((m) => m.role === "user")?.content ?? "";
       const name = CHAT_ENGINES.find((e) => e.id === engineOf(c))?.name ?? engineOf(c);
-      return h("div", { class: `history-item${c.sid === State.chatSid ? " on" : ""}`, title: first || t("Nuova chat"), onclick: () => switchTo(c.sid) },
-        h("div", { class: "history-text" },
-          h("span", { class: "history-title", text: first || t("Nuova chat") }),
-          h("span", { class: "history-meta", text: name })),
+      return h("div", { class: `history-item${c.sid === State.chatSid ? " on" : ""}`, title: name, onclick: () => switchTo(c.sid) },
+        h("div", { class: "history-text" }, h("span", { class: "history-title", text: first || t("Nuova chat") })),
         ...[badge(c)].filter((b): b is HTMLElement => !!b));
     };
     const loose = fresh.filter((c) => !c.folder);
@@ -1702,10 +1718,9 @@ export function buildPrompt(
         e.stopPropagation();
         rename();
       });
-      const row = h("div", { class: `history-item${open && open.sid === State.chatSid ? " on" : ""}`, title: c.title, onclick: () => void reopen(c.id) },
-        h("div", { class: "history-text" },
-          titleEl,
-          h("span", { class: "history-meta", text: `${when(c.updated)} · ${engine} · ${tn("{n} domanda", "{n} domande", c.turns)}` })),
+      const meta = `${when(c.updated)} · ${engine} · ${tn("{n} domanda", "{n} domande", c.turns)}`;
+      const row = h("div", { class: `history-item${open && open.sid === State.chatSid ? " on" : ""}`, title: meta, onclick: () => void reopen(c.id) },
+        h("div", { class: "history-text" }, titleEl),
         ...[badge(open)].filter((b): b is HTMLElement => !!b),
         edit, pin, del);
       return row;
@@ -1805,13 +1820,24 @@ export function buildPrompt(
   historySearch.addEventListener("keydown", (e) => {
     e.stopPropagation();
     if ((e as KeyboardEvent).key === "Escape") {
-      historySearch.value = "";
-      void refreshHistory();
+      showSearch(false);
       if (overlay) showSide(false);
       input.focus();
     }
   });
   sideNew.addEventListener("click", startOver);
+
+  /** «Cerca» opens the field; closing it drops the search and brings the whole list back. */
+  function showSearch(on: boolean) {
+    historySearch.style.display = on ? "" : "none";
+    sideFind.classList.toggle("on", on);
+    if (on) historySearch.focus();
+    else if (historySearch.value) {
+      historySearch.value = "";
+      void refreshHistory();
+    }
+  }
+  sideFind.addEventListener("click", () => showSearch(historySearch.style.display === "none"));
 
   /** «/cronologia», «/cerca …»: the sidebar open, with the search when there is one. */
   async function toggleHistory(query?: string) {
@@ -1819,7 +1845,7 @@ export function buildPrompt(
     historySearch.value = query ?? "";
     showSide(true);
     await refreshHistory();
-    historySearch.focus();
+    showSearch(true);
   }
 
   /**
@@ -1902,7 +1928,7 @@ export function buildPrompt(
   });
   // Drawn in the island (a native <select> menu would open behind it); a click elsewhere closes it.
   document.addEventListener("pointerdown", (e) => {
-    if (engineMenu.style.display !== "none" && !head.contains(e.target as Node)) engineMenu.style.display = "none";
+    if (engineMenu.style.display !== "none" && !bar.contains(e.target as Node)) engineMenu.style.display = "none";
   });
   void onEvent<{ sid?: string; text: string }>("chat-stream", (p) => {
     const c = State.chats.find((x) => x.sid === p.sid);
@@ -2103,9 +2129,37 @@ export function buildPrompt(
       const streamed = State.chat.streamed;
       const ownFolder = State.chat.folder;
       folderBtn.style.display = State.settings.chatTerminal === true && !asked ? "" : "none";
+      // The project's branch: read again when the conversation or the project change and when a reply ends (an agent may have moved it).
+      const branchKey = ownFolder && !sending ? `${State.chatSid}|${ownFolder}` : "";
+      if (ownFolder && branchKey && branchKey !== branchRead) {
+        const folder = ownFolder;
+        void Bridge.chatBranch(folder).then((b) => {
+          if ((branches.get(folder) ?? "") === (b ?? "")) return;
+          branches.set(folder, b ?? "");
+          State.notify();
+        });
+      }
+      branchRead = branchKey;
+      const branch = ownFolder ? branches.get(ownFolder) ?? "" : "";
+      const [ctxUsed, ctxSize] = State.chat.context ?? [0, 0];
+      const ctxShare = ctxSize ? Math.min(100, Math.round(ctxUsed / ctxSize * 100)) : 0;
+      contextMeter.style.display = ctxUsed ? "" : "none";
+      contextMeter.classList.toggle("full", ctxShare >= 80);
+      contextMeter.classList.toggle("sized", ctxSize > 0);
+      contextMeter.style.setProperty("--p", `${ctxShare}%`);
+      contextPct.textContent = ctxSize ? `${ctxShare}%` : `${Math.round(ctxUsed / 1000)}k`;
+      contextMeter.title = ctxSize
+        ? t("Contesto: {used} di {size} token", { used: ctxUsed.toLocaleString(locale()), size: ctxSize.toLocaleString(locale()) })
+        : t("Contesto: {used} token", { used: ctxUsed.toLocaleString(locale()) });
       const folderLabel = ownFolder ? folderName(ownFolder) : t("Progetto…");
-      if (folderBtn.textContent !== folderLabel) folderBtn.textContent = folderLabel;
-      folderBtn.title = ownFolder ?? t("Scegli la cartella del progetto per questa chat");
+      const folderKey = `${folderLabel}|${branch}`;
+      if (folderBtn.dataset.label !== folderKey) {
+        folderBtn.dataset.label = folderKey;
+        folderBtn.replaceChildren(folderLabel, ...(branch ? [h("span", { class: "folder-branch", text: ` · ${branch}` })] : []));
+      }
+      folderBtn.title = ownFolder
+        ? [ownFolder, branch && t("Branch: {name}", { name: branch })].filter(Boolean).join("\n")
+        : t("Scegli la cartella del progetto per questa chat");
       const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${assistant?.id ?? ""}`;
       if (chipRow.dataset.label !== chipKey) {
         chipRow.dataset.label = chipKey;

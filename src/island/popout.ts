@@ -3,6 +3,7 @@
 // the window is a blank page the island opens (window.open → lib.rs
 // popout_window) and draws its view into, so nothing runs twice.
 
+import { watchIconClicks } from "../views/anim-icons";
 import { State } from "../core/state";
 import { Bridge } from "../core/bridge";
 import type { ViewHost } from "../views/views";
@@ -269,6 +270,7 @@ function dress(doc: Document, title: string) {
   meta.setAttribute("charset", "utf-8");
   doc.head.append(meta);
   for (const s of Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))) doc.head.append(s.cloneNode(true));
+  watchIconClicks(doc);
   const own = doc.createElement("style");
   own.textContent = POPWIN_CSS;
   doc.head.append(own);
@@ -317,4 +319,6 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 #island.popwin #body { margin-top: 0; }
 #island.popwin #views > .view { position: absolute; inset: 0; width: auto; opacity: 1; transform: none; pointer-events: auto; transition: none; }
 #island.popwin .view.detached .left-body { justify-content: flex-start; overflow-y: auto; }
+#island.popwin #content:has(.chat-card) { padding: 0; }
+#island.popwin .chat-card { border: 0; border-radius: 0; }
 `;

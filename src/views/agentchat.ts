@@ -11,7 +11,7 @@
 // field lives outside it (`composer`) and is moved into each new card, its
 // text, cursor and focus kept.
 
-import { h, brandOrDot } from "./dom";
+import { h, brandOrDot, clipMark } from "./dom";
 import { State } from "../core/state";
 import { Bridge } from "../core/bridge";
 import { t } from "../core/i18n";
@@ -216,8 +216,8 @@ function messageRow(m: ChatMsg, d: AgentchatData): HTMLElement {
       h("span", { class: "int-ago", text: `${m.room} · ${timeAgo(m.ts * 1000)}` }),
       reply),
     h("div", { class: "ac-text", text }),
-    ...(m.files ?? []).map((f) => h("div", { class: "ac-file", title: `SHA-256 ${f.sha256}`,
-      text: `📎 ${f.name} · ${kb(f.size)} · ${f.imported_by ? t("importato da {who}", { who: f.imported_by }) : t("da importare")}` })),
+    ...(m.files ?? []).map((f) => h("div", { class: "ac-file", title: `SHA-256 ${f.sha256}` }, clipMark(),
+      `${f.name} · ${kb(f.size)} · ${f.imported_by ? t("importato da {who}", { who: f.imported_by }) : t("da importare")}`)),
     statusLine(m, d));
 }
 
@@ -333,7 +333,7 @@ function buildComposer(): HTMLElement {
   roomPick = h("select", { class: "ac-room", title: t("Stanza") }) as HTMLSelectElement;
   roomPick.addEventListener("change", () => { room = roomPick!.value; });
   sendBtn = h("button", { class: "send-btn", title: t("Invia come te (Invio)"), text: "↑" }) as HTMLButtonElement;
-  const clip = h("button", { class: "mic-btn", title: t("Allega file"), text: "📎" }) as HTMLButtonElement;
+  const clip = h("button", { class: "mic-btn", title: t("Allega file") }, clipMark(15)) as HTMLButtonElement;
   errorLine = h("div", { class: "ac-error" });
   const grow = () => {
     if (!field) return;
@@ -400,7 +400,7 @@ function drawComposer(d: AgentchatData) {
       h("button", { text: "✕", title: t("Non rispondere a questo"), onclick: () => { replyTo = null; drawComposer(agentchatData()); focusField(); } })));
   }
   for (const f of files) {
-    rows.push(h("div", { class: "ac-chip" }, h("span", { text: `📎 ${f.name}`, title: f.path }),
+    rows.push(h("div", { class: "ac-chip" }, h("span", { title: f.path }, clipMark(), f.name),
       h("button", { text: "✕", title: t("Togli"), onclick: () => { files = files.filter((x) => x !== f); drawComposer(agentchatData()); focusField(); } })));
   }
   const q = typedAt();

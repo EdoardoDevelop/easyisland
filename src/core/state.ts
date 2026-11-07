@@ -453,6 +453,8 @@ export interface ChatSessionState {
   assistant: ChatAssistant | null;
   /** The folder picked for it (Modalità terminale); null = the one of the settings. */
   folder: string | null;
+  /** Tokens in the engine's context after the last turn and its size (0 = unknown); null = it does not say. */
+  context: [number, number] | null;
   /** Its id in the history (chat_log.rs), once an answer saved it. */
   logId: string | null;
   /** A turn is running; `streamed` is its text so far, `stopping` after «Ferma». */
@@ -477,7 +479,7 @@ export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
     history: [], engineOverride: null, auto: false, team: false, teamRows: [], desktop: false, text: null, window: null, attach: [],
-    session: null, assistant: null, folder: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
+    session: null, assistant: null, folder: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
 }

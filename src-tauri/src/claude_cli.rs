@@ -513,6 +513,9 @@ struct Progress {
     /// Commands still running in the background (`background_tasks_changed`):
     /// when one ends Claude Code starts another turn by itself (`follow`).
     pending: usize,
+    /// Tokens in the context at the last call to the model: the result's own
+    /// `usage` adds up every step of the turn, this is what the model last read.
+    context: u64,
 }
 
 impl Progress {
@@ -529,7 +532,11 @@ impl Progress {
         }
         match v.get("type").and_then(Value::as_str) {
             Some("stream_event") => return self.delta(&v),
-            Some("assistant") => {}
+            Some("assistant") => {
+                if let Some(used) = context_used(&v) {
+                    self.context = used;
+                }
+            }
             _ => return false,
         }
         let mut changed = false;
@@ -642,6 +649,7 @@ async fn read_lines(
     lines: &mut OutLines,
     on_text: &(dyn Fn(&str) + Sync),
     on_session: &(dyn Fn(&str) + Sync),
+    on_context: &(dyn Fn(u64, u64) + Sync),
     limit: Duration,
     late: &str,
     until_result: bool,
@@ -667,6 +675,9 @@ async fn read_lines(
                     on_text(&progress.view());
                 }
                 let result = line.contains("\"type\":\"result\"") && serde_json::from_str::<Value>(&line).ok().and_then(|v| v.get("type").and_then(Value::as_str).map(|t| t == "result")) == Some(true);
+                if result && progress.context > 0 {
+                    on_context(progress.context, context_size(&line));
+                }
                 // The pieces of a block are not what the turn ended on.
                 if !line.trim_start().starts_with("{\"type\":\"stream_event\"") {
                     last = line;
@@ -677,6 +688,22 @@ async fn read_lines(
             }
         }
     }
+}
+
+/// What a model call read: the new tokens and those from the cache.
+fn context_used(v: &Value) -> Option<u64> {
+    let u = v.pointer("/message/usage")?;
+    let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+    Some(n("input_tokens") + n("cache_read_input_tokens") + n("cache_creation_input_tokens")).filter(|t| *t > 0)
+}
+
+/// The size of the context, from the `result` line: the largest of the models
+/// used (a sub-agent may have run on a smaller one); 0 when it does not say.
+fn context_size(line: &str) -> u64 {
+    let v: Value = serde_json::from_str(line.trim()).unwrap_or_default();
+    v.get("modelUsage").and_then(Value::as_object).into_iter().flatten()
+        .filter_map(|(_, m)| m.get("contextWindow").and_then(Value::as_u64))
+        .max().unwrap_or(0)
 }
 
 /// The session named by Claude Code's `{"type":"system","subtype":"init",…}` line.
@@ -697,6 +724,7 @@ async fn read_stream(
     child: &mut tokio::process::Child,
     on_text: &(dyn Fn(&str) + Sync),
     on_session: &(dyn Fn(&str) + Sync),
+    on_context: &(dyn Fn(u64, u64) + Sync),
     limit: Duration,
     late: &str,
 ) -> Result<(String, String, String, bool), String> {
@@ -711,7 +739,7 @@ async fn read_stream(
         s
     });
     let mut lines = tokio::io::BufReader::new(stdout).lines();
-    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, limit, late, false).await {
+    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, on_context, limit, late, false).await {
         Ok(r) => r,
         Err(e) => {
             let _ = child.start_kill();
@@ -842,6 +870,7 @@ async fn live_turn(
     prompt: &str,
     on_text: &(dyn Fn(&str) + Sync),
     on_session: &(dyn Fn(&str) + Sync),
+    on_context: &(dyn Fn(u64, u64) + Sync),
     limit: Duration,
     late: &str,
 ) -> Result<(String, String, usize), Option<String>> {
@@ -849,7 +878,7 @@ async fn live_turn(
     if live.stdin.write_all(format!("{line}\n").as_bytes()).await.is_err() || live.stdin.flush().await.is_err() {
         return Err(None);
     }
-    match read_lines(&mut live.lines, on_text, on_session, limit, late, true).await {
+    match read_lines(&mut live.lines, on_text, on_session, on_context, limit, late, true).await {
         Ok((last, shown, true, pending)) => Ok((last, shown, pending)),
         Ok((_, _, false, _)) => Err(None),
         Err(e) => Err(Some(e)),
@@ -873,7 +902,7 @@ fn follow(mut live: Live, later: Option<Later>, mut pending: usize) {
                 crate::log::line("claude: comandi in background oltre il limite, lascio perdere".to_string());
                 return;
             };
-            match read_lines(&mut live.lines, &|_| {}, &|_| {}, left, "", true).await {
+            match read_lines(&mut live.lines, &|_| {}, &|_| {}, &|_, _| {}, left, "", true).await {
                 Ok((last, _, true, still)) => {
                     pending = still;
                     log_usage(&last);
@@ -1078,6 +1107,7 @@ async fn send_mode(
     };
     // Kept at once: a turn stopped before its end is resumed by the next message.
     let on_session = |id: &str| chat.set_cli_session(Some(id.to_string()));
+    let on_context = |used: u64, size: u64| chat.set_context(used, size);
 
     let (stdout, shown, stderr, success) = if keep {
         let print = fingerprint(&make(None), &dir);
@@ -1090,7 +1120,7 @@ async fn send_mode(
                 Some(l) => l,
                 None => spawn_live(make(session.as_deref()), id, print.clone())?,
             };
-            match live_turn(&mut live, &prompt, on_text, &on_session, limit, late).await {
+            match live_turn(&mut live, &prompt, on_text, &on_session, &on_context, limit, late).await {
                 Ok((last, shown, pending)) => {
                     answer = Some((last, shown, live, pending));
                     break;
@@ -1132,7 +1162,7 @@ async fn send_mode(
                 .map_err(|e| e.to_string())?;
             // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
         }
-        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, limit, late).await?;
+        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, &on_context, limit, late).await?;
         (last, if terminal.is_some() { shown } else { String::new() }, stderr, ok)
     };
 
@@ -1506,6 +1536,19 @@ mod tests {
             "usage": { "input_tokens": 6, "cache_read_input_tokens": 26285, "cache_creation_input_tokens": 590, "output_tokens": 113 } });
         assert_eq!(super::usage_line(&v).unwrap(), "claude: 3 passi, 28.7 s (modello 21.0 s), token: 6 nuovi, 26285 in cache, 590 scritti in cache, 113 in uscita, 0.041 $");
         assert!(super::usage_line(&serde_json::json!({ "type": "result" })).is_none());
+    }
+
+    #[test]
+    fn the_context_is_the_last_call_and_the_largest_window() {
+        let mut p = Progress::default();
+        p.feed(r#"{"type":"assistant","message":{"usage":{"input_tokens":5,"cache_read_input_tokens":1000,"cache_creation_input_tokens":20},"content":[]}}"#);
+        p.feed(r#"{"type":"assistant","message":{"usage":{"input_tokens":2,"cache_read_input_tokens":3000,"cache_creation_input_tokens":8},"content":[]}}"#);
+        assert_eq!(p.context, 3010);
+        // A sub-agent's calls are not this conversation's context.
+        p.feed(r#"{"type":"assistant","parent_tool_use_id":"t1","message":{"usage":{"input_tokens":9},"content":[]}}"#);
+        assert_eq!(p.context, 3010);
+        assert_eq!(super::context_size(r#"{"type":"result","modelUsage":{"a":{"contextWindow":200000},"b":{"contextWindow":1000000}}}"#), 1000000);
+        assert_eq!(super::context_size(r#"{"type":"result"}"#), 0);
     }
 
     #[test]

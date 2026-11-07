@@ -60,12 +60,13 @@ pub fn follow(hwnd: HWND) {
     if !WATCH.load(Ordering::SeqCst) || hwnd.0.is_null() {
         return;
     }
-    // EasyIsland's own windows (the bar, the island and its small islands, the
-    // settings) and the desktop or the taskbar, which take the focus when the
-    // island closes, are never shown: the element keeps the last program the
-    // user worked in (Edoardo, 31 Oct 2026), and the title's menu is its menu.
+    // The bar, the island and the character, which take the focus at a click, and
+    // the desktop or the taskbar, which take it when the island closes, are never
+    // shown: the element keeps the program the user worked in (Edoardo, 31 Oct
+    // 2026), and the title's menu is its menu. EasyIsland's real windows (settings,
+    // the chat in its window, Anteprima, Memoria…) are shown as any program (6 Nov).
     let ours = crate::context::exe_path(hwnd).is_some_and(|p| p.to_lowercase().ends_with("\\easyisland.exe"));
-    if ours || crate::island::is_shell(hwnd) {
+    if (ours && !working_window(hwnd)) || crate::island::is_shell(hwnd) {
         return;
     }
     FOLLOWED.store(hwnd.0 as isize, Ordering::SeqCst);
@@ -79,7 +80,16 @@ pub fn follow(hwnd: HWND) {
     send(hwnd);
 }
 
-/// The window the element shows, for its menu (appmenu.rs); never EasyIsland's.
+/// One of EasyIsland's windows the user works in: not the island, not the bar or the character's.
+fn working_window(hwnd: HWND) -> bool {
+    use tauri::Manager;
+    let Some(app) = crate::context::app() else { return false };
+    app.windows().iter().any(|(label, w)| {
+        label != crate::island::WINDOW_LABEL && label != crate::CHARACTER_LABEL && w.hwnd().is_ok_and(|h| h.0 == hwnd.0)
+    })
+}
+
+/// The window the element shows, for its menu (appmenu.rs).
 pub fn target() -> Option<HWND> {
     let hwnd = HWND(FOLLOWED.load(Ordering::SeqCst) as *mut _);
     (!hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)) }.as_bool()).then_some(hwnd)

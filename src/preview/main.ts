@@ -31,6 +31,14 @@ const root = document.getElementById("preview-root")!;
 // ── Bar ──────────────────────────────────────────────────────────────────────
 
 const tabsBox = h("div", { class: "pv-tabs", role: "tablist" });
+/** The tab last brought into sight: redrawing must not move the strip under the mouse. */
+let shownTab: number | null = null;
+// The strip has no scrollbar: the wheel moves it sideways.
+tabsBox.addEventListener("wheel", (e) => {
+  if (tabsBox.scrollWidth <= tabsBox.clientWidth) return;
+  e.preventDefault();
+  tabsBox.scrollLeft += e.deltaY || e.deltaX;
+}, { passive: false });
 const plusBtn = h("button", { class: "pv-plus", text: "+", title: t("Nuova scheda (Ctrl+T)") }) as HTMLButtonElement;
 // Docked to the island the window has no frame: this closes it (preview.rs).
 const hideBtn = h("button", { class: "pv-plus pv-hide", text: "✕", title: t("Chiudi l'Anteprima") }) as HTMLButtonElement;
@@ -123,6 +131,7 @@ function browserShown(): boolean {
 // ── Drawing ──────────────────────────────────────────────────────────────────
 
 function drawTabs(): void {
+  const scrolled = tabsBox.scrollLeft;
   clear(tabsBox);
   for (const tab of state.tabs) {
     const icon = tab.kind === "web" ? "◍" : fileIcon(tab.target);
@@ -147,6 +156,10 @@ function drawTabs(): void {
     });
     tabsBox.append(el);
   }
+  tabsBox.scrollLeft = scrolled;
+  // The active tab stays in sight, however many are open.
+  if (state.active !== shownTab) tabsBox.querySelector(".pv-tab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  shownTab = state.active;
 }
 
 function fileIcon(path: string): string {

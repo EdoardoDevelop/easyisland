@@ -7,7 +7,6 @@
 // keeps a button to the matching Windows page for what it does not do itself.
 
 import { h, clear } from "./dom";
-import { washRGBA, type Wash } from "../core/layout";
 import { Bridge } from "../core/bridge";
 import { State, type AppMenuLine } from "../core/state";
 import { renderActionIcon } from "./action-icons";
@@ -15,8 +14,6 @@ import { actionForApp } from "./strip";
 import { BAR_KINDS } from "../core/barkinds";
 import type { ViewActions, ViewHost } from "./views";
 import { locale, t } from "../core/i18n";
-
-const WASH: Record<string, Wash> = { clock: "indigo", volume: "cyan", mic: "pink", brightness: "amber", battery: "green", net: "cyan", appmenu: "indigo" };
 
 /** Bytes per second, short: «850 kB/s», «1,2 MB/s». */
 function speed(n: number): string {
@@ -38,7 +35,7 @@ function minutes(m: number): string {
 
 export function buildBarCard(actions: ViewActions): ViewHost {
   const body = h("div", { class: "stack recap-stack barcard" });
-  const card = h("div", { class: "card wash recap-card" }, body);
+  const card = h("div", { class: "card recap-card" }, body);
   const el = h("div", { class: "view" }, card);
   /** The card on screen and what updates it when values change. */
   let shown = "";
@@ -361,7 +358,6 @@ export function buildBarCard(actions: ViewActions): ViewHost {
       const key = kind === "appmenu" ? `appmenu:${State.barWindow?.exe ?? ""}:${State.barWindow?.name ?? ""}` : kind;
       if (key !== shown) {
         shown = key;
-        card.style.setProperty("--wash", washRGBA(WASH[kind] ?? "indigo"));
         clear(body);
         body.append(...build(kind));
       }

@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 6/11 — Versione 1.0.26: risposte piene, progetto per conversazione, parola per parola
+Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `claude.rs`); `--include-partial-messages` con `Progress::delta`; «Progetto…» sceglie la cartella della conversazione, la predefinita resta quella di Impostazioni. Nella barra laterale gruppi per progetto con «+». Provato con `live_words` su Claude Code vero; da confrontare con l'uso i due modi.
+
 ### 5/11 — Chat: la riga che si scrive mentre l'agente lavora
 Al posto dei puntini, `src/views/typeline.ts` scrive l'attività in corso sotto la risposta (passo, ragionamento o frasi di attesa), con cursore CSS; a passo nuovo cancella e riscrive. Passi piccoli e senza barra, piegati in «N passi» a turno finito (`foldSteps`; «✗» resta in vista); Ferma neutro, rosso al passaggio del mouse; azioni sotto i propri messaggi solo al passaggio. Scena `?scene=chat&pensa`. Provato nel browser, anche in chiaro; il turno vero va guardato nell'app.
 

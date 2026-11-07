@@ -7,7 +7,7 @@
 ## Scrivere
 - Il campo va **su più righe**: <kbd>Invio</kbd> invia, <kbd>Shift</kbd>+<kbd>Invio</kbd> va a capo. Quello che stai scrivendo resta anche se riavvii. <kbd>↑</kbd> nel campo vuoto riprende l'ultima domanda.
 - Le risposte sono in **markdown**: titoli, elenchi, tabelle, codice con **Copia**. Mentre il motore lavora vedi il ragionamento e gli strumenti usati: quello in corso si scrive da solo in fondo, con il cursore. A risposta finita i passi si raccolgono in **N passi**: un clic li apre.
-- Con la Modalità terminale, **Progetto…** in alto sceglie la cartella di questa chat, così legge le regole e il git del progetto. **Cartella predefinita** usa quella delle Impostazioni. Cambiarla apre una conversazione nuova.
+- Con la Modalità terminale, **Progetto…** sotto il campo sceglie la cartella di questa chat, così legge le regole e il git del progetto; sul pulsante vedi anche il branch. Con Claude Code, sotto il campo un anello dice quanto è pieno il contesto della conversazione: dall'80 % diventa arancione ed è il momento di aprirne una nuova. **Cartella predefinita** usa quella delle Impostazioni. Cambiarla apre una conversazione nuova.
 - **■ Ferma** interrompe la risposta in corso (e il permesso in attesa).
 - **Mentre risponde puoi continuare a scrivere**: <kbd>Invio</kbd> mette il messaggio **in coda**, sotto la conversazione con «in attesa», e parte da solo appena la risposta finisce, uno dopo l'altro. Su ogni messaggio in coda: **Invia subito** (ferma la risposta e lo manda adesso), **Modifica** (lo rimette nel campo) e ✕. <kbd>Ctrl</kbd>+<kbd>Invio</kbd> lo manda subito senza passare dalla coda. Con il campo vuoto il pulsante resta **■ Ferma**.
 - Se sali a leggere, il testo che arriva non ti riporta giù: ↓ torna in fondo.
@@ -82,7 +82,7 @@ Il microfono si accende **solo** quando premi la scorciatoia, mai da solo. Serve
 ## Cronologia
 Le conversazioni con un **Progetto** stanno raggruppate per progetto nella barra laterale: un clic sul nome chiude o apre il gruppo, **+** inizia lì una chat nuova. Le altre restano divise per data.
 
-A sinistra della chat c'è la **barra delle conversazioni**: **Nuova chat**, la ricerca e le conversazioni di prima (fino a 100, solo su questo PC) divise per giorno. Il pulsante in alto a sinistra della chat (o <kbd>Ctrl</kbd>+<kbd>B</kbd>) la apre e la chiude; aperta, l'isola si allarga per farle posto. Trascinandone il bordo destro la fai più larga o più stretta (resta così); un doppio clic sul bordo la riporta com'era.
+A sinistra della chat c'è la **barra delle conversazioni**: **Nuovo**, **Cerca** (apre e chiude il campo di ricerca) e le conversazioni di prima (fino a 100, solo su questo PC) divise per giorno. Il pulsante in alto a sinistra della chat (o <kbd>Ctrl</kbd>+<kbd>B</kbd>) la apre e la chiude; aperta, l'isola si allarga per farle posto. Trascinandone il bordo destro la fai più larga o più stretta (resta così); un doppio clic sul bordo la riporta com'era.
 
 Puoi tenere **più conversazioni aperte insieme**: passando a un'altra, quella di prima non si chiude e se stava rispondendo continua. Nella barra un anello che gira indica chi sta rispondendo, un pallino una risposta arrivata mentre eri altrove, **!** una conversazione che chiede un permesso (e sopra il campo compare una riga per andarci). **Nuova chat** lascia aperta quella in corso. Oltre 8 conversazioni aperte, la meno usata e ferma si chiude da sola: resta nella cronologia.
 

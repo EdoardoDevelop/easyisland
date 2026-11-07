@@ -1,6 +1,6 @@
 // Minimal DOM helpers — no framework, as specified.
 import { BRAND_SVG } from "./brands";
-import { LINE_ICONS } from "./icons";
+import { ICONS, LINE_ICONS } from "./icons";
 import { windowsLook } from "../core/uistyle";
 
 type Attrs = Record<string, string | number | boolean | EventListener | undefined>;
@@ -29,24 +29,45 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/** Each icon's name, on its `<svg>` (`data-icon`): anim-icons.css moves them by name. */
+const ICON_NAMES = new Map(Object.entries(ICONS).map(([name, path]) => [path as string, name]));
+/** Filled icons that move in pieces, one `<path>` for each `M` of their outline. */
+const IN_PIECES = new Set(["sliders", "speakerOn", "team", "copy"]);
+
+/** The paper clip beside a file's name, or alone at the given size. */
+export function clipMark(size = 12): SVGSVGElement {
+  const icon = svg(ICONS.clip, size, { stroke: 1.8 });
+  icon.classList.add("clip-mark");
+  return icon;
+}
+
 export function svg(path: string, size = 14, opts: { fill?: string; stroke?: number } = {}): SVGSVGElement {
   const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   el.setAttribute("viewBox", "0 0 24 24");
   el.setAttribute("width", String(size));
   el.setAttribute("height", String(size));
   el.setAttribute("aria-hidden", "true");
-  const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  p.setAttribute("d", path);
-  if (opts.stroke) {
-    p.setAttribute("fill", "none");
-    p.setAttribute("stroke", "currentColor");
-    p.setAttribute("stroke-width", String(opts.stroke));
-    p.setAttribute("stroke-linecap", "round");
-    p.setAttribute("stroke-linejoin", "round");
-  } else {
-    p.setAttribute("fill", opts.fill ?? "currentColor");
-  }
-  el.append(p);
+  const name = ICON_NAMES.get(path);
+  if (name) el.setAttribute("data-icon", name);
+  const pieces = opts.stroke || (name && IN_PIECES.has(name)) ? path.split(/(?=M)/) : [path];
+  pieces.forEach((d, i) => {
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", d);
+    p.setAttribute("class", `ip${i}`);
+    if (opts.stroke) {
+      // Of length 1 whatever its shape: it can draw itself (anim-icons.css).
+      p.setAttribute("pathLength", "1");
+      p.classList.add("ai-line");
+      p.setAttribute("fill", "none");
+      p.setAttribute("stroke", "currentColor");
+      p.setAttribute("stroke-width", String(opts.stroke));
+      p.setAttribute("stroke-linecap", "round");
+      p.setAttribute("stroke-linejoin", "round");
+    } else {
+      p.setAttribute("fill", opts.fill ?? "currentColor");
+    }
+    el.append(p);
+  });
   return el;
 }
 

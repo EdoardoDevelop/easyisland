@@ -9,7 +9,7 @@ import { ICONS } from "./icons";
 import { actionIcon, actionIconSvg } from "./action-icons";
 import { Ticker } from "./ticker";
 import { State, canAskSession, canOpen, engineLabel, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
-import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
+import type { IslandViewName } from "../core/layout";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
@@ -119,10 +119,8 @@ export interface ViewHost {
 
 // ── Shared pieces ─────────────────────────────────────────────────────────────
 
-function card(wash: Wash, ...children: (Node | string)[]): HTMLElement {
-  const el = h("div", { class: wash ? "card wash" : "card" }, ...children);
-  if (wash) el.style.setProperty("--wash", washRGBA(wash));
-  return el;
+function card(...children: (Node | string)[]): HTMLElement {
+  return h("div", { class: "card" }, ...children);
 }
 
 function btn(
@@ -352,7 +350,7 @@ function buildOverview(actions: ViewActions): ViewHost {
     { class: "icon-btn jump pop-jump", title: t("Apri in una finestra"), onclick: () => { if (State.focusTask) actions.popOut(State.focusTask.id); } },
     svg(ICONS.popOut, 12),
   );
-  const left = card("indigo", agentBar, leftBody, jump, askJump, popJump);
+  const left = card(agentBar, leftBody, jump, askJump, popJump);
   // One card: the menu on the left (rail.ts) lists the integrations.
   const el = h("div", { class: "view overview solo" }, h("div", { class: "left" }, left));
 
@@ -396,9 +394,6 @@ function buildOverview(actions: ViewActions): ViewHost {
     },
     sync() {
       const task = State.focusTask;
-      // The glow at the bottom, as in the chat: the tab's own colour.
-      left.style.setProperty("--wash", task && !showsSummary()
-        ? `color-mix(in srgb, ${task.color} 45%, transparent)` : washRGBA("indigo"));
       if (task?.id !== lastFocus) {
         lastFocus = task?.id ?? null;
         detailOpen = false;
@@ -545,7 +540,7 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
     { class: "icon-btn jump", title: t("Rimetti nell'isola"), onclick: () => actions.dockBack(id) },
     svg(ICONS.popIn, 12),
   );
-  const left = card("indigo", body, dock);
+  const left = card(body, dock);
   const el = h("div", { class: "view overview solo on detached" }, h("div", { class: "left" }, left));
   let detailOpen = false;
   let cardKey = "";
@@ -587,7 +582,6 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
         }
         return;
       }
-      left.style.setProperty("--wash", `color-mix(in srgb, ${task.color} 45%, transparent)`);
       const info = State.integrations[task.id];
       // As the island's card (buildOverview): rebuilt only when what it shows changes.
       const key = task.id === ZAMMAD ? `~${zammadKey()}` : [
@@ -706,7 +700,7 @@ function buildEmpty(actions: ViewActions): ViewHost {
     h("div", { class: "grow" }),
     btn(t("Chiedi alla chat"), "primary", () => actions.setView("prompt")),
   );
-  return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
+  return { el: h("div", { class: "view" }, card(body)), sync() {} };
 }
 
 /**
@@ -760,7 +754,7 @@ function buildApproval(actions: ViewActions): ViewHost {
   const row = h("div", { class: "actions" });
   const left = h("span", { class: "wait-left" });
   const showLeft = waitTimer(left);
-  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, risk, code, plan, always, row)));
+  const el = h("div", { class: "view" }, card(stack(116, 16, who, risk, code, plan, always, row)));
   let rowKey = "";
   return {
     el,
@@ -832,7 +826,7 @@ function buildAsk(actions: ViewActions): ViewHost {
   const foot = h("div", { class: "ask-foot" });
   const left = h("span", { class: "wait-left" });
   const showLeft = waitTimer(left);
-  const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, options, foot)));
+  const el = h("div", { class: "view" }, card(stack(116, 16, who, title, options, foot)));
 
   let key = "";
   let index = 0;
@@ -958,7 +952,7 @@ function buildQuestion(actions: ViewActions): ViewHost {
   const open = btn(t("Apri terminale"), "primary", () => actions.openTerminal());
   const note = h("div", { class: "sub" });
   const row = h("div", { class: "actions" }, open, note);
-  const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, row)));
+  const el = h("div", { class: "view" }, card(stack(116, 16, who, title, row)));
   return {
     el,
     sync() {
@@ -988,7 +982,7 @@ function buildError(actions: ViewActions): ViewHost {
     btn(t("Riprova"), "primary", () => actions.setView(State.defaultView())),
     open,
   );
-  const el = h("div", { class: "view" }, card("red", stack(116, 16, who, title, detail, row)));
+  const el = h("div", { class: "view" }, card(stack(116, 16, who, title, detail, row)));
   return {
     el,
     sync() {
@@ -1069,7 +1063,7 @@ function buildFinished(actions: ViewActions): ViewHost {
     askBtn,
     btn("OK", "secondary", () => actions.collapse()),
   );
-  const el = h("div", { class: "view" }, card("green", stack(116, 16, who, said, title, reply, status, row)));
+  const el = h("div", { class: "view" }, card(stack(116, 16, who, said, title, reply, status, row)));
   let lastTask: string | null = null;
   return {
     el,
@@ -1121,14 +1115,14 @@ function buildConfused(): ViewHost {
     h("div", { class: "title", text: t("Troppi colpi tutti insieme.") }),
     h("div", { class: "sub", text: t("Dammi un attimo: torno al lavoro tra tre secondi.") }),
   );
-  return { el: h("div", { class: "view" }, card("pink", body)), sync() {} };
+  return { el: h("div", { class: "view" }, card(body)), sync() {} };
 }
 
 // ── Note ──────────────────────────────────────────────────────────────────────
 
 function buildNote(): ViewHost {
   const title = h("div", { class: "title" });
-  const el = h("div", { class: "view" }, card(null, h("div", { class: "stack", style: "padding:0 18px 0 max(16px, calc(98px * var(--bot-room, 1)))" }, title)));
+  const el = h("div", { class: "view" }, card(h("div", { class: "stack", style: "padding:0 18px 0 max(16px, calc(98px * var(--bot-room, 1)))" }, title)));
   return {
     el,
     sync() {
@@ -1139,7 +1133,6 @@ function buildNote(): ViewHost {
 
 // ── Notice (easyisland-hook notify) ───────────────────────────────────────────────
 
-const NOTICE_WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
 const NOTICE_LABEL: Record<string, string> = { ok: t("fatto"), warn: t("attenzione"), error: t("errore"), info: t("notifica") };
 
 /** A message from any script: `easyisland-hook notify "Titolo" "Testo" --stato ok`. */
@@ -1202,7 +1195,7 @@ function buildNotify(actions: ViewActions): ViewHost {
         if (n.url) row.append(btn(t("Apri"), "primary", () => { actions.openUrl(n.url); actions.collapse(); }));
         row.append(btn("OK", n.url ? "secondary" : "primary", () => actions.collapse()));
       }
-      host.append(card(NOTICE_WASH[n.level] ?? "indigo", stack(116, 16, who, title, text, row)));
+      host.append(card(stack(116, 16, who, title, text, row)));
     },
   };
 }
@@ -1218,7 +1211,7 @@ function buildPlaceholder(title: string, sub: string): ViewHost {
     h("div", { class: "title", text: title }),
     h("div", { class: "sub", text: sub }),
   );
-  return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
+  return { el: h("div", { class: "view" }, card(body)), sync() {} };
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────

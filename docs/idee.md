@@ -100,9 +100,15 @@ Prove di @claudio sul PC lavoro, dettagli in `RDM-Devolutions-Cloud-connessione.
 ## Strumenti di EasyIsland per gli altri motori via API
 Fatto per Anthropic con chiave; opencode li ha. Senza: OpenRouter, OpenAI, Gemini, Ollama, LM Studio (`openai.rs`), salvo Modalità terminale via opencode. Servirebbe `tools` da `hook/src/tool_list.rs`, `tool_calls` dallo stream, ciclo come `claude.rs`, ripiego al 400 e interruttore. Edoardo ha scelto il 19/10 di non farlo per ora.
 
-## Resoconti e preventivi con carta intestata (21/10)
+## Documenti Word e PDF nella chat (21/10, deciso il 7/11)
+Edoardo li vuole dentro EasyIsland, senza programmi da installare: creare documenti, compilare modelli, leggerli. Strumenti dell'app, non istruzioni con script: pandoc, LibreOffice e librerie Python non ci sono sui PC.
+- Ordine: creare e compilare `.docx`, leggere `.docx`, Word → PDF, poi leggere i PDF.
+- Leggere i PDF: approvata una libreria Rust, la più piccola possibile; il testo va a ogni motore e a «Da leggere» della memoria. Scansioni escluse.
+- Ogni scrittura è un file nuovo con Consenti/Nega, mai sopra l'originale; mai in `REVERSIBLE`.
+- Solo motori con gli strumenti di EasyIsland.
+- Fuori dal primo giro: revisioni tracciate, commenti, moduli PDF, unire e dividere PDF.
 - Modelli `.docx`/`.dotx` dell'utente copiati in AppData, mai modificati; segnaposto `{cliente}`, `{data}`, `{numero}`, `{corpo}`.
-- `create_document`: modello, titolo, cliente, sezioni → copia con intestazione e piè intatti, nella cartella di lavoro e nel Vassoio, con Consenti/Nega. Docx = ZIP di XML, niente dipendenze.
+- `create_document`: modello (o documento vuoto), titolo, cliente, sezioni → copia con intestazione e piè intatti, nella cartella di lavoro e nel Vassoio, con Consenti/Nega. Docx = ZIP di XML, niente dipendenze.
 - Preventivi: l'IA passa solo righe (descrizione, quantità, prezzo, IVA); totali, IVA e numero progressivo li calcola l'app.
 - PDF con Word installato, altrimenti `.docx`. Esclusi editor di documenti e generatore PDF.
 
@@ -140,6 +146,7 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 - **Personaggi rimandati:** polpo, rana, granchio (prove dell'8/10 venute male); pose di Goccia (saluto con la mano, salto, caduta, onda).
 - **opencode:** nella chat `question` è negato (`opencode.rs`): riusare la card dell'agente (`opencode_agent.rs`); il menu dei motori non controlla se Ollama/LM Studio rispondono.
 - **Decisioni aperte:** firma del codice (Authenticode o Azure Trusted Signing); tag `windows-latest` creato per sbaglio; funzioni del Mac mai portate (invio di un file per email).
+- **Nota a mano con freccia (6/11, da decidere se usarla):** freccia sottile disegnata a mano, verde acqua, con una nota breve in scrittura a mano accanto al punto indicato. Aspetto: freccia misurata sul disegno di riferimento, praticamente identica; font molto simile (prima quelli di Windows, altrimenti scritte fisse disegnate nel codice). Niente evidenziatore, niente dipendenze. Usi possibili: funzioni nuove nell'interfaccia (punto fisso, il più utile) o dubbi nelle risposte della chat (più estetico: il testo scorre e la colonna è stretta).
 - **Da valutare:** TeamViewer (cosa serve, da chiarire); libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2/10: Windows Update, stampanti bloccate, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI.
 
 ## Pulizia del codice (solo quando si tocca quel file)

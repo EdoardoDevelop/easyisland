@@ -36,6 +36,8 @@ body {
 #preview-root {
   height: 100%;
   display: grid;
+  /* minmax: many tabs scroll in their strip instead of widening the window's content. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto;
   position: relative;
 }

@@ -11,7 +11,6 @@
 
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
-import { washRGBA } from "../core/layout";
 import { Bridge } from "../core/bridge";
 import { State, type NewsItem, type NewsSettings } from "../core/state";
 import type { ViewActions, ViewHost } from "./views";
@@ -130,8 +129,7 @@ export function buildNews(actions: ViewActions): ViewHost {
       refresh,
       h("button", { class: "btn secondary", onclick: () => void Bridge.openSettingsAt("notizie") }, h("span", { text: t("Scegli gli argomenti") })),
       h("button", { class: "btn secondary", onclick: () => actions.collapse() }, h("span", { text: "OK" }))));
-  const card = h("div", { class: "card wash recap-card" }, body);
-  card.style.setProperty("--wash", washRGBA("cyan"));
+  const card = h("div", { class: "card recap-card" }, body);
   const el = h("div", { class: "view" }, card);
   let topic = "";
   let key = "";

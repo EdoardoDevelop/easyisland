@@ -9,7 +9,7 @@
 // redrawn here, so what is being typed keeps its caret; a draft is kept per
 // ticket. The counts and «Nuovo ticket» stay with the check (widgets.rs).
 
-import { h, brandOrDot, clear } from "./dom";
+import { h, brandOrDot, clear, clipMark } from "./dom";
 import { State } from "../core/state";
 import { Bridge, onEvent, type TicketAdvice, type ZammadList, type ZammadTicket, type ZammadArticle, type ZammadOpt } from "../core/bridge";
 import { t } from "../core/i18n";
@@ -512,8 +512,8 @@ function message(a: ZammadArticle, d: ZammadTicket): HTMLElement {
     h("div", { class: "zm-text", text: text || t("(nessun testo)") }),
     long ? h("button", { class: "link-btn zm-more", text: t("Mostra tutto"),
       onclick: (e: Event) => { e.stopPropagation(); zm.unfolded.add(a.id); draw(); } }) : null,
-    ...a.files.map((f) => h("button", { class: "zm-file", text: `📎 ${f}`, title: t("Apri il ticket in Zammad per scaricarlo"),
-      onclick: (e: Event) => { e.stopPropagation(); void Bridge.openUrl(d.url); } })));
+    ...a.files.map((f) => h("button", { class: "zm-file", title: t("Apri il ticket in Zammad per scaricarlo"),
+      onclick: (e: Event) => { e.stopPropagation(); void Bridge.openUrl(d.url); } }, clipMark(), f)));
 }
 
 // ── Writing: a note, or a reply by email ─────────────────────────────────────
