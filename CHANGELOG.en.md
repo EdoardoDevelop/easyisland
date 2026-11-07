@@ -4,7 +4,7 @@ What changed in each version, newest first. The latest ones are summed up in the
 
 **1.0.33** — **More complete custom integrations**, all of them and not just delivery notes: real **HTML templates** with values always
 escaped, long dates, Italian numbers, conditions and resources such as a logo. Line breaks no longer break tables. **A4 PDF** straight from a
-card, saved to the Tray and a folder. A button can run a **script** after a confirmation, and card data also reaches quick actions. Agents can
+card, saved to the Tray and a folder. From the chat you choose **where to save** and **what to call the file**, with several fields too, and how cards read in the list. A button can run a **script** after a confirmation, and card data also reaches quick actions. Agents can
 **create and change quick actions**, and a `.json` edited by hand shows up without a restart.
 The **Agent Chat** card has **Running**: on the PC where an engine is working you see what it does, step by step. Engines work in the project's folder, go on with the conversation for an hour, read in full the
 messages they answer and no longer do the same job twice.

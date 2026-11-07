@@ -25,7 +25,9 @@ Text, long text, number, **amount**, date, checkbox, choice and multiple choice,
 A simple language, in Italian or English: `+ - * / %`, comparisons, `and` / `or` / `not`, `if(condition; yes; no)`, `sum(quantity*price)` over rows, `avg`, `count`, `round`, `min`, `max`, dates (`today()`, `days(from; to)`, `adddays(date; 30)`, year, month), text (`upper`, `concat`, `contains`, `len`). Never code executed.
 
 ### Document template
-A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`) and the date. **Document** produces it as **printable HTML**, **PDF** (A4) or Markdown, in the Tray; the PDF can also go to a folder of your choice.
+A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`) and the date. **Document** produces it as **printable HTML**, **PDF** (A4) or Markdown, in the Tray.
+
+**Where to save and what to call the file** you tell the chat, when you create the integration or later: "save the PDFs in `C:\Documents\DDT`", "name the file number and client", "show number and client in the list". You can use several fields together, such as `{{number}} {{client}}`. The document always goes to the Tray and also to the chosen folder, never overwriting: if the name exists it becomes `name (2).pdf`. Characters Windows does not accept in file names are removed, and `/` becomes `-`.
 
 The template can also be **real HTML** with your own design: it just has to start with a tag such as `<!doctype html>`, `<style>` or `<div>`. Field values are always escaped, and scripts and dangerous links are removed.
 

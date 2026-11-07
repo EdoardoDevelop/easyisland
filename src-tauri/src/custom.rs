@@ -25,6 +25,8 @@ const MAX_ACTIONS: usize = 12;
 const MAX_RECORDS: usize = 2000;
 const MAX_TEMPLATE: usize = 40_000;
 const MAX_SCRIPT: usize = 20_000;
+/// A record's title and a file's name, with their {{campi}}.
+const MAX_NAME: usize = 200;
 /// {{file:nome}}: it ends up in the page as text, a third bigger.
 const MAX_ASSET: u64 = 5 * 1024 * 1024;
 
@@ -94,8 +96,10 @@ pub struct Action {
     pub database: String,
     /// document: "html" (printable, the default), "pdf" or "md".
     pub format: String,
-    /// document in PDF: a folder for a copy, besides the Vassoio (%VARIABILI% allowed).
+    /// document: a folder for a copy, besides the Vassoio (%VARIABILI% allowed).
     pub folder: String,
+    /// document: the file's name, with {{campi}}, as it reads ("{{numero}} {{cliente}}").
+    pub filename: String,
     /// script: the commands, as they are ({{campi}} are not filled in: the
     /// record's data is in the JSON file named by EASYISLAND_SCHEDA).
     pub script: String,
@@ -156,6 +160,8 @@ pub struct Custom {
     /// The document: Markdown with {{campo}}, {{#righe}}…{{/righe}} for a table's rows.
     pub template: String,
     pub actions: Vec<Action>,
+    /// How a record reads in the list, with {{campi}} ("{{numero}} · {{cliente}}"); before `title_field`.
+    pub title: String,
     /// The field that names a record in the list (the first text field when empty).
     pub title_field: String,
     /// Data read from services (lists, values, alerts).
@@ -281,6 +287,8 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
     if c.template.len() > MAX_TEMPLATE {
         return Err(t("template: al massimo 40.000 caratteri.").into());
     }
+    c.title = c.title.trim().to_string();
+    check_name("title", &c.title, &c.fields)?;
     if c.actions.len() > MAX_ACTIONS {
         return Err(tf("actions: al massimo {n}.", &[("n", &MAX_ACTIONS.to_string())]));
     }
@@ -324,6 +332,8 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         if !a.folder.is_empty() && !(a.folder.starts_with('%') || Path::new(&a.folder).is_absolute()) {
             return Err(tf("Azione «{l}»: folder, il percorso completo di una cartella.", &[("l", &a.label)]));
         }
+        a.filename = a.filename.trim().to_string();
+        check_name(&tf("Azione «{l}»: filename", &[("l", &a.label)]), &a.filename, &c.fields)?;
         if a.kind == "script" && a.shell != "cmd" {
             a.shell = "powershell".into();
         }
@@ -555,20 +565,98 @@ pub fn delete_record(app: &AppHandle, id: &str, record: &str) -> Result<(), Stri
     Ok(())
 }
 
-/// A document of a record (the template already filled by the island): into the Vassoio.
-pub fn document(name: &str, ext: &str, text: &str) -> Result<crate::files::DroppedFile, String> {
+/// A title or a file's name of a description: not too long, and only fields it has,
+/// so that a mistyped {{campo}} is told to whoever writes it, not printed in the name.
+fn check_name(what: &str, text: &str, fields: &[Field]) -> Result<(), String> {
+    if text.len() > MAX_NAME {
+        return Err(tf("{w}: al massimo 200 caratteri.", &[("w", &what)]));
+    }
+    for part in text.split("{{").skip(1) {
+        let inner = part.split("}}").next().unwrap_or_default().trim();
+        if inner.starts_with(['#', '^', '/']) {
+            continue;
+        }
+        let id = inner.split('|').next().unwrap_or_default().trim();
+        if id != "oggi" && !id.starts_with("risposta") && !fields.iter().any(|f| f.id == id) {
+            return Err(tf("{w}: «{c}» non è l'id di un campo.", &[("w", &what), ("c", &id)]));
+        }
+    }
+    Ok(())
+}
+
+/// A name as Windows takes it: / \ : become dashes (a date, "S/N"), what a file
+/// name cannot hold goes, no dots or spaces at the end, no reserved device name.
+fn safe_name(name: &str, ext: &str) -> String {
+    let mut clean = String::new();
+    for c in name.chars() {
+        match c {
+            '/' | '\\' | ':' => clean.push('-'),
+            '*' | '?' | '"' | '<' | '>' | '|' => {}
+            c if c.is_control() => clean.push(' '),
+            c => clean.push(c),
+        }
+    }
+    let one = clean.split_whitespace().collect::<Vec<_>>().join(" ");
+    let dotted = format!(".{ext}");
+    let plain = match one.get(one.len().saturating_sub(dotted.len())..) {
+        Some(end) if end.eq_ignore_ascii_case(&dotted) => one.get(..one.len() - dotted.len()).unwrap_or_default(),
+        _ => one.as_str(),
+    };
+    let cut: String = plain.chars().take(120).collect();
+    let out = cut.trim_matches(|c: char| c == '.' || c == ' ').to_string();
+    let stem = out.split('.').next().unwrap_or_default().to_uppercase();
+    let device = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.ends_with(|c: char| c.is_ascii_digit()));
+    if device {
+        format!("_{out}")
+    } else {
+        out
+    }
+}
+
+/// What a document is called: `file`, the name the description asks for, or the
+/// slug of `name`.
+fn base_of(name: &str, file: &str, ext: &str) -> String {
+    let own = safe_name(file, ext);
+    if !own.is_empty() {
+        return own;
+    }
+    let base: String = crate::skills::slug(name).chars().take(60).collect();
+    if base.is_empty() {
+        "documento".to_string()
+    } else {
+        base
+    }
+}
+
+/// A finished document: into the Vassoio and, when the description says so, a
+/// copy into its folder.
+fn deliver(base: &str, ext: &str, bytes: &[u8], folder: &str) -> Result<crate::files::DroppedFile, String> {
+    let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let work = std::env::temp_dir().join(format!("easyisland-doc-{stamp}"));
+    std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
+    let done = (|| {
+        let out = work.join(format!("{base}.{ext}"));
+        std::fs::write(&out, bytes).map_err(|e| e.to_string())?;
+        let file = crate::files::ingest(&out.to_string_lossy())?;
+        if !folder.trim().is_empty() {
+            let target = PathBuf::from(expand_env(folder.trim()));
+            std::fs::create_dir_all(&target).map_err(|e| tf("Cartella del documento non raggiungibile: {e}", &[("e", &e.to_string())]))?;
+            std::fs::write(free_path(&target, base, ext), bytes).map_err(|e| tf("Documento non copiato nella cartella: {e}", &[("e", &e.to_string())]))?;
+        }
+        Ok(file)
+    })();
+    let _ = std::fs::remove_dir_all(&work);
+    done
+}
+
+/// A document of a record (the template already filled by the island).
+pub fn document(name: &str, ext: &str, text: &str, file: &str, folder: &str) -> Result<crate::files::DroppedFile, String> {
     let ext = match ext {
         "md" => "md",
         "csv" => "csv",
         _ => "html",
     };
-    let base: String = crate::skills::slug(name).chars().take(60).collect();
-    let base = if base.is_empty() { "documento".to_string() } else { base };
-    let tmp = std::env::temp_dir().join(format!("easyisland-{base}.{ext}"));
-    std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-    let out = crate::files::ingest(&tmp.to_string_lossy());
-    let _ = std::fs::remove_file(&tmp);
-    out
+    deliver(&base_of(name, file, ext), ext, text.as_bytes(), folder)
 }
 
 /// "%USERPROFILE%\WORK" → the same with the variable's value; unknown ones stay.
@@ -599,11 +687,8 @@ fn free_path(folder: &Path, base: &str, ext: &str) -> PathBuf {
     (2..10_000).map(|n| folder.join(format!("{base} ({n}).{ext}"))).find(|p| !p.exists()).unwrap_or(first)
 }
 
-/// The page of a document printed in PDF: into the Vassoio and, when the
-/// description says so, a copy into its folder.
-pub async fn pdf(app: &AppHandle, name: &str, html: &str, folder: &str) -> Result<crate::files::DroppedFile, String> {
-    let base: String = crate::skills::slug(name).chars().take(60).collect();
-    let base = if base.is_empty() { "documento".to_string() } else { base };
+/// The page of a document printed in PDF.
+pub async fn pdf(app: &AppHandle, name: &str, html: &str, file: &str, folder: &str) -> Result<crate::files::DroppedFile, String> {
     let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
     let work = std::env::temp_dir().join(format!("easyisland-pdf-{stamp}"));
     std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
@@ -611,15 +696,7 @@ pub async fn pdf(app: &AppHandle, name: &str, html: &str, folder: &str) -> Resul
     let made = async {
         std::fs::write(&page, html).map_err(|e| e.to_string())?;
         let bytes = crate::pdf::print(app, &page).await?;
-        let out = work.join(format!("{base}.pdf"));
-        std::fs::write(&out, &bytes).map_err(|e| e.to_string())?;
-        let file = crate::files::ingest(&out.to_string_lossy())?;
-        if !folder.trim().is_empty() {
-            let target = PathBuf::from(expand_env(folder.trim()));
-            std::fs::create_dir_all(&target).map_err(|e| tf("Cartella del PDF non raggiungibile: {e}", &[("e", &e.to_string())]))?;
-            std::fs::write(free_path(&target, &base, "pdf"), &bytes).map_err(|e| tf("PDF non copiato nella cartella: {e}", &[("e", &e.to_string())]))?;
-        }
-        Ok(file)
+        deliver(&base_of(name, file, "pdf"), "pdf", &bytes, folder)
     }.await;
     let _ = std::fs::remove_dir_all(&work);
     made
@@ -1137,6 +1214,49 @@ mod tests {
         let mut c = quote();
         c.actions.push(Action { label: "Crea".into(), kind: "script".into(), script: "x".repeat(MAX_SCRIPT + 1), ..Default::default() });
         assert!(normalize(c).unwrap_err().contains("20.000"));
+    }
+
+    #[test]
+    fn a_file_name_as_windows_takes_it() {
+        assert_eq!(base_of("x", "DDT-2026-002 TALENTI S.p.A.", "pdf"), "DDT-2026-002 TALENTI S.p.A");
+        assert_eq!(base_of("x", "Offerta 07/11/2026 a:b", "pdf"), "Offerta 07-11-2026 a-b");
+        assert_eq!(base_of("x", "un \"bel\" <nome>?\nsu due righe", "pdf"), "un bel nome su due righe");
+        assert_eq!(base_of("x", "prova.PDF", "pdf"), "prova");
+        assert_eq!(base_of("x", "..\\..\\fuori", "pdf"), "-..-fuori");
+        assert_eq!(base_of("x", "con", "pdf"), "_con");
+        assert_eq!(base_of("x", "COM3.bak", "pdf"), "_COM3.bak");
+        assert_eq!(base_of("x", "Cometa", "pdf"), "Cometa");
+        assert_eq!(base_of("x", &"è".repeat(300), "pdf").chars().count(), 120);
+        // Nothing left of the name asked for: the usual one.
+        assert_eq!(base_of("DDT Easytech", " ... ", "pdf"), "ddt-easytech");
+        assert_eq!(base_of("", "", "pdf"), "documento");
+    }
+
+    #[test]
+    fn a_title_and_a_file_name_use_fields_it_has() {
+        let mut c = normalize(quote()).unwrap();
+        c.title = format!("{{{{{}}}}} · {{{{oggi|lunga}}}}", c.fields[0].id);
+        c.actions.push(Action { label: "PDF".into(), kind: "pdf".into(), filename: format!(" {{{{{}}}}} ", c.fields[0].id), ..Default::default() });
+        let id = c.fields[0].id.clone();
+        let done = normalize(c.clone()).unwrap();
+        assert_eq!(done.actions.last().unwrap().filename, format!("{{{{{id}}}}}"));
+        c.title = "{{clienet}}".into();
+        assert!(normalize(c.clone()).unwrap_err().contains("clienet"));
+        c.title = String::new();
+        c.actions.last_mut().unwrap().filename = "x".repeat(201);
+        assert!(normalize(c).unwrap_err().contains("filename"));
+    }
+
+    #[test]
+    fn a_document_keeps_its_name_and_goes_to_its_folder() {
+        let folder = std::env::temp_dir().join(format!("easyisland-prova-nome-{}", std::process::id()));
+        let f = folder.to_string_lossy().to_string();
+        let first = document("x", "html", "<p>uno</p>", "DDT 1 Rossi", &f).unwrap();
+        assert!(first.name.starts_with("DDT 1 Rossi"));
+        document("x", "html", "<p>due</p>", "DDT 1 Rossi", &f).unwrap();
+        assert_eq!(std::fs::read_to_string(folder.join("DDT 1 Rossi.html")).unwrap(), "<p>uno</p>");
+        assert_eq!(std::fs::read_to_string(folder.join("DDT 1 Rossi (2).html")).unwrap(), "<p>due</p>");
+        let _ = std::fs::remove_dir_all(&folder);
     }
 
     #[test]

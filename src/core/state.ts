@@ -1999,8 +1999,10 @@ export interface CustomAction {
   /** script: the commands, shown before running; the record's data comes in a JSON file. */
   script?: string;
   shell?: string;
-  /** document in PDF: a folder for a copy, besides the Vassoio. */
+  /** document: a folder for a copy, besides the Vassoio. */
   folder?: string;
+  /** document: the file's name, with {{campi}}. */
+  filename?: string;
 }
 /** Data read from a service (custom.rs Source). */
 export interface CustomSource {
@@ -2029,6 +2031,8 @@ export interface Custom {
   fields: CustomField[];
   template: string;
   actions: CustomAction[];
+  /** How a record reads in the list, with {{campi}}; before titleField. */
+  title?: string;
   titleField: string;
   sources?: CustomSource[];
   secrets?: string[];

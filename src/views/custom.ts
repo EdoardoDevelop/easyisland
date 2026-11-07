@@ -316,6 +316,9 @@ export function summaryOf(c: Custom, records: CustomRecord[]): string[] {
 
 /** The name of a record in the list. */
 function titleOf(c: Custom, r: CustomRecord): string {
+  // A field still empty leaves no separator hanging at either end.
+  const own = c.title ? fillTemplate({ ...c, template: c.title }, r.values).replace(/\s+/g, " ").replace(/^[\s·,;:|–—-]+|[\s·,;:|–—-]+$/g, "") : "";
+  if (own) return own;
   const f = c.fields.find((x) => x.id === c.titleField) ?? c.fields.find((x) => x.kind === "text" || x.kind === "counter");
   const v = f ? shown(formatOf(f), r.values[f.id]) : "";
   return v || r.created;
@@ -790,12 +793,14 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
         }
         case "document": {
           const name = `${c!.name} ${titleOf(c!, { id: "", created: "", updated: "", values: d.values })}`;
+          const file = a.filename ? fillTemplate({ ...c!, template: a.filename }, d.values, d.answer) : "";
+          const folder = a.folder ?? "";
           if (a.format === "md") {
-            const f = await Bridge.customDocument(name, "md", fillTemplate(c!, d.values, d.answer, "md"));
+            const f = await Bridge.customDocument(name, "md", fillTemplate(c!, d.values, d.answer, "md"), file, folder);
             say(t("Documento nel Vassoio: {name}", { name: f.name }), true);
           } else {
-            const page = await pageOf(name);
-            const f = a.format === "pdf" ? await Bridge.customPdf(name, page, a.folder ?? "") : await Bridge.customDocument(name, "html", page);
+            const page = await pageOf(file.trim() || name);
+            const f = a.format === "pdf" ? await Bridge.customPdf(name, page, file, folder) : await Bridge.customDocument(name, "html", page, file, folder);
             say(t("Documento nel Vassoio: {name}", { name: f.name }), true);
           }
           Sound.play("finish");

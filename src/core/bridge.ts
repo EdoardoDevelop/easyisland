@@ -526,9 +526,9 @@ export const Bridge = {
   customRecords: (id: string) => call<CustomRecord[]>("custom_records", { id }),
   customRecordSave: (id: string, record: string, values: Record<string, unknown>) => callOrThrow<CustomRecord>("custom_record_save", { id, record, values }),
   customRecordDelete: (id: string, record: string) => callOrThrow<void>("custom_record_delete", { id, record }),
-  customDocument: (name: string, ext: string, text: string) => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text }),
+  customDocument: (name: string, ext: string, text: string, file = "", folder = "") => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text, file, folder }),
   /** The page printed in PDF (A4, or the page's @page): into the Vassoio, and into `folder` when given. */
-  customPdf: (name: string, html: string, folder: string) => callOrThrow<{ name: string; path: string }>("custom_pdf", { name, html, folder }),
+  customPdf: (name: string, html: string, file: string, folder: string) => callOrThrow<{ name: string; path: string }>("custom_pdf", { name, html, file, folder }),
   /** {{file:nome}}: a file of the integration's folder as a data: URI. */
   customAsset: (id: string, name: string) => callOrThrow<string>("custom_asset", { id, name }),
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),

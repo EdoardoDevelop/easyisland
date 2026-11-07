@@ -25,7 +25,9 @@ Testo, testo lungo, numero, **importo**, data, casella, scelta e scelta multipla
 Un linguaggio semplice, in italiano o in inglese: `+ - * / %`, confronti, `e` / `o` / `non`, `se(condizione; sì; no)`, `somma(quantita*prezzo)` sulle righe, `media`, `conta`, `arrotonda`, `min`, `max`, date (`oggi()`, `giorni(da; a)`, `piugiorni(data; 30)`, `anno`, `mese`), testo (`maiuscolo`, `unisci`, `contiene`, `lunghezza`). Numeri all'italiana (`0,22`). Mai codice eseguito.
 
 ### Modello del documento
-Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {{/righe}}`) e la data. **Documento** lo produce in **HTML stampabile**, in **PDF** (A4) o in Markdown, nel Vassoio; il PDF può finire anche in una cartella a scelta.
+Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {{/righe}}`) e la data. **Documento** lo produce in **HTML stampabile**, in **PDF** (A4) o in Markdown, nel Vassoio.
+
+**Dove salvare e come chiamare il file** lo dici alla chat, quando crei l'integrazione o dopo: «salva i PDF in `C:\Documenti\DDT`», «chiama il file numero e cliente», «nell'elenco mostra numero e cliente». Puoi usare più campi insieme, come `{{numero}} {{cliente}}`. Il documento va sempre nel Vassoio e in più nella cartella scelta, senza mai sovrascrivere: se il nome esiste già diventa `nome (2).pdf`. I caratteri che Windows non accetta nei nomi di file vengono tolti, e `/` diventa `-`.
 
 Il modello può essere anche **HTML vero**, con la tua grafica: basta che cominci con un tag come `<!doctype html>`, `<style>` o `<div>`. I valori dei campi sono sempre protetti e script e link pericolosi vengono tolti.
 

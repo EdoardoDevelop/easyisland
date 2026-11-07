@@ -4,7 +4,7 @@ Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime
 
 **1.0.33** — **Integrazioni personali più complete**, tutte e non solo i DDT: **modelli HTML** veri con i valori sempre protetti, date per
 esteso, numeri all'italiana, condizioni e risorse come il logo. Gli a capo non rompono più le tabelle. **PDF A4** diretto da una scheda,
-salvato nel Vassoio e in una cartella. Un pulsante può lanciare uno **script** con conferma e i dati della scheda arrivano anche alle azioni
+salvato nel Vassoio e in una cartella. Dalla chat scegli **dove salvare** e **come chiamare il file**, anche con più campi, e come si leggono le schede nell'elenco. Un pulsante può lanciare uno **script** con conferma e i dati della scheda arrivano anche alle azioni
 rapide. Gli agenti possono **creare e modificare le azioni rapide**, e un `.json` cambiato a mano si vede senza riavviare.
 Nella scheda **Agent Chat** c'è **In esecuzione**: sul PC dove un motore lavora vedi cosa fa, passo per passo. I motori lavorano nella cartella del progetto, continuano la conversazione per un'ora, leggono interi i
 messaggi a cui rispondono e non fanno due volte lo stesso lavoro.

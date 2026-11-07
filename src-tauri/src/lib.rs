@@ -3963,14 +3963,14 @@ fn custom_record_delete(app: AppHandle, id: String, record: String) -> Result<()
 
 /// A record's document (filled by the island) into the Vassoio.
 #[tauri::command]
-async fn custom_document(name: String, ext: String, text: String) -> Result<files::DroppedFile, String> {
-    tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
+async fn custom_document(name: String, ext: String, text: String, file: String, folder: String) -> Result<files::DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text, &file, &folder)).await.map_err(|e| e.to_string())?
 }
 
 /// Async: the hidden window that prints is created from here, never on the main thread.
 #[tauri::command]
-async fn custom_pdf(app: AppHandle, name: String, html: String, folder: String) -> Result<files::DroppedFile, String> {
-    custom::pdf(&app, &name, &html, &folder).await
+async fn custom_pdf(app: AppHandle, name: String, html: String, file: String, folder: String) -> Result<files::DroppedFile, String> {
+    custom::pdf(&app, &name, &html, &file, &folder).await
 }
 
 #[tauri::command]
