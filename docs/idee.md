@@ -2,16 +2,6 @@
 
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
-## URGENTI: limiti delle integrazioni personali (7/11)
-Emersi con «DDT Easytech», valgono per tutte le integrazioni «create da me». Modelli Markdown esistenti e azione «copy» restano identici. **Scritte nella 1.0.33, non ancora pubblicata (`docs/integrazioni.md`):** restano prova con l'app vera e rilascio, poi questa sezione si toglie. Il DDT è passato al modello nuovo il 7/11, PDF provato dal pulsante.
-1. **Modelli HTML veri:** oggi l'azione `document` scrive l'HTML del modello come testo. Servono valori sempre protetti, pulizia di `<script>`, `on*` e `javascript:`, date per esteso (`{{data|lunga}}`), numeri (`{{numero|it}}`), condizioni (`{{#se campo}}`, `{{^campo}}`) e risorse dell'integrazione (`{{file:logo.png}}` da `integrazioni/<id>/`).
-2. **A capo nelle tabelle Markdown:** gli a capo dei campi spezzano le righe della tabella.
-3. **PDF diretto:** `format: "pdf"` con WebView2, A4, nel Vassoio e in una cartella di uscita.
-4. **Azione `script` o `pdf` nei pulsanti:** un pulsante non può lanciare uno script senza passare dalla chat. I valori della scheda vanno in un JSON temporaneo, mai nel testo dello script; conferma sempre.
-5. **Strumenti `quick_action_create`, `quick_action_update`, `quick_action_delete`:** gli agenti non possono creare né cambiare le azioni rapide (`set_setting` non le comprende, `settings.json` viene sovrascritto). Sempre con conferma.
-6. **Dati della scheda alle azioni `quick`:** oggi ricevono solo l'id dell'azione.
-7. **`integrazioni\<id>.json` cambiato a mano:** l'isola non lo rilegge finché EasyIsland non si riavvia.
-
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).

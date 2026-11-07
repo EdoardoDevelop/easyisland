@@ -74,7 +74,7 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
-- **1.0.33** — custom integrations with **HTML templates**, direct **PDF** and **script** buttons; agents can create quick actions.
+- **1.0.33** — custom integrations with **HTML templates**, direct **PDF** with the file name you choose and **script** buttons; **Running** in Agent Chat.
 - **1.0.32** — memory **constellation** in the field at the top, a chat from a node with Enter, a memory that costs fewer tokens.
 - **1.0.31** — two-row **chat** with **animated icons**, context ring and project branch; a clean startup.
 - **1.0.30** — **Multi agent** with one voice: a single answer, already reviewed.
