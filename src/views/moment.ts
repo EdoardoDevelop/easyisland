@@ -3,7 +3,6 @@
 // like the notices: the character on the left, a title, one line, the buttons.
 
 import { h, clear } from "./dom";
-import { washRGBA, type Wash } from "../core/layout";
 import { Bridge } from "../core/bridge";
 import { State, type Moment, type QuickAction } from "../core/state";
 import { answerCard } from "../island/moments";
@@ -21,8 +20,6 @@ export interface MomentActions {
   /** «Prepara» on a ticket: the chat with the customer, similar tickets and a draft. */
   prepareTicket(m: Extract<Moment, { kind: "ticket" }>): void;
 }
-
-const WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
 
 function btn(label: string, kind: "primary" | "secondary", onClick: () => void, title = ""): HTMLElement {
   return h("button", { class: `btn ${kind}`, title, onclick: onClick }, h("span", { text: label }));
@@ -46,7 +43,7 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
     actions.runAction(a);
   };
 
-  function body(m: Moment): { wash: Wash; who: string; title: string; text: string; row: HTMLElement[] } {
+  function body(m: Moment): { who: string; title: string; text: string; row: HTMLElement[] } {
     const done = () => {
       State.moment = null;
       actions.collapse();
@@ -56,7 +53,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
       case "tray": {
         const file = { name: m.name, path: m.path };
         return {
-          wash: "indigo",
           who: m.kind === "download" ? t("Download finito") : t("Nel Vassoio"),
           title: m.name,
           text: m.kind === "download" ? size(m.size) : t("{size} · da Claude Code", { size: size(m.size) }),
@@ -74,7 +70,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
         const mins = Math.floor(m.seconds / 60);
         const len = mins ? t("{m} min {s} s", { m: mins, s: m.seconds % 60 }) : t("{s} s", { s: m.seconds });
         return {
-          wash: "red",
           who: t("Registrazione pronta"),
           title: m.name,
           text: `${len} · ${size(m.size)}`,
@@ -92,7 +87,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
       case "error": {
         const port = holderLine(m);
         return {
-          wash: "red",
           who: t("Errore copiato"),
           title: m.summary,
           text: port,
@@ -105,7 +99,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
       case "call": {
         const mins = Math.max(1, Math.round(m.seconds / 60));
         return {
-          wash: "green",
           who: m.incoming ? t("Chiamata ricevuta") : t("Chiamata fatta"),
           title: m.name || m.number,
           text: t("{m} min · vuoi annotare cosa vi siete detti? Va nella memoria, nella sua pagina", { m: mins }),
@@ -117,7 +110,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
       }
       case "ticket":
         return {
-          wash: "indigo",
           who: t("Ticket assegnato a te"),
           title: m.title,
           text: t("Ti preparo cosa sa la memoria del cliente, come si sono risolti i ticket simili e una bozza di risposta?"),
@@ -129,7 +121,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
         };
       case "agentchat":
         return {
-          wash: "indigo",
           who: "Agent Chat",
           title: m.title,
           text: m.text,
@@ -140,7 +131,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
         };
       case "server":
         return {
-          wash: "green",
           who: t("Server di sviluppo"),
           title: t("In ascolto su localhost:{port}", { port: m.port }),
           text: m.process,
@@ -157,7 +147,6 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
           done();
         };
         return {
-          wash: WASH[m.level] ?? "indigo",
           who: "Claude Code",
           title: m.title,
           text: m.text,
@@ -185,8 +174,7 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
       const row = h("div", { class: "actions" }, ...b.row);
       const stack = h("div", { class: "stack" }, who, title, ...(b.text ? [text] : []), row);
       stack.style.padding = "4px 16px 4px max(16px, calc(116px * var(--bot-room, 1)))";
-      const card = h("div", { class: "card wash" }, stack);
-      card.style.setProperty("--wash", washRGBA(b.wash));
+      const card = h("div", { class: "card" }, stack);
       host.append(card);
     },
     fitHeight: () => {

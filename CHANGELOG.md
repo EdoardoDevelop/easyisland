@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.31** — **Chat rifatta nei dettagli**: campo su due righe con progetto, motore e modi vicini al testo, **Nuovo** e **Cerca**
+affiancati, cronologia con il solo titolo e i dati nel suggerimento, branch git del progetto e **anello del contesto** con Claude.
+**Icone animate** al passaggio del mouse e al clic, graffetta classica. All'avvio il logo sparisce pulito e il personaggio appare in
+dissolvenza. Niente più bagliori nelle schede, chat a finestra senza cornice, Anteprima con molte schede sempre raggiungibili.
+
 **1.0.30** — **Multi agent con una voce sola**: mentre i motori lavorano vedi i passi, poi arriva una sola risposta già
 rivista, con **✓ Controllato** sotto. Il testo del revisore e i nomi dei motori non entrano più nella risposta: solo un errore
 grave la fa riscrivere, e a controllare è per primo un motore che può aprire file e dati.

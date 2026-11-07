@@ -3,6 +3,7 @@
 mod actions;
 mod barshadow;
 mod fgwin;
+mod gitbranch;
 mod appmenu;
 mod steps;
 mod collect;
@@ -1314,7 +1315,7 @@ async fn chat_send(
     } else {
         chat_turn(&app, &chat, query, context, engine, None, auto, Channel::Island, &on_text).await?
     };
-    Ok(IslandReply { text: reply.text, log: chat.log_id() })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context() })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1323,6 +1324,8 @@ async fn chat_send(
 struct IslandReply {
     text: String,
     log: Option<String>,
+    /// Tokens in the context and its size (0 = unknown), when the engine says.
+    context: Option<(u64, u64)>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -2947,6 +2950,12 @@ async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, Strin
     tauri::async_runtime::spawn_blocking(move || workdir::pick_folder(start)).await.map_err(|e| e.to_string())?
 }
 
+/// The git branch of a chat's project, for the «Progetto…» button (off the main thread: it may be a network folder).
+#[tauri::command]
+async fn chat_branch(folder: String) -> Option<String> {
+    gitbranch::of(std::path::Path::new(&folder))
+}
+
 /// The folders of the latest conversations, for the menu of «Progetto…».
 #[tauri::command]
 fn chat_folders() -> Vec<String> {
@@ -4245,6 +4254,7 @@ pub fn run() {
             chat_history_open,
             chat_pick_folder,
             chat_folders,
+            chat_branch,
             chat_history_delete,
             chat_history_clear,
             claude_cli_status,

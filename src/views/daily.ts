@@ -4,7 +4,6 @@
 // Laid out like the weekly recap; a row opens its folder or its page.
 
 import { h, clear } from "./dom";
-import { washRGBA } from "../core/layout";
 import { Bridge } from "../core/bridge";
 import { Daily, type DailySummary } from "../island/daily";
 import { formatCount, formatDuration } from "../island/recap";
@@ -32,8 +31,7 @@ export function repoLine(r: { changed: number; ahead: number }): string {
 
 export function buildDaily(actions: ViewActions): ViewHost {
   const body = h("div", { class: "stack recap-stack" });
-  const card = h("div", { class: "card wash recap-card" }, body);
-  card.style.setProperty("--wash", washRGBA("indigo"));
+  const card = h("div", { class: "card recap-card" }, body);
   const el = h("div", { class: "view" }, card);
   let built = -1;
 

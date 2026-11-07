@@ -139,6 +139,8 @@ pub struct Chat {
     folder: Mutex<Option<String>>,
     /// The session went on in Claude Desktop (desktop.rs): where the island left it.
     desktop: Mutex<Option<crate::desktop::Mark>>,
+    /// Tokens the last turn left in Claude Code's context, and its size (0 = unknown).
+    context: Mutex<Option<(u64, u64)>>,
     /// "agentchat" for a turn of Agent Chat: its permissions follow «Permessi
     /// in Agent Chat» (agentchat::decide), whatever the engine.
     channel: Mutex<&'static str>,
@@ -243,6 +245,15 @@ impl Chat {
 
     pub(crate) fn cli_session(&self) -> Option<String> {
         self.cli_session.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_context(&self, used: u64, size: u64) {
+        *self.context.lock().unwrap() = Some((used, size));
+    }
+
+    /// Once per turn: a turn on another engine leaves none, and the island hides the meter.
+    pub(crate) fn take_context(&self) -> Option<(u64, u64)> {
+        self.context.lock().unwrap().take()
     }
 
     pub(crate) fn set_cli_session(&self, id: Option<String>) {

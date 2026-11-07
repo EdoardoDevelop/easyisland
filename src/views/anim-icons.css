@@ -1,0 +1,79 @@
+/* Icons that move in their parts (anim-icons.ts). */
+
+.ai .ai-body { transform-box: fill-box; transform-origin: center; }
+.ai-line { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.ai-trail { opacity: 0; }
+
+@keyframes ai-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes ai-trail { 0% { stroke-dashoffset: 1; opacity: 1; } 60% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes ai-lean { 0%, 100% { transform: none; } 45% { transform: translateX(2px) rotate(-7deg); } }
+@keyframes ai-fly {
+  0% { transform: none; opacity: 1; }
+  45% { transform: translate(26px, -9px) rotate(-12deg); opacity: 0; }
+  46% { transform: translate(-26px, 9px) rotate(-12deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes ai-closer { 0%, 100% { transform: none; } 40% { transform: scale(1.22); } 70% { transform: scale(0.94); } }
+@keyframes ai-swing {
+  0%, 100% { transform: none; }
+  25% { transform: rotate(-16deg); }
+  55% { transform: rotate(11deg); }
+  80% { transform: rotate(-5deg); }
+}
+
+@keyframes ai-turn { to { transform: rotate(90deg); } }
+@keyframes ai-back { to { transform: rotate(-180deg); } }
+@keyframes ai-shift { 50% { transform: translate(var(--x, 0), var(--y, 0)); } }
+@keyframes ai-tilt { 50% { transform: rotate(-18deg); } }
+@keyframes ai-plant { 0%, 100% { transform: none; } 35% { transform: translateY(-3px); } 60% { transform: translateY(2px) scale(1.06, 0.92); } }
+@keyframes ai-dip { 50% { transform: scale(0.8); } }
+@keyframes ai-flash { 0%, 100% { opacity: 1; } 30% { opacity: 0.3; } 55% { opacity: 1; } 75% { opacity: 0.55; } }
+@keyframes ai-wave { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Every icon in a button: a small lift at the mouse, pressed at the click. */
+  button:not(:disabled) > svg { transition: transform 0.15s ease; }
+  button:not(:disabled):hover > svg { transform: translateY(-1px) scale(1.06); }
+  button:not(:disabled):active > svg { transform: scale(0.9); }
+
+  /* The menu's line icons draw themselves. */
+  .rail-item:hover .ai-line { animation: ai-draw 0.42s ease-out; }
+
+  button:not(:disabled):hover .ai-plane .ai-body { animation: ai-lean 0.42s ease-in-out; }
+  button:not(:disabled):hover .ai-plane .ai-trail { animation: ai-trail 0.42s ease-out; }
+  button:not(:disabled):hover .ai-plane .ai-trail2 { animation-delay: 0.07s; }
+  button:not(:disabled):hover .ai-find .ai-lens { animation: ai-draw 0.42s ease-out; }
+  button:not(:disabled):hover .ai-find .ai-handle { animation: ai-draw 0.16s ease-out 0.34s both; }
+  button:not(:disabled):hover .ai-clip .ai-wire { animation: ai-draw 0.5s ease-in-out; }
+
+  button:not(:disabled):hover svg[data-icon="xmark"], button:not(:disabled):hover svg[data-icon="plus"] { animation: ai-turn 0.28s ease-out; }
+  button:not(:disabled):hover svg[data-icon="pin"] { animation: ai-tilt 0.34s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="stop"] { animation: ai-dip 0.3s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="bolt"] { animation: ai-flash 0.42s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="chevronRight"] { --x: 3px; animation: ai-shift 0.3s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="chevronLeft"] { --x: -3px; animation: ai-shift 0.3s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="sliders"] :is(.ip1, .ip3, .ip5) { animation: ai-shift 0.42s ease-in-out; }
+  svg[data-icon="sliders"] .ip1 { --x: 6px; }
+  svg[data-icon="sliders"] .ip3 { --x: -6px; }
+  svg[data-icon="sliders"] .ip5 { --x: 4px; }
+  button:not(:disabled):hover svg[data-icon="speakerOn"] .ip1 { animation: ai-wave 0.22s ease-out both; }
+  button:not(:disabled):hover svg[data-icon="speakerOn"] .ip2 { animation: ai-wave 0.22s ease-out 0.14s both; }
+  button:not(:disabled):hover svg[data-icon="mic"] .ip0 { --y: -2px; animation: ai-shift 0.34s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="mic"] .ip1 { animation: ai-draw 0.34s ease-out; }
+  button:not(:disabled):hover svg[data-icon="team"] .ip0 { --x: 1.5px; animation: ai-shift 0.36s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="team"] .ip1 { --x: -1.5px; animation: ai-shift 0.36s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="sidebar"] .ip1 { --x: 3px; animation: ai-shift 0.34s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="preview"] :is(.ip4, .ip5) { animation: ai-draw 0.36s ease-out; }
+  button:not(:disabled):hover svg[data-icon="popOut"] :is(.ip0, .ip1) { --x: 2px; --y: -2px; animation: ai-shift 0.32s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="popIn"] :is(.ip0, .ip1) { --x: -2px; --y: 2px; animation: ai-shift 0.32s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="copy"] .ip0 { --x: 2px; --y: -2px; animation: ai-shift 0.32s ease-in-out; }
+  button:not(:disabled):hover svg[data-icon="copy"] .ip1 { --x: -1px; --y: 1px; animation: ai-shift 0.32s ease-in-out; }
+
+  button.ai-play svg[data-icon] { animation: ai-closer 0.36s ease-out; }
+  button.ai-play svg[data-icon="xmark"], button.ai-play svg[data-icon="stop"] { animation: ai-dip 0.3s ease-in-out; }
+  button.ai-play svg[data-icon="plus"] { animation: ai-back 0.34s ease-out; }
+  button.ai-play svg[data-icon="pin"] { animation: ai-plant 0.38s ease-out; }
+  button.ai-play .ai-plane .ai-body { animation: ai-fly 0.4s ease-in-out; }
+  button.ai-play .ai-find .ai-body { animation: ai-closer 0.36s ease-out; }
+  button.ai-play .ai-clip .ai-wire { animation: ai-swing 0.4s ease-in-out; }
+}

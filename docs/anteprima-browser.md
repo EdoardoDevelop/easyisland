@@ -210,7 +210,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many` |
 | `files` | il Vassoio | `fresh`: una zona appena aggiunta |
 | `approval` | il permesso con il tempo rimasto | — |
-| `chat` | la chat | `terminal` (modalità terminale), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi agent al lavoro, `pensa=squadra-fine` con la risposta controllata) |
+| `chat` | la chat | `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi agent al lavoro, `pensa=squadra-fine` con la risposta controllata) |
 | `clipboard` | gli appunti | `long` |
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |
@@ -256,6 +256,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 | `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto` |
 | `memoria.html` | `tab=timeline\|graph\|graph3d\|mind\|concept`, `select=<id del nodo>` |
 | `anteprima.html` | `tab=<numero>` (di serie 2) |
+| `dev/icons-preview.html` | solo le icone animate |
 | `dev/character-preview.html` | `character=<id>` |
 | `dev/greeting-preview.html` | `character=<id>` (di serie `drop`) |
 | `dev/upload-preview.html` | `character=<id>`, `azioni=<numero>` (di serie 2) |

@@ -8,7 +8,7 @@
 // element kept across rebuilds, so typing (a number or a chat message) is
 // never interrupted by an incoming update.
 
-import { h, svg, clear, dot, brandOrDot } from "./dom";
+import { h, svg, clear, clipMark, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, type AgentTask } from "../core/state";
 import {
@@ -717,7 +717,7 @@ class Dialer {
     return h("div", { class: m.mine ? "tcx-msg mine" : "tcx-msg" },
       showName ? h("span", { class: "tcx-from-name", text: m.from }) : null,
       m.text ? h("span", { class: "tcx-text", text: m.text }) : null,
-      m.file ? h("span", { class: "tcx-file", text: `📎 ${m.file}` }) : null,
+      m.file ? h("span", { class: "tcx-file" }, clipMark(), m.file) : null,
       h("span", { class: "tcx-time", text: when(m.at) }));
   }
 

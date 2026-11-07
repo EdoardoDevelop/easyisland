@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>EasyIsland — icone animate</title>
+    <style>
+      body { margin: 0; padding: 28px; background: #1c1c1c; font: 14px "Segoe UI", system-ui, sans-serif; color: #eee; }
+      h1 { font-size: 18px; margin: 0 0 6px; }
+      p { margin: 0 0 26px; color: #9a9a9a; }
+      .row { display: flex; flex-wrap: wrap; gap: 26px; margin-bottom: 34px; }
+      figure { margin: 0; text-align: center; }
+      figcaption { margin-top: 10px; color: #aaa; font-size: 12px; }
+      button { display: grid; place-items: center; border: 0; color: #eee; background: rgba(255, 255, 255, 0.08); border-radius: 16px; width: 112px; height: 112px; cursor: pointer; }
+      button:hover { background: rgba(255, 255, 255, 0.13); }
+      button.send { background: #4cc2ff; color: #06202e; }
+      .small button { width: 32px; height: 32px; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Icone animate</h1>
+    <p>Passa il mouse e clicca. Sopra in grande, sotto alla misura vera.</p>
+    <div class="row" id="big"></div>
+    <div class="row small" id="small"></div>
+    <script type="module" src="./icons-preview.ts"></script>
+  </body>
+</html>

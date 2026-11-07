@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_6 novembre 2026. **1.0.30** in `main` (tag `v1.0.30`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_7 novembre 2026. **1.0.31** in `main` (tag `v1.0.31`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -13,6 +13,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Aspetto a schede con le immagini** (`docs/architettura.md` → Impostazioni): modalità chiara non guardata.
 - [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera.
 - [ ] **Guida sul sito** IT/EN (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage EN `site/en/index.html`, schermate EN `site/media/en/`): allineare a ogni funzione nuova (`node scripts/guida.mjs`). Link delle Impostazioni nella lingua dell'app: prossima versione.
+- [ ] **Documenti Word e PDF nella chat** (deciso il 7/11, `docs/idee.md`): creare, compilare modelli, leggere; prima Word, poi lettura dei PDF con una libreria Rust.
 - [ ] **Agente personale** (priorità alta, 23/10): fatti Compiti, motori aiutanti, Battito, Abilità, permessi per livelli (1.0.16: «Sempre» sulle reversibili, permessi per compito, «Cosa ho fatto» con Annulla; `docs/chat.md`). Da provare dal vivo. Prossimi: proattività su ticket e chiamate, memoria per cliente (`docs/idee.md`).
 - [ ] **Prove dal vivo** delle versioni 0.6.3–0.9.7: elenco in `docs/prove-dal-vivo.md`.
 - [ ] **La giornata di oggi e domani** (priorità alta): fatti `/oggi` e `/domani` (Telegram, chat), voce nel campo in alto e azione rapida, riassunto IA in Buongiorno/Fine giornata con motore a scelta, invio Telegram all'ora scelta (orari in `giornata.rs`). Da provare dal vivo.
@@ -36,7 +37,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
   - test front end con `node --test`, prima `expr.ts`, `markdown.ts`, `calc.ts`;
   - 170 testi inglesi «inutilizzati» di `check:i18n`: alcuni sono composti al momento, guardarli uno per uno.
 - [ ] **Inglese lingua principale nell'app** (27/10): oggi chiavi in italiano e avvio in italiano. Da decidere: solo lingua predefinita delle nuove installazioni o anche chiavi in inglese.
-- [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
+- [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest`, nota a mano con freccia (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro; torna davanti al cambio di finestra. Verificare con Start aperto.
@@ -46,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
+
+### 6/11 — Niente bagliori nelle schede
+Tolti in Classico e Windows l'alone colorato in fondo alle schede (`.card.wash`, `washRGBA`), quello di rilascio e caricamento e gli aloni di pulsanti e pallini. Restano gli effetti dei personaggi e il bagliore dietro il personaggio (`#bot-glow`). La chat a finestra non ha più cornice (`POPWIN_CSS` in `popout.ts`). Anteprima: con molte schede la pagina non si allarga più; scorrono con la rotella e l'attiva resta in vista. Barra della chat: **Nuovo** e **Cerca** affiancati, Cerca apre e chiude il campo. Campo della chat su due righe: sotto il testo Progetto, motore, Multi agent, Automatica (`docs/chat.md`). Graffetta disegnata al posto dell'emoji. Dopo il logo d'avvio l'isola si ritira senza sfondo e il personaggio appare in dissolvenza al suo posto. Titolo della finestra: mostra anche le finestre vere di EasyIsland, non barra e isola (`fgwin.rs`). Cronologia della chat: solo il titolo, data, motore e domande nel suggerimento. Branch del progetto su «Progetto…» (`gitbranch.rs`). Contesto di Claude Code sotto il campo (`docs/chat.md`). Icone animate (`views/anim-icons.css`).
 
 ### 6/11 — Multi agent: una voce sola
 Dopo la prima conversazione vera: bozza nascosta, solo i `[GRAVE]` tornano a chi guida, che riscrive; niente testo del revisore né nomi dei motori. Controlla chi può aprire i dati (`can_look`). `docs/chat.md` → Multi agent.
@@ -58,6 +62,3 @@ Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non p
 
 ### 6/11 — Chat: la riga che si scrive non taglia più
 `typeline.ts`: finisce sempre la riga iniziata, dei passi in arrivo tiene solo l'ultimo (gli altri sono nell'elenco); del ragionamento mostra solo frasi intere; niente più cancellazione a lettere. Le frasi di attesa cedono appena scritte. Scena `pensa=corsa`.
-
-### 6/11 — Versione 1.0.26: risposte piene, progetto per conversazione, parola per parola
-Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `claude.rs`); `--include-partial-messages` con `Progress::delta`; «Progetto…» sceglie la cartella della conversazione, la predefinita resta quella di Impostazioni. Nella barra laterale gruppi per progetto con «+». Provato con `live_words` su Claude Code vero; da confrontare con l'uso i due modi.

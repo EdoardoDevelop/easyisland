@@ -217,6 +217,14 @@ export async function runScene(island: Island, scene: string) {
       if (new URLSearchParams(location.search).has("terminal")) {
         State.settings.chatTerminal = true;
         State.chatAuto = new URLSearchParams(location.search).has("auto");
+        // &context=<percent>: the context meter under the field.
+        const full = new URLSearchParams(location.search).get("context");
+        if (full) State.chat.context = [Math.round(2000 * Number(full)), 200000];
+        // &project: a project with its branch on «Progetto…».
+        if (new URLSearchParams(location.search).has("project")) {
+          State.chat.folder = "C:\\Progetti\\easyisland";
+          Bridge.chatBranch = async () => "claude/sviluppo";
+        }
         State.chatHistory = [
           { id: 1, role: "user", content: "Che file ci sono in questa cartella?" },
           { id: 2, role: "assistant", content: "> ⚙ Esegue · `Get-ChildItem`\n\nCi sono `package.json`, `src` e `README.md`." },

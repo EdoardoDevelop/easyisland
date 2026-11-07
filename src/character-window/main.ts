@@ -133,6 +133,12 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
     canvas.style.opacity = "0";
     void canvas.offsetWidth;
     canvas.style.transition = "opacity 0.3s ease 0.38s";
+  } else if (mode === "compact" && was === "off") {
+    // Back after the launch greeting: it fades in at its place.
+    canvas.style.transition = "none";
+    canvas.style.opacity = "0";
+    void canvas.offsetWidth;
+    canvas.style.transition = "opacity 0.3s ease";
   } else if (mode !== "rest") {
     canvas.style.transition = "";
   }

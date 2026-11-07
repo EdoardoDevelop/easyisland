@@ -2,7 +2,6 @@
 // sits on the left as on the other cards; nothing animates here.
 
 import { h, clear } from "./dom";
-import { washRGBA } from "../core/layout";
 import { Recap, formatCount, formatDuration, weekRangeLabel, type WeeklySummary } from "../island/recap";
 import type { ViewActions, ViewHost } from "./views";
 import { t } from "../core/i18n";
@@ -26,8 +25,7 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 export function buildRecap(actions: ViewActions): ViewHost {
   const body = h("div", { class: "stack recap-stack" });
-  const card = h("div", { class: "card wash recap-card" }, body);
-  card.style.setProperty("--wash", washRGBA("indigo"));
+  const card = h("div", { class: "card recap-card" }, body);
   const el = h("div", { class: "view" }, card);
   let built = -1;
 

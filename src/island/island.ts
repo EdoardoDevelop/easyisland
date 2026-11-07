@@ -84,6 +84,8 @@ const HEADER_MIN = 420;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
+/** Long enough for the shrinking after the greeting, moved window included (closeAway waits 320 ms). */
+const GREET_LEAVE_MS = 1000;
 const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
 /** The views an island come out of the fixed bar shows: an element's card. */
 const POP_VIEWS: ReadonlySet<IslandViewName> = new Set(["barcard", "overview", "news"]);
@@ -175,6 +177,8 @@ export class Island {
 
   private engine = new BotEngine();
   private greeting = new Greeting();
+  /** Timer of the island shrinking after the greeting (leaveGreeting). */
+  private greetLeaving: number | null = null;
 
   private running = false;
   private lastFrame = 0;
@@ -546,6 +550,7 @@ export class Island {
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
     this.fsm.onTransition = (from, to) => {
+      if (from === "greeting" && to !== "home") this.leaveGreeting();
       switch (to) {
         case "hidden":
           this.setMode("hidden");
@@ -3163,13 +3168,33 @@ ${note}` : text };
   }
 
   /**
+   * The logo gone, the island shrinks from the greeting's size and the window goes
+   * home: no background, or a dark box shows, and no character, or it is seen
+   * travelling. It fades in at its place afterwards.
+   */
+  private leaveGreeting() {
+    if (this.greetLeaving != null) window.clearTimeout(this.greetLeaving);
+    this.greetLeaving = window.setTimeout(() => {
+      this.greetLeaving = null;
+      this.applyBare();
+      // Only here: everywhere else the canvas shows and hides at once.
+      this.botCanvas.style.transition = "opacity 0.3s ease";
+      window.setTimeout(() => (this.botCanvas.style.transition = ""), 400);
+      this.dirty = true;
+      this.ensureRunning();
+      State.notify();
+    }, GREET_LEAVE_MS);
+  }
+
+  /**
    * "Sfondo a isola chiusa" off: while the island is not open, its background
    * goes away and only the character is left. The launch greeting is always
    * the character alone, with its halo and particles.
    */
   private applyBare() {
     const greeting = State.mode === "expanded" && State.view === "greeting";
-    const bare = greeting || (State.mode !== "expanded" && State.settings.theme?.compactBackground === false);
+    const leaving = this.greetLeaving != null && State.mode !== "expanded";
+    const bare = greeting || leaving || (State.mode !== "expanded" && State.settings.theme?.compactBackground === false);
     this.islandEl.classList.toggle("bare", bare);
     this.islandEl.classList.toggle("greeting", greeting);
   }
@@ -3998,7 +4023,7 @@ ${note}` : text };
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
     // The drop canvas draws its own the character; two of them would overlap.
-    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !State.popover;
+    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !State.popover && this.greetLeaving == null;
     this.botCanvas.style.opacity = visible ? "1" : "0";
 
     if (State.mode === "expanded" && State.view !== "uploading" && !greetingActive && !this.uploadActive) {
@@ -4078,7 +4103,7 @@ ${note}` : text };
   /** The compact character is drawn by its own window, over the badge. */
   get compactInWindow(): boolean {
     return IS_TAURI && this.mirror != null && State.mode === "compact" && !barEdge(State.settings) &&
-      !this.uploadActive && !State.windowPick && !State.quiet;
+      this.greetLeaving == null && !this.uploadActive && !State.windowPick && !State.quiet;
   }
 
   /**
@@ -4300,7 +4325,7 @@ ${note}` : text };
     // full-screen app.
     const p = this.placement;
     const showRest = State.mode === "hidden" && p.iconStyle !== "none" &&
-      !State.quiet && !barEdge(State.settings);
+      !State.quiet && !barEdge(State.settings) && this.greetLeaving == null;
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
     // The resting character is drawn by its own window, laid over the rest icon

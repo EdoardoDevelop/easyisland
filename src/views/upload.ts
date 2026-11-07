@@ -11,7 +11,6 @@ import { fileBadge } from "./filekind";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
-import { washRGBA } from "../core/layout";
 import { fileActions } from "./actions";
 import { renderActionIcon } from "./action-icons";
 import { Bridge } from "../core/bridge";
@@ -312,8 +311,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
     collect.el,
     recorder.el,
     head, list, note, work.el);
-  const card = h("div", { class: "card wash files-card" }, body);
-  card.style.setProperty("--wash", washRGBA("green"));
+  const card = h("div", { class: "card files-card" }, body);
   const el = h("div", { class: "view" }, card);
 
   // Null until the first draw: an empty tray must still draw its message.

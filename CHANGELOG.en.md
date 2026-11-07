@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.31** — **Chat reworked in the details**: two-row field with project, engine and modes next to the text, **New** and **Search**
+side by side, history with titles only and the details in the tooltip, the project's git branch and a **context ring** with Claude.
+**Animated icons** on hover and click, a classic paperclip. At startup the logo leaves cleanly and the character fades in. No more
+glows in the cards, windowed chat without a frame, and Preview keeps every tab reachable.
+
 **1.0.30** — **Multi agent with one voice**: while the engines work you see the steps, then a single answer arrives already
 reviewed, with **✓ Checked** underneath. The reviewer's text and the engines' names no longer enter the answer: only a serious
 error has it rewritten, and an engine that can open files and data checks first.

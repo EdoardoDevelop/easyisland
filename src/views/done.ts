@@ -5,7 +5,6 @@
 // at the top and from the card shown when something ran without a click.
 
 import { h, clear } from "./dom";
-import { washRGBA } from "../core/layout";
 import { Bridge, type DoneItem } from "../core/bridge";
 import { State } from "../core/state";
 import { toolWords } from "../core/permits";
@@ -47,8 +46,7 @@ export function buildDone(actions: ViewActions): ViewHost {
     h("div", { class: "actions" },
       h("button", { class: "btn secondary", onclick: () => void Bridge.openSettingsAt("chat") }, h("span", { text: t("Permessi") })),
       h("button", { class: "btn secondary", onclick: () => actions.collapse() }, h("span", { text: "OK" }))));
-  const card = h("div", { class: "card wash recap-card" }, body);
-  card.style.setProperty("--wash", washRGBA("green"));
+  const card = h("div", { class: "card recap-card" }, body);
   const el = h("div", { class: "view" }, card);
   let key = "";
   let wasOpen = false;

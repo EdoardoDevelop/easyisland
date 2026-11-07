@@ -395,27 +395,3 @@ export function colorForProject(name: string): string {
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
   return FALLBACK_COLORS[Math.abs(hash) % FALLBACK_COLORS.length];
 }
-
-// Card wash colours (CardBackground.washColor)
-export type Wash = "red" | "green" | "pink" | "amber" | "cyan" | "indigo" | "soft" | null;
-
-export function washRGBA(wash: Wash): string {
-  switch (wash) {
-    case "red":
-      return "rgba(244,80,94,0.55)";
-    case "green":
-      return "rgba(52,211,153,0.5)";
-    case "pink":
-      return "rgba(244,114,182,0.55)";
-    case "amber":
-      return "rgba(245,165,36,0.42)";
-    case "cyan":
-      return "rgba(34,211,238,0.38)";
-    case "indigo":
-      return "rgba(99,102,241,0.5)";
-    case "soft":
-      return "rgba(255,255,255,0.08)";
-    default:
-      return "rgba(0,0,0,0)";
-  }
-}

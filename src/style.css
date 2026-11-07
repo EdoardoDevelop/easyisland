@@ -431,18 +431,6 @@ html.browser-preview #root {
   overflow: hidden;
 }
 
-.card.wash::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    280px 280px at 50% 130%,
-    var(--wash) 0%,
-    rgba(0, 0, 0, 0) 70%
-  );
-  pointer-events: none;
-}
-
 .row {
   display: flex;
   align-items: center;
@@ -1120,7 +1108,9 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(255, 255, 255, 0.07);
   cursor: pointer;
 }
-.side-new:hover { background: rgba(255, 255, 255, 0.12); }
+.side-new:hover, .side-new.on { background: rgba(255, 255, 255, 0.12); }
+.side-top { flex: 0 0 auto; display: flex; gap: 6px; margin: 0 2px; }
+.side-top .side-new { flex: 1 1 0; min-width: 0; margin: 0; justify-content: center; }
 .side-group {
   padding: 10px 10px 3px;
   font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font);
@@ -1282,6 +1272,7 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-head .chip-row {
   min-width: 0;
 }
+.chat-head .head-end { margin-left: auto; }
 
 .engine-pick {
   margin-left: auto;
@@ -1450,16 +1441,10 @@ input[type="range"]::-webkit-slider-thumb {
   gap: 1px;
 }
 
-.history-title,
-.history-meta {
+.history-title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.history-meta {
-  font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font);
-  color: var(--dim-2);
 }
 
 .history-del {
@@ -1564,6 +1549,8 @@ input[type="range"]::-webkit-slider-thumb {
   background: transparent;
 }
 .msg-act:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+.clip-mark { flex: 0 0 auto; vertical-align: -2px; }
+:not(.mic-btn) > .clip-mark { margin-right: 4px; }
 .bubble-file { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: #a5b4fc; margin-bottom: 2px; }
 
 /* Scrolled up while text arrives: ↓ goes back down. */
@@ -2055,12 +2042,37 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .chat-bar {
+  position: relative;
+  container-type: inline-size;
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 10px;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 12px;
+}
+
+/* Under the text: project, engine, modes on the left; attach, dictate, send on the right. */
+.chat-tools { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chat-tools .engine-pick { flex: 0 1 auto; min-width: 0; margin-left: 0; }
+.chat-tools .engine-pick.folder-pick { flex: 0 1 auto; }
+.chat-tools .clip-btn { margin-left: auto; }
+/* How full the engine's context is: the ring, the share beside it. */
+.ctx-meter { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; color: var(--dim-2); font-size: calc(10.5px + var(--fs-up, 0px)); }
+.ctx-ring { display: none; width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(currentColor var(--p, 0%), rgba(255, 255, 255, 0.14) 0); -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 62%); mask: radial-gradient(closest-side, transparent 60%, #000 62%); }
+.ctx-meter.sized .ctx-ring { display: block; }
+.ctx-meter.full { color: #f5a524; }
+.chat-bar .engine-menu { top: auto; right: auto; bottom: 100%; left: 0; margin-bottom: 4px; }
+/* In the narrow island the row never wraps: the modes keep only their icon. */
+@container (max-width: 580px) {
+  .chat-tools .auto-btn:not(.remote-btn) span, .chat-tools .new-chat-btn span { display: none; }
+  .chat-tools .engine-pick.folder-pick { max-width: 90px; }
+  .ctx-meter.sized .ctx-pct { display: none; }
+}
+.chat-tools .engine-pick.folder-pick:has(.folder-branch) { max-width: 280px; }
+@container (max-width: 680px) {
+  .chat-tools .folder-branch { display: none; }
+  .chat-tools .engine-pick.folder-pick:has(.folder-branch) { max-width: 150px; }
 }
 
 .chat-input {
@@ -2208,8 +2220,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .drop-card.over {
-  background: radial-gradient(200px 200px at 50% 100%, rgba(34, 197, 94, 0.13), transparent 70%),
-    var(--card-flat);
+  background: var(--card-flat);
 }
 
 .drop-card.over .drop-frame rect {
@@ -2263,13 +2274,7 @@ input[type="range"]::-webkit-slider-thumb {
 /* ── Uploading ──────────────────────────────────────────────────────────── */
 
 .up-card {
-  background: radial-gradient(260px 260px at 50% 140%, rgba(52, 211, 153, 0.14), transparent 70%),
-    var(--card);
-}
-
-.up-card.done {
-  background: radial-gradient(260px 260px at 50% 140%, rgba(52, 211, 153, 0.28), transparent 70%),
-    var(--card);
+  background: var(--card);
 }
 
 .up-row {
@@ -3430,7 +3435,6 @@ input[type="range"]::-webkit-slider-thumb {
   height: 36px;
   color: #0b0c0e;
   background: var(--c, var(--ink));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--c, #fff) 45%, transparent);
 }
 
 .send-btn {
@@ -3438,7 +3442,6 @@ input[type="range"]::-webkit-slider-thumb {
   height: 32px;
   flex: 0 0 32px;
   background: #a78bfa;
-  box-shadow: 0 0 12px rgba(167, 139, 250, 0.4);
 }
 
 .new-chat-btn svg {
@@ -4194,7 +4197,6 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   color: #fff;
   background: var(--c);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 45%, transparent);
 }
 
 .tcx-go:hover {
@@ -4589,7 +4591,6 @@ input[type="range"]::-webkit-slider-thumb {
   width: 100%;
   color: #fff;
   background: #22c55e;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.35);
 }
 .tcx-call-btn:hover {
   filter: brightness(1.12);
@@ -4649,7 +4650,6 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   color: #fff;
   background: var(--c);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 40%, transparent);
 }
 .tcx-cb-label {
   font: 500 calc(9px + var(--fs-up, 0px)) var(--font);
@@ -5129,7 +5129,6 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   height: 6px;
   border-radius: 50%;
   background: #22c55e;
-  box-shadow: 0 0 5px #22c55e;
 }
 
 /* ── Search bar (src/views/search.ts) ───────────────────────────────────── */
