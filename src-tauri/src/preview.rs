@@ -813,7 +813,7 @@ use webview2_com::{CallDevToolsProtocolMethodCompletedHandler, DevToolsProtocolE
 use windows_core_wv2::HSTRING;
 
 /// One DevTools protocol call; the answer (JSON) to `done`, on WebView2's thread.
-fn cdp(core: &ICoreWebView2, method: &str, params: &Value, done: impl FnOnce(Result<String, String>) + 'static) {
+pub(crate) fn cdp(core: &ICoreWebView2, method: &str, params: &Value, done: impl FnOnce(Result<String, String>) + 'static) {
     let handler = CallDevToolsProtocolMethodCompletedHandler::create(Box::new(move |hr, json| {
         done(hr.map(|_| json).map_err(|e| e.message().to_string()));
         Ok(())

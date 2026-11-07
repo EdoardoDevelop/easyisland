@@ -195,7 +195,7 @@ Stessa domanda a più motori di questo PC (quelli di Agent Chat se ≥ 2, sennò
   - «Automatica» (⚡ con opencode e Telegram) usa `permits::delicate_tool` (cancellare, inviare, `remote_run`). Su Telegram i reversibili consentiti passano; gli altri reversibili hanno ♾ «Sempre» (`permits::offers_always`).
 - Lo stesso server è in Claude Code ovunque (`agenti.md`); `show_card` solo lì.
 - **Impostazioni dagli agenti** (`agent_settings.rs`): `get_settings` (per sezione, valore, significato, ammessi), `set_setting` con Consenti/Nega, salvato come la finestra (`apply_settings`). Solo `ENTRIES`: motore e modelli, integrazioni (`integrations.<id>`), aspetto e comportamento, riepiloghi, proposte. Esclusi chiavi, ciò che allarga i poteri (`agentTools`, Modalità terminale e cartella, connettori, «Automatica»), elenchi fatti a mano. Voce nuova = `ENTRIES` con il suo controllo.
-- **Mai** in questo server strumenti che eseguono comandi su questo PC, inviano email o eliminano; eccezioni `notion_delete_row` e `remote_run` (`docs/integrazioni.md`). Su questo PC solo `run_quick_action`; comandi veri solo dalla Modalità terminale. Automazioni via `create_automation` (`automations::validate`, anteprima).
+- **Mai** in questo server strumenti che eseguono comandi su questo PC, inviano email o eliminano; eccezioni `notion_delete_row`, `quick_action_delete` e `remote_run` (`docs/integrazioni.md`). Su questo PC solo `run_quick_action`, e `quick_action_create`/`quick_action_update` che creano azioni con Consenti/Nega; comandi veri solo dalla Modalità terminale. Automazioni via `create_automation` (`automations::validate`, anteprima).
 
 ## Compiti (`tasks.rs`)
 Obiettivo che l'agente porta avanti a turni finché lo chiude, chiede, o finiscono turni e minuti.

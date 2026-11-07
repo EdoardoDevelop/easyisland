@@ -10,6 +10,7 @@ mod collect;
 mod memory_ai;
 mod memory_links;
 mod preview;
+mod pdf;
 mod antigravity;
 mod agent;
 mod agent_settings;
@@ -391,9 +392,13 @@ async fn action_run_script(
     run_id: String,
     shell: String,
     script: String,
+    data: Option<serde_json::Value>,
 ) -> Result<actions::ScriptResult, String> {
     log::line(format!("action script ({shell}) run {run_id}"));
-    actions::run_script(&run_id, &shell, &script).await
+    match data {
+        Some(data) => actions::run_script_with(&run_id, &shell, &script, &data).await,
+        None => actions::run_script(&run_id, &shell, &script).await,
+    }
 }
 
 #[tauri::command]
@@ -3956,6 +3961,17 @@ async fn custom_document(name: String, ext: String, text: String) -> Result<file
     tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
 }
 
+/// Async: the hidden window that prints is created from here, never on the main thread.
+#[tauri::command]
+async fn custom_pdf(app: AppHandle, name: String, html: String, folder: String) -> Result<files::DroppedFile, String> {
+    custom::pdf(&app, &name, &html, &folder).await
+}
+
+#[tauri::command]
+fn custom_asset(id: String, name: String) -> Result<String, String> {
+    custom::asset(&id, &name)
+}
+
 /// An integration's "http" action: its call, {{campi}} filled by the island, keys put in here.
 #[tauri::command]
 async fn custom_http(id: String, method: String, url: String, headers: serde_json::Map<String, serde_json::Value>, body: String) -> Result<custom::Reply, String> {
@@ -4188,6 +4204,8 @@ pub fn run() {
             custom_record_save,
             custom_record_delete,
             custom_document,
+            custom_pdf,
+            custom_asset,
             custom_copy,
             custom_fill,
             custom_http,
@@ -4615,6 +4633,7 @@ pub fn run() {
             agentchat::spawn(handle.clone());
             tasks::init(&handle);
             custom::spawn(handle.clone());
+            custom::watch(handle.clone());
             msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());

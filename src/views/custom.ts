@@ -1,15 +1,18 @@
 // An integration the user made from the chat (custom.rs): its form, the rows of
 // its tables, the computed values, the data read from services, the document
 // from its template, its actions and the records saved. Everything comes from
-// the description; nothing here runs code from it: formulas go through
-// core/expr.ts (read here, never eval), the template is filled as text, calls
-// to services go through Rust (only to the hosts in the description, keys put
-// in there), actions are a fixed set.
+// the description; formulas go through core/expr.ts (read here, never eval), the
+// template is filled as text (values escaped and the page cleaned when it is
+// HTML, core/template.ts), calls to services go through Rust (only to the hosts
+// in the description, keys put in there), actions are a fixed set. The one that
+// runs code is "script" (and "quick" on a script): always shown first, its
+// values in a JSON file (Rust), never in the script's text.
 
 import { h, clear } from "./dom";
 import { Bridge } from "../core/bridge";
 import { renderMarkdown } from "../core/markdown";
 import { num, pick, scopeOf, truthy, tryRun, type Val } from "../core/expr";
+import { cellValue, cleanPage, htmlValue, isHtmlTemplate, italianNumber, longDate, onTableLine } from "../core/template";
 import {
   State, type AgentTask, type Custom, type CustomAction, type CustomField, type CustomRecord, type CustomSource, type Notice,
 } from "../core/state";
@@ -35,6 +38,8 @@ interface Draft {
   note: { text: string; ok: boolean } | null;
   /** The last answer of an "http" action, for {{risposta.…}}. */
   answer: Val;
+  /** A script waiting for the user's click, shown in the card. */
+  ask: { name: string; shell: string; script: string; done: (go: boolean) => void } | null;
 }
 
 const drafts = new Map<string, Draft>();
@@ -80,7 +85,7 @@ function draftOf(c: Custom): Draft {
   let d = drafts.get(c.id);
   if (!d) {
     const tab: Draft["tab"] = c.fields.length ? "form" : "data";
-    d = { tab, record: "", values: blank(c), records: null, query: "", note: null, answer: null };
+    d = { tab, record: "", values: blank(c), records: null, query: "", note: null, answer: null, ask: null };
     drafts.set(c.id, d);
   }
   return d;
@@ -170,26 +175,42 @@ function shown(kind: string, v: unknown): string {
   }
 }
 
-/** {{campo}} and {{risposta.percorso}} in a text, as they read. */
-function fillText(c: Custom, text: string, all: Record<string, unknown>, answer: Val, encode = false): string {
+/** The same with the format of {{campo|formato}}: "lunga" for dates, "it" for numbers. */
+function shownAs(kind: string, v: unknown, format?: string): string {
+  if (v == null || v === "") return "";
+  if (format === "lunga") return longDate(v) ?? shown(kind, v);
+  if (format === "it") {
+    const n = toNumber(v);
+    if (n != null) return italianNumber(n);
+  }
+  return shown(kind, v);
+}
+
+/** Where a document's text goes: as it is (copy, messages), Markdown or HTML. */
+type Fill = "plain" | "md" | "html";
+
+/** A value as it goes into a template at `at` of `whole`. */
+function placed(value: string, mode: Fill, whole: string, at: number): string {
+  if (mode === "html") return htmlValue(value);
+  return mode === "md" && onTableLine(whole, at) ? cellValue(value) : value;
+}
+
+/** {{campo}} and {{risposta.percorso}} in a text, as they read; {{campo|formato}} in a format. */
+function fillText(c: Custom, text: string, all: Record<string, unknown>, answer: Val, encode = false, mode: Fill = "plain"): string {
   const byId = new Map(c.fields.map((f) => [f.id, f]));
-  return text.replace(/\{\{([A-Za-zÀ-ÿ0-9_.]+)\}\}/g, (m, k: string) => {
+  return text.replace(/\{\{([A-Za-zÀ-ÿ0-9_.]+)(?:\|([a-z]+))?\}\}/g, (m, k: string, format: string | undefined, at: number, whole: string) => {
     if (k.startsWith("secret:")) return m;
     let out: string | null = null;
-    if (k === "oggi") out = shown("date", today());
+    if (k === "oggi") out = shownAs("date", today(), format);
     else if (k === "risposta" || k.startsWith("risposta.")) {
-      const v = pick(answer, k.slice("risposta.".length));
-      out = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+      out = shownAs("text", pick(answer, k.slice("risposta.".length)), format);
     } else {
       const f = byId.get(k);
-      if (f) out = shown(formatOf(f), all[k]);
-      else if (k.includes(".")) {
-        const v = pick(all as Val, k);
-        out = v == null ? "" : String(v);
-      }
+      if (f) out = shownAs(formatOf(f), all[k], format);
+      else if (k.includes(".")) out = shownAs("text", pick(all as Val, k), format);
     }
     if (out == null) return m;
-    return encode ? encodeURIComponent(out) : out;
+    return encode ? encodeURIComponent(out) : placed(out, mode, whole, at);
   });
 }
 
@@ -205,21 +226,46 @@ function fillBody(c: Custom, text: string, all: Record<string, unknown>, answer:
   });
 }
 
-/** The template filled: {{campo}}, and {{#tabella}}…{{colonna}}…{{/tabella}} once per row. */
-export function fillTemplate(c: Custom, values: Record<string, unknown>, answer: Val = null): string {
+/** {{#se formula}}…{{/se}} and {{^campo}}…{{/campo}} (only when empty), the inner ones first. */
+function conditions(text: string, values: Record<string, unknown>, tables: string[]): string {
+  const scope = scopeOf(values, tables);
+  const ifs = /\{\{#se\s+([^{}]+?)\}\}((?:(?!\{\{#se\s)[\s\S])*?)\{\{\/se\}\}/g;
+  let out = text;
+  for (let i = 0; i < 20 && out.search(ifs) >= 0; i++) {
+    out = out.replace(ifs, (_, rule: string, body: string) => (truthy(tryRun(rule, scope)) ? body : ""));
+  }
+  return out.replace(/\{\{\^([A-Za-z0-9_]+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, id: string, body: string) => (truthy(values[id] as Val) ? "" : body));
+}
+
+/** Stands for "{{" in what is already filled, so that a value is never read as a placeholder. */
+const FILLED = "";
+
+/**
+ * The template filled: {{campo}}, {{campo|formato}}, {{#tabella}}…{{colonna}}…{{/tabella}}
+ * once per row, the conditions. `mode`: "plain" as it is (copy), "md" a document
+ * in Markdown (table rows kept whole), "html" an HTML template (values escaped,
+ * {{file:nome}} from `files`).
+ */
+export function fillTemplate(c: Custom, values: Record<string, unknown>, answer: Val = null, mode: Fill = "plain", files: Record<string, string> = {}): string {
   const all = withComputed(c, values);
   const byId = new Map(c.fields.map((f) => [f.id, f]));
-  const text = c.template.replace(/\{\{#([A-Za-z0-9_]+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, id: string, body: string) => {
+  const tables = c.fields.filter((f) => f.kind === "rows").map((f) => f.id);
+  // A field with no value yet is empty, not a word of its own (expr.ts).
+  const known: Record<string, unknown> = { ...Object.fromEntries(c.fields.map((f) => [f.id, null])), ...all };
+  const source = mode === "html" ? c.template.replace(/\{\{file:([^{}]+)\}\}/g, (m, name: string) => files[name.trim()] ?? m) : c.template;
+  const rowsDone = source.replace(/\{\{#([A-Za-z0-9_]+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, id: string, body: string) => {
     const f = byId.get(id);
     const rows = (all[id] as Row[] | undefined) ?? [];
     if (!f || f.kind !== "rows") return "";
-    return rows.map((row, i) => body.replace(/\{\{([A-Za-z0-9_#]+)\}\}/g, (m, k: string) => {
+    return rows.map((row, i) => conditions(body, { ...known, ...row }, tables).replace(/\{\{([A-Za-z0-9_#]+)(?:\|([a-z]+))?\}\}/g, (m, k: string, format: string | undefined, at: number, whole: string) => {
       if (k === "#") return String(i + 1);
       const col = f.columns.find((x) => x.id === k);
-      return col ? shown(col.kind === "computed" ? formatOf({ kind: "computed", format: col.format }) : col.kind, row[k]) : m;
+      if (!col) return m;
+      const value = shownAs(col.kind === "computed" ? formatOf({ kind: "computed", format: col.format }) : col.kind, row[k], format);
+      return placed(value, mode, whole, at).replace(/\{\{/g, FILLED);
     })).join("");
   });
-  return fillText(c, text, all, answer);
+  return fillText(c, conditions(rowsDone, known, tables), all, answer, false, mode).replaceAll(FILLED, "{{");
 }
 
 /** A printable page from the Markdown (the island's renderer, no script). */
@@ -568,6 +614,7 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
     const buttons = h("div", { class: "custom-actions" });
     for (const a of c!.actions) {
       const b = h("button", { class: a.kind === "save" ? "btn primary" : "btn secondary", text: a.label }) as HTMLButtonElement;
+      b.disabled = !!d.ask;
       b.addEventListener("click", () => void press(a, b));
       buttons.append(b);
     }
@@ -582,6 +629,18 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
       buttons.append(fresh);
     }
     box.append(buttons, note);
+    if (d.ask) {
+      const ask = d.ask;
+      const go = h("button", { class: "btn primary", text: t("Esegui") });
+      const no = h("button", { class: "btn secondary", text: t("Annulla") });
+      go.addEventListener("click", () => ask.done(true));
+      no.addEventListener("click", () => ask.done(false));
+      box.append(h("div", { class: "custom-row wide" },
+        h("b", { text: t("Eseguire lo script «{name}»?", { name: ask.name }) }),
+        h("span", { class: "custom-label", text: t("Controlla i comandi prima di eseguirli ({shell}).", { shell: ask.shell === "cmd" ? t("Prompt dei comandi") : "PowerShell" }) }),
+        h("pre", { class: "custom-raw", text: ask.script }),
+        h("div", { class: "custom-actions" }, go, no)));
+    }
     if (fillOpen) {
       const area = h("textarea", { class: "custom-input", rows: 4, placeholder: t("Incolla qui la mail, il messaggio o gli appunti: l'IA compila i campi, poi controlli e salvi.") }) as HTMLTextAreaElement;
       hold(area);
@@ -669,6 +728,49 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
     }
   }
 
+  /** The page of the document: an HTML template as it is, cleaned; Markdown on EasyIsland's own page. */
+  async function pageOf(name: string): Promise<string> {
+    if (!isHtmlTemplate(c!.template)) return asHtml(name, fillTemplate(c!, d.values, d.answer, "md"));
+    const wanted = [...new Set([...c!.template.matchAll(/\{\{file:([^{}]+)\}\}/g)].map((m) => m[1].trim()))];
+    const files: Record<string, string> = {};
+    for (const file of wanted) files[file] = await Bridge.customAsset(c!.id, file);
+    return cleanPage(fillTemplate(c!, d.values, d.answer, "html", files), name);
+  }
+
+  /**
+   * A script, seen and confirmed in the card when `confirm`. What the record holds
+   * goes through Rust into a JSON file named by EASYISLAND_SCHEDA, never into its text.
+   */
+  async function script(name: string, shell: string, text: string, confirm: boolean, say: (text: string, ok: boolean) => void): Promise<boolean> {
+    if (confirm) {
+      const go = await new Promise<boolean>((done) => {
+        d.ask = { name, shell, script: text, done };
+        paint();
+      });
+      d.ask = null;
+      if (!go) {
+        say(t("Script annullato."), false);
+        return false;
+      }
+    }
+    d.note = { text: t("Script in corso…"), ok: true };
+    paint();
+    const data = { integrazione: c!.id, nome: c!.name, scheda: d.record, valori: withComputed(c!, d.values) };
+    const r = await Bridge.actionRunScript(`custom${Date.now().toString(36)}`, shell, text, data);
+    const output = r.output.trim().slice(0, 300);
+    if (r.timedOut) {
+      say(t("Lo script ha superato il tempo massimo."), false);
+      return false;
+    }
+    if ((r.code ?? 0) !== 0) {
+      say(t("Lo script è finito con codice {code}: {text}", { code: r.code ?? "?", text: output }), false);
+      return false;
+    }
+    Sound.play("finish");
+    say(output || t("Script finito."), true);
+    return true;
+  }
+
   /** One action; "steps" runs the others by their labels, stopping at the first that fails. */
   async function run(a: CustomAction, depth: number): Promise<boolean> {
     const say = (text: string, ok: boolean) => {
@@ -688,10 +790,15 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
         }
         case "document": {
           const name = `${c!.name} ${titleOf(c!, { id: "", created: "", updated: "", values: d.values })}`;
-          const md = fillTemplate(c!, d.values, d.answer);
-          const f = await Bridge.customDocument(name, a.format === "md" ? "md" : "html", a.format === "md" ? md : asHtml(name, md));
+          if (a.format === "md") {
+            const f = await Bridge.customDocument(name, "md", fillTemplate(c!, d.values, d.answer, "md"));
+            say(t("Documento nel Vassoio: {name}", { name: f.name }), true);
+          } else {
+            const page = await pageOf(name);
+            const f = a.format === "pdf" ? await Bridge.customPdf(name, page, a.folder ?? "") : await Bridge.customDocument(name, "html", page);
+            say(t("Documento nel Vassoio: {name}", { name: f.name }), true);
+          }
           Sound.play("finish");
-          say(t("Documento nel Vassoio: {name}", { name: f.name }), true);
           break;
         }
         case "copy":
@@ -704,9 +811,22 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
         case "url":
           void Bridge.openUrl(fillText(c!, a.url, all, d.answer, true));
           break;
-        case "quick":
+        case "quick": {
+          const q = (State.settings.actions ?? []).find((x) => x.id === a.quick);
+          if (!q) {
+            say(t("Azione rapida non trovata: {id}", { id: a.quick }), false);
+            return false;
+          }
+          // A script gets the record's data, and the steps wait for it.
+          if (q.kind === "script") {
+            void Bridge.habitNoteQuick(q.id);
+            return await script(q.name, q.shell, q.script, !!q.confirm, say);
+          }
           hooks.runQuick(a.quick);
           break;
+        }
+        case "script":
+          return await script(a.label, a.shell || "powershell", a.script ?? "", true, say);
         case "notion": {
           const props: Record<string, unknown> = {};
           for (const f of c!.fields) {

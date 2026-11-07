@@ -11,7 +11,7 @@ Write in the chat what you need, for example:
 
 The chat proposes useful fields, formulas and actions, asks what isn't clear and shows you **the preview of the description** with **Allow / Deny**. Confirming, the integration appears in the island's menu with its icon. To change it just ask ("add a discount field", "make the total bold"): same preview, same confirmation.
 
-> **Important:** a custom integration is a **description**, never code: its actions are a fixed, safe list.
+> **Important:** a custom integration is a **description**: its actions are a fixed list. The only one holding commands is **Script**, and it always shows you what it is about to run.
 
 ![A custom integration](../media/custom.png)
 
@@ -25,7 +25,15 @@ Text, long text, number, **amount**, date, checkbox, choice and multiple choice,
 A simple language, in Italian or English: `+ - * / %`, comparisons, `and` / `or` / `not`, `if(condition; yes; no)`, `sum(quantity*price)` over rows, `avg`, `count`, `round`, `min`, `max`, dates (`today()`, `days(from; to)`, `adddays(date; 30)`, year, month), text (`upper`, `concat`, `contains`, `len`). Never code executed.
 
 ### Document template
-A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`) and the date. **Document** produces it as **printable HTML** (from there "Print → PDF") or Markdown, in the Tray.
+A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`) and the date. **Document** produces it as **printable HTML**, **PDF** (A4) or Markdown, in the Tray; the PDF can also go to a folder of your choice.
+
+The template can also be **real HTML** with your own design: it just has to start with a tag such as `<!doctype html>`, `<style>` or `<div>`. Field values are always escaped, and scripts and dangerous links are removed.
+
+- `{{date|lunga}}`: the date in full, "7 novembre 2026".
+- `{{amount|it}}`: the number the Italian way, "1.234,5".
+- `{{#se carrier}}…{{/se}}`: the text only if the field is filled (a formula works too).
+- `{{^carrier}}…{{/carrier}}`: the text only if the field is empty.
+- `{{file:logo.png}}`: in HTML templates, a picture placed in `%APPDATA%\EasyIsland\integrazioni\<id>\`.
 
 ### Actions (the buttons)
 | Action | What it does |
@@ -36,7 +44,8 @@ A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`)
 | **Ask the AI** | A question to the chat with the fields |
 | **Fill with AI** | Paste a mail or a text and the AI fills the fields |
 | **Link** | Opens an address with the fields |
-| **Quick action** | Runs one of your actions |
+| **Quick action** | Runs one of your actions; a script receives the record's data |
+| **Script** | Runs PowerShell or Command Prompt commands: it shows them and waits for your click every time. The record's data is in the JSON file named by the `EASYISLAND_SCHEDA` variable |
 | **Notion** | Adds the record to a database |
 | **Export CSV** | All records, for Excel |
 | **Call a service** | GET/POST/PUT/PATCH/DELETE to one of your services' API, with the fields in the body; the response can fill fields and show in a message |
@@ -59,7 +68,7 @@ The chat and tasks can **read records**, **add them** (with Allow / Deny), **rea
 **Settings → Integrations → Made by you**: show or hide in the menu, edit the JSON description, enter keys, delete. Files live in `%APPDATA%\EasyIsland\integrazioni` (description and records, readable).
 
 ## Limits, on purpose
-- **No code**: an action does only what its kind provides.
+- **Fixed actions**: an action does only what its kind provides; commands run only in a Script action, after you see them and click.
 - Calls go **only to the services written in the description** you approved.
 - **No data "pushed" by services** (incoming webhooks), because that would need an open port on the PC: a source read every N minutes is used instead.
 - It works with the PC on.

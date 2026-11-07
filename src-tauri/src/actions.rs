@@ -166,8 +166,78 @@ fn truncate(mut s: String) -> String {
     s
 }
 
+const QUICK_KINDS: &[&str] = &["url", "app", "script", "prompt", "keys"];
+/// What the chat may set of a quick action. Not `confirm`: a script it writes
+/// always shows itself before running. Not `hotkey`: shortcuts are the user's.
+const QUICK_TEXTS: &[&str] = &["name", "icon", "color", "kind", "target", "args", "script", "shell", "prompt", "keys", "apps"];
+const MAX_QUICK_SCRIPT: usize = 20_000;
+
+/// quick_action_create / quick_action_update: `base` with what the chat gave,
+/// checked. A new action starts from `base` as the settings window makes it.
+pub fn quick_from_args(mut base: serde_json::Value, args: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let text = |v: &serde_json::Value, k: &str| v.get(k).and_then(serde_json::Value::as_str).unwrap_or_default().trim().to_string();
+    for key in QUICK_TEXTS {
+        if let Some(v) = args.get(*key).and_then(serde_json::Value::as_str) {
+            base[*key] = serde_json::json!(v);
+        }
+    }
+    let kind = text(&base, "kind");
+    let label = text(&base, "name");
+    if label.is_empty() {
+        return Err(t("name: il nome dell'azione.").into());
+    }
+    if !QUICK_KINDS.contains(&kind.as_str()) {
+        return Err(tf("kind deve essere uno di {k}.", &[("k", &QUICK_KINDS.join(", "))]));
+    }
+    match kind.as_str() {
+        "url" if !(text(&base, "target").starts_with("https://") || text(&base, "target").starts_with("http://")) => {
+            return Err(t("target: il link deve iniziare con http:// o https://.").into());
+        }
+        "app" if text(&base, "target").is_empty() => return Err(t("target: il programma, la cartella o il file da aprire.").into()),
+        "script" if text(&base, "script").is_empty() => return Err(t("script: i comandi da eseguire.").into()),
+        "script" if text(&base, "script").len() > MAX_QUICK_SCRIPT => return Err(t("script: al massimo 20.000 caratteri.").into()),
+        "prompt" if text(&base, "prompt").is_empty() => return Err(t("prompt: la domanda per la chat.").into()),
+        "keys" if text(&base, "keys").is_empty() => return Err(t("keys: i tasti da inviare.").into()),
+        _ => {}
+    }
+    if text(&base, "shell") != "cmd" {
+        base["shell"] = serde_json::json!("powershell");
+    }
+    // Commands the chat wrote or changed are shown before they run, whatever was set.
+    if kind == "script" && (args.get("script").is_some() || args.get("kind").is_some()) {
+        base["confirm"] = serde_json::json!(true);
+    }
+    Ok(base)
+}
+
+/// A new action, as the settings window starts one.
+pub fn quick_blank(id: String) -> serde_json::Value {
+    serde_json::json!({
+        "id": id, "name": "", "icon": "i:bolt", "color": "#8b5cf6", "kind": "script", "target": "", "args": "", "script": "",
+        "shell": "powershell", "prompt": "", "input": "clipboard", "confirm": true, "hotkey": ""
+    })
+}
+
 /// Runs a script in PowerShell or cmd, hidden, and returns what it printed.
 pub async fn run_script(run_id: &str, shell: &str, script: &str) -> Result<ScriptResult, String> {
+    run_script_env(run_id, shell, script, &[]).await
+}
+
+/// A script of an integration: what the record holds goes into a JSON file the
+/// script finds in EASYISLAND_SCHEDA, gone when it ends. Never into the script's
+/// text: a field could otherwise run commands.
+pub async fn run_script_with(run_id: &str, shell: &str, script: &str, data: &serde_json::Value) -> Result<ScriptResult, String> {
+    let name: String = run_id.chars().filter(char::is_ascii_alphanumeric).take(40).collect();
+    let file = std::env::temp_dir().join(format!("easyisland-scheda-{name}.json"));
+    let bytes = serde_json::to_vec_pretty(data).map_err(|e| e.to_string())?;
+    std::fs::write(&file, bytes).map_err(|e| e.to_string())?;
+    let env = [("EASYISLAND_SCHEDA", file.to_string_lossy().into_owned())];
+    let out = run_script_env(run_id, shell, script, &env).await;
+    let _ = std::fs::remove_file(&file);
+    out
+}
+
+async fn run_script_env(run_id: &str, shell: &str, script: &str, env: &[(&str, String)]) -> Result<ScriptResult, String> {
     let mut cmd = if shell == "cmd" {
         let mut c = tokio::process::Command::new("cmd");
         // /S + outer quotes: cmd keeps the inner text exactly as written.
@@ -185,7 +255,8 @@ pub async fn run_script(run_id: &str, shell: &str, script: &str) -> Result<Scrip
         ]);
         c
     };
-    cmd.stdin(Stdio::null())
+    cmd.envs(env.iter().map(|(k, v)| (*k, v.as_str())))
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true)
@@ -503,5 +574,53 @@ mod tests {
             vec![r"C:\Program Files\App\app.exe", "--x", "a b"]
         );
         assert_eq!(split_args(r#"--name """#), vec!["--name", ""]);
+    }
+}
+
+#[cfg(test)]
+mod quick_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_new_script_always_asks_and_the_chat_cannot_say_otherwise() {
+        let a = quick_from_args(quick_blank("a1".into()), &json!({ "name": "Prova", "kind": "script", "script": "Get-Date", "confirm": false, "hotkey": "Ctrl+Alt+P" })).unwrap();
+        assert_eq!(a["confirm"], json!(true));
+        assert_eq!(a["hotkey"], json!(""));
+        assert_eq!(a["shell"], json!("powershell"));
+    }
+
+    #[test]
+    fn changing_the_commands_asks_again_changing_the_name_does_not() {
+        let mine = json!({ "id": "a1", "name": "Mia", "kind": "script", "script": "dir", "shell": "cmd", "confirm": false });
+        let renamed = quick_from_args(mine.clone(), &json!({ "name": "Nuova" })).unwrap();
+        assert_eq!((renamed["confirm"].clone(), renamed["shell"].clone()), (json!(false), json!("cmd")));
+        assert_eq!(quick_from_args(mine, &json!({ "script": "del x" })).unwrap()["confirm"], json!(true));
+    }
+
+    #[test]
+    fn quick_action_mistakes_are_explained() {
+        let blank = || quick_blank("a1".into());
+        assert!(quick_from_args(blank(), &json!({ "kind": "script", "script": "x" })).unwrap_err().contains("name"));
+        assert!(quick_from_args(blank(), &json!({ "name": "x", "kind": "macro" })).unwrap_err().contains("kind"));
+        assert!(quick_from_args(blank(), &json!({ "name": "x", "kind": "url", "target": "file:///c:/x" })).unwrap_err().contains("http"));
+        assert!(quick_from_args(blank(), &json!({ "name": "x", "kind": "script" })).unwrap_err().contains("script"));
+        assert!(quick_from_args(blank(), &json!({ "name": "x", "kind": "script", "script": "y".repeat(MAX_QUICK_SCRIPT + 1) })).unwrap_err().contains("20.000"));
+    }
+
+    #[test]
+    fn a_field_reaches_the_script_as_data_and_never_runs() {
+        let mark = std::env::temp_dir().join(format!("easyisland-iniettato-{}", std::process::id()));
+        let _ = std::fs::remove_file(&mark);
+        let evil = format!("\"; New-Item '{}' ; $(New-Item '{}') #", mark.display(), mark.display());
+        let data = json!({ "integrazione": "ddt", "scheda": "1", "valori": { "cliente": evil } });
+        let script = "$d = Get-Content -Raw -Encoding UTF8 $env:EASYISLAND_SCHEDA | ConvertFrom-Json; Write-Output $d.integrazione; Write-Output $d.valori.cliente.Length";
+        let out = tauri::async_runtime::block_on(run_script_with("provascheda", "powershell", script, &data)).unwrap();
+        assert_eq!(out.code, Some(0), "{}", out.output);
+        let lines: Vec<&str> = out.output.lines().collect();
+        assert_eq!(lines.first().copied(), Some("ddt"));
+        assert_eq!(lines.get(1).copied(), Some(evil.chars().count().to_string().as_str()));
+        assert!(!mark.exists());
+        assert!(!std::env::temp_dir().join("easyisland-scheda-provascheda.json").exists());
     }
 }

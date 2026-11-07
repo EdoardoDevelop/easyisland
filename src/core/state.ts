@@ -1996,6 +1996,11 @@ export interface CustomAction {
   store?: Record<string, unknown>;
   message?: string;
   steps?: string[];
+  /** script: the commands, shown before running; the record's data comes in a JSON file. */
+  script?: string;
+  shell?: string;
+  /** document in PDF: a folder for a copy, besides the Vassoio. */
+  folder?: string;
 }
 /** Data read from a service (custom.rs Source). */
 export interface CustomSource {

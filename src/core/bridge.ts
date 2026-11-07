@@ -340,9 +340,10 @@ export const Bridge = {
   chatHistoryClear: () => call<void>("chat_history_clear"),
   /** Quick actions. */
   actionOpenApp: (target: string, args: string) => callOrThrow<void>("action_open_app", { target, args }),
-  actionRunScript: (runId: string, shell: string, script: string) =>
+  /** `data`: what the script reads from the JSON file named by EASYISLAND_SCHEDA (an integration's record). */
+  actionRunScript: (runId: string, shell: string, script: string, data?: unknown) =>
     callOrThrow<{ code: number | null; output: string; timedOut: boolean }>(
-      "action_run_script", { runId, shell, script },
+      "action_run_script", { runId, shell, script, data: data ?? null },
     ),
   actionKill: (runId: string) => call<void>("action_kill", { runId }),
   clipboardText: () => call<string | null>("clipboard_text"),
@@ -526,6 +527,10 @@ export const Bridge = {
   customRecordSave: (id: string, record: string, values: Record<string, unknown>) => callOrThrow<CustomRecord>("custom_record_save", { id, record, values }),
   customRecordDelete: (id: string, record: string) => callOrThrow<void>("custom_record_delete", { id, record }),
   customDocument: (name: string, ext: string, text: string) => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text }),
+  /** The page printed in PDF (A4, or the page's @page): into the Vassoio, and into `folder` when given. */
+  customPdf: (name: string, html: string, folder: string) => callOrThrow<{ name: string; path: string }>("custom_pdf", { name, html, folder }),
+  /** {{file:nome}}: a file of the integration's folder as a data: URI. */
+  customAsset: (id: string, name: string) => callOrThrow<string>("custom_asset", { id, name }),
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
   /** An integration's call to a service (keys put in by Rust) and a source read now. */
   customHttp: (id: string, method: string, url: string, headers: Record<string, string>, body: string) =>

@@ -11,7 +11,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Barra fissa** (`docs/architettura.md` → Barra fissa): provata in alto; da provare in basso, secondo monitor, menu «…».
 - [ ] **Widget della barra** (1.0.13+, `barsys.rs`, card in `src/views/barcard.ts`): da provare dal vivo, soprattutto «Nascondi da sola», sfocatura, winget. Mancano Wi-Fi, Bluetooth, temperature (`docs/idee.md`).
 - [ ] **Aspetto a schede con le immagini** (`docs/architettura.md` → Impostazioni): modalità chiara non guardata.
-- [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera.
+- [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera. Le 7 voci URGENTI del 7/11 sono nella 1.0.33 (installer locale, non pubblicata): provare dal vivo pulsante script, PDF da una scheda vera e `quick_action_*`, poi passare «DDT Easytech» al modello HTML e togliere `genera-ddt.ps1`.
 - [ ] **Guida sul sito** IT/EN (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage EN `site/en/index.html`, schermate EN `site/media/en/`): allineare a ogni funzione nuova (`node scripts/guida.mjs`). Link delle Impostazioni nella lingua dell'app: prossima versione.
 - [ ] **Documenti Word e PDF nella chat** (deciso il 7/11, `docs/idee.md`): creare, compilare modelli, leggere; prima Word, poi lettura dei PDF con una libreria Rust.
 - [ ] **Agente personale** (priorità alta, 23/10): fatti Compiti, motori aiutanti, Battito, Abilità, permessi per livelli (1.0.16: «Sempre» sulle reversibili, permessi per compito, «Cosa ho fatto» con Annulla; `docs/chat.md`). Da provare dal vivo. Prossimi: proattività su ticket e chiamate, memoria per cliente (`docs/idee.md`).
@@ -47,6 +47,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
+
+### 7/11 — Integrazioni personali: HTML, PDF, script
+Modelli HTML veri (`core/template.ts`: escape, `cleanPage`), `{{data|lunga}}`, `{{numero|it}}`, `{{#se}}`, `{{^campo}}`, `{{file:logo.png}}`; a capo nelle tabelle Markdown; PDF con WebView2 (`pdf.rs`, provato con `real_print`); azione `script` e `quick` con i dati della scheda in `EASYISLAND_SCHEDA`, conferma nella card; `quick_action_create/update/delete`; `custom::watch` per i `.json` cambiati a mano. Cambia la regola «mai codice» (`CLAUDE.md`), su richiesta di Edoardo. Da provare con l'app vera.
 
 ### 7/11 — Memoria: scheda, percorso, dedotto
 `memory_page` con `brief` dà riassunto e collegamenti senza il testo; `memory_path` trova la strada fra due pagine; i collegamenti ricavati da un motore finiscono con `(dedotto)`. I file `.md` restano (`docs/decisioni.md`). Gruppi e percorso erano già nella Mappa. Da provare con la memoria vera e un motore vero. Il campo in alto cerca gli stessi nodi della Mappa e mostra la costellazione (`views/constellation.ts`); Invio apre una chat nuova dal nodo con la sua scheda.

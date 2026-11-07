@@ -260,6 +260,38 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
         ? t("Eseguire lo script «{name}»:", { name: a.name }) + `\n${short(a.script, 400)}`
         : t("Eseguire l'azione «{name}»", { name: a.name });
     }
+    case "quick_action_create":
+    case "quick_action_update": {
+      const old = (State.settings.actions ?? []).find((x) => x.id === s("id"));
+      const head = name === "quick_action_create"
+        ? t("Creare l'azione rapida «{name}»", { name: s("name") })
+        : t("Cambiare l'azione rapida «{name}»", { name: s("name") || old?.name || s("id") });
+      // Whole: what the user approves is the code that will run.
+      return [head, ...["target", "args", "script", "prompt", "keys"].filter(s).map(s)].join("\n");
+    }
+    case "quick_action_delete": {
+      const a = (State.settings.actions ?? []).find((x) => x.id === s("id"));
+      return t("Eliminare l'azione rapida «{name}»", { name: a?.name ?? s("id") });
+    }
+    case "custom_create":
+    case "custom_update": {
+      // Only when it holds a script: the rest reads well as it always did.
+      let def = input.definition as { name?: string; actions?: { kind?: string; label?: string; script?: string }[] } | string | undefined;
+      if (typeof def === "string") {
+        try {
+          def = JSON.parse(def) as { name?: string };
+        } catch {
+          return null;
+        }
+      }
+      const scripts = (def as { actions?: { kind?: string; label?: string; script?: string }[] } | undefined)?.actions?.filter((a) => a.kind === "script") ?? [];
+      if (!scripts.length) return null;
+      const label = (def as { name?: string }).name ?? s("id");
+      return [
+        name === "custom_create" ? t("Creare l'integrazione «{name}»", { name: label }) : t("Cambiare l'integrazione «{name}»", { name: label }),
+        ...scripts.map((a) => `${t("Con lo script «{name}»:", { name: a.label ?? "" })}\n${a.script ?? ""}`),
+      ].join("\n");
+    }
     case "read_clipboard":
       return t("Leggere il testo negli appunti");
     case "write_clipboard":

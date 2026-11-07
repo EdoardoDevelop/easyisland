@@ -289,6 +289,47 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             }
         }
 
+        // In the active profile, as the settings window does; update_settings
+        // saves and tells both windows, so nothing overwrites it afterwards.
+        "quick_action_create" => {
+            let id = format!("a{}", crate::msgraph::random(6).iter().map(|b| format!("{b:02x}")).collect::<String>());
+            let action = crate::actions::quick_from_args(crate::actions::quick_blank(id.clone()), args)?;
+            let name = action.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+            update_settings(app, |s| {
+                s.actions.push(action);
+                s.commit_active();
+            })?;
+            Ok(format!("Azione rapida «{name}» creata (id {id})."))
+        }
+
+        "quick_action_update" => {
+            let id = arg(args, "id").to_string();
+            let same = |a: &Value| a.get("id").and_then(Value::as_str) == Some(id.as_str());
+            let old = settings(app)?.actions.iter().find(|a| same(a)).cloned().ok_or_else(|| format!("Nessuna azione rapida con id «{id}»."))?;
+            let action = crate::actions::quick_from_args(old, args)?;
+            let name = action.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+            update_settings(app, |s| {
+                if let Some(a) = s.actions.iter_mut().find(|a| same(a)) {
+                    *a = action;
+                }
+                s.commit_active();
+            })?;
+            Ok(format!("Azione rapida «{name}» aggiornata."))
+        }
+
+        "quick_action_delete" => {
+            let id = arg(args, "id").to_string();
+            let same = |a: &Value| a.get("id").and_then(Value::as_str) == Some(id.as_str());
+            if !settings(app)?.actions.iter().any(same) {
+                return Err(format!("Nessuna azione rapida con id «{id}»."));
+            }
+            update_settings(app, |s| {
+                s.actions.retain(|a| !same(a));
+                s.commit_active();
+            })?;
+            Ok(format!("Azione rapida {id} eliminata."))
+        }
+
         "open_app" => {
             let target = arg(args, "target");
             if target.is_empty() {
