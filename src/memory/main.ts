@@ -10,7 +10,7 @@ import "./memory.css";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import { t } from "../core/i18n";
 import { h, clear } from "../views/dom";
-import { KIND_COLOR, Model, kindName, pathBetween, type MemGraph, type NodeKind } from "./data";
+import { KIND_COLOR, Model, kindName, pathBetween, type MemGraph, type MemNode, type NodeKind } from "./data";
 import { Stage, type Colouring, type View } from "./stage";
 import { GalaxyView } from "./galaxy";
 import { NeuralView } from "./neural";
@@ -316,6 +316,12 @@ function renderPath() {
   panel.append(list, h("div", { class: "mem-row" }, off));
 }
 
+/** Between pages strength 2 is a link an engine worked out (brain.rs `Edge`). */
+function inferred(a: MemNode, b: MemNode, strength: number): boolean {
+  const page = (n: MemNode) => n.kind === "page" || n.kind === "missing";
+  return strength === 2 && page(a) && page(b);
+}
+
 function renderPanel() {
   clear(panel);
   const n = selected ? model?.byId.get(selected) : null;
@@ -339,7 +345,7 @@ function renderPanel() {
       const b = h("button", {},
         h("i", { style: `background:${KIND_COLOR[other.kind]}` }),
         h("span", { text: other.label }),
-        h("small", { text: nb.label ? (nb.out ? `${nb.label} →` : `← ${nb.label}`) : "" })) as HTMLButtonElement;
+        h("small", { text: [nb.label && (nb.out ? `${nb.label} →` : `← ${nb.label}`), inferred(n, other, nb.strength) && t("dedotto")].filter(Boolean).join(" · ") })) as HTMLButtonElement;
       b.addEventListener("click", () => select(other.id));
       list.append(b);
     }
@@ -657,6 +663,8 @@ void onEvent("memory-refresh", () => void load());
 // A page found from the island's field at the top: selected once loaded.
 void onEvent<string>("memory-select", (id) => {
   wanted = id;
+  // Found in the copy of another PC while the map shows this one, or the other way round.
+  if (model && !model.byId.has(id) && source !== "*") source = "*";
   void load();
 });
 window.addEventListener("focus", () => {

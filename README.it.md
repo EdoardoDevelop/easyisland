@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.32** — **costellazione** della memoria nel campo in alto, chat da un nodo con Invio, memoria che costa meno token.
 - **1.0.31** — **chat** su due righe con **icone animate**, anello del contesto e branch del progetto; avvio pulito.
 - **1.0.30** — **Multi agent** con una voce sola: una risposta, già rivista.
 - **1.0.29** — **Mappa della memoria** senza collegamenti falsi; in **Agent Chat** chi non può rispondere lo dice.
-- **1.0.28** — **Multi agent** nella chat: più motori lavorano insieme, uno guida e un altro **controlla il lavoro** prima della risposta.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

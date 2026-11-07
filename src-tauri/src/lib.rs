@@ -2128,8 +2128,15 @@ fn memory_window_open(app: AppHandle) {
 
 /// The field at the top of the island: memory pages with these words.
 #[tauri::command]
-fn memory_find(query: String) -> Vec<brain::PageHit> {
-    brain::find_pages(&query, 5)
+async fn memory_find(app: AppHandle, query: String) -> Vec<brain::PageHit> {
+    let other = memshare::source(&app);
+    tauri::async_runtime::spawn_blocking(move || brain::find_nodes(&query, 8, other)).await.unwrap_or_default()
+}
+
+/// A new chat from a node of the memory: its name and card.
+#[tauri::command]
+async fn memory_node_brief(id: String) -> Option<(String, String)> {
+    tauri::async_runtime::spawn_blocking(move || brain::node_brief(&id)).await.ok().flatten()
 }
 
 /// A page found from the field at the top: the memory window, with it selected.
@@ -4301,6 +4308,7 @@ pub fn run() {
             memory_note_add,
             chat_history_search,
             memory_find,
+            memory_node_brief,
             memory_window_select,
             zammad_search,
             zammad_prepare,

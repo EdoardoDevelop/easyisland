@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.32** — **The memory in the field at the top**: the search looks at everything in the Map, notes and the other PC included, and when it
+finds something an animated **constellation** opens with the node and its neighbours. Arrows and clicks move it, **Enter** opens a new chat
+that starts from that node. The chat first reads a page's **card** instead of the whole text, can say **how two pages are linked** and
+marks **inferred** links.
+
 **1.0.31** — **Chat reworked in the details**: two-row field with project, engine and modes next to the text, **New** and **Search**
 side by side, history with titles only and the details in the tooltip, the project's git branch and a **context ring** with Claude.
 **Animated icons** on hover and click, a classic paperclip. At startup the logo leaves cleanly and the character fades in. No more

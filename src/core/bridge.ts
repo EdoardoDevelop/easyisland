@@ -615,8 +615,10 @@ export const Bridge = {
   /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */
   chatDictateWindows: () => callOrThrow<void>("chat_dictate_windows"),
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
-  /** The field at the top: memory pages (brain.rs find_pages). */
+  /** The field at the top: the nodes of the map (brain.rs find_nodes). */
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
+  /** A node's name and card, for a new chat (brain.rs node_brief). */
+  memoryNodeBrief: (id: string) => call<[string, string] | null>("memory_node_brief", { id }),
   /** A page found there: the memory window with it selected. */
   memoryWindowSelect: (id: string) => call<void>("memory_window_select", { id }),
   /** The field at the top: Zammad's tickets (zammad.rs search). */
@@ -867,10 +869,13 @@ export interface MemoryInfo {
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
 /** A memory page found from the field at the top (brain.rs PageHit). */
 export interface MemoryHit {
-  /** The memory window's node, "p:<slug>". */
+  /** The memory window's node, "p:<slug>" or "lavoro|p:<slug>". */
   id: string;
   title: string;
   gist: string;
+  kind: "page" | "note" | "source" | "old";
+  /** The other PC it comes from. */
+  origin: string;
 }
 
 /** Devolutions Cloud (dvc.rs). */

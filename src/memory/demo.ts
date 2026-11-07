@@ -70,7 +70,7 @@ function thisPc(): MemGraph {
   link("marco-rossi", "laura-bianchi", "lavora con");
   link("laura-bianchi", "portale-ticket", "usa");
   link("nas-synology", "backup-3-2-1", "parte di");
-  link("backup-3-2-1", "officina-verdi", "usato da");
+  edges.push({ from: "p:backup-3-2-1", to: "p:officina-verdi", label: "usato da", strength: 2 });
   link("assistenza-annuale", "listino-2026", "prezzi in");
   link("officina-verdi", "gestionale-officina", "usa");
   link("officina-verdi", "assistenza-annuale", "contratto");

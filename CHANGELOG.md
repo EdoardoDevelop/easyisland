@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.32** — **La memoria nel campo in alto**: la ricerca guarda tutto ciò che c'è nella Mappa, note e altro PC compresi, e se trova
+qualcosa si apre una **costellazione** animata con il nodo e i suoi vicini. Frecce e clic la spostano, **Invio** apre una chat nuova che
+parte da quel nodo. La chat legge prima la **scheda** di una pagina invece del testo intero, sa dire **come sono collegate** due pagine e
+segna i legami **dedotti**.
+
 **1.0.31** — **Chat rifatta nei dettagli**: campo su due righe con progetto, motore e modi vicini al testo, **Nuovo** e **Cerca**
 affiancati, cronologia con il solo titolo e i dati nel suggerimento, branch git del progetto e **anello del contesto** con Claude.
 **Icone animate** al passaggio del mouse e al clic, graffetta classica. All'avvio il logo sparisce pulito e il personaggio appare in

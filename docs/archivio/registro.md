@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 6/11 — Chat: la riga che si scrive non taglia più
+`typeline.ts`: finisce sempre la riga iniziata, dei passi in arrivo tiene solo l'ultimo (gli altri sono nell'elenco); del ragionamento mostra solo frasi intere; niente più cancellazione a lettere. Le frasi di attesa cedono appena scritte. Scena `pensa=corsa`.
+
 ### 6/11 — Versione 1.0.26: risposte piene, progetto per conversazione, parola per parola
 Prompt senza «bolla» e «finestra piccola» (`claude_cli.rs`, `openai.rs`, `claude.rs`); `--include-partial-messages` con `Progress::delta`; «Progetto…» sceglie la cartella della conversazione, la predefinita resta quella di Impostazioni. Nella barra laterale gruppi per progetto con «+». Provato con `live_words` su Claude Code vero; da confrontare con l'uso i due modi.
 

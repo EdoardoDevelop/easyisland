@@ -123,6 +123,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
     match tool {
         "memory_search" => crate::brain::activity(app, "read", arg(args, "query")),
         "memory_page" => crate::brain::activity(app, "read", arg(args, "title")),
+        "memory_path" => crate::brain::activity(app, "read", &format!("{} {}", arg(args, "from"), arg(args, "to"))),
         "memory_note" | "memory_page_write" => crate::brain::activity(app, "write", &format!("{} {}", arg(args, "title"), arg(args, "text"))),
         _ => {}
     }
@@ -144,7 +145,9 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "memory_search" => crate::memshare::search(app, arg(args, "query"), arg(args, "month")).await,
         "memory_note" if args.get("shared").and_then(Value::as_bool) == Some(true) => crate::memshare::note(app, arg(args, "text")).await,
         "memory_note" => crate::brain::changed(app, crate::memory::note(arg(args, "text"))),
+        "memory_page" if args.get("brief").and_then(Value::as_bool) == Some(true) => crate::brain::tool_brief(arg(args, "title")).or_else(|e| crate::memshare::brief(app, arg(args, "title")).ok_or(e)),
         "memory_page" => crate::brain::tool_read(arg(args, "title")).or_else(|e| crate::memshare::page(app, arg(args, "title")).ok_or(e)),
+        "memory_path" => crate::brain::tool_path(arg(args, "from"), arg(args, "to")).or_else(|e| crate::memshare::path(app, arg(args, "from"), arg(args, "to")).ok_or(e)),
         "memory_page_write" => crate::brain::changed(app, crate::brain::tool_write(arg(args, "title"), arg(args, "text"), arg(args, "version"), arg(args, "source"))),
         "memory_inbox" => crate::brain::tool_inbox(arg(args, "file")),
         "memory_inbox_done" => crate::brain::changed(app, crate::brain::tool_inbox_done(arg(args, "file"))),

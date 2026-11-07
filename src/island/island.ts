@@ -447,6 +447,14 @@ export class Island {
         Sound.play("blip");
         this.startChat(text, null, false);
       },
+      memoryChat: (id, title) => {
+        Sound.play("blip");
+        void Bridge.memoryNodeBrief(id).then((node) => {
+          const [name, text] = node ?? [title, title];
+          const short = name.length > 40 ? `${name.slice(0, 39)}…` : name;
+          this.startChat("", { label: t("Memoria · {name}", { name: short }), text }, false);
+        });
+      },
       askDay: (tomorrow) => {
         Sound.play("blip");
         void Bridge.chatDayPrompt(tomorrow).then((p) => { if (p) this.startChat(p, null, false); });
