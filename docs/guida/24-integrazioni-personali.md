@@ -11,7 +11,7 @@ Scrivi in chat quello che ti serve, per esempio:
 
 La chat propone campi, calcoli e azioni utili, ti chiede quello che non è chiaro e ti mostra **l'anteprima della descrizione** con **Consenti / Nega**. Confermando, l'integrazione compare nel menu dell'isola con la sua icona. Per cambiarla basta chiedere («aggiungi un campo sconto», «fai il totale in grassetto»): stessa anteprima, stessa conferma.
 
-> **Importante:** un'integrazione personale è una **descrizione**, mai codice: le sue azioni sono un elenco fisso e sicuro.
+> **Importante:** un'integrazione personale è una **descrizione**: le sue azioni sono un elenco fisso. L'unica che contiene comandi è **Script**, e ti mostra sempre cosa sta per eseguire.
 
 ![Un'integrazione personale](../media/custom.png)
 
@@ -25,7 +25,17 @@ Testo, testo lungo, numero, **importo**, data, casella, scelta e scelta multipla
 Un linguaggio semplice, in italiano o in inglese: `+ - * / %`, confronti, `e` / `o` / `non`, `se(condizione; sì; no)`, `somma(quantita*prezzo)` sulle righe, `media`, `conta`, `arrotonda`, `min`, `max`, date (`oggi()`, `giorni(da; a)`, `piugiorni(data; 30)`, `anno`, `mese`), testo (`maiuscolo`, `unisci`, `contiene`, `lunghezza`). Numeri all'italiana (`0,22`). Mai codice eseguito.
 
 ### Modello del documento
-Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {{/righe}}`) e la data. **Documento** lo produce in **HTML stampabile** (da lì «Stampa → PDF») o in Markdown, nel Vassoio.
+Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {{/righe}}`) e la data. **Documento** lo produce in **HTML stampabile**, in **PDF** (A4) o in Markdown, nel Vassoio.
+
+**Dove salvare e come chiamare il file** lo dici alla chat, quando crei l'integrazione o dopo: «salva i PDF in `C:\Documenti\DDT`», «chiama il file numero e cliente», «nell'elenco mostra numero e cliente». Puoi usare più campi insieme, come `{{numero}} {{cliente}}`. Il documento va sempre nel Vassoio e in più nella cartella scelta, senza mai sovrascrivere: se il nome esiste già diventa `nome (2).pdf`. I caratteri che Windows non accetta nei nomi di file vengono tolti, e `/` diventa `-`.
+
+Il modello può essere anche **HTML vero**, con la tua grafica: basta che cominci con un tag come `<!doctype html>`, `<style>` o `<div>`. I valori dei campi sono sempre protetti e script e link pericolosi vengono tolti.
+
+- `{{data|lunga}}`: la data per esteso, «7 novembre 2026».
+- `{{importo|it}}`: il numero con la virgola, «1.234,5».
+- `{{#se vettore}}…{{/se}}`: il testo solo se il campo è pieno (vale anche una formula).
+- `{{^vettore}}…{{/vettore}}`: il testo solo se il campo è vuoto.
+- `{{file:logo.png}}`: nei modelli HTML, un'immagine messa in `%APPDATA%\EasyIsland\integrazioni\<id>\`.
 
 ### Azioni (i pulsanti)
 | Azione | Cosa fa |
@@ -36,7 +46,8 @@ Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {
 | **Chiedi all'AI** | Una domanda alla chat con i campi |
 | **Compila con l'AI** | Incolli una mail o un testo e l'AI riempie i campi |
 | **Link** | Apre un indirizzo con i campi |
-| **Azione rapida** | Esegue una tua azione |
+| **Azione rapida** | Esegue una tua azione; se è uno script riceve i dati della scheda |
+| **Script** | Esegue comandi PowerShell o del Prompt: te li mostra e aspetta «Esegui» ogni volta. I dati della scheda sono nel file JSON indicato dalla variabile `EASYISLAND_SCHEDA`: in PowerShell leggilo con `Get-Content -Raw -Encoding UTF8`, o le lettere accentate si rovinano |
 | **Notion** | Aggiunge la scheda a un database |
 | **Esporta CSV** | Tutte le schede, per Excel |
 | **Chiamata a un servizio** | GET/POST/PUT/PATCH/DELETE all'API di un tuo servizio, con i campi nel corpo; la risposta può riempire i campi e comparire in un messaggio |
@@ -56,7 +67,7 @@ Le chiavi e i token dei servizi si scrivono come `{{secret:nome}}` e si inserisc
 La chat e i compiti possono **leggere le schede**, **aggiungerne** (con Consenti / Nega), **leggere le fonti** e **chiamare le azioni** delle tue integrazioni: «quanti preventivi ho fatto a ottobre?», «registra un intervento di 2 ore per Rossi», «controlla i server e dimmi se c'è qualcosa».
 
 ## Gestirle
-**Impostazioni → Integrazioni → Create da te**: accendi o spegni nel menu, modifica la descrizione JSON, inserisci le chiavi, elimina. I file stanno in `%APPDATA%\EasyIsland\integrazioni` (descrizione e schede, leggibili).
+**Impostazioni → Integrazioni → Create da te**: accendi o spegni nel menu, modifica la descrizione JSON, inserisci le chiavi, elimina. I file stanno in `%APPDATA%\EasyIsland\integrazioni` (descrizione e schede, leggibili): se cambi a mano una descrizione, l'isola la rilegge da sola.
 
 ## Limiti, di proposito
 - **Niente codice**: un'azione fa solo quello che il suo tipo prevede.

@@ -412,8 +412,16 @@ export async function runScene(island: Island, scene: string) {
     }
     case "agentchat": {
       // ?activeIntegrations=integration_agentchat — listening with three engines and a few messages;
-      // &off: listening off; &busy: two engines answering; &empty: not configured.
+      // &off: listening off; &busy: two engines answering; &empty: not configured; &lavoro: turns in «In esecuzione».
       await wait(300);
+      Object.assign(Bridge, {
+        agentchatLive: async () => new URLSearchParams(location.search).has("lavoro") ? [
+          { id: 2, who: "lia", engine: "Claude (abbonamento)", message: 7, about: "controlla anche lo spazio sul server", started: Date.now() - 95_000, state: "working",
+            text: "> ⚙ Legge · `docs/sviluppo.md`\n\nControllo lo spazio con il comando del server.\n\n> ⚙ Esegue · `df -h /srv`\n\n> ⚙ Esegue · `du -sh /srv/backup`" },
+          { id: 1, who: "casa/opencode", engine: "opencode", message: 5, about: "aggiornate le dipendenze del progetto sito e fate girare i test", started: Date.now() - 400_000, state: "done",
+            text: "> ⚙ Esegue · `npm test`\n\nTutti i test passano." },
+        ] : [],
+      });
       const q = new URLSearchParams(location.search);
       const now = Date.now() / 1000;
       const m = (id: number, sender: string, text: string, ago: number, extra: Record<string, unknown> = {}) =>

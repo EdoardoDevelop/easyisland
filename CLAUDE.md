@@ -38,8 +38,8 @@ Rust solo su Windows (MSVC). Test: `cargo test --workspace` in `src-tauri/`.
 - Mai bloccare un agente: se l'app non risponde entro il timeout, l'hook esce con 0.
 - Mai sovrascrivere `%USERPROFILE%\.claude\settings.json` né le configurazioni degli altri agenti: backup datato, unione, diff, scrittura dopo conferma.
 - Mai inviare email o approvare permessi senza clic esplicito. Eccezioni di Edoardo: «Automatica» di Telegram (chiede comunque per le cancellazioni); «Autonomi» di Agent Chat (2/11/2026: nessuna domanda; con la scelta «chat» chiede all'owner «sì/no codice» per eliminare, inviare a nome dell'utente, cambiare il sistema, PC remoto; `docs/integrazioni.md`).
-  - Gli strumenti di `agent.rs` non eseguono comandi arbitrari, non inviano email, non eliminano; eccezioni: `notion_delete_row` (cestino di Notion dopo il sì in chat) e `remote_run` (solo sul PC di «Accesso remoto», Consenti/Nega per comando, password solo in memoria).
-  - Integrazioni personali (`custom.rs`): descrizioni, mai codice; azioni da elenco fisso.
+  - Gli strumenti di `agent.rs` non eseguono comandi arbitrari, non inviano email, non eliminano; eccezioni: `notion_delete_row` (cestino di Notion dopo il sì in chat), `quick_action_delete` (Consenti/Nega) e `remote_run` (solo sul PC di «Accesso remoto», Consenti/Nega per comando, password solo in memoria).
+  - Integrazioni personali (`custom.rs`): descrizioni e azioni da elenco fisso. Unica azione con codice `script` (Edoardo, 7/11/2026): comandi mostrati e clic su «Esegui» a ogni pressione, valori della scheda solo in un JSON (`EASYISLAND_SCHEDA`), mai nel testo, mai da `custom_call`.
   - Devolutions Cloud (`dvc.rs`): password solo negli appunti privati (svuotati dopo 30 s), mai a schermo, nel log o ai motori; dalla chat la password si chiede solo nella finestra di Windows (CredUI); scritture solo dopo anteprima e clic (o Consenti), rilette e verificate; mai eliminazioni.
   - `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, .md visibili all'utente).
   - Comandi e modifiche ai file solo dalla «Modalità terminale» (strumenti di Claude Code/opencode, Consenti/Nega nell'isola).

@@ -17,6 +17,9 @@ const NAMES: Record<string, string> = {
 /** The other tools that change something, for «Cosa ho fatto»: always asked. */
 const OTHERS: Record<string, string> = {
   run_quick_action: t("Eseguire un'azione rapida"),
+  quick_action_create: t("Creare un'azione rapida"),
+  quick_action_update: t("Cambiare un'azione rapida"),
+  quick_action_delete: t("Eliminare un'azione rapida"),
   open_app: t("Aprire un programma"),
   open_url: t("Aprire un link"),
   rdm_open: t("Aprire una connessione in RDM"),

@@ -165,8 +165,19 @@ const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const RULE = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/;
 const TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
 
+/** A table line's cells; "\|" is a bar inside a cell. */
 function cells(line: string): string[] {
-  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+  return line.trim().replace(/^\|/, "").replace(/(?<!\\)\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
+}
+
+/** A cell's content: "<br>" is the only way a table row can hold a line break. */
+function cellNodes(text: string, hooks: MarkdownHooks): Node[] {
+  const out: Node[] = [];
+  text.split(/<br\s*\/?>/i).forEach((part, i) => {
+    if (i > 0) out.push(el("br"));
+    out.push(...inline(part.trim(), hooks));
+  });
+  return out;
 }
 
 function codeBlock(code: string, lang: string): HTMLElement {
@@ -241,7 +252,7 @@ export function renderMarkdown(text: string, hooks: MarkdownHooks): HTMLElement[
       const head = el("tr");
       for (const c of cells(line)) {
         const th = el("th");
-        th.append(...inline(c, hooks));
+        th.append(...cellNodes(c, hooks));
         head.append(th);
       }
       table.append(head);
@@ -249,7 +260,7 @@ export function renderMarkdown(text: string, hooks: MarkdownHooks): HTMLElement[
         const tr = el("tr");
         for (const c of cells(lines[i])) {
           const td = el("td");
-          td.append(...inline(c, hooks));
+          td.append(...cellNodes(c, hooks));
           tr.append(td);
         }
         table.append(tr);

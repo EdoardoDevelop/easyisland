@@ -268,6 +268,12 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                     crate::actions::open_app(&get("target"), &get("args"))?;
                     Ok(format!("Avviato «{name}»."))
                 }
+                // Consenti is not «Esegui», and in «Automatica» or «Autonomi» there is
+                // not even that: a script that asks goes to the island, whole.
+                "script" if crate::actions::script_asks(&a) => {
+                    let _ = app.emit_to(crate::island::WINDOW_LABEL, "automation-action", id);
+                    Ok(format!("Script «{name}» aperto nell'isola: parte solo quando l'utente preme «Esegui», e l'output non torna qui. Diglielo e non rilanciarlo."))
+                }
                 "script" => {
                     let run_id = format!("agent-{}", RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
                     let res = crate::actions::run_script(&run_id, &get("shell"), &get("script")).await?;
@@ -287,6 +293,47 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                 }
                 _ => Err("Le azioni di tipo domanda alla chat non si eseguono da qui: chiedi direttamente.".into()),
             }
+        }
+
+        // In the active profile, as the settings window does; update_settings
+        // saves and tells both windows, so nothing overwrites it afterwards.
+        "quick_action_create" => {
+            let id = format!("a{}", crate::msgraph::random(6).iter().map(|b| format!("{b:02x}")).collect::<String>());
+            let action = crate::actions::quick_from_args(crate::actions::quick_blank(id.clone()), args)?;
+            let name = action.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+            update_settings(app, |s| {
+                s.actions.push(action);
+                s.commit_active();
+            })?;
+            Ok(format!("Azione rapida «{name}» creata (id {id})."))
+        }
+
+        "quick_action_update" => {
+            let id = arg(args, "id").to_string();
+            let same = |a: &Value| a.get("id").and_then(Value::as_str) == Some(id.as_str());
+            let old = settings(app)?.actions.iter().find(|a| same(a)).cloned().ok_or_else(|| format!("Nessuna azione rapida con id «{id}»."))?;
+            let action = crate::actions::quick_from_args(old, args)?;
+            let name = action.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+            update_settings(app, |s| {
+                if let Some(a) = s.actions.iter_mut().find(|a| same(a)) {
+                    *a = action;
+                }
+                s.commit_active();
+            })?;
+            Ok(format!("Azione rapida «{name}» aggiornata."))
+        }
+
+        "quick_action_delete" => {
+            let id = arg(args, "id").to_string();
+            let same = |a: &Value| a.get("id").and_then(Value::as_str) == Some(id.as_str());
+            if !settings(app)?.actions.iter().any(same) {
+                return Err(format!("Nessuna azione rapida con id «{id}»."));
+            }
+            update_settings(app, |s| {
+                s.actions.retain(|a| !same(a));
+                s.commit_active();
+            })?;
+            Ok(format!("Azione rapida {id} eliminata."))
         }
 
         "open_app" => {

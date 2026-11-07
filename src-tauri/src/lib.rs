@@ -10,6 +10,7 @@ mod collect;
 mod memory_ai;
 mod memory_links;
 mod preview;
+mod pdf;
 mod antigravity;
 mod agent;
 mod agent_settings;
@@ -391,9 +392,13 @@ async fn action_run_script(
     run_id: String,
     shell: String,
     script: String,
+    data: Option<serde_json::Value>,
 ) -> Result<actions::ScriptResult, String> {
     log::line(format!("action script ({shell}) run {run_id}"));
-    actions::run_script(&run_id, &shell, &script).await
+    match data {
+        Some(data) => actions::run_script_with(&run_id, &shell, &script, &data).await,
+        None => actions::run_script(&run_id, &shell, &script).await,
+    }
 }
 
 #[tauri::command]
@@ -1492,7 +1497,7 @@ pub(crate) async fn chat_turn(
     // read-only commands without the island; writing, running, sending still ask.
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
-    let own = if matches!(channel, Channel::Island | Channel::Revision | Channel::Helper) { own_folder(chat) } else { None };
+    let own = if matches!(channel, Channel::Island | Channel::Revision | Channel::Helper | Channel::AgentChat) { own_folder(chat) } else { None };
     // Prompts of ours, not the user's questions: nothing to learn from them.
     let learns = !matches!(channel, Channel::Helper | Channel::Revision);
     let read_only = chat.read_only();
@@ -1709,6 +1714,12 @@ fn agentchat_restart() {
 
 /// The island's Agent Chat card: a message as the owner (owner token, name from the settings).
 /// The Agent Chat card's «Argomenti»: the messages of one topic (agentchat_map.rs).
+/// «In esecuzione» in the card: this PC's turns, the updates come as `agentchat-live`.
+#[tauri::command]
+fn agentchat_live() -> Vec<agentchat::LiveTurn> {
+    agentchat::live_turns()
+}
+
 #[tauri::command]
 fn agentchat_topic_messages(id: i64) -> Vec<agentchat::Msg> {
     agentchat::topic_messages(id)
@@ -3952,8 +3963,19 @@ fn custom_record_delete(app: AppHandle, id: String, record: String) -> Result<()
 
 /// A record's document (filled by the island) into the Vassoio.
 #[tauri::command]
-async fn custom_document(name: String, ext: String, text: String) -> Result<files::DroppedFile, String> {
-    tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
+async fn custom_document(name: String, ext: String, text: String, file: String, folder: String) -> Result<files::DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text, &file, &folder)).await.map_err(|e| e.to_string())?
+}
+
+/// Async: the hidden window that prints is created from here, never on the main thread.
+#[tauri::command]
+async fn custom_pdf(app: AppHandle, name: String, html: String, file: String, folder: String) -> Result<files::DroppedFile, String> {
+    custom::pdf(&app, &name, &html, &file, &folder).await
+}
+
+#[tauri::command]
+fn custom_asset(id: String, name: String) -> Result<String, String> {
+    custom::asset(&id, &name)
 }
 
 /// An integration's "http" action: its call, {{campi}} filled by the island, keys put in here.
@@ -4188,6 +4210,8 @@ pub fn run() {
             custom_record_save,
             custom_record_delete,
             custom_document,
+            custom_pdf,
+            custom_asset,
             custom_copy,
             custom_fill,
             custom_http,
@@ -4512,6 +4536,7 @@ pub fn run() {
             agentchat_resume,
             agentchat_owner_send,
             agentchat_topic_messages,
+            agentchat_live,
             agentchat_listen,
             work_list,
             work_open,
@@ -4615,6 +4640,7 @@ pub fn run() {
             agentchat::spawn(handle.clone());
             tasks::init(&handle);
             custom::spawn(handle.clone());
+            custom::watch(handle.clone());
             msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());

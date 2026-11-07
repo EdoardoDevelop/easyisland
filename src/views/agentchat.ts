@@ -3,7 +3,9 @@
 // answer (the lead marked), «Ascolto» on or off, the conversation of the
 // followed rooms with who is on each message («preso da», «nessuna risposta»,
 // «in coda»), who is working now (/api/status, read for a few minutes after a
-// message), and a field to write as the owner (owner token, `owner_send`).
+// message), «In esecuzione» with what this PC's engines are doing, step by step
+// (`LiveTurn`, never from the server), and a field to write as the owner (owner
+// token, `owner_send`).
 // The pill wears the state: working while an engine answers, asleep with
 // listening off (integrations.ts).
 //
@@ -13,7 +15,8 @@
 
 import { h, brandOrDot, clipMark } from "./dom";
 import { State } from "../core/state";
-import { Bridge } from "../core/bridge";
+import { Bridge, onEvent } from "../core/bridge";
+import { renderMarkdown } from "../core/markdown";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { timeAgo } from "./integrations";
@@ -87,13 +90,26 @@ export interface ChatTopic {
   last_line: string;
 }
 
-/** «Chat» or «Argomenti»; a topic opened in «Chat» shows only its messages. */
-let acView: "chat" | "topics" = "chat";
+/** A turn of an engine of this PC (agentchat.rs LiveTurn). */
+interface LiveTurn {
+  id: number;
+  who: string;
+  engine: string;
+  message: number;
+  about: string;
+  started: number;
+  state: "working" | "done" | "failed" | "stopped";
+  text: string;
+}
+
+/** «Chat», «Argomenti» or «In esecuzione»; a topic opened in «Chat» shows only its messages. */
+let acView: "chat" | "topics" | "work" = "chat";
 let acTopic: { topic: ChatTopic; msgs: ChatMsg[] } | null = null;
 
 /** What views.ts adds to the card's key: the tab and the topic open redraw it. */
 export function agentchatKey(): string {
-  return `${acView}|${acTopic?.topic.id ?? ""}|${acTopic?.msgs.length ?? 0}`;
+  const live = [...liveTurns.values()].map((x) => `${x.id}${x.state}`).join();
+  return `${acView}|${acTopic?.topic.id ?? ""}|${acTopic?.msgs.length ?? 0}|${livePicked}|${live}`;
 }
 
 const STATE_LABEL: Record<ChatTopic["state"], string> = { "da fare": t("da fare"), aperto: t("aperto"), fatto: t("fatto"), bloccato: t("bloccato") };
@@ -180,6 +196,86 @@ function since(at: number): HTMLElement {
   ticking.set(el, at);
   if (!tickTimer) tickTimer = window.setInterval(tick, 1000);
   return el;
+}
+
+/** Finished turns kept, as in agentchat.rs. */
+const LIVE_KEPT = 4;
+const liveTurns = new Map<number, LiveTurn>();
+let liveOn = false;
+let livePicked = 0;
+/** The log lives outside the card, like the field: a redraw keeps its selection and scroll. */
+let liveLog: HTMLElement | null = null;
+let logTurn = 0;
+let logText = "";
+let logTop = 0;
+let logStick = true;
+
+function working(): LiveTurn[] {
+  return [...liveTurns.values()].filter((x) => x.state === "working");
+}
+
+function onLive(x: LiveTurn) {
+  const old = liveTurns.get(x.id);
+  liveTurns.set(x.id, x);
+  const ended = [...liveTurns.values()].filter((y) => y.state !== "working").sort((a, b) => a.id - b.id);
+  ended.slice(0, Math.max(0, ended.length - LIVE_KEPT)).forEach((y) => liveTurns.delete(y.id));
+  if (old?.state !== x.state) State.notify();
+  else if (acView === "work" && x.id === logTurn) drawLog(x);
+}
+
+function startLive() {
+  if (liveOn) return;
+  liveOn = true;
+  void onEvent<LiveTurn>("agentchat-live", onLive);
+  void Bridge.agentchatLive<LiveTurn>().then((list) => {
+    if (!list?.length) return;
+    for (const x of list) liveTurns.set(x.id, x);
+    State.notify();
+  });
+}
+
+function logBox(): HTMLElement {
+  if (liveLog) return liveLog;
+  const box = h("div", { class: "ac-log md" });
+  box.addEventListener("scroll", () => {
+    if (!box.isConnected) return;
+    logTop = box.scrollTop;
+    logStick = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+  });
+  liveLog = box;
+  return box;
+}
+
+function placeLog() {
+  const box = logBox();
+  requestAnimationFrame(() => { box.scrollTop = logStick ? box.scrollHeight : logTop; });
+}
+
+function drawLog(x: LiveTurn) {
+  if (x.id === logTurn && x.text === logText && logBox().childElementCount) return;
+  if (x.id !== logTurn) logStick = true;
+  logTurn = x.id;
+  logText = x.text;
+  logBox().replaceChildren(...(x.text
+    ? renderMarkdown(x.text, { openUrl: (url) => void Bridge.openUrl(url) })
+    : [h("div", { class: "int-empty", text: x.state === "working" ? t("Sta ragionando: il primo passo arriva tra poco.") : t("Nessun passo da mostrare.") })]));
+  placeLog();
+}
+
+function workView(): HTMLElement {
+  const list = [...liveTurns.values()].sort((a, b) => b.id - a.id);
+  if (!list.length) return h("div", { class: "int-empty", text: t("Nessun motore sta lavorando su questo PC. Quando ne parte uno, qui vedi cosa fa passo per passo.") });
+  const open = liveTurns.get(livePicked) ?? list.find((x) => x.state === "working") ?? list[0];
+  const words: Record<string, string> = { done: t("finito"), failed: t("non riuscito"), stopped: t("fermato") };
+  const chips = list.map((x) => h("button", {
+    class: `rec-chip ac-turn t-${x.state}${x.id === open.id ? " on" : ""}`,
+    title: x.engine,
+    onclick: (e: Event) => { e.stopPropagation(); livePicked = x.id; State.notify(); },
+  }, h("i"), h("span", { text: x.who }), x.state === "working" ? since(x.started / 1000 + clockOffset) : h("small", { text: words[x.state] })));
+  drawLog(open);
+  placeLog();
+  return h("div", { class: "ac-work" }, h("div", { class: "ac-turns" }, ...chips),
+    h("div", { class: "ac-work-about", title: open.about, text: `${open.message ? `#${open.message} · ` : ""}${open.about}` }), logBox());
 }
 
 /** Under a message: who took it, who is waiting to answer it, who had nothing to say. */
@@ -432,6 +528,7 @@ function placeComposer(host: HTMLElement, d: AgentchatData) {
 }
 
 export function agentchatCard(openSettings: () => void): HTMLElement {
+  startLive();
   const d = agentchatData();
   const note = h("div", { class: "notion-note bad", style: "display:none" });
   const say = (m: string) => { note.textContent = m; note.style.display = m ? "" : "none"; };
@@ -466,15 +563,18 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
   // «Chat» and «Argomenti» (the map of the whole chat, agentchat_map.rs).
   const topics = d.topics ?? [];
   const open = topics.filter((x) => x.state === "da fare" || x.state === "aperto" || x.state === "bloccato").length;
-  const tab = (id: "chat" | "topics", label: string) => h("button", { class: acView === id ? "rec-chip on ac-tab" : "rec-chip ac-tab", text: label,
+  const tab = (id: "chat" | "topics" | "work", label: string) => h("button", { class: acView === id ? "rec-chip on ac-tab" : "rec-chip ac-tab", text: label,
     onclick: (e: Event) => { e.stopPropagation(); acView = id; if (id === "topics") acTopic = null; State.notify(); } });
   body.append(h("div", { class: "ac-tabs" }, tab("chat", t("Chat")),
-    tab("topics", topics.length ? t("Argomenti · {n} aperti", { n: open }) : t("Argomenti"))));
+    tab("topics", topics.length ? t("Argomenti · {n} aperti", { n: open }) : t("Argomenti")),
+    tab("work", working().length ? t("In esecuzione · {n}", { n: working().length }) : t("In esecuzione"))));
   const box = h("div", { class: "ac-list" });
   if (acView === "topics") {
     if (!topics.length) box.append(h("div", { class: "int-empty", text: t("Ancora nessun argomento: si formano dalle richieste in chat.") }));
     for (const tp of topics) box.append(topicRow(tp));
     body.append(box);
+  } else if (acView === "work") {
+    body.append(workView());
   } else {
     const list = acTopic ? acTopic.msgs : d.messages ?? [];
     if (acTopic) {

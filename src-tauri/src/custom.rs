@@ -2,14 +2,17 @@
 // un'integrazione per i preventivi… programmabile al 100%»). The chat writes a
 // description, never code: fields (text, numbers, money, dates, check boxes,
 // choices, rows of a table, computed values), a document template and actions
-// (save, document, copy, ask the chat, link, quick action, Notion). The island
-// draws it (src/views/custom.ts) and EasyIsland runs it. No script, no
-// command: what an action can do is what these few kinds do.
+// (save, document, copy, ask the chat, link, quick action, Notion…). The island
+// draws it (src/views/custom.ts) and EasyIsland runs it: what an action can do
+// is what these few kinds do. The one that holds code is "script" (asked by
+// Edoardo on 7 November 2026): the island shows it and waits for a click every
+// time, and it is not reachable from custom_call.
 //
 // Files in %APPDATA%\EasyIsland\integrazioni: `<id>.json` the description,
-// `<id>.schede.json` its saved records. Both readable and editable.
+// `<id>.schede.json` its saved records, `<id>\` its own files ({{file:nome}}).
+// All readable and editable: a change by hand is seen by `watch`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -21,13 +24,18 @@ const MAX_FIELDS: usize = 60;
 const MAX_ACTIONS: usize = 12;
 const MAX_RECORDS: usize = 2000;
 const MAX_TEMPLATE: usize = 40_000;
+const MAX_SCRIPT: usize = 20_000;
+/// A record's title and a file's name, with their {{campi}}.
+const MAX_NAME: usize = 200;
+/// {{file:nome}}: it ends up in the page as text, a third bigger.
+const MAX_ASSET: u64 = 5 * 1024 * 1024;
 
 pub const FIELD_KINDS: &[&str] = &[
     "text", "textarea", "number", "money", "date", "checkbox", "select", "multiselect", "email", "phone", "url", "rows", "computed",
     "counter", "link", "file",
 ];
 pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date", "computed"];
-pub const ACTION_KINDS: &[&str] = &["save", "document", "copy", "ai", "url", "quick", "notion", "fill", "export", "http", "task", "notice", "steps"];
+pub const ACTION_KINDS: &[&str] = &["save", "document", "pdf", "copy", "ai", "url", "quick", "script", "notion", "fill", "export", "http", "task", "notice", "steps"];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -86,8 +94,17 @@ pub struct Action {
     pub quick: String,
     /// notion: the database (name or id); its properties are the fields' labels.
     pub database: String,
-    /// document: "html" (printable, the default) or "md".
+    /// document: "html" (printable, the default), "pdf" or "md".
     pub format: String,
+    /// document: a folder for a copy, besides the Vassoio (%VARIABILI% allowed).
+    pub folder: String,
+    /// document: the file's name, with {{campi}}, as it reads ("{{numero}} {{cliente}}").
+    pub filename: String,
+    /// script: the commands, as they are ({{campi}} are not filled in: the
+    /// record's data is in the JSON file named by EASYISLAND_SCHEDA).
+    pub script: String,
+    /// script: "powershell" (the default) or "cmd".
+    pub shell: String,
     /// http: GET, POST, PUT, PATCH or DELETE (url above).
     pub method: String,
     /// http: headers, with {{campi}} and {{secret:nome}}.
@@ -143,6 +160,8 @@ pub struct Custom {
     /// The document: Markdown with {{campo}}, {{#righe}}…{{/righe}} for a table's rows.
     pub template: String,
     pub actions: Vec<Action>,
+    /// How a record reads in the list, with {{campi}} ("{{numero}} · {{cliente}}"); before `title_field`.
+    pub title: String,
     /// The field that names a record in the list (the first text field when empty).
     pub title_field: String,
     /// Data read from services (lists, values, alerts).
@@ -268,6 +287,8 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
     if c.template.len() > MAX_TEMPLATE {
         return Err(t("template: al massimo 40.000 caratteri.").into());
     }
+    c.title = c.title.trim().to_string();
+    check_name("title", &c.title, &c.fields)?;
     if c.actions.len() > MAX_ACTIONS {
         return Err(tf("actions: al massimo {n}.", &[("n", &MAX_ACTIONS.to_string())]));
     }
@@ -295,10 +316,26 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
             "steps" if a.steps.is_empty() => return Err(tf("Azione «{l}»: steps, le etichette delle azioni da fare in fila.", &[("l", &a.label)])),
             "quick" if a.quick.trim().is_empty() => return Err(tf("Azione «{l}»: quick, l'id dell'azione rapida.", &[("l", &a.label)])),
             "notion" if a.database.trim().is_empty() => return Err(tf("Azione «{l}»: database di Notion.", &[("l", &a.label)])),
+            "script" if a.script.trim().is_empty() => return Err(tf("Azione «{l}»: script, i comandi da eseguire.", &[("l", &a.label)])),
+            "script" if a.script.len() > MAX_SCRIPT => return Err(tf("Azione «{l}»: script di al massimo 20.000 caratteri.", &[("l", &a.label)])),
             _ => {}
         }
-        if a.kind == "document" && a.format != "md" {
+        // A button that makes a PDF is a document in PDF.
+        if a.kind == "pdf" {
+            a.kind = "document".into();
+            a.format = "pdf".into();
+        }
+        if a.kind == "document" && a.format != "md" && a.format != "pdf" {
             a.format = "html".into();
+        }
+        a.folder = a.folder.trim().to_string();
+        if !a.folder.is_empty() && !(a.folder.starts_with('%') || Path::new(&a.folder).is_absolute()) {
+            return Err(tf("Azione «{l}»: folder, il percorso completo di una cartella.", &[("l", &a.label)]));
+        }
+        a.filename = a.filename.trim().to_string();
+        check_name(&tf("Azione «{l}»: filename", &[("l", &a.label)]), &a.filename, &c.fields)?;
+        if a.kind == "script" && a.shell != "cmd" {
+            a.shell = "powershell".into();
         }
         if a.kind == "http" {
             a.method = method_of(&a.method)?;
@@ -528,20 +565,185 @@ pub fn delete_record(app: &AppHandle, id: &str, record: &str) -> Result<(), Stri
     Ok(())
 }
 
-/// A document of a record (the template already filled by the island): into the Vassoio.
-pub fn document(name: &str, ext: &str, text: &str) -> Result<crate::files::DroppedFile, String> {
+/// A title or a file's name of a description: not too long, and only fields it has,
+/// so that a mistyped {{campo}} is told to whoever writes it, not printed in the name.
+fn check_name(what: &str, text: &str, fields: &[Field]) -> Result<(), String> {
+    if text.len() > MAX_NAME {
+        return Err(tf("{w}: al massimo 200 caratteri.", &[("w", &what)]));
+    }
+    for part in text.split("{{").skip(1) {
+        let inner = part.split("}}").next().unwrap_or_default().trim();
+        if inner.starts_with(['#', '^', '/']) {
+            continue;
+        }
+        let id = inner.split('|').next().unwrap_or_default().trim();
+        if id != "oggi" && !id.starts_with("risposta") && !fields.iter().any(|f| f.id == id) {
+            return Err(tf("{w}: «{c}» non è l'id di un campo.", &[("w", &what), ("c", &id)]));
+        }
+    }
+    Ok(())
+}
+
+/// A name as Windows takes it: / \ : become dashes (a date, "S/N"), what a file
+/// name cannot hold goes, no dots or spaces at the end, no reserved device name.
+fn safe_name(name: &str, ext: &str) -> String {
+    let mut clean = String::new();
+    for c in name.chars() {
+        match c {
+            '/' | '\\' | ':' => clean.push('-'),
+            '*' | '?' | '"' | '<' | '>' | '|' => {}
+            c if c.is_control() => clean.push(' '),
+            c => clean.push(c),
+        }
+    }
+    let one = clean.split_whitespace().collect::<Vec<_>>().join(" ");
+    let dotted = format!(".{ext}");
+    let plain = match one.get(one.len().saturating_sub(dotted.len())..) {
+        Some(end) if end.eq_ignore_ascii_case(&dotted) => one.get(..one.len() - dotted.len()).unwrap_or_default(),
+        _ => one.as_str(),
+    };
+    let cut: String = plain.chars().take(120).collect();
+    let out = cut.trim_matches(|c: char| c == '.' || c == ' ').to_string();
+    let stem = out.split('.').next().unwrap_or_default().to_uppercase();
+    let device = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.ends_with(|c: char| c.is_ascii_digit()));
+    if device {
+        format!("_{out}")
+    } else {
+        out
+    }
+}
+
+/// What a document is called: `file`, the name the description asks for, or the
+/// slug of `name`.
+fn base_of(name: &str, file: &str, ext: &str) -> String {
+    let own = safe_name(file, ext);
+    if !own.is_empty() {
+        return own;
+    }
+    let base: String = crate::skills::slug(name).chars().take(60).collect();
+    if base.is_empty() {
+        "documento".to_string()
+    } else {
+        base
+    }
+}
+
+/// A finished document: into the Vassoio and, when the description says so, a
+/// copy into its folder.
+fn deliver(base: &str, ext: &str, bytes: &[u8], folder: &str) -> Result<crate::files::DroppedFile, String> {
+    let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let work = std::env::temp_dir().join(format!("easyisland-doc-{stamp}"));
+    std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
+    let done = (|| {
+        let out = work.join(format!("{base}.{ext}"));
+        std::fs::write(&out, bytes).map_err(|e| e.to_string())?;
+        let file = crate::files::ingest(&out.to_string_lossy())?;
+        if !folder.trim().is_empty() {
+            let target = PathBuf::from(expand_env(folder.trim()));
+            std::fs::create_dir_all(&target).map_err(|e| tf("Cartella del documento non raggiungibile: {e}", &[("e", &e.to_string())]))?;
+            std::fs::write(free_path(&target, base, ext), bytes).map_err(|e| tf("Documento non copiato nella cartella: {e}", &[("e", &e.to_string())]))?;
+        }
+        Ok(file)
+    })();
+    let _ = std::fs::remove_dir_all(&work);
+    done
+}
+
+/// A document of a record (the template already filled by the island).
+pub fn document(name: &str, ext: &str, text: &str, file: &str, folder: &str) -> Result<crate::files::DroppedFile, String> {
     let ext = match ext {
         "md" => "md",
         "csv" => "csv",
         _ => "html",
     };
-    let base: String = crate::skills::slug(name).chars().take(60).collect();
-    let base = if base.is_empty() { "documento".to_string() } else { base };
-    let tmp = std::env::temp_dir().join(format!("easyisland-{base}.{ext}"));
-    std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-    let out = crate::files::ingest(&tmp.to_string_lossy());
-    let _ = std::fs::remove_file(&tmp);
+    deliver(&base_of(name, file, ext), ext, text.as_bytes(), folder)
+}
+
+/// "%USERPROFILE%\WORK" → the same with the variable's value; unknown ones stay.
+fn expand_env(path: &str) -> String {
+    let mut out = String::new();
+    let mut rest = path;
+    while let Some(start) = rest.find('%') {
+        let after = rest.get(start + 1..).unwrap_or_default();
+        let Some(end) = after.find('%') else { break };
+        let name = after.get(..end).unwrap_or_default();
+        out.push_str(rest.get(..start).unwrap_or_default());
+        match std::env::var(name) {
+            Ok(value) => out.push_str(&value),
+            Err(_) => out.push_str(rest.get(start..start + end + 2).unwrap_or_default()),
+        }
+        rest = after.get(end + 1..).unwrap_or_default();
+    }
+    out.push_str(rest);
     out
+}
+
+/// "x.pdf" in a folder, or "x (2).pdf" if there is one: a document is never overwritten.
+fn free_path(folder: &Path, base: &str, ext: &str) -> PathBuf {
+    let first = folder.join(format!("{base}.{ext}"));
+    if !first.exists() {
+        return first;
+    }
+    (2..10_000).map(|n| folder.join(format!("{base} ({n}).{ext}"))).find(|p| !p.exists()).unwrap_or(first)
+}
+
+/// The page of a document printed in PDF.
+pub async fn pdf(app: &AppHandle, name: &str, html: &str, file: &str, folder: &str) -> Result<crate::files::DroppedFile, String> {
+    let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let work = std::env::temp_dir().join(format!("easyisland-pdf-{stamp}"));
+    std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
+    let page = work.join("documento.html");
+    let made = async {
+        std::fs::write(&page, html).map_err(|e| e.to_string())?;
+        let bytes = crate::pdf::print(app, &page).await?;
+        deliver(&base_of(name, file, "pdf"), "pdf", &bytes, folder)
+    }.await;
+    let _ = std::fs::remove_dir_all(&work);
+    made
+}
+
+/// The folder of an integration's own files, `integrazioni\<id>`.
+fn assets_dir(id: &str) -> PathBuf {
+    dir().join(id)
+}
+
+fn mime_of(name: &str) -> Option<&'static str> {
+    let ext = name.rsplit('.').next()?.to_lowercase();
+    Some(match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        _ => return None,
+    })
+}
+
+/// A plain file name: no folders, no way out of the integration's folder.
+fn asset_name_ok(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 120 && !name.contains("..") && name.chars().all(|c| c.is_alphanumeric() || matches!(c, '.' | '_' | '-' | ' '))
+}
+
+/// {{file:nome}}: a picture of the integration's folder as a data: URI. The real
+/// path is checked too, so a link in the folder does not lead out of it.
+pub fn asset(id: &str, name: &str) -> Result<String, String> {
+    let name = name.trim();
+    let c = get(id).ok_or(t("Integrazione non trovata."))?;
+    let missing = || tf("{{file:{n}}}: non c'è nella cartella integrazioni\\{id}.", &[("n", &name.to_string()), ("id", &c.id)]);
+    if !asset_name_ok(name) {
+        return Err(tf("{{file:{n}}}: solo il nome di un file, senza cartelle.", &[("n", &name.to_string())]));
+    }
+    let mime = mime_of(name).ok_or_else(|| tf("{{file:{n}}}: solo immagini png, jpg, gif, webp o svg.", &[("n", &name.to_string())]))?;
+    let root = assets_dir(&c.id).canonicalize().map_err(|_| missing())?;
+    let path = root.join(name).canonicalize().map_err(|_| missing())?;
+    if !path.starts_with(&root) || !path.is_file() {
+        return Err(missing());
+    }
+    if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > MAX_ASSET {
+        return Err(tf("{{file:{n}}}: al massimo 5 MB.", &[("n", &name.to_string())]));
+    }
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    Ok(format!("data:{mime};base64,{}", crate::claude::base64_for(&bytes)))
 }
 
 /// «Compila con l'IA»: the fields read from a text (a mail, notes) by the
@@ -684,6 +886,68 @@ pub fn spawn(app: AppHandle) {
                 }
             }
             tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+        }
+    });
+}
+
+/// A description changed by hand reaches the island without a restart: asleep on
+/// ReadDirectoryChangesW until the folder changes, then a moment for the editor
+/// to finish writing. Only a real change of the descriptions is sent.
+pub fn watch(app: AppHandle) {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Storage::FileSystem::{
+        CreateFileW, ReadDirectoryChangesW, FILE_FLAG_BACKUP_SEMANTICS, FILE_LIST_DIRECTORY, FILE_NOTIFY_CHANGE_FILE_NAME, FILE_NOTIFY_CHANGE_LAST_WRITE,
+        FILE_NOTIFY_CHANGE_SIZE, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
+    use std::os::windows::ffi::OsStrExt;
+
+    std::thread::spawn(move || {
+        let folder = dir();
+        if let Err(e) = std::fs::create_dir_all(&folder) {
+            crate::log::line(format!("integrazioni personali: cartella non creata: {e}"));
+            return;
+        }
+        let wide: Vec<u16> = folder.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let handle = match unsafe {
+            CreateFileW(PCWSTR(wide.as_ptr()), FILE_LIST_DIRECTORY.0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, None, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, None)
+        } {
+            Ok(h) => h,
+            Err(e) => {
+                crate::log::line(format!("integrazioni personali: cartella non osservabile: {e}"));
+                return;
+            }
+        };
+        let mut last = list();
+        // DWORD-aligned, as ReadDirectoryChangesW wants; the names do not matter here.
+        let mut buf = vec![0u32; 1024];
+        loop {
+            let mut got = 0u32;
+            let ok = unsafe {
+                ReadDirectoryChangesW(
+                    handle,
+                    buf.as_mut_ptr().cast(),
+                    (buf.len() * 4) as u32,
+                    false,
+                    FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE,
+                    Some(&mut got),
+                    None,
+                    None,
+                )
+            };
+            if let Err(e) = ok {
+                crate::log::line(format!("integrazioni personali: osservazione finita: {e}"));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            let now = list();
+            if now != last {
+                last = now.clone();
+                let _ = app.emit("customs-changed", now);
+            }
+        }
+        unsafe {
+            let _ = CloseHandle(handle);
         }
     });
 }
@@ -937,6 +1201,101 @@ mod tests {
         assert_eq!(fill_values("https://x.it/s?q={{q}}&n={{n}}", &v, true, false), "https://x.it/s?q=a%20b%2Fc&n=3");
         assert_eq!(fill_values(r#"{"nome":"{{nome}}","n":{{n}},"x":{{manca}}}"#, &v, false, true), r#"{"nome":"Ro\"ssi","n":3,"x":null}"#);
         assert_eq!(fill_values("Bearer {{secret:token}}", &v, false, false), "Bearer {{secret:token}}");
+    }
+
+    #[test]
+    fn a_script_needs_its_commands_and_a_shell() {
+        let mut c = quote();
+        c.actions.push(Action { label: "Crea".into(), kind: "script".into(), ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("script"));
+        let mut c = quote();
+        c.actions.push(Action { label: "Crea".into(), kind: "script".into(), script: "Get-Date".into(), shell: "bash".into(), ..Default::default() });
+        assert_eq!(normalize(c).unwrap().actions.last().unwrap().shell, "powershell");
+        let mut c = quote();
+        c.actions.push(Action { label: "Crea".into(), kind: "script".into(), script: "x".repeat(MAX_SCRIPT + 1), ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("20.000"));
+    }
+
+    #[test]
+    fn a_file_name_as_windows_takes_it() {
+        assert_eq!(base_of("x", "DDT-2026-002 TALENTI S.p.A.", "pdf"), "DDT-2026-002 TALENTI S.p.A");
+        assert_eq!(base_of("x", "Offerta 07/11/2026 a:b", "pdf"), "Offerta 07-11-2026 a-b");
+        assert_eq!(base_of("x", "un \"bel\" <nome>?\nsu due righe", "pdf"), "un bel nome su due righe");
+        assert_eq!(base_of("x", "prova.PDF", "pdf"), "prova");
+        assert_eq!(base_of("x", "..\\..\\fuori", "pdf"), "-..-fuori");
+        assert_eq!(base_of("x", "con", "pdf"), "_con");
+        assert_eq!(base_of("x", "COM3.bak", "pdf"), "_COM3.bak");
+        assert_eq!(base_of("x", "Cometa", "pdf"), "Cometa");
+        assert_eq!(base_of("x", &"è".repeat(300), "pdf").chars().count(), 120);
+        // Nothing left of the name asked for: the usual one.
+        assert_eq!(base_of("DDT Easytech", " ... ", "pdf"), "ddt-easytech");
+        assert_eq!(base_of("", "", "pdf"), "documento");
+    }
+
+    #[test]
+    fn a_title_and_a_file_name_use_fields_it_has() {
+        let mut c = normalize(quote()).unwrap();
+        c.title = format!("{{{{{}}}}} · {{{{oggi|lunga}}}}", c.fields[0].id);
+        c.actions.push(Action { label: "PDF".into(), kind: "pdf".into(), filename: format!(" {{{{{}}}}} ", c.fields[0].id), ..Default::default() });
+        let id = c.fields[0].id.clone();
+        let done = normalize(c.clone()).unwrap();
+        assert_eq!(done.actions.last().unwrap().filename, format!("{{{{{id}}}}}"));
+        c.title = "{{clienet}}".into();
+        assert!(normalize(c.clone()).unwrap_err().contains("clienet"));
+        c.title = String::new();
+        c.actions.last_mut().unwrap().filename = "x".repeat(201);
+        assert!(normalize(c).unwrap_err().contains("filename"));
+    }
+
+    #[test]
+    fn a_document_keeps_its_name_and_goes_to_its_folder() {
+        let folder = std::env::temp_dir().join(format!("easyisland-prova-nome-{}", std::process::id()));
+        let f = folder.to_string_lossy().to_string();
+        let first = document("x", "html", "<p>uno</p>", "DDT 1 Rossi", &f).unwrap();
+        assert!(first.name.starts_with("DDT 1 Rossi"));
+        document("x", "html", "<p>due</p>", "DDT 1 Rossi", &f).unwrap();
+        assert_eq!(std::fs::read_to_string(folder.join("DDT 1 Rossi.html")).unwrap(), "<p>uno</p>");
+        assert_eq!(std::fs::read_to_string(folder.join("DDT 1 Rossi (2).html")).unwrap(), "<p>due</p>");
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn a_pdf_is_a_document_with_its_folder() {
+        let mut c = quote();
+        c.actions.push(Action { label: "PDF".into(), kind: "pdf".into(), folder: "%USERPROFILE%\\DDT".into(), ..Default::default() });
+        let c = normalize(c).unwrap();
+        let a = c.actions.last().unwrap();
+        assert_eq!((a.kind.as_str(), a.format.as_str()), ("document", "pdf"));
+        let mut c = quote();
+        c.actions[0].format = "pdf".into();
+        assert_eq!(normalize(c).unwrap().actions[0].format, "pdf");
+        let mut c = quote();
+        c.actions.push(Action { label: "PDF".into(), kind: "pdf".into(), folder: "cartella".into(), ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("folder"));
+    }
+
+    #[test]
+    fn variables_in_a_folder_and_documents_never_overwritten() {
+        std::env::set_var("EASYISLAND_PROVA", "C:\\x");
+        assert_eq!(expand_env("%EASYISLAND_PROVA%\\DDT"), "C:\\x\\DDT");
+        assert_eq!(expand_env("%NON_ESISTE_PROVA%\\DDT"), "%NON_ESISTE_PROVA%\\DDT");
+        assert_eq!(expand_env("C:\\100%"), "C:\\100%");
+        let folder = std::env::temp_dir().join(format!("easyisland-prova-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        assert!(free_path(&folder, "ddt", "pdf").ends_with("ddt.pdf"));
+        std::fs::write(folder.join("ddt.pdf"), b"x").unwrap();
+        assert!(free_path(&folder, "ddt", "pdf").ends_with("ddt (2).pdf"));
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn a_file_of_an_integration_stays_in_its_folder() {
+        assert!(asset_name_ok("logo.png") && asset_name_ok("logo easytech-2.jpg"));
+        for bad in ["", "..", "../segreto.png", "..\\segreto.png", "a/b.png", "a\\b.png", "C:\\x.png", "logo..png"] {
+            assert!(!asset_name_ok(bad), "{bad}");
+        }
+        assert_eq!(mime_of("Logo.PNG"), Some("image/png"));
+        assert_eq!(mime_of("segreto.json"), None);
     }
 
     #[test]
