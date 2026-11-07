@@ -204,10 +204,15 @@ pub fn quick_from_args(mut base: serde_json::Value, args: &serde_json::Value) ->
         base["shell"] = serde_json::json!("powershell");
     }
     // Commands the chat wrote or changed are shown before they run, whatever was set.
-    if kind == "script" && (args.get("script").is_some() || args.get("kind").is_some()) {
+    if kind == "script" && ["script", "kind", "shell"].iter().any(|k| args.get(*k).is_some()) {
         base["confirm"] = serde_json::json!(true);
     }
     Ok(base)
+}
+
+/// A script that shows itself and waits for «Esegui», whoever starts it.
+pub fn script_asks(action: &serde_json::Value) -> bool {
+    action.get("confirm").and_then(serde_json::Value::as_bool).unwrap_or(false)
 }
 
 /// A new action, as the settings window starts one.
@@ -595,7 +600,15 @@ mod quick_tests {
         let mine = json!({ "id": "a1", "name": "Mia", "kind": "script", "script": "dir", "shell": "cmd", "confirm": false });
         let renamed = quick_from_args(mine.clone(), &json!({ "name": "Nuova" })).unwrap();
         assert_eq!((renamed["confirm"].clone(), renamed["shell"].clone()), (json!(false), json!("cmd")));
+        assert_eq!(quick_from_args(mine.clone(), &json!({ "shell": "powershell" })).unwrap()["confirm"], json!(true));
         assert_eq!(quick_from_args(mine, &json!({ "script": "del x" })).unwrap()["confirm"], json!(true));
+    }
+
+    #[test]
+    fn what_the_chat_writes_waits_for_esegui() {
+        let a = quick_from_args(quick_blank("a1".into()), &json!({ "name": "Prova", "kind": "script", "script": "Get-Date" })).unwrap();
+        assert!(script_asks(&a));
+        assert!(!script_asks(&json!({ "confirm": false })) && !script_asks(&json!({})));
     }
 
     #[test]

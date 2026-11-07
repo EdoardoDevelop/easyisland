@@ -11,7 +11,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Barra fissa** (`docs/architettura.md` → Barra fissa): provata in alto; da provare in basso, secondo monitor, menu «…».
 - [ ] **Widget della barra** (1.0.13+, `barsys.rs`, card in `src/views/barcard.ts`): da provare dal vivo, soprattutto «Nascondi da sola», sfocatura, winget. Mancano Wi-Fi, Bluetooth, temperature (`docs/idee.md`).
 - [ ] **Aspetto a schede con le immagini** (`docs/architettura.md` → Impostazioni): modalità chiara non guardata.
-- [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera. Le 7 voci URGENTI del 7/11 sono nella 1.0.33 (installer locale, non pubblicata): provare dal vivo pulsante script, PDF da una scheda vera e `quick_action_*`, poi passare «DDT Easytech» al modello HTML e togliere `genera-ddt.ps1`.
+- [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera. Le 7 voci URGENTI del 7/11 sono nella 1.0.33 (installer locale, non pubblicata): provare dal vivo pulsante script, PDF da una scheda vera, `quick_action_*`, «In esecuzione» e i motori di Agent Chat nella cartella del progetto, con turni veri, poi passare «DDT Easytech» al modello HTML e togliere `genera-ddt.ps1`.
 - [ ] **Guida sul sito** IT/EN (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage EN `site/en/index.html`, schermate EN `site/media/en/`): allineare a ogni funzione nuova (`node scripts/guida.mjs`). Link delle Impostazioni nella lingua dell'app: prossima versione.
 - [ ] **Documenti Word e PDF nella chat** (deciso il 7/11, `docs/idee.md`): creare, compilare modelli, leggere; prima Word, poi lettura dei PDF con una libreria Rust.
 - [ ] **Agente personale** (priorità alta, 23/10): fatti Compiti, motori aiutanti, Battito, Abilità, permessi per livelli (1.0.16: «Sempre» sulle reversibili, permessi per compito, «Cosa ho fatto» con Annulla; `docs/chat.md`). Da provare dal vivo. Prossimi: proattività su ticket e chiamate, memoria per cliente (`docs/idee.md`).
@@ -48,6 +48,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 7/11 — Agent Chat: motori con più contesto
+Cartella del progetto, conversazione che continua (60 min, 20 turni), messaggio intero, un incarico che ripete l'owner non apre un secondo turno (`docs/integrazioni.md`). Da provare con turni veri.
+
+### 7/11 — Agent Chat: «In esecuzione», script sempre confermati
+Terza vista della scheda con i passi interi dei motori di questo PC, mai al server (`agentchat::Live`). `run_quick_action` non esegue più uno script con conferma: lo apre nell'isola e aspetta «Esegui», anche con «Autonomi». Corretti anche nuova conferma se cambia la shell, `{{importo|it}}` con due decimali e nota su `-Encoding UTF8`. Non ancora provato con un turno vero.
+
 ### 7/11 — Integrazioni personali: HTML, PDF, script
 Modelli HTML veri (`core/template.ts`: escape, `cleanPage`), `{{data|lunga}}`, `{{numero|it}}`, `{{#se}}`, `{{^campo}}`, `{{file:logo.png}}`; a capo nelle tabelle Markdown; PDF con WebView2 (`pdf.rs`, provato con `real_print`); azione `script` e `quick` con i dati della scheda in `EASYISLAND_SCHEDA`, conferma nella card; `quick_action_create/update/delete`; `custom::watch` per i `.json` cambiati a mano. Cambia la regola «mai codice» (`CLAUDE.md`), su richiesta di Edoardo. Da provare con l'app vera.
 
@@ -59,10 +65,4 @@ Tolti in Classico e Windows l'alone colorato in fondo alle schede (`.card.wash`,
 
 ### 6/11 — Multi agent: una voce sola
 Dopo la prima conversazione vera: bozza nascosta, solo i `[GRAVE]` tornano a chi guida, che riscrive; niente testo del revisore né nomi dei motori. Controlla chi può aprire i dati (`can_look`). `docs/chat.md` → Multi agent.
-
-### 6/11 — Mappa e Agent Chat
-Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non può rispondere lo dice in chat (`say_blocked`), con `@pc` subentra l'altro motore. Jeeves (`wants`, repo agentchat) traduce i nomi e non si sveglia se un agente parla di lui.
-
-### 6/11 — Chat: Multi agent
-`team.rs`: chi guida delega con `team_delegate` ai motori di Impostazioni → Chat, aiutanti in sola lettura, un solo scrittore, controllo finale lanciato dall'app da un motore di altra famiglia. Provati dal vivo con opencode sola lettura, git e bug piantato; `docs/chat.md` → Multi agent.
 

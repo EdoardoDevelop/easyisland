@@ -5971,6 +5971,18 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .ac-busy small { color: #8e939c; }
 .ac-alone { padding: 2px 9px; border-radius: 10px; background: rgba(245, 158, 11, 0.16); color: #fde68a; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); }
 @keyframes ac-pulse { 50% { opacity: 0.25; } }
+/* «In esecuzione» (agentchat.ts workView): this PC's turns and the steps of the one open. */
+.ac-work { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ac-turns { display: flex; flex-wrap: wrap; gap: 4px; }
+.ac-turn { display: inline-flex; align-items: center; gap: 5px; }
+.rec-chip.ac-turn.on { background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.55); }
+.ac-turn i { width: 6px; height: 6px; border-radius: 50%; background: #8e939c; }
+.ac-turn.t-working i { background: #22d3ee; animation: ac-pulse 1.2s ease-in-out infinite; }
+.ac-turn.t-done i { background: #6ee7b7; }
+.ac-turn.t-failed i { background: #fca5a5; }
+.ac-turn small { color: #8e939c; }
+.ac-work-about { overflow: hidden; color: #8e939c; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); text-overflow: ellipsis; white-space: nowrap; }
+.ac-log { max-height: 190px; min-height: 90px; overflow-y: auto; overflow-wrap: anywhere; padding: 6px 9px; border-radius: 8px; background: rgba(0, 0, 0, 0.24); font: 400 calc(11.5px + var(--fs-up, 0px)) / 1.45 var(--font); }
 /* Writing as the owner (agentchat.ts composer). */
 .ac-compose { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
 .ac-extras { display: flex; flex-direction: column; gap: 4px; }

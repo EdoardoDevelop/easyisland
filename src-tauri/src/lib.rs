@@ -1497,7 +1497,7 @@ pub(crate) async fn chat_turn(
     // read-only commands without the island; writing, running, sending still ask.
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
-    let own = if matches!(channel, Channel::Island | Channel::Revision | Channel::Helper) { own_folder(chat) } else { None };
+    let own = if matches!(channel, Channel::Island | Channel::Revision | Channel::Helper | Channel::AgentChat) { own_folder(chat) } else { None };
     // Prompts of ours, not the user's questions: nothing to learn from them.
     let learns = !matches!(channel, Channel::Helper | Channel::Revision);
     let read_only = chat.read_only();
@@ -1714,6 +1714,12 @@ fn agentchat_restart() {
 
 /// The island's Agent Chat card: a message as the owner (owner token, name from the settings).
 /// The Agent Chat card's «Argomenti»: the messages of one topic (agentchat_map.rs).
+/// «In esecuzione» in the card: this PC's turns, the updates come as `agentchat-live`.
+#[tauri::command]
+fn agentchat_live() -> Vec<agentchat::LiveTurn> {
+    agentchat::live_turns()
+}
+
 #[tauri::command]
 fn agentchat_topic_messages(id: i64) -> Vec<agentchat::Msg> {
     agentchat::topic_messages(id)
@@ -4530,6 +4536,7 @@ pub fn run() {
             agentchat_resume,
             agentchat_owner_send,
             agentchat_topic_messages,
+            agentchat_live,
             agentchat_listen,
             work_list,
             work_open,

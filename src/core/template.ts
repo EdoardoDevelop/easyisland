@@ -36,9 +36,10 @@ export function longDate(v: unknown): string | null {
   return new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric" }).format(date);
 }
 
-/** 1234.5 → "1.234,5". */
-export function italianNumber(n: number): string {
-  return n.toLocaleString("it-IT", { useGrouping: "always", maximumFractionDigits: 6 } as unknown as Intl.NumberFormatOptions);
+/** 1234.5 → "1.234,5"; with `digits` always that many: "1.234,50". */
+export function italianNumber(n: number, digits?: number): string {
+  const places = digits == null ? { maximumFractionDigits: 6 } : { minimumFractionDigits: digits, maximumFractionDigits: digits };
+  return n.toLocaleString("it-IT", { useGrouping: "always", ...places } as unknown as Intl.NumberFormatOptions);
 }
 
 const REMOVED = "script,iframe,frame,frameset,object,embed,applet,base,link,noscript,template,meta[http-equiv],animate,set";

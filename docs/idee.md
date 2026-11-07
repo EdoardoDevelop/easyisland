@@ -3,7 +3,7 @@
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
 ## URGENTI: limiti delle integrazioni personali (7/11)
-Emersi con «DDT Easytech», valgono per tutte le integrazioni «create da me». Modelli Markdown esistenti e azione «copy» restano identici. **Scritte nel codice il 7/11 (`docs/integrazioni.md`), non ancora in una versione:** restano prova con l'app vera, rilascio e passaggio del DDT al modello nuovo, poi questa sezione si toglie. Soluzione provvisoria finché non c'è la versione nuova: `genera-ddt.ps1` e `modello.html` in `%APPDATA%\EasyIsland\integrazioni\ddt-easytech\`.
+Emersi con «DDT Easytech», valgono per tutte le integrazioni «create da me». Modelli Markdown esistenti e azione «copy» restano identici. **Scritte nella 1.0.33, non ancora pubblicata (`docs/integrazioni.md`):** restano prova con l'app vera, rilascio e passaggio del DDT al modello nuovo, poi questa sezione si toglie. Soluzione provvisoria finché non c'è la versione nuova: `genera-ddt.ps1` e `modello.html` in `%APPDATA%\EasyIsland\integrazioni\ddt-easytech\`.
 1. **Modelli HTML veri:** oggi l'azione `document` scrive l'HTML del modello come testo. Servono valori sempre protetti, pulizia di `<script>`, `on*` e `javascript:`, date per esteso (`{{data|lunga}}`), numeri (`{{numero|it}}`), condizioni (`{{#se campo}}`, `{{^campo}}`) e risorse dell'integrazione (`{{file:logo.png}}` da `integrazioni/<id>/`).
 2. **A capo nelle tabelle Markdown:** gli a capo dei campi spezzano le righe della tabella.
 3. **PDF diretto:** `format: "pdf"` con WebView2, A4, nel Vassoio e in una cartella di uscita.

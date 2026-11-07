@@ -257,7 +257,7 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
       const a = (State.settings.actions ?? []).find((x) => x.id === s("id"));
       if (!a) return t("Eseguire l'azione rapida {id}", { id: s("id") });
       return a.kind === "script"
-        ? t("Eseguire lo script «{name}»:", { name: a.name }) + `\n${short(a.script, 400)}`
+        ? t("Eseguire lo script «{name}»:", { name: a.name }) + `\n${a.script}`
         : t("Eseguire l'azione «{name}»", { name: a.name });
     }
     case "quick_action_create":

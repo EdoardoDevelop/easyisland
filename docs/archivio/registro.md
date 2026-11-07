@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 6/11 — Mappa e Agent Chat
+Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non può rispondere lo dice in chat (`say_blocked`), con `@pc` subentra l'altro motore. Jeeves (`wants`, repo agentchat) traduce i nomi e non si sveglia se un agente parla di lui.
+
+### 6/11 — Chat: Multi agent
+`team.rs`: chi guida delega con `team_delegate` ai motori di Impostazioni → Chat, aiutanti in sola lettura, un solo scrittore, controllo finale lanciato dall'app da un motore di altra famiglia. Provati dal vivo con opencode sola lettura, git e bug piantato; `docs/chat.md` → Multi agent.
+
 ### 6/11 — Chat: la riga che si scrive non taglia più
 `typeline.ts`: finisce sempre la riga iniziata, dei passi in arrivo tiene solo l'ultimo (gli altri sono nell'elenco); del ragionamento mostra solo frasi intere; niente più cancellazione a lettere. Le frasi di attesa cedono appena scritte. Scena `pensa=corsa`.
 

@@ -667,6 +667,8 @@ export const Bridge = {
     callOrThrow<{ id: number }>("agentchat_owner_send", { room, text, thread, files }),
   /** The Agent Chat card's «Argomenti»: one topic's messages, older ones too (agentchat_map.rs). */
   agentchatTopicMessages: <T>(id: number) => call<T[]>("agentchat_topic_messages", { id }),
+  /** «In esecuzione»: what this PC's engines are doing (agentchat.rs LiveTurn), then the `agentchat-live` event. */
+  agentchatLive: <T>() => call<T[]>("agentchat_live"),
   agentchatListen: (on: boolean) => callOrThrow<void>("agentchat_listen", { on }),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */

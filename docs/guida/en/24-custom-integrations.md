@@ -45,7 +45,7 @@ The template can also be **real HTML** with your own design: it just has to star
 | **Fill with AI** | Paste a mail or a text and the AI fills the fields |
 | **Link** | Opens an address with the fields |
 | **Quick action** | Runs one of your actions; a script receives the record's data |
-| **Script** | Runs PowerShell or Command Prompt commands: it shows them and waits for your click every time. The record's data is in the JSON file named by the `EASYISLAND_SCHEDA` variable |
+| **Script** | Runs PowerShell or Command Prompt commands: it shows them and waits for your click every time. The record's data is in the JSON file named by the `EASYISLAND_SCHEDA` variable: in PowerShell read it with `Get-Content -Raw -Encoding UTF8`, or accented letters get garbled |
 | **Notion** | Adds the record to a database |
 | **Export CSV** | All records, for Excel |
 | **Call a service** | GET/POST/PUT/PATCH/DELETE to one of your services' API, with the fields in the body; the response can fill fields and show in a message |

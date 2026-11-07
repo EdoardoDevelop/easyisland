@@ -268,6 +268,12 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                     crate::actions::open_app(&get("target"), &get("args"))?;
                     Ok(format!("Avviato «{name}»."))
                 }
+                // Consenti is not «Esegui», and in «Automatica» or «Autonomi» there is
+                // not even that: a script that asks goes to the island, whole.
+                "script" if crate::actions::script_asks(&a) => {
+                    let _ = app.emit_to(crate::island::WINDOW_LABEL, "automation-action", id);
+                    Ok(format!("Script «{name}» aperto nell'isola: parte solo quando l'utente preme «Esegui», e l'output non torna qui. Diglielo e non rilanciarlo."))
+                }
                 "script" => {
                     let run_id = format!("agent-{}", RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
                     let res = crate::actions::run_script(&run_id, &get("shell"), &get("script")).await?;

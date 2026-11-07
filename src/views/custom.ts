@@ -181,7 +181,7 @@ function shownAs(kind: string, v: unknown, format?: string): string {
   if (format === "lunga") return longDate(v) ?? shown(kind, v);
   if (format === "it") {
     const n = toNumber(v);
-    if (n != null) return italianNumber(n);
+    if (n != null) return italianNumber(n, kind === "money" ? 2 : undefined);
   }
   return shown(kind, v);
 }

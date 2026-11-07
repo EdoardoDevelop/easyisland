@@ -75,12 +75,12 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::claude::Chat;
 use crate::i18n::{t, tf};
@@ -95,6 +95,8 @@ const POLL_SECS: u64 = 50;
 const HISTORY: i64 = 12;
 /// A message in the prompt, at most (characters).
 const MAX_LINE: usize = 1500;
+/// The message a turn answers, and a topic read on purpose: whole, or nearly.
+const MAX_ANSWERED: usize = 20_000;
 /// What EasyIsland posts, at most (characters).
 const MAX_REPLY: usize = 6000;
 /// A consult's thread this quiet is over: time for the synthesis.
@@ -105,7 +107,7 @@ const SYNTH_MAX: Duration = Duration::from_secs(240);
 static TURNS: LazyLock<tokio::sync::Semaphore> = LazyLock::new(|| tokio::sync::Semaphore::new(3));
 
 /// A message of the chat (the server's JSON).
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub(crate) struct Msg {
     pub id: i64,
     #[serde(default)]
@@ -1224,6 +1226,7 @@ fn stop_all() {
     for h in RUNNING.lock().unwrap().drain(..) {
         h.abort();
     }
+    drop_kept();
 }
 
 async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
@@ -1284,6 +1287,16 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
             show(app, srv, &t("Agent Chat: troppi scambi fra agenti"), &text);
         }
         return;
+    }
+    // Jeeves turning into an assignment what the owner just asked of an engine here:
+    // one job, not two turns on the same files.
+    if !from_owner && is_assignment(&m.text) {
+        let first = repeats(&live_turns(), &m, now_ms());
+        if let Some(first) = first {
+            JOINED.lock().unwrap().insert(first, m.id);
+            note_last(tf("Il #{id} ripete il #{first}, già in corso: un lavoro solo.", &[("id", &m.id), ("first", &first)]));
+            return;
+        }
     }
     if p.exclusive || p.claim {
         // Nothing to take on when this EasyIsland could not answer anyway.
@@ -1363,9 +1376,15 @@ async fn say_blocked(srv: &Server, me: &str, owner: &str, m: &Msg) {
 
 /// The room's last messages (or a consult's thread) as lines for the prompt.
 fn transcript(list: &[Msg]) -> String {
+    transcript_of(list, 0)
+}
+
+/// The same with #`whole` not cut: an engine that reads only the start of what it
+/// must answer takes it for a message cut short.
+fn transcript_of(list: &[Msg], whole: i64) -> String {
     list.iter()
         .map(|x| {
-            let text: String = x.text.chars().take(MAX_LINE).collect();
+            let text: String = x.text.chars().take(if x.id == whole { MAX_ANSWERED } else { MAX_LINE }).collect();
             let mark = if x.verified { "" } else { " ?" };
             let kind = match x.kind.as_str() {
                 "consult" => " (consulta)",
@@ -1428,22 +1447,163 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
     Some(clean.chars().take(MAX_REPLY).collect())
 }
 
-async fn engine_turn(app: &AppHandle, engine: &str, prompt: String, later: Option<crate::claude::Later>, on_text: &(dyn Fn(&str) + Sync)) -> Result<String, String> {
-    let chat = Chat::default();
+async fn engine_turn(app: &AppHandle, engine: &str, chat: &Chat, prompt: String, later: Option<crate::claude::Later>, on_text: &(dyn Fn(&str) + Sync)) -> Result<String, String> {
     chat.set_channel("agentchat");
     if let Some(l) = later {
         chat.set_later(l);
     }
     let sent = prompt.chars().count();
-    let reply = crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::AgentChat, on_text).await;
-    if engine == "opencode" {
-        crate::opencode::forget(chat.cli_session());
-    }
+    let reply = crate::chat_turn(app, chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::AgentChat, on_text).await;
     count(engine, sent + reply.as_ref().map_or(0, |r| r.text.chars().count()));
     if let Some(app) = APP.get() {
         publish(app);
     }
     reply.map(|r| r.text)
+}
+
+/// A turn in a conversation of its own, gone afterwards.
+async fn one_turn(app: &AppHandle, engine: &str, prompt: String, on_text: &(dyn Fn(&str) + Sync)) -> Result<String, String> {
+    let chat = Chat::default();
+    let reply = engine_turn(app, engine, &chat, prompt, None, on_text).await;
+    let_go(engine, &chat);
+    reply
+}
+
+/// A conversation nobody will go on with.
+fn let_go(engine: &str, chat: &Chat) {
+    if engine == "opencode" {
+        crate::opencode::forget(chat.cli_session());
+    }
+}
+
+// ── The conversation that goes on ─────────────────────────────────────────────
+
+/// A silence longer than this starts over.
+const KEEP_FOR: Duration = Duration::from_secs(60 * 60);
+/// So does a long run of turns: a question of nothing would carry all of it.
+const KEEP_TURNS: u32 = 20;
+
+/// An engine's conversation in a room, between two turns. Out of here while a
+/// turn uses it: a second message at the same time starts one of its own.
+struct Kept {
+    chat: Arc<Chat>,
+    /// The last message it has seen.
+    last: i64,
+    turns: u32,
+    at: Instant,
+    folder: Option<std::path::PathBuf>,
+}
+
+static KEPT: LazyLock<Mutex<HashMap<String, Kept>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn kept_key(engine: &str, room: &str) -> String {
+    format!("{engine}|{room}")
+}
+
+/// The conversation to go on with, unless the message names another project.
+fn take_kept(engine: &str, room: &str, named: Option<&std::path::Path>) -> Option<Kept> {
+    let k = KEPT.lock().unwrap().remove(&kept_key(engine, room))?;
+    let other = named.is_some_and(|n| k.folder.as_deref() != Some(n));
+    if other || k.at.elapsed() > KEEP_FOR {
+        let_go(engine, &k.chat);
+        return None;
+    }
+    Some(k)
+}
+
+fn drop_kept() {
+    for (key, k) in KEPT.lock().unwrap().drain() {
+        let_go(key.split('|').next().unwrap_or_default(), &k.chat);
+    }
+}
+
+// ── The project a turn works in ───────────────────────────────────────────────
+
+/// Read again after this long: Claude Code's list changes rarely.
+const PROJECTS_FOR: Duration = Duration::from_secs(10 * 60);
+const MAX_PROJECTS: usize = 12;
+
+static PROJECTS: Mutex<Option<(Instant, Vec<std::path::PathBuf>)>> = Mutex::new(None);
+
+/// A folder that is a project, not one someone only opened.
+fn is_project(dir: &std::path::Path) -> bool {
+    dir.is_dir() && [".git", "CLAUDE.md", "package.json", "Cargo.toml"].iter().any(|m| dir.join(m).exists())
+}
+
+/// Last touched: of two copies of a project, the one in use comes first.
+fn touched(dir: &std::path::Path) -> Option<std::time::SystemTime> {
+    let git = dir.join(".git").join("index");
+    std::fs::metadata(if git.exists() { git } else { dir.to_path_buf() }).and_then(|m| m.modified()).ok()
+}
+
+/// The projects of this PC, the last touched first: the folders Claude Code has
+/// worked in (only the keys of its list are read) and those of the island's chats.
+fn known_projects() -> Vec<std::path::PathBuf> {
+    if let Some((at, list)) = PROJECTS.lock().unwrap().as_ref() {
+        if at.elapsed() < PROJECTS_FOR {
+            return list.clone();
+        }
+    }
+    let mut all: Vec<std::path::PathBuf> = crate::chat_log::folders().into_iter().map(Into::into).collect();
+    all.extend(crate::claude_cli::claude_projects());
+    let mut seen = HashSet::new();
+    all.retain(|p| seen.insert(p.to_string_lossy().replace('/', "\\").to_lowercase()) && is_project(p));
+    all.sort_by_key(|p| std::cmp::Reverse(touched(p)));
+    all.truncate(MAX_PROJECTS);
+    *PROJECTS.lock().unwrap() = Some((Instant::now(), all.clone()));
+    all
+}
+
+/// "EasyIsland_0.2.0" → "easyisland": a project as people name it. Short names
+/// ("app", "sito") are ordinary words.
+fn project_word(dir: &std::path::Path) -> Option<String> {
+    let name = dir.file_name()?.to_string_lossy().to_lowercase();
+    let word: String = name.chars().take_while(|c| c.is_alphanumeric() || *c == '-').collect();
+    let word = word.trim_end_matches(|c: char| c == '-' || c.is_ascii_digit()).to_string();
+    (word.chars().count() >= 5).then_some(word)
+}
+
+/// The project a text speaks of: by its path, else by its name. `projects` come
+/// the last touched first, so that is the copy chosen.
+fn project_in(text: &str, projects: &[std::path::PathBuf]) -> Option<std::path::PathBuf> {
+    let low = text.to_lowercase().replace('/', "\\");
+    if let Some(p) = projects.iter().find(|p| low.contains(&p.to_string_lossy().to_lowercase().replace('/', "\\"))) {
+        return Some(p.clone());
+    }
+    let words: HashSet<&str> = low.split(|c: char| !(c.is_alphanumeric() || c == '-')).collect();
+    projects.iter().find(|p| project_word(p).is_some_and(|w| words.contains(w.as_str()))).cloned()
+}
+
+// ── One request, two messages ─────────────────────────────────────────────────
+
+/// How long after the owner's message an assignment can be the same request.
+const SAME_REQUEST_MS: u64 = 3 * 60 * 1000;
+
+/// The assignment that came for a message already being worked on: its answer
+/// goes to the assignment's thread, which is what closes it.
+static JOINED: LazyLock<Mutex<HashMap<i64, i64>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn roots(text: &str) -> HashSet<String> {
+    bare(text).split(|c: char| !c.is_alphanumeric()).filter(|w| w.chars().count() >= 4).map(|w| w.chars().take(5).collect()).collect()
+}
+
+/// Whether an assignment says what the owner just said: at least half of the
+/// owner's words, by their roots («prepara» and «preparare»).
+fn same_request(asked: &str, assignment: &str) -> bool {
+    let (mine, theirs) = (roots(asked), roots(assignment));
+    !mine.is_empty() && mine.iter().filter(|w| theirs.contains(*w)).count() * 2 >= mine.len()
+}
+
+/// The owner's message at work here that `m`, an assignment, repeats.
+fn repeats(turns: &[LiveTurn], m: &Msg, now_ms: u64) -> Option<i64> {
+    turns
+        .iter()
+        .find(|x| x.state == "working" && x.room == m.room && now_ms.saturating_sub(x.started) < SAME_REQUEST_MS && same_request(&x.asked, &m.text))
+        .map(|x| x.message)
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 
 /// One engine's answer to a message; false when the engine could not answer
@@ -1453,6 +1613,9 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     let gen = GEN.load(Ordering::SeqCst);
     let sender = format!("{me}/{}", handle(&engine));
     let rep = Reporter::start(&srv, m.id, &sender);
+    // From the first moment: an assignment a second later must find it (`repeats`).
+    let asked = if m.sender.eq_ignore_ascii_case(&owner) { m.text.as_str() } else { "" };
+    let live = Live::start(&app, &shown(&sender), &engine_name(&app, &engine), m.id, &m.text, &m.room, asked);
     if TURNS.available_permits() == 0 {
         rep.set("queued", "");
     }
@@ -1463,6 +1626,7 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     rep.set("thinking", "");
     if !take_turn(cfg.per_hour) {
         rep.end("failed");
+        live.end("failed");
         let mut told = LIMIT_TOLD.lock().unwrap();
         if told.is_none_or(|t| t.elapsed() > Duration::from_secs(3600)) {
             *told = Some(Instant::now());
@@ -1478,9 +1642,25 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
         messages(&srv, &m.room, -HISTORY, 0, None).await.map(|l| l.into_iter().filter(|x| x.id <= m.id).collect())
     }
     .unwrap_or_else(|_| vec![m.clone()]);
-    let mut prompt = rules(&shown(&sender), &owner, &engine_name(&app, &engine));
-    prompt.push_str(&role(&me, &owner, &cfg.engines, &engine));
-    prompt.push_str(&names_line());
+    let projects = tauri::async_runtime::spawn_blocking(known_projects).await.unwrap_or_default();
+    let named = project_in(&m.text, &projects);
+    // A consult wants an opinion of its own: it never goes on with anything.
+    let kept = if consult { None } else { take_kept(&engine, &m.room, named.as_deref()) };
+    let folder = named
+        .or_else(|| kept.as_ref().and_then(|k| k.folder.clone()))
+        .or_else(|| history.iter().rev().find_map(|x| project_in(&x.text, &projects)));
+    let (chat, seen, turns) = match kept {
+        Some(k) => (k.chat, Some(k.last), k.turns),
+        None => (Arc::new(Chat::default()), None, 0),
+    };
+    chat.set_folder(folder.as_ref().map(|f| f.to_string_lossy().into_owned()));
+    let mut prompt = String::new();
+    // Going on, the engine already has rules and chat: only what is new.
+    if seen.is_none() {
+        prompt.push_str(&rules(&shown(&sender), &owner, &engine_name(&app, &engine)));
+        prompt.push_str(&role(&me, &owner, &cfg.engines, &engine));
+        prompt.push_str(&names_line());
+    }
     prompt.push_str(&presence_line(&srv, &me).await);
     if let Some(b) = &boss {
         let here = b.split('/').next() == Some(me.as_str());
@@ -1495,13 +1675,26 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
         prompt.push_str(&t("È una consulta: la stessa domanda va a più motori e agenti. Dai il tuo parere indipendente e motivato, senza ripetere quello degli altri."));
     }
     let keeps = cfg.memory && lead(&cfg.engines) == Some(&engine);
-    if keeps {
-        prompt.push_str(&memory_rule());
+    if let Some(f) = &folder {
+        prompt.push_str(&tf("\nLavori nella cartella {path}: le regole del progetto stanno lì.", &[("path", &f.display())]));
     }
-    // The whole chat as topics, so the last messages are not all it knows (agentchat_map.rs).
-    prompt.push_str(&crate::agentchat_map::prompt(&owner, &|h| name_of(h)));
-    prompt.push_str(&tf("\n\nMessaggi (dal più vecchio, stanza «{room}»):\n", &[("room", &m.room)]));
-    prompt.push_str(&transcript(&history));
+    if let Some(seen) = seen {
+        let new: Vec<Msg> = history.into_iter().filter(|x| x.id == m.id || (x.id > seen && x.sender != sender)).collect();
+        prompt.push_str(&tf("\n\nÈ la stessa conversazione di prima. Messaggi nuovi (stanza «{room}»):\n", &[("room", &m.room)]));
+        prompt.push_str(&transcript_of(&new, m.id));
+    } else {
+        if keeps {
+            prompt.push_str(&memory_rule());
+        }
+        if !projects.is_empty() {
+            let list = projects.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ");
+            prompt.push_str(&tf("\nProgetti su questo PC, non cercarli sul disco: {list}.", &[("list", &list)]));
+        }
+        // The whole chat as topics, so the last messages are not all it knows (agentchat_map.rs).
+        prompt.push_str(&crate::agentchat_map::prompt(&owner, &|h| name_of(h)));
+        prompt.push_str(&tf("\n\nMessaggi (dal più vecchio, stanza «{room}»):\n", &[("room", &m.room)]));
+        prompt.push_str(&transcript_of(&history, m.id));
+    }
     prompt.push_str(&tf("\n\nRispondi al messaggio #{id} di {who}.", &[("id", &m.id), ("who", &m.sender)]));
     prompt.push_str(&t("\nSe lanci un comando in background e devi aspettare che finisca, non controllarlo a ripetizione: scrivi che è partito e chiudi il turno. Quando finisce vieni richiamato da solo, e ciò che scrivi allora va in chat come nuovo messaggio."));
     set_status(|s| s.last = tf("{who} risponde al #{id}…", &[("who", &sender), ("id", &m.id)]));
@@ -1523,10 +1716,27 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
             });
         })
     };
-    let reply = engine_turn(&app, &engine, prompt, Some(later), &|text| rep.seen(text)).await;
+    let reply = engine_turn(&app, &engine, &chat, prompt, Some(later), &|text| {
+        rep.seen(text);
+        live.seen(text);
+    })
+    .await;
     if gen != GEN.load(Ordering::SeqCst) {
+        let_go(&engine, &chat);
         return true;
     }
+    if reply.is_ok() && !consult && turns + 1 < KEEP_TURNS {
+        let k = Kept { chat, last: m.id, turns: turns + 1, at: Instant::now(), folder };
+        KEPT.lock().unwrap().insert(kept_key(&engine, &m.room), k);
+    } else {
+        let_go(&engine, &chat);
+    }
+    let thread = JOINED.lock().unwrap().remove(&m.id).or(thread);
+    match &reply {
+        Ok(text) => live.answered(text),
+        Err(e) => live.answered(e),
+    }
+    live.end(if reply.is_ok() { "done" } else { "failed" });
     match reply {
         Ok(text) => {
             rep.set("writing", "");
@@ -1605,7 +1815,10 @@ async fn synthesize(app: &AppHandle, srv: &Server, cfg: &Config, me: &str, owner
     prompt.push_str(&t("\n\nScrivi la sintesi di questa consulta: dove i pareri concordano, dove no e cosa consigli. Breve e concreta, cita chi ha detto cosa con @nome.\n\n"));
     prompt.push_str(&transcript(&thread));
     let gen = GEN.load(Ordering::SeqCst);
-    let Ok(text) = engine_turn(app, lead, prompt, None, &|_| {}).await else { return };
+    let live = Live::start(app, &shown(&sender), &engine_name(app, lead), m.id, &t("Sintesi della consulta"), &m.room, "");
+    let reply = one_turn(app, lead, prompt, &|text| live.seen(text)).await;
+    live.end(if reply.is_ok() { "done" } else { "failed" });
+    let Ok(text) = reply else { return };
     if gen != GEN.load(Ordering::SeqCst) {
         return;
     }
@@ -1782,7 +1995,10 @@ async fn catch_up(app: AppHandle, srv: Server, cfg: Config, me: String, owner: S
     });
     set_status(|s| s.last = tf("Recupero {n} messaggi arrivati a EasyIsland spento…", &[("n", &list.len())]));
     let _working = Working::start(&app);
-    let Ok(reply) = engine_turn(&app, &lead, prompt, None, &|_| {}).await else {
+    let live = Live::start(&app, &shown(&format!("{me}/{}", handle(&lead))), &engine_name(&app, &lead), 0, &t("Recupero dei messaggi arrivati a PC spento"), "", "");
+    let reply = one_turn(&app, &lead, prompt, &|text| live.seen(text)).await;
+    live.end(if reply.is_ok() { "done" } else { "failed" });
+    let Ok(reply) = reply else {
         note_last(tf("Recuperati {n} messaggi: il motore non ha risposto.", &[("n", &list.len())]));
         return;
     };
@@ -1961,6 +2177,126 @@ fn on_answer(code: &str, yes: bool) -> Option<String> {
     None
 }
 
+// ── «In esecuzione»: what this PC's engines are doing ─────────────────────────────
+
+/// Finished turns kept for the card, besides those at work.
+const LIVE_KEPT: usize = 4;
+const MAX_LIVE_TEXT: usize = 20_000;
+
+/// A turn as the card of this PC shows it, steps and arguments included. It stays
+/// here: in memory, never on disk, never to the server (`activity_of` is what goes
+/// there), so another EasyIsland has no way to see it.
+#[derive(Clone, Debug, Serialize)]
+pub struct LiveTurn {
+    id: u64,
+    who: String,
+    engine: String,
+    /// The message answered; 0 for a catch-up.
+    message: i64,
+    about: String,
+    /// Milliseconds since 1970.
+    started: u64,
+    /// "working", "done", "failed" or "stopped".
+    state: &'static str,
+    text: String,
+    #[serde(skip)]
+    room: String,
+    /// What the owner asked; empty when an agent wrote the message.
+    #[serde(skip)]
+    asked: String,
+}
+
+static LIVE: Mutex<VecDeque<LiveTurn>> = Mutex::new(VecDeque::new());
+static LIVE_IDS: AtomicU64 = AtomicU64::new(1);
+
+pub fn live_turns() -> Vec<LiveTurn> {
+    LIVE.lock().unwrap().iter().cloned().collect()
+}
+
+/// The end of a long text: the last steps are the ones that matter.
+fn live_tail(text: &str) -> String {
+    if text.len() <= MAX_LIVE_TEXT {
+        return text.to_string();
+    }
+    let mut cut = text.len() - MAX_LIVE_TEXT;
+    while !text.is_char_boundary(cut) {
+        cut += 1;
+    }
+    format!("…\n\n{}", text.get(cut..).unwrap_or_default())
+}
+
+/// The oldest finished turns go; one at work never does.
+fn live_trim(list: &mut VecDeque<LiveTurn>) {
+    let mut extra = list.iter().filter(|x| x.state != "working").count().saturating_sub(LIVE_KEPT);
+    list.retain(|x| {
+        let gone = extra > 0 && x.state != "working";
+        extra -= usize::from(gone);
+        !gone
+    });
+}
+
+/// One turn at work. Dropped unfinished (stop_all aborts it) it reads «fermato».
+struct Live {
+    app: AppHandle,
+    id: u64,
+    changed: Arc<AtomicBool>,
+}
+
+impl Live {
+    fn start(app: &AppHandle, who: &str, engine: &str, message: i64, about: &str, room: &str, asked: &str) -> Live {
+        let id = LIVE_IDS.fetch_add(1, Ordering::Relaxed);
+        let started = now_ms();
+        let about = about.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(160).collect();
+        let turn = LiveTurn { id, who: who.to_string(), engine: engine.to_string(), message, about, started, state: "working", text: String::new(), room: room.to_string(), asked: asked.to_string() };
+        LIVE.lock().unwrap().push_back(turn.clone());
+        let _ = app.emit("agentchat-live", turn);
+        let changed = Arc::new(AtomicBool::new(false));
+        // The text comes word by word: the card hears of it twice a second at most,
+        // and a step followed by a long silence still reaches it.
+        let (handle, dirty) = (app.clone(), changed.clone());
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                let Some(turn) = LIVE.lock().unwrap().iter().find(|x| x.id == id && x.state == "working").cloned() else { break };
+                if dirty.swap(false, Ordering::SeqCst) {
+                    let _ = handle.emit("agentchat-live", turn);
+                }
+            }
+        });
+        Live { app: app.clone(), id, changed }
+    }
+
+    /// The whole text shown so far.
+    fn seen(&self, text: &str) {
+        if let Some(x) = LIVE.lock().unwrap().iter_mut().find(|x| x.id == self.id) {
+            x.text = live_tail(text);
+            self.changed.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// The reply of an engine that showed nothing on the way.
+    fn answered(&self, text: &str) {
+        let empty = LIVE.lock().unwrap().iter().any(|x| x.id == self.id && x.text.is_empty());
+        if empty {
+            self.seen(text);
+        }
+    }
+
+    fn end(&self, state: &'static str) {
+        let mut list = LIVE.lock().unwrap();
+        let Some(x) = list.iter_mut().find(|x| x.id == self.id && x.state == "working") else { return };
+        x.state = state;
+        let _ = self.app.emit("agentchat-live", x.clone());
+        live_trim(&mut list);
+    }
+}
+
+impl Drop for Live {
+    fn drop(&mut self) {
+        self.end("stopped");
+    }
+}
+
 /// Counts a turn as answering for the card while it lives.
 struct Working(AppHandle);
 
@@ -2033,7 +2369,7 @@ pub fn topic_messages(id: i64) -> Vec<Msg> {
 pub async fn tool_topic(_app: &AppHandle, args: &Value) -> Result<String, String> {
     let id = args.get("id").and_then(|v| v.as_i64().or_else(|| v.as_str().and_then(|s| s.trim_start_matches('#').parse().ok())));
     let owner = STATUS.lock().unwrap().owner.clone();
-    crate::agentchat_map::read(id, arg(args, "query"), &owner, &|h| name_of(h), &|m| transcript(std::slice::from_ref(m)))
+    crate::agentchat_map::read(id, arg(args, "query"), &owner, &|h| name_of(h), &|m| transcript_of(std::slice::from_ref(m), m.id))
 }
 
 /// agentchat_import: an attachment into the Vassoio. Claimed first on the
@@ -2193,7 +2529,7 @@ pub async fn tool_engines(app: &AppHandle, args: &Value) -> Result<String, Strin
     }
     let prompt = tf("{q}\n\n(Altri motori ricevono la stessa domanda: dai il tuo parere indipendente, motivato e breve.)", &[("q", &question)]);
     // Together, inside this turn (not spawned: these turns may call tools again).
-    let replies = join_all(pick.iter().map(|(id, _)| engine_turn(app, id, prompt.clone(), None, &|_| {})).collect()).await;
+    let replies = join_all(pick.iter().map(|(id, _)| one_turn(app, id, prompt.clone(), &|_| {})).collect()).await;
     let mut out = Vec::new();
     for ((_, name), reply) in pick.iter().zip(replies) {
         let text = match reply {
@@ -2234,6 +2570,84 @@ async fn join_all<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Output> {
 
 #[cfg(test)]
 mod tests {
+    fn turn(id: u64, state: &'static str) -> LiveTurn {
+        LiveTurn { id, who: "casa/claude".into(), engine: "Claude".into(), message: 1, about: String::new(), started: 0, state, text: String::new(), room: "general".into(), asked: String::new() }
+    }
+
+    fn mail(id: i64, text: &str) -> Msg {
+        Msg { id, room: "general".into(), sender: "jeeves".into(), text: text.into(), verified: true, ..Msg::default() }
+    }
+
+    #[test]
+    fn a_project_is_named_as_people_name_it() {
+        use std::path::{Path, PathBuf};
+        assert_eq!(project_word(Path::new("C:\\WORK\\EasyIsland_0.2.0")).as_deref(), Some("easyisland"));
+        assert_eq!(project_word(Path::new("C:\\WORK\\agentchat")).as_deref(), Some("agentchat"));
+        assert_eq!(project_word(Path::new("C:\\WORK\\sito")), None);
+        let (new, old, chat) = (PathBuf::from("C:\\WORK\\EasyIsland_0.2.0"), PathBuf::from("C:\\WORK\\EasyIsland"), PathBuf::from("C:\\Users\\x\\agentchat"));
+        let list = [new.clone(), old.clone(), chat.clone()];
+        assert_eq!(project_in("il codice di EasyIsland, per favore", &list), Some(new.clone()));
+        assert_eq!(project_in("guarda c:/work/easyisland/readme.md", &list), Some(old));
+        assert_eq!(project_in("il server di AgentChat", &list), Some(chat));
+        assert_eq!(project_in("fai il commit", &list), None);
+        assert_eq!(project_in("easyislandia non esiste", &list), None);
+    }
+
+    #[test]
+    fn the_message_answered_is_never_cut() {
+        let long = "x".repeat(MAX_LINE + 500);
+        let list = [mail(1, &long), mail(2, &long)];
+        let text = transcript_of(&list, 2);
+        assert_eq!(text.matches('x').count(), MAX_LINE + MAX_LINE + 500);
+        assert_eq!(transcript(&list).matches('x').count(), MAX_LINE * 2);
+    }
+
+    #[test]
+    fn jeeves_saying_it_again_is_the_same_request() {
+        assert!(same_request("@oscar fai il commit e prepara linstaller", "@oscar 📋 Incarico #5: Fare il commit e preparare l’installer EasyIsland\nPer le modifiche alle 7 voci"));
+        assert!(same_request("@claudio puoi installare l'aggiornamento di EasyIsland?", "@casa 📋 Incarico #2: Installare aggiornamento EasyIsland"));
+        assert!(!same_request("@oscar fai il commit e prepara linstaller", "@oscar 📋 Incarico #6: Controllare il backup del NAS di Rossi"));
+        assert!(!same_request("ok", "📋 Incarico #6: ok"));
+    }
+
+    #[test]
+    fn only_a_recent_request_of_the_owner_is_repeated() {
+        let mut t1 = turn(1, "working");
+        t1.message = 324;
+        t1.started = 1_000;
+        t1.asked = "fai il commit e prepara linstaller".into();
+        let m = mail(325, "📋 Incarico #5: Fare il commit e preparare l’installer");
+        assert_eq!(repeats(std::slice::from_ref(&t1), &m, 5_000), Some(324));
+        assert_eq!(repeats(std::slice::from_ref(&t1), &m, SAME_REQUEST_MS + 2_000), None);
+        let mut other = m.clone();
+        other.room = "lavoro".into();
+        assert_eq!(repeats(std::slice::from_ref(&t1), &other, 5_000), None);
+        t1.asked.clear();
+        assert_eq!(repeats(&[t1], &m, 5_000), None);
+    }
+
+    #[test]
+    fn a_long_work_keeps_its_end_whole() {
+        assert_eq!(live_tail("breve"), "breve");
+        let text = format!("è{}fine", "à".repeat(MAX_LIVE_TEXT));
+        let tail = live_tail(&text);
+        assert!(tail.starts_with('…') && tail.ends_with("fine"));
+        assert!(tail.len() <= MAX_LIVE_TEXT + 8);
+    }
+
+    #[test]
+    fn finished_turns_go_first_and_work_stays() {
+        let mut list: VecDeque<LiveTurn> = VecDeque::from([turn(1, "working"), turn(2, "done"), turn(3, "failed"), turn(4, "done"), turn(5, "stopped"), turn(6, "done"), turn(7, "working")]);
+        live_trim(&mut list);
+        assert_eq!(list.iter().map(|x| x.id).collect::<Vec<_>>(), vec![1, 3, 4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn the_server_never_gets_what_the_card_shows() {
+        let (state, detail) = activity_of("> ⚙ Esegue · `del C:\\segreto.txt`");
+        assert_eq!((state, detail.as_str()), ("tools", "Esegue"));
+    }
+
     use super::*;
 
     fn msg(sender: &str, text: &str) -> Msg {

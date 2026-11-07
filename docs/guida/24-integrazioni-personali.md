@@ -45,7 +45,7 @@ Il modello può essere anche **HTML vero**, con la tua grafica: basta che cominc
 | **Compila con l'AI** | Incolli una mail o un testo e l'AI riempie i campi |
 | **Link** | Apre un indirizzo con i campi |
 | **Azione rapida** | Esegue una tua azione; se è uno script riceve i dati della scheda |
-| **Script** | Esegue comandi PowerShell o del Prompt: te li mostra e aspetta «Esegui» ogni volta. I dati della scheda sono nel file JSON indicato dalla variabile `EASYISLAND_SCHEDA` |
+| **Script** | Esegue comandi PowerShell o del Prompt: te li mostra e aspetta «Esegui» ogni volta. I dati della scheda sono nel file JSON indicato dalla variabile `EASYISLAND_SCHEDA`: in PowerShell leggilo con `Get-Content -Raw -Encoding UTF8`, o le lettere accentate si rovinano |
 | **Notion** | Aggiunge la scheda a un database |
 | **Esporta CSV** | Tutte le schede, per Excel |
 | **Chiamata a un servizio** | GET/POST/PUT/PATCH/DELETE all'API di un tuo servizio, con i campi nel corpo; la risposta può riempire i campi e comparire in un messaggio |

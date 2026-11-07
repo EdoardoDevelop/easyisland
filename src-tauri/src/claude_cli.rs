@@ -171,6 +171,14 @@ pub fn tool_prefix(server: &str) -> String {
     format!("mcp__{norm}")
 }
 
+/// The folders Claude Code has worked in, from its own list. Only their names:
+/// the rest of the file is not read into anything.
+pub(crate) fn claude_projects() -> Vec<PathBuf> {
+    let Some(text) = claude_json_path().and_then(|p| std::fs::read_to_string(p).ok()) else { return Vec::new() };
+    let Ok(v) = serde_json::from_str::<Value>(&text) else { return Vec::new() };
+    v.get("projects").and_then(Value::as_object).map(|m| m.keys().map(PathBuf::from).collect()).unwrap_or_default()
+}
+
 /// Where Claude Code keeps user-scope MCP servers: `~/.claude.json`, or the
 /// same file under CLAUDE_CONFIG_DIR when that is set.
 fn claude_json_path() -> Option<PathBuf> {
