@@ -663,6 +663,8 @@ void onEvent("memory-refresh", () => void load());
 // A page found from the island's field at the top: selected once loaded.
 void onEvent<string>("memory-select", (id) => {
   wanted = id;
+  // Found in the copy of another PC while the map shows this one, or the other way round.
+  if (model && !model.byId.has(id) && source !== "*") source = "*";
   void load();
 });
 window.addEventListener("focus", () => {

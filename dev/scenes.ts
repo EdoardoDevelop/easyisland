@@ -10,6 +10,7 @@ import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
+import { demoGraph } from "../src/memory/demo";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
 import { Recap } from "../src/island/recap";
@@ -1311,7 +1312,18 @@ export async function runScene(island: Island, scene: string) {
     case "search": {
       // The field at the top with ?q=… typed (rossi by default): memory, past chats and Zammad made up.
       Object.assign(Bridge, {
-        memoryFind: async () => [{ id: "p:rossi-srl", title: "Rossi Srl", gist: "Cliente dal 2019: 12 PC, server Synology, UniFi in sede." }],
+        // The made-up memory of the Map, so that typing in the preview works.
+        memoryGraph: async () => demoGraph(),
+        memoryNodeBrief: async (id: string): Promise<[string, string] | null> => {
+          const n = demoGraph().nodes.find((x) => x.id === id);
+          return n ? [n.label, n.text] : null;
+        },
+        memoryFind: async (query: string) => demoGraph().nodes
+          .filter((n) => n.kind === "page" || n.kind === "note")
+          .filter((n) => `${n.label} ${n.text}`.toLowerCase().includes(query.toLowerCase()))
+          .sort((a, b) => Number(b.kind === "page") - Number(a.kind === "page"))
+          .slice(0, 8)
+          .map((n) => ({ id: n.id, title: n.label, gist: n.kind === "page" ? n.text.split("\n")[0] : "", kind: n.kind as "page" | "note", origin: "" })),
         chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
         zammadSearch: async () => [
           { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
@@ -1329,6 +1341,8 @@ export async function runScene(island: Island, scene: string) {
       State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"];
       await wait(300);
       island.setView("overview");
+      // Out of the greeting, or it closes the island a moment later.
+      (island as unknown as { fsm: { forceHome(): void } }).fsm.forceHome();
       island.setPinned(true);
       await wait(400);
       const field = document.querySelector<HTMLInputElement>(".search-input");

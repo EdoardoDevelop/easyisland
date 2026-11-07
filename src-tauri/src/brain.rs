@@ -835,38 +835,102 @@ fn fold(s: &str) -> String {
         .collect()
 }
 
-/// A page found from the island's field at the top (src/views/search.ts).
+/// A node of the map found from the island's field at the top (src/views/search.ts).
 #[derive(Serialize)]
 pub struct PageHit {
-    /// The node of the memory window ("p:<slug>"), to select it there.
+    /// The node of the memory window ("p:<slug>", "lavoro|p:<slug>"), to select it there.
     pub id: String,
     pub title: String,
     pub gist: String,
+    /// page, note, source, old
+    pub kind: &'static str,
+    /// The other PC it comes from (empty: this PC).
+    pub origin: String,
 }
 
-/// The pages with every word of `query` (no case, no accents) in the title,
-/// the aliases, the summary or the text; those with them in their names first.
-pub fn find_pages(query: &str, max: usize) -> Vec<PageHit> {
+/// What is searched of a page besides its label: the map's nodes carry only
+/// the beginning of the text.
+struct PageWords {
+    names: String,
+    text: String,
+    gist: String,
+}
+
+fn page_words(p: &Page) -> PageWords {
+    PageWords { names: fold(&p.aliases.join(" ")), text: fold(&format!("{} {}", p.summary, p.body)), gist: p.gist() }
+}
+
+/// The nodes of the map with every word of `query` (no case, no accents):
+/// on this PC and in the copies of the others, whatever the map shows. Those
+/// with them in their names first, then pages, notes, sources, archived notes.
+pub fn find_nodes(query: &str, max: usize, other: Option<String>) -> Vec<PageHit> {
     let words: Vec<String> = query.split_whitespace().map(fold).filter(|w| !w.is_empty()).collect();
     if words.is_empty() {
         return Vec::new();
     }
-    let mut found: Vec<(u8, PageHit)> = pages()
+    let g = graph_of("*", other);
+    let mut pages_by_id: HashMap<String, PageWords> = pages().iter().map(|p| (format!("p:{}", p.slug), page_words(p))).collect();
+    for name in &g.sources {
+        for p in pages_in(&crate::memshare::copy_dir(name).join("pagine")) {
+            pages_by_id.insert(format!("{name}|p:{}", p.slug), page_words(&p));
+        }
+    }
+    rank_nodes(&g.nodes, &pages_by_id, &words, max)
+}
+
+/// "lavoro|p:rossi" → ("lavoro", "p:rossi"); on this PC ("", "p:rossi").
+fn split_node(id: &str) -> (&str, &str) {
+    id.split_once('|').unwrap_or(("", id))
+}
+
+/// What a new chat starts from: the node's name and its card, not the whole
+/// page (the engine opens it if it needs it).
+pub fn node_brief(id: &str) -> Option<(String, String)> {
+    let (from, local) = split_node(id);
+    if !from.is_empty() && !valid_source(from) {
+        return None;
+    }
+    if let Some(slug) = local.strip_prefix("p:") {
+        let all = if from.is_empty() { pages() } else { pages_in(&crate::memshare::copy_dir(from).join("pagine")) };
+        let page = all.iter().find(|p| p.slug == slug)?;
+        return Some((page.title.clone(), brief_of(page, &all)));
+    }
+    let g = graph_of(from, None);
+    let n = g.nodes.iter().find(|n| n.id == id)?;
+    Some((n.label.clone(), if n.text.is_empty() { n.label.clone() } else { n.text.clone() }))
+}
+
+fn rank_nodes(nodes: &[Node], pages_by_id: &HashMap<String, PageWords>, words: &[String], max: usize) -> Vec<PageHit> {
+    let mut found: Vec<(u8, u8, &Node)> = Vec::new();
+    for n in nodes {
+        let order = match n.kind {
+            "page" => 0,
+            "note" => 1,
+            "source" => 2,
+            "old" => 3,
+            _ => continue,
+        };
+        let page = pages_by_id.get(&n.id);
+        let names = format!("{} {}", fold(&n.label), page.map(|p| p.names.as_str()).unwrap_or_default());
+        let text = page.map(|p| p.text.clone()).unwrap_or_else(|| fold(&n.text));
+        let rank = if words.iter().all(|w| names.contains(w.as_str())) {
+            0
+        } else if words.iter().all(|w| names.contains(w.as_str()) || text.contains(w.as_str())) {
+            1
+        } else {
+            continue;
+        };
+        found.push((rank, order, n));
+    }
+    found.sort_by_key(|(rank, order, n)| (*rank, *order, Reverse(n.weight)));
+    // The same page on two PCs: once, the most linked.
+    let mut seen = HashSet::new();
+    found
         .into_iter()
-        .filter_map(|p| {
-            let names = fold(&std::iter::once(p.title.as_str()).chain(p.aliases.iter().map(String::as_str)).collect::<Vec<_>>().join(" "));
-            let rank = if words.iter().all(|w| names.contains(w.as_str())) {
-                0
-            } else if words.iter().all(|w| names.contains(w.as_str()) || fold(&p.summary).contains(w.as_str()) || fold(&p.body).contains(w.as_str())) {
-                1
-            } else {
-                return None;
-            };
-            Some((rank, PageHit { id: format!("p:{}", p.slug), title: p.title.clone(), gist: p.gist() }))
-        })
-        .collect();
-    found.sort_by_key(|(rank, _)| *rank);
-    found.into_iter().take(max).map(|(_, h)| h).collect()
+        .filter(|(_, _, n)| n.kind != "page" || seen.insert(fold(&n.label)))
+        .take(max)
+        .map(|(_, _, n)| PageHit { id: n.id.clone(), title: n.label.clone(), gist: pages_by_id.get(&n.id).map(|p| p.gist.clone()).unwrap_or_default(), kind: n.kind, origin: n.origin.clone() })
+        .collect()
 }
 
 /// What changed in the memory since `since` ("AAAA-MM-GG"), for the weekly
@@ -1744,7 +1808,7 @@ mod tests {
     #[test]
     fn fold_ignores_case_and_accents() {
         assert_eq!(fold("Città Perché ÀNCORA"), "citta perche ancora");
-        assert!(find_pages("   ", 5).is_empty());
+        assert!(find_nodes("   ", 5, None).is_empty());
     }
 
     /// The map of a memory copied from another PC: `APPDATA=<folder with EasyIsland\memoria>`
@@ -1786,6 +1850,36 @@ mod tests {
         ]);
         let l = links_in("- usa: [[Server]] (dedotto)\n- [[Rete]] (Dedotto) \nDa [[Mail]] (dedotto) ieri");
         assert_eq!(l.iter().map(|l| (l.rel.as_str(), l.inferred)).collect::<Vec<_>>(), vec![("usa", true), ("", true), ("", false)]);
+    }
+
+    #[test]
+    fn the_field_finds_what_the_map_shows() {
+        let node = |id: &str, kind: &'static str, label: &str, text: &str, weight: u32, origin: &str| Node { id: id.into(), kind, label: label.into(), date: String::new(), text: text.into(), weight, origin: origin.into() };
+        let nodes = vec![
+            node("n:0", "note", "Il server di Rossi è pieno", "Il server di Rossi è pieno", 1, ""),
+            node("p:rossi", "page", "Rossi", "", 2, ""),
+            node("lavoro|p:rossi", "page", "Rossi", "", 9, "lavoro"),
+            node("lavoro|p:nas", "page", "NAS", "", 1, "lavoro"),
+            node("s:mail", "source", "rossi.eml", "", 0, ""),
+            node("d:1", "day", "rossi", "rossi", 0, ""),
+            node("p:scritta", "missing", "Rossi due", "", 0, ""),
+        ];
+        let mut pages = HashMap::new();
+        pages.insert("lavoro|p:nas".to_string(), page_words(&parse("nas", "# NAS\nriassunto: Quello di casa.\nalias: Synology\n\nDi Rossì, in fondo al testo.\n")));
+        let found = rank_nodes(&nodes, &pages, &["rossi".to_string()], 10);
+        let ids: Vec<&str> = found.iter().map(|h| h.id.as_str()).collect();
+        // The names first, pages before notes and sources; the same page once; the text last.
+        assert_eq!(ids, vec!["lavoro|p:rossi", "n:0", "s:mail", "lavoro|p:nas"]);
+        assert_eq!(found[3].gist, "Quello di casa.");
+        assert_eq!(found[0].origin, "lavoro");
+        assert_eq!(rank_nodes(&nodes, &pages, &["synology".to_string()], 10)[0].id, "lavoro|p:nas");
+    }
+
+    #[test]
+    fn a_node_says_whose_it_is() {
+        assert_eq!(split_node("lavoro|p:rossi"), ("lavoro", "p:rossi"));
+        assert_eq!(split_node("p:rossi"), ("", "p:rossi"));
+        assert!(node_brief("../x|p:rossi").is_none());
     }
 
     #[test]

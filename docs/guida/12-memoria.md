@@ -36,6 +36,7 @@ Cliente dal 2021, commercialisti, 8 postazioni.
 - Per risparmiare, la chat guarda prima la **scheda** di una pagina (riassunto e collegamenti) e apre il testo intero solo se serve.
 - Se chiedi come sono legate due cose, la chat trova la **strada più corta** fra le due pagine, passo per passo, senza leggerle.
 - Una riga che finisce con `(dedotto)` è un legame ricavato da un motore, non scritto in una fonte: controllalo, e togli il segno se è giusto.
+- Il campo in alto nell'isola cerca in tutta la memoria, come la Mappa: pagine, note, fonti, anche dell'altro PC. Se trova qualcosa si apre una piccola **costellazione** con il nodo e i suoi vicini: le frecce o un clic su una stella la spostano, **Invio** o **Nuova chat** apre una chat nuova che parte da quel nodo e aspetta la tua domanda, **Apri nella Mappa** porta alla finestra grande.
 - La chat le scrive quando le chiedi «fai una pagina su…», e dalle fonti (sotto).
 - **Scritture sicure**: se modifichi a mano una pagina mentre l'agente ci lavora, la sua scrittura viene rifiutata; deve rileggerla e ripartire dalla tua versione.
 

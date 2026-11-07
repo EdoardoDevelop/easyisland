@@ -5172,12 +5172,54 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   top: 42px;
   bottom: 46px;
   padding: 6px;
-  overflow-y: auto;
+  overflow: hidden;
   border-radius: 16px;
   background: #121316;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-#search.open .search-results { display: block; }
+#search.open .search-results, #search.closing .search-results { display: flex; flex-direction: column; }
+#search.closing .search-results { animation: sky-panel-out 0.24s ease-in forwards; }
+@keyframes sky-panel-out { 60% { opacity: 1; } to { opacity: 0; } }
+.search-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* The memory around what was found (constellation.ts). */
+.sky {
+  flex: 0 0 auto;
+  position: relative;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  color: var(--ink);
+  transition: height 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+.sky.on { height: var(--sky-h, 178px); opacity: 1; }
+.sky-canvas { position: absolute; left: 0; top: 0; width: 100%; height: calc(var(--sky-h, 178px) - 34px); }
+.sky-caption {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: calc(var(--sky-h, 178px) - 34px);
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.sky-words { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
+.sky-title { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); }
+.sky-gist { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--dim-3); font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); }
+.sky-open {
+  flex: none;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink);
+  font: 500 calc(11px + var(--fs-up, 0px)) var(--font);
+}
+.sky-open:hover { background: rgba(255, 255, 255, 0.08); }
+.sky-chat { border-color: rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.16); }
+.sky-chat:hover { background: rgba(56, 189, 248, 0.28); }
 .search-hit {
   width: 100%;
   display: flex;

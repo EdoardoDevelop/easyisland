@@ -36,6 +36,7 @@ Client since 2021, accountants, 8 workstations.
 - To save tokens, the chat first looks at a page's **card** (summary and links) and opens the whole text only when needed.
 - If you ask how two things are related, the chat finds the **shortest way** between the two pages, step by step, without reading them.
 - A line ending in `(dedotto)` is a link worked out by an engine, not written in a source: check it, and remove the mark if it is right.
+- The field at the top of the island searches the whole memory, like the Map: pages, notes, sources, also from the other PC. When it finds something a small **constellation** opens with the node and its neighbours: the arrows or a click on a star move it, **Enter** or **New chat** opens a new chat that starts from that node and waits for your question, **Open in the Map** takes you to the big window.
 - The chat writes them when you ask "make a page about…", and from sources (below).
 - **Safe writes**: if you edit a page by hand while the agent works on it, its write is refused; it must read it again and start from your version.
 

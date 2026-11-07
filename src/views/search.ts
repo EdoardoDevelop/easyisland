@@ -13,6 +13,8 @@ import { ICONS } from "./icons";
 import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
+import { Constellation } from "./constellation";
+import { Model } from "../memory/data";
 import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
 import { t } from "../core/i18n";
@@ -29,6 +31,8 @@ export interface SearchActions {
   showDone(): void;
   /** A past conversation, back in the chat. */
   reopenChat(id: string): void;
+  /** A new chat that starts from a node of the memory: nothing is sent yet. */
+  memoryChat(id: string, title: string): void;
   /** «Ricorda questo» with `text` (src/views/remember.ts). */
   remember(text: string): void;
 }
@@ -39,6 +43,8 @@ interface Hit {
   icon: () => Node;
   run: () => void;
   score: number;
+  /** The node of the memory it shows in the constellation. */
+  node?: string;
 }
 
 /** Lower case, no accents: "Città" is found typing "citta". */
@@ -56,7 +62,7 @@ const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 3, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -75,7 +81,9 @@ export interface SearchHost {
 export function buildSearch(actions: SearchActions): SearchHost {
   const input = h("input", { type: "text", class: "search-input", placeholder: t("Chiedi, cerca o avvia…"),
     spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
-  const results = h("div", { class: "search-results" });
+  const list = h("div", { class: "search-list" });
+  const sky = new Constellation();
+  const results = h("div", { class: "search-results" }, sky.el, list);
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input);
   const el = h("div", { id: "search" }, results, bar);
 
@@ -103,8 +111,44 @@ export function buildSearch(actions: SearchActions): SearchHost {
   // stops typing; each answers when it can.
   let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[]; contacts: ThreecxContact[] } = { q: "", pages: [], chats: [], tickets: [], contacts: [] };
   let moreTimer = 0;
+  // The map, once per search: the constellation is drawn from it.
+  let memory: Model | null = null;
+  let memoryAsked = false;
+  /** The star clicked, until the words or the selection change. */
+  let picked = "";
+  const loadMemory = () => {
+    if (memoryAsked) return;
+    memoryAsked = true;
+    void Bridge.memoryGraph("*").then((g) => {
+      if (g?.nodes && memoryAsked) {
+        memory = new Model(g);
+        showSky();
+      }
+    });
+  };
+  const showSky = () => {
+    const node = picked || (hits[sel]?.node ?? hits.find((x) => x.node)?.node);
+    if (node && memory?.byId.has(node)) sky.show(memory, node);
+    else if (sky.shown) sky.hide();
+  };
+  sky.onPick = (id) => {
+    picked = id;
+    showSky();
+  };
+  sky.onOpen = (id) => {
+    reset(true);
+    input.blur();
+    void Bridge.memoryWindowSelect(id);
+  };
+  sky.onChat = (id) => {
+    const title = memory?.byId.get(id)?.label ?? "";
+    reset(true);
+    input.blur();
+    actions.memoryChat(id, title);
+  };
   const askMore = (q: string) => {
     window.clearTimeout(moreTimer);
+    if (q.length >= 3) loadMemory();
     if (q.length < 3 || more.q === q) return;
     moreTimer = window.setTimeout(() => {
       more = { q, pages: [], chats: [], tickets: [], contacts: [] };
@@ -213,8 +257,8 @@ export function buildSearch(actions: SearchActions): SearchHost {
     }
     if (more.q === input.value.trim()) {
       for (const p of more.pages) {
-        out.push({ kind: "Memoria", name: p.gist ? `${p.title} · ${p.gist}` : p.title, score: Math.max(1, score(p.title, q)),
-          icon: () => svg(ICONS.memory, 13, { stroke: 1.8 }), run: () => void Bridge.memoryWindowSelect(p.id) });
+        out.push({ kind: "Memoria", name: [p.title, p.gist, p.origin].filter(Boolean).join(" · "), score: Math.max(1, score(p.title, q)), node: p.id,
+          icon: () => svg(ICONS.memory, 13, { stroke: 1.8 }), run: () => actions.memoryChat(p.id, p.title) });
       }
       for (const c of more.chats) {
         out.push({ kind: "Conversazione", name: c.title || t("Senza titolo"), score: Math.max(1, score(c.title, q)),
@@ -247,45 +291,62 @@ export function buildSearch(actions: SearchActions): SearchHost {
   };
 
   const draw = () => {
-    clear(results);
+    clear(list);
     hits.forEach((hit, i) => {
-      results.append(h("button", { class: i === sel ? "search-hit on" : "search-hit",
+      list.append(h("button", { class: i === sel ? "search-hit on" : "search-hit",
         onpointerenter: () => { sel = i; mark(); },
         onclick: () => choose(hit) },
       h("span", { class: "search-icon" }, hit.icon()),
       h("span", { class: "search-name", text: hit.name }),
       h("span", { class: "search-kind", text: KIND_LABEL[hit.kind] })));
     });
-
+    showSky();
   };
 
   const mark = () => {
-    [...results.children].forEach((c, i) => c.classList.toggle("on", i === sel));
-    (results.children[sel] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
+    [...list.children].forEach((c, i) => c.classList.toggle("on", i === sel));
+    (list.children[sel] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
+    picked = "";
+    showSky();
   };
 
-  /** `keep`: Notion answered, the selection stays where it is. */
-  const refresh = (keep = false) => {
+  /** `keep`: Notion answered, the selection stays where it is. `quick`: no closing animation. */
+  const refresh = (keep = false, quick = false) => {
     const q = fold(input.value.trim());
     hits = q ? collect(q) : [];
     if (!keep) {
       sel = 0;
+      picked = "";
       askNotion(input.value.trim());
       askRdm(input.value.trim());
       askMore(input.value.trim());
     } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
-    if (q) draw();
-    else clear(results);
+    if (q) {
+      el.classList.remove("closing");
+      draw();
+      return;
+    }
+    clear(list);
+    memory = null;
+    memoryAsked = false;
+    // The stars go back into the middle before the panel leaves.
+    if (sky.shown && !quick) {
+      el.classList.add("closing");
+      sky.hide(false, () => el.classList.remove("closing"));
+    } else {
+      el.classList.remove("closing");
+      sky.hide(true);
+    }
   };
 
-  const reset = () => {
+  const reset = (quick = false) => {
     input.value = "";
-    refresh();
+    refresh(false, quick);
   };
 
   const choose = (hit: Hit) => {
-    reset();
+    reset(true);
     input.blur();
     hit.run();
   };
@@ -305,6 +366,11 @@ export function buildSearch(actions: SearchActions): SearchHost {
       sel = (sel + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
       mark();
     } else if (e.key === "Enter") {
+      // The star clicked is what is on show: Invio starts from it.
+      if (picked && !e.ctrlKey && !e.altKey) {
+        sky.onChat(picked);
+        return;
+      }
       const hit = e.ctrlKey ? hits.find((x) => x.kind === "Chat") : e.altKey ? hits.find((x) => x.kind === "Web") : hits[sel];
       if (hit) choose(hit);
     }
@@ -315,14 +381,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
     get open() { return el.classList.contains("open"); },
     sync() {
       // The island closed: start again empty next time.
-      if (State.mode !== "expanded" && input.value) reset();
+      if (State.mode !== "expanded" && input.value) reset(true);
     },
     focus() {
       void Bridge.focusWindow(true);
       input.focus();
     },
     close() {
-      if (input.value) reset();
+      if (input.value) reset(true);
       input.blur();
     },
   };
