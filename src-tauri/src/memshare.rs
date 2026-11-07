@@ -372,6 +372,21 @@ pub fn page(app: &AppHandle, title: &str) -> Option<String> {
     Some(format!("{}\n\n{}", tf("(Pagina della memoria di {pc}, copia: si legge soltanto.)", &[("pc", &from)]), text.trim_end()))
 }
 
+/// memory_page with brief, for a page that is only in the copy.
+pub fn brief(app: &AppHandle, title: &str) -> Option<String> {
+    let from = source(app)?;
+    let all = crate::brain::pages_in(&copy_dir(&from).join("pagine"));
+    let key = crate::brain::slug(title);
+    let page = all.iter().find(|p| p.answers_to(&key))?;
+    Some(format!("{}\n\n{}", tf("(Pagina della memoria di {pc}, copia: si legge soltanto.)", &[("pc", &from)]), crate::brain::brief_of(page, &all)))
+}
+
+/// memory_path between pages of the copy.
+pub fn path(app: &AppHandle, a: &str, b: &str) -> Option<String> {
+    let from = source(app)?;
+    crate::brain::path_text(&crate::brain::pages_in(&copy_dir(&from).join("pagine")), a, b).ok()
+}
+
 /// In front of a new conversation, when there is another PC's memory.
 pub fn preface(app: &AppHandle) -> Option<String> {
     let from = source(app)?;

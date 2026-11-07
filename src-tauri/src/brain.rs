@@ -23,7 +23,8 @@
 //
 // `graph` gives the memory window (src/memory/) its nodes, links and timeline.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
@@ -40,6 +41,10 @@ const READABLE: &[&str] = &["md", "txt", "csv", "json", "html", "htm", "eml", "l
 const OLD_DAYS: i64 = 180;
 /// Pages two links away the search adds, at most.
 const MAX_SECOND_HOP: usize = 4;
+/// Links shown on a page's card.
+const MAX_BRIEF_LINKS: usize = 30;
+/// Steps memory_path walks at most: further than this two things are not really tied.
+const MAX_PATH: usize = 6;
 /// Lines of the diary the window gets, newest.
 const MAX_DIARY_EVENTS: usize = 3_000;
 
@@ -88,6 +93,22 @@ pub struct Link {
     /// "" or the relation of a "- relazione: [[X]]" line.
     pub rel: String,
     pub target: String,
+    /// The line ends with "(dedotto)": an engine worked it out, no source says it.
+    pub inferred: bool,
+}
+
+impl Link {
+    /// " (cliente di)", " (cliente di, dedotto)", " (dedotto)" or nothing.
+    fn tag(&self) -> String {
+        let mut parts: Vec<&str> = Vec::new();
+        if !self.rel.is_empty() {
+            parts.push(&self.rel);
+        }
+        if self.inferred {
+            parts.push(t("dedotto"));
+        }
+        if parts.is_empty() { String::new() } else { format!(" ({})", parts.join(", ")) }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +126,9 @@ pub struct Page {
     pub links: Vec<Link>,
 }
 
+/// At the end of a link's line: an engine worked it out (memory_ai.rs, memory_page_write).
+pub const INFERRED: &str = "(dedotto)";
+
 /// The [[links]] of a text, with their relation when the line names one.
 pub fn links_in(text: &str) -> Vec<Link> {
     let mut out = Vec::new();
@@ -121,6 +145,7 @@ pub fn links_in(text: &str) -> Vec<Link> {
             })
             .filter(|r| !r.is_empty() && r.chars().count() <= 40)
             .unwrap_or_default();
+        let inferred = line.trim_end().to_lowercase().ends_with(INFERRED);
         let mut rest = line;
         while let Some(start) = rest.find("[[") {
             let after = rest.get(start + 2..).unwrap_or_default();
@@ -129,7 +154,7 @@ pub fn links_in(text: &str) -> Vec<Link> {
             // [[Titolo|testo mostrato]] and [[Titolo#sezione]] point at Titolo.
             let target = inner.split(['|', '#']).next().unwrap_or_default().trim();
             if !target.is_empty() && target.chars().count() <= 120 {
-                let link = Link { rel: rel.clone(), target: target.to_string() };
+                let link = Link { rel: rel.clone(), target: target.to_string(), inferred };
                 if !out.contains(&link) {
                     out.push(link);
                 }
@@ -336,21 +361,152 @@ pub fn tool_read(title: &str) -> Result<String, String> {
         }
         return Ok(out);
     }
-    let Some((page, text)) = find(title) else {
-        let want = words(title);
-        let near: Vec<String> = all.iter().filter(|p| similarity(&want, &words(&p.title)) > 0.3 || p.title.to_lowercase().contains(&title.trim().to_lowercase())).map(|p| p.title.clone()).take(8).collect();
-        return Err(if near.is_empty() {
-            tf("Nessuna pagina «{t}»: puoi crearla con memory_page_write.", &[("t", &title.trim().to_string())])
-        } else {
-            tf("Nessuna pagina «{t}». Simili: {near}", &[("t", &title.trim().to_string()), ("near", &near.join(", "))])
-        });
-    };
+    let Some((page, text)) = find(title) else { return Err(no_page(title, &all)) };
     let back = backlinks(&page.title, &all);
     let mut out = format!("{}\n\n---\n{}: {}", text.trim_end(), t("versione"), version(&text));
     if !back.is_empty() {
         out.push_str(&format!("\n{}: {}", t("collegata da"), back.join(", ")));
     }
     Ok(out)
+}
+
+fn no_page(title: &str, all: &[Page]) -> String {
+    let want = words(title);
+    let near: Vec<String> = all.iter().filter(|p| similarity(&want, &words(&p.title)) > 0.3 || p.title.to_lowercase().contains(&title.trim().to_lowercase())).map(|p| p.title.clone()).take(8).collect();
+    if near.is_empty() {
+        tf("Nessuna pagina «{t}»: puoi crearla con memory_page_write.", &[("t", &title.trim().to_string())])
+    } else {
+        tf("Nessuna pagina «{t}». Simili: {near}", &[("t", &title.trim().to_string()), ("near", &near.join(", "))])
+    }
+}
+
+/// A page without its text: what it is, what it links to, who cites it.
+pub(crate) fn brief_of(page: &Page, all: &[Page]) -> String {
+    let mut out = format!("# {}", page.title);
+    let gist = page.gist();
+    if !gist.is_empty() {
+        out.push_str(&format!("\n{gist}"));
+    }
+    if !page.aliases.is_empty() {
+        out.push_str(&format!("\n{}: {}", t("alias"), page.aliases.join(", ")));
+    }
+    if !page.source.is_empty() {
+        out.push_str(&format!("\n{}: {}", t("fonte"), page.source));
+    }
+    if !page.updated.is_empty() {
+        out.push_str(&format!("\n{}: {}", t("aggiornata"), page.updated));
+    }
+    out.push_str(&format!("\n{}", tf("Testo intero: {n} caratteri", &[("n", &page.body.chars().count().to_string())])));
+    for l in page.links.iter().take(MAX_BRIEF_LINKS) {
+        out.push_str(&format!("\n- [[{}]]{}", l.target, l.tag()));
+    }
+    if page.links.len() > MAX_BRIEF_LINKS {
+        out.push_str(&format!("\n- {}", tf("altri {n} collegamenti", &[("n", &(page.links.len() - MAX_BRIEF_LINKS).to_string())])));
+    }
+    let back = backlinks(&page.title, all);
+    if !back.is_empty() {
+        out.push_str(&format!("\n{}: {}", t("collegata da"), back.join(", ")));
+    }
+    out
+}
+
+/// memory_page with brief: the card of a page; without a title the list.
+pub fn tool_brief(title: &str) -> Result<String, String> {
+    if title.trim().is_empty() {
+        return tool_read(title);
+    }
+    let all = pages();
+    let Some((page, _)) = find(title) else { return Err(no_page(title, &all)) };
+    Ok(brief_of(&page, &all))
+}
+
+/// One step of a way between two pages, seen from where it starts.
+struct Step {
+    to: usize,
+    rel: String,
+    inferred: bool,
+    /// The link is written in the page the step starts from.
+    forward: bool,
+}
+
+/// The shortest way between two pages, whichever way the links are written;
+/// between ways as short, the one with fewer inferred steps.
+pub(crate) fn path_text(all: &[Page], from: &str, to: &str) -> Result<String, String> {
+    let index = |name: &str| {
+        let key = slug(name);
+        all.iter().position(|p| p.answers_to(&key)).ok_or_else(|| no_page(name, all))
+    };
+    let (start, end) = (index(from)?, index(to)?);
+    if start == end {
+        return Ok(t("È la stessa pagina.").to_string());
+    }
+    let by_slug: HashMap<&str, usize> = all.iter().enumerate().map(|(i, p)| (p.slug.as_str(), i)).collect();
+    let mut around: Vec<Vec<Step>> = all.iter().map(|_| Vec::new()).collect();
+    for (i, p) in all.iter().enumerate() {
+        for l in &p.links {
+            let Some(&j) = by_slug.get(target_of(all, &l.target).as_str()) else { continue };
+            if i == j {
+                continue;
+            }
+            if let Some(steps) = around.get_mut(i) {
+                steps.push(Step { to: j, rel: l.rel.clone(), inferred: l.inferred, forward: true });
+            }
+            if let Some(steps) = around.get_mut(j) {
+                steps.push(Step { to: i, rel: l.rel.clone(), inferred: l.inferred, forward: false });
+            }
+        }
+    }
+    let mut best: HashMap<usize, (usize, usize)> = HashMap::from([(start, (0, 0))]);
+    let mut came: HashMap<usize, (usize, usize)> = HashMap::new();
+    let mut queue = BinaryHeap::from([Reverse(((0usize, 0usize), start))]);
+    while let Some(Reverse((cost, at))) = queue.pop() {
+        if best.get(&at).is_some_and(|b| *b < cost) || cost.0 >= MAX_PATH {
+            continue;
+        }
+        for (k, step) in around.get(at).map(Vec::as_slice).unwrap_or_default().iter().enumerate() {
+            let next = (cost.0 + 1, cost.1 + usize::from(step.inferred));
+            if best.get(&step.to).is_none_or(|b| next < *b) {
+                best.insert(step.to, next);
+                came.insert(step.to, (at, k));
+                queue.push(Reverse((next, step.to)));
+            }
+        }
+    }
+    let name = |i: usize| all.get(i).map(|p| p.title.clone()).unwrap_or_default();
+    let Some(&(hops, inferred)) = best.get(&end) else {
+        return Err(tf("Nessun collegamento tra «{a}» e «{b}» entro {n} passi.", &[("a", &name(start)), ("b", &name(end)), ("n", &MAX_PATH.to_string())]));
+    };
+    let mut lines = Vec::new();
+    let mut at = end;
+    while let Some(&(before, k)) = came.get(&at) {
+        if let Some(step) = around.get(before).and_then(|s| s.get(k)) {
+            let arrow = match (step.forward, step.rel.is_empty()) {
+                (true, true) => "→".to_string(),
+                (true, false) => format!("→ {} →", step.rel),
+                (false, true) => "←".to_string(),
+                (false, false) => format!("← {} ←", step.rel),
+            };
+            let mark = if step.inferred { format!(" ({})", t("dedotto")) } else { String::new() };
+            lines.push(format!("[[{}]] {arrow} [[{}]]{mark}", name(before), name(at)));
+        }
+        if before == start {
+            break;
+        }
+        at = before;
+    }
+    lines.reverse();
+    let mut out = tf("Da [[{a}]] a [[{b}]] (passi: {n}):", &[("a", &name(start)), ("b", &name(end)), ("n", &hops.to_string())]);
+    out.push('\n');
+    out.push_str(&lines.join("\n"));
+    if inferred > 0 {
+        out.push_str(&format!("\n{}", t("Almeno un passo è dedotto, non scritto in una fonte.")));
+    }
+    Ok(out)
+}
+
+/// memory_path: how two pages are linked.
+pub fn tool_path(from: &str, to: &str) -> Result<String, String> {
+    path_text(&pages(), from, to)
 }
 
 /// memory_page_write: creates a page or replaces it. An existing page needs
@@ -804,8 +960,7 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
                 continue;
             }
             if let Some(q) = all.iter().find(|q| q.slug == s) {
-                let rel = if l.rel.is_empty() { String::new() } else { format!(" ({})", l.rel) };
-                related.push(format!("↳ [[{}]]{rel} {}", q.title, q.gist()));
+                related.push(format!("↳ [[{}]]{} {}", q.title, l.tag(), q.gist()));
                 first_hop.push(q);
             }
         }
@@ -828,7 +983,7 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
             if from_first && !l.rel.is_empty() && !v.1 {
                 v.1 = true;
                 v.2 = p.title.clone();
-                v.3 = l.rel.clone();
+                v.3 = l.tag();
             } else if v.2.is_empty() {
                 v.2 = p.title.clone();
             }
@@ -838,7 +993,6 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
     strong.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(b.1 .1.cmp(&a.1 .1)));
     for (s, (_, _, via, rel)) in strong.into_iter().take(MAX_SECOND_HOP) {
         if let Some(r) = all.iter().find(|r| r.slug == s) {
-            let rel = if rel.is_empty() { String::new() } else { format!(" ({rel})") };
             found.push(format!("↳ [[{via}]] → [[{}]]{rel} {}", r.title, r.gist()));
         }
     }
@@ -868,7 +1022,8 @@ pub struct Edge {
     pub to: String,
     pub label: String,
     /// 3: written in the files, or judged by the AI (memory_links.rs); 2: the
-    /// note names the page; 1: a guess from words in common.
+    /// note names the page, or between pages a link marked "(dedotto)"; 1: a
+    /// guess from words in common.
     pub strength: u8,
 }
 
@@ -1016,7 +1171,7 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
             if !page_ids.contains(&to) && ids.insert(to.clone()) {
                 nodes.push(Node { id: to.clone(), kind: "missing", label: l.target.clone(), date: String::new(), text: String::new(), weight: 0, origin: String::new() });
             }
-            add_edge(&mut edges, &mut seen, &mut degree, id.clone(), to, l.rel.clone());
+            add_edge_at(&mut edges, &mut seen, &mut degree, id.clone(), to, l.rel.clone(), if l.inferred { 2 } else { 3 });
         }
         for s in p.source.split(", ").map(str::trim).filter(|s| !s.is_empty()) {
             let sid = format!("s:{}", s.to_lowercase());
@@ -1625,10 +1780,50 @@ mod tests {
     fn links_with_relations() {
         let l = links_in("Lavora con [[Bianchi]] e [[Verdi|il signor Verdi]].\n- cliente di: [[Studio Neri#contatti]]\n- nota senza link: x");
         assert_eq!(l, vec![
-            Link { rel: String::new(), target: "Bianchi".into() },
-            Link { rel: String::new(), target: "Verdi".into() },
-            Link { rel: "cliente di".into(), target: "Studio Neri".into() },
+            Link { rel: String::new(), target: "Bianchi".into(), inferred: false },
+            Link { rel: String::new(), target: "Verdi".into(), inferred: false },
+            Link { rel: "cliente di".into(), target: "Studio Neri".into(), inferred: false },
         ]);
+        let l = links_in("- usa: [[Server]] (dedotto)\n- [[Rete]] (Dedotto) \nDa [[Mail]] (dedotto) ieri");
+        assert_eq!(l.iter().map(|l| (l.rel.as_str(), l.inferred)).collect::<Vec<_>>(), vec![("usa", true), ("", true), ("", false)]);
+    }
+
+    #[test]
+    fn a_card_has_no_text() {
+        let a = parse("rossi", "# Rossi\nriassunto: Cliente storico.\nalias: RS\n\nPaga a 60 giorni.\n- usa: [[Server]] (dedotto)\n");
+        let b = parse("neri", "# Neri\n\n- socio: [[Rossi]]\n");
+        let card = brief_of(&a, &[a.clone(), b]);
+        assert!(card.contains("Cliente storico.") && card.contains("RS"), "{card}");
+        assert!(card.contains("[[Server]] (usa, dedotto)") && card.contains("Neri"), "{card}");
+        assert!(!card.contains("60 giorni"), "{card}");
+    }
+
+    #[test]
+    fn a_way_between_pages() {
+        let all = vec![
+            parse("a", "# A\nalias: Alfa\n\n- cliente di: [[B]]\n"),
+            parse("b", "# B\n\nTesto.\n"),
+            parse("c", "# C\n\n- usa: [[B]]\n- usa: [[D]] (dedotto)\n"),
+            parse("d", "# D\n\n- [[A]] (dedotto)\n"),
+            parse("e", "# E\n\nDa solo.\n"),
+        ];
+        let way = path_text(&all, "Alfa", "C").unwrap();
+        assert!(way.contains("(passi: 2)"), "{way}");
+        // Two ways as short: the written one wins.
+        assert!(way.contains("[[A]] → cliente di → [[B]]") && way.contains("[[B]] ← usa ← [[C]]") && !way.contains("dedotto"), "{way}");
+        let way = path_text(&all, "A", "D").unwrap();
+        assert!(way.contains("[[A]] ← [[D]] (dedotto)") && way.contains("Almeno un passo"), "{way}");
+        assert!(path_text(&all, "A", "E").unwrap_err().contains("Nessun collegamento"));
+        assert!(path_text(&all, "A", "Z").is_err());
+        assert_eq!(path_text(&all, "A", "Alfa").unwrap(), "È la stessa pagina.");
+    }
+
+    #[test]
+    fn a_way_stops_after_the_last_step() {
+        let mut all: Vec<Page> = (0..9).map(|i| parse(&format!("p{i}"), &format!("# P{i}\n\n- [[P{}]]\n", i + 1))).collect();
+        all.push(parse("p9", "# P9\n\nFine.\n"));
+        assert!(path_text(&all, "P0", "P6").is_ok());
+        assert!(path_text(&all, "P0", "P7").is_err());
     }
 
     #[test]

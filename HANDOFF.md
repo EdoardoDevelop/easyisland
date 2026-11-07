@@ -48,6 +48,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 7/11 — Memoria: scheda, percorso, dedotto
+`memory_page` con `brief` dà riassunto e collegamenti senza il testo; `memory_path` trova la strada fra due pagine; i collegamenti ricavati da un motore finiscono con `(dedotto)`. I file `.md` restano (`docs/decisioni.md`). Gruppi e percorso erano già nella Mappa. Da provare con la memoria vera e un motore vero.
+
 ### 6/11 — Niente bagliori nelle schede
 Tolti in Classico e Windows l'alone colorato in fondo alle schede (`.card.wash`, `washRGBA`), quello di rilascio e caricamento e gli aloni di pulsanti e pallini. Restano gli effetti dei personaggi e il bagliore dietro il personaggio (`#bot-glow`). La chat a finestra non ha più cornice (`POPWIN_CSS` in `popout.ts`). Anteprima: con molte schede la pagina non si allarga più; scorrono con la rotella e l'attiva resta in vista. Barra della chat: **Nuovo** e **Cerca** affiancati, Cerca apre e chiude il campo. Campo della chat su due righe: sotto il testo Progetto, motore, Multi agent, Automatica (`docs/chat.md`). Graffetta disegnata al posto dell'emoji. Dopo il logo d'avvio l'isola si ritira senza sfondo e il personaggio appare in dissolvenza al suo posto. Titolo della finestra: mostra anche le finestre vere di EasyIsland, non barra e isola (`fgwin.rs`). Cronologia della chat: solo il titolo, data, motore e domande nel suggerimento. Branch del progetto su «Progetto…» (`gitbranch.rs`). Contesto di Claude Code sotto il campo (`docs/chat.md`). Icone animate (`views/anim-icons.css`).
 
@@ -60,5 +63,3 @@ Mappa: fra due pagine solo i [[link]] (`brain::graph_in`). Agent Chat: chi non p
 ### 6/11 — Chat: Multi agent
 `team.rs`: chi guida delega con `team_delegate` ai motori di Impostazioni → Chat, aiutanti in sola lettura, un solo scrittore, controllo finale lanciato dall'app da un motore di altra famiglia. Provati dal vivo con opencode sola lettura, git e bug piantato; `docs/chat.md` → Multi agent.
 
-### 6/11 — Chat: la riga che si scrive non taglia più
-`typeline.ts`: finisce sempre la riga iniziata, dei passi in arrivo tiene solo l'ultimo (gli altri sono nell'elenco); del ragionamento mostra solo frasi intere; niente più cancellazione a lettere. Le frasi di attesa cedono appena scritte. Scena `pensa=corsa`.

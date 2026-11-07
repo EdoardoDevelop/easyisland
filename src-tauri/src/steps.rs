@@ -43,6 +43,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "memory_search" => t("Cerca nella memoria"),
         "memory_note" => t("Si annota qualcosa nella memoria"),
         "memory_page" => t("Legge una pagina della memoria"),
+        "memory_path" => t("Cerca come sono collegate due pagine"),
         "memory_page_write" => t("Scrive una pagina della memoria"),
         "memory_inbox" => t("Guarda le fonti da leggere"),
         "memory_inbox_done" => t("Segna una fonte come letta"),

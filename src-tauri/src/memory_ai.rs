@@ -228,7 +228,7 @@ fn apply(a: &Answer, notes: &[String]) -> String {
             continue;
         }
         let rel = one_line(&l.relation, 40);
-        let line = if rel.is_empty() { format!("- [[{to}]]") } else { format!("- {rel}: [[{to}]]") };
+        let line = if rel.is_empty() { format!("- [[{to}]] {}", brain::INFERRED) } else { format!("- {rel}: [[{to}]] {}", brain::INFERRED) };
         if text.to_lowercase().contains(&format!("[[{}]]", to.to_lowercase())) {
             continue;
         }

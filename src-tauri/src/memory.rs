@@ -87,7 +87,7 @@ pub fn preface(tools: bool) -> Option<String> {
         body.push('\n');
     }
     let how = if tools {
-        t("Se serve qualcosa di una conversazione passata o di un argomento (persone, clienti, progetti), cercalo con memory_search (note, pagine collegate e diario delle domande); memory_page apre una pagina intera. Quando l'utente dice qualcosa che vale per le prossime volte (una preferenza, un cliente, come si fa una cosa), salvalo con memory_note in una riga, senza chiedere e senza dirlo a lungo.")
+        t("Se serve qualcosa di una conversazione passata o di un argomento (persone, clienti, progetti), cercalo con memory_search (note, pagine collegate e diario delle domande); memory_page con brief dà la scheda di una pagina (riassunto e collegamenti), senza brief il testo intero: aprilo solo se la scheda non basta o per riscriverla; memory_path dice come sono collegate due pagine. Quando l'utente dice qualcosa che vale per le prossime volte (una preferenza, un cliente, come si fa una cosa), salvalo con memory_note in una riga, senza chiedere e senza dirlo a lungo.")
     } else {
         ""
     };

@@ -33,6 +33,9 @@ Cliente dal 2021, commercialisti, 8 postazioni.
 - `[[Titolo]]` collega un'altra pagina; una riga `- relazione: [[Altra]]` dice **come** sono legate.
 - `riassunto:` è una frase su chi o cosa è; `alias:` gli altri nomi con cui lo chiami (sigle, nomi di prodotto). Sono facoltativi: li scrive il motore per la memoria o la chat, e puoi correggerli a mano.
 - Quando la chat cerca nella memoria, riceve le pagine trovate **e il riassunto di quelle collegate**: più contesto con poche parole. Fa anche un passo in più, ma solo sui legami forti: se «Studio Rossi» ha come referente «Marco Rossi», e la sua pagina dice «- sede: [[Torino]]», arriva anche a Torino. Cerca anche negli alias: chiedendo di «UDM» trova la pagina «Dream Machine», e un `[[UDM]]` porta a quella pagina.
+- Per risparmiare, la chat guarda prima la **scheda** di una pagina (riassunto e collegamenti) e apre il testo intero solo se serve.
+- Se chiedi come sono legate due cose, la chat trova la **strada più corta** fra le due pagine, passo per passo, senza leggerle.
+- Una riga che finisce con `(dedotto)` è un legame ricavato da un motore, non scritto in una fonte: controllalo, e togli il segno se è giusto.
 - La chat le scrive quando le chiedi «fai una pagina su…», e dalle fonti (sotto).
 - **Scritture sicure**: se modifichi a mano una pagina mentre l'agente ci lavora, la sua scrittura viene rifiutata; deve rileggerla e ripartire dalla tua versione.
 

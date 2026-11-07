@@ -19,7 +19,7 @@ export interface MemEdge {
   from: string;
   to: string;
   label: string;
-  /** 3 written or judged by the AI, 2 the note names the page, 1 a guess (brain.rs). */
+  /** 3 written or judged by the AI, 2 the note names the page or (between pages) inferred, 1 a guess (brain.rs). */
   strength?: number;
 }
 

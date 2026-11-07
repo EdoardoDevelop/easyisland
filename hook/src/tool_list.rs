@@ -288,15 +288,25 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "memory_page",
-            "Una pagina della memoria (le pagine su persone, clienti, progetti e concetti, collegate tra loro con [[Titolo]]), con la sua versione e le pagine che la citano. title: il titolo; vuoto = l'elenco delle pagine e dei file che aspettano in da-leggere.",
+            "Una pagina della memoria (le pagine su persone, clienti, progetti e concetti, collegate tra loro con [[Titolo]]), con la sua versione e le pagine che la citano. title: il titolo; vuoto = l'elenco delle pagine e dei file che aspettano in da-leggere. brief: true = solo la scheda (riassunto, collegamenti, chi la cita, lunghezza del testo): usala per prima, apri il testo intero solo se non basta o per riscriverla.",
             json!({ "type": "object", "properties": {
-                "title": { "type": "string" }
+                "title": { "type": "string" },
+                "brief": { "type": "boolean" }
             } }),
             true,
         ),
         (
+            "memory_path",
+            "Come sono collegate due pagine della memoria: la strada più corta, passo per passo, con i passi dedotti segnati. from, to: titoli o alias.",
+            json!({ "type": "object", "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" }
+            }, "required": ["from", "to"] }),
+            true,
+        ),
+        (
             "memory_page_write",
-            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». Il testo può cominciare con «riassunto: …» (una frase su chi o cosa è: la chat la legge per le pagine collegate) e «alias: …» (altri nomi, separati da virgole: sigle, nomi di prodotto); senza queste righe la pagina tiene i suoi. title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
+            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]»; se la relazione l'hai ricavata tu e la fonte non la dice, chiudi la riga con «(dedotto)». Il testo può cominciare con «riassunto: …» (una frase su chi o cosa è: la chat la legge per le pagine collegate) e «alias: …» (altri nomi, separati da virgole: sigle, nomi di prodotto); senza queste righe la pagina tiene i suoi. title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
                 "text": { "type": "string" },
