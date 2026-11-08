@@ -1387,6 +1387,12 @@ input[type="range"]::-webkit-slider-thumb {
   background: #f5b041;
 }
 
+/* Claude Code's «Accetta modifiche» and «Piano». */
+.auto-btn.mode {
+  color: var(--ink);
+  background: rgba(129, 140, 248, 0.35);
+}
+
 .chat-card.auto {
   box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75);
 }

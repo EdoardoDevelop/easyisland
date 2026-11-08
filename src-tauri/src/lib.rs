@@ -122,6 +122,7 @@ mod documents;
 mod ooxzip;
 mod pdfpages;
 mod redact;
+mod checkpoints;
 mod pdftext;
 mod win_user;
 mod window_drop;
@@ -1315,9 +1316,12 @@ async fn chat_send(
     folder: Option<String>,
     team: Option<bool>,
     effort: Option<String>,
+    mode: Option<String>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
     chat.set_folder(folder);
+    // Piano, Accetta modifiche: Claude Code's permission mode for this conversation.
+    chat.set_mode(mode);
     // The effort picked in the chat, else the last one picked (Impostazioni keeps it).
     let fallback = app.state::<Shared>().settings.lock().unwrap().cli_effort.clone();
     chat.set_effort(effort.filter(|e| !e.is_empty()).or(Some(fallback)));
@@ -1358,7 +1362,11 @@ async fn chat_send(
     } else {
         chat_turn(&app, &chat, query, context, engine, None, auto, Channel::Island, &on_text).await?
     };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context() })
+    // The plan approved on its card: Claude Code works now, as in Claude Desktop the mode leaves «Piano».
+    if chat.mode().as_deref() == Some("plan") && chat.cli_session().is_some_and(|s| permits::plan_approved(&s)) {
+        chat.set_mode(None);
+    }
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default() })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1369,6 +1377,8 @@ struct IslandReply {
     log: Option<String>,
     /// Tokens in the context and its size (0 = unknown), when the engine says.
     context: Option<(u64, u64)>,
+    /// Claude Code's mode after the turn ("" = ask): «Piano» ends when its plan is approved.
+    mode: String,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1504,6 +1514,7 @@ fn chat_stop(chats: State<'_, Chats>, sid: String) {
 fn chat_close(chats: State<'_, Chats>, sid: String) {
     let Some(chat) = chats.0.lock().unwrap().remove(&sid) else { return };
     chat.stop.notify_waiters();
+    checkpoints::forget(std::sync::Arc::as_ptr(&chat) as usize);
     claude_cli::drop_live(&chat);
     opencode::forget(chat.cli_session());
 }
@@ -1679,6 +1690,10 @@ pub(crate) async fn chat_turn(
     // seconds: nothing is lost if the turn never ends (chat_log::begin).
     let keep = !matches!(channel, Channel::Helper | Channel::AgentChat | Channel::Revision) && shared.settings.lock().unwrap().chat_history;
     let prefix = match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" };
+    // «⟲ File»: in Modalità terminale each turn is a checkpoint of the files it changes.
+    if terminal.is_some() && matches!(channel, Channel::Island | Channel::Telegram) {
+        checkpoints::begin(chat as *const Chat as usize, chat_log::line_count(chat));
+    }
     if keep {
         chat_log::begin(chat, &engine, &asked, prefix);
     }
@@ -3079,6 +3094,46 @@ async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, Strin
     tauri::async_runtime::spawn_blocking(move || workdir::pick_folder(start)).await.map_err(|e| e.to_string())?
 }
 
+/// «⟲ File»: what going back to the question after `at` lines would restore
+/// (path, deleted because created there), for the confirmation.
+#[tauri::command]
+fn chat_files_since(chats: State<'_, Chats>, sid: String, at: usize) -> Vec<(String, bool)> {
+    chats.find(&sid).map(|c| checkpoints::changed_since(std::sync::Arc::as_ptr(&c) as usize, at)).unwrap_or_default()
+}
+
+/// «⟲ File», confirmed: the files as they were before that question.
+#[tauri::command]
+fn chat_files_restore(chats: State<'_, Chats>, sid: String, at: usize) -> Result<usize, String> {
+    let c = chats.find(&sid).ok_or_else(|| t("Conversazione sconosciuta.").to_string())?;
+    checkpoints::restore(std::sync::Arc::as_ptr(&c) as usize, at)
+}
+
+/// «Copia separata (worktree)» in «Progetto…»: the folder of a new git worktree of that project.
+#[tauri::command]
+async fn chat_worktree(folder: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || gitbranch::new_worktree(std::path::Path::new(&folder)).map(|p| p.display().to_string()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Claude Code's slash commands for the chat's «/» menu (claude_cli::commands).
+#[tauri::command]
+fn chat_claude_commands() -> Vec<String> {
+    claude_cli::commands()
+}
+
+/// Claude Code sessions started outside EasyIsland, for the history (desktop::outside).
+#[tauri::command]
+async fn chat_claude_sessions() -> Vec<desktop::Outside> {
+    tauri::async_runtime::spawn_blocking(|| desktop::outside(&chat_log::sessions())).await.unwrap_or_default()
+}
+
+/// One of them into the history; back: the conversation to reopen.
+#[tauri::command]
+fn chat_claude_session_import(id: String) -> Result<String, String> {
+    chat_log::import(&id)
+}
+
 /// The git branch of a chat's project, for the «Progetto…» button (off the main thread: it may be a network folder).
 #[tauri::command]
 async fn chat_branch(folder: String) -> Option<String> {
@@ -4394,6 +4449,12 @@ pub fn run() {
             chat_reset,
             chat_history_list,
             chat_history_open,
+            chat_claude_commands,
+            chat_worktree,
+            chat_files_since,
+            chat_files_restore,
+            chat_claude_sessions,
+            chat_claude_session_import,
             chat_pick_folder,
             chat_folders,
             chat_branch,

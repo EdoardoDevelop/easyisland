@@ -152,6 +152,12 @@ pub struct Chat {
     /// A conversation reopened on its own Claude Code session: the text to
     /// start from if that session cannot be resumed (claude_cli::send_mode).
     resume_fallback: Mutex<Option<String>>,
+    /// Modifica, Rigenera, Dirama: the next turn resumes the session at this
+    /// answer, as a new session (`--resume-session-at`, `--fork-session`).
+    resume_at: Mutex<Option<String>>,
+    /// The chat's choice for Claude Code's permissions in Modalità terminale:
+    /// "acceptEdits" or "plan" (None = ask; «Automatica» is `auto`).
+    mode: Mutex<Option<String>>,
     /// The assistant picked for this conversation (Impostazioni → Chat →
     /// Assistenti): its instructions go in front of the first question. Not
     /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
@@ -227,7 +233,24 @@ impl Chat {
         *self.log_id.lock().unwrap() = None;
         *self.preamble.lock().unwrap() = None;
         *self.resume_fallback.lock().unwrap() = None;
+        *self.resume_at.lock().unwrap() = None;
         *self.desktop.lock().unwrap() = None;
+    }
+
+    pub(crate) fn set_resume_at(&self, uuid: Option<String>) {
+        *self.resume_at.lock().unwrap() = uuid;
+    }
+
+    pub(crate) fn take_resume_at(&self) -> Option<String> {
+        self.resume_at.lock().unwrap().take()
+    }
+
+    pub(crate) fn set_mode(&self, mode: Option<String>) {
+        *self.mode.lock().unwrap() = mode.filter(|m| matches!(m.as_str(), "acceptEdits" | "plan"));
+    }
+
+    pub(crate) fn mode(&self) -> Option<String> {
+        self.mode.lock().unwrap().clone()
     }
 
     pub(crate) fn set_resume_fallback(&self, text: Option<String>) {

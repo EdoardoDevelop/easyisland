@@ -310,8 +310,8 @@ export const Bridge = {
   chatFolders: () => callOrThrow<string[]>("chat_folders"),
   chatBranch: (folder: string) => call<string>("chat_branch", { folder }),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
-  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null) =>
-    callOrThrow<{ text: string; log: string | null; context: [number, number] | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort }),
+  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "") =>
+    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
@@ -337,6 +337,17 @@ export const Bridge = {
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
   chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null }>("chat_history_open", { sid, id }),
   chatHistoryDelete: (id: string) => call<void>("chat_history_delete", { id }),
+  /** Claude Code's slash commands (its own, the user's, skills, plugins) for the «/» menu. */
+  chatClaudeCommands: () => call<string[]>("chat_claude_commands"),
+  /** Claude Code sessions started outside EasyIsland (terminal, Claude Desktop), for the history. */
+  chatClaudeSessions: () => call<{ id: string; title: string; folder: string; updated: number }[]>("chat_claude_sessions"),
+  /** One of them into the history: the conversation's id, to reopen. */
+  chatClaudeSessionImport: (id: string) => callOrThrow<string>("chat_claude_session_import", { id }),
+  /** «⟲ File»: what going back to the question after `at` lines would restore ([path, deleted]). */
+  chatFilesSince: (sid: string, at: number) => call<[string, boolean][]>("chat_files_since", { sid, at }),
+  chatFilesRestore: (sid: string, at: number) => callOrThrow<number>("chat_files_restore", { sid, at }),
+  /** «Copia separata»: a git worktree of the project, its folder. */
+  chatWorktree: (folder: string) => callOrThrow<string>("chat_worktree", { folder }),
   chatHistoryClear: () => call<void>("chat_history_clear"),
   /** Quick actions. */
   actionOpenApp: (target: string, args: string) => callOrThrow<void>("action_open_app", { target, args }),

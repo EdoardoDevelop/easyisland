@@ -71,6 +71,12 @@ The ⚡ button in the chat header (terminal mode only) applies **to the current 
 - **Claude Code**: its automatic mode approves normal actions and blocks risky ones.
 - **opencode and the others**: file changes, web and non-sensitive commands go through by themselves. Sensitive commands stay on the card (deleting, `git push` and `reset --hard`, installing, registry, services, network, processes, downloaded code), as do folders outside the working one and connector tools that delete.
 
+**Claude Code's modes**, as in Claude Desktop: with Claude Code the same button goes, at each click, through **Allow / Deny** (every action asks), **Accept edits** (file edits go by themselves, commands ask), **Plan** (Claude reads and prepares a plan without changing anything; you approve it on the card and then it works, and the chat goes back to Allow / Deny) and **Automatic**.
+
+**"Always" holds for the whole conversation**: a command, a site or file edits allowed with "Always" stop asking while the conversation goes on, even after a long pause.
+
+**Separate copy.** In **Project…**, **Separate copy (worktree)** makes a copy of the project on a branch of its own (`git worktree`, in `.claude\worktrees`), as Claude Desktop does for each session: the chat works there and does not touch the other chats' files. It needs git installed; the copy stays until you remove it (`git worktree remove`).
+
 The mode that accepts everything without any check **doesn't exist** in EasyIsland, on purpose.
 
 ## The working folder

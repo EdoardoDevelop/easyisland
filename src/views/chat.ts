@@ -266,6 +266,9 @@ export function windowLabel(w: { appName: string; title: string }): string {
 /** The user's skills (skills.rs), for the «/commands»; read again at most every 5 s. */
 let skillCache: Skill[] = [];
 let skillsRead = 0;
+/** Claude Code's slash commands (its `init` line), for the «/» menu with Claude Code. */
+let claudeCommands: string[] = [];
+let claudeRead = 0;
 
 /** A command typed after "/" in the field (the menu over it lists them). */
 interface Slash {
@@ -671,8 +674,11 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null, context: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null));
+        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "");
       if (reply.log) c.logId = reply.log;
+      // «Piano» ends when its plan is approved, as in Claude Desktop.
+      if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
       c.context = reply.context ?? null;
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
@@ -1024,6 +1030,32 @@ export function buildPrompt(
   }
 
   /** «Modifica»: the question back in the field; sending it starts over from there. */
+  /** «⟲ File»: what changed from this question on, then a second click restores it. */
+  let restoreAsk: { sid: string; at: number; until: number } | null = null;
+  async function restoreFiles(index: number) {
+    const c = State.chat;
+    const list = (await Bridge.chatFilesSince(c.sid, index)) ?? [];
+    if (!list.length) {
+      flash(t("Nessun file cambiato da Claude Code da questa domanda in poi (i comandi non contano)."));
+      return;
+    }
+    const ask = restoreAsk;
+    if (!ask || ask.sid !== c.sid || ask.at !== index || Date.now() > ask.until) {
+      restoreAsk = { sid: c.sid, at: index, until: Date.now() + 8000 };
+      const names = list.map(([p, del]) => `${folderName(p)}${del ? ` (${t("da eliminare")})` : ""}`).join(", ");
+      flash(t("Ripristino {n} file: {names}. Clic di nuovo su ⟲ File per confermare.", { n: list.length, names }));
+      return;
+    }
+    restoreAsk = null;
+    try {
+      const n = await Bridge.chatFilesRestore(c.sid, index);
+      flash(t("{n} file come prima di questa domanda.", { n }));
+      Sound.play("finish");
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
   function edit(index: number) {
     if (State.chat.sending) return;
     editing = index;
@@ -1058,6 +1090,9 @@ export function buildPrompt(
     const own = !State.chatSession && !State.chat.sending;
     if (own && m.role === "user") {
       bar.append(h("button", { class: "msg-act", text: t("Modifica"), onclick: () => edit(index) }));
+      if (State.settings.chatTerminal === true) {
+        bar.append(h("button", { class: "msg-act", title: t("Riporta i file cambiati da questa domanda in poi com'erano prima (come in Claude Desktop); la conversazione resta"), text: `⟲ ${t("File")}`, onclick: () => void restoreFiles(index) }));
+      }
     }
     if (own && last && m.role === "assistant" && !m.reviewer) {
       bar.append(h("button", { class: "msg-act", text: `↻ ${t("Rigenera")}`, onclick: () => void regenerate() }));
@@ -1177,6 +1212,7 @@ export function buildPrompt(
       // An engine picked in the menu was for that conversation only; so was "Automatica".
       c.engineOverride = null;
       c.auto = false;
+      c.mode = "";
       c.team = false;
       c.desktop = false;
       c.assistant = null;
@@ -1378,6 +1414,24 @@ export function buildPrompt(
       taken.add(sk.id);
       list.push({ name: sk.id, arg: true, hint: `📘 ${t("Abilità: {n}", { n: sk.name })}`, run: (a) => void useSkill(sk, a) });
     }
+    // Claude Code's own commands, the user's (.claude/commands), skills and plugins, as Claude Desktop lists them.
+    if (engineOf(State.chat) === "subscription") {
+      if (Date.now() - claudeRead > 30_000) {
+        claudeRead = Date.now();
+        void Promise.resolve(Bridge.chatClaudeCommands()).then((l) => { if (l) claudeCommands = l; });
+      }
+      for (const name of claudeCommands) {
+        if (taken.has(name)) continue;
+        taken.add(name);
+        list.push({ name, arg: true, hint: `✳ ${t("Comando di Claude Code")}`, run: (a) => {
+          const text = a ? `/${name} ${a}` : `/${name}`;
+          const c = State.chat;
+          if (c.sending) c.queue.push(text);
+          else void submit(text, c);
+          State.notify();
+        } });
+      }
+    }
     for (const a of State.settings.chatAssistants ?? []) {
       const name = slug(a.name);
       if (!name || taken.has(name)) continue;
@@ -1575,6 +1629,20 @@ export function buildPrompt(
           .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
       },
     }));
+    // A git worktree on a branch of its own, as Claude Desktop gives a session: two chats never touch the same files.
+    const base = own ?? (State.settings.chatFolder || null);
+    if (base) {
+      engineMenu.append(h("button", {
+        class: "engine-item", title: t("Una copia del progetto con un suo branch (git worktree) in .claude\\worktrees: questa chat lavora lì senza toccare i file degli altri"),
+        text: t("Copia separata (worktree) di {name}", { name: folderName(base) }),
+        onclick: () => {
+          engineMenu.style.display = "none";
+          void Bridge.chatWorktree(base)
+            .then((f) => { pickFolder(f); flash(t("Questa chat lavora in una copia separata: {path}", { path: f })); })
+            .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
+        },
+      }));
+    }
     engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat: legge le regole e il git del progetto. La predefinita: Impostazioni → Chat") }));
     engineMenu.style.display = "";
   }
@@ -1659,6 +1727,9 @@ export function buildPrompt(
   /** The history as last read: the sidebar is drawn again from it when a conversation changes state. */
   let lastList: ChatSummary[] = [];
   let lastQuery = "";
+  /** Claude Code sessions of the terminal or Claude Desktop (read again at most every 60 s). */
+  let outside: { id: string; title: string; folder: string; updated: number }[] = [];
+  let outsideRead = 0;
   let historyRead = false;
   const closedProjects = readClosedProjects();
 
@@ -1821,7 +1892,27 @@ export function buildPrompt(
     list.filter((c) => c.pinned).forEach(dated);
     for (const p of projectsOf(list.filter((c) => !c.pinned && c.folder), fresh.filter((c) => c.folder))) drawProject(p, query.trim() !== "", savedRow, freshRow);
     list.filter((c) => !c.pinned && !c.folder).forEach(dated);
+    // Sessions of Claude Code started elsewhere: a click takes one in and resumes it here.
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const others = outside.filter((s) => words.every((w) => s.title.toLowerCase().includes(w) || s.folder.toLowerCase().includes(w)));
+    if (others.length) historyRows.append(h("div", { class: "side-group", text: t("Claude Code fuori da EasyIsland") }));
+    for (const s of others) {
+      historyRows.append(h("div", { class: "history-item", title: `${when(s.updated)} · ${s.folder}`, onclick: () => void takeSession(s.id) },
+        h("div", { class: "history-text" }, h("span", { class: "history-title", text: s.title }))));
+    }
     onHeightChange();
+  }
+
+  /** A session of the terminal or Claude Desktop: into the history, then reopened on that session. */
+  async function takeSession(id: string) {
+    try {
+      const conv = await Bridge.chatClaudeSessionImport(id);
+      outside = outside.filter((s) => s.id !== id);
+      await reopen(conv);
+      void refreshHistory();
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
   }
 
   interface Project {
@@ -1891,6 +1982,10 @@ export function buildPrompt(
   async function refreshHistory() {
     const seq = ++searchSeq;
     const q = historySearch.value;
+    if (Date.now() - outsideRead > 60_000) {
+      outsideRead = Date.now();
+      outside = (await Bridge.chatClaudeSessions()) ?? [];
+    }
     const list = await loadHistory(q);
     if (seq === searchSeq) renderHistory(list, q);
   }
@@ -1956,6 +2051,7 @@ export function buildPrompt(
       c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
       c.folder = got.folder || null;
       c.auto = false;
+      c.mode = "";
       c.team = false;
       c.desktop = false;
       c.at = Date.now();
@@ -2005,7 +2101,18 @@ export function buildPrompt(
     input.focus();
   });
   autoBtn.addEventListener("click", () => {
-    State.chatAuto = !State.chatAuto;
+    // Claude Code: Consenti / Nega → Accetta modifiche → Piano → Automatica (its own modes, as Claude Desktop offers them).
+    const c = State.chat;
+    if (engineOf(c) === "subscription") {
+      const order = ["", "acceptEdits", "plan", "auto"];
+      const now = c.auto ? "auto" : c.mode;
+      const next = order[(order.indexOf(now) + 1) % order.length];
+      c.auto = next === "auto";
+      c.mode = next === "auto" ? "" : next;
+    } else {
+      c.auto = !c.auto;
+      c.mode = "";
+    }
     Sound.play("blip");
     State.notify();
     input.focus();
@@ -2374,10 +2481,19 @@ export function buildPrompt(
       previewBtn.classList.toggle("on", State.previewOpen);
       previewBtn.title = State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat");
       autoBtn.classList.toggle("on", auto);
+      const claudeMode = terminal && !auto && engineOf(State.chat) === "subscription" ? State.chat.mode : "";
+      autoBtn.classList.toggle("mode", !!claudeMode);
+      const modeLabel = auto ? t("Automatica") : claudeMode === "plan" ? t("Piano") : claudeMode === "acceptEdits" ? t("Accetta modifiche") : t("Automatica");
+      const labelEl = autoBtn.querySelector("span");
+      if (labelEl && labelEl.textContent !== modeLabel) labelEl.textContent = modeLabel;
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
-      autoBtn.title = State.chatEngine === "subscription"
+      autoBtn.title = claudeMode === "plan"
+        ? t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
+        : claudeMode === "acceptEdits"
+        ? t("Accetta modifiche: le modifiche ai file vanno senza chiedere, i comandi chiedono ancora. Clic: Piano")
+        : State.chatEngine === "subscription"
         ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
-          : t("Automatica: in questa conversazione Claude Code non chiede conferma per le azioni normali e blocca quelle rischiose"))
+          : t("Modalità di Claude Code. Clic: Accetta modifiche, poi Piano, poi Automatica, poi di nuovo Consenti / Nega"))
         : (auto ? t("Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega")
           : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora"));
       // The conversation's title: as the history has it, else its first question.

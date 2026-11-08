@@ -59,6 +59,9 @@ struct Conversation {
     session: String,
     /// The size of the context at the last turn (0 = unknown).
     context_size: u64,
+    /// After each turn of Claude Code: how many lines the conversation had and
+    /// the session's answer then (`--resume-session-at` for Modifica, Rigenera, Dirama).
+    marks: Vec<(usize, String)>,
 }
 
 /// One row of the list in the chat.
@@ -233,6 +236,8 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     let folder = chat.folder().unwrap_or_default();
     let session = if engine == "subscription" { chat.cli_session().unwrap_or_default() } else { String::new() };
     let size = chat.peek_context().map_or(0, |(_, size)| size);
+    // Where the session is now, once the answer is there (not for the question just sent).
+    let mark = (!session.is_empty() && reply != unfinished().as_str()).then(|| crate::desktop::last_answer_uuid(&session)).flatten();
     with_store(|s| {
         s.record(&id, engine, query, reply, messages, now);
         if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
@@ -242,6 +247,13 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
             }
             if size > 0 {
                 c.context_size = size;
+            }
+            if let Some(uuid) = mark.as_ref() {
+                let n = c.lines.len();
+                if c.marks.last().is_none_or(|(_, u)| u != uuid) {
+                    c.marks.retain(|(at, _)| *at < n);
+                    c.marks.push((n, uuid.clone()));
+                }
             }
         }
         if !prefix.is_empty() {
@@ -496,8 +508,34 @@ pub fn rename(id: &str, new_title: &str) {
 /// lines of this one; this one stays in the history as it was.
 pub fn fork(chat: &Chat, keep: Vec<Line>) {
     let key = chat.engine_key();
+    let at = at_mark(chat, keep.len());
+    let session = chat.cli_session();
     let preamble = (!keep.is_empty()).then(|| preamble(&keep));
-    chat.restore(&key, Vec::new(), None, preamble);
+    go_back(chat, &key, None, session, at, preamble);
+}
+
+/// The session's answer at the end of the first `n` lines of this conversation, if kept.
+fn at_mark(chat: &Chat, n: usize) -> Option<String> {
+    let id = chat.log_id()?;
+    if n == 0 {
+        return None;
+    }
+    with_store(|s| s.list.iter().find(|c| c.id == id).and_then(|c| c.marks.iter().rev().find(|(at, _)| *at == n).map(|(_, u)| u.clone())))
+}
+
+/// Back to an earlier point: Claude Code goes on in its own session from that
+/// answer, as Claude Desktop does (a new session, the old one stays); else, or
+/// if that session cannot be resumed, the conversation as text.
+fn go_back(chat: &Chat, key: &str, id: Option<String>, session: Option<String>, at: Option<String>, preamble: Option<String>) {
+    match (session.filter(|s| crate::desktop::session_exists(s)), at) {
+        (Some(session), Some(at)) => {
+            chat.restore(key, Vec::new(), id, None);
+            chat.set_cli_session(Some(session));
+            chat.set_resume_at(Some(at));
+            chat.set_resume_fallback(preamble);
+        }
+        _ => chat.restore(key, Vec::new(), id, preamble),
+    }
 }
 
 /// «Modifica» or «Rigenera» in the chat: the conversation goes back to its
@@ -505,6 +543,8 @@ pub fn fork(chat: &Chat, keep: Vec<Line>) {
 /// conversation with them as text in front of the next question.
 pub fn rewind(chat: &Chat, keep: Vec<Line>) {
     let key = chat.engine_key();
+    let at = at_mark(chat, keep.len());
+    let session = chat.cli_session();
     let mut id = chat.log_id();
     if let Some(i) = id.clone() {
         let n = keep.len();
@@ -514,6 +554,7 @@ pub fn rewind(chat: &Chat, keep: Vec<Line>) {
             } else if let Some(c) = s.list.iter_mut().find(|c| c.id == i) {
                 c.lines.truncate(n);
                 c.messages.clear();
+                c.marks.retain(|(at, _)| *at <= n);
             }
             s.save();
         });
@@ -522,7 +563,7 @@ pub fn rewind(chat: &Chat, keep: Vec<Line>) {
         }
     }
     let preamble = (!keep.is_empty()).then(|| preamble(&keep));
-    chat.restore(&key, Vec::new(), id, preamble);
+    go_back(chat, &key, id, session, at, preamble);
 }
 
 /// Puts the conversation back in `chat`, ready for the next question.
@@ -541,6 +582,45 @@ pub fn open(chat: &Chat, id: &str, key: &str) -> Result<Opened, String> {
     let preamble = if resends(&c.engine) && !c.messages.is_empty() { None } else { Some(preamble(&c.lines)) };
     chat.restore(key, c.messages, Some(c.id), preamble);
     Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None })
+}
+
+/// How many lines the conversation of `chat` has in the history (0 = none yet).
+pub fn line_count(chat: &Chat) -> usize {
+    let Some(id) = chat.log_id() else { return 0 };
+    with_store(|s| s.list.iter().find(|c| c.id == id).map_or(0, |c| c.lines.len()))
+}
+
+/// The Claude Code sessions the history already has.
+pub fn sessions() -> std::collections::HashSet<String> {
+    with_store(|s| s.list.iter().filter(|c| !c.session.is_empty()).map(|c| c.session.clone()).collect())
+}
+
+/// A Claude Code session started elsewhere, taken into the history (once):
+/// reopened, it resumes that session (`open`). Back: the conversation's id.
+pub fn import(session: &str) -> Result<String, String> {
+    if let Some(id) = with_store(|s| s.list.iter().find(|c| c.session == session).map(|c| c.id.clone())) {
+        return Ok(id);
+    }
+    let (lines, folder) = crate::desktop::whole(session).ok_or_else(|| t("Il file della sessione di Claude Code non si trova.").to_string())?;
+    let first = lines.iter().find(|l| l.role == "user").map(|l| l.content.clone()).unwrap_or_default();
+    let lines: Vec<Line> = lines.into_iter().map(|l| Line { role: l.role, content: crate::redact::redact(&l.content) }).collect();
+    let id = new_id();
+    let now = now();
+    with_store(|s| {
+        s.list.insert(0, Conversation {
+            id: id.clone(),
+            title: title(&crate::redact::redact(&first)),
+            engine: "subscription".into(),
+            created: now,
+            updated: now,
+            lines,
+            folder,
+            session: session.to_string(),
+            ..Default::default()
+        });
+        s.save();
+    });
+    Ok(id)
 }
 
 pub fn folder_of(id: &str) -> Option<String> {

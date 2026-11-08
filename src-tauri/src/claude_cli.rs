@@ -555,6 +555,12 @@ struct Progress {
     context: u64,
     /// `/compact` ran (its `compact_boundary`): tokens before and after.
     compacted: Option<(u64, u64)>,
+    /// Claude Code's task list (TodoWrite) as it is now: under the steps, as
+    /// Claude Desktop shows it beside the conversation.
+    todos: String,
+    /// The conversation (the `Chat`'s address; 0 = none): files about to change
+    /// are kept for «⟲ File» (checkpoints.rs).
+    chat: usize,
 }
 
 impl Progress {
@@ -609,10 +615,21 @@ impl Progress {
             }
             let piece = match block.get("type").and_then(Value::as_str) {
                 Some("text") => block.get("text").and_then(Value::as_str).map(|t| t.trim().to_string()),
+                Some("tool_use") if block.get("name").and_then(Value::as_str) == Some("TodoWrite") => {
+                    self.todos = todo_list(block.get("input").unwrap_or(&Value::Null));
+                    self.drafting = None;
+                    changed = true;
+                    None
+                }
                 Some("tool_use") => {
                     let (name, input) = (block.get("name").and_then(Value::as_str).unwrap_or_default(), block.get("input").unwrap_or(&Value::Null));
-                    // A file about to change: «Modifiche» and the preview (preview.rs).
+                    // A file about to change: «Modifiche» and the preview (preview.rs), and its checkpoint.
                     crate::preview::touched_by(name, input);
+                    if self.chat != 0 && matches!(name, "Edit" | "Write" | "MultiEdit" | "NotebookEdit") {
+                        if let Some(p) = ["file_path", "notebook_path"].iter().find_map(|k| input.get(*k).and_then(Value::as_str)).map(Path::new).filter(|p| p.is_absolute()) {
+                            crate::checkpoints::touching(self.chat, p);
+                        }
+                    }
                     Some(step_line(name, input))
                 }
                 _ => None,
@@ -685,9 +702,18 @@ impl Progress {
         }
     }
 
+    /// What the turn showed, with its task list at the end (its last state).
+    fn done(&self) -> String {
+        match (self.shown.is_empty(), self.todos.is_empty()) {
+            (_, true) => self.shown.clone(),
+            (true, false) => self.todos.clone(),
+            (false, false) => format!("{}\n\n{}", self.shown, self.todos),
+        }
+    }
+
     /// What is shown while the turn goes on.
     fn view(&self) -> String {
-        let mut text = self.shown.clone();
+        let mut text = self.done();
         let writing = self.writing.trim();
         if !writing.is_empty() {
             if !text.is_empty() {
@@ -712,6 +738,27 @@ impl Progress {
         }
         crate::opencode::with_thinking(text, &self.thinking)
     }
+}
+
+/// TodoWrite's list: done, at work (its «activeForm»), to do.
+fn todo_list(input: &Value) -> String {
+    let items = input.get("todos").and_then(Value::as_array).cloned().unwrap_or_default();
+    if items.is_empty() {
+        return String::new();
+    }
+    let s = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().trim().replace('\n', " ");
+    let done = items.iter().filter(|v| s(v, "status") == "completed").count();
+    let mut out = format!("**{}** {done}/{}", t("Attività"), items.len());
+    for v in &items {
+        let line = match s(v, "status").as_str() {
+            "completed" => format!("- ✅ {}", s(v, "content")),
+            "in_progress" => format!("- ▶️ **{}**", Some(s(v, "activeForm")).filter(|a| !a.is_empty()).unwrap_or_else(|| s(v, "content"))),
+            _ => format!("- ⬜ {}", s(v, "content")),
+        };
+        out.push('\n');
+        out.push_str(&line);
+    }
+    out
 }
 
 /// 12345 → "12.345".
@@ -773,9 +820,10 @@ async fn read_lines(
     late: &str,
     until_result: bool,
     running: &[BgTask],
+    chat: usize,
 ) -> Result<(String, String, bool, Vec<BgTask>), String> {
     // What already runs in the background stays listed until Claude Code says otherwise.
-    let mut progress = Progress { tasks: running.to_vec(), ..Progress::default() };
+    let mut progress = Progress { tasks: running.to_vec(), chat, ..Progress::default() };
     let mut last = String::new();
     let mut emitted = std::time::Instant::now();
     let deadline = tokio::time::Instant::now() + limit;
@@ -783,13 +831,14 @@ async fn read_lines(
         match tokio::time::timeout_at(deadline, lines.next_line()).await {
             Err(_) => return Err(late.to_string()),
             Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
-            Ok(Ok(None)) => return Ok((last, progress.shown, false, progress.tasks)),
+            Ok(Ok(None)) => return Ok((last, progress.done(), false, progress.tasks)),
             Ok(Ok(Some(line))) => {
                 if !line.trim_start().starts_with('{') {
                     continue;
                 }
                 if let Some(id) = init_session(&line) {
                     on_session(&id);
+                    remember_commands(&line);
                 }
                 if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
                     emitted = std::time::Instant::now();
@@ -812,7 +861,7 @@ async fn read_lines(
                     last = line;
                 }
                 if result && until_result {
-                    return Ok((last, progress.shown, true, progress.tasks));
+                    return Ok((last, progress.done(), true, progress.tasks));
                 }
             }
         }
@@ -850,6 +899,34 @@ fn context_size(line: &str) -> u64 {
         .max().unwrap_or(0)
 }
 
+/// Claude Code's slash commands (its own, the user's in `.claude/commands`,
+/// skills, plugins), as its `init` line lists them: the chat's «/» menu shows
+/// them, as Claude Desktop does. Kept in `claude-comandi.json` for the next start.
+static COMMANDS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
+
+fn commands_file() -> PathBuf {
+    crate::settings::local_dir().join("claude-comandi.json")
+}
+
+/// Those of the `init` line, when it has them.
+fn remember_commands(line: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return };
+    let Some(list) = v.get("slash_commands").and_then(Value::as_array) else { return };
+    // Internal ones ("__…") and those that only make sense in a terminal stay out.
+    let names: Vec<String> = list.iter().filter_map(Value::as_str).filter(|n| !n.starts_with('_') && !matches!(*n, "heapdump" | "color" | "clear")).map(str::to_string).collect();
+    let mut known = COMMANDS.lock().unwrap();
+    if known.as_ref() != Some(&names) {
+        let _ = std::fs::write(commands_file(), serde_json::to_vec(&names).unwrap_or_default());
+        *known = Some(names);
+    }
+}
+
+/// The chat's «/» menu with Claude Code (lib.rs `chat_claude_commands`).
+pub fn commands() -> Vec<String> {
+    let mut known = COMMANDS.lock().unwrap();
+    known.get_or_insert_with(|| std::fs::read(commands_file()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()).clone()
+}
+
 /// The session named by Claude Code's `{"type":"system","subtype":"init",…}` line.
 fn init_session(line: &str) -> Option<String> {
     if !line.contains("\"init\"") {
@@ -871,6 +948,7 @@ async fn read_stream(
     on_context: &(dyn Fn(u64, u64) + Sync),
     limit: Duration,
     late: &str,
+    chat: usize,
 ) -> Result<(String, String, String, bool), String> {
     let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
     let stderr = child.stderr.take();
@@ -883,7 +961,7 @@ async fn read_stream(
         s
     });
     let mut lines = tokio::io::BufReader::new(stdout).lines();
-    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, on_context, &|_| {}, limit, late, false, &[]).await {
+    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, on_context, &|_| {}, limit, late, false, &[], chat).await {
         Ok(r) => r,
         Err(e) => {
             let _ = child.start_kill();
@@ -1029,7 +1107,7 @@ async fn live_turn(
     let deadline = std::time::Instant::now() + limit;
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
-        match read_lines(&mut live.lines, on_text, on_session, on_context, on_tasks, left, late, true, &[]).await {
+        match read_lines(&mut live.lines, on_text, on_session, on_context, on_tasks, left, late, true, &[], live.chat).await {
             // A turn Claude Code started by itself for work that ended (a resumed
             // session reports one even for work stopped with its old process):
             // not the answer to this message; its text, if any, comes as an update.
@@ -1229,7 +1307,7 @@ fn follow(live: Live, later: Option<Later>, on_tasks: Option<OnTasks>, on_workin
             let tell_now = |t: &[BgTask]| tell(t);
             let running = tasks.clone();
             let keep_context = |used: u64, size: u64| *context.lock().unwrap() = Some((used, size));
-            let mut read = std::pin::pin!(read_lines(&mut lines, &forward, &started, &keep_context, &tell_now, left, "", true, &running));
+            let mut read = std::pin::pin!(read_lines(&mut lines, &forward, &started, &keep_context, &tell_now, left, "", true, &running, chat));
             let mut stop = std::pin::pin!(kill.notified());
             let outcome = std::future::poll_fn(|cx| {
                 if let std::task::Poll::Ready(r) = std::future::Future::poll(read.as_mut(), cx) {
@@ -1417,6 +1495,12 @@ async fn send_mode(
             prompt = fallback;
         }
     }
+    // Modifica, Rigenera, Dirama: the session goes on from that answer, as a
+    // new session; the process that has the whole conversation goes.
+    let resume_at = chat.take_resume_at().filter(|_| session.is_some());
+    if resume_at.is_some() {
+        drop_live(chat);
+    }
 
     // The front end sends a context with the first message, or with a file
     // added later (pasted in the chat, sent on Telegram).
@@ -1458,10 +1542,21 @@ async fn send_mode(
             Some(_) => terminal_args(&dir, model, resume, extra_dir.as_deref(), &connectors, auto),
             None => args(&dir, model, resume, extra_dir.as_deref(), &connectors),
         };
+        // Piano, Accetta modifiche (the chat's mode, as Claude Desktop offers them): Claude Code's own modes.
+        if let (Some(_), false, Some(mode)) = (terminal, auto, chat.mode()) {
+            if let Some(i) = a.iter().position(|x| x == "--permission-mode") {
+                if let Some(v) = a.get_mut(i + 1) {
+                    *v = mode;
+                }
+            }
+        }
         if locked {
             read_only(&mut a);
         }
         cmd.current_dir(terminal.unwrap_or(&dir)).args(a);
+        if let (Some(_), Some(at)) = (resume, resume_at.as_deref()) {
+            cmd.args(["--resume-session-at", at, "--fork-session"]);
+        }
         // The effort picked in the chat (a change starts another process on the same session).
         if let Some(e) = chat.effort() {
             cmd.arg("--effort").arg(e);
@@ -1565,7 +1660,7 @@ async fn send_mode(
                 .map_err(|e| e.to_string())?;
             // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
         }
-        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, &on_context, limit, late).await?;
+        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, &on_context, limit, late, chat as *const Chat as usize).await?;
         (last, if terminal.is_some() { shown } else { String::new() }, stderr, ok)
     };
 
@@ -1773,6 +1868,18 @@ pub async fn session_ask(session: String, fork: Option<String>, cwd: String, que
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_task_list_shows_under_the_steps_and_stays_at_the_end() {
+        let mut p = super::Progress::default();
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":{"todos":[{"content":"Leggere","status":"completed","activeForm":"Leggo"},{"content":"Scrivere","status":"in_progress","activeForm":"Scrivo"},{"content":"Provare","status":"pending","activeForm":"Provo"}]}}]}}"#));
+        let done = p.done();
+        assert!(done.contains("1/3") && done.contains("✅ Leggere") && done.contains("▶️ **Scrivo**") && done.contains("⬜ Provare"), "{done}");
+        // Only the last list, not one per update.
+        p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":{"todos":[{"content":"Leggere","status":"completed"},{"content":"Scrivere","status":"completed"}]}}]}}"#);
+        assert_eq!(p.done().matches("Leggere").count(), 1);
+        assert!(p.done().contains("2/2"));
+    }
+
     /// Lines as Claude Code 2.x wrote them for `/compact` (8 Nov 2026).
     #[test]
     fn compact_says_what_it_did_and_moves_the_meter() {

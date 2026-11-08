@@ -43,6 +43,7 @@ Rust solo su Windows (MSVC). Test: `cargo test --workspace` in `src-tauri/`.
   - Devolutions Cloud (`dvc.rs`): password solo negli appunti privati (svuotati dopo 30 s), mai a schermo, nel log o ai motori; dalla chat la password si chiede solo nella finestra di Windows (CredUI); scritture solo dopo anteprima e clic (o Consenti), rilette e verificate; mai eliminazioni.
   - `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, .md visibili all'utente).
   - Comandi e modifiche ai file solo dalla «Modalità terminale» (strumenti di Claude Code/opencode, Consenti/Nega nell'isola).
+    - Come Claude Desktop (8/11/2026): «Sempre» cliccato su una card di Claude Code vale per tutta la sessione (`permits::SESSION_RULES`, solo quella regola), e le modalità «Accetta modifiche» e «Piano» si scelgono a mano per la conversazione.
   - Senza clic passano solo le azioni reversibili consentite per sempre o per compito (`permits.rs`, `REVERSIBLE` in `hook/src/tool_list.rs`), registrate in «Cosa ho fatto» con Annulla: mai aggiungere lì strumenti che inviano, eliminano, aprono o eseguono.
 - Isola ritirata: nessun frame di animazione, CPU ~0 %.
 - Versione uguale in `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI controlla sui tag).

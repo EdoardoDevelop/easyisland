@@ -18,6 +18,8 @@
 - **Modifica** (sulle tue domande): il testo torna nel campo e la conversazione riparte da lì.
 - **↻ Rigenera** (sull'ultima risposta).
 - **⑂ Dirama da qui**: una conversazione nuova che parte da quel punto; quella di prima resta intera nella cronologia.
+- Con Claude Code, Modifica, Rigenera e Dirama riprendono la sua sessione proprio da quel punto, come Claude Desktop: Claude ricorda anche i file letti fin lì.
+- **⟲ File** (sulle tue domande, con la modalità terminale): riporta i file che Claude Code ha cambiato da quella domanda in poi com'erano prima, e toglie quelli che ha creato. Il primo clic dice quali file, il secondo conferma. Come in Claude Desktop, quello che fanno i comandi non conta; vale finché EasyIsland resta aperto.
 - **Multi agent**: in Impostazioni → Chat scegli i motori che lavorano insieme, poi accendi il pulsante nella conversazione. Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro e vedi una riga per ognuno. Prima che tu la veda, la risposta viene controllata da un altro motore e corretta se serve: ne arriva una sola, già rivista, e sotto trovi **✓ Controllato**. Intanto vedi i passi, non la bozza. Ne bastano due, meglio di due marche diverse. Costa di più e può metterci il doppio: accendilo per i lavori veri. Le azioni chiedono Consenti/Nega come sempre.
 - **⇄ Seconda opinione**: un altro motore rilegge l'ultima domanda e la risposta e segnala errori, mancanze o rischi (oppure «va bene»). Il suo parere arriva anche al motore principale, che può correggersi.
 
@@ -45,7 +47,7 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 - **Clic destro**: **Apri** (nel suo programma), **Anteprima**, **Scarica** (una copia nella cartella Download, che si apre con il file selezionato), **Apri percorso** (Esplora file con il file selezionato), **Copia percorso**.
 
 ## Comandi con /
-Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>):
+Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>). Con Claude Code il menu ha anche i suoi comandi, come in Claude Desktop (segnati ✳): `/context`, `/review`, `/model`, `/init`, i tuoi comandi di `.claude/commands`, le skill e i plugin.
 
 | Comando | Cosa fa |
 |---|---|
@@ -95,6 +97,9 @@ Una domanda entra nella cronologia appena la mandi: se la risposta si interrompe
 
 ## In una finestra
 Trascina la voce **Chat** del menu fuori dall'isola e lasciala dove vuoi, oppure premi il pulsante con la freccia in alto nella chat, oppure clic destro su **Chat** → **Apri in una finestra**: la chat diventa una finestra normale di Windows, con barra delle applicazioni e Alt+Tab, da allargare e spostare dove vuoi. È la stessa chat: conversazioni, motori, permessi e Ferma restano quelli dell'isola, e la voce **Chat** del menu porta avanti la finestra. Chiudendo la finestra, o con lo stesso pulsante (ora «Rimetti la chat nell'isola»), la chat torna nell'isola; la finestra si ricorda misura e posizione. L'**Anteprima** resta accanto alla chat anche nella finestra, con lo stesso divisore per allargarla (la finestra si allarga se serve), e torna nell'isola con la chat.
+
+## Sessioni di Claude Code fuori da EasyIsland
+In fondo alla cronologia, **Claude Code fuori da EasyIsland** elenca le sessioni degli ultimi 30 giorni aperte dal terminale, da Claude Desktop o da un editor. Un clic la porta nella cronologia e la riprende qui, con tutto il contesto. Con la modalità terminale lavora nella sua cartella; senza, la conversazione arriva come testo.
 
 ## Continuare in Claude Desktop
 Con Claude Code come motore, **↗** in alto nella chat apre la conversazione nell'app Claude Desktop, con tutto quello che vi siete detti, e lì la continui. Quando torni a scrivere nella chat dell'isola, prima della tua domanda compaiono i messaggi scritti in Desktop, sotto la riga «Conversazione proseguita in Claude Desktop», e Claude riprende la stessa sessione. Meglio non scrivere nelle due insieme. Serve Claude Code 2.1.285 o successivo e l'accesso con l'abbonamento Claude (non con una chiave API). Nella Modalità terminale la sessione si apre nella cartella del progetto.

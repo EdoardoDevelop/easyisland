@@ -71,6 +71,12 @@ Il pulsante ⚡ nella testata della chat (solo con la modalità terminale) vale 
 - **Claude Code**: la sua modalità automatica approva le azioni normali e blocca quelle rischiose.
 - **opencode e gli altri**: passano da soli modifiche ai file, web e comandi non delicati. Restano sulla card i comandi delicati (cancellare, `git push` e `reset --hard`, installare, registro, servizi, rete, processi, codice scaricato), le cartelle fuori da quella di lavoro e gli strumenti dei connettori che cancellano.
 
+**Le modalità di Claude Code**, come in Claude Desktop: con Claude Code lo stesso pulsante passa, a ogni clic, fra **Consenti / Nega** (ogni azione chiede), **Accetta modifiche** (le modifiche ai file vanno da sole, i comandi chiedono), **Piano** (Claude legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora, e la chat torna a Consenti / Nega) e **Automatica**.
+
+**«Sempre» vale per tutta la conversazione**: un comando, un sito o le modifiche ai file consentiti con «Sempre» non chiedono più finché la conversazione continua, anche dopo una pausa lunga.
+
+**Copia separata.** In **Progetto…**, **Copia separata (worktree)** crea una copia del progetto con un suo branch (`git worktree`, in `.claude\worktrees`), come Claude Desktop per ogni sessione: la chat lavora lì e non tocca i file delle altre chat. Serve git installato; la copia resta finché non la togli tu (`git worktree remove`).
+
 La modalità che accetta tutto senza nessun controllo **non esiste** in EasyIsland, di proposito.
 
 ## La cartella di lavoro

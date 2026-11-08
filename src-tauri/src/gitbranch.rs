@@ -32,9 +32,81 @@ pub fn of(folder: &Path) -> Option<String> {
     None
 }
 
+/// The repository's own folder (with `.git` as a folder) holding `folder`.
+fn repo_root(folder: &Path) -> Option<std::path::PathBuf> {
+    folder.ancestors().find(|d| d.join(".git").is_dir()).map(Path::to_path_buf)
+}
+
+/// «Copia separata (worktree)» in «Progetto…», as Claude Desktop gives each
+/// session one: a git worktree on a branch of its own under
+/// `<repository>/.claude/worktrees/`, so two conversations never touch the same
+/// files. Made by git itself (it has to be installed); `.claude/worktrees/`
+/// goes in `.git/info/exclude`, so the repository does not list it. The
+/// worktree is never deleted by EasyIsland: `git worktree remove` when done.
+pub fn new_worktree(folder: &Path) -> Result<std::path::PathBuf, String> {
+    use crate::i18n::{t, tf};
+    #[cfg(windows)]
+    use std::os::windows::process::CommandExt;
+    let root = repo_root(folder).ok_or_else(|| t("Questa cartella non è in un repository git.").to_string())?;
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let name = format!("easyisland-{}", radix36(stamp));
+    let path = root.join(".claude").join("worktrees").join(&name);
+    let mut cmd = std::process::Command::new("git");
+    cmd.arg("-C").arg(&root).args(["worktree", "add", "-b", &format!("easyisland/{name}")]).arg(&path);
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000);
+    let out = cmd.output().map_err(|e| tf("git non si avvia (è installato?): {e}", &[("e", &e)]))?;
+    if !out.status.success() {
+        let why = String::from_utf8_lossy(&out.stderr).trim().chars().take(300).collect::<String>();
+        return Err(tf("git non ha creato la copia separata: {e}", &[("e", &why)]));
+    }
+    let exclude = root.join(".git").join("info").join("exclude");
+    let had = fs::read_to_string(&exclude).unwrap_or_default();
+    if !had.lines().any(|l| l.trim() == ".claude/worktrees/") {
+        let _ = fs::create_dir_all(root.join(".git").join("info"));
+        let _ = fs::write(&exclude, format!("{}{}.claude/worktrees/\n", had, if had.is_empty() || had.ends_with('\n') { "" } else { "\n" }));
+    }
+    crate::log::line(format!("chat: copia separata {}", path.display()));
+    Ok(path)
+}
+
+fn radix36(mut n: u64) -> String {
+    const D: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    let mut out = Vec::new();
+    loop {
+        out.push(D[(n % 36) as usize]);
+        n /= 36;
+        if n == 0 {
+            break;
+        }
+    }
+    out.reverse();
+    String::from_utf8(out).unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A real git: `cargo test --lib gitbranch::tests::live_worktree -- --ignored`
+    #[test]
+    #[ignore]
+    fn live_worktree() {
+        let root = std::env::temp_dir().join(format!("ei-wt-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| assert!(std::process::Command::new("git").arg("-C").arg(&root).args(args).output().unwrap().status.success(), "{args:?}");
+        git(&["init", "-q"]);
+        fs::write(root.join("a.txt"), "uno").unwrap();
+        git(&["add", "."]);
+        git(&["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "primo"]);
+        let tree = new_worktree(&root).unwrap();
+        assert!(tree.join("a.txt").is_file());
+        assert!(of(&tree).unwrap().starts_with("easyisland/"));
+        assert!(fs::read_to_string(root.join(".git/info/exclude")).unwrap().contains(".claude/worktrees/"));
+        git(&["worktree", "remove", "--force", &tree.display().to_string()]);
+        let _ = fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn reads_branches_and_detached_heads() {
