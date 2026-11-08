@@ -6,10 +6,12 @@
 // what the chat showed (questions and answers) and, for the engines that send
 // the whole conversation each time (API, OpenRouter, OpenAI, Gemini, Ollama,
 // LM Studio), the messages as the model saw them, without the dropped files'
-// bytes. Claude Code (`claude -p`) and opencode keep their conversation in a
-// session of their own, which does not outlive EasyIsland reliably: reopened,
-// they get the previous conversation as text in the first message
-// (`Chat::take_preamble`). Nothing leaves the PC. Off with Impostazioni → Chat
+// bytes. Claude Code keeps its conversation in a session of its own: its id is
+// kept here, and a conversation reopened resumes that session with all its
+// context, as Claude Desktop does (8 Nov 2026), and shows the context read
+// from the session's file. opencode, and a Claude Code session gone (30 days)
+// or kept under another folder, get the previous conversation as text in the
+// first message (`Chat::take_preamble`, `Chat::take_resume_fallback`). Nothing leaves the PC. Off with Impostazioni → Chat
 // → Cronologia (`chat_history`), which also empties it.
 
 use std::path::PathBuf;
@@ -53,6 +55,10 @@ struct Conversation {
     folder: String,
     /// The last answer is not finished yet (`begin`): its line says so until it is.
     pending: bool,
+    /// Claude Code's session (engine "subscription"): resumed when reopened.
+    session: String,
+    /// The size of the context at the last turn (0 = unknown).
+    context_size: u64,
 }
 
 /// One row of the list in the chat.
@@ -76,6 +82,8 @@ pub struct Opened {
     pub engine: String,
     pub lines: Vec<Line>,
     pub folder: String,
+    /// Tokens in the context and its size (0 = unknown), when the session is resumed.
+    pub context: Option<(u64, u64)>,
 }
 
 static STORE: Mutex<Option<Store>> = Mutex::new(None);
@@ -223,10 +231,18 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     }
     let now = now();
     let folder = chat.folder().unwrap_or_default();
+    let session = if engine == "subscription" { chat.cli_session().unwrap_or_default() } else { String::new() };
+    let size = chat.peek_context().map_or(0, |(_, size)| size);
     with_store(|s| {
         s.record(&id, engine, query, reply, messages, now);
         if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
             c.folder = folder;
+            if !session.is_empty() {
+                c.session = session;
+            }
+            if size > 0 {
+                c.context_size = size;
+            }
         }
         if !prefix.is_empty() {
             if let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.lines.len() == 2 && !c.title.starts_with(prefix)) {
@@ -323,6 +339,10 @@ pub fn partial(chat: &Chat, text: &str) {
     let Some(id) = chat.log_id() else { return };
     with_store(|s| {
         let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.pending) else { return };
+        // The session is named as the turn starts: a turn never finished is resumed too.
+        if let Some(sid) = chat.cli_session().filter(|_| c.engine == "subscription") {
+            c.session = sid;
+        }
         let Some(last) = c.lines.last_mut().filter(|l| l.role == "assistant") else { return };
         last.content = format!("{}\n\n{}", crate::redact::redact(text.trim()), unfinished());
         s.save();
@@ -334,6 +354,10 @@ pub fn failed(chat: &Chat, text: &str, why: &str) {
     let Some(id) = chat.log_id() else { return };
     with_store(|s| {
         let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.pending) else { return };
+        // The session is named as the turn starts: a turn never finished is resumed too.
+        if let Some(sid) = chat.cli_session().filter(|_| c.engine == "subscription") {
+            c.session = sid;
+        }
         let Some(last) = c.lines.last_mut().filter(|l| l.role == "assistant") else { return };
         let why = format!("⚠ {}", why.trim());
         let text = crate::redact::redact(text.trim());
@@ -506,9 +530,17 @@ pub fn rewind(chat: &Chat, keep: Vec<Line>) {
 pub fn open(chat: &Chat, id: &str, key: &str) -> Result<Opened, String> {
     let c = with_store(|s| s.list.iter().find(|c| c.id == id).cloned())
         .ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
+    // Claude Code: its own session again, with all its context (Claude Desktop does the same).
+    if c.engine == "subscription" && crate::desktop::session_exists(&c.session) {
+        chat.restore(key, Vec::new(), Some(c.id.clone()), None);
+        chat.set_cli_session(Some(c.session.clone()));
+        chat.set_resume_fallback(Some(preamble(&c.lines)));
+        let context = crate::desktop::last_context(&c.session).map(|used| (used, c.context_size));
+        return Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context });
+    }
     let preamble = if resends(&c.engine) && !c.messages.is_empty() { None } else { Some(preamble(&c.lines)) };
     chat.restore(key, c.messages, Some(c.id), preamble);
-    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder })
+    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None })
 }
 
 pub fn folder_of(id: &str) -> Option<String> {

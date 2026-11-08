@@ -44,6 +44,35 @@ fn session_file(id: &str) -> Option<PathBuf> {
     std::fs::read_dir(projects).ok()?.flatten().map(|d| d.path().join(&name)).find(|p| p.is_file())
 }
 
+/// The session `id` is still on disk (Claude Code drops them after 30 days).
+pub fn session_exists(id: &str) -> bool {
+    session_file(id).is_some()
+}
+
+/// Claude Code's folder name for a project: every character but letters and digits as "-".
+fn project_name(cwd: &Path) -> String {
+    cwd.to_string_lossy().trim_end_matches(['\\', '/']).chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect()
+}
+
+/// `claude --resume id` started in `cwd` finds the session: Claude Code keeps
+/// it under the folder it was started in.
+pub fn session_in(id: &str, cwd: &Path) -> bool {
+    let Some(file) = session_file(id) else { return false };
+    let folder = file.parent().and_then(Path::file_name).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    folder.eq_ignore_ascii_case(&project_name(cwd))
+}
+
+/// Tokens in the context at the session's last answer, from its file (what
+/// Claude Desktop shows when a session is reopened); sub-agents' lines aside.
+pub fn last_context(id: &str) -> Option<u64> {
+    let lines = read_lines(&session_file(id)?);
+    lines.iter().rev().filter(|v| str_of(v, "type") == "assistant" && v.get("isSidechain").and_then(Value::as_bool) != Some(true)).find_map(|v| {
+        let u = v.pointer("/message/usage")?;
+        let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+        Some(n("input_tokens") + n("cache_read_input_tokens") + n("cache_creation_input_tokens")).filter(|t| *t > 0)
+    })
+}
+
 fn read_lines(file: &Path) -> Vec<Value> {
     if std::fs::metadata(file).map(|m| m.len() > MAX_FILE).unwrap_or(true) {
         return Vec::new();
@@ -228,6 +257,12 @@ mod tests {
         ];
         let got = turns_after(&lines, &mark("gone"));
         assert_eq!(got, vec![Line { role: "user".into(), content: "nuova".into() }]);
+    }
+
+    #[test]
+    fn project_folder_as_claude_code_names_it() {
+        assert_eq!(super::project_name(Path::new("C:\\Users\\Edoardo\\WORK\\EasyIsland_0.2.0")), "C--Users-Edoardo-WORK-EasyIsland-0-2-0");
+        assert_eq!(super::project_name(Path::new("C:\\Users\\Edoardo\\AppData\\Local\\EasyIsland\\chat\\")), "C--Users-Edoardo-AppData-Local-EasyIsland-chat");
     }
 
     #[test]

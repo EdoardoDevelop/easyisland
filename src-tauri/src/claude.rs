@@ -149,6 +149,9 @@ pub struct Chat {
     /// A reopened conversation the engine cannot resume on its own: it goes
     /// in front of the next question (chat_log.rs).
     preamble: Mutex<Option<String>>,
+    /// A conversation reopened on its own Claude Code session: the text to
+    /// start from if that session cannot be resumed (claude_cli::send_mode).
+    resume_fallback: Mutex<Option<String>>,
     /// The assistant picked for this conversation (Impostazioni → Chat →
     /// Assistenti): its instructions go in front of the first question. Not
     /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
@@ -223,7 +226,21 @@ impl Chat {
         *self.cli_session.lock().unwrap() = None;
         *self.log_id.lock().unwrap() = None;
         *self.preamble.lock().unwrap() = None;
+        *self.resume_fallback.lock().unwrap() = None;
         *self.desktop.lock().unwrap() = None;
+    }
+
+    pub(crate) fn set_resume_fallback(&self, text: Option<String>) {
+        *self.resume_fallback.lock().unwrap() = text;
+    }
+
+    pub(crate) fn take_resume_fallback(&self) -> Option<String> {
+        self.resume_fallback.lock().unwrap().take()
+    }
+
+    /// The context of the last turn, left for the island to take (chat_log keeps it too).
+    pub(crate) fn peek_context(&self) -> Option<(u64, u64)> {
+        *self.context.lock().unwrap()
     }
 
     /// A conversation from the history takes the place of the current one.

@@ -1947,6 +1947,8 @@ export function buildPrompt(
       const got = await Bridge.chatHistoryOpen(c.sid, id);
       c.history = got.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
       c.logId = id;
+      // Claude Code's session resumed: its context at once, read from the session's file.
+      c.context = got.context ?? null;
       c.text = null;
       c.window = null;
       c.attach = [];

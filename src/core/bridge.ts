@@ -335,7 +335,7 @@ export const Bridge = {
     callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
-  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { sid, id }),
+  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null }>("chat_history_open", { sid, id }),
   chatHistoryDelete: (id: string) => call<void>("chat_history_delete", { id }),
   chatHistoryClear: () => call<void>("chat_history_clear"),
   /** Quick actions. */

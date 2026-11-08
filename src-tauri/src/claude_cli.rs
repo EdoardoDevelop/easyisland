@@ -1402,11 +1402,24 @@ async fn send_mode(
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
     let dir = work_dir(&connectors, terminal)?;
-    let session = chat.cli_session();
+    let mut session = chat.cli_session();
+    // A conversation reopened from the history resumes its own session, as
+    // Claude Desktop does (chat_log::open). Its file gone, or kept under
+    // another folder (Claude Code would not find it): the conversation goes as
+    // text in front of the question, as before.
+    let mut prompt = String::new();
+    if let Some(fallback) = chat.take_resume_fallback() {
+        let cwd = terminal.unwrap_or(&dir);
+        if !session.as_deref().is_some_and(|s| crate::desktop::session_in(s, cwd)) {
+            crate::log::line("claude: la sessione della cronologia non è in questa cartella, riparto dal testo".to_string());
+            chat.set_cli_session(None);
+            session = None;
+            prompt = fallback;
+        }
+    }
 
     // The front end sends a context with the first message, or with a file
     // added later (pasted in the chat, sent on Telegram).
-    let mut prompt = String::new();
     let mut extra_dir: Option<PathBuf> = None;
     {
         for (part, folder) in crate::claude::parts(context.as_ref()) {
