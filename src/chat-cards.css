@@ -124,6 +124,21 @@ html[data-chat-look="cards"] .chat-card .chat-side .history-item.on { background
 html[data-chat-look="cards"] .chat-card .chat-side .history-title { font-size: var(--cc-t-ui); color: var(--cc-reply); }
 html[data-chat-look="cards"] .chat-card .chat-side .history-item.on .history-title { color: var(--cc-ink); }
 
+/* The chat's scrolling lists: a thin bar without arrows, seen only under the
+   pointer (always there, with its arrows, it was heavy). */
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu) { scrollbar-color: auto; scrollbar-width: auto; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-button { display: none; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-track { background: transparent; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  background-clip: padding-box;
+}
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu):hover::-webkit-scrollbar-thumb { background-color: var(--cc-hover); }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-thumb:hover { background-color: var(--cc-faint); }
+
 /* ── The conversation ──────────────────────────────────────────────────── */
 html[data-chat-look="cards"] .chat-card .chat-body {
   border: 1px solid var(--cc-line);
@@ -362,4 +377,16 @@ html[data-chat-look="cards"] #preview-pane {
   border: 1px solid var(--cc-line);
   border-radius: var(--cc-r-card);
   background: var(--cc-panel);
+}
+
+/* The picture of an empty conversation (chat-empty.ts): behind the head and
+   the field, never in the way of a click. */
+html[data-chat-look="cards"] .chat-card .chat-empty {
+  position: absolute;
+  left: var(--cc-s4);
+  top: 48px;
+  width: calc(100% - 2 * var(--cc-s4));
+  height: calc(100% - 48px - 112px);
+  z-index: 0;
+  pointer-events: none;
 }

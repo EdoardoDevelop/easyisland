@@ -13,6 +13,7 @@ import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
 import { TypeLine, foldSteps, splitStatus } from "./typeline";
+import { ChatEmpty, emptyArt } from "./chat-empty";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -507,7 +508,9 @@ export function buildPrompt(
   const bgRow = h("div", { class: "chat-queue chat-bg" });
   bgRow.style.display = "none";
   let bgKey = "";
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
+  // The picture of an empty conversation (chat-empty.ts), behind it.
+  const empty = new ChatEmpty();
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
   const el = h(
     "div",
     { class: "view" },
@@ -2731,6 +2734,8 @@ export function buildPrompt(
         askKey = "";
         askEl.remove();
       }
+      // An empty conversation: its quiet picture (Impostazioni → Chat → «Chat vuota»).
+      empty.show(!State.chatHistory.length && !sending && !req && !asked ? emptyArt(State.settings.chatEmptyArt) : null);
       const elsewhere = State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid && State.pendingApproval.chatSid !== State.chatSid
         ? State.chats.find((c) => c.sid === State.pendingApproval?.chatSid) : undefined;
       const otherText = elsewhere

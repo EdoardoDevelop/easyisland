@@ -12,7 +12,6 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 - **Style**: **Windows 11** (default: like system apps, with **Windows' accent colour** and line icons) or **Classic** (the original look with coloured icons).
 - **Mode**: **Dark** (default), **Light** or **Automatic (like Windows)**, which follows Windows' app mode (Windows Settings → Personalization → Colors) and switches by itself when you change it there. It applies to both styles, to the island and to the Settings window.
 - **Island colour** and **opacity**: "The theme's" is Windows' grey or the Classic black, their light counterpart in light mode; a colour you pick stays yours.
-- **Chat look**: **Cards** (the default) puts conversations, chat, terminal and Preview in separate cards on the island's colour, with the field floating over the conversation and what you write on the right in a soft bubble, without bold. Every piece shares the same measures (spacing, corners, text sizes) and a single accent colour, the send button; **Classic** is the look from before.
 - **Card opacity**: the panels inside the island, such as the chat. Lower, the more the island's colour shows and the darker they are (25% by default); to darken further pick a darker island colour.
 - **Background when closed**: off, only the character stays.
 
@@ -26,7 +25,7 @@ For each: family, **size** and **weight**; **Reset** goes back to the system fon
 Four dot-matrix and retro fonts ship with the app (SIL Open Font License): **Doto** (dot matrix), **DotGothic16**, **VT323** and **Space Mono**. You can also pick any font installed in Windows. The dot font suits titles and clock; long texts read better in a plain font, for example Space Mono.
 
 ## Character
-- **In the island**: the character, the EasyIsland logo animated or still, your logo or the weather (see below).
+- **In the island**: the character, the still EasyIsland logo, your logo or the weather (see below). Among the characters is **Ezzy**, the EasyIsland logo animated, which keeps its own colours.
 - **Character** and its **colour**.
 - **Start-up greeting**: by default the **EasyIsland logo** drawing itself (the rainbow edge, the tail, then the eyes), or the character; in the middle of the screen or where the character is.
 - **Follows the mouse**: in the compact view too the character looks at the cursor (uses a little more).
@@ -42,7 +41,7 @@ Four dot-matrix and retro fonts ship with the app (SIL Open Font License): **Dot
 
 ## Fixed bar
 With **Fixed bar** at the top or the bottom, Windows keeps a band free at the edge of the screen, as for the taskbar, and windows stop there.
-- **In the bar:** what sits in the bar, even different from the island: as in the island, the EasyIsland logo animated or still, your logo, the weather or one of the characters.
+- **In the bar:** what sits in the bar, even different from the island: as in the island, Ezzy (the EasyIsland logo animated), the still logo, your logo, the weather or one of the characters.
 - **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
 - **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.
 - **Bar background:** like the island, transparent (the desktop shows) or a colour of your choice; the text turns light or dark by itself.
@@ -110,7 +109,7 @@ Characters drawn in code, all with the same expressions:
 The character reacts: it greets you at startup, celebrates when an agent finishes, worries about an error, looks at you when you hover. With the weather on it can have the sky behind it.
 
 ## A logo or the weather instead of the character
-In **Character → In the island** choose what sits in the island: **the character**, **the EasyIsland logo, animated** or **still**, **my logo** or **the weather**. Logo and weather are still pictures: no animations or states, for a more professional look. The **EasyIsland logo, animated** moves like a character instead. Its eyes follow the mouse and blink, it changes with the states (the colours run while an agent works) and it "eats" files like the others.
+In **Character → In the island** choose what sits in the island: **the character**, **the EasyIsland logo, still**, **my logo** or **the weather**. Logo and weather are still pictures: no animations or states, for a more professional look. **Ezzy**, the EasyIsland logo animated, is one of the characters instead and moves like the others. Its eyes follow the mouse and blink, it changes with the states (the colours run while an agent works) and it "eats" files like the others.
 - **My logo**: **Upload PNG…** and pick the image (best with a transparent background). It is shrunk to 512 px, stays on this PC and goes in the [backup](26-settings.md). **Remove** deletes it; with no image the EasyIsland logo shows.
 - **The weather**: the sky and temperature right now, from the **Meteo** integration, which must be active.
 

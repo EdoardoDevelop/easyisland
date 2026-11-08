@@ -5,6 +5,7 @@
 ![La chat dall'isola](../media/chat.png)
 
 ## Scrivere
+- Una **chat vuota** mostra un disegno tenue e lento finché non scrivi: di serie **Ezzy** che galleggia; in Impostazioni → Chat → **Chat vuota** puoi scegliere un'isola che gira, un mare di puntini, un cielo stellato, un'aurora, una rete di punti o niente. Si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni.
 - Il campo va **su più righe**: <kbd>Invio</kbd> invia, <kbd>Shift</kbd>+<kbd>Invio</kbd> va a capo. Quello che stai scrivendo resta anche se riavvii. <kbd>↑</kbd> nel campo vuoto riprende l'ultima domanda.
 - Le risposte sono in **markdown**: titoli, elenchi, tabelle, codice con **Copia**. Mentre il motore lavora vedi il ragionamento e gli strumenti usati: quello in corso si scrive da solo in fondo, con il cursore. A risposta finita i passi si raccolgono in **N passi**: un clic li apre.
 - Con la Modalità terminale, **Progetto…** sotto il campo sceglie la cartella di questa chat, così legge le regole e il git del progetto; sul pulsante vedi anche il branch. Con Claude Code, sotto il campo un anello dice quanto è pieno il contesto della conversazione: dall'80 % diventa arancione ed è il momento di aprirne una nuova. **Cartella predefinita** usa quella delle Impostazioni. Cambiarla apre una conversazione nuova.

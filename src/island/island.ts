@@ -3438,8 +3438,8 @@ ${note}` : text };
     this.islandEl.style.background = this.islandBackground;
     // The views' cards: how much of their own grey covers the island's colour (Impostazioni → Aspetto).
     document.documentElement.style.setProperty("--card-alpha", String(Math.max(0, Math.min(1, t.cardOpacity ?? 0.25))));
-    // The chat's look (chat-cards.css): cards by default, «Classico» as before.
-    document.documentElement.dataset.chatLook = t.chatLook === "classic" ? "classic" : "cards";
+    // The chat's look (chat-cards.css): always the cards since 8 Nov 2026 (the choice in Impostazioni is gone).
+    document.documentElement.dataset.chatLook = "cards";
     this.onRestChange?.();
   }
 

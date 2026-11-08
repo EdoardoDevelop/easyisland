@@ -843,6 +843,8 @@ export interface Settings {
   chatTeamCheck?: boolean;
   /** «Anteprima» (src/preview/): the chat's links and the files terminal mode edits open in the preview window. */
   chatPreview?: boolean;
+  /** The picture of an empty chat (src/views/chat-empty.ts): ezzy (default), isola, onde, stelle, aurora, rete, nessuna. */
+  chatEmptyArt?: string;
   /** The preview stuck to the open island instead of a window of its own. */
   previewDocked?: boolean;
   /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */
@@ -1267,8 +1269,6 @@ export interface Theme {
   islandOpacity: number;
   /** The views' cards over the island, 0–1 (below 1 the island's colour shows through; 0.25 by default). */
   cardOpacity: number;
-  /** The chat's look: "cards" (panels as cards, the field floating; default) or "classic". */
-  chatLook?: string;
   /** Volume multipliers per sound family, 0–1. */
   volumeAlerts: number;
   volumeUi: number;
@@ -1308,7 +1308,6 @@ export const DEFAULT_THEME: Theme = {
   islandColor: "#000000",
   islandOpacity: 1,
   cardOpacity: 0.25,
-  chatLook: "cards",
   volumeAlerts: 1,
   volumeUi: 1,
   volumeEmotes: 1,
@@ -1432,6 +1431,7 @@ export const DEFAULT_SETTINGS: Settings = {
   chatTeam: [],
   chatTeamCheck: true,
   chatPreview: true,
+  chatEmptyArt: "ezzy",
   previewDocked: false,
   previewWidth: 0,
   chatInstructions: "",

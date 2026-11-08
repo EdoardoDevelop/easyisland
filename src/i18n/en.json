@@ -4761,6 +4761,14 @@
   "Il terminale si è chiuso: aprine un altro.": "The terminal closed: open another one.",
   "Opacità delle card": "Card opacity",
   "i pannelli dentro l'isola, come la chat: più bassa, più si vede il colore dell'isola e più sono scuri (o chiari, in modalità chiara); per scurire ancora scegli un colore dell'isola più scuro": "the panels inside the island, such as the chat: lower, the more the island's colour shows and the darker they are (or lighter, in light mode); to darken further pick a darker island colour",
-  "Aspetto della chat": "Chat look",
-  "a schede: conversazioni, chat e terminale come schede separate e il campo che galleggia; classico: come prima": "cards: conversations, chat and terminal as separate cards and a floating field; classic: as before"
+  "il personaggio si muove (segue il mouse, cambia con gli stati; Ezzy è il logo di EasyIsland animato); il logo fermo, il tuo logo e il meteo sono immagini ferme, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva": "the character moves (follows the mouse, changes with the states; Ezzy is the EasyIsland logo, animated); the still logo, your logo and the weather are still pictures, for a plainer look. The weather comes from the Weather integration, which must be on",
+  "Ezzy, il logo di EasyIsland animato": "Ezzy, the EasyIsland logo, animated",
+  "Chat vuota": "Empty chat",
+  "Ezzy che galleggia": "Ezzy floating",
+  "Isola che gira": "Turning island",
+  "Mare di puntini": "Sea of dots",
+  "Cielo stellato": "Starry sky",
+  "Aurora": "Aurora",
+  "Rete di punti": "Network of dots",
+  "un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni": "a faint, slow drawing instead of the empty space, until you write the first message; it stops when the chat is not in view and stays still if Windows reduces animations"
 }

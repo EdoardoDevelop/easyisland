@@ -18,6 +18,7 @@
   --del: rgba(248, 81, 73, 0.16);
   --del-ink: #ff9b94;
 }
+html[data-scheme="light"] { color-scheme: light; }
 
 * {
   box-sizing: border-box;
@@ -369,8 +370,6 @@ button {
   margin: 6px 2px 2px;
   color: var(--dim-2);
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
 }
 
 .pv-server {
@@ -416,7 +415,7 @@ button {
 .pv-welcome h1 {
   margin: 14px 0 6px;
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .pv-welcome p {
@@ -883,3 +882,6 @@ button {
   color: #fff;
   font: 600 14px var(--font);
 }
+
+/* As the chat beside it (chat-cards.css, 8 Nov 2026): no bold in the Anteprima's own text. */
+.pv-server strong { font-weight: 400; }
