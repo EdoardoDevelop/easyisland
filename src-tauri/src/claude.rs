@@ -117,6 +117,25 @@ Markdown is rendered: use short paragraphs, lists, tables and code blocks when t
 /// Where an answer that comes after the turn goes (claude_cli::follow).
 pub type Later = std::sync::Arc<dyn Fn(String) + Send + Sync>;
 
+/// A command or sub-agent Claude Code left running after its turn (its
+/// `background_tasks_changed` line): the island's chat lists them.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct BgTask {
+    pub id: String,
+    /// "local_bash", "local_agent", …
+    pub kind: String,
+    pub description: String,
+}
+
+/// Claude Code's effort levels (`claude --help`, 8 Nov 2026).
+pub const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
+
+/// Who hears of the background work of a conversation (lib.rs chat_send).
+pub type OnTasks = std::sync::Arc<dyn Fn(&[BgTask]) + Send + Sync>;
+/// A turn Claude Code started by itself is being written: its steps and text so
+/// far (Some), or it ended (None). The island's chat shows it like a turn.
+pub type OnWorking = std::sync::Arc<dyn Fn(Option<&str>) + Send + Sync>;
+
 #[derive(Default)]
 pub struct Chat {
     /// Full multi-turn history, including tool_use / tool_result blocks.
@@ -130,6 +149,17 @@ pub struct Chat {
     /// A reopened conversation the engine cannot resume on its own: it goes
     /// in front of the next question (chat_log.rs).
     preamble: Mutex<Option<String>>,
+    /// A conversation reopened on its own Claude Code session: the text to
+    /// start from if that session cannot be resumed (claude_cli::send_mode).
+    resume_fallback: Mutex<Option<String>>,
+    /// Modifica, Rigenera, Dirama: the next turn resumes the session at this
+    /// answer, as a new session (`--resume-session-at`, `--fork-session`).
+    resume_at: Mutex<Option<String>>,
+    /// The chat's choice for Claude Code's permissions in Modalità terminale:
+    /// "acceptEdits" or "plan" (None = ask; «Automatica» is `auto`).
+    mode: Mutex<Option<String>>,
+    /// Claude Code's fast mode for this conversation (`fastMode` in its settings).
+    fast: std::sync::atomic::AtomicBool,
     /// The assistant picked for this conversation (Impostazioni → Chat →
     /// Assistenti): its instructions go in front of the first question. Not
     /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
@@ -147,6 +177,11 @@ pub struct Chat {
     /// Answers Claude Code writes after the turn, when a command it left in
     /// the background ends (Agent Chat: posted in the chat).
     later: Mutex<Option<Later>>,
+    /// The island's chat: the list of its background work as it changes.
+    on_tasks: Mutex<Option<OnTasks>>,
+    on_working: Mutex<Option<OnWorking>>,
+    /// Claude Code's effort for this conversation (`--effort`); None = its own.
+    effort: Mutex<Option<String>>,
     /// «Ferma» on this conversation of the island (each one has its own, lib.rs `chat_stop`).
     pub(crate) stop: tokio::sync::Notify,
     /// Reads only, and asks nobody (team.rs): what is not allowed is refused.
@@ -178,12 +213,67 @@ impl Chat {
         self.later.lock().unwrap().clone()
     }
 
+    pub(crate) fn set_on_tasks(&self, f: OnTasks) {
+        *self.on_tasks.lock().unwrap() = Some(f);
+    }
+
+    pub(crate) fn on_tasks(&self) -> Option<OnTasks> {
+        self.on_tasks.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_on_working(&self, f: OnWorking) {
+        *self.on_working.lock().unwrap() = Some(f);
+    }
+
+    pub(crate) fn on_working(&self) -> Option<OnWorking> {
+        self.on_working.lock().unwrap().clone()
+    }
+
     pub fn reset(&self) {
         self.messages.lock().unwrap().clear();
         *self.cli_session.lock().unwrap() = None;
         *self.log_id.lock().unwrap() = None;
         *self.preamble.lock().unwrap() = None;
+        *self.resume_fallback.lock().unwrap() = None;
+        *self.resume_at.lock().unwrap() = None;
         *self.desktop.lock().unwrap() = None;
+    }
+
+    pub(crate) fn set_resume_at(&self, uuid: Option<String>) {
+        *self.resume_at.lock().unwrap() = uuid;
+    }
+
+    pub(crate) fn take_resume_at(&self) -> Option<String> {
+        self.resume_at.lock().unwrap().take()
+    }
+
+    pub(crate) fn set_mode(&self, mode: Option<String>) {
+        *self.mode.lock().unwrap() = mode.filter(|m| matches!(m.as_str(), "acceptEdits" | "plan"));
+    }
+
+    pub(crate) fn mode(&self) -> Option<String> {
+        self.mode.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_fast(&self, on: bool) {
+        self.fast.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn fast(&self) -> bool {
+        self.fast.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub(crate) fn set_resume_fallback(&self, text: Option<String>) {
+        *self.resume_fallback.lock().unwrap() = text;
+    }
+
+    pub(crate) fn take_resume_fallback(&self) -> Option<String> {
+        self.resume_fallback.lock().unwrap().take()
+    }
+
+    /// The context of the last turn, left for the island to take (chat_log keeps it too).
+    pub(crate) fn peek_context(&self) -> Option<(u64, u64)> {
+        *self.context.lock().unwrap()
     }
 
     /// A conversation from the history takes the place of the current one.
@@ -208,6 +298,15 @@ impl Chat {
         *self.log_id.lock().unwrap() = id;
     }
 
+    /// Claude Code's effort for this conversation (`--effort`), when one was picked.
+    pub(crate) fn set_effort(&self, effort: Option<String>) {
+        *self.effort.lock().unwrap() = effort.filter(|e| EFFORTS.contains(&e.as_str()));
+    }
+
+    pub(crate) fn effort(&self) -> Option<String> {
+        self.effort.lock().unwrap().clone()
+    }
+
     pub(crate) fn set_folder(&self, folder: Option<String>) {
         *self.folder.lock().unwrap() = folder.filter(|f| !f.trim().is_empty());
     }
@@ -226,6 +325,10 @@ impl Chat {
 
     pub(crate) fn take_preamble(&self) -> Option<String> {
         self.preamble.lock().unwrap().take()
+    }
+
+    pub(crate) fn has_preamble(&self) -> bool {
+        self.preamble.lock().unwrap().is_some()
     }
 
     pub(crate) fn put_back_preamble(&self, text: String) {
@@ -616,6 +719,11 @@ fn file_block(path: &str) -> Option<Value> {
         }));
     }
 
+    // Word: its text (a PDF went as a document above).
+    if let Some(read) = crate::docx::text_of_file(std::path::Path::new(path)) {
+        let text = read.unwrap_or_else(|e| e);
+        return Some(json!({ "type": "text", "text": tf("Contenuto del file:\n{text}", &[("text", &text)]) }));
+    }
     let len = std::fs::metadata(path).ok()?.len();
     if len > MAX_INLINE_TEXT {
         return None;

@@ -462,7 +462,7 @@ pub fn read_only(command: &str) -> bool {
         "echo", "pwd", "whoami", "hostname", "date", "ls", "dir", "cat", "type", "head", "tail", "wc", "find",
         "where", "which", "tree", "ipconfig", "ping", "nslookup", "tracert", "systeminfo", "tasklist", "ver",
         "get-childitem", "get-content", "get-item", "get-process", "get-service", "get-date", "get-location",
-        "test-path", "test-connection", "resolve-dnsname", "get-netipaddress", "get-computerinfo",
+        "test-path", "test-connection", "resolve-dnsname", "get-netipaddress", "get-computerinfo", "select-string",
         "git status", "git log", "git diff", "git show", "git branch", "node --version", "npm --version",
     ];
     let c = command.trim().to_ascii_lowercase();
@@ -744,7 +744,39 @@ impl Ask for Island {
 
 /// One chat turn on opencode. `model` is "provider/model"; `on_text` gets the
 /// text so far (the island's chat, or Telegram).
+/// A model out of credit or over its usage limit: not asked again for a while.
+/// On the laptop (1 Nov 2026) Agent Chat sent 14 messages in a row to a
+/// free model that answered «Free usage limit reached» to each.
+static SPENT: std::sync::Mutex<Vec<(String, std::time::Instant, String)>> = std::sync::Mutex::new(Vec::new());
+const SPENT_FOR: std::time::Duration = std::time::Duration::from_secs(60 * 60);
+
+fn out_of_credit(err: &str) -> bool {
+    let e = err.to_lowercase();
+    ["usage limit", "quota exceeded", "insufficient credit", "insufficient_quota", "out of credit", "credit balance", "payment required", "subscribe to"]
+        .iter()
+        .any(|w| e.contains(w))
+}
+
 pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, context: Option<ChatContext>, o: &Options, on_text: &(dyn Fn(&str) + Sync)) -> Result<ChatReply, String> {
+    {
+        let mut spent = SPENT.lock().unwrap();
+        spent.retain(|(_, at, _)| at.elapsed() < SPENT_FOR);
+        if let Some((_, at, why)) = spent.iter().find(|(m, ..)| m == model) {
+            let mins = (SPENT_FOR.saturating_sub(at.elapsed()).as_secs() / 60).max(1);
+            return Err(tf("{model} ha finito il credito o il limite d'uso: non lo richiamo per {n} minuti, o finché non lo cambi. ({why})", &[("model", &model), ("n", &mins), ("why", why)]));
+        }
+    }
+    let reply = send_now(app, chat, model, query, context, o, on_text).await;
+    if let Err(e) = &reply {
+        if out_of_credit(e) {
+            crate::log::line(format!("opencode: {model} senza credito, in pausa per un'ora"));
+            SPENT.lock().unwrap().push((model.to_string(), std::time::Instant::now(), e.chars().take(160).collect()));
+        }
+    }
+    reply
+}
+
+async fn send_now(app: &AppHandle, chat: &Chat, model: &str, query: String, context: Option<ChatContext>, o: &Options, on_text: &(dyn Fn(&str) + Sync)) -> Result<ChatReply, String> {
     let o = &with_agent(o);
     if o.telegram {
         run_turn(chat, model, query, context, on_text, Telegram(app.clone()), o).await

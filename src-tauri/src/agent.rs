@@ -172,6 +172,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "agentchat_consult" => crate::agentchat::tool_consult(app, args).await,
         "consult_engines" => Box::pin(crate::agentchat::tool_engines(app, args)).await,
         // Integrazioni personali (custom.rs): create and update ask Consenti / Nega (the preview).
+        "document_read" => crate::documents::tool_read(app, args),
+        "document_templates" => Ok(crate::docx::template_list()),
+        "document_template_add" => crate::documents::tool_template_add(app, args),
+        "document_create" => crate::documents::tool_create(app, args).await,
+        "document_pdf" => crate::documents::tool_pdf(app, args).await,
+        "pdf_merge" => crate::documents::tool_pdf_merge(app, args).await,
+        "pdf_split" => crate::documents::tool_pdf_split(app, args).await,
         "custom_create" => crate::custom::tool_create(app, args),
         "custom_update" => crate::custom::tool_update(app, args),
         "custom_list" => Ok(crate::custom::tool_list()),
@@ -373,6 +380,17 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             let id = arg(args, "id").trim().trim_matches(['{', '}']).to_string();
             crate::rdm::open(&id)?;
             Ok("Aperta in Remote Desktop Manager.".into())
+        }
+
+        // A piece of work in a conversation of its own (allowed on its card): the chat opens it and sends the prompt.
+        "chat_start" => {
+            let (title, prompt) = (arg(args, "title").trim(), arg(args, "prompt").trim());
+            if prompt.is_empty() {
+                return Err("Servono le istruzioni (prompt).".into());
+            }
+            let folder = Some(arg(args, "folder").trim()).filter(|f| !f.is_empty() && std::path::Path::new(f).is_dir());
+            let _ = app.emit_to(WINDOW_LABEL, "chat-new", json!({ "title": title.chars().take(80).collect::<String>(), "prompt": prompt, "folder": folder }));
+            Ok(format!("Avviata la conversazione «{title}»: va avanti da sola nella chat dell'isola."))
         }
 
         "open_url" => {

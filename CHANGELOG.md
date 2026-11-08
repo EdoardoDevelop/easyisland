@@ -2,6 +2,18 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.34** — **La chat fa tutto quello che fa Claude Desktop, e di più.** Con Claude Code le conversazioni riaperte dalla cronologia
+**riprendono la loro sessione** con tutto il contesto, e così Modifica, Rigenera e Dirama, che ripartono da quel punto. L'**anello del
+contesto** c'è sempre, anche dopo i lavori in background e riaprendo una chat; **/compatta** riassume la conversazione con ogni motore.
+Il pulsante delle modalità passa fra **Consenti / Nega**, **Accetta modifiche**, **Piano** e **Automatica**, e «Sempre» vale per tutta
+la conversazione. Nel menu «/» ci sono i **comandi di Claude Code**, le tue skill e i plugin; nel menu del motore **modello** e **fast mode**
+per la conversazione. Sotto ogni passo si apre il suo **esito**, i **sotto-agenti** mostrano i loro passi, la **lista delle attività** resta
+in vista, e un messaggio scritto mentre Claude lavora **entra subito** nel suo lavoro. **⟲ File** riporta i file com'erano prima di una
+domanda, anche dopo un riavvio. Nella cronologia anche le **sessioni del terminale e di Desktop**. Per i progetti: **copia separata**
+(worktree), **pull request** con i controlli e «Correggi», **commenti sulle righe** delle modifiche, un **terminale** PowerShell tuo e i
+**lavori a parte** che Claude può proporre. Meno token: PDF senza intestazioni ripetute, risultati lunghi senza file, sotto-agenti su
+Sonnet. Niente più domande perse se un turno si interrompe, **password mascherate** su disco, note doppie rifiutate.
+
 **1.0.33** — **Integrazioni personali più complete**, tutte e non solo i DDT: **modelli HTML** veri con i valori sempre protetti, date per
 esteso, numeri all'italiana, condizioni e risorse come il logo. Gli a capo non rompono più le tabelle. **PDF A4** diretto da una scheda,
 salvato nel Vassoio e in una cartella. Dalla chat scegli **dove salvare** e **come chiamare il file**, anche con più campi, e come si leggono le schede nell'elenco. Un pulsante può lanciare uno **script** con conferma e i dati della scheda arrivano anche alle azioni

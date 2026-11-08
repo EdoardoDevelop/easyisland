@@ -6,7 +6,7 @@ import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -266,6 +266,9 @@ export function windowLabel(w: { appName: string; title: string }): string {
 /** The user's skills (skills.rs), for the «/commands»; read again at most every 5 s. */
 let skillCache: Skill[] = [];
 let skillsRead = 0;
+/** Claude Code's slash commands (its `init` line), for the «/» menu with Claude Code. */
+let claudeCommands: string[] = [];
+let claudeRead = 0;
 
 /** A command typed after "/" in the field (the menu over it lists them). */
 interface Slash {
@@ -312,6 +315,37 @@ export function buildPrompt(
   /** Each project's git branch, as last read, and what that read was for. */
   const branches = new Map<string, string>();
   let branchRead = "";
+  /** The project's open pull request and its checks (gh), as Claude Desktop shows them; read at most every 60 s. */
+  type PullRequest = { number: number; title: string; url: string; state: string; passed: number; pending: number; failed: string[] };
+  const prs = new Map<string, { pr: PullRequest | null; at: number }>();
+  const prBtn = h("button", { class: "engine-pick pr-pick" }) as HTMLButtonElement;
+  prBtn.style.display = "none";
+  prBtn.addEventListener("click", () => {
+    const folder = State.chat.folder;
+    const pr = folder ? prs.get(folder)?.pr : null;
+    if (!pr) return;
+    if (engineMenu.style.display !== "none") {
+      engineMenu.style.display = "none";
+      return;
+    }
+    clear(engineMenu);
+    engineMenu.append(h("div", { class: "engine-head", text: `#${pr.number} ${pr.title}` }));
+    engineMenu.append(h("button", { class: "engine-item", text: t("Apri la pull request"), onclick: () => { engineMenu.style.display = "none"; void Bridge.openUrl(pr.url); } }));
+    if (pr.failed.length) {
+      engineMenu.append(h("button", {
+        class: "engine-item", text: t("Correggi i controlli che non passano"),
+        onclick: () => {
+          engineMenu.style.display = "none";
+          const ask = t("I controlli della pull request #{n} non passano: {names}. Leggi i log con `gh pr checks {n}` e `gh run view --log-failed`, trova la causa e correggi.", { n: pr.number, names: pr.failed.join(", ") });
+          if (State.chat.sending) State.chat.queue.push(ask);
+          else void submit(ask, State.chat);
+          State.notify();
+        },
+      }));
+    }
+    engineMenu.append(h("div", { class: "engine-note", text: t("Controlli: {ok} riusciti, {ko} non riusciti, {wait} in corso. Letti con gh ogni minuto al massimo.", { ok: pr.passed, ko: pr.failed.length, wait: pr.pending }) }));
+    engineMenu.style.display = "";
+  });
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
   // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
@@ -336,7 +370,19 @@ export function buildPrompt(
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, previewBtn, desktopBtn, exportBtn, popBtn);
+  // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
+  const termBtn = h("button", { class: "history-btn", text: ">_", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }) as HTMLButtonElement;
+  const termOut = h("pre", { class: "chat-term-out" });
+  const termIn = h("input", { class: "chat-term-in", type: "text", spellcheck: "false", placeholder: t("Comando (Invio). Per editor e password usa Terminale di Windows.") }) as HTMLInputElement;
+  const termRow = h("div", { class: "chat-term" },
+    h("div", { class: "chat-term-head" }, h("span", { text: t("Terminale") }),
+      h("button", { class: "chat-queued-btn", text: t("Riavvia"), title: t("Chiude questo PowerShell (anche un comando bloccato) e ne apre un altro"), onclick: () => void restartTerminal() }),
+      h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiudi il terminale"), onclick: () => closeTerminal() })),
+    termOut, termIn);
+  termRow.style.display = "none";
+  /** One PowerShell per conversation, with what it printed. */
+  const terms = new Map<string, { id: number; lines: string[] }>();
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, previewBtn, desktopBtn, exportBtn, popBtn);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -397,7 +443,7 @@ export function buildPrompt(
   // Two rows: the text on the whole width, under it what goes with the message.
   const contextPct = h("span", { class: "ctx-pct" });
   const contextMeter = h("span", { class: "ctx-meter" }, h("span", { class: "ctx-ring" }), contextPct);
-  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
+  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, prBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
   const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
@@ -457,7 +503,11 @@ export function buildPrompt(
   const queueRow = h("div", { class: "chat-queue" });
   queueRow.style.display = "none";
   let queueKey = "";
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, queueRow, slashMenu, bar));
+  // Work the engine left in the background (claude_cli.rs follow): each one, and «Ferma tutto».
+  const bgRow = h("div", { class: "chat-queue chat-bg" });
+  bgRow.style.display = "none";
+  let bgKey = "";
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
   const el = h(
     "div",
     { class: "view" },
@@ -667,8 +717,13 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null, context: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team);
+        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast);
       if (reply.log) c.logId = reply.log;
+      // «Piano» ends when its plan is approved, as in Claude Desktop.
+      if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
+      const note = (reply as { note?: string | null }).note;
+      if (note && c === State.chat) flash(note);
       c.context = reply.context ?? null;
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
@@ -694,10 +749,11 @@ export function buildPrompt(
       c.sending = false;
       c.stopping = false;
       c.streamed = "";
+      c.working = false;
       c.teamRows = [];
       c.at = Date.now();
       if (c !== State.chat) c.unread = true;
-      if (!State.chats.some((x) => x.sending)) State.stateOverride = null;
+      if (!State.chats.some((x) => x.sending || x.working)) State.stateOverride = null;
       streamEl = null;
       renderedCount = -1;
       State.notify();
@@ -718,8 +774,23 @@ export function buildPrompt(
     const c = State.chat;
     const text = input.value.trim();
     if (!text) return;
-    c.queue.push(text);
     setInput("");
+    // Claude Code takes it into the turn it is in, between two steps (as in Claude Desktop); else the queue.
+    if (c.sending && !c.session && !c.team && engineOf(c) === "subscription") {
+      void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
+        const question = [...c.history].reverse().find((m) => m.role === "user");
+        if (ok && c.sending && question) {
+          question.content += `\n\n↪ ${text}`;
+          renderedCount = -1;
+          flash(t("Aggiunto al lavoro in corso: Claude ne tiene conto subito."));
+        } else c.queue.push(text);
+        Sound.play("blip");
+        State.notify();
+        onHeightChange();
+      });
+      return;
+    }
+    c.queue.push(text);
     Sound.play("blip");
     State.notify();
     onHeightChange();
@@ -741,6 +812,40 @@ export function buildPrompt(
       void Bridge.chatStop(c.sid);
     }
     State.notify();
+  }
+
+  function renderBackground() {
+    const c = State.chat;
+    const key = `${c.sid}|${c.stopping ? 1 : 0}|${c.background.map((b) => b.id + b.description).join("\u0000")}`;
+    if (key === bgKey) return;
+    bgKey = key;
+    const kindOf = (b: { kind: string }) => (b.kind.includes("agent") ? t("agente") : b.kind.includes("bash") || b.kind.includes("shell") ? t("comando") : t("lavoro"));
+    const rows = c.background.map((b) => h("div", { class: "chat-queued" },
+      h("span", { class: "chat-bg-dot" }),
+      h("span", { class: "chat-queued-tag", text: kindOf(b) }),
+      h("span", { class: "chat-queued-text", text: b.description || b.id, title: b.description || b.id }),
+      h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiedi di fermare solo questo lavoro"),
+        onclick: () => {
+          const ask = t("Ferma il lavoro in background «{name}» (id {id}) con TaskStop e dimmi a che punto era.", { name: b.description || b.id, id: b.id });
+          if (c.sending) c.queue.push(ask);
+          else void submit(ask, c);
+          State.notify();
+        } })));
+    if (rows.length) {
+      rows.unshift(h("div", { class: "chat-bg-head" },
+        h("span", { text: t("In background: {n}. Il risultato arriva qui.", { n: c.background.length }) }),
+        h("button", { class: "chat-queued-btn", text: t("Ferma tutto"), title: t("Ferma tutti i lavori in background di questa conversazione"),
+          onclick: () => {
+            c.background = [];
+            c.working = false;
+            if (!c.sending) c.streamed = "";
+            void Bridge.chatStop(c.sid);
+            State.notify();
+          } })));
+    }
+    bgRow.replaceChildren(...rows);
+    bgRow.style.display = rows.length ? "" : "none";
+    onHeightChange();
   }
 
   function renderQueue() {
@@ -772,7 +877,7 @@ export function buildPrompt(
   /** The button: «Ferma» while it answers with an empty field, else «Invia» (in the queue while it answers). */
   function updateSendBtn() {
     const c = State.chat;
-    const stopMode = c.sending && !c.session && !input.value.trim();
+    const stopMode = (c.sending || c.working) && !c.session && !input.value.trim();
     const mode = stopMode ? "stop" : "send";
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
@@ -985,6 +1090,32 @@ export function buildPrompt(
   }
 
   /** «Modifica»: the question back in the field; sending it starts over from there. */
+  /** «⟲ File»: what changed from this question on, then a second click restores it. */
+  let restoreAsk: { sid: string; at: number; until: number } | null = null;
+  async function restoreFiles(index: number) {
+    const c = State.chat;
+    const list = (await Bridge.chatFilesSince(c.sid, index)) ?? [];
+    if (!list.length) {
+      flash(t("Nessun file cambiato da Claude Code da questa domanda in poi (i comandi non contano)."));
+      return;
+    }
+    const ask = restoreAsk;
+    if (!ask || ask.sid !== c.sid || ask.at !== index || Date.now() > ask.until) {
+      restoreAsk = { sid: c.sid, at: index, until: Date.now() + 8000 };
+      const names = list.map(([p, del]) => `${folderName(p)}${del ? ` (${t("da eliminare")})` : ""}`).join(", ");
+      flash(t("Ripristino {n} file: {names}. Clic di nuovo su ⟲ File per confermare.", { n: list.length, names }));
+      return;
+    }
+    restoreAsk = null;
+    try {
+      const n = await Bridge.chatFilesRestore(c.sid, index);
+      flash(t("{n} file come prima di questa domanda.", { n }));
+      Sound.play("finish");
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
   function edit(index: number) {
     if (State.chat.sending) return;
     editing = index;
@@ -1019,6 +1150,9 @@ export function buildPrompt(
     const own = !State.chatSession && !State.chat.sending;
     if (own && m.role === "user") {
       bar.append(h("button", { class: "msg-act", text: t("Modifica"), onclick: () => edit(index) }));
+      if (State.settings.chatTerminal === true) {
+        bar.append(h("button", { class: "msg-act", title: t("Riporta i file cambiati da questa domanda in poi com'erano prima (come in Claude Desktop); la conversazione resta"), text: `⟲ ${t("File")}`, onclick: () => void restoreFiles(index) }));
+      }
     }
     if (own && last && m.role === "assistant" && !m.reviewer) {
       bar.append(h("button", { class: "msg-act", text: `↻ ${t("Rigenera")}`, onclick: () => void regenerate() }));
@@ -1083,7 +1217,7 @@ export function buildPrompt(
       c.stopping = false;
       c.streamed = "";
       if (c !== State.chat) c.unread = true;
-      if (!State.chats.some((x) => x.sending)) State.stateOverride = null;
+      if (!State.chats.some((x) => x.sending || x.working)) State.stateOverride = null;
       streamEl = null;
       renderedCount = -1;
       State.notify();
@@ -1138,6 +1272,9 @@ export function buildPrompt(
       // An engine picked in the menu was for that conversation only; so was "Automatica".
       c.engineOverride = null;
       c.auto = false;
+      c.mode = "";
+      c.model = null;
+      c.fast = false;
       c.team = false;
       c.desktop = false;
       c.assistant = null;
@@ -1321,6 +1458,13 @@ export function buildPrompt(
       { name: "compito", hint: t("Un obiettivo che EasyIsland porta avanti da solo"), arg: true, run: (a) => void newTask(a) },
       { name: "memoria", hint: t("Apri la memoria della chat (MEMORIA.md)"), run: () => void Bridge.memoryOpen(false).catch((e) => flash(String(e))) },
       { name: "esporta", hint: t("La conversazione in Markdown, nel Vassoio"), run: () => void exportChat() },
+      // The engine goes on from a summary (lib.rs is_compact; Claude Code's own /compact too).
+      { name: "compatta", hint: t("Riassumi la conversazione per il motore: meno contesto, meno token"), run: () => {
+        const c = State.chat;
+        if (c.sending) c.queue.push("/compatta");
+        else void submit("/compatta", c);
+        State.notify();
+      } },
       { name: "motore", hint: t("Cambia motore per questa chat"), run: () => void toggleEngineMenu() },
       { name: "oggi", hint: t("Il punto della mia giornata di oggi"), run: () => void day(false) },
       { name: "domani", hint: t("Il punto della mia giornata di domani"), run: () => void day(true) },
@@ -1331,6 +1475,24 @@ export function buildPrompt(
       if (taken.has(sk.id)) continue;
       taken.add(sk.id);
       list.push({ name: sk.id, arg: true, hint: `📘 ${t("Abilità: {n}", { n: sk.name })}`, run: (a) => void useSkill(sk, a) });
+    }
+    // Claude Code's own commands, the user's (.claude/commands), skills and plugins, as Claude Desktop lists them.
+    if (engineOf(State.chat) === "subscription") {
+      if (Date.now() - claudeRead > 30_000) {
+        claudeRead = Date.now();
+        void Promise.resolve(Bridge.chatClaudeCommands()).then((l) => { if (l) claudeCommands = l; });
+      }
+      for (const name of claudeCommands) {
+        if (taken.has(name)) continue;
+        taken.add(name);
+        list.push({ name, arg: true, hint: `✳ ${t("Comando di Claude Code")}`, run: (a) => {
+          const text = a ? `/${name} ${a}` : `/${name}`;
+          const c = State.chat;
+          if (c.sending) c.queue.push(text);
+          else void submit(text, c);
+          State.notify();
+        } });
+      }
     }
     for (const a of State.settings.chatAssistants ?? []) {
       const name = slug(a.name);
@@ -1461,7 +1623,58 @@ export function buildPrompt(
       }));
     }
     engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat. Predefinito, chiavi e modelli: Impostazioni → Chat") }));
+    // Claude Code: how much it reasons (`--effort`), for this chat and the next ones.
+    if (State.chatEngine === "subscription") {
+      const now = effortOf(State.chat);
+      engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Claude") }));
+      for (const [id, label, hint] of efforts()) {
+        engineMenu.append(h("button", {
+          class: `engine-item${id === now ? " on" : ""}`, title: hint, text: label,
+          onclick: () => pickEffort(id),
+        }));
+      }
+      engineMenu.append(h("div", { class: "engine-note", text: t("Più impegno: risposte più ragionate, ma più lente e più consumo. Vale da subito, anche a metà conversazione.") }));
+      // The model for this conversation, as Claude Desktop's picker: the session goes on with it.
+      const model = State.chat.model ?? "";
+      engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Claude") }));
+      for (const [id, label] of [["", t("Quello delle Impostazioni")], ["fable", "Fable"], ["opus", "Opus"], ["sonnet", "Sonnet"], ["haiku", "Haiku"]] as [string, string][]) {
+        engineMenu.append(h("button", {
+          class: `engine-item${id === model ? " on" : ""}`, text: label,
+          onclick: () => { State.chat.model = id || null; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+        }));
+      }
+      engineMenu.append(h("button", {
+        class: `engine-item${State.chat.fast ? " on" : ""}`, title: t("Risposte più rapide con lo stesso modello; costa di più e richiede l'uso extra sull'account Claude"),
+        text: `${State.chat.fast ? "✓ " : ""}${t("Fast mode")}`,
+        onclick: () => { State.chat.fast = !State.chat.fast; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+      }));
+      engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
+    }
     engineMenu.style.display = "";
+  }
+
+  function efforts(): [string, string, string][] {
+    return [
+      ["", t("Predefinito di Claude Code"), t("Quello delle impostazioni di Claude Code o del modello")],
+      ["low", t("Basso"), t("Veloce ed economico: domande semplici")],
+      ["medium", t("Medio"), t("Il giusto per quasi tutto")],
+      ["high", t("Alto"), t("Ragiona di più: lavori complessi")],
+      ["xhigh", t("Molto alto"), t("Per i lavori lunghi e difficili")],
+      ["max", t("Massimo"), t("Il più lento e costoso")],
+    ];
+  }
+
+  function effortOf(c: ChatSessionState): string {
+    return c.effort ?? State.settings.cliEffort ?? "";
+  }
+
+  /** For this chat, and remembered for the next ones. */
+  function pickEffort(id: string) {
+    engineMenu.style.display = "none";
+    State.chat.effort = id;
+    State.settings.cliEffort = id;
+    void Bridge.saveSettings(State.settings);
+    State.notify();
   }
 
   /** «Progetto…»: where this conversation works; the default stays the folder of Impostazioni → Chat. */
@@ -1493,6 +1706,20 @@ export function buildPrompt(
           .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
       },
     }));
+    // A git worktree on a branch of its own, as Claude Desktop gives a session: two chats never touch the same files.
+    const base = own ?? (State.settings.chatFolder || null);
+    if (base) {
+      engineMenu.append(h("button", {
+        class: "engine-item", title: t("Una copia del progetto con un suo branch (git worktree) in .claude\\worktrees: questa chat lavora lì senza toccare i file degli altri"),
+        text: t("Copia separata (worktree) di {name}", { name: folderName(base) }),
+        onclick: () => {
+          engineMenu.style.display = "none";
+          void Bridge.chatWorktree(base)
+            .then((f) => { pickFolder(f); flash(t("Questa chat lavora in una copia separata: {path}", { path: f })); })
+            .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
+        },
+      }));
+    }
     engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat: legge le regole e il git del progetto. La predefinita: Impostazioni → Chat") }));
     engineMenu.style.display = "";
   }
@@ -1577,6 +1804,9 @@ export function buildPrompt(
   /** The history as last read: the sidebar is drawn again from it when a conversation changes state. */
   let lastList: ChatSummary[] = [];
   let lastQuery = "";
+  /** Claude Code sessions of the terminal or Claude Desktop (read again at most every 60 s). */
+  let outside: { id: string; title: string; folder: string; updated: number }[] = [];
+  let outsideRead = 0;
   let historyRead = false;
   const closedProjects = readClosedProjects();
 
@@ -1739,7 +1969,27 @@ export function buildPrompt(
     list.filter((c) => c.pinned).forEach(dated);
     for (const p of projectsOf(list.filter((c) => !c.pinned && c.folder), fresh.filter((c) => c.folder))) drawProject(p, query.trim() !== "", savedRow, freshRow);
     list.filter((c) => !c.pinned && !c.folder).forEach(dated);
+    // Sessions of Claude Code started elsewhere: a click takes one in and resumes it here.
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const others = outside.filter((s) => words.every((w) => s.title.toLowerCase().includes(w) || s.folder.toLowerCase().includes(w)));
+    if (others.length) historyRows.append(h("div", { class: "side-group", text: t("Claude Code fuori da EasyIsland") }));
+    for (const s of others) {
+      historyRows.append(h("div", { class: "history-item", title: `${when(s.updated)} · ${s.folder}`, onclick: () => void takeSession(s.id) },
+        h("div", { class: "history-text" }, h("span", { class: "history-title", text: s.title }))));
+    }
     onHeightChange();
+  }
+
+  /** A session of the terminal or Claude Desktop: into the history, then reopened on that session. */
+  async function takeSession(id: string) {
+    try {
+      const conv = await Bridge.chatClaudeSessionImport(id);
+      outside = outside.filter((s) => s.id !== id);
+      await reopen(conv);
+      void refreshHistory();
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
   }
 
   interface Project {
@@ -1809,6 +2059,10 @@ export function buildPrompt(
   async function refreshHistory() {
     const seq = ++searchSeq;
     const q = historySearch.value;
+    if (Date.now() - outsideRead > 60_000) {
+      outsideRead = Date.now();
+      outside = (await Bridge.chatClaudeSessions()) ?? [];
+    }
     const list = await loadHistory(q);
     if (seq === searchSeq) renderHistory(list, q);
   }
@@ -1865,6 +2119,8 @@ export function buildPrompt(
       const got = await Bridge.chatHistoryOpen(c.sid, id);
       c.history = got.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
       c.logId = id;
+      // Claude Code's session resumed: its context at once, read from the session's file.
+      c.context = got.context ?? null;
       c.text = null;
       c.window = null;
       c.attach = [];
@@ -1872,6 +2128,9 @@ export function buildPrompt(
       c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
       c.folder = got.folder || null;
       c.auto = false;
+      c.mode = "";
+      c.model = null;
+      c.fast = false;
       c.team = false;
       c.desktop = false;
       c.at = Date.now();
@@ -1921,7 +2180,18 @@ export function buildPrompt(
     input.focus();
   });
   autoBtn.addEventListener("click", () => {
-    State.chatAuto = !State.chatAuto;
+    // Claude Code: Consenti / Nega → Accetta modifiche → Piano → Automatica (its own modes, as Claude Desktop offers them).
+    const c = State.chat;
+    if (engineOf(c) === "subscription") {
+      const order = ["", "acceptEdits", "plan", "auto"];
+      const now = c.auto ? "auto" : c.mode;
+      const next = order[(order.indexOf(now) + 1) % order.length];
+      c.auto = next === "auto";
+      c.mode = next === "auto" ? "" : next;
+    } else {
+      c.auto = !c.auto;
+      c.mode = "";
+    }
     Sound.play("blip");
     State.notify();
     input.focus();
@@ -1935,6 +2205,115 @@ export function buildPrompt(
     if (!c?.sending) return;
     c.streamed = p.text;
     if (c === State.chat) State.notify();
+  });
+  function drawTerminal() {
+    const term = terms.get(State.chat.sid);
+    termRow.style.display = term ? "" : "none";
+    termBtn.classList.toggle("on", !!term);
+    termOut.textContent = term ? term.lines.join("\n") : "";
+    termOut.scrollTop = termOut.scrollHeight;
+    onHeightChange();
+  }
+  async function openTerminal() {
+    const c = State.chat;
+    try {
+      const id = await Bridge.terminalOpen(c.folder ?? (State.settings.chatFolder || null));
+      terms.set(c.sid, { id, lines: [] });
+      drawTerminal();
+      termIn.focus();
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+  function closeTerminal() {
+    const term = terms.get(State.chat.sid);
+    if (term) void Bridge.terminalClose(term.id);
+    terms.delete(State.chat.sid);
+    drawTerminal();
+    input.focus();
+  }
+  async function restartTerminal() {
+    closeTerminal();
+    await openTerminal();
+  }
+  termBtn.addEventListener("click", () => {
+    if (terms.has(State.chat.sid)) closeTerminal();
+    else void openTerminal();
+  });
+  termIn.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if ((e as KeyboardEvent).key !== "Enter") return;
+    const term = terms.get(State.chat.sid);
+    const line = termIn.value;
+    termIn.value = "";
+    if (!term) return;
+    term.lines.push(`> ${line}`);
+    drawTerminal();
+    void Bridge.terminalWrite(term.id, line).catch((err) => { term.lines.push(String(err).replace(/^Error:\s*/, "")); drawTerminal(); });
+  });
+  void onEvent<{ id: number; text: string; error?: boolean }>("terminal-out", (p) => {
+    for (const term of terms.values()) {
+      if (term.id !== p.id) continue;
+      term.lines.push(p.text);
+      // The last 2000 lines.
+      if (term.lines.length > 2000) term.lines.splice(0, term.lines.length - 2000);
+      if (terms.get(State.chat.sid) === term) drawTerminal();
+    }
+  });
+  // A piece of work Claude proposed and the user allowed (agent.rs chat_start): a conversation of its own, beside this one.
+  void onEvent<{ title: string; prompt: string; folder?: string | null }>("chat-new", (p) => {
+    if (!p.prompt?.trim()) return;
+    const here = State.chat;
+    const c = newChatSession();
+    c.folder = p.folder || here.folder;
+    c.engineOverride = here.engineOverride;
+    State.chats.push(c);
+    void submit(p.prompt, c);
+    flash(t("Nuova conversazione a parte: «{title}». La trovi nella barra laterale.", { title: p.title || p.prompt.slice(0, 40) }));
+    State.notify();
+  });
+  // Comments on the lines of «Modifiche» (preview window): a message of the chat on screen.
+  void onEvent<{ text: string }>("preview-chat", (p) => {
+    if (!p.text?.trim()) return;
+    const c = State.chat;
+    if (c.sending) {
+      setInput(p.text);
+      enqueue();
+    } else void submit(p.text, c);
+  });
+  // The list of the work left in the background, as it changes.
+  void onEvent<{ sid?: string; tasks: BgTask[] }>("chat-background", (p) => {
+    const c = State.chats.find((x) => x.sid === p.sid);
+    if (!c) return;
+    c.background = p.tasks ?? [];
+    if (c === State.chat) State.notify();
+  });
+  // A turn the engine started by itself (background work ended): at work like a turn, until its answer.
+  void onEvent<{ sid?: string; text: string | null }>("chat-working", (p) => {
+    const c = State.chats.find((x) => x.sid === p.sid);
+    if (!c || c.sending) return;
+    c.working = p.text != null;
+    c.streamed = p.text ?? "";
+    if (c.working) State.stateOverride = "thinking";
+    else if (!State.chats.some((x) => x.sending || x.working)) State.stateOverride = null;
+    if (!c.working) renderedCount = -1;
+    if (c === State.chat) State.notify();
+  });
+  // An answer written after the turn, when background work ended: in the conversation, with a sound.
+  void onEvent<{ sid?: string; text: string }>("chat-later", (p) => {
+    const c = State.chats.find((x) => x.sid === p.sid);
+    if (!c || !p.text.trim()) return;
+    if (!c.sending) {
+      c.working = false;
+      c.streamed = "";
+    }
+    c.history.push({ id: nextId++, role: "assistant", content: p.text, engine: engineOf(c) });
+    c.at = Date.now();
+    if (c !== State.chat || State.mode !== "expanded") c.unread = true;
+    Sound.play("finish");
+    renderedCount = -1;
+    State.notify();
+    void refreshHistory();
   });
   void onEvent<{ sid?: string; rows: TeamRow[] }>("chat-team", (p) => {
     const c = State.chats.find((x) => x.sid === p.sid);
@@ -2009,6 +2388,15 @@ export function buildPrompt(
   send.addEventListener("click", () => {
     // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").
     const c = State.chat;
+    // Writing on its own after background work: «Ferma» stops it (a message goes in as usual).
+    if (c.working && !c.sending && !input.value.trim()) {
+      c.working = false;
+      c.streamed = "";
+      c.background = [];
+      void Bridge.chatStop(c.sid);
+      State.notify();
+      return;
+    }
     if (c.sending) {
       if (input.value.trim()) {
         enqueue();
@@ -2125,7 +2513,7 @@ export function buildPrompt(
         ? windowLabel(win)
         : file?.name ?? "";
       const assistant = State.chat.assistant;
-      const sending = State.chat.sending;
+      const sending = State.chat.sending || State.chat.working;
       const streamed = State.chat.streamed;
       const ownFolder = State.chat.folder;
       folderBtn.style.display = State.settings.chatTerminal === true && !asked ? "" : "none";
@@ -2140,6 +2528,24 @@ export function buildPrompt(
         });
       }
       branchRead = branchKey;
+      // Its pull request: when a reply ends and the project shows, at most every 60 s.
+      if (ownFolder && !sending && State.settings.chatTerminal === true && Date.now() - (prs.get(ownFolder)?.at ?? 0) > 60_000) {
+        const folder = ownFolder;
+        prs.set(folder, { pr: prs.get(folder)?.pr ?? null, at: Date.now() });
+        void Promise.resolve(Bridge.chatPullRequest(folder)).then((pr) => {
+          prs.set(folder, { pr: pr && pr.state === "OPEN" ? pr : null, at: Date.now() });
+          State.notify();
+        });
+      }
+      const pr = ownFolder && State.settings.chatTerminal === true ? prs.get(ownFolder)?.pr ?? null : null;
+      prBtn.style.display = pr ? "" : "none";
+      if (pr) {
+        const mark = pr.failed.length ? `✗ ${pr.failed.length}` : pr.pending ? "…" : "✓";
+        const label = `#${pr.number} ${mark}`;
+        if (prBtn.textContent !== label) prBtn.textContent = label;
+        prBtn.classList.toggle("failed", pr.failed.length > 0);
+        prBtn.title = `${pr.title}\n${t("Controlli: {ok} riusciti, {ko} non riusciti, {wait} in corso.", { ok: pr.passed, ko: pr.failed.length, wait: pr.pending })}`;
+      }
       const branch = ownFolder ? branches.get(ownFolder) ?? "" : "";
       const [ctxUsed, ctxSize] = State.chat.context ?? [0, 0];
       const ctxShare = ctxSize ? Math.min(100, Math.round(ctxUsed / ctxSize * 100)) : 0;
@@ -2206,7 +2612,8 @@ export function buildPrompt(
         onHeightChange();
       }
 
-      engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
+      const effort = State.chatEngine === "subscription" ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
+      engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
       exportBtn.style.display = State.chatHistory.length ? "" : "none";
@@ -2246,10 +2653,19 @@ export function buildPrompt(
       previewBtn.classList.toggle("on", State.previewOpen);
       previewBtn.title = State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat");
       autoBtn.classList.toggle("on", auto);
+      const claudeMode = terminal && !auto && engineOf(State.chat) === "subscription" ? State.chat.mode : "";
+      autoBtn.classList.toggle("mode", !!claudeMode);
+      const modeLabel = auto ? t("Automatica") : claudeMode === "plan" ? t("Piano") : claudeMode === "acceptEdits" ? t("Accetta modifiche") : t("Automatica");
+      const labelEl = autoBtn.querySelector("span");
+      if (labelEl && labelEl.textContent !== modeLabel) labelEl.textContent = modeLabel;
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
-      autoBtn.title = State.chatEngine === "subscription"
+      autoBtn.title = claudeMode === "plan"
+        ? t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
+        : claudeMode === "acceptEdits"
+        ? t("Accetta modifiche: le modifiche ai file vanno senza chiedere, i comandi chiedono ancora. Clic: Piano")
+        : State.chatEngine === "subscription"
         ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
-          : t("Automatica: in questa conversazione Claude Code non chiede conferma per le azioni normali e blocca quelle rischiose"))
+          : t("Modalità di Claude Code. Clic: Accetta modifiche, poi Piano, poi Automatica, poi di nuovo Consenti / Nega"))
         : (auto ? t("Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega")
           : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora"));
       // The conversation's title: as the history has it, else its first question.
@@ -2345,6 +2761,7 @@ export function buildPrompt(
       input.disabled = false;
       updateSendBtn();
       renderQueue();
+      renderBackground();
       // Only when there is something to forget.
       // In the sidebar when it is open; here only when there is something to leave.
       fresh.style.display = !layout.classList.contains("side-open") && (State.chatHistory.length > 0 || file || text || win || asked || attach.length || assistant || textAttach) ? "" : "none";

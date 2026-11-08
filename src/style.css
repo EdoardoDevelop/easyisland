@@ -1387,6 +1387,48 @@ input[type="range"]::-webkit-slider-thumb {
   background: #f5b041;
 }
 
+/* «Terminale» (terminal.rs): the user's PowerShell under the conversation. */
+.chat-term {
+  margin: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.chat-term-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-2); }
+.chat-term-head span { flex: 1; }
+.chat-term-out {
+  margin: 0;
+  padding: 2px 8px;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: calc(11px + var(--fs-up, 0px));
+  color: var(--ink);
+}
+.chat-term-in {
+  margin: 4px 8px 6px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: calc(11px + var(--fs-up, 0px));
+}
+
+/* The project's pull request and its checks. */
+.pr-pick.failed { color: #f08a8a; }
+
+/* Claude Code's «Accetta modifiche» and «Piano». */
+.auto-btn.mode {
+  color: var(--ink);
+  background: rgba(129, 140, 248, 0.35);
+}
+
 .chat-card.auto {
   box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75);
 }
@@ -2012,6 +2054,24 @@ input[type="range"]::-webkit-slider-thumb {
 .md-steps > summary::before { content: "▸"; display: inline-block; width: 1.1em; }
 .md-steps[open] > summary::before { content: "▾"; }
 .md-steps > summary:hover { color: var(--ink); }
+/* What a step gave back (a command's output, a file read): closed under it. */
+.md-step-out { margin: 1px 0 3px 1.1em; }
+.md-step-out > summary {
+  width: fit-content;
+  list-style: none;
+  cursor: default;
+  font-size: calc(10.5px + var(--fs-up, 0px));
+  color: var(--dim-2);
+  opacity: 0.8;
+}
+.md-step-out > summary::-webkit-details-marker { display: none; }
+.md-step-out > summary::before { content: "▸"; display: inline-block; width: 1em; }
+.md-step-out[open] > summary::before { content: "▾"; }
+.md-step-out > summary:hover { color: var(--ink); opacity: 1; }
+.md-step-out.failed > summary { color: #f08a8a; }
+.md-step-out .md-pre { margin: 2px 0 0; }
+.md-step-out pre { max-height: 220px; overflow: auto; }
+.md-step-out code { font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: calc(10.5px + var(--fs-up, 0px)); }
 
 /* The step in progress: the same line, a little brighter (typeline.ts). */
 .type-line {
@@ -6885,3 +6945,37 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .ask-has-items .ask-options { flex-direction: column; flex-wrap: nowrap; max-height: calc(150px + var(--extra-h, 0px)); }
 .ask-has-items .ask-foot { display: flex; align-items: center; gap: 12px; }
 .ask-has-items .ask-go { margin-left: auto; }
+/* Work left in the background by the engine (chat.ts renderBackground). */
+.chat-bg .chat-queued { border-color: rgba(245, 158, 11, 0.45); }
+.chat-bg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 2px 0 4px;
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--amber);
+}
+.chat-bg-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: chat-bg-pulse 1.6s ease-in-out infinite;
+}
+@keyframes chat-bg-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .chat-bg-dot { animation: none; } }
+/* A heading inside the engine menu (the chat's «Impegno di Claude»). */
+.engine-head {
+  padding: 8px 10px 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+  font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--dim-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* The menu scrolls when long; its rows never squeeze. */
+.engine-menu > * { flex-shrink: 0; }
+.chat-bar .engine-menu { max-height: min(340px, 60vh); }

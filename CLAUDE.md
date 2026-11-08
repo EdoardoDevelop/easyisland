@@ -9,7 +9,7 @@ App Windows 10/11: un personaggio animato in un'isola in alto mostra le sessioni
 ## Dove leggere (solo ciò che serve)
 - `HANDOFF.md`: stato, da fare, problemi. Leggilo a inizio lavoro.
 - `docs/architettura.md`: cartelle, interfaccia, personaggi, layout, suoni, impostazioni, robustezza.
-- `docs/chat.md`: motori, opencode, MCP, agente sul PC, Compiti, Abilità, memoria.
+- `docs/chat.md`: motori, opencode, MCP, agente sul PC, Compiti, Abilità, memoria, documenti Word e PDF.
 - `docs/agenti.md`: hook e relay, Claude Code, Codex/Gemini/Cursor/Copilot, opencode agente, scheda Agenti.
 - `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni, integrazioni personali.
 - `docs/strumenti.md`: file rilasciati, Vassoio, appunti, musica, contesto ⚡, ZIP, cattura, calcolatrice.
@@ -43,6 +43,7 @@ Rust solo su Windows (MSVC). Test: `cargo test --workspace` in `src-tauri/`.
   - Devolutions Cloud (`dvc.rs`): password solo negli appunti privati (svuotati dopo 30 s), mai a schermo, nel log o ai motori; dalla chat la password si chiede solo nella finestra di Windows (CredUI); scritture solo dopo anteprima e clic (o Consenti), rilette e verificate; mai eliminazioni.
   - `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, .md visibili all'utente).
   - Comandi e modifiche ai file solo dalla «Modalità terminale» (strumenti di Claude Code/opencode, Consenti/Nega nell'isola).
+    - Come Claude Desktop (8/11/2026): «Sempre» cliccato su una card di Claude Code vale per tutta la sessione (`permits::SESSION_RULES`, solo quella regola), e le modalità «Accetta modifiche» e «Piano» si scelgono a mano per la conversazione. Il «Terminale» della chat (`terminal.rs`) esegue solo ciò che scrive l'utente, mai i motori.
   - Senza clic passano solo le azioni reversibili consentite per sempre o per compito (`permits.rs`, `REVERSIBLE` in `hook/src/tool_list.rs`), registrate in «Cosa ho fatto» con Annulla: mai aggiungere lì strumenti che inviano, eliminano, aprono o eseguono.
 - Isola ritirata: nessun frame di animazione, CPU ~0 %.
 - Versione uguale in `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI controlla sui tag).

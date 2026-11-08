@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_7 novembre 2026. **1.0.33** in `main` (tag `v1.0.33`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_8 novembre 2026. **1.0.34** in `main` (tag `v1.0.34`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -13,7 +13,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Aspetto a schede con le immagini** (`docs/architettura.md` → Impostazioni): modalità chiara non guardata.
 - [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera. Le 7 voci URGENTI del 7/11 sono nella 1.0.33; PDF, nome del file e riga di «Salvate» provati dal pulsante con «DDT Easytech». Provare dal vivo pulsante script, `quick_action_*`, «In esecuzione» e i motori di Agent Chat nella cartella del progetto, con turni veri, «DDT Easytech» è sul modello HTML con PDF diretto, provato dal pulsante il 7/11.
 - [ ] **Guida sul sito** IT/EN (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage EN `site/en/index.html`, schermate EN `site/media/en/`): allineare a ogni funzione nuova (`node scripts/guida.mjs`). Link delle Impostazioni nella lingua dell'app: prossima versione.
-- [ ] **Documenti Word e PDF nella chat** (deciso il 7/11, `docs/idee.md`): creare, compilare modelli, leggere; prima Word, poi lettura dei PDF con una libreria Rust.
+- [ ] **Documenti Word e PDF nella chat** (7/11, `docs/chat.md` → Documenti Word e PDF): fatti leggere `.docx` e PDF, creare `.docx` vuoti o dai modelli con preventivi calcolati e immagini, PDF con Word, unire e dividere PDF. Lettura e modelli provati dalla chat il 8/11; immagini, unione e divisione provati con Word e PDF veri, non ancora dalla chat. Il resto in `docs/idee.md`.
 - [ ] **Agente personale** (priorità alta, 23/10): fatti Compiti, motori aiutanti, Battito, Abilità, permessi per livelli (1.0.16: «Sempre» sulle reversibili, permessi per compito, «Cosa ho fatto» con Annulla; `docs/chat.md`). Da provare dal vivo. Prossimi: proattività su ticket e chiamate, memoria per cliente (`docs/idee.md`).
 - [ ] **Prove dal vivo** delle versioni 0.6.3–0.9.7: elenco in `docs/prove-dal-vivo.md`.
 - [ ] **La giornata di oggi e domani** (priorità alta): fatti `/oggi` e `/domani` (Telegram, chat), voce nel campo in alto e azione rapida, riassunto IA in Buongiorno/Fine giornata con motore a scelta, invio Telegram all'ora scelta (orari in `giornata.rs`). Da provare dal vivo.
@@ -48,18 +48,17 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 8/11 — Dal portatile: meno token, niente domande perse, niente password su disco
+Analisi di 41 chat, log e sessioni di Claude Code del portatile (`docs/chat.md`). PDF senza intestazioni e piè ripetuti, cartelle senza righe già date (-13 % sui 62 PDF delle offerte), `MAX_MCP_OUTPUT_TOKENS` a 50.000, sotto-agenti di sola lettura su Sonnet e strumenti di EasyIsland al posto dei comandi (prompt), Read/Grep/Glob senza card. Domanda in cronologia appena mandata (`chat_log::begin`), password mascherate in cronologia e memoria (`redact.rs`, una pulizia all'avvio), note doppie rifiutate, opencode in pausa a credito finito. Poi `/compatta` (Claude Code: il suo `/compact` con «da X a Y token»; altri motori: riassunto e ripartenza) e anello del contesto anche dopo i lavori in background (mancava). Conversazioni di Claude Code riaperte dalla cronologia: stessa sessione con tutto il contesto e anello subito, come Claude Desktop (`chat_log` `session`, `desktop::session_in`/`last_context`). Poi pari a Desktop: «Sempre» per tutta la sessione, Modifica/Rigenera/Dirama nella stessa sessione (`--resume-session-at`), Accetta modifiche e Piano, comandi di Claude Code nel menu «/», sessioni del terminale in cronologia, ⟲ File (`checkpoints.rs`), lista delle attività, copia separata (worktree). Poi: esiti dei passi e passi dei sotto-agenti, modello e fast mode per conversazione, messaggi a metà turno, ⟲ File su disco, commenti sul diff, PR e controlli con gh, lavori a parte proposti da Claude (`chat_start`), terminale (`terminal.rs`). Il cloud no (vedi `docs/chat.md`). Da provare sul portatile.
+
+### 8/11 — Lavori in background nella chat
+Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro risultati venivano letti e buttati, e un messaggio scritto intanto apriva un secondo processo che li rilanciava. Ora lista sotto la conversazione con ✕ e «Ferma tutto», messaggi allo stesso processo, risultati nella chat con avviso (`docs/chat.md` → Modalità terminale). `document_read` legge anche una cartella intera. Provato sul portatile con 6 agenti e 62 PDF: risultati e confronto finale arrivati; aggiunto il turno «al lavoro» mentre Claude scrive da solo, i passi che si scrivono con i caratteri, le frasi d'attesa mentre ragiona e l'impegno di Claude nel menu del motore (sul portatile era quello predefinito, più alto).
+
+### 8/11 — Immagini nei Word, unire e dividere PDF
+`![didascalia](percorso)` nel corpo di `document_create` (PNG, JPEG, GIF, larghe al massimo quanto la colonna); `pdf_merge` (anche estrarre e riordinare, Word convertiti prima) e `pdf_split` in `pdfpages.rs`, con il parser di `pdftext.rs`. PDF cifrati rifiutati. Revisioni e commenti esclusi.
+
+### 7/11 — Documenti Word e PDF nella chat
+`document_read`, `document_templates`, `document_template_add`, `document_create`, `document_pdf` (`docx.rs`, `ooxzip.rs`, `pdftext.rs`, `documents.rs`): ZIP e lettore PDF scritti in casa, nessuna dipendenza nuova (`flate2`, `crc32fast` erano già nell'albero). Modelli in `documenti\modelli`, segnaposto anche spezzati fra run, totali e numero calcolati dall'app, PDF con Word. Testo dei PDF e dei Word anche ai motori via API e a «da-leggere». Provato con Word e file veri; manca la prova dalla chat dell'app.
+
 ### 7/11 — Agent Chat: motori con più contesto
 Cartella del progetto, conversazione che continua (60 min, 20 turni), messaggio intero, un incarico che ripete l'owner non apre un secondo turno (`docs/integrazioni.md`). Da provare con turni veri.
-
-### 7/11 — Agent Chat: «In esecuzione», script sempre confermati
-Terza vista della scheda con i passi interi dei motori di questo PC, mai al server (`agentchat::Live`). `run_quick_action` non esegue più uno script con conferma: lo apre nell'isola e aspetta «Esegui», anche con «Autonomi». Corretti anche nuova conferma se cambia la shell, `{{importo|it}}` con due decimali e nota su `-Encoding UTF8`. Non ancora provato con un turno vero.
-
-### 7/11 — Integrazioni personali: nomi e cartella dalla chat
-`title` per la riga di «Salvate», `filename` e `folder` su ogni documento, con più campi (`docs/integrazioni.md` → Nomi). Si impostano solo dalla chat.
-
-### 7/11 — Integrazioni personali: HTML, PDF, script
-Modelli HTML veri (`core/template.ts`: escape, `cleanPage`), `{{data|lunga}}`, `{{numero|it}}`, `{{#se}}`, `{{^campo}}`, `{{file:logo.png}}`; a capo nelle tabelle Markdown; PDF con WebView2 (`pdf.rs`, provato con `real_print`); azione `script` e `quick` con i dati della scheda in `EASYISLAND_SCHEDA`, conferma nella card; `quick_action_create/update/delete`; `custom::watch` per i `.json` cambiati a mano. Cambia la regola «mai codice» (`CLAUDE.md`), su richiesta di Edoardo. Da provare con l'app vera.
-
-### 7/11 — Memoria: scheda, percorso, dedotto
-`memory_page` con `brief` dà riassunto e collegamenti senza il testo; `memory_path` trova la strada fra due pagine; i collegamenti ricavati da un motore finiscono con `(dedotto)`. I file `.md` restano (`docs/decisioni.md`). Gruppi e percorso erano già nella Mappa. Da provare con la memoria vera e un motore vero. Il campo in alto cerca gli stessi nodi della Mappa e mostra la costellazione (`views/constellation.ts`); Invio apre una chat nuova dal nodo con la sua scheda.
-

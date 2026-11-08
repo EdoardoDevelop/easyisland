@@ -32,9 +32,143 @@ pub fn of(folder: &Path) -> Option<String> {
     None
 }
 
+/// The repository's own folder (with `.git` as a folder) holding `folder`.
+fn repo_root(folder: &Path) -> Option<std::path::PathBuf> {
+    folder.ancestors().find(|d| d.join(".git").is_dir()).map(Path::to_path_buf)
+}
+
+/// «Copia separata (worktree)» in «Progetto…», as Claude Desktop gives each
+/// session one: a git worktree on a branch of its own under
+/// `<repository>/.claude/worktrees/`, so two conversations never touch the same
+/// files. Made by git itself (it has to be installed); `.claude/worktrees/`
+/// goes in `.git/info/exclude`, so the repository does not list it. The
+/// worktree is never deleted by EasyIsland: `git worktree remove` when done.
+pub fn new_worktree(folder: &Path) -> Result<std::path::PathBuf, String> {
+    use crate::i18n::{t, tf};
+    #[cfg(windows)]
+    use std::os::windows::process::CommandExt;
+    let root = repo_root(folder).ok_or_else(|| t("Questa cartella non è in un repository git.").to_string())?;
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let name = format!("easyisland-{}", radix36(stamp));
+    let path = root.join(".claude").join("worktrees").join(&name);
+    let mut cmd = std::process::Command::new("git");
+    cmd.arg("-C").arg(&root).args(["worktree", "add", "-b", &format!("easyisland/{name}")]).arg(&path);
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000);
+    let out = cmd.output().map_err(|e| tf("git non si avvia (è installato?): {e}", &[("e", &e)]))?;
+    if !out.status.success() {
+        let why = String::from_utf8_lossy(&out.stderr).trim().chars().take(300).collect::<String>();
+        return Err(tf("git non ha creato la copia separata: {e}", &[("e", &why)]));
+    }
+    let exclude = root.join(".git").join("info").join("exclude");
+    let had = fs::read_to_string(&exclude).unwrap_or_default();
+    if !had.lines().any(|l| l.trim() == ".claude/worktrees/") {
+        let _ = fs::create_dir_all(root.join(".git").join("info"));
+        let _ = fs::write(&exclude, format!("{}{}.claude/worktrees/\n", had, if had.is_empty() || had.ends_with('\n') { "" } else { "\n" }));
+    }
+    crate::log::line(format!("chat: copia separata {}", path.display()));
+    Ok(path)
+}
+
+/// The pull request of the project's branch and its checks, as Claude Desktop
+/// shows them: read with GitHub's own `gh` (installed and signed in by the
+/// user; nothing else is contacted). None without gh, a PR or an answer in time.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PullRequest {
+    pub number: u64,
+    pub title: String,
+    pub url: String,
+    /// OPEN, MERGED, CLOSED.
+    pub state: String,
+    pub passed: usize,
+    pub pending: usize,
+    /// The checks that failed, by name.
+    pub failed: Vec<String>,
+}
+
+pub fn pull_request(folder: &Path) -> Option<PullRequest> {
+    #[cfg(windows)]
+    use std::os::windows::process::CommandExt;
+    repo_root(folder).or_else(|| folder.ancestors().find(|d| d.join(".git").is_file()).map(Path::to_path_buf))?;
+    let mut cmd = std::process::Command::new("gh");
+    cmd.current_dir(folder).args(["pr", "view", "--json", "number,title,url,state,statusCheckRollup"]).stdin(std::process::Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000);
+    let out = cmd.output().ok().filter(|o| o.status.success())?;
+    parse_pr(&String::from_utf8_lossy(&out.stdout))
+}
+
+fn parse_pr(json: &str) -> Option<PullRequest> {
+    use serde_json::Value;
+    let v: Value = serde_json::from_str(json.trim()).ok()?;
+    let s = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let (mut passed, mut pending, mut failed) = (0, 0, Vec::new());
+    for c in v.get("statusCheckRollup").and_then(Value::as_array).into_iter().flatten() {
+        // A check run (conclusion once completed) or a commit status (state).
+        let name = Some(s(c, "name")).filter(|n| !n.is_empty()).unwrap_or_else(|| s(c, "context"));
+        let verdict = if s(c, "__typename") == "StatusContext" { s(c, "state") } else if s(c, "status") == "COMPLETED" { s(c, "conclusion") } else { "PENDING".into() };
+        match verdict.as_str() {
+            "SUCCESS" | "NEUTRAL" | "SKIPPED" => passed += 1,
+            "FAILURE" | "ERROR" | "CANCELLED" | "TIMED_OUT" | "ACTION_REQUIRED" | "STARTUP_FAILURE" => {
+                if !failed.contains(&name) {
+                    failed.push(name);
+                }
+            }
+            _ => pending += 1,
+        }
+    }
+    Some(PullRequest { number: v.get("number").and_then(Value::as_u64)?, title: s(&v, "title"), url: s(&v, "url"), state: s(&v, "state"), passed, pending, failed })
+}
+
+fn radix36(mut n: u64) -> String {
+    const D: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    let mut out = Vec::new();
+    loop {
+        out.push(D[(n % 36) as usize]);
+        n /= 36;
+        if n == 0 {
+            break;
+        }
+    }
+    out.reverse();
+    String::from_utf8(out).unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A real git: `cargo test --lib gitbranch::tests::live_worktree -- --ignored`
+    #[test]
+    #[ignore]
+    fn live_worktree() {
+        let root = std::env::temp_dir().join(format!("ei-wt-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| assert!(std::process::Command::new("git").arg("-C").arg(&root).args(args).output().unwrap().status.success(), "{args:?}");
+        git(&["init", "-q"]);
+        fs::write(root.join("a.txt"), "uno").unwrap();
+        git(&["add", "."]);
+        git(&["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "primo"]);
+        let tree = new_worktree(&root).unwrap();
+        assert!(tree.join("a.txt").is_file());
+        assert!(of(&tree).unwrap().starts_with("easyisland/"));
+        assert!(fs::read_to_string(root.join(".git/info/exclude")).unwrap().contains(".claude/worktrees/"));
+        git(&["worktree", "remove", "--force", &tree.display().to_string()]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn reads_a_pull_request_and_its_checks() {
+        let pr = parse_pr(r#"{"number":12,"title":"Prova","url":"https://github.com/a/b/pull/12","state":"OPEN","statusCheckRollup":[
+            {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS"},
+            {"__typename":"CheckRun","name":"test","status":"COMPLETED","conclusion":"FAILURE"},
+            {"__typename":"CheckRun","name":"lint","status":"IN_PROGRESS","conclusion":""},
+            {"__typename":"StatusContext","context":"ci/x","state":"ERROR"}]}"#).unwrap();
+        assert_eq!((pr.number, pr.passed, pr.pending), (12, 1, 1));
+        assert_eq!(pr.failed, vec!["test".to_string(), "ci/x".to_string()]);
+    }
 
     #[test]
     fn reads_branches_and_detached_heads() {

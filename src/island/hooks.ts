@@ -292,6 +292,39 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
         ...scripts.map((a) => `${t("Con lo script «{name}»:", { name: a.label ?? "" })}\n${a.script ?? ""}`),
       ].join("\n");
     }
+    case "document_create": {
+      const rows = Array.isArray(input.rows) ? input.rows.length : 0;
+      const name = s("filename") || s("title") || s("template") || t("documento");
+      return [
+        t("Creare il documento Word «{name}»", { name }),
+        ...(s("template") ? [t("Dal modello «{name}»", { name: s("template") })] : []),
+        ...(rows ? [t("Con {n} righe: totali e IVA li calcola EasyIsland", { n: rows })] : []),
+        ...(input.pdf ? [t("Anche in PDF, con Word")] : []),
+        ...(s("folder") ? [t("Copia in {folder}", { folder: s("folder") })] : []),
+        ...(s("body") ? [short(s("body"), 300)] : []),
+      ].join("\n");
+    }
+    case "document_pdf":
+      return t("Fare il PDF di {path} con Word", { path: s("path") }) + (s("folder") ? `\n${t("Copia in {folder}", { folder: s("folder") })}` : "");
+    case "pdf_merge": {
+      const files = Array.isArray(input.files) ? input.files : [];
+      const names = files.map((f) => (typeof f === "string" ? f : `${String((f as Record<string, unknown>)?.path ?? "")}${(f as Record<string, unknown>)?.pages ? ` (${String((f as Record<string, unknown>).pages)})` : ""}`));
+      return [
+        files.length === 1 ? t("Estrarre pagine in un PDF nuovo") : t("Unire {n} file in un PDF nuovo", { n: files.length }),
+        ...names.slice(0, 12).map((n) => `• ${short(n, 120)}`),
+        ...(s("folder") ? [t("Copia in {folder}", { folder: s("folder") })] : []),
+      ].join("\n");
+    }
+    case "pdf_split": {
+      const ranges = Array.isArray(input.ranges) ? input.ranges.map(String) : [];
+      return [
+        t("Dividere {path} in PDF nuovi", { path: s("path") }),
+        ranges.length ? t("Pagine: {ranges}", { ranges: short(ranges.join(" · "), 200) }) : t("Un file per pagina"),
+        ...(s("folder") ? [t("Copia in {folder}", { folder: s("folder") })] : []),
+      ].join("\n");
+    }
+    case "document_template_add":
+      return t("Aggiungere il modello di documento {path}", { path: s("path") }) + (s("name") ? ` → «${s("name")}»` : "");
     case "read_clipboard":
       return t("Leggere il testo negli appunti");
     case "write_clipboard":

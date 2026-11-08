@@ -44,6 +44,54 @@ fn session_file(id: &str) -> Option<PathBuf> {
     std::fs::read_dir(projects).ok()?.flatten().map(|d| d.path().join(&name)).find(|p| p.is_file())
 }
 
+/// The session `id` is still on disk (Claude Code drops them after 30 days).
+pub fn session_exists(id: &str) -> bool {
+    session_file(id).is_some()
+}
+
+/// Claude Code's folder name for a project: every character but letters and digits as "-".
+fn project_name(cwd: &Path) -> String {
+    cwd.to_string_lossy().trim_end_matches(['\\', '/']).chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect()
+}
+
+/// `claude --resume id` started in `cwd` finds the session: Claude Code keeps
+/// it under the folder it was started in.
+pub fn session_in(id: &str, cwd: &Path) -> bool {
+    let Some(file) = session_file(id) else { return false };
+    let folder = file.parent().and_then(Path::file_name).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    folder.eq_ignore_ascii_case(&project_name(cwd))
+}
+
+/// Tokens in the context at the session's last answer, from its file (what
+/// Claude Desktop shows when a session is reopened); sub-agents' lines aside.
+pub fn last_context(id: &str) -> Option<u64> {
+    let lines = read_lines(&session_file(id)?);
+    lines.iter().rev().filter(|v| str_of(v, "type") == "assistant" && v.get("isSidechain").and_then(Value::as_bool) != Some(true)).find_map(|v| {
+        let u = v.pointer("/message/usage")?;
+        let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+        Some(n("input_tokens") + n("cache_read_input_tokens") + n("cache_creation_input_tokens")).filter(|t| *t > 0)
+    })
+}
+
+/// The session's last answer (its main line, not a sub-agent's): where
+/// `--resume-session-at` goes back to (Modifica, Rigenera, Dirama). Only the
+/// end of the file is read: it is called after every turn.
+pub fn last_answer_uuid(id: &str) -> Option<String> {
+    use std::io::{Read, Seek, SeekFrom};
+    const TAIL: u64 = 512 * 1024;
+    let mut f = std::fs::File::open(session_file(id)?).ok()?;
+    let len = f.metadata().ok()?.len();
+    f.seek(SeekFrom::Start(len.saturating_sub(TAIL))).ok()?;
+    let mut bytes = Vec::new();
+    f.read_to_end(&mut bytes).ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    text.lines().rev().filter_map(|l| serde_json::from_str::<Value>(l).ok()).find_map(|v| {
+        (str_of(&v, "type") == "assistant" && v.get("isSidechain").and_then(Value::as_bool) != Some(true))
+            .then(|| str_of(&v, "uuid").to_string())
+            .filter(|u| !u.is_empty())
+    })
+}
+
 fn read_lines(file: &Path) -> Vec<Value> {
     if std::fs::metadata(file).map(|m| m.len() > MAX_FILE).unwrap_or(true) {
         return Vec::new();
@@ -142,6 +190,87 @@ fn turns_after(lines: &[Value], mark: &Mark) -> Vec<Line> {
     out
 }
 
+/// A Claude Code session started elsewhere (terminal, Claude Desktop, an IDE),
+/// for the chat's history: Claude Desktop lists them too (8 Nov 2026).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Outside {
+    pub id: String,
+    pub title: String,
+    pub folder: String,
+    /// Unix milliseconds of the file's last change.
+    pub updated: i64,
+}
+
+/// How many of them the list shows, the latest first; older than this they are left out.
+const OUTSIDE_MAX: usize = 40;
+const OUTSIDE_DAYS: u64 = 30;
+
+/// The first lines of a file (its first question and folder are there).
+fn head_lines(file: &Path) -> Vec<Value> {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    let Ok(f) = std::fs::File::open(file) else { return Vec::new() };
+    let _ = f.take(256 * 1024).read_to_end(&mut bytes);
+    String::from_utf8_lossy(&bytes).lines().filter_map(|l| serde_json::from_str::<Value>(l).ok()).collect()
+}
+
+/// The sessions on disk not in `known` (the history's own), outside EasyIsland's chat folder.
+pub fn outside(known: &std::collections::HashSet<String>) -> Vec<Outside> {
+    let Some(projects) = crate::claude_cli::claude_dir().map(|d| d.join("projects")) else { return Vec::new() };
+    let ours = project_name(&crate::settings::local_dir().join("chat"));
+    let limit = std::time::SystemTime::now() - Duration::from_secs(OUTSIDE_DAYS * 86_400);
+    let mut files: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+    for dir in std::fs::read_dir(&projects).into_iter().flatten().flatten() {
+        if dir.file_name().to_string_lossy().eq_ignore_ascii_case(&ours) {
+            continue;
+        }
+        for f in std::fs::read_dir(dir.path()).into_iter().flatten().flatten() {
+            let p = f.path();
+            let Some(stem) = p.file_stem().map(|s| s.to_string_lossy().to_string()) else { continue };
+            if p.extension().is_none_or(|e| e != "jsonl") || stem.starts_with("agent-") || known.contains(&stem) {
+                continue;
+            }
+            if let Some(m) = f.metadata().ok().and_then(|m| m.modified().ok()).filter(|m| *m > limit) {
+                files.push((m, p));
+            }
+        }
+    }
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+    let mut out = Vec::new();
+    for (modified, p) in files {
+        if out.len() >= OUTSIDE_MAX {
+            break;
+        }
+        let lines = head_lines(&p);
+        let Some(title) = lines.iter().filter_map(text_of).find(|(r, _)| *r == "user").map(|(_, t)| t) else { continue };
+        let folder = lines.iter().map(|v| str_of(v, "cwd")).find(|c| !c.is_empty()).unwrap_or_default().to_string();
+        let one: String = title.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(80).collect();
+        let updated = modified.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
+        out.push(Outside { id: p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default(), title: one, folder, updated });
+    }
+    out
+}
+
+/// A session's questions and answers and its folder, to take it into the history.
+pub fn whole(id: &str) -> Option<(Vec<Line>, String)> {
+    let file = session_file(id)?;
+    let lines = read_lines(&file);
+    let (cwd, _) = last_of(&lines);
+    let folder = lines.iter().map(|v| str_of(v, "cwd")).find(|c| !c.is_empty()).map(str::to_string).or_else(|| cwd.map(|c| c.to_string_lossy().to_string())).unwrap_or_default();
+    let mut out: Vec<Line> = Vec::new();
+    for (role, text) in lines.iter().filter_map(text_of) {
+        match out.last_mut() {
+            Some(last) if last.role == role => {
+                last.content.push_str("\n\n");
+                last.content.push_str(&text);
+            }
+            _ => out.push(Line { role: role.into(), content: text }),
+        }
+    }
+    Some((out, folder))
+}
+
 /// The button: the session opens in Claude Desktop, and the island remembers where it was.
 pub async fn hand_off(chat: &Chat) -> Result<(), String> {
     let session = chat
@@ -228,6 +357,27 @@ mod tests {
         ];
         let got = turns_after(&lines, &mark("gone"));
         assert_eq!(got, vec![Line { role: "user".into(), content: "nuova".into() }]);
+    }
+
+    /// `cargo test --lib desktop::tests::live_outside -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_outside() {
+        let list = super::outside(&std::collections::HashSet::new());
+        println!("sessioni: {}", list.len());
+        for s in list.iter().take(5) {
+            println!("{} · {} · {}", s.id, s.folder, s.title);
+        }
+        if let Some(s) = list.first() {
+            let (lines, folder) = super::whole(&s.id).unwrap();
+            println!("righe {} cartella {folder} ultima risposta {:?} contesto {:?}", lines.len(), super::last_answer_uuid(&s.id), super::last_context(&s.id));
+        }
+    }
+
+    #[test]
+    fn project_folder_as_claude_code_names_it() {
+        assert_eq!(super::project_name(Path::new("C:\\Users\\Edoardo\\WORK\\EasyIsland_0.2.0")), "C--Users-Edoardo-WORK-EasyIsland-0-2-0");
+        assert_eq!(super::project_name(Path::new("C:\\Users\\Edoardo\\AppData\\Local\\EasyIsland\\chat\\")), "C--Users-Edoardo-AppData-Local-EasyIsland-chat");
     }
 
     #[test]

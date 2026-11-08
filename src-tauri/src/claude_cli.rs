@@ -32,7 +32,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
-use crate::claude::{Chat, ChatContext, ChatReply, Later};
+use crate::claude::{BgTask, Chat, ChatContext, ChatReply, Later, OnTasks, OnWorking};
 use crate::settings::McpChoice;
 use crate::i18n::{t, tf};
 
@@ -63,7 +63,7 @@ pub(crate) fn agent_read_only() -> Vec<&'static str> {
 pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action) and make or change them when asked (quick_action_create, quick_action_update, quick_action_delete), \
 read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
-browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), \
+browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), read Word and PDF documents, one or a whole folder of them a page of files at a time (document_read: faster and cheaper than extracting the text with other programs), write new Word documents, also from the user's own templates, with the lines of a quote whose totals and VAT EasyIsland computes (document_templates, document_template_add, document_create), turn them into PDF with Word (document_pdf), merge, extract and split PDF pages into new files (pdf_merge, pdf_split), \
 read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), show files and web pages in EasyIsland's preview window next to the chat — the user's local dev server, a page you built, a file you changed — and check them: open a tab (preview_open: a URL, localhost:port or a file path; back, forward, reload), see the page as a tree of headings, texts and controls with refs (preview_snapshot: the best way to understand and use a page), read its text (preview_read), wait for something to appear (preview_wait), read failed requests (preview_network), take a screenshot (preview_screenshot, then read the PNG), read the console errors (preview_console), try it at phone or tablet size or in dark mode (preview_resize), and click or type in it by ref (preview_click, preview_type, which the user confirms); after changing a web page, open or reload it in the preview and check it before saying it works, keep the chat's memory (memory_search to look into notes, linked pages and past conversations, memory_note to remember something for next time, memory_page and memory_page_write for the pages about people, customers, projects and concepts, linked with [[Title]]), build the user's own integrations — forms with fields, tables and formulas, dashboards of data read from their services, calls to their APIs with keys they keep in Windows, documents and actions — when they ask for one (custom_create, custom_update, custom_get, custom_records, custom_add_record), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
 (\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
@@ -97,6 +97,18 @@ The working folder is {folder}; work elsewhere on the PC when the user asks. \
 Every command or change that Claude Code would ask about in a terminal waits for the user's click on Consenti / Nega: \
 a refusal is final for that request. Nobody can type into a running command: never start interactive programs \
 (text interfaces, editors, logins or prompts that wait for input); tell the user to run those in their own terminal. \
+Sub-agents and commands may run in parallel and in the background: the chat lists them to the user with a button to stop them, \
+the user can keep writing to you meanwhile, and what you write when they end appears in the chat by itself with a notice. \
+So when background work ends, write the finished result the user asked for (not only how much is done), \
+and never promise to warn the user in some other way. \
+When an EasyIsland tool does the job, use it instead of a command or of Read: document_read for Word and PDF files and whole folders of them, \
+list_status, memory_*, notion_*, todo_*, preview_* and the others: they give the result already clean, faster and with fewer tokens. \
+To look at files and folders use Read, Glob and Grep, not commands: they need no click, a command does. \
+Spend tokens where they matter: a sub-agent that only reads, searches, extracts or summarizes gets model \"sonnet\" in the Agent tool \
+(your own model stays for planning, deciding and writing the answer); brief it fully, since it sees nothing of this chat, \
+and ask for a compact report (facts, names, amounts, dates, differences; never copied text). \
+Prefer a few sub-agents with a large share each to many small ones, and do not read again what a sub-agent already reported. \
+While others are still running, answer a sub-agent's report with one short line at most. \
 Respond in Italian unless the user writes in another language. Be thorough and complete: \
 use as much detail as the task requires. Markdown is rendered.";
 
@@ -353,6 +365,9 @@ fn permission_hook(matcher: &str) -> String {
     .to_string()
 }
 
+/// How much of a tool's result Claude Code takes in one piece (`command`).
+const MCP_OUTPUT_TOKENS: &str = "50000";
+
 pub(crate) fn command(exe: &Path) -> Command {
     let mut cmd = Command::new(exe);
     // If EasyIsland itself was started from inside a Claude Code session (e.g.
@@ -360,6 +375,12 @@ pub(crate) fn command(exe: &Path) -> Command {
     // that session instead of its own.
     for var in INHERITED_SESSION_VARS {
         cmd.env_remove(var);
+    }
+    // A tool's result over Claude Code's limit (25.000 token) goes to a file
+    // the model then reads again in pieces: more calls, more tokens. A folder
+    // of document_read (documents.rs FOLDER_BUDGET) fits in one piece.
+    if std::env::var_os("MAX_MCP_OUTPUT_TOKENS").is_none() {
+        cmd.env("MAX_MCP_OUTPUT_TOKENS", MCP_OUTPUT_TOKENS);
     }
     cmd.env("EASYISLAND_INTERNAL", "1")
         .stdin(Stdio::piped())
@@ -518,12 +539,31 @@ struct Progress {
     thinking: String,
     /// The text block being written, word by word.
     writing: String,
-    /// Commands still running in the background (`background_tasks_changed`):
-    /// when one ends Claude Code starts another turn by itself (`follow`).
-    pending: usize,
+    /// Commands and sub-agents still running in the background
+    /// (`background_tasks_changed`): when one ends Claude Code starts another
+    /// turn by itself (`follow`).
+    tasks: Vec<BgTask>,
+    /// The list changed with the last line.
+    tasks_changed: bool,
+    /// A tool call being written (its input streams before it runs: a page of
+    /// memory, a file): its step and the characters so far.
+    drafting: Option<(String, usize)>,
+    /// Reasoning whose text Claude Code does not send (only `thinking_tokens`).
+    pondering: bool,
     /// Tokens in the context at the last call to the model: the result's own
     /// `usage` adds up every step of the turn, this is what the model last read.
     context: u64,
+    /// `/compact` ran (its `compact_boundary`): tokens before and after.
+    compacted: Option<(u64, u64)>,
+    /// Claude Code's task list (TodoWrite) as it is now: under the steps, as
+    /// Claude Desktop shows it beside the conversation.
+    todos: String,
+    /// The conversation (the `Chat`'s address; 0 = none): files about to change
+    /// are kept for «⟲ File» (checkpoints.rs).
+    chat: usize,
+    /// The sub-agents started in this turn: their call's id and description,
+    /// so their own steps show under them (as Claude Desktop shows them).
+    agents: Vec<(String, String)>,
 }
 
 impl Progress {
@@ -531,15 +571,36 @@ impl Progress {
     fn feed(&mut self, line: &str) -> bool {
         let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return false };
         if v.get("subtype").and_then(Value::as_str) == Some("background_tasks_changed") {
-            self.pending = v.get("tasks").and_then(Value::as_array).map_or(0, Vec::len);
+            let s = |t: &Value, k: &str| t.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+            self.tasks = v.get("tasks").and_then(Value::as_array).into_iter().flatten().map(|t| BgTask { id: s(t, "task_id"), kind: s(t, "task_type"), description: s(t, "description") }).collect();
+            self.tasks_changed = true;
             return false;
         }
-        // A sub-agent's own steps stay inside its one step.
-        if v.get("parent_tool_use_id").is_some_and(|p| !p.is_null()) {
+        // Claude Code reports how much it reasons, not the text: the island
+        // shows its waiting phrases meanwhile.
+        if v.get("subtype").and_then(Value::as_str) == Some("thinking_tokens") {
+            let was = self.pondering;
+            self.pondering = self.thinking.is_empty() && self.drafting.is_none();
+            return self.pondering != was;
+        }
+        // `/compact` (or Claude Code compacting by itself): the context is now the summary.
+        if v.get("subtype").and_then(Value::as_str) == Some("compact_boundary") {
+            let n = |k: &str| v.pointer(&format!("/compact_metadata/{k}")).and_then(Value::as_u64).unwrap_or(0);
+            let (pre, post) = (n("pre_tokens"), n("post_tokens"));
+            self.compacted = Some((pre, post));
+            if post > 0 {
+                self.context = post;
+            }
             return false;
+        }
+        // A sub-agent's own steps: one line each, under its name.
+        if let Some(parent) = v.get("parent_tool_use_id").and_then(Value::as_str) {
+            return self.agent_step(parent, &v);
         }
         match v.get("type").and_then(Value::as_str) {
             Some("stream_event") => return self.delta(&v),
+            // What a step gave back (a command's output, a file read): under it, folded.
+            Some("user") => return self.step_result(&v),
             Some("assistant") => {
                 if let Some(used) = context_used(&v) {
                     self.context = used;
@@ -559,10 +620,26 @@ impl Progress {
             }
             let piece = match block.get("type").and_then(Value::as_str) {
                 Some("text") => block.get("text").and_then(Value::as_str).map(|t| t.trim().to_string()),
+                Some("tool_use") if block.get("name").and_then(Value::as_str) == Some("TodoWrite") => {
+                    self.todos = todo_list(block.get("input").unwrap_or(&Value::Null));
+                    self.drafting = None;
+                    changed = true;
+                    None
+                }
                 Some("tool_use") => {
                     let (name, input) = (block.get("name").and_then(Value::as_str).unwrap_or_default(), block.get("input").unwrap_or(&Value::Null));
-                    // A file about to change: «Modifiche» and the preview (preview.rs).
+                    if matches!(name, "Task" | "Agent") {
+                        let id = block.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+                        let what = input.get("description").and_then(Value::as_str).unwrap_or_default().to_string();
+                        self.agents.push((id, what));
+                    }
+                    // A file about to change: «Modifiche» and the preview (preview.rs), and its checkpoint.
                     crate::preview::touched_by(name, input);
+                    if self.chat != 0 && matches!(name, "Edit" | "Write" | "MultiEdit" | "NotebookEdit") {
+                        if let Some(p) = ["file_path", "notebook_path"].iter().find_map(|k| input.get(*k).and_then(Value::as_str)).map(Path::new).filter(|p| p.is_absolute()) {
+                            crate::checkpoints::touching(self.chat, p);
+                        }
+                    }
                     Some(step_line(name, input))
                 }
                 _ => None,
@@ -574,6 +651,8 @@ impl Progress {
                 self.shown.push_str(&p);
                 self.thinking.clear();
                 self.writing.clear();
+                self.drafting = None;
+                self.pondering = false;
                 changed = true;
             }
         }
@@ -581,11 +660,122 @@ impl Progress {
     }
 }
 
+/// A step's output under it: this many lines at most, and characters.
+const RESULT_LINES: usize = 30;
+const RESULT_CHARS: usize = 2_500;
+
+impl Progress {
+    fn push_piece(&mut self, piece: &str) {
+        if !self.shown.is_empty() {
+            self.shown.push_str("\n\n");
+        }
+        self.shown.push_str(piece);
+        self.thinking.clear();
+        self.writing.clear();
+        self.drafting = None;
+        self.pondering = false;
+    }
+
+    /// A `user` line with `tool_result` blocks: each output as an «esito» block
+    /// (views/typeline.ts folds it under its step).
+    fn step_result(&mut self, v: &Value) -> bool {
+        let mut changed = false;
+        for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if block.get("type").and_then(Value::as_str) != Some("tool_result") {
+                continue;
+            }
+            let text = match block.get("content") {
+                Some(Value::String(t)) => t.clone(),
+                Some(Value::Array(parts)) => parts.iter().filter_map(|p| p.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("\n"),
+                _ => String::new(),
+            };
+            let text = text.trim();
+            // The task list's own receipt says nothing (the list is shown already).
+            if text.is_empty() || text.starts_with("Todos have been modified") {
+                continue;
+            }
+            let failed = block.get("is_error").and_then(Value::as_bool) == Some(true);
+            let piece = result_block(text, failed);
+            self.push_piece(&piece);
+            changed = true;
+        }
+        changed
+    }
+
+    /// A sub-agent's tool call: «↳ <agent> · <step>».
+    fn agent_step(&mut self, parent: &str, v: &Value) -> bool {
+        if v.get("type").and_then(Value::as_str) != Some("assistant") {
+            return false;
+        }
+        let who = self.agents.iter().find(|(id, _)| id == parent).map(|(_, d)| d.clone()).unwrap_or_else(|| t("Sotto-agente").to_string());
+        let mut changed = false;
+        for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if block.get("type").and_then(Value::as_str) != Some("tool_use") {
+                continue;
+            }
+            let name = block.get("name").and_then(Value::as_str).unwrap_or_default();
+            let step = step_line(name, block.get("input").unwrap_or(&Value::Null));
+            let step = step.trim_start_matches("> ⚙ ").to_string();
+            let piece = format!("> ⚙ ↳ {} · {step}", who.replace('`', "'"));
+            self.push_piece(&piece);
+            changed = true;
+        }
+        changed
+    }
+}
+
+/// A step's output as a fenced «esito» block, cut to its first lines.
+fn result_block(text: &str, failed: bool) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut body: String = lines.iter().take(RESULT_LINES).copied().collect::<Vec<_>>().join("\n");
+    if body.chars().count() > RESULT_CHARS {
+        body = body.chars().take(RESULT_CHARS).collect();
+    }
+    let cut = lines.len().saturating_sub(RESULT_LINES);
+    if cut > 0 {
+        body.push_str(&format!("\n… {}", tf("(altre {n} righe)", &[("n", &cut)])));
+    } else if body.chars().count() < text.chars().count() {
+        body.push('…');
+    }
+    // A fence inside would close the block.
+    let body = body.replace("```", "'''");
+    format!("```{}\n{body}\n```", if failed { "errore" } else { "esito" })
+}
+
 impl Progress {
     /// A piece of the block being written (`--include-partial-messages`); the
     /// whole block follows as an `assistant` line and takes its place.
     fn delta(&mut self, v: &Value) -> bool {
+        // A block starts: a tool call's input streams before the call is shown.
+        if v.pointer("/event/type").and_then(Value::as_str) == Some("content_block_start") {
+            let block = v.pointer("/event/content_block");
+            return match block.and_then(|b| b.get("type")).and_then(Value::as_str) {
+                Some("tool_use") => {
+                    let name = block.and_then(|b| b.get("name")).and_then(Value::as_str).unwrap_or_default();
+                    self.drafting = Some((step_line(name, &Value::Null), 0));
+                    self.pondering = false;
+                    true
+                }
+                Some("thinking") | Some("redacted_thinking") => {
+                    self.drafting = None;
+                    self.pondering = self.thinking.is_empty();
+                    true
+                }
+                _ => {
+                    self.drafting = None;
+                    false
+                }
+            };
+        }
         if v.pointer("/event/type").and_then(Value::as_str) != Some("content_block_delta") {
+            return false;
+        }
+        if v.pointer("/event/delta/type").and_then(Value::as_str) == Some("input_json_delta") {
+            let n = v.pointer("/event/delta/partial_json").and_then(Value::as_str).map_or(0, |s| s.chars().count());
+            if let Some(d) = self.drafting.as_mut() {
+                d.1 += n;
+                return n > 0;
+            }
             return false;
         }
         let piece = |key: &str| v.pointer("/event/delta").and_then(|d| d.get(key)).and_then(Value::as_str).unwrap_or_default();
@@ -593,6 +783,7 @@ impl Progress {
             Some("text_delta") if !piece("text").is_empty() => {
                 self.writing.push_str(piece("text"));
                 self.thinking.clear();
+                self.pondering = false;
                 true
             }
             Some("thinking_delta") if !piece("thinking").is_empty() => {
@@ -603,9 +794,18 @@ impl Progress {
         }
     }
 
+    /// What the turn showed, with its task list at the end (its last state).
+    fn done(&self) -> String {
+        match (self.shown.is_empty(), self.todos.is_empty()) {
+            (_, true) => self.shown.clone(),
+            (true, false) => self.todos.clone(),
+            (false, false) => format!("{}\n\n{}", self.shown, self.todos),
+        }
+    }
+
     /// What is shown while the turn goes on.
     fn view(&self) -> String {
-        let mut text = self.shown.clone();
+        let mut text = self.done();
         let writing = self.writing.trim();
         if !writing.is_empty() {
             if !text.is_empty() {
@@ -613,8 +813,57 @@ impl Progress {
             }
             text.push_str(writing);
         }
+        // The step being written, with how far it got (the line under the reply).
+        let extra = match &self.drafting {
+            Some((step, n)) if *n > 0 => Some(format!("{step} · {}", tf("{n} caratteri", &[("n", &thousands(*n))]))),
+            Some((step, _)) => Some(step.clone()),
+            // Reasoning with no text to show: the waiting phrases (typeline.ts splitStatus).
+            None if self.pondering && self.thinking.trim().is_empty() => Some("> 💭".to_string()),
+            None => None,
+        };
+        if let Some(line) = extra {
+            if !text.is_empty() {
+                text.push_str("\n\n");
+            }
+            text.push_str(&line);
+            return text;
+        }
         crate::opencode::with_thinking(text, &self.thinking)
     }
+}
+
+/// TodoWrite's list: done, at work (its «activeForm»), to do.
+fn todo_list(input: &Value) -> String {
+    let items = input.get("todos").and_then(Value::as_array).cloned().unwrap_or_default();
+    if items.is_empty() {
+        return String::new();
+    }
+    let s = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().trim().replace('\n', " ");
+    let done = items.iter().filter(|v| s(v, "status") == "completed").count();
+    let mut out = format!("**{}** {done}/{}", t("Attività"), items.len());
+    for v in &items {
+        let line = match s(v, "status").as_str() {
+            "completed" => format!("- ✅ {}", s(v, "content")),
+            "in_progress" => format!("- ▶️ **{}**", Some(s(v, "activeForm")).filter(|a| !a.is_empty()).unwrap_or_else(|| s(v, "content"))),
+            _ => format!("- ⬜ {}", s(v, "content")),
+        };
+        out.push('\n');
+        out.push_str(&line);
+    }
+    out
+}
+
+/// 12345 → "12.345".
+fn thousands(n: usize) -> String {
+    let s = n.to_string();
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push('.');
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// A step of Claude Code in the words of opencode.rs's (`step_line`).
@@ -658,11 +907,15 @@ async fn read_lines(
     on_text: &(dyn Fn(&str) + Sync),
     on_session: &(dyn Fn(&str) + Sync),
     on_context: &(dyn Fn(u64, u64) + Sync),
+    on_tasks: &(dyn Fn(&[BgTask]) + Sync),
     limit: Duration,
     late: &str,
     until_result: bool,
-) -> Result<(String, String, bool, usize), String> {
-    let mut progress = Progress::default();
+    running: &[BgTask],
+    chat: usize,
+) -> Result<(String, String, bool, Vec<BgTask>), String> {
+    // What already runs in the background stays listed until Claude Code says otherwise.
+    let mut progress = Progress { tasks: running.to_vec(), chat, ..Progress::default() };
     let mut last = String::new();
     let mut emitted = std::time::Instant::now();
     let deadline = tokio::time::Instant::now() + limit;
@@ -670,19 +923,31 @@ async fn read_lines(
         match tokio::time::timeout_at(deadline, lines.next_line()).await {
             Err(_) => return Err(late.to_string()),
             Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
-            Ok(Ok(None)) => return Ok((last, progress.shown, false, progress.pending)),
+            Ok(Ok(None)) => return Ok((last, progress.done(), false, progress.tasks)),
             Ok(Ok(Some(line))) => {
                 if !line.trim_start().starts_with('{') {
                     continue;
                 }
                 if let Some(id) = init_session(&line) {
                     on_session(&id);
+                    remember_commands(&line);
+                    if chat != 0 {
+                        remember_fast(chat, &line);
+                    }
                 }
                 if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
                     emitted = std::time::Instant::now();
                     on_text(&progress.view());
                 }
+                if std::mem::take(&mut progress.tasks_changed) {
+                    on_tasks(&progress.tasks);
+                }
                 let result = line.contains("\"type\":\"result\"") && serde_json::from_str::<Value>(&line).ok().and_then(|v| v.get("type").and_then(Value::as_str).map(|t| t == "result")) == Some(true);
+                // `/compact` answers with no text: the chat says what it did.
+                let line = match progress.compacted.take().filter(|_| result) {
+                    Some((pre, post)) => compacted_result(&line, pre, post),
+                    None => line,
+                };
                 if result && progress.context > 0 {
                     on_context(progress.context, context_size(&line));
                 }
@@ -691,11 +956,26 @@ async fn read_lines(
                     last = line;
                 }
                 if result && until_result {
-                    return Ok((last, progress.shown, true, progress.pending));
+                    return Ok((last, progress.done(), true, progress.tasks));
                 }
             }
         }
     }
+}
+
+/// The `result` line of a `/compact`, with what it did as its text (Claude Code leaves it empty).
+fn compacted_result(line: &str, pre: u64, post: u64) -> String {
+    let Ok(mut v) = serde_json::from_str::<Value>(line.trim()) else { return line.to_string() };
+    if v.get("result").and_then(Value::as_str).is_some_and(|r| !r.trim().is_empty()) {
+        return line.to_string();
+    }
+    let text = if pre > 0 && post > 0 {
+        tf("📦 Conversazione compattata: il contesto passa da {pre} a {post} token. Claude Code continua da un riassunto di quanto detto.", &[("pre", &thousands(pre as usize)), ("post", &thousands(post as usize))])
+    } else {
+        t("📦 Conversazione compattata: Claude Code continua da un riassunto di quanto detto.").to_string()
+    };
+    v["result"] = Value::String(text);
+    v.to_string()
 }
 
 /// What a model call read: the new tokens and those from the cache.
@@ -712,6 +992,75 @@ fn context_size(line: &str) -> u64 {
     v.get("modelUsage").and_then(Value::as_object).into_iter().flatten()
         .filter_map(|(_, m)| m.get("contextWindow").and_then(Value::as_u64))
         .max().unwrap_or(0)
+}
+
+/// `--settings <file>` becomes the same settings with `"fastMode": true`, as JSON.
+fn with_fast(a: &mut Vec<String>) {
+    match a.iter().position(|x| x == "--settings") {
+        Some(i) => {
+            let Some(file) = a.get(i + 1).cloned() else { return };
+            let mut v: Value = std::fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_else(|| serde_json::json!({}));
+            if let Some(o) = v.as_object_mut() {
+                o.insert("fastMode".into(), Value::Bool(true));
+            }
+            if let Some(slot) = a.get_mut(i + 1) {
+                *slot = v.to_string();
+            }
+        }
+        None => a.extend(["--settings".into(), r#"{"fastMode":true}"#.into()]),
+    }
+}
+
+/// Why fast mode is off, by conversation (the `Chat`'s address), from the last `init` line.
+static FAST_OFF: std::sync::Mutex<Vec<(usize, String)>> = std::sync::Mutex::new(Vec::new());
+
+fn remember_fast(chat: usize, line: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return };
+    let why = v.get("fast_mode_disabled_reason").and_then(Value::as_str).unwrap_or_default().to_string();
+    let on = v.get("fast_mode_state").and_then(Value::as_str) == Some("on");
+    let mut all = FAST_OFF.lock().unwrap();
+    all.retain(|(c, _)| *c != chat);
+    if !on && !why.is_empty() {
+        all.push((chat, why));
+    }
+}
+
+/// Fast mode asked for and refused by Claude Code: why, in words (once per turn).
+pub fn fast_refused(chat: usize) -> Option<String> {
+    let why = FAST_OFF.lock().unwrap().iter().find(|(c, _)| *c == chat).map(|(_, w)| w.clone())?;
+    Some(match why.as_str() {
+        "extra_usage_disabled" => t("Il fast mode di Claude Code non è attivo: sul tuo account Claude serve l'uso extra (claude.ai → Impostazioni → Utilizzo).").to_string(),
+        "sdk_opt_in_required" => t("Il fast mode di Claude Code non è disponibile in questa modalità.").to_string(),
+        other => tf("Il fast mode di Claude Code non è attivo ({why}).", &[("why", &other)]),
+    })
+}
+
+/// Claude Code's slash commands (its own, the user's in `.claude/commands`,
+/// skills, plugins), as its `init` line lists them: the chat's «/» menu shows
+/// them, as Claude Desktop does. Kept in `claude-comandi.json` for the next start.
+static COMMANDS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
+
+fn commands_file() -> PathBuf {
+    crate::settings::local_dir().join("claude-comandi.json")
+}
+
+/// Those of the `init` line, when it has them.
+fn remember_commands(line: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return };
+    let Some(list) = v.get("slash_commands").and_then(Value::as_array) else { return };
+    // Internal ones ("__…") and those that only make sense in a terminal stay out.
+    let names: Vec<String> = list.iter().filter_map(Value::as_str).filter(|n| !n.starts_with('_') && !matches!(*n, "heapdump" | "color" | "clear")).map(str::to_string).collect();
+    let mut known = COMMANDS.lock().unwrap();
+    if known.as_ref() != Some(&names) {
+        let _ = std::fs::write(commands_file(), serde_json::to_vec(&names).unwrap_or_default());
+        *known = Some(names);
+    }
+}
+
+/// The chat's «/» menu with Claude Code (lib.rs `chat_claude_commands`).
+pub fn commands() -> Vec<String> {
+    let mut known = COMMANDS.lock().unwrap();
+    known.get_or_insert_with(|| std::fs::read(commands_file()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()).clone()
 }
 
 /// The session named by Claude Code's `{"type":"system","subtype":"init",…}` line.
@@ -735,6 +1084,7 @@ async fn read_stream(
     on_context: &(dyn Fn(u64, u64) + Sync),
     limit: Duration,
     late: &str,
+    chat: usize,
 ) -> Result<(String, String, String, bool), String> {
     let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
     let stderr = child.stderr.take();
@@ -747,7 +1097,7 @@ async fn read_stream(
         s
     });
     let mut lines = tokio::io::BufReader::new(stdout).lines();
-    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, on_context, limit, late, false).await {
+    let (last, shown, _, _) = match read_lines(&mut lines, on_text, on_session, on_context, &|_| {}, limit, late, false, &[], chat).await {
         Ok(r) => r,
         Err(e) => {
             let _ = child.start_kill();
@@ -772,7 +1122,7 @@ async fn read_stream(
 
 struct Live {
     child: tokio::process::Child,
-    stdin: tokio::process::ChildStdin,
+    stdin: std::sync::Arc<tokio::sync::Mutex<tokio::process::ChildStdin>>,
     lines: OutLines,
     stderr: std::sync::Arc<std::sync::Mutex<String>>,
     /// The conversation (the `Chat`'s address) and how the process was started.
@@ -831,6 +1181,7 @@ fn put_live(live: Live) {
 /// The conversation's kept process goes (desktop.rs: its session moves to Claude Desktop).
 pub(crate) fn drop_live(chat: &Chat) {
     let id = chat as *const Chat as usize;
+    stop_background(id);
     let mut all = LIVE.lock().unwrap();
     for l in all.iter_mut().filter(|l| l.chat == id) {
         let _ = l.child.start_kill();
@@ -840,6 +1191,7 @@ pub(crate) fn drop_live(chat: &Chat) {
 
 /// At the app's exit (lib.rs): the kept processes go with it.
 pub fn shutdown() {
+    stop_background(0);
     let mut all = LIVE.lock().unwrap();
     for l in all.iter_mut() {
         let _ = l.child.start_kill();
@@ -869,6 +1221,7 @@ fn spawn_live(mut cmd: Command, chat: usize, print: String) -> Result<Live, Stri
             }
         });
     }
+    let stdin = std::sync::Arc::new(tokio::sync::Mutex::new(stdin));
     Ok(Live { child, stdin, lines: tokio::io::BufReader::new(stdout).lines(), stderr, chat, print, session: String::new(), used: std::time::Instant::now() })
 }
 
@@ -879,56 +1232,319 @@ async fn live_turn(
     on_text: &(dyn Fn(&str) + Sync),
     on_session: &(dyn Fn(&str) + Sync),
     on_context: &(dyn Fn(u64, u64) + Sync),
+    on_tasks: &(dyn Fn(&[BgTask]) + Sync),
+    later: Option<&Later>,
     limit: Duration,
     late: &str,
-) -> Result<(String, String, usize), Option<String>> {
+) -> Result<(String, String, Vec<BgTask>), Option<String>> {
     let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
-    if live.stdin.write_all(format!("{line}\n").as_bytes()).await.is_err() || live.stdin.flush().await.is_err() {
-        return Err(None);
+    {
+        let mut w = live.stdin.lock().await;
+        if w.write_all(format!("{line}\n").as_bytes()).await.is_err() || w.flush().await.is_err() {
+            return Err(None);
+        }
     }
-    match read_lines(&mut live.lines, on_text, on_session, on_context, limit, late, true).await {
-        Ok((last, shown, true, pending)) => Ok((last, shown, pending)),
-        Ok((_, _, false, _)) => Err(None),
-        Err(e) => Err(Some(e)),
+    // While it answers, a message written in the chat goes to it at once (`steer`).
+    let _steering = Steering::on(live.chat, live.stdin.clone());
+    let deadline = std::time::Instant::now() + limit;
+    loop {
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        match read_lines(&mut live.lines, on_text, on_session, on_context, on_tasks, left, late, true, &[], live.chat).await {
+            // A turn Claude Code started by itself for work that ended (a resumed
+            // session reports one even for work stopped with its old process):
+            // not the answer to this message; its text, if any, comes as an update.
+            Ok((last, _, true, _)) if from_background(&last) => {
+                let text = parse_output(&last).filter(|o| !o.is_error).map(|o| o.text).unwrap_or_default();
+                if let (Some(later), false) = (later, text.trim().is_empty()) {
+                    later(text);
+                }
+            }
+            Ok((last, shown, true, tasks)) => return Ok((last, shown, tasks)),
+            Ok((_, _, false, _)) => return Err(None),
+            Err(e) => return Err(Some(e)),
+        }
     }
 }
 
-/// How long a turn's background commands are waited for, in all.
+/// The processes answering a message now, by conversation: a message written
+/// meanwhile goes to Claude Code at once and it takes it into the turn it is
+/// in, between two steps (as in Claude Desktop; tried on 8 Nov 2026: one
+/// answer, «FATTO BANANA», to both).
+type Stdin = std::sync::Arc<tokio::sync::Mutex<tokio::process::ChildStdin>>;
+static STEERING: std::sync::Mutex<Vec<(usize, Stdin)>> = std::sync::Mutex::new(Vec::new());
+
+struct Steering(usize);
+
+impl Steering {
+    fn on(chat: usize, stdin: Stdin) -> Self {
+        STEERING.lock().unwrap().push((chat, stdin));
+        Steering(chat)
+    }
+}
+
+impl Drop for Steering {
+    fn drop(&mut self) {
+        let mut all = STEERING.lock().unwrap();
+        if let Some(i) = all.iter().rposition(|(c, _)| *c == self.0) {
+            all.remove(i);
+        }
+    }
+}
+
+/// A message for the turn in progress of `chat`; false when no turn of
+/// Claude Code is answering (the chat queues it as before).
+pub async fn steer(chat: usize, text: &str) -> bool {
+    let Some(stdin) = STEERING.lock().unwrap().iter().rev().find(|(c, _)| *c == chat).map(|(_, s)| s.clone()) else { return false };
+    let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": text } }).to_string();
+    let mut w = stdin.lock().await;
+    let ok = w.write_all(format!("{line}\n").as_bytes()).await.is_ok() && w.flush().await.is_ok();
+    if ok {
+        crate::log::line("claude: messaggio aggiunto al turno in corso".to_string());
+    }
+    ok
+}
+
+/// Turns Claude Code still has lined up after this result (`queued_turn_count`):
+/// background work that ended while it was writing.
+fn queued_turns(line: &str) -> u64 {
+    serde_json::from_str::<Value>(line.trim()).ok().and_then(|v| v.get("queued_turn_count").and_then(Value::as_u64)).unwrap_or(0)
+}
+
+/// A result line of a turn Claude Code started by itself when background work
+/// ended, not of a message sent to it: it has an `origin` ("task-notification"
+/// for a command, "peer" for a sub-agent's report, 8 Nov 2026); a message's has none.
+fn from_background(line: &str) -> bool {
+    line.contains("\"origin\"")
+        && serde_json::from_str::<Value>(line.trim()).ok().and_then(|v| v.pointer("/origin/kind").and_then(Value::as_str).map(|k| k != "user")) == Some(true)
+}
+
+/// How long a turn's background work is waited for, in all.
 const FOLLOW_MAX: Duration = Duration::from_secs(3 * 3600);
 
-/// A turn ended with commands still running in the background: when one ends
+/// What the follower tells the message that went in while it waits.
+enum Ev {
+    Text(String),
+    /// The turn's result, what was shown and the work still in the background;
+    /// Err(None): the process is gone.
+    Done(Result<(String, String, Vec<BgTask>), Option<String>>),
+}
+
+/// A conversation whose process has work in the background: the follower
+/// reads its output; a new message goes in through `stdin` (`through`) and
+/// gets the next answer, so one conversation never has two processes.
+struct Following {
+    chat: usize,
+    print: String,
+    session: String,
+    stdin: std::sync::Arc<tokio::sync::Mutex<tokio::process::ChildStdin>>,
+    waiting: Option<tokio::sync::mpsc::UnboundedSender<Ev>>,
+    kill: std::sync::Arc<tokio::sync::Notify>,
+    /// The context at the last result read by the follower (the chat's meter).
+    context: std::sync::Arc<std::sync::Mutex<Option<(u64, u64)>>>,
+}
+
+static FOLLOWING: std::sync::Mutex<Vec<Following>> = std::sync::Mutex::new(Vec::new());
+
+/// Ferma with nothing being answered, a closed conversation, the app's exit:
+/// the background work of `chat` (0 = all) ends with its process.
+pub(crate) fn stop_background(chat: usize) -> bool {
+    let all = FOLLOWING.lock().unwrap();
+    let mut any = false;
+    for f in all.iter().filter(|f| chat == 0 || f.chat == chat) {
+        f.kill.notify_one();
+        any = true;
+    }
+    any
+}
+
+/// Stops the process if the message's turn is dropped halfway (Ferma).
+struct KillOnDrop {
+    kill: std::sync::Arc<tokio::sync::Notify>,
+    armed: bool,
+}
+
+impl Drop for KillOnDrop {
+    fn drop(&mut self) {
+        if self.armed {
+            self.kill.notify_one();
+        }
+    }
+}
+
+/// A message to a conversation whose process is being followed. None: no
+/// follower fits (start or take a kept process as usual).
+async fn through(
+    chat: usize,
+    print: &str,
+    session: Option<&str>,
+    prompt: &str,
+    on_text: &(dyn Fn(&str) + Sync),
+    on_context: &(dyn Fn(u64, u64) + Sync),
+    limit: Duration,
+    late: &str,
+) -> Option<Result<(String, String, Vec<BgTask>), Option<String>>> {
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let (stdin, kill, context) = {
+        let mut all = FOLLOWING.lock().unwrap();
+        let f = all.iter_mut().find(|f| f.chat == chat && f.print == print && Some(f.session.as_str()) == session && f.waiting.is_none())?;
+        f.waiting = Some(tx);
+        (f.stdin.clone(), f.kill.clone(), f.context.clone())
+    };
+    // Only what this message's turn reads.
+    *context.lock().unwrap() = None;
+    let mut guard = KillOnDrop { kill, armed: true };
+    let _steering = Steering::on(chat, stdin.clone());
+    let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
+    {
+        let mut w = stdin.lock().await;
+        if w.write_all(format!("{line}\n").as_bytes()).await.is_err() || w.flush().await.is_err() {
+            guard.armed = false;
+            return Some(Err(None));
+        }
+    }
+    let deadline = tokio::time::Instant::now() + limit;
+    loop {
+        match tokio::time::timeout_at(deadline, rx.recv()).await {
+            Err(_) => return Some(Err(Some(late.to_string()))),
+            Ok(None) => {
+                guard.armed = false;
+                return Some(Err(None));
+            }
+            Ok(Some(Ev::Text(t))) => on_text(&t),
+            Ok(Some(Ev::Done(r))) => {
+                guard.armed = false;
+                if let Some((used, size)) = *context.lock().unwrap() {
+                    on_context(used, size);
+                }
+                return Some(r);
+            }
+        }
+    }
+}
+
+/// A turn ended with work still running in the background: when a piece ends
 /// Claude Code starts another turn by itself, and its answer goes to `later`
-/// (Agent Chat posts it in the chat). Without `later` it is only read, so it
-/// does not end up in front of the next message. Back among the kept
-/// processes once nothing runs any more.
-fn follow(mut live: Live, later: Option<Later>, mut pending: usize) {
+/// (the island's chat and Agent Chat post it in the conversation). A message
+/// written meanwhile goes to this same process (`through`). Back among the
+/// kept processes once nothing runs and nobody waits.
+fn follow(live: Live, later: Option<Later>, on_tasks: Option<OnTasks>, on_working: Option<OnWorking>, tasks: Vec<BgTask>) {
+    let Live { mut child, stdin, mut lines, stderr: _, chat, print, session, used: _ } = live;
+    let kill = std::sync::Arc::new(tokio::sync::Notify::new());
+    let context = std::sync::Arc::new(std::sync::Mutex::new(None));
+    FOLLOWING.lock().unwrap().push(Following { chat, print: print.clone(), session: session.clone(), stdin: stdin.clone(), waiting: None, kill: kill.clone(), context: context.clone() });
+    let tell = move |t: &[BgTask]| {
+        if let Some(f) = &on_tasks {
+            f(t);
+        }
+    };
+    let working = move |w: Option<&str>| {
+        if let Some(f) = &on_working {
+            f(w);
+        }
+    };
     tauri::async_runtime::spawn(async move {
         let start = std::time::Instant::now();
-        crate::log::line(format!("claude: {pending} comandi in background, aspetto che finiscano"));
-        while pending > 0 {
-            let Some(left) = FOLLOW_MAX.checked_sub(start.elapsed()) else {
-                crate::log::line("claude: comandi in background oltre il limite, lascio perdere".to_string());
+        let mut tasks = tasks;
+        let mut queued: u64;
+        crate::log::line(format!("claude: {} lavori in background, aspetto che finiscano", tasks.len()));
+        let waiting = |take: bool| -> Option<tokio::sync::mpsc::UnboundedSender<Ev>> {
+            let mut all = FOLLOWING.lock().unwrap();
+            let f = all.iter_mut().find(|f| f.chat == chat && std::sync::Arc::ptr_eq(&f.kill, &kill))?;
+            if take { f.waiting.take() } else { f.waiting.clone() }
+        };
+        let leave = |reason: &str| {
+            crate::log::line(format!("claude: {reason}"));
+            FOLLOWING.lock().unwrap().retain(|f| !std::sync::Arc::ptr_eq(&f.kill, &kill));
+        };
+        let mut idle = false;
+        loop {
+            // A sub-agent may report a moment after the list emptied: the
+            // follower stays with the process while the conversation lives, so
+            // a late report still reaches the chat (and messages go `through`).
+            let left = if idle { Some(LIVE_IDLE) } else { FOLLOW_MAX.checked_sub(start.elapsed()) };
+            let Some(left) = left else {
+                let _ = child.start_kill();
+                if let Some(w) = waiting(true) {
+                    let _ = w.send(Ev::Done(Err(None)));
+                }
+                tell(&[]);
+                leave("lavori in background oltre il limite, processo chiuso");
                 return;
             };
-            match read_lines(&mut live.lines, &|_| {}, &|_| {}, &|_, _| {}, left, "", true).await {
-                Ok((last, _, true, still)) => {
-                    pending = still;
+            // The user's message gets the text; a turn Claude Code started by
+            // itself shows in the chat as one at work.
+            let forward = |text: &str| match waiting(false) {
+                Some(w) => {
+                    let _ = w.send(Ev::Text(text.to_string()));
+                }
+                None => working(Some(text)),
+            };
+            let started = |_: &str| {
+                if waiting(false).is_none() {
+                    working(Some(""));
+                }
+            };
+            let tell_now = |t: &[BgTask]| tell(t);
+            let running = tasks.clone();
+            let keep_context = |used: u64, size: u64| *context.lock().unwrap() = Some((used, size));
+            let mut read = std::pin::pin!(read_lines(&mut lines, &forward, &started, &keep_context, &tell_now, left, "", true, &running, chat));
+            let mut stop = std::pin::pin!(kill.notified());
+            let outcome = std::future::poll_fn(|cx| {
+                if let std::task::Poll::Ready(r) = std::future::Future::poll(read.as_mut(), cx) {
+                    return std::task::Poll::Ready(Some(r));
+                }
+                if std::future::Future::poll(stop.as_mut(), cx).is_ready() {
+                    return std::task::Poll::Ready(None);
+                }
+                std::task::Poll::Pending
+            })
+            .await;
+            match outcome {
+                None => {
+                    let _ = child.start_kill();
+                    if let Some(w) = waiting(true) {
+                        let _ = w.send(Ev::Done(Err(Some(crate::stopped_text()))));
+                    }
+                    working(None);
+                    tell(&[]);
+                    leave("lavori in background fermati");
+                    return;
+                }
+                Some(Ok((last, shown, true, still))) => {
+                    working(None);
+                    tasks = still;
+                    queued = queued_turns(&last);
                     log_usage(&last);
-                    let text = parse_output(&last).filter(|o| !o.is_error).map(|o| o.text).unwrap_or_default();
-                    if let Some(later) = &later {
-                        if !text.trim().is_empty() {
-                            later(text);
+                    match if from_background(&last) { None } else { waiting(true) } {
+                        Some(w) => {
+                            let _ = w.send(Ev::Done(Ok((last, shown, tasks.clone()))));
+                        }
+                        None => {
+                            let text = parse_output(&last).filter(|o| !o.is_error).map(|o| o.text).unwrap_or_default();
+                            if let (Some(later), false) = (&later, text.trim().is_empty()) {
+                                later(text);
+                            }
                         }
                     }
                 }
-                _ => {
-                    crate::log::line("claude: il processo con i comandi in background si è chiuso".to_string());
+                Some(r) => {
+                    let _ = child.start_kill();
+                    if let Some(w) = waiting(true) {
+                        let _ = w.send(Ev::Done(Err(None)));
+                    }
+                    working(None);
+                    tell(&[]);
+                    leave(if idle && r.is_err() { "conversazione ferma da 20 minuti, processo chiuso" } else { "il processo con i lavori in background si è chiuso" });
                     return;
                 }
             }
+            // Nothing runs and no message is on its way: the next read may wait long.
+            let was = idle;
+            idle = tasks.is_empty() && queued == 0 && waiting(false).is_none();
+            if idle && !was {
+                crate::log::line("claude: lavori in background finiti".to_string());
+            }
         }
-        live.used = std::time::Instant::now();
-        put_live(live);
     });
 }
 
@@ -1044,11 +1660,30 @@ async fn send_mode(
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
     let dir = work_dir(&connectors, terminal)?;
-    let session = chat.cli_session();
+    let mut session = chat.cli_session();
+    // A conversation reopened from the history resumes its own session, as
+    // Claude Desktop does (chat_log::open). Its file gone, or kept under
+    // another folder (Claude Code would not find it): the conversation goes as
+    // text in front of the question, as before.
+    let mut prompt = String::new();
+    if let Some(fallback) = chat.take_resume_fallback() {
+        let cwd = terminal.unwrap_or(&dir);
+        if !session.as_deref().is_some_and(|s| crate::desktop::session_in(s, cwd)) {
+            crate::log::line("claude: la sessione della cronologia non è in questa cartella, riparto dal testo".to_string());
+            chat.set_cli_session(None);
+            session = None;
+            prompt = fallback;
+        }
+    }
+    // Modifica, Rigenera, Dirama: the session goes on from that answer, as a
+    // new session; the process that has the whole conversation goes.
+    let resume_at = chat.take_resume_at().filter(|_| session.is_some());
+    if resume_at.is_some() {
+        drop_live(chat);
+    }
 
     // The front end sends a context with the first message, or with a file
     // added later (pasted in the chat, sent on Telegram).
-    let mut prompt = String::new();
     let mut extra_dir: Option<PathBuf> = None;
     {
         for (part, folder) in crate::claude::parts(context.as_ref()) {
@@ -1087,10 +1722,29 @@ async fn send_mode(
             Some(_) => terminal_args(&dir, model, resume, extra_dir.as_deref(), &connectors, auto),
             None => args(&dir, model, resume, extra_dir.as_deref(), &connectors),
         };
+        // Fast mode (as Claude Desktop's): `fastMode` added to the settings this process reads.
+        if chat.fast() {
+            with_fast(&mut a);
+        }
+        // Piano, Accetta modifiche (the chat's mode, as Claude Desktop offers them): Claude Code's own modes.
+        if let (Some(_), false, Some(mode)) = (terminal, auto, chat.mode()) {
+            if let Some(i) = a.iter().position(|x| x == "--permission-mode") {
+                if let Some(v) = a.get_mut(i + 1) {
+                    *v = mode;
+                }
+            }
+        }
         if locked {
             read_only(&mut a);
         }
         cmd.current_dir(terminal.unwrap_or(&dir)).args(a);
+        if let (Some(_), Some(at)) = (resume, resume_at.as_deref()) {
+            cmd.args(["--resume-session-at", at, "--fork-session"]);
+        }
+        // The effort picked in the chat (a change starts another process on the same session).
+        if let Some(e) = chat.effort() {
+            cmd.arg("--effort").arg(e);
+        }
         // The work folder (workdir.rs): readable with Read outside terminal mode too.
         if let (None, Some(w)) = (terminal, work) {
             cmd.arg("--add-dir").arg(w);
@@ -1120,6 +1774,26 @@ async fn send_mode(
     let (stdout, shown, stderr, success) = if keep {
         let print = fingerprint(&make(None), &dir);
         let id = chat as *const Chat as usize;
+        let on_tasks_now = chat.on_tasks();
+        let on_tasks = |t: &[BgTask]| {
+            if let Some(f) = &on_tasks_now {
+                f(t);
+            }
+        };
+        // Work still in the background: the message goes to that same process.
+        if let Some(r) = through(id, &print, session.as_deref(), &prompt, on_text, &on_context, limit, late).await {
+            match r {
+                Ok((last, shown, _)) => {
+                    let stderr = String::new();
+                    return finish(chat, last, if terminal.is_some() { shown } else { String::new() }, stderr, true);
+                }
+                Err(Some(e)) => return Err(e),
+                Err(None) => crate::log::line("claude: il processo con i lavori in background non c'è più, ne parte un altro".to_string()),
+            }
+        } else {
+            // Started another way (model, folders, settings changed): one process per conversation.
+            stop_background(id);
+        }
         let mut kept = take_live(id, &print, session.as_deref());
         let mut answer = None;
         // A kept process that is gone is replaced once, resuming the conversation.
@@ -1128,9 +1802,9 @@ async fn send_mode(
                 Some(l) => l,
                 None => spawn_live(make(session.as_deref()), id, print.clone())?,
             };
-            match live_turn(&mut live, &prompt, on_text, &on_session, &on_context, limit, late).await {
-                Ok((last, shown, pending)) => {
-                    answer = Some((last, shown, live, pending));
+            match live_turn(&mut live, &prompt, on_text, &on_session, &on_context, &on_tasks, chat.later().as_ref(), limit, late).await {
+                Ok((last, shown, tasks)) => {
+                    answer = Some((last, shown, live, tasks));
                     break;
                 }
                 Err(Some(e)) => return Err(e),
@@ -1143,7 +1817,7 @@ async fn send_mode(
                 }
             }
         }
-        let Some((last, shown, mut live, pending)) = answer else {
+        let Some((last, shown, mut live, tasks)) = answer else {
             return Err(t("Claude Code si è interrotto.").into());
         };
         let stderr = live.stderr.lock().unwrap().clone();
@@ -1151,8 +1825,8 @@ async fn send_mode(
         if let (true, Some(sid)) = (outcome_ok, parse_output(&last).and_then(|o| o.session_id)) {
             live.session = sid;
             live.used = std::time::Instant::now();
-            if pending > 0 {
-                follow(live, chat.later(), pending);
+            if !tasks.is_empty() {
+                follow(live, chat.later(), chat.on_tasks(), chat.on_working(), tasks);
             } else {
                 put_live(live);
             }
@@ -1170,10 +1844,15 @@ async fn send_mode(
                 .map_err(|e| e.to_string())?;
             // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
         }
-        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, &on_context, limit, late).await?;
+        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, &on_session, &on_context, limit, late, chat as *const Chat as usize).await?;
         (last, if terminal.is_some() { shown } else { String::new() }, stderr, ok)
     };
 
+    finish(chat, stdout, shown, stderr, success)
+}
+
+/// The end of a turn of `send_mode`: its result as the chat's reply.
+fn finish(chat: &Chat, stdout: String, shown: String, stderr: String, success: bool) -> Result<ChatReply, String> {
     log_usage(&stdout);
     let Some(outcome) = parse_output(&stdout) else {
         let detail: String = stderr.trim().chars().take(300).collect();
@@ -1374,6 +2053,67 @@ pub async fn session_ask(session: String, fork: Option<String>, cwd: String, que
 #[cfg(test)]
 mod tests {
     #[test]
+    fn steps_show_what_they_gave_back_and_the_sub_agents_steps() {
+        let mut p = super::Progress::default();
+        p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"npm test"}}]}}"#);
+        assert!(p.feed(r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok 12 test"}]}}"#));
+        assert!(p.done().contains("```esito\nok 12 test\n```"), "{}", p.done());
+        p.feed(r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","is_error":true,"content":[{"type":"text","text":"non trovato"}]}]}}"#);
+        assert!(p.done().contains("```errore\nnon trovato\n```"));
+        // A long output is cut, a fence inside does not close the block.
+        let long: String = (0..50).map(|i| format!("riga {i}\n")).collect::<String>() + "```";
+        let block = super::result_block(&long, false);
+        assert!(block.contains("riga 29") && !block.contains("riga 30") && block.contains("20"), "{block}");
+        // A sub-agent: its steps under its description.
+        p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a1","name":"Agent","input":{"description":"Legge i PDF"}}]}}"#);
+        assert!(p.feed(r#"{"type":"assistant","parent_tool_use_id":"a1","message":{"content":[{"type":"tool_use","id":"x","name":"Read","input":{"file_path":"C:/a.pdf"}}]}}"#));
+        assert!(p.done().contains("> ⚙ ↳ Legge i PDF · "), "{}", p.done());
+    }
+
+    #[test]
+    fn fast_mode_goes_in_the_settings() {
+        let dir = std::env::temp_dir().join(format!("ei-fast-{}.json", std::process::id()));
+        std::fs::write(&dir, r#"{"disableAllHooks":false}"#).unwrap();
+        let mut a = vec!["-p".to_string(), "--settings".to_string(), dir.display().to_string()];
+        super::with_fast(&mut a);
+        let v: serde_json::Value = serde_json::from_str(&a[2]).unwrap();
+        assert_eq!(v["fastMode"], true);
+        assert_eq!(v["disableAllHooks"], false);
+        let mut b = vec!["-p".to_string()];
+        super::with_fast(&mut b);
+        assert_eq!(b.last().unwrap(), r#"{"fastMode":true}"#);
+        let _ = std::fs::remove_file(&dir);
+    }
+
+    #[test]
+    fn the_task_list_shows_under_the_steps_and_stays_at_the_end() {
+        let mut p = super::Progress::default();
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":{"todos":[{"content":"Leggere","status":"completed","activeForm":"Leggo"},{"content":"Scrivere","status":"in_progress","activeForm":"Scrivo"},{"content":"Provare","status":"pending","activeForm":"Provo"}]}}]}}"#));
+        let done = p.done();
+        assert!(done.contains("1/3") && done.contains("✅ Leggere") && done.contains("▶️ **Scrivo**") && done.contains("⬜ Provare"), "{done}");
+        // Only the last list, not one per update.
+        p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":{"todos":[{"content":"Leggere","status":"completed"},{"content":"Scrivere","status":"completed"}]}}]}}"#);
+        assert_eq!(p.done().matches("Leggere").count(), 1);
+        assert!(p.done().contains("2/2"));
+    }
+
+    /// Lines as Claude Code 2.x wrote them for `/compact` (8 Nov 2026).
+    #[test]
+    fn compact_says_what_it_did_and_moves_the_meter() {
+        let mut p = super::Progress { context: 38346, ..Default::default() };
+        assert!(!p.feed(r#"{"type":"system","subtype":"compact_boundary","compact_metadata":{"trigger":"manual","pre_tokens":38346,"post_tokens":6242}}"#));
+        assert_eq!(p.context, 6242);
+        assert_eq!(p.compacted, Some((38346, 6242)));
+        let line = super::compacted_result(r#"{"type":"result","subtype":"success","is_error":false,"result":"","local_command":"compact","session_id":"s1"}"#, 38346, 6242);
+        let out = super::parse_output(&line).unwrap();
+        assert!(out.text.contains("38.346") && out.text.contains("6.242"), "{}", out.text);
+        assert_eq!(out.session_id.as_deref(), Some("s1"));
+        // A result with its own text keeps it.
+        let kept = super::compacted_result(r#"{"type":"result","result":"fatto"}"#, 1, 1);
+        assert_eq!(super::parse_output(&kept).unwrap().text, "fatto");
+    }
+
+    #[test]
     fn plugin_servers_of_enabled_plugins() {
         let dir = std::env::temp_dir().join(format!("ei-plugins-{}", std::process::id()));
         let notion = dir.join("cache").join("notion");
@@ -1414,10 +2154,11 @@ mod tests {
         // As Claude Code 2 Nov 2026 streams a `sleep 20` with run_in_background.
         let mut p = super::Progress::default();
         p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[{"task_id":"b1","task_type":"local_bash"}]}"#);
-        assert_eq!(p.pending, 1);
+        assert_eq!(p.tasks, vec![crate::claude::BgTask { id: "b1".into(), kind: "local_bash".into(), description: String::new() }]);
         p.feed(r#"{"type":"system","subtype":"task_notification","task_id":"b1","status":"completed"}"#);
+        assert_eq!(super::thousands(12345), "12.345");
         p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[]}"#);
-        assert_eq!(p.pending, 0);
+        assert!(p.tasks.is_empty());
     }
 
     /// `claude -p` on this PC, as the island's chat runs it:
@@ -1433,6 +2174,64 @@ mod tests {
                 println!("agent={agent}: {:?}", r.as_ref().map(|x| &x.text));
                 chat.reset();
             }
+        });
+    }
+
+    /// Work left in the background (Modalità terminale): listed, a message
+    /// written meanwhile answered by the same process, the end in `later`:
+    /// `cargo test --lib claude_cli::tests::live_background -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_background() {
+        tauri::async_runtime::block_on(async {
+            let dir = std::env::temp_dir().join("ei-bg");
+            std::fs::create_dir_all(&dir).unwrap();
+            let chat = crate::claude::Chat::default();
+            let got = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+            let keep = got.clone();
+            chat.set_later(std::sync::Arc::new(move |t: String| {
+                println!("LATER: {t}");
+                keep.lock().unwrap().push(t);
+            }));
+            chat.set_on_tasks(std::sync::Arc::new(|t: &[crate::claude::BgTask]| println!("TASKS: {t:?}")));
+            chat.set_on_working(std::sync::Arc::new(|w: Option<&str>| println!("WORKING: {}", w.map(|s| s.chars().count().to_string()).unwrap_or_else(|| "fine".into()))));
+            let ask = std::env::var("EI_BG_PROMPT").unwrap_or_else(|_| "Con lo strumento Bash avvia in background (run_in_background true) il comando 'sleep 25 && echo fatto', poi rispondi solo 'avviato'. Quando finisce, scrivi 'finito: ' e l'output.".into());
+            let first = super::send_kept(&chat, "haiku", &[], false, ask, None, Some(&dir), true, &|_| {}, false, None).await;
+            println!("1: {:?}", first.map(|r| r.text));
+            let t0 = std::time::Instant::now();
+            let second = super::send_kept(&chat, "haiku", &[], false, "Intanto: quanto fa 2+2? Rispondi solo col numero.".into(), None, Some(&dir), true, &|_| {}, false, None).await;
+            println!("2 ({:.1} s): {:?}", t0.elapsed().as_secs_f64(), second.map(|r| r.text));
+            for _ in 0..90 {
+                if got.lock().unwrap().iter().any(|t| t.contains("finito") || t.contains("somma")) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+            println!("later: {:?}", got.lock().unwrap());
+            assert!(!got.lock().unwrap().is_empty());
+            // Back among the kept processes: a third message is answered as usual.
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            let third = super::send_kept(&chat, "haiku", &[], false, "E 3+3? Solo il numero.".into(), None, Some(&dir), true, &|_| {}, false, None).await;
+            println!("3: {:?}", third.map(|r| r.text));
+        });
+    }
+
+    /// Ferma on work left in the background: the list empties, the next message starts over.
+    #[test]
+    #[ignore]
+    fn live_background_stop() {
+        tauri::async_runtime::block_on(async {
+            let dir = std::env::temp_dir().join("ei-bg");
+            std::fs::create_dir_all(&dir).unwrap();
+            let chat = crate::claude::Chat::default();
+            chat.set_on_tasks(std::sync::Arc::new(|t: &[crate::claude::BgTask]| println!("TASKS: {}", t.len())));
+            let first = super::send_kept(&chat, "haiku", &[], false, "Con lo strumento Bash avvia in background (run_in_background true) il comando 'sleep 120', poi rispondi solo 'avviato'.".into(), None, Some(&dir), true, &|_| {}, false, None).await;
+            println!("1: {:?}", first.map(|r| r.text));
+            println!("fermato: {}", super::stop_background(&chat as *const _ as usize));
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            assert!(!super::FOLLOWING.lock().unwrap().iter().any(|f| f.chat == &chat as *const _ as usize));
+            let second = super::send_kept(&chat, "haiku", &[], false, "Quanto fa 2+2? Solo il numero.".into(), None, Some(&dir), true, &|_| {}, false, None).await;
+            println!("2: {:?}", second.map(|r| r.text));
         });
     }
 

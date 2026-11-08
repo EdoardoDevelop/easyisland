@@ -87,7 +87,11 @@ disagree, the Italian files are the reference.
   without asking) and from Telegram (`/cartella`). Every path is checked to stay inside
   it; deleting goes to the Recycle Bin and only from the user's click.
 - **History**: `chats.json` in `%LOCALAPPDATA%\EasyIsland`, up to 100 conversations,
-  without the bytes of attached files. Nothing leaves the PC.
+  without the bytes of attached files, with passwords masked (`redact.rs`). Nothing leaves the PC.
+  A question is saved as soon as it is sent. With Claude Code each conversation keeps its
+  session id: reopened, it resumes that session (as Claude Desktop does), and Edit,
+  Regenerate and Branch resume it at that answer (`--resume-session-at`, `--fork-session`).
+  Sessions started in the terminal or Claude Desktop show at the bottom and can be taken in.
 - **opencode as an engine:** a private `opencode serve` on a free port with a random
   password and `EASYISLAND_INTERNAL`, stopped after 10 minutes without messages. One
   session per chat, with rules: `*` = ask, reading and searching allowed, `.env` and
@@ -109,6 +113,13 @@ chooses.
 - **Other engines** have no tools of their own: in terminal mode they run through
   opencode with the same provider and model. Their API keys go from Credential
   Manager into the private server's environment only — never on disk.
+- **Claude Code like Claude Desktop** (1.0.34): modes Allow / Deny, Accept edits, Plan and
+  Automatic on one button; "Always" kept for the session; Claude Code's slash commands in the
+  "/" menu; model and fast mode per conversation; each step's output and sub-agents' steps;
+  the task list; messages written mid-turn join the turn; ⟲ Files restore points on disk
+  (`checkpoints.rs`); separate copy (git worktree); pull request and checks with `gh`;
+  comments on the lines of «Changes»; `chat_start` for separate work; a PowerShell terminal
+  of the user's (`terminal.rs`); `/compatta` and the context ring. Details in `docs/chat.md`.
 - **⚡ Automatic** (chat header button, terminal mode only, for the current
   conversation only):
   - **Claude Code:** `--permission-mode auto`: Claude Code's own check approves normal

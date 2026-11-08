@@ -36,7 +36,7 @@ const MAX_PAGE: usize = 20_000;
 /// A source given to the agent, at most (characters).
 const MAX_SOURCE: usize = 30_000;
 /// Files read as text from da-leggere.
-const READABLE: &[&str] = &["md", "txt", "csv", "json", "html", "htm", "eml", "log", "xml", "yaml", "yml", "ini"];
+const READABLE: &[&str] = &["md", "txt", "csv", "json", "html", "htm", "eml", "log", "xml", "yaml", "yml", "ini", "pdf", "docx", "dotx", "docm"];
 /// Notes or pages untouched for longer are "old" in the check.
 const OLD_DAYS: i64 = 180;
 /// Pages two links away the search adds, at most.
@@ -516,6 +516,8 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     if title.is_empty() {
         return Err(t("title: il titolo della pagina.").into());
     }
+    // Never a password in a page (redact.rs).
+    let text = crate::redact::redact(text);
     // A "# Titolo" first line written by the model is the header's, not the text's.
     let mut body = text.trim();
     if let Some(rest) = body.strip_prefix("# ") {
@@ -672,10 +674,16 @@ pub fn tool_inbox(file: &str) -> Result<String, String> {
     let others: Vec<String> = all.iter().filter(|o| o.name != f.name).map(|o| o.name.clone()).collect();
     let mut out = format!("{}: {}\n{}: {}\n", t("file"), f.name, t("percorso"), f.path.display());
     if f.readable {
-        let raw = std::fs::read(&f.path).map_err(|e| e.to_string())?;
-        let text = String::from_utf8_lossy(&raw).into_owned();
         let ext = f.path.extension().map(|x| x.to_string_lossy().to_lowercase()).unwrap_or_default();
-        let text = if ext == "html" || ext == "htm" { html_text(&text) } else { text };
+        // Word and PDF: their text (docx.rs, pdftext.rs).
+        let text = match crate::docx::text_of_file(&f.path) {
+            Some(read) => read.unwrap_or_else(|e| format!("[{e}]")),
+            None => {
+                let raw = std::fs::read(&f.path).map_err(|e| e.to_string())?;
+                let text = String::from_utf8_lossy(&raw).into_owned();
+                if ext == "html" || ext == "htm" { html_text(&text) } else { text }
+            }
+        };
         let total = text.chars().count();
         let cut: String = text.chars().take(MAX_SOURCE).collect();
         if total > MAX_SOURCE {
@@ -2071,7 +2079,7 @@ Commercialisti.
         std::fs::write(inbox.join("scansione.pdf"), [0u8, 1, 2]).unwrap();
         let read = tool_inbox("").unwrap();
         assert!(read.contains("Il nuovo server") && read.contains("scansione.pdf"), "{read}");
-        assert!(tool_inbox("scansione.pdf").unwrap().contains("Non è un file di testo"));
+        assert!(tool_inbox("scansione.pdf").unwrap().contains("Non è un file PDF"));
         assert!(tool_inbox("../x").is_err());
         tool_inbox_done("articolo.html").unwrap();
         assert!(sources_dir().join("articolo.html").exists());

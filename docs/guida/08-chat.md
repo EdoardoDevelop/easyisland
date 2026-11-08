@@ -18,6 +18,10 @@
 - **Modifica** (sulle tue domande): il testo torna nel campo e la conversazione riparte da lì.
 - **↻ Rigenera** (sull'ultima risposta).
 - **⑂ Dirama da qui**: una conversazione nuova che parte da quel punto; quella di prima resta intera nella cronologia.
+- Con Claude Code, Modifica, Rigenera e Dirama riprendono la sua sessione proprio da quel punto, come Claude Desktop: Claude ricorda anche i file letti fin lì.
+- **⟲ File** (sulle tue domande, con la modalità terminale): riporta i file che Claude Code ha cambiato da quella domanda in poi com'erano prima, e toglie quelli che ha creato. Il primo clic dice quali file, il secondo conferma. Come in Claude Desktop, quello che fanno i comandi non conta. I punti di ripristino restano anche dopo un riavvio, con la conversazione, per 30 giorni.
+- **I passi si aprono**: sotto ogni passo di Claude Code, **▸ Esito** mostra cosa ha dato (l'uscita di un comando, il testo letto, un errore in rosso); i passi dei sotto-agenti compaiono sotto il loro nome («↳ Legge i PDF · …»).
+- **Scrivere mentre lavora**: con Claude Code un messaggio scritto mentre risponde gli arriva subito, fra un passo e l'altro, e ne tiene conto nella stessa risposta (sotto la domanda compare «↪ …»), come in Claude Desktop. Con gli altri motori va in coda come prima.
 - **Multi agent**: in Impostazioni → Chat scegli i motori che lavorano insieme, poi accendi il pulsante nella conversazione. Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro e vedi una riga per ognuno. Prima che tu la veda, la risposta viene controllata da un altro motore e corretta se serve: ne arriva una sola, già rivista, e sotto trovi **✓ Controllato**. Intanto vedi i passi, non la bozza. Ne bastano due, meglio di due marche diverse. Costa di più e può metterci il doppio: accendilo per i lavori veri. Le azioni chiedono Consenti/Nega come sempre.
 - **⇄ Seconda opinione**: un altro motore rilegge l'ultima domanda e la risposta e segnala errori, mancanze o rischi (oppure «va bene»). Il suo parere arriva anche al motore principale, che può correggersi.
 
@@ -45,7 +49,7 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 - **Clic destro**: **Apri** (nel suo programma), **Anteprima**, **Scarica** (una copia nella cartella Download, che si apre con il file selezionato), **Apri percorso** (Esplora file con il file selezionato), **Copia percorso**.
 
 ## Comandi con /
-Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>):
+Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>). Con Claude Code il menu ha anche i suoi comandi, come in Claude Desktop (segnati ✳): `/context`, `/review`, `/model`, `/init`, i tuoi comandi di `.claude/commands`, le skill e i plugin.
 
 | Comando | Cosa fa |
 |---|---|
@@ -54,6 +58,7 @@ Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>):
 | `/ricorda …` | Salva una nota in memoria senza passare dal modello |
 | `/memoria` | Apre la memoria |
 | `/esporta` | La conversazione in Markdown nel Vassoio |
+| `/compatta` | Il motore continua da un riassunto della conversazione: meno contesto e meno token (con Claude Code è il suo `/compact`) |
 | `/motore` | Cambia motore per questa conversazione |
 | `/oggi`, `/domani` | La giornata: attività, appuntamenti, ticket |
 | `/compito …` | Affida un obiettivo a un [compito](14-compiti.md) |
@@ -86,12 +91,23 @@ A sinistra della chat c'è la **barra delle conversazioni**: **Nuovo**, **Cerca*
 
 Puoi tenere **più conversazioni aperte insieme**: passando a un'altra, quella di prima non si chiude e se stava rispondendo continua. Nella barra un anello che gira indica chi sta rispondendo, un pallino una risposta arrivata mentre eri altrove, **!** una conversazione che chiede un permesso (e sopra il campo compare una riga per andarci). **Nuova chat** lascia aperta quella in corso. Oltre 8 conversazioni aperte, la meno usata e ferma si chiude da sola: resta nella cronologia.
 
-Al passaggio del mouse, **✎** (o un doppio clic sul titolo) rinomina una conversazione: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene tra le Fissate, ✕ la elimina. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
+Al passaggio del mouse, **✎** (o un doppio clic sul titolo) rinomina una conversazione: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene tra le Fissate, ✕ la elimina. Un clic ne riapre una sul suo motore e la continui. Con Claude Code riprende la sua sessione, come Claude Desktop: tutto il contesto di prima, file letti compresi, e l'anello del contesto compare subito. Se la sessione non c'è più (Claude Code le tiene 30 giorni) o la conversazione è di prima dell'8 novembre 2026, la conversazione viene passata come testo. Con i motori via API riprende esattamente da dove era; con opencode come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
+
+Una domanda entra nella cronologia appena la mandi: se la risposta si interrompe (EasyIsland chiuso, un errore, **Ferma**) resta con il testo scritto fin lì e il motivo. Le password che scrivi in chat arrivano al motore come le hai scritte, ma nella cronologia e nella memoria diventano «••••••».
 
 ![La cronologia delle conversazioni](../media/chat-history.png)
 
 ## In una finestra
 Trascina la voce **Chat** del menu fuori dall'isola e lasciala dove vuoi, oppure premi il pulsante con la freccia in alto nella chat, oppure clic destro su **Chat** → **Apri in una finestra**: la chat diventa una finestra normale di Windows, con barra delle applicazioni e Alt+Tab, da allargare e spostare dove vuoi. È la stessa chat: conversazioni, motori, permessi e Ferma restano quelli dell'isola, e la voce **Chat** del menu porta avanti la finestra. Chiudendo la finestra, o con lo stesso pulsante (ora «Rimetti la chat nell'isola»), la chat torna nell'isola; la finestra si ricorda misura e posizione. L'**Anteprima** resta accanto alla chat anche nella finestra, con lo stesso divisore per allargarla (la finestra si allarga se serve), e torna nell'isola con la chat.
+
+## Modello e fast mode
+Con Claude Code, nel menu del motore: **Modello di Claude** (Fable, Opus, Sonnet, Haiku o quello delle Impostazioni) per questa conversazione, e Claude continua la stessa sessione con il modello scelto; **Fast mode** per risposte più rapide, che costa di più e richiede l'uso extra attivo sull'account Claude (se manca, la chat lo dice).
+
+## Terminale
+**>_** in alto nella chat apre un PowerShell tuo nella cartella del progetto, sotto la conversazione: scrivi un comando e Invio, l'uscita compare lì. È tuo, non di Claude: quello che scrivi parte senza card. **Riavvia** chiude anche un comando bloccato. Per editor e password usa Terminale di Windows.
+
+## Sessioni di Claude Code fuori da EasyIsland
+In fondo alla cronologia, **Claude Code fuori da EasyIsland** elenca le sessioni degli ultimi 30 giorni aperte dal terminale, da Claude Desktop o da un editor. Un clic la porta nella cronologia e la riprende qui, con tutto il contesto. Con la modalità terminale lavora nella sua cartella; senza, la conversazione arriva come testo.
 
 ## Continuare in Claude Desktop
 Con Claude Code come motore, **↗** in alto nella chat apre la conversazione nell'app Claude Desktop, con tutto quello che vi siete detti, e lì la continui. Quando torni a scrivere nella chat dell'isola, prima della tua domanda compaiono i messaggi scritti in Desktop, sotto la riga «Conversazione proseguita in Claude Desktop», e Claude riprende la stessa sessione. Meglio non scrivere nelle due insieme. Serve Claude Code 2.1.285 o successivo e l'accesso con l'abbonamento Claude (non con una chiave API). Nella Modalità terminale la sessione si apre nella cartella del progetto.

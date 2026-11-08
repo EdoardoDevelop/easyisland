@@ -437,14 +437,32 @@ export interface TeamRow {
   state: "work" | "done" | "error";
 }
 
+/** A command or sub-agent the engine left running after its turn (claude_cli.rs follow). */
+export interface BgTask {
+  id: string;
+  /** "local_bash", "local_agent", … */
+  kind: string;
+  description: string;
+}
+
 export interface ChatSessionState {
   sid: string;
   history: ChatMessage[];
   engineOverride: ChatEngine | null;
   auto: boolean;
+  /** Claude Code's mode in Modalità terminale besides «Automatica»: "" asks, "acceptEdits", "plan". */
+  mode: string;
+  /** Claude Code's model for this conversation ("opus", "sonnet"…; null = Impostazioni). */
+  model: string | null;
+  /** Claude Code's fast mode for this conversation. */
+  fast: boolean;
   /** «Multi agent» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];
+  /** Work left in the background: listed under the conversation, with «Ferma». */
+  background: BgTask[];
+  /** The engine writes a turn it started by itself (background work ended): shown like a turn at work, text in `streamed`. */
+  working: boolean;
   desktop: boolean;
   text: { label: string; text: string } | null;
   window: WindowShot | null;
@@ -453,6 +471,8 @@ export interface ChatSessionState {
   assistant: ChatAssistant | null;
   /** The folder picked for it (Modalità terminale); null = the one of the settings. */
   folder: string | null;
+  /** Claude Code's effort for it; null = the one of the settings. */
+  effort: string | null;
   /** Tokens in the engine's context after the last turn and its size (0 = unknown); null = it does not say. */
   context: [number, number] | null;
   /** Its id in the history (chat_log.rs), once an answer saved it. */
@@ -478,8 +498,8 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: false, team: false, teamRows: [], desktop: false, text: null, window: null, attach: [],
-    session: null, assistant: null, folder: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
+    history: [], engineOverride: null, auto: false, mode: "", model: null, fast: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
 }
@@ -685,6 +705,8 @@ export interface Settings {
   engineUrls?: Record<string, string>;
   /** Model alias for the Claude Code engine; "" = Claude Code's default. */
   cliModel: string;
+  /** Claude Code's effort (low…max), the last one picked in the chat; "" = its own. */
+  cliEffort?: string;
   /** Where the island sits; content opens aligned to that side. */
   anchorV: AnchorV;
   anchorH: AnchorH;

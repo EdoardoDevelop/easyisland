@@ -119,6 +119,24 @@ pub fn delicate_tool(tool: &str) -> bool {
     t.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| WORDS.contains(&w))
 }
 
+/// Claude Code's own tools that only read files (Read, Grep, Glob), asked by
+/// the chat for a place outside its folders: no card, as opencode.rs does,
+/// unless the path is one where keys and passwords live (`secret_place`).
+/// On the laptop they were a fifth of the cards (8 Nov 2026).
+pub fn chat_read(payload: &Value) -> bool {
+    if payload.get("easyisland_chat").and_then(Value::as_bool) != Some(true) {
+        return false;
+    }
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    let input = payload.get("tool_input");
+    // Commands keep Consenti / Nega, even the ones that only look (CLAUDE.md).
+    if !matches!(tool, "Read" | "Grep" | "Glob") {
+        return false;
+    }
+    let places: Vec<&str> = ["file_path", "path", "pattern", "glob"].iter().filter_map(|k| input.and_then(|i| i.get(*k)).and_then(Value::as_str)).collect();
+    !places.is_empty() && places.iter().all(|p| !crate::opencode::secret_place(p))
+}
+
 /// The tool «Sempre» would allow for good: a reversible tool asked by the
 /// chat (island, Telegram, a task). Else none, and the card has no «Sempre».
 pub fn offers_always(payload: &Value) -> Option<String> {
@@ -128,9 +146,85 @@ pub fn offers_always(payload: &Value) -> Option<String> {
     tool_of(payload).filter(|t| reversible(t)).map(str::to_string)
 }
 
+/// «Sempre» clicked on a card of the chat's Claude Code, for the session:
+/// (session, what it allows). Claude Code keeps its session rules only while
+/// its process lives; the chat starts another one after 20 idle minutes, a
+/// change of settings or a conversation reopened, and the rule was gone (8 Nov
+/// 2026: Claude Desktop keeps it for the whole conversation). In memory only.
+static SESSION_RULES: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
+
+/// What «Sempre» allows for the session, in the words of easyisland-hook's
+/// `session_rule`: the one-line command, every file edit, the web domain, or
+/// the tool by name. None for questions and plans (they always ask).
+fn session_key(payload: &Value) -> Option<(String, String)> {
+    if payload.get("easyisland_chat").and_then(Value::as_bool) != Some(true) {
+        return None;
+    }
+    let session = payload.get("session_id").and_then(Value::as_str).filter(|s| !s.is_empty())?;
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
+    let what = match tool {
+        "" | "AskUserQuestion" | "ExitPlanMode" => return None,
+        "Bash" | "PowerShell" => format!("{tool}:{}", text("command").filter(|c| !c.contains('\n'))?),
+        "Edit" | "Write" | "MultiEdit" | "NotebookEdit" => "edits".to_string(),
+        "WebFetch" => {
+            let url = text("url")?;
+            let rest = url.split_once("://").map_or(url, |(_, r)| r);
+            let host = rest.split(['/', '?', '#']).next()?.rsplit('@').next()?.split(':').next()?.to_ascii_lowercase();
+            if host.is_empty() {
+                return None;
+            }
+            format!("WebFetch:{host}")
+        }
+        other => other.to_string(),
+    };
+    Some((session.to_string(), what))
+}
+
+/// Sessions whose plan (ExitPlanMode) was approved on its card, for the chat to leave «Piano».
+static PLANS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// The plan of `session` was approved since the last time it was asked (once).
+pub fn plan_approved(session: &str) -> bool {
+    let mut all = PLANS.lock().unwrap();
+    let had = all.iter().any(|s| s == session);
+    all.retain(|s| s != session);
+    had
+}
+
+/// The answer to a card: «Sempre» on the chat's Claude Code is kept for its session.
+pub fn note_decision(payload: &Value, decision: Option<&str>) {
+    let word = decision.and_then(|d| d.split(' ').next()).unwrap_or_default();
+    if matches!(word, "allow" | "always") && payload.get("tool_name").and_then(Value::as_str) == Some("ExitPlanMode") {
+        if let Some(s) = payload.get("session_id").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+            PLANS.lock().unwrap().push(s.to_string());
+        }
+    }
+    if decision.is_some_and(|d| d.split(' ').next() == Some("always")) {
+        if let Some(key) = session_key(payload) {
+            let mut all = SESSION_RULES.lock().unwrap();
+            if !all.contains(&key) {
+                all.push(key);
+            }
+        }
+    }
+}
+
 /// A request of the chat (island, Telegram, a task) for a reversible tool the
 /// user allowed for good, or the running task may use: allowed with no click.
 pub fn allowed_now(app: &AppHandle, payload: &Value) -> bool {
+    if chat_read(payload) {
+        let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+        crate::log::line(format!("permessi: {tool} consentito senza chiedere (solo lettura)"));
+        return true;
+    }
+    // «Sempre» already clicked for this, in this session (Claude Code's own rule, kept here).
+    if let Some(key) = session_key(payload) {
+        if SESSION_RULES.lock().unwrap().contains(&key) {
+            crate::log::line(format!("permessi: {} consentito per la sessione («Sempre»)", key.1.split(':').next().unwrap_or_default()));
+            return true;
+        }
+    }
     let Some(tool) = offers_always(payload) else { return false };
     let always = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().tools_allowed.iter().any(|a| *a == tool));
     if !always && !crate::tasks::may_now(&tool) {
@@ -264,6 +358,20 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn chat_reads_pass_but_not_where_keys_live() {
+        let ask = |tool: &str, input: Value, chat: bool| chat_read(&json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": chat }));
+        assert!(ask("Read", json!({ "file_path": "C:\\Users\\E\\AppData\\Local\\Temp\\out.txt" }), true));
+        assert!(ask("Glob", json!({ "pattern": "**/*.pdf", "path": "D:\\Offerte" }), true));
+        assert!(!ask("Read", json!({ "file_path": "C:\\Users\\E\\.ssh\\id_ed25519" }), true));
+        assert!(!ask("Grep", json!({ "pattern": "x", "path": "C:\\Users\\E\\.aws" }), true));
+        // Not the chat (a terminal of the user's), not a read, or nothing to check: the card as before.
+        assert!(!ask("Read", json!({ "file_path": "C:\\a.txt" }), false));
+        assert!(!ask("Write", json!({ "file_path": "C:\\a.txt" }), true));
+        assert!(!ask("Read", json!({}), true));
+        assert!(!ask("PowerShell", json!({ "command": "Get-ChildItem C:\\" }), true));
+    }
+
+    #[test]
     fn names_and_levels() {
         assert_eq!(tool_of(&json!({ "tool_name": "mcp__easyisland__todo_add" })), Some("todo_add"));
         assert_eq!(tool_of(&json!({ "tool_name": "easyisland_notion_add_row" })), Some("notion_add_row"));
@@ -279,6 +387,29 @@ mod tests {
         assert_eq!(offers_always(&json!({ "tool_name": "mcp__easyisland__todo_add" })), None);
         assert_eq!(offers_always(&json!({ "tool_name": "easyisland_notion_delete_row", "easyisland_chat": true })), None);
         assert_eq!(offers_always(&json!({ "tool_name": "Bash", "easyisland_chat": true })), None);
+    }
+
+    #[test]
+    fn sempre_holds_for_the_whole_session_and_only_for_what_was_allowed() {
+        let ask = |tool: &str, input: Value| json!({ "tool_name": tool, "tool_input": input, "session_id": "s-ok", "easyisland_chat": true });
+        let cmd = ask("Bash", json!({ "command": "npm test" }));
+        assert!(session_key(&cmd).is_some());
+        note_decision(&cmd, Some("always"));
+        assert!(SESSION_RULES.lock().unwrap().contains(&session_key(&cmd).unwrap()));
+        // Another command, another session, a plain «Consenti»: not covered.
+        assert!(!SESSION_RULES.lock().unwrap().contains(&session_key(&ask("Bash", json!({ "command": "npm publish" }))).unwrap()));
+        let other = json!({ "tool_name": "Bash", "tool_input": { "command": "npm test" }, "session_id": "s-altra", "easyisland_chat": true });
+        assert!(!SESSION_RULES.lock().unwrap().contains(&session_key(&other).unwrap()));
+        let once = ask("Write", json!({ "file_path": "C:/x/a.txt" }));
+        note_decision(&once, Some("allow"));
+        assert!(!SESSION_RULES.lock().unwrap().contains(&session_key(&once).unwrap()));
+        // Questions, plans, terminal sessions (not the chat's) never.
+        assert!(session_key(&ask("AskUserQuestion", json!({}))).is_none());
+        assert!(session_key(&json!({ "tool_name": "Bash", "tool_input": { "command": "ls" }, "session_id": "t" })).is_none());
+        // An approved plan is said once.
+        note_decision(&ask("ExitPlanMode", json!({ "plan": "x" })), Some("allow"));
+        assert!(plan_approved("s-ok"));
+        assert!(!plan_approved("s-ok"));
     }
 
     #[test]

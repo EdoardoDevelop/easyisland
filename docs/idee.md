@@ -100,17 +100,12 @@ Prove di @claudio sul PC lavoro, dettagli in `RDM-Devolutions-Cloud-connessione.
 ## Strumenti di EasyIsland per gli altri motori via API
 Fatto per Anthropic con chiave; opencode li ha. Senza: OpenRouter, OpenAI, Gemini, Ollama, LM Studio (`openai.rs`), salvo Modalità terminale via opencode. Servirebbe `tools` da `hook/src/tool_list.rs`, `tool_calls` dallo stream, ciclo come `claude.rs`, ripiego al 400 e interruttore. Edoardo ha scelto il 19/10 di non farlo per ora.
 
-## Documenti Word e PDF nella chat (21/10, deciso il 7/11)
-Edoardo li vuole dentro EasyIsland, senza programmi da installare: creare documenti, compilare modelli, leggerli. Strumenti dell'app, non istruzioni con script: pandoc, LibreOffice e librerie Python non ci sono sui PC.
-- Ordine: creare e compilare `.docx`, leggere `.docx`, Word → PDF, poi leggere i PDF.
-- Leggere i PDF: approvata una libreria Rust, la più piccola possibile; il testo va a ogni motore e a «Da leggere» della memoria. Scansioni escluse.
-- Ogni scrittura è un file nuovo con Consenti/Nega, mai sopra l'originale; mai in `REVERSIBLE`.
-- Solo motori con gli strumenti di EasyIsland.
-- Fuori dal primo giro: revisioni tracciate, commenti, moduli PDF, unire e dividere PDF.
-- Modelli `.docx`/`.dotx` dell'utente copiati in AppData, mai modificati; segnaposto `{cliente}`, `{data}`, `{numero}`, `{corpo}`.
-- `create_document`: modello (o documento vuoto), titolo, cliente, sezioni → copia con intestazione e piè intatti, nella cartella di lavoro e nel Vassoio, con Consenti/Nega. Docx = ZIP di XML, niente dipendenze.
-- Preventivi: l'IA passa solo righe (descrizione, quantità, prezzo, IVA); totali, IVA e numero progressivo li calcola l'app.
-- PDF con Word installato, altrimenti `.docx`. Esclusi editor di documenti e generatore PDF.
+## Documenti Word e PDF nella chat (21/10, fatto il 7–8/11)
+Fatti creare, compilare, leggere `.docx` con immagini, Word → PDF, lettura, unione e divisione dei PDF (`docs/chat.md` → Documenti Word e PDF). Revisioni e commenti esclusi (`docs/decisioni.md`). Restano:
+- moduli PDF; copiare pagine dai PDF cifrati senza password di apertura (RC4/AES);
+- elenco dei modelli in Impostazioni (oggi solo dalla chat e dalla cartella `documenti\modelli`);
+- immagini al posto di un segnaposto in mezzo al testo;
+- PDF più difficili: font Type3, codifiche CJK senza ToUnicode, LZW e ASCII85.
 
 ## Recapiti tra due EasyIsland (25/10, da valutare)
 Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senza mischiare le memorie.

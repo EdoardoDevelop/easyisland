@@ -103,7 +103,8 @@ pub fn preface(tools: bool) -> Option<String> {
 /// A note for MEMORIA.md (memory_note, «/ricorda»). The same note twice is
 /// kept once; past MAX_LINES the oldest go to archivio.md.
 pub fn note(text: &str) -> Result<String, String> {
-    let text = short(text, 300);
+    // Never a password in the memory (redact.rs): it would go to every engine.
+    let text = short(&crate::redact::redact(text), 300);
     if text.is_empty() {
         return Err(t("Nota vuota.").into());
     }
@@ -113,6 +114,9 @@ pub fn note(text: &str) -> Result<String, String> {
     let key = text.to_lowercase();
     if notes.iter().any(|n| n.to_lowercase().ends_with(&key)) {
         return Ok(t("Era già in memoria.").into());
+    }
+    if let Some(same) = notes.iter().find(|n| says_nothing_new(&text, n)) {
+        return Ok(tf("Era già in memoria, detto così: {note}", &[("note", &same.trim_start_matches("- "))]));
     }
     notes.push(format!("- {day}: {text}"));
     let mut moved = Vec::new();
@@ -129,6 +133,41 @@ pub fn note(text: &str) -> Result<String, String> {
     let out = format!("{}{}\n", header(), notes.join("\n"));
     write_whole(&main_file(), &out)?;
     Ok(t("Salvato in memoria.").into())
+}
+
+/// The words of a note that carry meaning, lowercase.
+fn words_of(text: &str) -> Vec<String> {
+    const STOP: &[&str] = &[
+        "del", "della", "delle", "dei", "degli", "dal", "dalla", "nel", "nella", "nei", "sul", "sulla", "con", "per", "tra", "fra",
+        "che", "chi", "non", "una", "uno", "gli", "le", "lo", "il", "la", "sono", "sta", "stato", "stata", "anche", "come", "suo",
+        "sua", "loro", "questo", "questa", "the", "and", "for", "with",
+    ];
+    text.to_lowercase()
+        .split(|c: char| !(c.is_alphanumeric() || matches!(c, '.' | '\\' | '/' | ':' | '_' | '-')))
+        .map(|w| w.trim_matches(|c: char| matches!(c, '.' | ':' | '-')).to_string())
+        // A number counts however short ("65 €"): it is the fact a note changes.
+        .filter(|w| (w.chars().count() >= 3 || w.chars().any(|c| c.is_ascii_digit())) && !STOP.contains(&w.as_str()))
+        .collect()
+}
+
+/// A new note that an old one already says (4 notes from the other PC, 7 Nov
+/// 2026, all «the code is in C:\…» in other words): every number, path or
+/// date of the new one is in the old one, and nearly all its words. A note
+/// with a number or a path the old one lacks is news, and is kept.
+fn says_nothing_new(new: &str, old: &str) -> bool {
+    let fresh = words_of(new);
+    let had: std::collections::HashSet<String> = words_of(old).into_iter().collect();
+    if fresh.len() < 4 || had.is_empty() {
+        return false;
+    }
+    let fact = |w: &str| w.chars().any(|c| c.is_ascii_digit()) || w.contains('\\') || w.contains('/');
+    if fresh.iter().any(|w| fact(w) && !had.contains(w)) {
+        return false;
+    }
+    // At most one word the old note lacks, and not a name ("usa Zammad" after "usa Jira" is news).
+    let unknown: Vec<&String> = fresh.iter().filter(|w| !had.contains(*w)).collect();
+    let a_name = |w: &str| new.split(|c: char| !c.is_alphanumeric()).any(|x| x.to_lowercase() == w && x.chars().next().is_some_and(char::is_uppercase));
+    fresh.len() >= 5 && unknown.len() <= 1 && unknown.iter().all(|w| !a_name(w))
 }
 
 pub(crate) fn write_whole(path: &std::path::Path, text: &str) -> Result<(), String> {
@@ -157,8 +196,8 @@ pub fn diary(engine: &str, question: &str, answer: &str, telegram: bool) {
     let _ = writeln!(
         f,
         "- {now} · {engine}{via} · {} → {}",
-        short(question, DIARY_CHARS),
-        short(answer, DIARY_CHARS)
+        short(&crate::redact::redact(question), DIARY_CHARS),
+        short(&crate::redact::redact(answer), DIARY_CHARS)
     );
 }
 
@@ -265,7 +304,8 @@ pub fn forget(text: &str) -> Result<String, String> {
     let matching: Vec<&String> = notes.iter().filter(|n| n.to_lowercase().contains(&key)).collect();
     let line = match matching.as_slice() {
         [one] => (*one).clone(),
-        [] => return Err(t("Nessuna nota con questo testo.").into()),
+        // 8 Nov 2026: the check tried four times to archive notes that are only in the other PC's copy.
+        [] => return Err(t("Nessuna nota con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.").into()),
         _ => return Err(tf("Più note con questo testo ({n}): scrivine di più.", &[("n", &matching.len().to_string())])),
     };
     let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir().join("archivio.md")).map_err(|e| e.to_string())?;
@@ -295,6 +335,17 @@ pub fn ensure_main() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_note_said_again_in_other_words_is_not_saved_twice() {
+        let old = "- 2026-11-07: (da casa) (Agent Chat) Sul PC casa il repository di EasyIsland è in C:\\Users\\Edoardo\\WORK\\EasyIsland_0.2.0, sul ramo claude/sviluppo.";
+        assert!(says_nothing_new("(da casa) (Agent Chat) Il codice di EasyIsland sul PC casa sta in `C:\\Users\\Edoardo\\WORK\\EasyIsland_0.2.0`.", old));
+        // A new number, path or name is news.
+        assert!(!says_nothing_new("(da casa) (Agent Chat) Sul PC casa il repository di EasyIsland è in D:\\Lavoro\\EasyIsland, sul ramo claude/sviluppo.", old));
+        let jira = "- 2026-11-01: Lorenzo usa Jira per i ticket dei clienti di Easytech";
+        assert!(!says_nothing_new("Lorenzo usa Zammad per i ticket dei clienti di Easytech", jira));
+        assert!(!says_nothing_new("La tariffa oraria di Easytech è di 65 € più IVA", "- 2026-10-24: La tariffa oraria di Easytech è di 55 € più IVA"));
+    }
 
     #[test]
     fn short_cuts_and_flattens() {

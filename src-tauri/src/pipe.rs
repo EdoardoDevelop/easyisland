@@ -244,10 +244,14 @@ pub async fn request_decision_id(app: &AppHandle, id: &str, payload: Value) -> O
         return Some("allow".into());
     }
     // A permission asked during a task's turn: the island and Telegram, first answer wins (tasks.rs).
-    if crate::tasks::in_turn() && payload.get("easyisland_chat").and_then(Value::as_bool) == Some(true) {
-        return crate::tasks::decide(app, payload).await;
-    }
-    request_decision_as(app, id, payload).await
+    let asked = payload.clone();
+    let decision = if crate::tasks::in_turn() && payload.get("easyisland_chat").and_then(Value::as_bool) == Some(true) {
+        crate::tasks::decide(app, payload).await
+    } else {
+        request_decision_as(app, id, payload).await
+    };
+    crate::permits::note_decision(&asked, decision.as_deref());
+    decision
 }
 
 /// Lets a request go if it is still waiting (its card leaves the island); nothing otherwise.
