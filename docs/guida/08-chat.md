@@ -54,6 +54,7 @@ Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>):
 | `/ricorda …` | Salva una nota in memoria senza passare dal modello |
 | `/memoria` | Apre la memoria |
 | `/esporta` | La conversazione in Markdown nel Vassoio |
+| `/compatta` | Il motore continua da un riassunto della conversazione: meno contesto e meno token (con Claude Code è il suo `/compact`) |
 | `/motore` | Cambia motore per questa conversazione |
 | `/oggi`, `/domani` | La giornata: attività, appuntamenti, ticket |
 | `/compito …` | Affida un obiettivo a un [compito](14-compiti.md) |

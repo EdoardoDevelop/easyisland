@@ -4697,5 +4697,12 @@
   "⚠ Risposta interrotta prima della fine.": "⚠ Answer interrupted before the end.",
   "Era già in memoria, detto così: {note}": "Already in memory, worded like this: {note}",
   "Nessuna nota con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.": "No note with this text in this PC's memory. If you found it among the other PC's results (linked memory), it lives there: remove it from that PC, not from here.",
-  "{model} ha finito il credito o il limite d'uso: non lo richiamo per {n} minuti, o finché non lo cambi. ({why})": "{model} is out of credit or over its usage limit: I won't call it for {n} minutes, or until you change it. ({why})"
+  "{model} ha finito il credito o il limite d'uso: non lo richiamo per {n} minuti, o finché non lo cambi. ({why})": "{model} is out of credit or over its usage limit: I won't call it for {n} minutes, or until you change it. ({why})",
+  "📦 Conversazione compattata: il contesto passa da {pre} a {post} token. Claude Code continua da un riassunto di quanto detto.": "📦 Conversation compacted: the context goes from {pre} to {post} tokens. Claude Code goes on from a summary of what was said.",
+  "📦 Conversazione compattata: Claude Code continua da un riassunto di quanto detto.": "📦 Conversation compacted: Claude Code goes on from a summary of what was said.",
+  "Niente da compattare: la conversazione è appena cominciata.": "Nothing to compact: the conversation has just started.",
+  "Riassumi questa conversazione per continuarla con meno contesto: richieste e obiettivi dell'utente, decisioni prese, fatti, nomi, numeri, date, percorsi di file, cosa è stato fatto e cosa resta da fare. Scrivi solo il riassunto, a elenchi brevi, senza usare strumenti e senza commenti.": "Summarize this conversation so it can go on with less context: the user's requests and goals, decisions made, facts, names, numbers, dates, file paths, what was done and what is left to do. Write only the summary, as short lists, without using tools and without comments.",
+  "Questa conversazione continua da un riassunto di quanto detto finora:\n\n{text}\n\n---\n\nNuova domanda: ": "This conversation goes on from a summary of what was said so far:\n\n{text}\n\n---\n\nNew question: ",
+  "Conversazione compattata: il motore continua da questo riassunto.": "Conversation compacted: the engine goes on from this summary.",
+  "Riassumi la conversazione per il motore: meno contesto, meno token": "Summarize the conversation for the engine: less context, fewer tokens"
 }

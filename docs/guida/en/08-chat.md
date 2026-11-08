@@ -54,6 +54,7 @@ Type `/` and pick from the menu (arrows, <kbd>Tab</kbd> or <kbd>Enter</kbd>):
 | `/ricorda …` | Saves a note to memory without going through the model |
 | `/memoria` | Opens the memory |
 | `/esporta` | The conversation as Markdown in the Tray |
+| `/compatta` | The engine goes on from a summary of the conversation: less context, fewer tokens (with Claude Code it is its own `/compact`) |
 | `/motore` | Changes engine for this conversation |
 | `/oggi`, `/domani` | The day: tasks, appointments, tickets |
 | `/compito …` | Hands a goal to a [task](14-tasks.md) |

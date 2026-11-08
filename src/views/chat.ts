@@ -1360,6 +1360,13 @@ export function buildPrompt(
       { name: "compito", hint: t("Un obiettivo che EasyIsland porta avanti da solo"), arg: true, run: (a) => void newTask(a) },
       { name: "memoria", hint: t("Apri la memoria della chat (MEMORIA.md)"), run: () => void Bridge.memoryOpen(false).catch((e) => flash(String(e))) },
       { name: "esporta", hint: t("La conversazione in Markdown, nel Vassoio"), run: () => void exportChat() },
+      // The engine goes on from a summary (lib.rs is_compact; Claude Code's own /compact too).
+      { name: "compatta", hint: t("Riassumi la conversazione per il motore: meno contesto, meno token"), run: () => {
+        const c = State.chat;
+        if (c.sending) c.queue.push("/compatta");
+        else void submit("/compatta", c);
+        State.notify();
+      } },
       { name: "motore", hint: t("Cambia motore per questa chat"), run: () => void toggleEngineMenu() },
       { name: "oggi", hint: t("Il punto della mia giornata di oggi"), run: () => void day(false) },
       { name: "domani", hint: t("Il punto della mia giornata di domani"), run: () => void day(true) },

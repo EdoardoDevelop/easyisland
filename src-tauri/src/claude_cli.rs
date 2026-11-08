@@ -553,6 +553,8 @@ struct Progress {
     /// Tokens in the context at the last call to the model: the result's own
     /// `usage` adds up every step of the turn, this is what the model last read.
     context: u64,
+    /// `/compact` ran (its `compact_boundary`): tokens before and after.
+    compacted: Option<(u64, u64)>,
 }
 
 impl Progress {
@@ -571,6 +573,16 @@ impl Progress {
             let was = self.pondering;
             self.pondering = self.thinking.is_empty() && self.drafting.is_none();
             return self.pondering != was;
+        }
+        // `/compact` (or Claude Code compacting by itself): the context is now the summary.
+        if v.get("subtype").and_then(Value::as_str) == Some("compact_boundary") {
+            let n = |k: &str| v.pointer(&format!("/compact_metadata/{k}")).and_then(Value::as_u64).unwrap_or(0);
+            let (pre, post) = (n("pre_tokens"), n("post_tokens"));
+            self.compacted = Some((pre, post));
+            if post > 0 {
+                self.context = post;
+            }
+            return false;
         }
         // A sub-agent's own steps stay inside its one step.
         if v.get("parent_tool_use_id").is_some_and(|p| !p.is_null()) {
@@ -787,6 +799,11 @@ async fn read_lines(
                     on_tasks(&progress.tasks);
                 }
                 let result = line.contains("\"type\":\"result\"") && serde_json::from_str::<Value>(&line).ok().and_then(|v| v.get("type").and_then(Value::as_str).map(|t| t == "result")) == Some(true);
+                // `/compact` answers with no text: the chat says what it did.
+                let line = match progress.compacted.take().filter(|_| result) {
+                    Some((pre, post)) => compacted_result(&line, pre, post),
+                    None => line,
+                };
                 if result && progress.context > 0 {
                     on_context(progress.context, context_size(&line));
                 }
@@ -800,6 +817,21 @@ async fn read_lines(
             }
         }
     }
+}
+
+/// The `result` line of a `/compact`, with what it did as its text (Claude Code leaves it empty).
+fn compacted_result(line: &str, pre: u64, post: u64) -> String {
+    let Ok(mut v) = serde_json::from_str::<Value>(line.trim()) else { return line.to_string() };
+    if v.get("result").and_then(Value::as_str).is_some_and(|r| !r.trim().is_empty()) {
+        return line.to_string();
+    }
+    let text = if pre > 0 && post > 0 {
+        tf("📦 Conversazione compattata: il contesto passa da {pre} a {post} token. Claude Code continua da un riassunto di quanto detto.", &[("pre", &thousands(pre as usize)), ("post", &thousands(post as usize))])
+    } else {
+        t("📦 Conversazione compattata: Claude Code continua da un riassunto di quanto detto.").to_string()
+    };
+    v["result"] = Value::String(text);
+    v.to_string()
 }
 
 /// What a model call read: the new tokens and those from the cache.
@@ -1049,6 +1081,8 @@ struct Following {
     stdin: std::sync::Arc<tokio::sync::Mutex<tokio::process::ChildStdin>>,
     waiting: Option<tokio::sync::mpsc::UnboundedSender<Ev>>,
     kill: std::sync::Arc<tokio::sync::Notify>,
+    /// The context at the last result read by the follower (the chat's meter).
+    context: std::sync::Arc<std::sync::Mutex<Option<(u64, u64)>>>,
 }
 
 static FOLLOWING: std::sync::Mutex<Vec<Following>> = std::sync::Mutex::new(Vec::new());
@@ -1087,16 +1121,19 @@ async fn through(
     session: Option<&str>,
     prompt: &str,
     on_text: &(dyn Fn(&str) + Sync),
+    on_context: &(dyn Fn(u64, u64) + Sync),
     limit: Duration,
     late: &str,
 ) -> Option<Result<(String, String, Vec<BgTask>), Option<String>>> {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let (stdin, kill) = {
+    let (stdin, kill, context) = {
         let mut all = FOLLOWING.lock().unwrap();
         let f = all.iter_mut().find(|f| f.chat == chat && f.print == print && Some(f.session.as_str()) == session && f.waiting.is_none())?;
         f.waiting = Some(tx);
-        (f.stdin.clone(), f.kill.clone())
+        (f.stdin.clone(), f.kill.clone(), f.context.clone())
     };
+    // Only what this message's turn reads.
+    *context.lock().unwrap() = None;
     let mut guard = KillOnDrop { kill, armed: true };
     let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
     {
@@ -1117,6 +1154,9 @@ async fn through(
             Ok(Some(Ev::Text(t))) => on_text(&t),
             Ok(Some(Ev::Done(r))) => {
                 guard.armed = false;
+                if let Some((used, size)) = *context.lock().unwrap() {
+                    on_context(used, size);
+                }
                 return Some(r);
             }
         }
@@ -1132,7 +1172,8 @@ fn follow(live: Live, later: Option<Later>, on_tasks: Option<OnTasks>, on_workin
     let Live { mut child, stdin, mut lines, stderr: _, chat, print, session, used: _ } = live;
     let stdin = std::sync::Arc::new(tokio::sync::Mutex::new(stdin));
     let kill = std::sync::Arc::new(tokio::sync::Notify::new());
-    FOLLOWING.lock().unwrap().push(Following { chat, print: print.clone(), session: session.clone(), stdin: stdin.clone(), waiting: None, kill: kill.clone() });
+    let context = std::sync::Arc::new(std::sync::Mutex::new(None));
+    FOLLOWING.lock().unwrap().push(Following { chat, print: print.clone(), session: session.clone(), stdin: stdin.clone(), waiting: None, kill: kill.clone(), context: context.clone() });
     let tell = move |t: &[BgTask]| {
         if let Some(f) = &on_tasks {
             f(t);
@@ -1187,7 +1228,8 @@ fn follow(live: Live, later: Option<Later>, on_tasks: Option<OnTasks>, on_workin
             };
             let tell_now = |t: &[BgTask]| tell(t);
             let running = tasks.clone();
-            let mut read = std::pin::pin!(read_lines(&mut lines, &forward, &started, &|_, _| {}, &tell_now, left, "", true, &running));
+            let keep_context = |used: u64, size: u64| *context.lock().unwrap() = Some((used, size));
+            let mut read = std::pin::pin!(read_lines(&mut lines, &forward, &started, &keep_context, &tell_now, left, "", true, &running));
             let mut stop = std::pin::pin!(kill.notified());
             let outcome = std::future::poll_fn(|cx| {
                 if let std::task::Poll::Ready(r) = std::future::Future::poll(read.as_mut(), cx) {
@@ -1447,7 +1489,7 @@ async fn send_mode(
             }
         };
         // Work still in the background: the message goes to that same process.
-        if let Some(r) = through(id, &print, session.as_deref(), &prompt, on_text, limit, late).await {
+        if let Some(r) = through(id, &print, session.as_deref(), &prompt, on_text, &on_context, limit, late).await {
             match r {
                 Ok((last, shown, _)) => {
                     let stderr = String::new();
@@ -1718,6 +1760,22 @@ pub async fn session_ask(session: String, fork: Option<String>, cwd: String, que
 
 #[cfg(test)]
 mod tests {
+    /// Lines as Claude Code 2.x wrote them for `/compact` (8 Nov 2026).
+    #[test]
+    fn compact_says_what_it_did_and_moves_the_meter() {
+        let mut p = super::Progress { context: 38346, ..Default::default() };
+        assert!(!p.feed(r#"{"type":"system","subtype":"compact_boundary","compact_metadata":{"trigger":"manual","pre_tokens":38346,"post_tokens":6242}}"#));
+        assert_eq!(p.context, 6242);
+        assert_eq!(p.compacted, Some((38346, 6242)));
+        let line = super::compacted_result(r#"{"type":"result","subtype":"success","is_error":false,"result":"","local_command":"compact","session_id":"s1"}"#, 38346, 6242);
+        let out = super::parse_output(&line).unwrap();
+        assert!(out.text.contains("38.346") && out.text.contains("6.242"), "{}", out.text);
+        assert_eq!(out.session_id.as_deref(), Some("s1"));
+        // A result with its own text keeps it.
+        let kept = super::compacted_result(r#"{"type":"result","result":"fatto"}"#, 1, 1);
+        assert_eq!(super::parse_output(&kept).unwrap().text, "fatto");
+    }
+
     #[test]
     fn plugin_servers_of_enabled_plugins() {
         let dir = std::env::temp_dir().join(format!("ei-plugins-{}", std::process::id()));

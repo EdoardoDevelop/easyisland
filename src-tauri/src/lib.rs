@@ -1545,8 +1545,10 @@ pub(crate) async fn chat_turn(
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
     let own = if matches!(channel, Channel::Island | Channel::Revision | Channel::Helper | Channel::AgentChat) { own_folder(chat) } else { None };
+    // «/compatta» (or Claude Code's own «/compact»): the conversation goes on from a summary.
+    let compact = is_compact(&query);
     // Prompts of ours, not the user's questions: nothing to learn from them.
-    let learns = !matches!(channel, Channel::Helper | Channel::Revision);
+    let learns = !matches!(channel, Channel::Helper | Channel::Revision) && !compact;
     let read_only = chat.read_only();
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
@@ -1579,7 +1581,14 @@ pub(crate) async fn chat_turn(
     // (notion_map.rs) in front, so it does not search for the structure.
     let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
     let fresh = chat.is_empty() && chat.cli_session().is_none();
-    let notion = if has_tools && fresh { notion_map::index(agent) } else { None };
+    if compact && fresh && !chat.has_preamble() {
+        return Ok(ChatReply { text: t("Niente da compattare: la conversazione è appena cominciata.").into() });
+    }
+    // Claude Code compacts its own session; the other engines write a summary
+    // and the conversation starts over from it (`compacted`).
+    let claude_code = !matches!(engine.as_str(), "api" | "opencode" | "antigravity") && !openai::ENGINES.contains(&engine.as_str());
+    let own_compact = compact && claude_code && chat.cli_session().is_some();
+    let notion =if has_tools && fresh { notion_map::index(agent) } else { None };
     // The memory (memory.rs): its notes in front of a new conversation, with
     // how to look further (memory_search) when the engine has the tools.
     let (remember, instructions) = {
@@ -1643,6 +1652,19 @@ pub(crate) async fn chat_turn(
     let query = match preview::hint().filter(|_| channel == Channel::Island && agent && (has_tools || engine == "api")) {
         Some(p) => format!("{p}{query}"),
         None => query,
+    };
+    // A compaction is the command alone (Claude Code reads it only at the very
+    // start), or the request for a summary after the conversation so far.
+    let query = if own_compact {
+        // A text to resume with stays for the next question.
+        if let Some(p) = &preamble {
+            chat.put_back_preamble(p.clone());
+        }
+        "/compact".to_string()
+    } else if compact {
+        format!("{}{}", preamble.clone().unwrap_or_default(), t("Riassumi questa conversazione per continuarla con meno contesto: richieste e obiettivi dell'utente, decisioni prese, fatti, nomi, numeri, date, percorsi di file, cosa è stato fatto e cosa resta da fare. Scrivi solo il riassunto, a elenchi brevi, senza usare strumenti e senza commenti."))
+    } else {
+        query
     };
     // "Automatica" (the chat's switch): only with Modalità terminale.
     let auto = auto && terminal.is_some();
@@ -1725,10 +1747,16 @@ pub(crate) async fn chat_turn(
         recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
     ));
     recipes::end(recipe_mark, &asked, learns && reply.is_ok());
+    let reply = match reply {
+        Ok(r) if compact && !own_compact => Ok(compacted(chat, &r.text)),
+        other => other,
+    };
     match &reply {
         Ok(r) if keep => {
             chat_log::record(chat, &engine, &asked, &r.text, prefix);
-            memory::diary(&engine, &asked, &r.text, telegram);
+            if !compact {
+                memory::diary(&engine, &asked, &r.text, telegram);
+            }
         }
         Ok(_) => {}
         Err(e) => {
@@ -1742,6 +1770,22 @@ pub(crate) async fn chat_turn(
         }
     }
     reply
+}
+
+/// «/compatta», or Claude Code's own «/compact», alone in the message.
+fn is_compact(query: &str) -> bool {
+    matches!(query.trim().to_lowercase().as_str(), "/compatta" | "/compact")
+}
+
+/// The engine wrote the summary: the conversation starts over from it, the
+/// history on screen stays as it was (opencode's old conversation is deleted).
+fn compacted(chat: &Chat, summary: &str) -> ChatReply {
+    let before = chat.cli_session();
+    let preamble = tf("Questa conversazione continua da un riassunto di quanto detto finora:\n\n{text}\n\n---\n\nNuova domanda: ", &[("text", &summary.trim())]);
+    chat.restore(&chat.engine_key(), Vec::new(), chat.log_id(), Some(preamble));
+    opencode::forget(before);
+    log::line("chat: conversazione compattata con un riassunto");
+    ChatReply { text: format!("📦 {}\n\n{}", t("Conversazione compattata: il motore continua da questo riassunto."), summary.trim()) }
 }
 
 /// Impostazioni → Integrazioni → Telegram: the bot, the linked chat, errors.

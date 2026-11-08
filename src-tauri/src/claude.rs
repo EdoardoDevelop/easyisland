@@ -277,6 +277,10 @@ impl Chat {
         self.preamble.lock().unwrap().take()
     }
 
+    pub(crate) fn has_preamble(&self) -> bool {
+        self.preamble.lock().unwrap().is_some()
+    }
+
     pub(crate) fn put_back_preamble(&self, text: String) {
         *self.preamble.lock().unwrap() = Some(text);
     }
