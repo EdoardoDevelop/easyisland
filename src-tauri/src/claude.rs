@@ -616,6 +616,11 @@ fn file_block(path: &str) -> Option<Value> {
         }));
     }
 
+    // Word: its text (a PDF went as a document above).
+    if let Some(read) = crate::docx::text_of_file(std::path::Path::new(path)) {
+        let text = read.unwrap_or_else(|e| e);
+        return Some(json!({ "type": "text", "text": tf("Contenuto del file:\n{text}", &[("text", &text)]) }));
+    }
     let len = std::fs::metadata(path).ok()?.len();
     if len > MAX_INLINE_TEXT {
         return None;

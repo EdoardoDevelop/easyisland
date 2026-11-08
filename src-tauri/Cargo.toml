@@ -83,3 +83,7 @@ windows-core-wv2 = { package = "windows-core", version = "0.62" }
 # Already in the tree through Tauri (tray-icon, muda; same version): screenshots
 # and pictures copied to the clipboard are saved and shown as PNG, see clipimage.rs.
 png = "0.18"
+# Already in the tree (png, updater; same versions): the ZIP of Word files
+# (ooxzip.rs) and the streams of PDF files (pdftext.rs).
+flate2 = "1"
+crc32fast = "1"

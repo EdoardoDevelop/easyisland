@@ -233,6 +233,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `agents` | Codex e Gemini CLI come li manda il relay | — |
 | `agenti` | la scheda Agenti | `claude`: l'altro pulsante |
 | `custom` | un'integrazione personale | `dati` |
+| `documento` | la chat chiede di creare un documento Word (card Consenti/Nega di `document_create`) | — |
 | `compiti` | i Compiti | `ask`, `proposte` (correzioni con caselle e Commenta) |
 | `moment` | una proposta al momento giusto | `moment=download\|recording\|call\|ticket\|…` |
 | `daily` | Buongiorno / Fine giornata | `evening`, `news`, `ai` (con il riassunto dell'IA), `ai=ask` (con «Chiedi il riassunto all'IA») |

@@ -68,7 +68,7 @@ fn strings<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Err
     })
 }
 
-async fn powershell(script: &str, env: &[(&str, &str)], timeout: Duration) -> Result<String, String> {
+pub(crate) async fn powershell(script: &str, env: &[(&str, &str)], timeout: Duration) -> Result<String, String> {
     let mut cmd = tokio::process::Command::new("powershell");
     cmd.args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
         .creation_flags(CREATE_NO_WINDOW)

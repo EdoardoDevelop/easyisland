@@ -36,7 +36,7 @@ const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
 const ALL = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx,integration_system,integration_security,integration_claude_usage,integration_github,integration_n8n";
 
 const SCENES = [
-  "greeting", "compact", "overview", "approval", "permission", "chat", "chat&history", "agenti", "compiti", "compiti&ask", "compiti&proposte", "custom", "custom&dati", "agents", "recap", "drop",
+  "greeting", "compact", "overview", "approval", "permission", "chat", "chat&history", "agenti", "compiti", "compiti&ask", "compiti&proposte", "custom", "custom&dati", "documento", "agents", "recap", "drop",
   "files", "actions", "threecx", "clipboard", "media", "network", "usage", "meteo", "meteo&sky=storm&night", "suggestion",
   "rewrite", "diff", "finished", "stop", "capture", "strip&strip=approval", "strip&strip=call", "strip&strip=live",
   "strip&strip=work&compactStrip=left",

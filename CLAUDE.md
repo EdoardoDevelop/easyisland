@@ -9,7 +9,7 @@ App Windows 10/11: un personaggio animato in un'isola in alto mostra le sessioni
 ## Dove leggere (solo ciò che serve)
 - `HANDOFF.md`: stato, da fare, problemi. Leggilo a inizio lavoro.
 - `docs/architettura.md`: cartelle, interfaccia, personaggi, layout, suoni, impostazioni, robustezza.
-- `docs/chat.md`: motori, opencode, MCP, agente sul PC, Compiti, Abilità, memoria.
+- `docs/chat.md`: motori, opencode, MCP, agente sul PC, Compiti, Abilità, memoria, documenti Word e PDF.
 - `docs/agenti.md`: hook e relay, Claude Code, Codex/Gemini/Cursor/Copilot, opencode agente, scheda Agenti.
 - `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni, integrazioni personali.
 - `docs/strumenti.md`: file rilasciati, Vassoio, appunti, musica, contesto ⚡, ZIP, cattura, calcolatrice.

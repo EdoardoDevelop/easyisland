@@ -681,6 +681,57 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "document_read",
+            "Legge il testo di un documento Word (.docx, .dotx) o PDF: intestazione, titoli, elenchi, tabelle in Markdown, piè di pagina; nei PDF il testo pagina per pagina (le scansioni senza testo non si leggono, i PDF cifrati nemmeno). path: percorso completo, nome di un file del Vassoio o percorso nella cartella di lavoro.",
+            json!({ "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"] }),
+            true,
+        ),
+        (
+            "document_templates",
+            "I modelli di documento Word dell'utente (copie in EasyIsland, mai modificate) con i loro segnaposto, come {cliente} o {{numero}}. Usali con document_create.",
+            none.clone(),
+            true,
+        ),
+        (
+            "document_template_add",
+            "Aggiunge un modello di documento Word (.docx o .dotx) copiandolo in EasyIsland; l'originale resta com'è. path: percorso o nome di un file del Vassoio; name: il nome del modello (facoltativo). Nel modello l'utente scrive i segnaposto tra graffe: {cliente}, {data}, {numero}, {corpo} (dove va il testo), {righe} (dove va la tabella delle righe), {totale}. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "path": { "type": "string" },
+                "name": { "type": "string" }
+            }, "required": ["path"] }),
+            false,
+        ),
+        (
+            "document_create",
+            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]: la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "template": { "type": "string" },
+                "title": { "type": "string" },
+                "values": { "type": "object" },
+                "body": { "type": "string" },
+                "rows": { "type": "array", "items": { "type": "object", "properties": {
+                    "descrizione": { "type": "string" },
+                    "quantita": { "type": "number" },
+                    "prezzo": { "type": "number" },
+                    "iva": { "type": "number" }
+                }, "required": ["descrizione", "prezzo"] } },
+                "filename": { "type": "string" },
+                "folder": { "type": "string" },
+                "pdf": { "type": "boolean" }
+            } }),
+            false,
+        ),
+        (
+            "document_pdf",
+            "Trasforma un documento di Word (.docx, .doc, .rtf, .odt) in PDF con Word, se è installato: un file nuovo, l'originale resta. path: percorso, nome di un file del Vassoio o percorso nella cartella di lavoro; filename e folder come in document_create. Il PDF va nel Vassoio. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "path": { "type": "string" },
+                "filename": { "type": "string" },
+                "folder": { "type": "string" }
+            }, "required": ["path"] }),
+            false,
+        ),
+        (
             "custom_list",
             "Le integrazioni personali dell'utente: nome, id, descrizione, quanti campi e quante schede.",
             none.clone(),

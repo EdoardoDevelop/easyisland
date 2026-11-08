@@ -292,6 +292,22 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
         ...scripts.map((a) => `${t("Con lo script «{name}»:", { name: a.label ?? "" })}\n${a.script ?? ""}`),
       ].join("\n");
     }
+    case "document_create": {
+      const rows = Array.isArray(input.rows) ? input.rows.length : 0;
+      const name = s("filename") || s("title") || s("template") || t("documento");
+      return [
+        t("Creare il documento Word «{name}»", { name }),
+        ...(s("template") ? [t("Dal modello «{name}»", { name: s("template") })] : []),
+        ...(rows ? [t("Con {n} righe: totali e IVA li calcola EasyIsland", { n: rows })] : []),
+        ...(input.pdf ? [t("Anche in PDF, con Word")] : []),
+        ...(s("folder") ? [t("Copia in {folder}", { folder: s("folder") })] : []),
+        ...(s("body") ? [short(s("body"), 300)] : []),
+      ].join("\n");
+    }
+    case "document_pdf":
+      return t("Fare il PDF di {path} con Word", { path: s("path") }) + (s("folder") ? `\n${t("Copia in {folder}", { folder: s("folder") })}` : "");
+    case "document_template_add":
+      return t("Aggiungere il modello di documento {path}", { path: s("path") }) + (s("name") ? ` → «${s("name")}»` : "");
     case "read_clipboard":
       return t("Leggere il testo negli appunti");
     case "write_clipboard":

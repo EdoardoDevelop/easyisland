@@ -13,7 +13,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Aspetto a schede con le immagini** (`docs/architettura.md` → Impostazioni): modalità chiara non guardata.
 - [ ] **Integrazioni personali** (`docs/integrazioni.md`): da provare con l'app vera. Le 7 voci URGENTI del 7/11 sono nella 1.0.33; PDF, nome del file e riga di «Salvate» provati dal pulsante con «DDT Easytech». Provare dal vivo pulsante script, `quick_action_*`, «In esecuzione» e i motori di Agent Chat nella cartella del progetto, con turni veri, «DDT Easytech» è sul modello HTML con PDF diretto, provato dal pulsante il 7/11.
 - [ ] **Guida sul sito** IT/EN (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage EN `site/en/index.html`, schermate EN `site/media/en/`): allineare a ogni funzione nuova (`node scripts/guida.mjs`). Link delle Impostazioni nella lingua dell'app: prossima versione.
-- [ ] **Documenti Word e PDF nella chat** (deciso il 7/11, `docs/idee.md`): creare, compilare modelli, leggere; prima Word, poi lettura dei PDF con una libreria Rust.
+- [ ] **Documenti Word e PDF nella chat** (7/11, `docs/chat.md` → Documenti Word e PDF): fatti leggere `.docx` e PDF, creare `.docx` vuoti o dai modelli con preventivi calcolati, PDF con Word. Provati con Word e PDF veri, non ancora dalla chat dell'app vera (serve una build). Il resto in `docs/idee.md`.
 - [ ] **Agente personale** (priorità alta, 23/10): fatti Compiti, motori aiutanti, Battito, Abilità, permessi per livelli (1.0.16: «Sempre» sulle reversibili, permessi per compito, «Cosa ho fatto» con Annulla; `docs/chat.md`). Da provare dal vivo. Prossimi: proattività su ticket e chiamate, memoria per cliente (`docs/idee.md`).
 - [ ] **Prove dal vivo** delle versioni 0.6.3–0.9.7: elenco in `docs/prove-dal-vivo.md`.
 - [ ] **La giornata di oggi e domani** (priorità alta): fatti `/oggi` e `/domani` (Telegram, chat), voce nel campo in alto e azione rapida, riassunto IA in Buongiorno/Fine giornata con motore a scelta, invio Telegram all'ora scelta (orari in `giornata.rs`). Da provare dal vivo.
@@ -48,6 +48,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 7/11 — Documenti Word e PDF nella chat
+`document_read`, `document_templates`, `document_template_add`, `document_create`, `document_pdf` (`docx.rs`, `ooxzip.rs`, `pdftext.rs`, `documents.rs`): ZIP e lettore PDF scritti in casa, nessuna dipendenza nuova (`flate2`, `crc32fast` erano già nell'albero). Modelli in `documenti\modelli`, segnaposto anche spezzati fra run, totali e numero calcolati dall'app, PDF con Word. Testo dei PDF e dei Word anche ai motori via API e a «da-leggere». Provato con Word e file veri; manca la prova dalla chat dell'app.
+
 ### 7/11 — Agent Chat: motori con più contesto
 Cartella del progetto, conversazione che continua (60 min, 20 turni), messaggio intero, un incarico che ripete l'owner non apre un secondo turno (`docs/integrazioni.md`). Da provare con turni veri.
 
@@ -59,7 +62,4 @@ Terza vista della scheda con i passi interi dei motori di questo PC, mai al serv
 
 ### 7/11 — Integrazioni personali: HTML, PDF, script
 Modelli HTML veri (`core/template.ts`: escape, `cleanPage`), `{{data|lunga}}`, `{{numero|it}}`, `{{#se}}`, `{{^campo}}`, `{{file:logo.png}}`; a capo nelle tabelle Markdown; PDF con WebView2 (`pdf.rs`, provato con `real_print`); azione `script` e `quick` con i dati della scheda in `EASYISLAND_SCHEDA`, conferma nella card; `quick_action_create/update/delete`; `custom::watch` per i `.json` cambiati a mano. Cambia la regola «mai codice» (`CLAUDE.md`), su richiesta di Edoardo. Da provare con l'app vera.
-
-### 7/11 — Memoria: scheda, percorso, dedotto
-`memory_page` con `brief` dà riassunto e collegamenti senza il testo; `memory_path` trova la strada fra due pagine; i collegamenti ricavati da un motore finiscono con `(dedotto)`. I file `.md` restano (`docs/decisioni.md`). Gruppi e percorso erano già nella Mappa. Da provare con la memoria vera e un motore vero. Il campo in alto cerca gli stessi nodi della Mappa e mostra la costellazione (`views/constellation.ts`); Invio apre una chat nuova dal nodo con la sua scheda.
 

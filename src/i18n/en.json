@@ -4647,5 +4647,22 @@
   "Il PDF ci mette troppo: riprova.": "The PDF is taking too long: try again.",
   "Crea un'azione rapida": "Creates a quick action",
   "Modifica un'azione rapida": "Changes a quick action",
-  "Elimina un'azione rapida": "Deletes a quick action"
+  "Elimina un'azione rapida": "Deletes a quick action",
+  "Creare un documento Word": "Create a Word document",
+  "Trasformare un documento in PDF": "Turn a document into PDF",
+  "Aggiungere un modello di documento": "Add a document template",
+  "documento": "document",
+  "Creare il documento Word «{name}»": "Create the Word document “{name}”",
+  "Dal modello «{name}»": "From the template “{name}”",
+  "Con {n} righe: totali e IVA li calcola EasyIsland": "With {n} lines: EasyIsland computes totals and VAT",
+  "Anche in PDF, con Word": "Also as PDF, with Word",
+  "Copia in {folder}": "Copy in {folder}",
+  "Fare il PDF di {path} con Word": "Make the PDF of {path} with Word",
+  "Aggiungere il modello di documento {path}": "Add the document template {path}",
+  "File: {name} ({e})": "File: {name} ({e})",
+  "Legge un documento": "Reads a document",
+  "Guarda i modelli di documento": "Looks at the document templates",
+  "Aggiunge un modello di documento": "Adds a document template",
+  "Crea un documento Word": "Creates a Word document",
+  "Trasforma un documento in PDF": "Turns a document into PDF"
 }

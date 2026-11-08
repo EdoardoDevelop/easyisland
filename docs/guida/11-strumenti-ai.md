@@ -22,6 +22,7 @@ Con **Impostazioni → Chat → Può usare il PC** acceso (predefinito), i motor
 | Memoria | Cercare, salvare note, scrivere pagine, leggere le fonti, controllare | No (scrive solo nella memoria, non cancella) |
 | Compiti e abilità | Creare compiti, elencarli; leggere e salvare abilità | Salvare un'abilità sì |
 | Integrazioni personali | Crearle, modificarle, leggere schede e fonti, aggiungere schede, chiamare le loro azioni | Creare, scrivere e chiamare sì |
+| Documenti Word e PDF | Leggerli; creare documenti Word nuovi, anche dai tuoi modelli; farne il PDF con Word | Creare e fare il PDF sì |
 
 Tutto ciò che apre, esegue o cambia qualcosa chiede **Consenti / Nega** nell'isola, con una descrizione chiara.
 
@@ -33,6 +34,16 @@ Le regole che non cambiano mai:
 - nessuno strumento **elimina**, tranne una riga di Notion nel cestino dopo il tuo sì in chat.
 
 Puoi chiedere a parole: «apri Outlook e il portale fornitori», «com'è messo il PC?», «lancia il backup», «aggiungi a To Do: chiamare Rossi domani», «quanto ho speso a ottobre?» (da Notion).
+
+## Documenti Word e PDF
+La chat legge i **documenti Word** (`.docx`) e i **PDF**: trascinali nella chat o nel Vassoio, oppure dì dove sono («leggi il contratto in Documenti\Rossi.pdf»). Dei Word legge anche intestazione, tabelle e piè di pagina; dei PDF il testo pagina per pagina. Le **scansioni** (fotografie di fogli) e i PDF protetti da password non si leggono. Lo stesso testo arriva a tutti i motori, anche quelli che da soli non aprono i documenti, e alla memoria quando metti un PDF o un Word in «da leggere».
+
+Può anche **scrivere documenti Word nuovi**:
+- **da zero:** «scrivimi una lettera per Rossi sul rinnovo del contratto, in Word»;
+- **da un tuo modello:** prima di' «usa questo file come modello» (un `.docx` o `.dotx` nel Vassoio o sul PC). EasyIsland ne tiene una copia e non lo modifica mai. Nel modello scrivi tra graffe dove vanno i dati: `{cliente}`, `{data}`, `{numero}`, `{corpo}` per il testo, `{righe}` per la tabella, `{totale}`. Intestazione, logo, piè di pagina e stili restano i tuoi;
+- **preventivi:** la chat passa solo le righe (descrizione, quantità, prezzo, IVA): **imponibile, IVA e totale li calcola EasyIsland**, mai l'AI, e `{numero}` diventa il progressivo dell'anno di quel modello (1/2026, 2/2026…).
+
+Il documento va **sempre nel Vassoio** e nella cartella di lavoro, o nella cartella che chiedi; non sovrascrive mai un file. Con **Word installato** fa anche il **PDF** («…e fammi anche il PDF», o «trasforma questo Word in PDF»). Ogni documento nuovo chiede **Consenti / Nega**.
 
 ## Ricette: impara con l'uso
 Dopo una risposta riuscita, EasyIsland ricorda **quali strumenti** sono serviti per quel tipo di domanda. Alla domanda simile la chat va dritta agli strumenti giusti: più veloce e con meno token. In **Impostazioni → Chat → Ricette** vedi quante sono e le dimentichi con un clic.

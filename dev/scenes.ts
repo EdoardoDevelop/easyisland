@@ -1143,6 +1143,26 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "documento": {
+      // The chat asks to write a Word document (documents.rs): Consenti / Nega.
+      await wait(300);
+      handleHook(island, {
+        hook_event_name: "PermissionRequest",
+        easyisland_chat: true,
+        request_id: "doc-1",
+        tool_name: "mcp__easyisland__document_create",
+        tool_input: {
+          template: "Preventivo Easytech",
+          title: "Preventivo Farmacia Rossi",
+          values: { cliente: "Farmacia Rossi" },
+          body: "Come da accordi telefonici, le inviamo il preventivo per l'assistenza.",
+          rows: [{ descrizione: "Assistenza", quantita: 3, prezzo: 45 }, { descrizione: "Switch 8 porte", prezzo: 60 }],
+          pdf: true,
+          folder: "%USERPROFILE%\\OneDrive - Easytech SRL\\WORK\\Preventivi",
+        },
+      });
+      break;
+    }
     case "agents": {
       // Codex and Gemini CLI as the relay forwards them (hook/src/agents.rs).
       await wait(300);

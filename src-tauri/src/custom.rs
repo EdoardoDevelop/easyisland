@@ -586,7 +586,7 @@ fn check_name(what: &str, text: &str, fields: &[Field]) -> Result<(), String> {
 
 /// A name as Windows takes it: / \ : become dashes (a date, "S/N"), what a file
 /// name cannot hold goes, no dots or spaces at the end, no reserved device name.
-fn safe_name(name: &str, ext: &str) -> String {
+pub(crate) fn safe_name(name: &str, ext: &str) -> String {
     let mut clean = String::new();
     for c in name.chars() {
         match c {
@@ -630,7 +630,7 @@ fn base_of(name: &str, file: &str, ext: &str) -> String {
 
 /// A finished document: into the Vassoio and, when the description says so, a
 /// copy into its folder.
-fn deliver(base: &str, ext: &str, bytes: &[u8], folder: &str) -> Result<crate::files::DroppedFile, String> {
+pub(crate) fn deliver(base: &str, ext: &str, bytes: &[u8], folder: &str) -> Result<crate::files::DroppedFile, String> {
     let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
     let work = std::env::temp_dir().join(format!("easyisland-doc-{stamp}"));
     std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
@@ -660,7 +660,7 @@ pub fn document(name: &str, ext: &str, text: &str, file: &str, folder: &str) -> 
 }
 
 /// "%USERPROFILE%\WORK" → the same with the variable's value; unknown ones stay.
-fn expand_env(path: &str) -> String {
+pub(crate) fn expand_env(path: &str) -> String {
     let mut out = String::new();
     let mut rest = path;
     while let Some(start) = rest.find('%') {

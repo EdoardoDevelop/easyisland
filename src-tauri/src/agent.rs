@@ -172,6 +172,11 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "agentchat_consult" => crate::agentchat::tool_consult(app, args).await,
         "consult_engines" => Box::pin(crate::agentchat::tool_engines(app, args)).await,
         // Integrazioni personali (custom.rs): create and update ask Consenti / Nega (the preview).
+        "document_read" => crate::documents::tool_read(app, args),
+        "document_templates" => Ok(crate::docx::template_list()),
+        "document_template_add" => crate::documents::tool_template_add(app, args),
+        "document_create" => crate::documents::tool_create(app, args).await,
+        "document_pdf" => crate::documents::tool_pdf(app, args).await,
         "custom_create" => crate::custom::tool_create(app, args),
         "custom_update" => crate::custom::tool_update(app, args),
         "custom_list" => Ok(crate::custom::tool_list()),

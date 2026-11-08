@@ -22,6 +22,7 @@ With **Settings → Chat → Can use the PC** on (default), engines with tools (
 | Memory | Search, save notes, write pages, read sources, check | No (writes only to the memory, never deletes) |
 | Tasks and skills | Create tasks, list them; read and save skills | Saving a skill yes |
 | Custom integrations | Create, edit, read records and sources, add records, call their actions | Creating, writing and calling yes |
+| Word and PDF documents | Read them; create new Word documents, also from your templates; make their PDF with Word | Creating and making the PDF yes |
 
 Anything that opens, runs or changes something asks **Allow / Deny** in the island, with a clear description.
 
@@ -33,6 +34,16 @@ Rules that never change:
 - no tool **deletes**, except a Notion row to its trash after your yes in chat.
 
 You can ask in plain words: "open Outlook and the suppliers' portal", "how is the PC doing?", "run the backup", "add to To Do: call Rossi tomorrow", "how much did I spend in October?" (from Notion).
+
+## Word and PDF documents
+The chat reads **Word documents** (`.docx`) and **PDFs**: drag them into the chat or the Tray, or say where they are ("read the contract in Documents\Rossi.pdf"). In Word files it also reads the header, tables and footer; in PDFs the text page by page. **Scans** (photos of paper) and password-protected PDFs cannot be read. The same text reaches every engine, even those that cannot open documents themselves, and the memory when you put a PDF or a Word file in "to read".
+
+It can also **write new Word documents**:
+- **from scratch:** "write me a letter to Rossi about renewing the contract, in Word";
+- **from your own template:** first say "use this file as a template" (a `.docx` or `.dotx` in the Tray or on the PC). EasyIsland keeps a copy and never changes it. In the template, write in braces where the data goes: `{cliente}`, `{data}`, `{numero}`, `{corpo}` for the text, `{righe}` for the table, `{totale}`. Header, logo, footer and styles stay yours;
+- **quotes:** the chat only passes the lines (description, quantity, price, VAT): **EasyIsland computes taxable amount, VAT and total**, never the AI, and `{numero}` becomes the year's progressive number for that template (1/2026, 2/2026…).
+
+The document **always goes in the Tray** and in the work folder, or the folder you ask for; it never overwrites a file. With **Word installed** it also makes the **PDF** ("…and the PDF too", or "turn this Word file into PDF"). Every new document asks **Allow / Deny**.
 
 ## Recipes: it learns by use
 After a successful answer, EasyIsland remembers **which tools** were needed for that kind of question. On a similar question the chat goes straight to the right tools: faster and with fewer tokens. In **Settings → Chat → Recipes** you see how many there are and forget them with one click.

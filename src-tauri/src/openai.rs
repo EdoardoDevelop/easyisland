@@ -98,7 +98,7 @@ fn user_message(first: bool, query: &str, context: Option<&ChatContext>) -> Valu
 }
 
 /// A picture as an `image_url` data URL (vision models), a text file inline,
-/// anything else (PDF, Office…) named only — these engines get no documents.
+/// Word and PDF as their text (docx.rs), anything else named only.
 fn file_parts(name: &str, path: &str) -> Vec<Value> {
     let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     let len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(u64::MAX);
@@ -119,6 +119,12 @@ fn file_parts(name: &str, path: &str) -> Vec<Value> {
                 ];
             }
         }
+    } else if let Some(read) = crate::docx::text_of_file(std::path::Path::new(path)) {
+        // Word and PDF: their text, which every engine can read.
+        return vec![json!({ "type": "text", "text": match read {
+            Ok(text) => tf("File: {name}\nContenuto del file:\n{text}", &[("name", &name), ("text", &text)]),
+            Err(e) => tf("File: {name} ({e})", &[("name", &name), ("e", &e)]),
+        } })];
     } else if len <= MAX_INLINE_TEXT {
         if let Ok(text) = std::fs::read_to_string(path) {
             return vec![json!({ "type": "text", "text": tf("File: {name}\nContenuto del file:\n{text}", &[("name", &name), ("text", &text)]) })];
