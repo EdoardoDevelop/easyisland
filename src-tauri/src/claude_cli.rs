@@ -101,6 +101,14 @@ Sub-agents and commands may run in parallel and in the background: the chat list
 the user can keep writing to you meanwhile, and what you write when they end appears in the chat by itself with a notice. \
 So when background work ends, write the finished result the user asked for (not only how much is done), \
 and never promise to warn the user in some other way. \
+When an EasyIsland tool does the job, use it instead of a command or of Read: document_read for Word and PDF files and whole folders of them, \
+list_status, memory_*, notion_*, todo_*, preview_* and the others: they give the result already clean, faster and with fewer tokens. \
+To look at files and folders use Read, Glob and Grep, not commands: they need no click, a command does. \
+Spend tokens where they matter: a sub-agent that only reads, searches, extracts or summarizes gets model \"sonnet\" in the Agent tool \
+(your own model stays for planning, deciding and writing the answer); brief it fully, since it sees nothing of this chat, \
+and ask for a compact report (facts, names, amounts, dates, differences; never copied text). \
+Prefer a few sub-agents with a large share each to many small ones, and do not read again what a sub-agent already reported. \
+While others are still running, answer a sub-agent's report with one short line at most. \
 Respond in Italian unless the user writes in another language. Be thorough and complete: \
 use as much detail as the task requires. Markdown is rendered.";
 
@@ -357,6 +365,9 @@ fn permission_hook(matcher: &str) -> String {
     .to_string()
 }
 
+/// How much of a tool's result Claude Code takes in one piece (`command`).
+const MCP_OUTPUT_TOKENS: &str = "50000";
+
 pub(crate) fn command(exe: &Path) -> Command {
     let mut cmd = Command::new(exe);
     // If EasyIsland itself was started from inside a Claude Code session (e.g.
@@ -364,6 +375,12 @@ pub(crate) fn command(exe: &Path) -> Command {
     // that session instead of its own.
     for var in INHERITED_SESSION_VARS {
         cmd.env_remove(var);
+    }
+    // A tool's result over Claude Code's limit (25.000 token) goes to a file
+    // the model then reads again in pieces: more calls, more tokens. A folder
+    // of document_read (documents.rs FOLDER_BUDGET) fits in one piece.
+    if std::env::var_os("MAX_MCP_OUTPUT_TOKENS").is_none() {
+        cmd.env("MAX_MCP_OUTPUT_TOKENS", MCP_OUTPUT_TOKENS);
     }
     cmd.env("EASYISLAND_INTERNAL", "1")
         .stdin(Stdio::piped())

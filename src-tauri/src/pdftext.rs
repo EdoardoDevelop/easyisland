@@ -1116,6 +1116,81 @@ fn run_content(doc: &Doc, data: &[u8], res: Option<&Obj>, w: &mut Writer, cache:
     }
 }
 
+/// A line with its digits as "#": "pag. 2 di 10" and "pag. 3 di 10" are the same running header.
+fn shape(line: &str) -> String {
+    line.trim().chars().map(|c| if c.is_ascii_digit() { '#' } else { c }).collect()
+}
+
+/// A page number line, or one that carries it ("… · pag. 2 di 10", "Pagina 3/8", "4").
+fn has_page_number(line: &str) -> bool {
+    let l = line.trim().to_lowercase();
+    let words: Vec<&str> = l.split(|c: char| c.is_whitespace() || c == '·' || c == '|').filter(|w| !w.is_empty()).collect();
+    let num = |w: &str| !w.is_empty() && w.chars().all(|c| c.is_ascii_digit());
+    if words.len() == 1 && num(words[0]) {
+        return true;
+    }
+    let n_of_m = words.windows(3).any(|w| num(w[0]) && matches!(w[1], "di" | "of" | "/") && num(w[2]));
+    let slash = words.iter().any(|w| {
+        let mut parts = w.split('/');
+        matches!((parts.next(), parts.next(), parts.next()), (Some(a), Some(b), None) if num(a) && num(b))
+    });
+    let label = words.iter().any(|w| matches!(w.trim_end_matches('.'), "pag" | "pagina" | "page" | "p"));
+    n_of_m || (slash && label)
+}
+
+/// The lines a running header or footer can be: the first and last
+/// `EDGE` lines with text of a page (indexes in `page.lines()`).
+const EDGE: usize = 3;
+
+fn edges(page: &str) -> Vec<usize> {
+    let full: Vec<usize> = page.lines().enumerate().filter(|(_, l)| !l.trim().is_empty()).map(|(i, _)| i).collect();
+    let mut out: Vec<usize> = full.iter().take(EDGE).chain(full.iter().rev().take(EDGE)).copied().collect();
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// Running headers and footers: a line at the top or bottom of at least half
+/// of the pages (and of two) stays only where it first appears. Lines that
+/// differ only by the page number count as one when they carry it. Returns
+/// the lines taken out.
+fn drop_running_lines(pages: &mut [String]) -> usize {
+    use std::collections::HashSet;
+    if pages.len() < 2 {
+        return 0;
+    }
+    let need = pages.len().div_ceil(2).max(2);
+    let key = |l: &str| if has_page_number(l) { shape(l) } else { l.trim().to_string() };
+    let mut count: HashMap<String, usize> = HashMap::new();
+    for p in pages.iter() {
+        let lines: Vec<&str> = p.lines().collect();
+        let mut seen = HashSet::new();
+        for i in edges(p) {
+            let Some(l) = lines.get(i).map(|l| l.trim()) else { continue };
+            if l.chars().count() >= 4 && seen.insert(key(l)) {
+                *count.entry(key(l)).or_default() += 1;
+            }
+        }
+    }
+    let mut kept: HashSet<String> = HashSet::new();
+    let mut removed = 0;
+    for p in pages.iter_mut() {
+        let at: HashSet<usize> = edges(p).into_iter().collect();
+        let mut out = String::new();
+        for (i, l) in p.lines().enumerate() {
+            let k = key(l);
+            if at.contains(&i) && l.trim().chars().count() >= 4 && count.get(&k).is_some_and(|n| *n >= need) && !kept.insert(k) {
+                removed += 1;
+                continue;
+            }
+            out.push_str(l);
+            out.push('\n');
+        }
+        *p = out.trim().to_string();
+    }
+    removed
+}
+
 /// The text of a PDF, page by page.
 pub fn text(bytes: &[u8]) -> Result<String, String> {
     if bytes.len() > MAX_FILE {
@@ -1133,9 +1208,11 @@ pub fn text(bytes: &[u8]) -> Result<String, String> {
         return Err("Nel PDF non ho trovato pagine leggibili.".into());
     }
     let mut cache = HashMap::new();
-    let mut out = String::new();
+    let mut texts: Vec<String> = Vec::new();
+    let mut size = 0usize;
+    let mut cut = false;
     let mut letters = 0usize;
-    for (n, (page, res)) in pages.iter().enumerate() {
+    for (page, res) in pages.iter() {
         let mut data = Vec::new();
         match doc.get(page, "Contents") {
             Some(Obj::Arr(parts)) => {
@@ -1162,14 +1239,30 @@ pub fn text(bytes: &[u8]) -> Result<String, String> {
             page_text.push('\n');
         }
         letters += page_text.chars().filter(|c| c.is_alphanumeric()).count();
+        size += page_text.chars().count();
+        texts.push(page_text.trim().to_string());
+        if size > MAX_TEXT {
+            cut = true;
+            break;
+        }
+    }
+    let repeated = drop_running_lines(&mut texts);
+    let mut out = String::new();
+    for (n, t) in texts.iter().enumerate() {
         if pages.len() > 1 {
             out.push_str(&format!("\n\n[Pagina {}]\n", n + 1));
         }
-        out.push_str(page_text.trim());
-        if out.chars().count() > MAX_TEXT {
-            out = out.chars().take(MAX_TEXT).collect::<String>() + "\n\n[…PDF tagliato qui: è molto lungo]";
-            break;
-        }
+        out.push_str(t.trim());
+    }
+    if out.chars().count() > MAX_TEXT {
+        out = out.chars().take(MAX_TEXT).collect::<String>();
+        cut = true;
+    }
+    if cut {
+        out.push_str("\n\n[…PDF tagliato qui: è molto lungo]");
+    }
+    if repeated > 0 {
+        out.push_str(&format!("\n\n[Intestazione e piè di pagina solo alla prima pagina: −{repeated} righe.]"));
     }
     if letters < 20 * pages.len().min(5) {
         let note = "[Il PDF non ha quasi testo: probabilmente è una scansione, e le scansioni non si leggono.]";
@@ -1181,6 +1274,22 @@ pub fn text(bytes: &[u8]) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn running_headers_and_footers_stay_once() {
+        let mut pages: Vec<String> = (1..=4)
+            .map(|n| format!("Offerta Rossi · pag. {n} di 4\nTesto della pagina {n}\nUna riga {n}\nQuantità 2\nAltra riga {n}\nUltima riga {n}\nEasytech S.r.l. · Terni · P.IVA 01713230553"))
+            .collect();
+        let removed = drop_running_lines(&mut pages);
+        assert_eq!(removed, 6);
+        assert!(pages[0].contains("pag. 1 di 4") && pages[0].contains("P.IVA"));
+        // "Quantità 2" is on every page, but in the middle: it stays.
+        assert_eq!(pages[2], "Testo della pagina 3\nUna riga 3\nQuantità 2\nAltra riga 3\nUltima riga 3");
+        assert!(pages.iter().all(|p| p.contains("Testo della pagina")));
+        assert!(has_page_number("Pagina 3/8") && has_page_number("12") && !has_page_number("Via Roma 3/B"));
+        let mut one = vec!["Solo una pagina".to_string()];
+        assert_eq!(drop_running_lines(&mut one), 0);
+    }
 
     fn pdf(content: &[u8], extra: &str) -> Vec<u8> {
         let mut z = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());

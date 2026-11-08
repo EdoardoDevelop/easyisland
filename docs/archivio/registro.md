@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 7/11 — Agent Chat: «In esecuzione», script sempre confermati
+Terza vista della scheda con i passi interi dei motori di questo PC, mai al server (`agentchat::Live`). `run_quick_action` non esegue più uno script con conferma: lo apre nell'isola e aspetta «Esegui», anche con «Autonomi». Corretti anche nuova conferma se cambia la shell, `{{importo|it}}` con due decimali e nota su `-Encoding UTF8`. Non ancora provato con un turno vero.
+
 ### 7/11 — Integrazioni personali: nomi e cartella dalla chat
 `title` per la riga di «Salvate», `filename` e `folder` su ogni documento, con più campi (`docs/integrazioni.md` → Nomi). Si impostano solo dalla chat.
 

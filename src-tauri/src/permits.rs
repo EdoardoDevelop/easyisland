@@ -119,6 +119,24 @@ pub fn delicate_tool(tool: &str) -> bool {
     t.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| WORDS.contains(&w))
 }
 
+/// Claude Code's own tools that only read files (Read, Grep, Glob), asked by
+/// the chat for a place outside its folders: no card, as opencode.rs does,
+/// unless the path is one where keys and passwords live (`secret_place`).
+/// On the laptop they were a fifth of the cards (8 Nov 2026).
+pub fn chat_read(payload: &Value) -> bool {
+    if payload.get("easyisland_chat").and_then(Value::as_bool) != Some(true) {
+        return false;
+    }
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    let input = payload.get("tool_input");
+    // Commands keep Consenti / Nega, even the ones that only look (CLAUDE.md).
+    if !matches!(tool, "Read" | "Grep" | "Glob") {
+        return false;
+    }
+    let places: Vec<&str> = ["file_path", "path", "pattern", "glob"].iter().filter_map(|k| input.and_then(|i| i.get(*k)).and_then(Value::as_str)).collect();
+    !places.is_empty() && places.iter().all(|p| !crate::opencode::secret_place(p))
+}
+
 /// The tool «Sempre» would allow for good: a reversible tool asked by the
 /// chat (island, Telegram, a task). Else none, and the card has no «Sempre».
 pub fn offers_always(payload: &Value) -> Option<String> {
@@ -131,6 +149,11 @@ pub fn offers_always(payload: &Value) -> Option<String> {
 /// A request of the chat (island, Telegram, a task) for a reversible tool the
 /// user allowed for good, or the running task may use: allowed with no click.
 pub fn allowed_now(app: &AppHandle, payload: &Value) -> bool {
+    if chat_read(payload) {
+        let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+        crate::log::line(format!("permessi: {tool} consentito senza chiedere (solo lettura)"));
+        return true;
+    }
     let Some(tool) = offers_always(payload) else { return false };
     let always = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().tools_allowed.iter().any(|a| *a == tool));
     if !always && !crate::tasks::may_now(&tool) {
@@ -262,6 +285,20 @@ pub async fn undo(app: &AppHandle, id: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn chat_reads_pass_but_not_where_keys_live() {
+        let ask = |tool: &str, input: Value, chat: bool| chat_read(&json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": chat }));
+        assert!(ask("Read", json!({ "file_path": "C:\\Users\\E\\AppData\\Local\\Temp\\out.txt" }), true));
+        assert!(ask("Glob", json!({ "pattern": "**/*.pdf", "path": "D:\\Offerte" }), true));
+        assert!(!ask("Read", json!({ "file_path": "C:\\Users\\E\\.ssh\\id_ed25519" }), true));
+        assert!(!ask("Grep", json!({ "pattern": "x", "path": "C:\\Users\\E\\.aws" }), true));
+        // Not the chat (a terminal of the user's), not a read, or nothing to check: the card as before.
+        assert!(!ask("Read", json!({ "file_path": "C:\\a.txt" }), false));
+        assert!(!ask("Write", json!({ "file_path": "C:\\a.txt" }), true));
+        assert!(!ask("Read", json!({}), true));
+        assert!(!ask("PowerShell", json!({ "command": "Get-ChildItem C:\\" }), true));
+    }
 
     #[test]
     fn names_and_levels() {

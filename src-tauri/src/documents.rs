@@ -78,8 +78,34 @@ fn documents_in(dir: &std::path::Path) -> Vec<PathBuf> {
 }
 
 /// Characters of a folder's documents given in one call, and of each one.
+/// One call stays under what Claude Code takes from a tool (MAX_MCP_OUTPUT_TOKENS,
+/// set by claude_cli.rs): beyond it the result goes to a file read again in pieces.
 const FOLDER_BUDGET: usize = 120_000;
-const FOLDER_EACH: usize = 25_000;
+const FOLDER_EACH: usize = 40_000;
+/// Lines this long, already given by a document above in the same call, are not repeated.
+const SEEN_MIN: usize = 30;
+
+/// A document's text without the long lines a document above already gave
+/// (letterhead, contacts, standard terms): (text, lines left out).
+fn without_seen(text: &str, seen: &mut std::collections::HashSet<String>) -> (String, usize) {
+    let mut out = String::new();
+    let mut dropped = 0;
+    let mut mine = std::collections::HashSet::new();
+    for l in text.lines() {
+        let t = l.trim();
+        if t.chars().count() >= SEEN_MIN && !t.starts_with('[') {
+            if seen.contains(t) && !mine.contains(t) {
+                dropped += 1;
+                continue;
+            }
+            mine.insert(t.to_string());
+        }
+        out.push_str(l);
+        out.push('\n');
+    }
+    seen.extend(mine);
+    (out, dropped)
+}
 
 /// A whole folder, a page of files at a time: `start` is the first file (0 = the first).
 fn read_folder(dir: &std::path::Path, start: usize) -> String {
@@ -90,6 +116,7 @@ fn read_folder(dir: &std::path::Path, start: usize) -> String {
     let mut out = format!("Cartella {}: {} documenti.\n", dir.display(), files.len());
     let mut used = 0;
     let mut next = files.len();
+    let mut seen = std::collections::HashSet::new();
     for (i, p) in files.iter().enumerate().skip(start) {
         if used >= FOLDER_BUDGET {
             next = i;
@@ -102,9 +129,13 @@ fn read_folder(dir: &std::path::Path, start: usize) -> String {
             Some(Err(e)) => format!("[{e}]"),
             None => continue,
         };
+        let (text, dropped) = without_seen(&text, &mut seen);
         let mut text: String = text.chars().take(FOLDER_EACH).collect();
         if text.chars().count() >= FOLDER_EACH {
             text.push_str("\n[… tagliato: per tutto il testo chiama document_read con il percorso di questo file]");
+        }
+        if dropped > 0 {
+            text.push_str(&format!("\n[−{dropped} righe già date sopra (intestazione, contatti, condizioni comuni).]"));
         }
         used += text.chars().count();
         out.push_str(&format!("\n### {} ({}/{}){modified}\n\n{}\n", name, i + 1, files.len(), text.trim()));
@@ -341,4 +372,29 @@ pub async fn tool_pdf_split(app: &AppHandle, args: &Value) -> Result<String, Str
     }
     let where_ = if folder.is_empty() { "nel Vassoio".to_string() } else { format!("nel Vassoio e in {}", crate::custom::expand_env(&folder)) };
     Ok(format!("{} file {where_} (il PDF aveva {count} pagine): {}.", out.len(), out.join(", ")))
+}
+
+#[cfg(test)]
+mod live {
+    /// `EI_DIR=<folder> cargo test -p easyisland folder_sizes -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn folder_sizes() {
+        let dir = std::path::PathBuf::from(std::env::var("EI_DIR").expect("EI_DIR"));
+        let mut start = 0;
+        let mut total = 0;
+        loop {
+            let out = super::read_folder(&dir, start);
+            total += out.chars().count();
+            println!("start {start}: {} caratteri", out.chars().count());
+            if let Ok(f) = std::env::var("EI_OUT") {
+                std::fs::write(format!("{f}-{start}.txt"), &out).unwrap();
+            }
+            match out.rsplit_once("start ").and_then(|(_, n)| n.trim_end_matches(|c: char| !c.is_ascii_digit()).parse::<usize>().ok()) {
+                Some(n) if n > start && out.trim_end().ends_with(".]") => start = n,
+                _ => break,
+            }
+        }
+        println!("totale {total} caratteri");
+    }
 }

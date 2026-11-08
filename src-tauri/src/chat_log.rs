@@ -51,6 +51,8 @@ struct Conversation {
     messages: Vec<Value>,
     /// The folder picked for it; empty = the one of the settings.
     folder: String,
+    /// The last answer is not finished yet (`begin`): its line says so until it is.
+    pending: bool,
 }
 
 /// One row of the list in the chat.
@@ -132,8 +134,17 @@ impl Store {
         let c = &mut self.list[pos];
         c.engine = engine.into();
         c.updated = now;
-        c.lines.push(Line { role: "user".into(), content: query.into() });
-        c.lines.push(Line { role: "assistant".into(), content: reply.into() });
+        // The question was written when it was sent (`begin`): its answer takes the place kept for it.
+        let open = c.pending && c.lines.len() >= 2 && c.lines.get(c.lines.len() - 2).is_some_and(|l| l.role == "user" && crate::redact::redact(&l.content) == query);
+        if open {
+            if let Some(last) = c.lines.last_mut() {
+                last.content = reply.into();
+            }
+        } else {
+            c.lines.push(Line { role: "user".into(), content: query.into() });
+            c.lines.push(Line { role: "assistant".into(), content: reply.into() });
+        }
+        c.pending = false;
         c.messages = messages;
         // Most recent first; the oldest beyond the cap go, never a pinned one.
         let c = self.list.remove(pos);
@@ -198,12 +209,18 @@ fn resends(engine: &str) -> bool {
 /// After a turn that went well (lib.rs `chat_turn`).
 /// `prefix` marks a new conversation's title ("Telegram · ").
 pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str) {
+    // Passwords written in the chat never reach the disk (redact.rs).
+    let query = &crate::redact::redact(query);
+    let reply = &crate::redact::redact(reply);
     let id = chat.log_id().unwrap_or_else(|| {
         let id = new_id();
         chat.set_log_id(Some(id.clone()));
         id
     });
-    let messages = if resends(engine) { without_files(chat.snapshot()) } else { Vec::new() };
+    let mut messages = if resends(engine) { without_files(chat.snapshot()) } else { Vec::new() };
+    for m in messages.iter_mut() {
+        redact_strings(m);
+    }
     let now = now();
     let folder = chat.folder().unwrap_or_default();
     with_store(|s| {
@@ -212,10 +229,116 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
             c.folder = folder;
         }
         if !prefix.is_empty() {
-            if let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.lines.len() == 2) {
+            if let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.lines.len() == 2 && !c.title.starts_with(prefix)) {
                 c.title = format!("{prefix}{}", c.title);
             }
         }
+        s.save();
+    });
+}
+
+/// redact.rs scrub_once: the passwords of every conversation, learned first.
+pub fn learn_secrets() {
+    with_store(|s| {
+        for c in &s.list {
+            for l in &c.lines {
+                crate::redact::learn(&l.content);
+            }
+        }
+    });
+}
+
+/// Every string inside a JSON value, masked; whether one changed.
+fn redact_strings(v: &mut Value) -> bool {
+    match v {
+        Value::String(s) => {
+            let clean = crate::redact::redact(s);
+            let changed = clean != *s;
+            *s = clean;
+            changed
+        }
+        Value::Array(items) => items.iter_mut().fold(false, |a, x| redact_strings(x) | a),
+        Value::Object(map) => map.values_mut().fold(false, |a, x| redact_strings(x) | a),
+        _ => false,
+    }
+}
+
+/// redact.rs scrub_once: the conversations with a password masked; how many changed.
+pub fn scrub() -> usize {
+    with_store(|s| {
+        let mut changed = 0;
+        for c in s.list.iter_mut() {
+            let mut any = false;
+            for l in c.lines.iter_mut() {
+                let clean = crate::redact::redact(&l.content);
+                if clean != l.content {
+                    l.content = clean;
+                    any = true;
+                }
+            }
+            let title = crate::redact::redact(&c.title);
+            if title != c.title {
+                c.title = title;
+                any = true;
+            }
+            // The engine's own messages hold the same text.
+            for m in c.messages.iter_mut() {
+                any |= redact_strings(m);
+            }
+            if any {
+                changed += 1;
+            }
+        }
+        if changed > 0 {
+            s.save();
+        }
+        changed
+    })
+}
+
+/// What the answer's line says while it is being written, and stays if
+/// EasyIsland stops before the end (closed, the turn lost): the question is
+/// never lost again (4 Nov 2026: a long turn ended with no trace, and the
+/// next chat knew nothing of it).
+fn unfinished() -> String {
+    t("⚠ Risposta interrotta prima della fine.").to_string()
+}
+
+/// A question as it is sent (lib.rs `chat_turn`): in the history at once,
+/// with a line for its answer that `record` fills in.
+pub fn begin(chat: &Chat, engine: &str, query: &str, prefix: &str) {
+    record(chat, engine, query, &unfinished(), prefix);
+    if let Some(id) = chat.log_id() {
+        with_store(|s| {
+            if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
+                c.pending = true;
+            }
+        });
+    }
+}
+
+/// The answer so far, while the turn goes on (every few seconds): what is
+/// kept if EasyIsland closes before the end.
+pub fn partial(chat: &Chat, text: &str) {
+    let Some(id) = chat.log_id() else { return };
+    with_store(|s| {
+        let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.pending) else { return };
+        let Some(last) = c.lines.last_mut().filter(|l| l.role == "assistant") else { return };
+        last.content = format!("{}\n\n{}", crate::redact::redact(text.trim()), unfinished());
+        s.save();
+    });
+}
+
+/// A turn that did not go well: what it wrote, then why it ended.
+pub fn failed(chat: &Chat, text: &str, why: &str) {
+    let Some(id) = chat.log_id() else { return };
+    with_store(|s| {
+        let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.pending) else { return };
+        let Some(last) = c.lines.last_mut().filter(|l| l.role == "assistant") else { return };
+        let why = format!("⚠ {}", why.trim());
+        let text = crate::redact::redact(text.trim());
+        last.content = if text.is_empty() { why } else { format!("{text}\n\n{why}") };
+        c.pending = false;
         s.save();
     });
 }

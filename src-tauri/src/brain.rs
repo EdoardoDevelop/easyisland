@@ -516,6 +516,8 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     if title.is_empty() {
         return Err(t("title: il titolo della pagina.").into());
     }
+    // Never a password in a page (redact.rs).
+    let text = crate::redact::redact(text);
     // A "# Titolo" first line written by the model is the header's, not the text's.
     let mut body = text.trim();
     if let Some(rest) = body.strip_prefix("# ") {

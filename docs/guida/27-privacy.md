@@ -13,6 +13,8 @@
 ## Segreti
 Chiavi API, token, password e link segreti stanno in **Gestione credenziali di Windows**, mai su disco, mai nell'interfaccia, mai in git, mai nei backup. L'interfaccia può solo chiedere se una chiave esiste. Le password dell'Accesso remoto restano solo in memoria finché la connessione è aperta. Le mappe di Notion e di RDM sul disco sono cifrate con la protezione dati di Windows (DPAPI).
 
+Le password scritte in una chat non vengono salvate: nella cronologia, nel diario e nelle note della memoria diventano «••••••» (anche quelle salvate prima, ripulite una volta all'avvio). Le sessioni di Claude Code nella cartella `.claude` sono di Claude Code e non vengono toccate.
+
 ## Rete
 **Nessuna telemetria.** Le richieste vanno solo:
 - ai servizi che configuri tu (motori AI, integrazioni, widget, integrazioni personali verso gli host scritti nella loro descrizione);

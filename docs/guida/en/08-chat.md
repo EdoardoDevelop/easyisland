@@ -88,6 +88,8 @@ You can keep **several conversations open at once**: switching to another one do
 
 On hover, **✎** (or a double click on the title) renames a conversation: Enter saves, Esc cancels, an empty title goes back to the first question. 📌 keeps it among the Pinned, ✕ deletes it. A click reopens one on its engine and you continue it. With API engines it resumes exactly where it was; with the subscription and opencode the conversation is passed along as text. Settings → Chat → **History** clears or turns it off (turning off the memory diary too).
 
+A question goes into the history as soon as you send it: if the answer stops (EasyIsland closed, an error, **Stop**) it stays with the text written so far and the reason. Passwords you type in the chat reach the engine as you wrote them, but in the history and the memory they become «••••••».
+
 ![The conversation history](../media/chat-history.png)
 
 ## In a window

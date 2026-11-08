@@ -88,6 +88,8 @@ Puoi tenere **più conversazioni aperte insieme**: passando a un'altra, quella d
 
 Al passaggio del mouse, **✎** (o un doppio clic sul titolo) rinomina una conversazione: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene tra le Fissate, ✕ la elimina. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
 
+Una domanda entra nella cronologia appena la mandi: se la risposta si interrompe (EasyIsland chiuso, un errore, **Ferma**) resta con il testo scritto fin lì e il motivo. Le password che scrivi in chat arrivano al motore come le hai scritte, ma nella cronologia e nella memoria diventano «••••••».
+
 ![La cronologia delle conversazioni](../media/chat-history.png)
 
 ## In una finestra

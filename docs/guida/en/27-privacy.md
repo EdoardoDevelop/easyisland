@@ -13,6 +13,8 @@
 ## Secrets
 API keys, tokens, passwords and secret links live in the **Windows Credential Manager**, never on disk, never in the interface, never in git, never in backups. The interface can only ask whether a key exists. Remote access passwords stay only in memory while the connection is open. The Notion and RDM maps on disk are encrypted with Windows data protection (DPAPI).
 
+Passwords typed in a chat are not saved: in the history, the diary and the memory's notes they become «••••••» (older ones too, cleaned once at startup). Claude Code's sessions in the `.claude` folder belong to Claude Code and are left alone.
+
 ## Network
 **No telemetry.** Requests only go:
 - to the services you configure (AI engines, integrations, widgets, custom integrations to the hosts written in their description);

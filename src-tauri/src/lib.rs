@@ -121,6 +121,7 @@ mod docx;
 mod documents;
 mod ooxzip;
 mod pdfpages;
+mod redact;
 mod pdftext;
 mod win_user;
 mod window_drop;
@@ -1513,6 +1514,9 @@ fn chat_session_of(chats: State<'_, Chats>, session: String) -> Option<String> {
     chats.of_session(&session)
 }
 
+/// How often the answer so far goes to the history while a turn goes on.
+const PARTIAL_EVERY: std::time::Duration = std::time::Duration::from_secs(8);
+
 /// A chat turn on `chat`: the island's conversation (`chat_send`) or
 /// Telegram's (telegram.rs, `telegram` true: permissions asked there, and
 /// its own mark in the history). `on_text` gets the text so far; `model`
@@ -1649,8 +1653,24 @@ pub(crate) async fn chat_turn(
     // came and how long the whole turn took, in the log.
     let started = std::time::Instant::now();
     let first_text: std::sync::Mutex<Option<u128>> = std::sync::Mutex::new(None);
+    // The history has the question at once, and the answer so far every few
+    // seconds: nothing is lost if the turn never ends (chat_log::begin).
+    let keep = !matches!(channel, Channel::Helper | Channel::AgentChat | Channel::Revision) && shared.settings.lock().unwrap().chat_history;
+    let prefix = match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" };
+    if keep {
+        chat_log::begin(chat, &engine, &asked, prefix);
+    }
+    let shown = std::sync::Mutex::new((String::new(), std::time::Instant::now()));
     let timed = |text: &str| {
         first_text.lock().unwrap().get_or_insert_with(|| started.elapsed().as_millis());
+        if keep {
+            let mut s = shown.lock().unwrap();
+            s.0 = text.to_string();
+            if s.1.elapsed() >= PARTIAL_EVERY {
+                s.1 = std::time::Instant::now();
+                chat_log::partial(chat, text);
+            }
+        }
         on_text(text);
     };
     let on_text: &(dyn Fn(&str) + Sync) = &timed;
@@ -1706,12 +1726,16 @@ pub(crate) async fn chat_turn(
     ));
     recipes::end(recipe_mark, &asked, learns && reply.is_ok());
     match &reply {
-        Ok(r) if !matches!(channel, Channel::Helper | Channel::AgentChat | Channel::Revision) && shared.settings.lock().unwrap().chat_history => {
-            chat_log::record(chat, &engine, &asked, &r.text, match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" });
+        Ok(r) if keep => {
+            chat_log::record(chat, &engine, &asked, &r.text, prefix);
             memory::diary(&engine, &asked, &r.text, telegram);
         }
         Ok(_) => {}
-        Err(_) => {
+        Err(e) => {
+            if keep {
+                let so_far = shown.lock().unwrap().0.clone();
+                chat_log::failed(chat, &so_far, e);
+            }
             if let Some(p) = preamble {
                 chat.put_back_preamble(p);
             }
@@ -4691,6 +4715,8 @@ pub fn run() {
             widgets::start(handle.clone());
 
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));
+            // Passwords written before redact.rs existed: out of the history and the memory, once.
+            std::thread::spawn(redact::scrub_once);
             hooks::ensure_hook_exe(&handle);
             // Coucou's autostart entry starts Coucou, not this app.
             if moved && loaded.autostart {

@@ -4693,5 +4693,9 @@
   "Molto alto": "Very high",
   "Per i lavori lunghi e difficili": "For long, hard work",
   "Massimo": "Max",
-  "Il più lento e costoso": "The slowest and most expensive"
+  "Il più lento e costoso": "The slowest and most expensive",
+  "⚠ Risposta interrotta prima della fine.": "⚠ Answer interrupted before the end.",
+  "Era già in memoria, detto così: {note}": "Already in memory, worded like this: {note}",
+  "Nessuna nota con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.": "No note with this text in this PC's memory. If you found it among the other PC's results (linked memory), it lives there: remove it from that PC, not from here.",
+  "{model} ha finito il credito o il limite d'uso: non lo richiamo per {n} minuti, o finché non lo cambi. ({why})": "{model} is out of credit or over its usage limit: I won't call it for {n} minutes, or until you change it. ({why})"
 }

@@ -48,6 +48,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 8/11 — Dal portatile: meno token, niente domande perse, niente password su disco
+Analisi di 41 chat, log e sessioni di Claude Code del portatile (`docs/chat.md`). PDF senza intestazioni e piè ripetuti, cartelle senza righe già date (-13 % sui 62 PDF delle offerte), `MAX_MCP_OUTPUT_TOKENS` a 50.000, sotto-agenti di sola lettura su Sonnet e strumenti di EasyIsland al posto dei comandi (prompt), Read/Grep/Glob senza card. Domanda in cronologia appena mandata (`chat_log::begin`), password mascherate in cronologia e memoria (`redact.rs`, una pulizia all'avvio), note doppie rifiutate, opencode in pausa a credito finito. Da provare sul portatile.
+
 ### 8/11 — Lavori in background nella chat
 Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro risultati venivano letti e buttati, e un messaggio scritto intanto apriva un secondo processo che li rilanciava. Ora lista sotto la conversazione con ✕ e «Ferma tutto», messaggi allo stesso processo, risultati nella chat con avviso (`docs/chat.md` → Modalità terminale). `document_read` legge anche una cartella intera. Provato sul portatile con 6 agenti e 62 PDF: risultati e confronto finale arrivati; aggiunto il turno «al lavoro» mentre Claude scrive da solo, i passi che si scrivono con i caratteri, le frasi d'attesa mentre ragiona e l'impegno di Claude nel menu del motore (sul portatile era quello predefinito, più alto).
 
@@ -59,7 +62,3 @@ Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro ri
 
 ### 7/11 — Agent Chat: motori con più contesto
 Cartella del progetto, conversazione che continua (60 min, 20 turni), messaggio intero, un incarico che ripete l'owner non apre un secondo turno (`docs/integrazioni.md`). Da provare con turni veri.
-
-### 7/11 — Agent Chat: «In esecuzione», script sempre confermati
-Terza vista della scheda con i passi interi dei motori di questo PC, mai al server (`agentchat::Live`). `run_quick_action` non esegue più uno script con conferma: lo apre nell'isola e aspetta «Esegui», anche con «Autonomi». Corretti anche nuova conferma se cambia la shell, `{{importo|it}}` con due decimali e nota su `-Encoding UTF8`. Non ancora provato con un turno vero.
-
