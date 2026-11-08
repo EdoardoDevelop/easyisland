@@ -2,6 +2,18 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.34** — **The chat does everything Claude Desktop does, and more.** With Claude Code, conversations reopened from the history
+**resume their session** with all its context, and so do Edit, Regenerate and Branch, from that very point. The **context ring** is always
+there, after background work and when reopening a chat too; **/compatta** summarizes the conversation with any engine. The mode button goes
+through **Allow / Deny**, **Accept edits**, **Plan** and **Automatic**, and "Always" holds for the whole conversation. The "/" menu has
+**Claude Code's commands**, your skills and plugins; the engine menu has **model** and **fast mode** for the conversation. Each step opens
+on its **output**, **sub-agents** show their steps, the **task list** stays in sight, and a message written while Claude works **joins its
+work at once**. **⟲ Files** puts files back as they were before a question, even after a restart. The history also has the **terminal's
+and Desktop's sessions**. For projects: **separate copy** (worktree), **pull request** with its checks and "Fix", **comments on the lines**
+of the changes, your own PowerShell **terminal** and **separate work** Claude can propose. Fewer tokens: PDFs without repeated headers, long
+results without files, sub-agents on Sonnet. No more lost questions when a turn breaks off, **passwords masked** on disk, duplicate notes
+refused.
+
 **1.0.33** — **More complete custom integrations**, all of them and not just delivery notes: real **HTML templates** with values always
 escaped, long dates, Italian numbers, conditions and resources such as a logo. Line breaks no longer break tables. **A4 PDF** straight from a
 card, saved to the Tray and a folder. From the chat you choose **where to save** and **what to call the file**, with several fields too, and how cards read in the list. A button can run a **script** after a confirmation, and card data also reaches quick actions. Agents can
