@@ -91,6 +91,16 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "chat_start",
+            "Propone all'utente di far partire un lavoro a parte in una nuova conversazione della chat di EasyIsland, che va avanti da sola accanto a questa (come le sessioni separate di Claude Desktop): per un compito indipendente, lungo o fuori tema rispetto a quello che si sta facendo. title: nome breve; prompt: le istruzioni complete, comprensibili senza questa conversazione (file, cartella, cosa deve risultare); folder: cartella del progetto, facoltativa. Parte solo se l'utente consente.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" },
+                "prompt": { "type": "string" },
+                "folder": { "type": "string" }
+            }, "required": ["title", "prompt"] }),
+            false,
+        ),
+        (
             "open_url",
             "Apre un indirizzo web (http o https) nel browser predefinito.",
             json!({ "type": "object", "properties": { "url": { "type": "string" } }, "required": ["url"] }),

@@ -19,7 +19,9 @@
 - **↻ Rigenera** (sull'ultima risposta).
 - **⑂ Dirama da qui**: una conversazione nuova che parte da quel punto; quella di prima resta intera nella cronologia.
 - Con Claude Code, Modifica, Rigenera e Dirama riprendono la sua sessione proprio da quel punto, come Claude Desktop: Claude ricorda anche i file letti fin lì.
-- **⟲ File** (sulle tue domande, con la modalità terminale): riporta i file che Claude Code ha cambiato da quella domanda in poi com'erano prima, e toglie quelli che ha creato. Il primo clic dice quali file, il secondo conferma. Come in Claude Desktop, quello che fanno i comandi non conta; vale finché EasyIsland resta aperto.
+- **⟲ File** (sulle tue domande, con la modalità terminale): riporta i file che Claude Code ha cambiato da quella domanda in poi com'erano prima, e toglie quelli che ha creato. Il primo clic dice quali file, il secondo conferma. Come in Claude Desktop, quello che fanno i comandi non conta. I punti di ripristino restano anche dopo un riavvio, con la conversazione, per 30 giorni.
+- **I passi si aprono**: sotto ogni passo di Claude Code, **▸ Esito** mostra cosa ha dato (l'uscita di un comando, il testo letto, un errore in rosso); i passi dei sotto-agenti compaiono sotto il loro nome («↳ Legge i PDF · …»).
+- **Scrivere mentre lavora**: con Claude Code un messaggio scritto mentre risponde gli arriva subito, fra un passo e l'altro, e ne tiene conto nella stessa risposta (sotto la domanda compare «↪ …»), come in Claude Desktop. Con gli altri motori va in coda come prima.
 - **Multi agent**: in Impostazioni → Chat scegli i motori che lavorano insieme, poi accendi il pulsante nella conversazione. Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro e vedi una riga per ognuno. Prima che tu la veda, la risposta viene controllata da un altro motore e corretta se serve: ne arriva una sola, già rivista, e sotto trovi **✓ Controllato**. Intanto vedi i passi, non la bozza. Ne bastano due, meglio di due marche diverse. Costa di più e può metterci il doppio: accendilo per i lavori veri. Le azioni chiedono Consenti/Nega come sempre.
 - **⇄ Seconda opinione**: un altro motore rilegge l'ultima domanda e la risposta e segnala errori, mancanze o rischi (oppure «va bene»). Il suo parere arriva anche al motore principale, che può correggersi.
 
@@ -97,6 +99,12 @@ Una domanda entra nella cronologia appena la mandi: se la risposta si interrompe
 
 ## In una finestra
 Trascina la voce **Chat** del menu fuori dall'isola e lasciala dove vuoi, oppure premi il pulsante con la freccia in alto nella chat, oppure clic destro su **Chat** → **Apri in una finestra**: la chat diventa una finestra normale di Windows, con barra delle applicazioni e Alt+Tab, da allargare e spostare dove vuoi. È la stessa chat: conversazioni, motori, permessi e Ferma restano quelli dell'isola, e la voce **Chat** del menu porta avanti la finestra. Chiudendo la finestra, o con lo stesso pulsante (ora «Rimetti la chat nell'isola»), la chat torna nell'isola; la finestra si ricorda misura e posizione. L'**Anteprima** resta accanto alla chat anche nella finestra, con lo stesso divisore per allargarla (la finestra si allarga se serve), e torna nell'isola con la chat.
+
+## Modello e fast mode
+Con Claude Code, nel menu del motore: **Modello di Claude** (Fable, Opus, Sonnet, Haiku o quello delle Impostazioni) per questa conversazione, e Claude continua la stessa sessione con il modello scelto; **Fast mode** per risposte più rapide, che costa di più e richiede l'uso extra attivo sull'account Claude (se manca, la chat lo dice).
+
+## Terminale
+**>_** in alto nella chat apre un PowerShell tuo nella cartella del progetto, sotto la conversazione: scrivi un comando e Invio, l'uscita compare lì. È tuo, non di Claude: quello che scrivi parte senza card. **Riavvia** chiude anche un comando bloccato. Per editor e password usa Terminale di Windows.
 
 ## Sessioni di Claude Code fuori da EasyIsland
 In fondo alla cronologia, **Claude Code fuori da EasyIsland** elenca le sessioni degli ultimi 30 giorni aperte dal terminale, da Claude Desktop o da un editor. Un clic la porta nella cronologia e la riprende qui, con tutto il contesto. Con la modalità terminale lavora nella sua cartella; senza, la conversazione arriva come testo.

@@ -123,6 +123,7 @@ mod ooxzip;
 mod pdfpages;
 mod redact;
 mod checkpoints;
+mod terminal;
 mod pdftext;
 mod win_user;
 mod window_drop;
@@ -1317,9 +1318,12 @@ async fn chat_send(
     team: Option<bool>,
     effort: Option<String>,
     mode: Option<String>,
+    model: Option<String>,
+    fast: Option<bool>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
     chat.set_folder(folder);
+    chat.set_fast(fast == Some(true));
     // Piano, Accetta modifiche: Claude Code's permission mode for this conversation.
     chat.set_mode(mode);
     // The effort picked in the chat, else the last one picked (Impostazioni keeps it).
@@ -1360,13 +1364,15 @@ async fn chat_send(
     let reply = if team == Some(true) {
         team::run(&app, chat.clone(), &sid, query, context, engine, auto, &on_text).await?
     } else {
-        chat_turn(&app, &chat, query, context, engine, None, auto, Channel::Island, &on_text).await?
+        // The model picked in the chat for Claude Code (as Claude Desktop's picker): the same session goes on with it.
+        chat_turn(&app, &chat, query, context, engine, model.filter(|m| !m.trim().is_empty()), auto, Channel::Island, &on_text).await?
     };
     // The plan approved on its card: Claude Code works now, as in Claude Desktop the mode leaves «Piano».
     if chat.mode().as_deref() == Some("plan") && chat.cli_session().is_some_and(|s| permits::plan_approved(&s)) {
         chat.set_mode(None);
     }
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default() })
+    let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1379,6 +1385,8 @@ struct IslandReply {
     context: Option<(u64, u64)>,
     /// Claude Code's mode after the turn ("" = ask): «Piano» ends when its plan is approved.
     mode: String,
+    /// Something the chat says once under the answer (fast mode refused).
+    note: Option<String>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1583,7 +1591,8 @@ pub(crate) async fn chat_turn(
     // opencode conversation left behind is deleted from opencode's history).
     // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
-    let key_model = picked.as_deref().unwrap_or(&other_model);
+    // Claude Code keeps its session when the model changes (as in Claude Desktop): not a new conversation.
+    let key_model = if engine == "subscription" { other_model.as_str() } else { picked.as_deref().unwrap_or(&other_model) };
     chat.use_engine(&in_folder(chat_key(&engine, key_model, terminal.is_some()), own.as_deref().filter(|_| terminal.is_some())));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
@@ -1690,12 +1699,14 @@ pub(crate) async fn chat_turn(
     // seconds: nothing is lost if the turn never ends (chat_log::begin).
     let keep = !matches!(channel, Channel::Helper | Channel::AgentChat | Channel::Revision) && shared.settings.lock().unwrap().chat_history;
     let prefix = match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" };
-    // «⟲ File»: in Modalità terminale each turn is a checkpoint of the files it changes.
-    if terminal.is_some() && matches!(channel, Channel::Island | Channel::Telegram) {
-        checkpoints::begin(chat as *const Chat as usize, chat_log::line_count(chat));
-    }
+    let lines_before = chat_log::line_count(chat);
     if keep {
         chat_log::begin(chat, &engine, &asked, prefix);
+    }
+    // «⟲ File»: in Modalità terminale each turn is a checkpoint of the files it changes.
+    if terminal.is_some() && matches!(channel, Channel::Island | Channel::Telegram) {
+        let ptr = chat as *const Chat as usize;
+        checkpoints::begin(ptr, &checkpoints::key(ptr, chat.log_id()), lines_before);
     }
     let shown = std::sync::Mutex::new((String::new(), std::time::Instant::now()));
     let timed = |text: &str| {
@@ -2468,11 +2479,13 @@ fn chat_export(title: String, lines: Vec<chat_log::Line>) -> Result<DroppedFile,
 #[tauri::command]
 fn chat_history_delete(id: String) {
     chat_log::delete(&id);
+    checkpoints::delete(Some(&id));
 }
 
 #[tauri::command]
 fn chat_history_clear() {
     chat_log::clear();
+    checkpoints::delete(None);
 }
 
 /// Impostazioni → Chat → "Carica modelli" for an OpenAI-compatible engine.
@@ -3094,18 +3107,60 @@ async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, Strin
     tauri::async_runtime::spawn_blocking(move || workdir::pick_folder(start)).await.map_err(|e| e.to_string())?
 }
 
+/// «Terminale» in the chat: the user's own PowerShell in the project's folder (terminal.rs).
+#[tauri::command]
+fn terminal_open(app: AppHandle, folder: Option<String>) -> Result<u32, String> {
+    terminal::open(&app, folder.as_deref())
+}
+
+#[tauri::command]
+fn terminal_write(id: u32, line: String) -> Result<(), String> {
+    terminal::write(id, &line)
+}
+
+#[tauri::command]
+fn terminal_close(id: u32) {
+    terminal::close(Some(id));
+}
+
+/// The pull request of the chat's project and its checks (gh), for the chip next to «Progetto…».
+#[tauri::command]
+async fn chat_pull_request(folder: String) -> Option<gitbranch::PullRequest> {
+    let run = tauri::async_runtime::spawn_blocking(move || gitbranch::pull_request(std::path::Path::new(&folder)));
+    tokio::time::timeout(std::time::Duration::from_secs(20), run).await.ok()?.ok()?
+}
+
+/// «Manda alla chat» (comments on the lines of «Modifiche», preview window):
+/// the island's chat sends them as a message (or adds them to the turn in progress).
+#[tauri::command]
+fn preview_to_chat(app: AppHandle, text: String) {
+    let _ = app.emit_to(island::WINDOW_LABEL, "preview-chat", serde_json::json!({ "text": text }));
+}
+
+/// Written while Claude Code answers: the message joins the turn in progress
+/// (claude_cli::steer). False: no turn to join, the chat queues it.
+#[tauri::command]
+async fn chat_steer(chats: State<'_, Chats>, sid: String, text: String) -> Result<bool, String> {
+    let Some(chat) = chats.find(&sid) else { return Ok(false) };
+    let ok = claude_cli::steer(std::sync::Arc::as_ptr(&chat) as usize, &text).await;
+    if ok {
+        chat_log::steered(&chat, &text);
+    }
+    Ok(ok)
+}
+
 /// «⟲ File»: what going back to the question after `at` lines would restore
 /// (path, deleted because created there), for the confirmation.
 #[tauri::command]
 fn chat_files_since(chats: State<'_, Chats>, sid: String, at: usize) -> Vec<(String, bool)> {
-    chats.find(&sid).map(|c| checkpoints::changed_since(std::sync::Arc::as_ptr(&c) as usize, at)).unwrap_or_default()
+    chats.find(&sid).map(|c| checkpoints::changed_since(&checkpoints::key(std::sync::Arc::as_ptr(&c) as usize, c.log_id()), at)).unwrap_or_default()
 }
 
 /// «⟲ File», confirmed: the files as they were before that question.
 #[tauri::command]
 fn chat_files_restore(chats: State<'_, Chats>, sid: String, at: usize) -> Result<usize, String> {
     let c = chats.find(&sid).ok_or_else(|| t("Conversazione sconosciuta.").to_string())?;
-    checkpoints::restore(std::sync::Arc::as_ptr(&c) as usize, at)
+    checkpoints::restore(&checkpoints::key(std::sync::Arc::as_ptr(&c) as usize, c.log_id()), at)
 }
 
 /// «Copia separata (worktree)» in «Progetto…»: the folder of a new git worktree of that project.
@@ -4450,6 +4505,12 @@ pub fn run() {
             chat_history_list,
             chat_history_open,
             chat_claude_commands,
+            terminal_open,
+            terminal_write,
+            terminal_close,
+            preview_to_chat,
+            chat_pull_request,
+            chat_steer,
             chat_worktree,
             chat_files_since,
             chat_files_restore,
@@ -4822,6 +4883,7 @@ pub fn run() {
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));
             // Passwords written before redact.rs existed: out of the history and the memory, once.
             std::thread::spawn(redact::scrub_once);
+            std::thread::spawn(checkpoints::prune);
             hooks::ensure_hook_exe(&handle);
             // Coucou's autostart entry starts Coucou, not this app.
             if moved && loaded.autostart {
@@ -4846,6 +4908,7 @@ pub fn run() {
                 appbar::shutdown();
                 opencode::shutdown();
                 claude_cli::shutdown();
+                terminal::close(None);
                 remote::shutdown();
             }
         });

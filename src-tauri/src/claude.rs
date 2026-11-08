@@ -158,6 +158,8 @@ pub struct Chat {
     /// The chat's choice for Claude Code's permissions in Modalità terminale:
     /// "acceptEdits" or "plan" (None = ask; «Automatica» is `auto`).
     mode: Mutex<Option<String>>,
+    /// Claude Code's fast mode for this conversation (`fastMode` in its settings).
+    fast: std::sync::atomic::AtomicBool,
     /// The assistant picked for this conversation (Impostazioni → Chat →
     /// Assistenti): its instructions go in front of the first question. Not
     /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
@@ -251,6 +253,14 @@ impl Chat {
 
     pub(crate) fn mode(&self) -> Option<String> {
         self.mode.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_fast(&self, on: bool) {
+        self.fast.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn fast(&self) -> bool {
+        self.fast.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub(crate) fn set_resume_fallback(&self, text: Option<String>) {

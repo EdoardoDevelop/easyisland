@@ -19,7 +19,9 @@
 - **↻ Regenerate** (on the last answer).
 - **⑂ Branch from here**: a new conversation starting from that point; the previous one stays whole in the history.
 - With Claude Code, Edit, Regenerate and Branch resume its session right from that point, as Claude Desktop does: Claude also remembers the files read so far.
-- **⟲ Files** (on your questions, in terminal mode): puts the files Claude Code changed from that question on back as they were, and removes the ones it created. The first click says which files, the second confirms. As in Claude Desktop, what commands do does not count; it lasts while EasyIsland stays open.
+- **⟲ Files** (on your questions, in terminal mode): puts the files Claude Code changed from that question on back as they were, and removes the ones it created. The first click says which files, the second confirms. As in Claude Desktop, what commands do does not count. The restore points stay after a restart, with the conversation, for 30 days.
+- **Steps open up**: under each step of Claude Code, **▸ Output** shows what it gave back (a command's output, the text read, an error in red); sub-agents' steps show under their name («↳ Reads the PDFs · …»).
+- **Writing while it works**: with Claude Code a message written while it answers reaches it at once, between two steps, and it takes it into the same answer («↪ …» under the question), as in Claude Desktop. With the other engines it is queued as before.
 - **Multi agent**: in Settings → Chat pick the engines that work together, then turn the button on in the conversation. The chat's engine leads and answers you, the others do pieces of the work and you see a line for each. Before you see it, the answer is checked by another engine and fixed if needed: only one arrives, already reviewed, with **✓ Checked** underneath. Meanwhile you see the steps, not the draft. Two are enough, better from two different makers. It costs more and can take twice as long: turn it on for real work. Actions ask Allow/Deny as always.
 - **⇄ Second opinion**: another engine rereads the last question and answer and points out mistakes, gaps or risks (or "looks good"). Its review also reaches the main engine, which can correct itself.
 
@@ -97,6 +99,12 @@ A question goes into the history as soon as you send it: if the answer stops (Ea
 
 ## In a window
 Drag the **Chat** entry of the menu out of the island and let go where you like, or press the arrow button at the top of the chat, or right-click **Chat** → **Open in a window**: the chat becomes a normal Windows window, with taskbar and Alt+Tab, to resize and place where you like. It is the same chat: conversations, engines, permissions and Stop stay the island's, and the **Chat** entry in the menu brings the window forward. Closing the window, or the same button (now «Put the chat back in the island»), puts the chat back in the island; the window remembers its size and place. The **Preview** stays beside the chat in the window too, with the same divider to widen it (the window grows if needed), and goes back to the island with the chat.
+
+## Model and fast mode
+With Claude Code, in the engine menu: **Claude's model** (Fable, Opus, Sonnet, Haiku or the one in Settings) for this conversation, and Claude goes on with the same session on the chosen model; **Fast mode** for faster answers, which costs more and needs extra usage on the Claude account (if missing, the chat says so).
+
+## Terminal
+**>_** at the top of the chat opens your own PowerShell in the project folder, under the conversation: type a command and Enter, the output shows there. It is yours, not Claude's: what you type runs without a card. **Restart** also closes a stuck command. For editors and passwords use Windows Terminal.
 
 ## Claude Code sessions outside EasyIsland
 At the bottom of the history, **Claude Code outside EasyIsland** lists the sessions of the last 30 days opened from the terminal, Claude Desktop or an editor. A click brings one into the history and resumes it here, with all its context. In terminal mode it works in its folder; without it, the conversation arrives as text.

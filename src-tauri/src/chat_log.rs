@@ -146,7 +146,7 @@ impl Store {
         c.engine = engine.into();
         c.updated = now;
         // The question was written when it was sent (`begin`): its answer takes the place kept for it.
-        let open = c.pending && c.lines.len() >= 2 && c.lines.get(c.lines.len() - 2).is_some_and(|l| l.role == "user" && crate::redact::redact(&l.content) == query);
+        let open = c.pending && c.lines.len() >= 2 && c.lines.get(c.lines.len() - 2).is_some_and(|l| l.role == "user" && crate::redact::redact(&l.content).starts_with(query));
         if open {
             if let Some(last) = c.lines.last_mut() {
                 last.content = reply.into();
@@ -582,6 +582,21 @@ pub fn open(chat: &Chat, id: &str, key: &str) -> Result<Opened, String> {
     let preamble = if resends(&c.engine) && !c.messages.is_empty() { None } else { Some(preamble(&c.lines)) };
     chat.restore(key, c.messages, Some(c.id), preamble);
     Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None })
+}
+
+/// A message that joined the turn in progress (lib.rs `chat_steer`): after the
+/// question, on its line, as the chat shows it («↪ …»).
+pub fn steered(chat: &Chat, text: &str) {
+    let Some(id) = chat.log_id() else { return };
+    let text = crate::redact::redact(text.trim());
+    with_store(|s| {
+        let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.pending) else { return };
+        let n = c.lines.len();
+        if let Some(q) = n.checked_sub(2).and_then(|i| c.lines.get_mut(i)).filter(|l| l.role == "user") {
+            q.content.push_str(&format!("\n\n↪ {text}"));
+            s.save();
+        }
+    });
 }
 
 /// How many lines the conversation of `chat` has in the history (0 = none yet).

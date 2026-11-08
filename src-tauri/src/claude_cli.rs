@@ -561,6 +561,9 @@ struct Progress {
     /// The conversation (the `Chat`'s address; 0 = none): files about to change
     /// are kept for «⟲ File» (checkpoints.rs).
     chat: usize,
+    /// The sub-agents started in this turn: their call's id and description,
+    /// so their own steps show under them (as Claude Desktop shows them).
+    agents: Vec<(String, String)>,
 }
 
 impl Progress {
@@ -590,12 +593,14 @@ impl Progress {
             }
             return false;
         }
-        // A sub-agent's own steps stay inside its one step.
-        if v.get("parent_tool_use_id").is_some_and(|p| !p.is_null()) {
-            return false;
+        // A sub-agent's own steps: one line each, under its name.
+        if let Some(parent) = v.get("parent_tool_use_id").and_then(Value::as_str) {
+            return self.agent_step(parent, &v);
         }
         match v.get("type").and_then(Value::as_str) {
             Some("stream_event") => return self.delta(&v),
+            // What a step gave back (a command's output, a file read): under it, folded.
+            Some("user") => return self.step_result(&v),
             Some("assistant") => {
                 if let Some(used) = context_used(&v) {
                     self.context = used;
@@ -623,6 +628,11 @@ impl Progress {
                 }
                 Some("tool_use") => {
                     let (name, input) = (block.get("name").and_then(Value::as_str).unwrap_or_default(), block.get("input").unwrap_or(&Value::Null));
+                    if matches!(name, "Task" | "Agent") {
+                        let id = block.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+                        let what = input.get("description").and_then(Value::as_str).unwrap_or_default().to_string();
+                        self.agents.push((id, what));
+                    }
                     // A file about to change: «Modifiche» and the preview (preview.rs), and its checkpoint.
                     crate::preview::touched_by(name, input);
                     if self.chat != 0 && matches!(name, "Edit" | "Write" | "MultiEdit" | "NotebookEdit") {
@@ -648,6 +658,88 @@ impl Progress {
         }
         changed
     }
+}
+
+/// A step's output under it: this many lines at most, and characters.
+const RESULT_LINES: usize = 30;
+const RESULT_CHARS: usize = 2_500;
+
+impl Progress {
+    fn push_piece(&mut self, piece: &str) {
+        if !self.shown.is_empty() {
+            self.shown.push_str("\n\n");
+        }
+        self.shown.push_str(piece);
+        self.thinking.clear();
+        self.writing.clear();
+        self.drafting = None;
+        self.pondering = false;
+    }
+
+    /// A `user` line with `tool_result` blocks: each output as an «esito» block
+    /// (views/typeline.ts folds it under its step).
+    fn step_result(&mut self, v: &Value) -> bool {
+        let mut changed = false;
+        for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if block.get("type").and_then(Value::as_str) != Some("tool_result") {
+                continue;
+            }
+            let text = match block.get("content") {
+                Some(Value::String(t)) => t.clone(),
+                Some(Value::Array(parts)) => parts.iter().filter_map(|p| p.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("\n"),
+                _ => String::new(),
+            };
+            let text = text.trim();
+            // The task list's own receipt says nothing (the list is shown already).
+            if text.is_empty() || text.starts_with("Todos have been modified") {
+                continue;
+            }
+            let failed = block.get("is_error").and_then(Value::as_bool) == Some(true);
+            let piece = result_block(text, failed);
+            self.push_piece(&piece);
+            changed = true;
+        }
+        changed
+    }
+
+    /// A sub-agent's tool call: «↳ <agent> · <step>».
+    fn agent_step(&mut self, parent: &str, v: &Value) -> bool {
+        if v.get("type").and_then(Value::as_str) != Some("assistant") {
+            return false;
+        }
+        let who = self.agents.iter().find(|(id, _)| id == parent).map(|(_, d)| d.clone()).unwrap_or_else(|| t("Sotto-agente").to_string());
+        let mut changed = false;
+        for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if block.get("type").and_then(Value::as_str) != Some("tool_use") {
+                continue;
+            }
+            let name = block.get("name").and_then(Value::as_str).unwrap_or_default();
+            let step = step_line(name, block.get("input").unwrap_or(&Value::Null));
+            let step = step.trim_start_matches("> ⚙ ").to_string();
+            let piece = format!("> ⚙ ↳ {} · {step}", who.replace('`', "'"));
+            self.push_piece(&piece);
+            changed = true;
+        }
+        changed
+    }
+}
+
+/// A step's output as a fenced «esito» block, cut to its first lines.
+fn result_block(text: &str, failed: bool) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut body: String = lines.iter().take(RESULT_LINES).copied().collect::<Vec<_>>().join("\n");
+    if body.chars().count() > RESULT_CHARS {
+        body = body.chars().take(RESULT_CHARS).collect();
+    }
+    let cut = lines.len().saturating_sub(RESULT_LINES);
+    if cut > 0 {
+        body.push_str(&format!("\n… {}", tf("(altre {n} righe)", &[("n", &cut)])));
+    } else if body.chars().count() < text.chars().count() {
+        body.push('…');
+    }
+    // A fence inside would close the block.
+    let body = body.replace("```", "'''");
+    format!("```{}\n{body}\n```", if failed { "errore" } else { "esito" })
 }
 
 impl Progress {
@@ -839,6 +931,9 @@ async fn read_lines(
                 if let Some(id) = init_session(&line) {
                     on_session(&id);
                     remember_commands(&line);
+                    if chat != 0 {
+                        remember_fast(chat, &line);
+                    }
                 }
                 if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
                     emitted = std::time::Instant::now();
@@ -897,6 +992,47 @@ fn context_size(line: &str) -> u64 {
     v.get("modelUsage").and_then(Value::as_object).into_iter().flatten()
         .filter_map(|(_, m)| m.get("contextWindow").and_then(Value::as_u64))
         .max().unwrap_or(0)
+}
+
+/// `--settings <file>` becomes the same settings with `"fastMode": true`, as JSON.
+fn with_fast(a: &mut Vec<String>) {
+    match a.iter().position(|x| x == "--settings") {
+        Some(i) => {
+            let Some(file) = a.get(i + 1).cloned() else { return };
+            let mut v: Value = std::fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_else(|| serde_json::json!({}));
+            if let Some(o) = v.as_object_mut() {
+                o.insert("fastMode".into(), Value::Bool(true));
+            }
+            if let Some(slot) = a.get_mut(i + 1) {
+                *slot = v.to_string();
+            }
+        }
+        None => a.extend(["--settings".into(), r#"{"fastMode":true}"#.into()]),
+    }
+}
+
+/// Why fast mode is off, by conversation (the `Chat`'s address), from the last `init` line.
+static FAST_OFF: std::sync::Mutex<Vec<(usize, String)>> = std::sync::Mutex::new(Vec::new());
+
+fn remember_fast(chat: usize, line: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return };
+    let why = v.get("fast_mode_disabled_reason").and_then(Value::as_str).unwrap_or_default().to_string();
+    let on = v.get("fast_mode_state").and_then(Value::as_str) == Some("on");
+    let mut all = FAST_OFF.lock().unwrap();
+    all.retain(|(c, _)| *c != chat);
+    if !on && !why.is_empty() {
+        all.push((chat, why));
+    }
+}
+
+/// Fast mode asked for and refused by Claude Code: why, in words (once per turn).
+pub fn fast_refused(chat: usize) -> Option<String> {
+    let why = FAST_OFF.lock().unwrap().iter().find(|(c, _)| *c == chat).map(|(_, w)| w.clone())?;
+    Some(match why.as_str() {
+        "extra_usage_disabled" => t("Il fast mode di Claude Code non è attivo: sul tuo account Claude serve l'uso extra (claude.ai → Impostazioni → Utilizzo).").to_string(),
+        "sdk_opt_in_required" => t("Il fast mode di Claude Code non è disponibile in questa modalità.").to_string(),
+        other => tf("Il fast mode di Claude Code non è attivo ({why}).", &[("why", &other)]),
+    })
 }
 
 /// Claude Code's slash commands (its own, the user's in `.claude/commands`,
@@ -986,7 +1122,7 @@ async fn read_stream(
 
 struct Live {
     child: tokio::process::Child,
-    stdin: tokio::process::ChildStdin,
+    stdin: std::sync::Arc<tokio::sync::Mutex<tokio::process::ChildStdin>>,
     lines: OutLines,
     stderr: std::sync::Arc<std::sync::Mutex<String>>,
     /// The conversation (the `Chat`'s address) and how the process was started.
@@ -1085,6 +1221,7 @@ fn spawn_live(mut cmd: Command, chat: usize, print: String) -> Result<Live, Stri
             }
         });
     }
+    let stdin = std::sync::Arc::new(tokio::sync::Mutex::new(stdin));
     Ok(Live { child, stdin, lines: tokio::io::BufReader::new(stdout).lines(), stderr, chat, print, session: String::new(), used: std::time::Instant::now() })
 }
 
@@ -1101,9 +1238,14 @@ async fn live_turn(
     late: &str,
 ) -> Result<(String, String, Vec<BgTask>), Option<String>> {
     let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
-    if live.stdin.write_all(format!("{line}\n").as_bytes()).await.is_err() || live.stdin.flush().await.is_err() {
-        return Err(None);
+    {
+        let mut w = live.stdin.lock().await;
+        if w.write_all(format!("{line}\n").as_bytes()).await.is_err() || w.flush().await.is_err() {
+            return Err(None);
+        }
     }
+    // While it answers, a message written in the chat goes to it at once (`steer`).
+    let _steering = Steering::on(live.chat, live.stdin.clone());
     let deadline = std::time::Instant::now() + limit;
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
@@ -1122,6 +1264,44 @@ async fn live_turn(
             Err(e) => return Err(Some(e)),
         }
     }
+}
+
+/// The processes answering a message now, by conversation: a message written
+/// meanwhile goes to Claude Code at once and it takes it into the turn it is
+/// in, between two steps (as in Claude Desktop; tried on 8 Nov 2026: one
+/// answer, «FATTO BANANA», to both).
+type Stdin = std::sync::Arc<tokio::sync::Mutex<tokio::process::ChildStdin>>;
+static STEERING: std::sync::Mutex<Vec<(usize, Stdin)>> = std::sync::Mutex::new(Vec::new());
+
+struct Steering(usize);
+
+impl Steering {
+    fn on(chat: usize, stdin: Stdin) -> Self {
+        STEERING.lock().unwrap().push((chat, stdin));
+        Steering(chat)
+    }
+}
+
+impl Drop for Steering {
+    fn drop(&mut self) {
+        let mut all = STEERING.lock().unwrap();
+        if let Some(i) = all.iter().rposition(|(c, _)| *c == self.0) {
+            all.remove(i);
+        }
+    }
+}
+
+/// A message for the turn in progress of `chat`; false when no turn of
+/// Claude Code is answering (the chat queues it as before).
+pub async fn steer(chat: usize, text: &str) -> bool {
+    let Some(stdin) = STEERING.lock().unwrap().iter().rev().find(|(c, _)| *c == chat).map(|(_, s)| s.clone()) else { return false };
+    let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": text } }).to_string();
+    let mut w = stdin.lock().await;
+    let ok = w.write_all(format!("{line}\n").as_bytes()).await.is_ok() && w.flush().await.is_ok();
+    if ok {
+        crate::log::line("claude: messaggio aggiunto al turno in corso".to_string());
+    }
+    ok
 }
 
 /// Turns Claude Code still has lined up after this result (`queued_turn_count`):
@@ -1213,6 +1393,7 @@ async fn through(
     // Only what this message's turn reads.
     *context.lock().unwrap() = None;
     let mut guard = KillOnDrop { kill, armed: true };
+    let _steering = Steering::on(chat, stdin.clone());
     let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
     {
         let mut w = stdin.lock().await;
@@ -1248,7 +1429,6 @@ async fn through(
 /// kept processes once nothing runs and nobody waits.
 fn follow(live: Live, later: Option<Later>, on_tasks: Option<OnTasks>, on_working: Option<OnWorking>, tasks: Vec<BgTask>) {
     let Live { mut child, stdin, mut lines, stderr: _, chat, print, session, used: _ } = live;
-    let stdin = std::sync::Arc::new(tokio::sync::Mutex::new(stdin));
     let kill = std::sync::Arc::new(tokio::sync::Notify::new());
     let context = std::sync::Arc::new(std::sync::Mutex::new(None));
     FOLLOWING.lock().unwrap().push(Following { chat, print: print.clone(), session: session.clone(), stdin: stdin.clone(), waiting: None, kill: kill.clone(), context: context.clone() });
@@ -1542,6 +1722,10 @@ async fn send_mode(
             Some(_) => terminal_args(&dir, model, resume, extra_dir.as_deref(), &connectors, auto),
             None => args(&dir, model, resume, extra_dir.as_deref(), &connectors),
         };
+        // Fast mode (as Claude Desktop's): `fastMode` added to the settings this process reads.
+        if chat.fast() {
+            with_fast(&mut a);
+        }
         // Piano, Accetta modifiche (the chat's mode, as Claude Desktop offers them): Claude Code's own modes.
         if let (Some(_), false, Some(mode)) = (terminal, auto, chat.mode()) {
             if let Some(i) = a.iter().position(|x| x == "--permission-mode") {
@@ -1868,6 +2052,39 @@ pub async fn session_ask(session: String, fork: Option<String>, cwd: String, que
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn steps_show_what_they_gave_back_and_the_sub_agents_steps() {
+        let mut p = super::Progress::default();
+        p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"npm test"}}]}}"#);
+        assert!(p.feed(r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok 12 test"}]}}"#));
+        assert!(p.done().contains("```esito\nok 12 test\n```"), "{}", p.done());
+        p.feed(r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","is_error":true,"content":[{"type":"text","text":"non trovato"}]}]}}"#);
+        assert!(p.done().contains("```errore\nnon trovato\n```"));
+        // A long output is cut, a fence inside does not close the block.
+        let long: String = (0..50).map(|i| format!("riga {i}\n")).collect::<String>() + "```";
+        let block = super::result_block(&long, false);
+        assert!(block.contains("riga 29") && !block.contains("riga 30") && block.contains("20"), "{block}");
+        // A sub-agent: its steps under its description.
+        p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a1","name":"Agent","input":{"description":"Legge i PDF"}}]}}"#);
+        assert!(p.feed(r#"{"type":"assistant","parent_tool_use_id":"a1","message":{"content":[{"type":"tool_use","id":"x","name":"Read","input":{"file_path":"C:/a.pdf"}}]}}"#));
+        assert!(p.done().contains("> ⚙ ↳ Legge i PDF · "), "{}", p.done());
+    }
+
+    #[test]
+    fn fast_mode_goes_in_the_settings() {
+        let dir = std::env::temp_dir().join(format!("ei-fast-{}.json", std::process::id()));
+        std::fs::write(&dir, r#"{"disableAllHooks":false}"#).unwrap();
+        let mut a = vec!["-p".to_string(), "--settings".to_string(), dir.display().to_string()];
+        super::with_fast(&mut a);
+        let v: serde_json::Value = serde_json::from_str(&a[2]).unwrap();
+        assert_eq!(v["fastMode"], true);
+        assert_eq!(v["disableAllHooks"], false);
+        let mut b = vec!["-p".to_string()];
+        super::with_fast(&mut b);
+        assert_eq!(b.last().unwrap(), r#"{"fastMode":true}"#);
+        let _ = std::fs::remove_file(&dir);
+    }
+
     #[test]
     fn the_task_list_shows_under_the_steps_and_stays_at_the_end() {
         let mut p = super::Progress::default();

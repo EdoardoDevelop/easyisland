@@ -310,8 +310,8 @@ export const Bridge = {
   chatFolders: () => callOrThrow<string[]>("chat_folders"),
   chatBranch: (folder: string) => call<string>("chat_branch", { folder }),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
-  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "") =>
-    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null }),
+  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "", model: string | null = null, fast = false) =>
+    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
@@ -343,6 +343,16 @@ export const Bridge = {
   chatClaudeSessions: () => call<{ id: string; title: string; folder: string; updated: number }[]>("chat_claude_sessions"),
   /** One of them into the history: the conversation's id, to reopen. */
   chatClaudeSessionImport: (id: string) => callOrThrow<string>("chat_claude_session_import", { id }),
+  /** «Terminale» in the chat: the user's PowerShell in the project folder. */
+  terminalOpen: (folder: string | null) => callOrThrow<number>("terminal_open", { folder }),
+  terminalWrite: (id: number, line: string) => callOrThrow<void>("terminal_write", { id, line }),
+  terminalClose: (id: number) => call<void>("terminal_close", { id }),
+  /** The pull request of the project's branch and its checks, read with gh. */
+  chatPullRequest: (folder: string) => call<{ number: number; title: string; url: string; state: string; passed: number; pending: number; failed: string[] } | null>("chat_pull_request", { folder }),
+  /** «Manda alla chat» in the preview's «Modifiche»: the comments go to the chat on screen. */
+  previewToChat: (text: string) => call<void>("preview_to_chat", { text }),
+  /** Written while Claude Code answers: into the turn in progress (false: queue it). */
+  chatSteer: (sid: string, text: string) => call<boolean>("chat_steer", { sid, text }),
   /** «⟲ File»: what going back to the question after `at` lines would restore ([path, deleted]). */
   chatFilesSince: (sid: string, at: number) => call<[string, boolean][]>("chat_files_since", { sid, at }),
   chatFilesRestore: (sid: string, at: number) => callOrThrow<number>("chat_files_restore", { sid, at }),

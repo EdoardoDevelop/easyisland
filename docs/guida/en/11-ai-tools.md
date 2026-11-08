@@ -75,6 +75,12 @@ The ⚡ button in the chat header (terminal mode only) applies **to the current 
 
 **"Always" holds for the whole conversation**: a command, a site or file edits allowed with "Always" stop asking while the conversation goes on, even after a long pause.
 
+**Pull request.** In terminal mode, if the project has an open pull request and `gh` (GitHub's command line) is installed and signed in, **#12 ✓** shows next to **Project…** (or **✗ 2** with failing checks, **…** running). A click: **Open the pull request** or **Fix the failing checks**, which asks Claude to read the logs and fix them.
+
+**Comments on the changes.** In the Preview, **Changes** view, a click on a line opens a field for a comment to Claude; **Send to the chat** sends them all together and Claude fixes them, as in Claude Desktop's diff.
+
+**Separate work.** Claude can propose to start an independent piece of work in a new conversation (the card asks Allow / Deny): allowed, the conversation opens in the sidebar and goes on by itself beside yours.
+
 **Separate copy.** In **Project…**, **Separate copy (worktree)** makes a copy of the project on a branch of its own (`git worktree`, in `.claude\worktrees`), as Claude Desktop does for each session: the chat works there and does not touch the other chats' files. It needs git installed; the copy stays until you remove it (`git worktree remove`).
 
 The mode that accepts everything without any check **doesn't exist** in EasyIsland, on purpose.

@@ -452,6 +452,10 @@ export interface ChatSessionState {
   auto: boolean;
   /** Claude Code's mode in Modalità terminale besides «Automatica»: "" asks, "acceptEdits", "plan". */
   mode: string;
+  /** Claude Code's model for this conversation ("opus", "sonnet"…; null = Impostazioni). */
+  model: string | null;
+  /** Claude Code's fast mode for this conversation. */
+  fast: boolean;
   /** «Multi agent» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];
@@ -494,7 +498,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: false, mode: "", team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, auto: false, mode: "", model: null, fast: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };

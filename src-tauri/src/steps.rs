@@ -18,6 +18,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "quick_action_delete" => t("Elimina un'azione rapida"),
         "open_app" => t("Apre un programma"),
         "open_url" => t("Apre un link"),
+        "chat_start" => t("Propone una conversazione a parte"),
         "rdm_search" => t("Cerca in Remote Desktop Manager"),
         "rdm_open" => t("Apre una connessione in RDM"),
         "dvc_vaults" | "dvc_entries" | "dvc_folder_id" | "dvc_show" => t("Legge Devolutions Cloud"),

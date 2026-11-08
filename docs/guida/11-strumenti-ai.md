@@ -75,6 +75,12 @@ Il pulsante ⚡ nella testata della chat (solo con la modalità terminale) vale 
 
 **«Sempre» vale per tutta la conversazione**: un comando, un sito o le modifiche ai file consentiti con «Sempre» non chiedono più finché la conversazione continua, anche dopo una pausa lunga.
 
+**Pull request.** Con la modalità terminale, se il progetto ha una pull request aperta e `gh` (la riga di comando di GitHub) è installato e collegato, accanto a **Progetto…** compare **#12 ✓** (o **✗ 2** con i controlli che non passano, **…** in corso). Un clic: **Apri la pull request** o **Correggi i controlli che non passano**, che chiede a Claude di leggere i log e correggere.
+
+**Commenti sulle modifiche.** Nell'Anteprima, vista **Modifiche**, un clic su una riga apre un campo per un commento a Claude; **Manda alla chat** li manda tutti insieme e Claude corregge, come nel diff di Claude Desktop.
+
+**Lavori a parte.** Claude può proporre di far partire un lavoro indipendente in una nuova conversazione (la card chiede Consenti / Nega): consentito, la conversazione si apre nella barra laterale e va avanti da sola accanto alla tua.
+
 **Copia separata.** In **Progetto…**, **Copia separata (worktree)** crea una copia del progetto con un suo branch (`git worktree`, in `.claude\worktrees`), come Claude Desktop per ogni sessione: la chat lavora lì e non tocca i file delle altre chat. Serve git installato; la copia resta finché non la togli tu (`git worktree remove`).
 
 La modalità che accetta tutto senza nessun controllo **non esiste** in EasyIsland, di proposito.

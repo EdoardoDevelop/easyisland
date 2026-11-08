@@ -1387,6 +1387,42 @@ input[type="range"]::-webkit-slider-thumb {
   background: #f5b041;
 }
 
+/* «Terminale» (terminal.rs): the user's PowerShell under the conversation. */
+.chat-term {
+  margin: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.chat-term-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-2); }
+.chat-term-head span { flex: 1; }
+.chat-term-out {
+  margin: 0;
+  padding: 2px 8px;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: calc(11px + var(--fs-up, 0px));
+  color: var(--ink);
+}
+.chat-term-in {
+  margin: 4px 8px 6px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: calc(11px + var(--fs-up, 0px));
+}
+
+/* The project's pull request and its checks. */
+.pr-pick.failed { color: #f08a8a; }
+
 /* Claude Code's «Accetta modifiche» and «Piano». */
 .auto-btn.mode {
   color: var(--ink);
@@ -2018,6 +2054,24 @@ input[type="range"]::-webkit-slider-thumb {
 .md-steps > summary::before { content: "▸"; display: inline-block; width: 1.1em; }
 .md-steps[open] > summary::before { content: "▾"; }
 .md-steps > summary:hover { color: var(--ink); }
+/* What a step gave back (a command's output, a file read): closed under it. */
+.md-step-out { margin: 1px 0 3px 1.1em; }
+.md-step-out > summary {
+  width: fit-content;
+  list-style: none;
+  cursor: default;
+  font-size: calc(10.5px + var(--fs-up, 0px));
+  color: var(--dim-2);
+  opacity: 0.8;
+}
+.md-step-out > summary::-webkit-details-marker { display: none; }
+.md-step-out > summary::before { content: "▸"; display: inline-block; width: 1em; }
+.md-step-out[open] > summary::before { content: "▾"; }
+.md-step-out > summary:hover { color: var(--ink); opacity: 1; }
+.md-step-out.failed > summary { color: #f08a8a; }
+.md-step-out .md-pre { margin: 2px 0 0; }
+.md-step-out pre { max-height: 220px; overflow: auto; }
+.md-step-out code { font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: calc(10.5px + var(--fs-up, 0px)); }
 
 /* The step in progress: the same line, a little brighter (typeline.ts). */
 .type-line {

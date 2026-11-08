@@ -298,6 +298,10 @@ function csvView(f: FileView): HTMLElement {
   return h("div", { class: "pv-table-box" }, table, rows.length >= 1000 ? h("div", { class: "pv-cut", text: t("Mostrate le prime 1000 righe.") }) : null);
 }
 
+/** Comments on the lines of «Modifiche», as in Claude Desktop's diff: sent to the chat together. */
+interface LineComment { path: string; line: number; op: string; text: string; comment: string }
+let lineComments: LineComment[] = [];
+
 function changesView(f: FileView): HTMLElement {
   const all = diffLines(f.before ?? "", f.text);
   const shown = hunks(all);
@@ -307,16 +311,67 @@ function changesView(f: FileView): HTMLElement {
     return box;
   }
   const rows: string[] = [];
-  for (const l of shown) {
+  shown.forEach((l, i) => {
     if (!l) {
       rows.push(`<div class="pv-d gap"><span></span><span></span><span>⋯</span></div>`);
-      continue;
+      return;
     }
     const cls = l.op === "+" ? "add" : l.op === "-" ? "del" : "";
-    rows.push(`<div class="pv-d ${cls}"><span>${l.old || ""}</span><span>${l.new || ""}</span><span>${l.op === " " ? " " : l.op} ${escapeHtml(l.text)}</span></div>`);
-  }
+    const said = lineComments.some((c) => c.path === f.path && c.line === (l.new || l.old) && c.text === l.text);
+    rows.push(`<div class="pv-d ${cls}${said ? " said" : ""}" data-i="${i}" title="${escapeHtml(t("Clic: un commento per Claude su questa riga"))}"><span>${l.old || ""}</span><span>${l.new || ""}</span><span>${l.op === " " ? " " : l.op} ${escapeHtml(l.text)}</span></div>`);
+  });
   box.innerHTML = rows.join("");
+  // A click on a line: a field under it for the comment.
+  box.addEventListener("click", (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(".pv-d[data-i]");
+    if (!row || row.nextElementSibling?.classList.contains("pv-comment")) return;
+    const l = shown[Number(row.dataset.i)];
+    if (!l) return;
+    const field = h("input", { class: "pv-comment-input", type: "text", placeholder: t("Commento per Claude su questa riga (Invio)") }) as HTMLInputElement;
+    const wrap = h("div", { class: "pv-comment" }, field);
+    row.after(wrap);
+    field.focus();
+    const done = (keep: boolean) => {
+      const comment = field.value.trim();
+      wrap.remove();
+      if (keep && comment) {
+        lineComments.push({ path: f.path, line: l.new || l.old, op: l.op, text: l.text, comment });
+        row.classList.add("said");
+        drawCommentBar(box);
+      }
+    };
+    field.addEventListener("keydown", (k) => {
+      k.stopPropagation();
+      if (k.key === "Enter") done(true);
+      else if (k.key === "Escape") done(false);
+    });
+    field.addEventListener("blur", () => done(true));
+  });
+  drawCommentBar(box);
   return box;
+}
+
+/** Under the diff: how many comments, «Manda alla chat», ✕. */
+function drawCommentBar(box: HTMLElement) {
+  box.parentElement?.querySelector(".pv-comment-bar")?.remove();
+  box.querySelector(".pv-comment-bar")?.remove();
+  if (!lineComments.length) return;
+  const send = h("button", { class: "pv-btn", text: t("Manda alla chat") });
+  send.addEventListener("click", () => {
+    const lines = lineComments.map((c) => `- ${c.path}:${c.line} (${c.op === "+" ? t("aggiunta") : c.op === "-" ? t("tolta") : t("invariata")}) \`${c.text.trim().slice(0, 160)}\`: ${c.comment}`);
+    const text = `${t("Commenti sulle tue modifiche, correggi di conseguenza:")}\n${lines.join("\n")}`;
+    void Bridge.previewToChat(text);
+    lineComments = [];
+    box.querySelectorAll(".pv-d.said").forEach((r) => r.classList.remove("said"));
+    drawCommentBar(box);
+  });
+  const drop = h("button", { class: "pv-btn", text: "✕", title: t("Togli i commenti") });
+  drop.addEventListener("click", () => {
+    lineComments = [];
+    box.querySelectorAll(".pv-d.said").forEach((r) => r.classList.remove("said"));
+    drawCommentBar(box);
+  });
+  box.prepend(h("div", { class: "pv-comment-bar" }, h("span", { text: t("{n} commenti per Claude", { n: lineComments.length }) }), send, drop));
 }
 
 function drawEmpty(): void {

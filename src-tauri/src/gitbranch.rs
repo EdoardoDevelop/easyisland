@@ -70,6 +70,57 @@ pub fn new_worktree(folder: &Path) -> Result<std::path::PathBuf, String> {
     Ok(path)
 }
 
+/// The pull request of the project's branch and its checks, as Claude Desktop
+/// shows them: read with GitHub's own `gh` (installed and signed in by the
+/// user; nothing else is contacted). None without gh, a PR or an answer in time.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PullRequest {
+    pub number: u64,
+    pub title: String,
+    pub url: String,
+    /// OPEN, MERGED, CLOSED.
+    pub state: String,
+    pub passed: usize,
+    pub pending: usize,
+    /// The checks that failed, by name.
+    pub failed: Vec<String>,
+}
+
+pub fn pull_request(folder: &Path) -> Option<PullRequest> {
+    #[cfg(windows)]
+    use std::os::windows::process::CommandExt;
+    repo_root(folder).or_else(|| folder.ancestors().find(|d| d.join(".git").is_file()).map(Path::to_path_buf))?;
+    let mut cmd = std::process::Command::new("gh");
+    cmd.current_dir(folder).args(["pr", "view", "--json", "number,title,url,state,statusCheckRollup"]).stdin(std::process::Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000);
+    let out = cmd.output().ok().filter(|o| o.status.success())?;
+    parse_pr(&String::from_utf8_lossy(&out.stdout))
+}
+
+fn parse_pr(json: &str) -> Option<PullRequest> {
+    use serde_json::Value;
+    let v: Value = serde_json::from_str(json.trim()).ok()?;
+    let s = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let (mut passed, mut pending, mut failed) = (0, 0, Vec::new());
+    for c in v.get("statusCheckRollup").and_then(Value::as_array).into_iter().flatten() {
+        // A check run (conclusion once completed) or a commit status (state).
+        let name = Some(s(c, "name")).filter(|n| !n.is_empty()).unwrap_or_else(|| s(c, "context"));
+        let verdict = if s(c, "__typename") == "StatusContext" { s(c, "state") } else if s(c, "status") == "COMPLETED" { s(c, "conclusion") } else { "PENDING".into() };
+        match verdict.as_str() {
+            "SUCCESS" | "NEUTRAL" | "SKIPPED" => passed += 1,
+            "FAILURE" | "ERROR" | "CANCELLED" | "TIMED_OUT" | "ACTION_REQUIRED" | "STARTUP_FAILURE" => {
+                if !failed.contains(&name) {
+                    failed.push(name);
+                }
+            }
+            _ => pending += 1,
+        }
+    }
+    Some(PullRequest { number: v.get("number").and_then(Value::as_u64)?, title: s(&v, "title"), url: s(&v, "url"), state: s(&v, "state"), passed, pending, failed })
+}
+
 fn radix36(mut n: u64) -> String {
     const D: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
     let mut out = Vec::new();
@@ -106,6 +157,17 @@ mod tests {
         assert!(fs::read_to_string(root.join(".git/info/exclude")).unwrap().contains(".claude/worktrees/"));
         git(&["worktree", "remove", "--force", &tree.display().to_string()]);
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn reads_a_pull_request_and_its_checks() {
+        let pr = parse_pr(r#"{"number":12,"title":"Prova","url":"https://github.com/a/b/pull/12","state":"OPEN","statusCheckRollup":[
+            {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS"},
+            {"__typename":"CheckRun","name":"test","status":"COMPLETED","conclusion":"FAILURE"},
+            {"__typename":"CheckRun","name":"lint","status":"IN_PROGRESS","conclusion":""},
+            {"__typename":"StatusContext","context":"ci/x","state":"ERROR"}]}"#).unwrap();
+        assert_eq!((pr.number, pr.passed, pr.pending), (12, 1, 1));
+        assert_eq!(pr.failed, vec!["test".to_string(), "ci/x".to_string()]);
     }
 
     #[test]

@@ -63,7 +63,21 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
     } else out.push(...run);
     run = [];
   };
+  const blocksOut = (b: HTMLElement) => {
+    flush();
+    out.push(b);
+  };
   for (const b of blocks) {
+    // A step's output (claude_cli.rs `result_block`): folded inside its step, as Claude Desktop opens a step.
+    const lang = b.classList.contains("md-pre") ? b.querySelector(".md-lang")?.textContent ?? "" : "";
+    if (lang === "esito" || lang === "errore") {
+      const out = h("details", { class: `md-step-out${lang === "errore" ? " failed" : ""}` },
+        h("summary", { text: lang === "errore" ? t("Errore") : t("Esito") }), b);
+      const step = run[run.length - 1];
+      if (step) step.append(out);
+      else blocksOut(out);
+      continue;
+    }
     if (b.tagName === "BLOCKQUOTE" && /^(⚙|💭)/u.test(b.textContent ?? "")) {
       b.classList.add("md-step");
       run.push(b);

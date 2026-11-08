@@ -315,6 +315,37 @@ export function buildPrompt(
   /** Each project's git branch, as last read, and what that read was for. */
   const branches = new Map<string, string>();
   let branchRead = "";
+  /** The project's open pull request and its checks (gh), as Claude Desktop shows them; read at most every 60 s. */
+  type PullRequest = { number: number; title: string; url: string; state: string; passed: number; pending: number; failed: string[] };
+  const prs = new Map<string, { pr: PullRequest | null; at: number }>();
+  const prBtn = h("button", { class: "engine-pick pr-pick" }) as HTMLButtonElement;
+  prBtn.style.display = "none";
+  prBtn.addEventListener("click", () => {
+    const folder = State.chat.folder;
+    const pr = folder ? prs.get(folder)?.pr : null;
+    if (!pr) return;
+    if (engineMenu.style.display !== "none") {
+      engineMenu.style.display = "none";
+      return;
+    }
+    clear(engineMenu);
+    engineMenu.append(h("div", { class: "engine-head", text: `#${pr.number} ${pr.title}` }));
+    engineMenu.append(h("button", { class: "engine-item", text: t("Apri la pull request"), onclick: () => { engineMenu.style.display = "none"; void Bridge.openUrl(pr.url); } }));
+    if (pr.failed.length) {
+      engineMenu.append(h("button", {
+        class: "engine-item", text: t("Correggi i controlli che non passano"),
+        onclick: () => {
+          engineMenu.style.display = "none";
+          const ask = t("I controlli della pull request #{n} non passano: {names}. Leggi i log con `gh pr checks {n}` e `gh run view --log-failed`, trova la causa e correggi.", { n: pr.number, names: pr.failed.join(", ") });
+          if (State.chat.sending) State.chat.queue.push(ask);
+          else void submit(ask, State.chat);
+          State.notify();
+        },
+      }));
+    }
+    engineMenu.append(h("div", { class: "engine-note", text: t("Controlli: {ok} riusciti, {ko} non riusciti, {wait} in corso. Letti con gh ogni minuto al massimo.", { ok: pr.passed, ko: pr.failed.length, wait: pr.pending }) }));
+    engineMenu.style.display = "";
+  });
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
   // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
@@ -339,7 +370,19 @@ export function buildPrompt(
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, previewBtn, desktopBtn, exportBtn, popBtn);
+  // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
+  const termBtn = h("button", { class: "history-btn", text: ">_", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }) as HTMLButtonElement;
+  const termOut = h("pre", { class: "chat-term-out" });
+  const termIn = h("input", { class: "chat-term-in", type: "text", spellcheck: "false", placeholder: t("Comando (Invio). Per editor e password usa Terminale di Windows.") }) as HTMLInputElement;
+  const termRow = h("div", { class: "chat-term" },
+    h("div", { class: "chat-term-head" }, h("span", { text: t("Terminale") }),
+      h("button", { class: "chat-queued-btn", text: t("Riavvia"), title: t("Chiude questo PowerShell (anche un comando bloccato) e ne apre un altro"), onclick: () => void restartTerminal() }),
+      h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiudi il terminale"), onclick: () => closeTerminal() })),
+    termOut, termIn);
+  termRow.style.display = "none";
+  /** One PowerShell per conversation, with what it printed. */
+  const terms = new Map<string, { id: number; lines: string[] }>();
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, previewBtn, desktopBtn, exportBtn, popBtn);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -400,7 +443,7 @@ export function buildPrompt(
   // Two rows: the text on the whole width, under it what goes with the message.
   const contextPct = h("span", { class: "ctx-pct" });
   const contextMeter = h("span", { class: "ctx-meter" }, h("span", { class: "ctx-ring" }), contextPct);
-  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
+  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, prBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
   const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
@@ -464,7 +507,7 @@ export function buildPrompt(
   const bgRow = h("div", { class: "chat-queue chat-bg" });
   bgRow.style.display = "none";
   let bgKey = "";
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, slashMenu, bar));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
   const el = h(
     "div",
     { class: "view" },
@@ -675,10 +718,12 @@ export function buildPrompt(
           return { text: r.text, log: null, context: null };
         })
         : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
-          State.settings.chatTerminal === true && !c.auto ? c.mode : "");
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
       if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
+      const note = (reply as { note?: string | null }).note;
+      if (note && c === State.chat) flash(note);
       c.context = reply.context ?? null;
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
@@ -729,8 +774,23 @@ export function buildPrompt(
     const c = State.chat;
     const text = input.value.trim();
     if (!text) return;
-    c.queue.push(text);
     setInput("");
+    // Claude Code takes it into the turn it is in, between two steps (as in Claude Desktop); else the queue.
+    if (c.sending && !c.session && !c.team && engineOf(c) === "subscription") {
+      void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
+        const question = [...c.history].reverse().find((m) => m.role === "user");
+        if (ok && c.sending && question) {
+          question.content += `\n\n↪ ${text}`;
+          renderedCount = -1;
+          flash(t("Aggiunto al lavoro in corso: Claude ne tiene conto subito."));
+        } else c.queue.push(text);
+        Sound.play("blip");
+        State.notify();
+        onHeightChange();
+      });
+      return;
+    }
+    c.queue.push(text);
     Sound.play("blip");
     State.notify();
     onHeightChange();
@@ -1213,6 +1273,8 @@ export function buildPrompt(
       c.engineOverride = null;
       c.auto = false;
       c.mode = "";
+      c.model = null;
+      c.fast = false;
       c.team = false;
       c.desktop = false;
       c.assistant = null;
@@ -1572,6 +1634,21 @@ export function buildPrompt(
         }));
       }
       engineMenu.append(h("div", { class: "engine-note", text: t("Più impegno: risposte più ragionate, ma più lente e più consumo. Vale da subito, anche a metà conversazione.") }));
+      // The model for this conversation, as Claude Desktop's picker: the session goes on with it.
+      const model = State.chat.model ?? "";
+      engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Claude") }));
+      for (const [id, label] of [["", t("Quello delle Impostazioni")], ["fable", "Fable"], ["opus", "Opus"], ["sonnet", "Sonnet"], ["haiku", "Haiku"]] as [string, string][]) {
+        engineMenu.append(h("button", {
+          class: `engine-item${id === model ? " on" : ""}`, text: label,
+          onclick: () => { State.chat.model = id || null; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+        }));
+      }
+      engineMenu.append(h("button", {
+        class: `engine-item${State.chat.fast ? " on" : ""}`, title: t("Risposte più rapide con lo stesso modello; costa di più e richiede l'uso extra sull'account Claude"),
+        text: `${State.chat.fast ? "✓ " : ""}${t("Fast mode")}`,
+        onclick: () => { State.chat.fast = !State.chat.fast; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+      }));
+      engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
     engineMenu.style.display = "";
   }
@@ -2052,6 +2129,8 @@ export function buildPrompt(
       c.folder = got.folder || null;
       c.auto = false;
       c.mode = "";
+      c.model = null;
+      c.fast = false;
       c.team = false;
       c.desktop = false;
       c.at = Date.now();
@@ -2126,6 +2205,81 @@ export function buildPrompt(
     if (!c?.sending) return;
     c.streamed = p.text;
     if (c === State.chat) State.notify();
+  });
+  function drawTerminal() {
+    const term = terms.get(State.chat.sid);
+    termRow.style.display = term ? "" : "none";
+    termBtn.classList.toggle("on", !!term);
+    termOut.textContent = term ? term.lines.join("\n") : "";
+    termOut.scrollTop = termOut.scrollHeight;
+    onHeightChange();
+  }
+  async function openTerminal() {
+    const c = State.chat;
+    try {
+      const id = await Bridge.terminalOpen(c.folder ?? (State.settings.chatFolder || null));
+      terms.set(c.sid, { id, lines: [] });
+      drawTerminal();
+      termIn.focus();
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+  function closeTerminal() {
+    const term = terms.get(State.chat.sid);
+    if (term) void Bridge.terminalClose(term.id);
+    terms.delete(State.chat.sid);
+    drawTerminal();
+    input.focus();
+  }
+  async function restartTerminal() {
+    closeTerminal();
+    await openTerminal();
+  }
+  termBtn.addEventListener("click", () => {
+    if (terms.has(State.chat.sid)) closeTerminal();
+    else void openTerminal();
+  });
+  termIn.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if ((e as KeyboardEvent).key !== "Enter") return;
+    const term = terms.get(State.chat.sid);
+    const line = termIn.value;
+    termIn.value = "";
+    if (!term) return;
+    term.lines.push(`> ${line}`);
+    drawTerminal();
+    void Bridge.terminalWrite(term.id, line).catch((err) => { term.lines.push(String(err).replace(/^Error:\s*/, "")); drawTerminal(); });
+  });
+  void onEvent<{ id: number; text: string; error?: boolean }>("terminal-out", (p) => {
+    for (const term of terms.values()) {
+      if (term.id !== p.id) continue;
+      term.lines.push(p.text);
+      // The last 2000 lines.
+      if (term.lines.length > 2000) term.lines.splice(0, term.lines.length - 2000);
+      if (terms.get(State.chat.sid) === term) drawTerminal();
+    }
+  });
+  // A piece of work Claude proposed and the user allowed (agent.rs chat_start): a conversation of its own, beside this one.
+  void onEvent<{ title: string; prompt: string; folder?: string | null }>("chat-new", (p) => {
+    if (!p.prompt?.trim()) return;
+    const here = State.chat;
+    const c = newChatSession();
+    c.folder = p.folder || here.folder;
+    c.engineOverride = here.engineOverride;
+    State.chats.push(c);
+    void submit(p.prompt, c);
+    flash(t("Nuova conversazione a parte: «{title}». La trovi nella barra laterale.", { title: p.title || p.prompt.slice(0, 40) }));
+    State.notify();
+  });
+  // Comments on the lines of «Modifiche» (preview window): a message of the chat on screen.
+  void onEvent<{ text: string }>("preview-chat", (p) => {
+    if (!p.text?.trim()) return;
+    const c = State.chat;
+    if (c.sending) {
+      setInput(p.text);
+      enqueue();
+    } else void submit(p.text, c);
   });
   // The list of the work left in the background, as it changes.
   void onEvent<{ sid?: string; tasks: BgTask[] }>("chat-background", (p) => {
@@ -2374,6 +2528,24 @@ export function buildPrompt(
         });
       }
       branchRead = branchKey;
+      // Its pull request: when a reply ends and the project shows, at most every 60 s.
+      if (ownFolder && !sending && State.settings.chatTerminal === true && Date.now() - (prs.get(ownFolder)?.at ?? 0) > 60_000) {
+        const folder = ownFolder;
+        prs.set(folder, { pr: prs.get(folder)?.pr ?? null, at: Date.now() });
+        void Promise.resolve(Bridge.chatPullRequest(folder)).then((pr) => {
+          prs.set(folder, { pr: pr && pr.state === "OPEN" ? pr : null, at: Date.now() });
+          State.notify();
+        });
+      }
+      const pr = ownFolder && State.settings.chatTerminal === true ? prs.get(ownFolder)?.pr ?? null : null;
+      prBtn.style.display = pr ? "" : "none";
+      if (pr) {
+        const mark = pr.failed.length ? `✗ ${pr.failed.length}` : pr.pending ? "…" : "✓";
+        const label = `#${pr.number} ${mark}`;
+        if (prBtn.textContent !== label) prBtn.textContent = label;
+        prBtn.classList.toggle("failed", pr.failed.length > 0);
+        prBtn.title = `${pr.title}\n${t("Controlli: {ok} riusciti, {ko} non riusciti, {wait} in corso.", { ok: pr.passed, ko: pr.failed.length, wait: pr.pending })}`;
+      }
       const branch = ownFolder ? branches.get(ownFolder) ?? "" : "";
       const [ctxUsed, ctxSize] = State.chat.context ?? [0, 0];
       const ctxShare = ctxSize ? Math.min(100, Math.round(ctxUsed / ctxSize * 100)) : 0;

@@ -382,6 +382,17 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok("Aperta in Remote Desktop Manager.".into())
         }
 
+        // A piece of work in a conversation of its own (allowed on its card): the chat opens it and sends the prompt.
+        "chat_start" => {
+            let (title, prompt) = (arg(args, "title").trim(), arg(args, "prompt").trim());
+            if prompt.is_empty() {
+                return Err("Servono le istruzioni (prompt).".into());
+            }
+            let folder = Some(arg(args, "folder").trim()).filter(|f| !f.is_empty() && std::path::Path::new(f).is_dir());
+            let _ = app.emit_to(WINDOW_LABEL, "chat-new", json!({ "title": title.chars().take(80).collect::<String>(), "prompt": prompt, "folder": folder }));
+            Ok(format!("Avviata la conversazione «{title}»: va avanti da sola nella chat dell'isola."))
+        }
+
         "open_url" => {
             let url = arg(args, "url");
             if !(url.starts_with("https://") || url.starts_with("http://")) {
