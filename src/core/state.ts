@@ -1265,6 +1265,10 @@ export interface Theme {
   slimeColor: string;
   islandColor: string;
   islandOpacity: number;
+  /** The views' cards over the island, 0–1 (below 1 the island's colour shows through; 0.25 by default). */
+  cardOpacity: number;
+  /** The chat's look: "cards" (panels as cards, the field floating; default) or "classic". */
+  chatLook?: string;
   /** Volume multipliers per sound family, 0–1. */
   volumeAlerts: number;
   volumeUi: number;
@@ -1303,6 +1307,8 @@ export const DEFAULT_THEME: Theme = {
   slimeColor: "",
   islandColor: "#000000",
   islandOpacity: 1,
+  cardOpacity: 0.25,
+  chatLook: "cards",
   volumeAlerts: 1,
   volumeUi: 1,
   volumeEmotes: 1,

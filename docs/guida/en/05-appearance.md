@@ -12,6 +12,8 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 - **Style**: **Windows 11** (default: like system apps, with **Windows' accent colour** and line icons) or **Classic** (the original look with coloured icons).
 - **Mode**: **Dark** (default), **Light** or **Automatic (like Windows)**, which follows Windows' app mode (Windows Settings → Personalization → Colors) and switches by itself when you change it there. It applies to both styles, to the island and to the Settings window.
 - **Island colour** and **opacity**: "The theme's" is Windows' grey or the Classic black, their light counterpart in light mode; a colour you pick stays yours.
+- **Chat look**: **Cards** (the default) puts conversations, chat, terminal and Preview in separate cards on the island's colour, with the field floating over the conversation and what you write on the right in a soft bubble, without bold. Every piece shares the same measures (spacing, corners, text sizes) and a single accent colour, the send button; **Classic** is the look from before.
+- **Card opacity**: the panels inside the island, such as the chat. Lower, the more the island's colour shows and the darker they are (25% by default); to darken further pick a darker island colour.
 - **Background when closed**: off, only the character stays.
 
 ## Font

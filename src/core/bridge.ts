@@ -196,7 +196,8 @@ export const Bridge = {
   /** The window the open island needs, logical px (island.rs `set_panel_size`). */
   setPanelSize: (width: number, height: number) => call<void>("set_panel_size", { width, height }),
   /** The largest the window may be on the island's screen: [width, height], logical px. */
-  panelLimits: () => call<[number, number]>("panel_limits"),
+  // `npm run dev` with `?wide`: the browser window is the work area (a big island to look at).
+  panelLimits: () => (!IS_TAURI && new URLSearchParams(location.search).has("wide") ? Promise.resolve([innerWidth, innerHeight] as [number, number]) : call<[number, number]>("panel_limits")),
 
   /** "Copia info PC": the text it put on the clipboard. */
   copyPcInfo: () => callOrThrow<string>("copy_pc_info"),

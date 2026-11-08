@@ -4758,5 +4758,9 @@
   "Propone una conversazione a parte": "Proposes a separate conversation",
   "PowerShell non si avvia.": "PowerShell does not start.",
   "[PowerShell si è chiuso]": "[PowerShell closed]",
-  "Il terminale si è chiuso: aprine un altro.": "The terminal closed: open another one."
+  "Il terminale si è chiuso: aprine un altro.": "The terminal closed: open another one.",
+  "Opacità delle card": "Card opacity",
+  "i pannelli dentro l'isola, come la chat: più bassa, più si vede il colore dell'isola e più sono scuri (o chiari, in modalità chiara); per scurire ancora scegli un colore dell'isola più scuro": "the panels inside the island, such as the chat: lower, the more the island's colour shows and the darker they are (or lighter, in light mode); to darken further pick a darker island colour",
+  "Aspetto della chat": "Chat look",
+  "a schede: conversazioni, chat e terminale come schede separate e il campo che galleggia; classico: come prima": "cards: conversations, chat and terminal as separate cards and a floating field; classic: as before"
 }

@@ -12,6 +12,8 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 - **Stile**: **Windows 11** (predefinito: come le app di sistema, con il **colore d'accento di Windows** e icone a linea) o **Classico** (l'aspetto originale con le icone colorate).
 - **Modalità**: **Scura** (predefinita), **Chiara** o **Automatica (come Windows)**, che segue la modalità delle app di Windows (Impostazioni di Windows → Personalizzazione → Colori) e cambia da sola quando la cambi lì. Vale per entrambi gli stili, per l'isola e per la finestra delle Impostazioni.
 - **Colore** e **opacità dell'isola**: «Quello del tema» è il grigio di Windows o il nero del Classico, in chiaro il loro equivalente chiaro; un colore scelto da te resta quello.
+- **Aspetto della chat**: **A schede** (di serie) mette conversazioni, chat, terminale e Anteprima in schede separate sul colore dell'isola, con il campo che galleggia sopra la conversazione e quello che scrivi a destra in un fumetto leggero, senza grassetto. Tutti i pezzi usano le stesse misure (spazi, angoli, grandezze del testo) e un solo colore d'accento, il pulsante di invio; **Classico** è l'aspetto di prima.
+- **Opacità delle card**: i pannelli dentro l'isola, come la chat. Più bassa, più si vede il colore dell'isola e più sono scuri (di serie 25%); per scurire ancora scegli un colore dell'isola più scuro.
 - **Sfondo a isola chiusa**: spento, resta solo il personaggio.
 
 ## Font

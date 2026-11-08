@@ -426,7 +426,8 @@ html.browser-preview #root {
   position: relative;
   height: 100%;
   border-radius: 20px;
-  background: var(--card);
+  /* Opacità delle card (Impostazioni → Aspetto): the island's colour through it. */
+  background: color-mix(in srgb, var(--card) calc(var(--card-alpha, 0.25) * 100%), transparent);
   border: 1px solid var(--hairline);
   overflow: hidden;
 }

@@ -48,6 +48,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 8/11 — Chat «a schede»
+Aspetto di serie della chat (`theme.chatLook` = `cards`, «Classico» in Impostazioni → Aspetto → Tema) con «Opacità delle card» (`theme.cardOpacity`): schede sul colore dell'isola, campo che galleggia, domande a destra in un fumetto leggero, nessun grassetto. Dopo una revisione del design, misure comuni in `src/chat-cards.css` (spazi, raggi, tre grandezze di testo, un solo accento sull'invio; `docs/architettura.md` → Aspetto della chat).
+
 ### 8/11 — Dal portatile: meno token, niente domande perse, niente password su disco
 Analisi di 41 chat, log e sessioni di Claude Code del portatile (`docs/chat.md`). PDF senza intestazioni e piè ripetuti, cartelle senza righe già date (-13 % sui 62 PDF delle offerte), `MAX_MCP_OUTPUT_TOKENS` a 50.000, sotto-agenti di sola lettura su Sonnet e strumenti di EasyIsland al posto dei comandi (prompt), Read/Grep/Glob senza card. Domanda in cronologia appena mandata (`chat_log::begin`), password mascherate in cronologia e memoria (`redact.rs`, una pulizia all'avvio), note doppie rifiutate, opencode in pausa a credito finito. Poi `/compatta` (Claude Code: il suo `/compact` con «da X a Y token»; altri motori: riassunto e ripartenza) e anello del contesto anche dopo i lavori in background (mancava). Conversazioni di Claude Code riaperte dalla cronologia: stessa sessione con tutto il contesto e anello subito, come Claude Desktop (`chat_log` `session`, `desktop::session_in`/`last_context`). Poi pari a Desktop: «Sempre» per tutta la sessione, Modifica/Rigenera/Dirama nella stessa sessione (`--resume-session-at`), Accetta modifiche e Piano, comandi di Claude Code nel menu «/», sessioni del terminale in cronologia, ⟲ File (`checkpoints.rs`), lista delle attività, copia separata (worktree). Poi: esiti dei passi e passi dei sotto-agenti, modello e fast mode per conversazione, messaggi a metà turno, ⟲ File su disco, commenti sul diff, PR e controlli con gh, lavori a parte proposti da Claude (`chat_start`), terminale (`terminal.rs`). Il cloud no (vedi `docs/chat.md`). Da provare sul portatile.
 
@@ -59,6 +62,3 @@ Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro ri
 
 ### 7/11 — Documenti Word e PDF nella chat
 `document_read`, `document_templates`, `document_template_add`, `document_create`, `document_pdf` (`docx.rs`, `ooxzip.rs`, `pdftext.rs`, `documents.rs`): ZIP e lettore PDF scritti in casa, nessuna dipendenza nuova (`flate2`, `crc32fast` erano già nell'albero). Modelli in `documenti\modelli`, segnaposto anche spezzati fra run, totali e numero calcolati dall'app, PDF con Word. Testo dei PDF e dei Word anche ai motori via API e a «da-leggere». Provato con Word e file veri; manca la prova dalla chat dell'app.
-
-### 7/11 — Agent Chat: motori con più contesto
-Cartella del progetto, conversazione che continua (60 min, 20 turni), messaggio intero, un incarico che ripete l'owner non apre un secondo turno (`docs/integrazioni.md`). Da provare con turni veri.
