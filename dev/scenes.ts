@@ -255,6 +255,18 @@ export async function runScene(island: Island, scene: string) {
           { id: 2, role: "assistant", content: "È il file delle impostazioni di **Windows Terminal**." },
         ];
       }
+      // ?background: work Claude Code left running (claude_cli.rs follow), listed under the conversation.
+      if (new URLSearchParams(location.search).has("background")) {
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Analizza tutte le offerte in C:\\Users\\Edoardo\\OneDrive\\WORK\\Offerte PDF e aggiorna i clienti in memoria." },
+          { id: 2, role: "assistant", content: "> ⚙ Legge · `Offerte PDF`\n\n> ⚙ Sotto-agente · `Riassumi offerte gruppo 1`\n\n> ⚙ Sotto-agente · `Riassumi offerte gruppo 2`\n\nSono 62 offerte: le leggono due agenti in parallelo. Quando finiscono aggiorno la pagina «Clienti Easytech» e ti scrivo qui." },
+        ];
+        State.chat.background = [
+          { id: "a538bd76", kind: "local_agent", description: "Riassumi offerte gruppo 1" },
+          { id: "a9cb7fb4", kind: "local_agent", description: "Riassumi offerte gruppo 2" },
+          { id: "be7uhb2w", kind: "local_bash", description: "Estrae il testo dei PDF in una cartella temporanea" },
+        ];
+      }
       // ?history: the sidebar with earlier conversations; three of them open:
       // the one on screen, one answering in the background, one answered while away.
       if (new URLSearchParams(location.search).has("history")) {
@@ -1159,6 +1171,21 @@ export async function runScene(island: Island, scene: string) {
           rows: [{ descrizione: "Assistenza", quantita: 3, prezzo: 45 }, { descrizione: "Switch 8 porte", prezzo: 60 }],
           pdf: true,
           folder: "%USERPROFILE%\\OneDrive - Easytech SRL\\WORK\\Preventivi",
+        },
+      });
+      break;
+    }
+    case "pdf": {
+      // The chat asks to merge PDFs (pdfpages.rs): Consenti / Nega.
+      await wait(300);
+      handleHook(island, {
+        hook_event_name: "PermissionRequest",
+        easyisland_chat: true,
+        request_id: "pdf-1",
+        tool_name: "mcp__easyisland__pdf_merge",
+        tool_input: {
+          files: ["Preventivo Farmacia Rossi.pdf", { path: "Condizioni generali.pdf", pages: "1-2" }, "Schede tecniche.docx"],
+          filename: "Offerta Farmacia Rossi",
         },
       });
       break;

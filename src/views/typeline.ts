@@ -40,9 +40,11 @@ function wholeSentence(line: string): string | undefined {
  * until the next one pushes it up among the others. `status` undefined:
  * reasoning with no whole sentence in it, nothing new to say.
  */
-export function splitStatus(text: string): { body: string; status?: string } {
+export function splitStatus(text: string): { body: string; status?: string | null } {
   const at = text.lastIndexOf("\n\n");
   const last = text.slice(at < 0 ? 0 : at + 2);
+  // Reasoning whose text Claude Code does not send: the waiting phrases.
+  if (last.trim() === "> 💭") return { body: at < 0 ? "" : text.slice(0, at), status: null };
   if (!/^> (⚙|💭)/u.test(last)) return { body: text, status: "" };
   const status = last.replace(/^> /, "").replace(/`/g, "").replace(/^💭 _(.*)_$/su, "💭 $1").replace(/\s+/g, " ").trim();
   return { body: at < 0 ? "" : text.slice(0, at), status: status.startsWith("💭") ? wholeSentence(status) : status };

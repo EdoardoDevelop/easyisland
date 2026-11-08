@@ -682,8 +682,8 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "document_read",
-            "Legge il testo di un documento Word (.docx, .dotx) o PDF: intestazione, titoli, elenchi, tabelle in Markdown, piè di pagina; nei PDF il testo pagina per pagina (le scansioni senza testo non si leggono, i PDF cifrati nemmeno). path: percorso completo, nome di un file del Vassoio o percorso nella cartella di lavoro.",
-            json!({ "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"] }),
+            "Legge il testo di un documento Word (.docx, .dotx) o PDF: intestazione, titoli, elenchi, tabelle in Markdown, piè di pagina; nei PDF il testo pagina per pagina (le scansioni senza testo non si leggono, i PDF cifrati nemmeno). path: percorso completo, nome di un file del Vassoio o percorso nella cartella di lavoro. Una cartella: tutti i suoi Word e PDF (anche in due livelli di sottocartelle), con nome, data di modifica e testo (25.000 caratteri al massimo l'uno), a pagine di circa 120.000 caratteri: la risposta dice con quale start continuare. Per tanti documenti è il modo più rapido ed economico; più agenti possono leggere pagine diverse insieme.",
+            json!({ "type": "object", "properties": { "path": { "type": "string" }, "start": { "type": "integer" } }, "required": ["path"] }),
             true,
         ),
         (
@@ -703,7 +703,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "document_create",
-            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]: la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
+            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*; un'immagine PNG, JPEG o GIF su una riga da sola: ![didascalia](percorso, nome di un file del Vassoio o della cartella di lavoro), larga al massimo quanto la pagina, ![didascalia|5cm](…) per la larghezza), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]: la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "template": { "type": "string" },
                 "title": { "type": "string" },
@@ -726,6 +726,30 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             "Trasforma un documento di Word (.docx, .doc, .rtf, .odt) in PDF con Word, se è installato: un file nuovo, l'originale resta. path: percorso, nome di un file del Vassoio o percorso nella cartella di lavoro; filename e folder come in document_create. Il PDF va nel Vassoio. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "path": { "type": "string" },
+                "filename": { "type": "string" },
+                "folder": { "type": "string" }
+            }, "required": ["path"] }),
+            false,
+        ),
+        (
+            "pdf_merge",
+            "Unisce PDF in un file nuovo, nell'ordine dato; serve anche a estrarre pagine (un solo file con pages) o a riordinarle. files: [percorso] oppure [{ path, pages }]: percorso, nome di un file del Vassoio o percorso nella cartella di lavoro; un documento di Word diventa PDF con Word. pages: \"1-3, 5, 8-\", \"ultima\", \"3-1\" al contrario; tutte se manca. filename e folder come in document_create. Gli originali restano; campi dei moduli e segnalibri non vengono copiati. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "files": { "type": "array", "items": { "anyOf": [
+                    { "type": "string" },
+                    { "type": "object", "properties": { "path": { "type": "string" }, "pages": { "type": "string" } }, "required": ["path"] }
+                ] } },
+                "filename": { "type": "string" },
+                "folder": { "type": "string" }
+            }, "required": ["files"] }),
+            false,
+        ),
+        (
+            "pdf_split",
+            "Divide un PDF in file nuovi: ranges, un file per voce (es. [\"1-2\", \"3-5\", \"6-\"]); se manca, un file per pagina (al massimo 200). path come in pdf_merge; filename: la base del nome (predefinito il nome del PDF, poi \" p1-2\"); folder come in document_create. L'originale resta. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "path": { "type": "string" },
+                "ranges": { "type": "array", "items": { "type": "string" } },
                 "filename": { "type": "string" },
                 "folder": { "type": "string" }
             }, "required": ["path"] }),

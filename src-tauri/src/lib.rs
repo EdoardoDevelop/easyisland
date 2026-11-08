@@ -120,6 +120,7 @@ mod zip;
 mod docx;
 mod documents;
 mod ooxzip;
+mod pdfpages;
 mod pdftext;
 mod win_user;
 mod window_drop;
@@ -1312,9 +1313,41 @@ async fn chat_send(
     auto: Option<bool>,
     folder: Option<String>,
     team: Option<bool>,
+    effort: Option<String>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
     chat.set_folder(folder);
+    // The effort picked in the chat, else the last one picked (Impostazioni keeps it).
+    let fallback = app.state::<Shared>().settings.lock().unwrap().cli_effort.clone();
+    chat.set_effort(effort.filter(|e| !e.is_empty()).or(Some(fallback)));
+    // Work Claude Code leaves in the background (claude_cli::follow): its list
+    // under the conversation, its answers in it when they come, with a notice.
+    {
+        let (app2, sid2, weak) = (app.clone(), sid.clone(), std::sync::Arc::downgrade(&chat));
+        chat.set_later(std::sync::Arc::new(move |text: String| {
+            if let Some(c) = weak.upgrade() {
+                chat_log::later(&c, &text);
+            }
+            let _ = app2.emit_to(island::WINDOW_LABEL, "chat-later", serde_json::json!({ "sid": sid2, "text": text }));
+            // The island says so even when closed.
+            let first: String = text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('>')).unwrap_or_default().chars().take(300).collect();
+            let _ = app2.emit_to(island::WINDOW_LABEL, "hook", serde_json::json!({
+                "hook_event_name": "EasyIslandNotify",
+                "title": t("La chat ha un aggiornamento"),
+                "text": first,
+                "level": "ok",
+                "url": "",
+            }));
+        }));
+        let (app3, sid3) = (app.clone(), sid.clone());
+        chat.set_on_tasks(std::sync::Arc::new(move |tasks: &[claude::BgTask]| {
+            let _ = app3.emit_to(island::WINDOW_LABEL, "chat-background", serde_json::json!({ "sid": sid3, "tasks": tasks }));
+        }));
+        let (app4, sid4) = (app.clone(), sid.clone());
+        chat.set_on_working(std::sync::Arc::new(move |w: Option<&str>| {
+            let _ = app4.emit_to(island::WINDOW_LABEL, "chat-working", serde_json::json!({ "sid": sid4, "text": w }));
+        }));
+    }
     let on_text = |text: &str| {
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
@@ -1460,6 +1493,8 @@ fn chat_stop(chats: State<'_, Chats>, sid: String) {
     log::line("chat: turno fermato");
     if let Some(c) = chats.find(&sid) {
         c.stop.notify_waiters();
+        // Also what it left in the background (claude_cli::follow).
+        claude_cli::stop_background(std::sync::Arc::as_ptr(&c) as usize);
     }
 }
 
@@ -1497,6 +1532,10 @@ pub(crate) async fn chat_turn(
     // Permissions go to Telegram only for its turns; a task asks on the island.
     let telegram = channel == Channel::Telegram;
     let shared = app.state::<Shared>();
+    // Telegram, tasks, helpers: the effort last picked in the chat (chat_send sets its own).
+    if chat.effort().is_none() {
+        chat.set_effort(Some(shared.settings.lock().unwrap().cli_effort.clone()));
+    }
     // Agent Chat with «Letture libere»: opencode reads outside its folder and runs
     // read-only commands without the island; writing, running, sending still ask.
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";

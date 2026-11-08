@@ -177,6 +177,8 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "document_template_add" => crate::documents::tool_template_add(app, args),
         "document_create" => crate::documents::tool_create(app, args).await,
         "document_pdf" => crate::documents::tool_pdf(app, args).await,
+        "pdf_merge" => crate::documents::tool_pdf_merge(app, args).await,
+        "pdf_split" => crate::documents::tool_pdf_split(app, args).await,
         "custom_create" => crate::custom::tool_create(app, args),
         "custom_update" => crate::custom::tool_update(app, args),
         "custom_list" => Ok(crate::custom::tool_list()),

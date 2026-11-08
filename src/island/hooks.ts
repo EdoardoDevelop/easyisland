@@ -306,6 +306,23 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
     }
     case "document_pdf":
       return t("Fare il PDF di {path} con Word", { path: s("path") }) + (s("folder") ? `\n${t("Copia in {folder}", { folder: s("folder") })}` : "");
+    case "pdf_merge": {
+      const files = Array.isArray(input.files) ? input.files : [];
+      const names = files.map((f) => (typeof f === "string" ? f : `${String((f as Record<string, unknown>)?.path ?? "")}${(f as Record<string, unknown>)?.pages ? ` (${String((f as Record<string, unknown>).pages)})` : ""}`));
+      return [
+        files.length === 1 ? t("Estrarre pagine in un PDF nuovo") : t("Unire {n} file in un PDF nuovo", { n: files.length }),
+        ...names.slice(0, 12).map((n) => `• ${short(n, 120)}`),
+        ...(s("folder") ? [t("Copia in {folder}", { folder: s("folder") })] : []),
+      ].join("\n");
+    }
+    case "pdf_split": {
+      const ranges = Array.isArray(input.ranges) ? input.ranges.map(String) : [];
+      return [
+        t("Dividere {path} in PDF nuovi", { path: s("path") }),
+        ranges.length ? t("Pagine: {ranges}", { ranges: short(ranges.join(" · "), 200) }) : t("Un file per pagina"),
+        ...(s("folder") ? [t("Copia in {folder}", { folder: s("folder") })] : []),
+      ].join("\n");
+    }
     case "document_template_add":
       return t("Aggiungere il modello di documento {path}", { path: s("path") }) + (s("name") ? ` → «${s("name")}»` : "");
     case "read_clipboard":

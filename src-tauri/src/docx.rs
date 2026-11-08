@@ -264,6 +264,12 @@ fn part_markdown(xml: &str, names: &HashMap<String, String>) -> Vec<String> {
                     p.list = true;
                 }
             }
+            ("wp:docPr", Kind::Open | Kind::Empty) => {
+                if let Some(p) = paras.last_mut() {
+                    let d = attr(tag.raw, "descr").map(unescape).filter(|d| !d.trim().is_empty());
+                    p.text.push_str(&format!("[immagine{}]", d.map(|d| format!(": {}", d.trim())).unwrap_or_default()));
+                }
+            }
             ("w:t", Kind::Open) => in_text = true,
             ("w:t", Kind::Close) => in_text = false,
             ("w:tab", Kind::Empty) if in_ppr == 0 => {
@@ -748,7 +754,155 @@ fn md_row(line: &str) -> Option<Vec<String>> {
 }
 
 /// Markdown (headings, lists, tables, **bold**) → OOXML paragraphs and tables.
+#[cfg(test)]
 fn body_xml(md: &str, look: &Look) -> String {
+    body_with(md, look, &Pics::default())
+}
+
+// ---------------------------------------------------------------- pictures
+
+/// A picture for the body, read by documents.rs: `![didascalia](percorso)` on a line of its own.
+pub struct Picture {
+    pub bytes: Vec<u8>,
+}
+
+/// Pictures placed in the document: path as written → (relationship id, width px, height px, drawing id).
+#[derive(Default)]
+struct Pics {
+    map: HashMap<String, (String, u32, u32, u32)>,
+    /// Width of the text column, in EMU.
+    max_w: u64,
+}
+
+/// `![alt](path)` or `![alt|5cm](path)` alone on a line → (alt, width in cm, path).
+fn image_line(t: &str) -> Option<(String, Option<f64>, String)> {
+    let rest = t.trim().strip_prefix("![")?;
+    let (alt, rest) = rest.split_once("](")?;
+    let path = rest.strip_suffix(')')?.trim().trim_matches(|c| c == '"' || c == '<' || c == '>');
+    if path.is_empty() {
+        return None;
+    }
+    let (alt, cm) = match alt.rsplit_once('|') {
+        Some((a, w)) => {
+            let w = w.trim().to_lowercase();
+            let cm = w.strip_suffix("cm").and_then(|n| n.trim().replace(',', ".").parse::<f64>().ok()).filter(|n| *n > 0.0 && *n < 100.0);
+            (a.trim().to_string(), cm)
+        }
+        None => (alt.trim().to_string(), None),
+    };
+    Some((alt, cm, path.to_string()))
+}
+
+/// The paths of the pictures in a Markdown body, once each.
+pub fn image_refs(md: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in md.lines() {
+        if let Some((_, _, p)) = image_line(line) {
+            if !out.contains(&p) {
+                out.push(p);
+            }
+        }
+    }
+    out
+}
+
+/// Format (extension) and size in pixels of a PNG, JPEG or GIF.
+fn image_kind(b: &[u8]) -> Option<(&'static str, u32, u32)> {
+    let be = |i: usize| -> Option<u32> { Some(u32::from_be_bytes(b.get(i..i + 4)?.try_into().ok()?)) };
+    let be16 = |i: usize| -> Option<u32> { Some(u16::from_be_bytes(b.get(i..i + 2)?.try_into().ok()?) as u32) };
+    if b.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Some(("png", be(16)?, be(20)?));
+    }
+    if b.starts_with(b"GIF8") {
+        let w = u16::from_le_bytes(b.get(6..8)?.try_into().ok()?) as u32;
+        let h = u16::from_le_bytes(b.get(8..10)?.try_into().ok()?) as u32;
+        return Some(("gif", w, h));
+    }
+    if b.starts_with(&[0xFF, 0xD8]) {
+        let mut i = 2;
+        while i + 9 < b.len() {
+            if *b.get(i)? != 0xFF {
+                i += 1;
+                continue;
+            }
+            let m = *b.get(i + 1)?;
+            if m == 0xFF {
+                i += 1;
+                continue;
+            }
+            if matches!(m, 0xD8 | 0x01 | 0xD0..=0xD7) {
+                i += 2;
+                continue;
+            }
+            let len = be16(i + 2)? as usize;
+            if matches!(m, 0xC0..=0xCF) && !matches!(m, 0xC4 | 0xC8 | 0xCC) {
+                return Some(("jpeg", be16(i + 7)?, be16(i + 5)?));
+            }
+            i += 2 + len;
+        }
+    }
+    None
+}
+
+/// Width of the text column of a document.xml, in EMU (A4 with 2 cm margins if not found).
+fn text_width(doc: &str) -> u64 {
+    let last_tag = |name: &str| -> Option<&str> {
+        let s = doc.rfind(name)?;
+        let rest = doc.get(s..)?;
+        rest.get(..rest.find('>')?)
+    };
+    let num = |raw: Option<&str>, key: &str| raw.and_then(|r| attr(r, key)).and_then(|v| v.parse::<u64>().ok());
+    let page = num(last_tag("<w:pgSz "), "w:w").unwrap_or(11906);
+    let mar = last_tag("<w:pgMar ");
+    let left = num(mar, "w:left").unwrap_or(1134);
+    let right = num(mar, "w:right").unwrap_or(1134);
+    page.saturating_sub(left + right).max(1440) * 635
+}
+
+fn drawing(rid: &str, id: u32, cx: u64, cy: u64, alt: &str) -> String {
+    let alt = escape(alt);
+    format!(
+        "<w:r><w:drawing xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"{cx}\" cy=\"{cy}\"/><wp:docPr id=\"{id}\" name=\"Immagine {id}\" descr=\"{alt}\"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"{id}\" name=\"Immagine {id}\" descr=\"{alt}\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"{rid}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
+    )
+}
+
+/// Adds the pictures' files, relationships and content types to a package.
+fn add_pictures(entries: &mut Vec<(String, Vec<u8>)>, media: Vec<(String, String, Vec<u8>)>) {
+    if media.is_empty() {
+        return;
+    }
+    let mut rels = String::new();
+    let mut exts: Vec<String> = Vec::new();
+    for (rid, file, bytes) in media {
+        rels.push_str(&format!("<Relationship Id=\"{rid}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"media/{file}\"/>"));
+        let ext = file.rsplit('.').next().unwrap_or_default().to_string();
+        if !exts.contains(&ext) {
+            exts.push(ext);
+        }
+        entries.push((format!("word/media/{file}"), bytes));
+    }
+    const RELS: &str = "word/_rels/document.xml.rels";
+    match entries.iter_mut().find(|(n, _)| n == RELS) {
+        Some((_, data)) => {
+            let xml = String::from_utf8_lossy(data).to_string();
+            let at = xml.rfind("</Relationships>").unwrap_or(xml.len());
+            *data = format!("{}{rels}{}", xml.get(..at).unwrap_or_default(), xml.get(at..).unwrap_or_default()).into_bytes();
+        }
+        None => entries.push((RELS.into(), format!("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{rels}</Relationships>").into_bytes())),
+    }
+    if let Some((_, data)) = entries.iter_mut().find(|(n, _)| n == "[Content_Types].xml") {
+        let mut xml = String::from_utf8_lossy(data).to_string();
+        for ext in exts {
+            if !xml.to_lowercase().contains(&format!("extension=\"{ext}\"")) {
+                let at = xml.rfind("</Types>").unwrap_or(xml.len());
+                xml.insert_str(at, &format!("<Default Extension=\"{ext}\" ContentType=\"image/{ext}\"/>"));
+            }
+        }
+        *data = xml.into_bytes();
+    }
+}
+
+fn body_with(md: &str, look: &Look, pics: &Pics) -> String {
     let mut out = String::new();
     let lines: Vec<&str> = md.lines().collect();
     let mut i = 0;
@@ -766,6 +920,17 @@ fn body_xml(md: &str, look: &Look) -> String {
             flush(&mut para, &mut out);
             i += 1;
             continue;
+        }
+        if let Some((alt, cm, path)) = image_line(t) {
+            if let Some((rid, w, h, id)) = pics.map.get(&path) {
+                flush(&mut para, &mut out);
+                let natural = *w as u64 * 9525;
+                let cx = cm.map(|c| (c * 360_000.0) as u64).unwrap_or(natural).min(pics.max_w).max(9525);
+                let cy = (cx as f64 * *h as f64 / (*w).max(1) as f64) as u64;
+                out.push_str(&paragraph("<w:spacing w:before=\"120\" w:after=\"120\"/><w:jc w:val=\"center\"/>", &drawing(rid, *id, cx, cy.max(9525), &alt)));
+                i += 1;
+                continue;
+            }
         }
         if t.starts_with('|') {
             flush(&mut para, &mut out);
@@ -1085,6 +1250,8 @@ pub struct Request {
     pub values: HashMap<String, String>,
     pub body: String,
     pub lines: Vec<Line>,
+    /// Pictures of the body, by the path written in `![…](path)`.
+    pub pictures: HashMap<String, Picture>,
 }
 
 /// The finished document: bytes of the .docx, what was filled and what was not.
@@ -1129,10 +1296,19 @@ pub fn make(req: &Request) -> Result<Made, String> {
     }
     let look = Look::of(part_text(&entries, "word/styles.xml").as_deref());
     let mut blocks: HashMap<String, String> = HashMap::new();
-    let body = body_xml(&req.body, &look);
+    let mut pics = Pics { map: HashMap::new(), max_w: text_width(&part_text(&entries, "word/document.xml").unwrap_or_default()) };
+    let mut media = Vec::new();
+    for (n, path) in image_refs(&req.body).into_iter().enumerate() {
+        let Some(pic) = req.pictures.get(&path) else { continue };
+        let (ext, w, h) = image_kind(&pic.bytes).ok_or_else(|| format!("«{path}» non è un'immagine PNG, JPEG o GIF."))?;
+        let rid = format!("rIdEiPic{}", n + 1);
+        pics.map.insert(path, (rid.clone(), w.max(1), h.max(1), 7001 + n as u32));
+        media.push((rid, format!("ei_immagine{}.{ext}", n + 1), pic.bytes.clone()));
+    }
+    let body = body_with(&req.body, &look, &pics);
     if !req.body.trim().is_empty() {
         blocks.insert("corpo".into(), body.clone());
-        values.insert("corpo#plain".into(), req.body.trim().to_string());
+        values.insert("corpo#plain".into(), req.body.lines().filter(|l| image_line(l).is_none()).collect::<Vec<_>>().join("\n").trim().to_string());
     }
     if let (Some(t), false) = (&totals, req.lines.is_empty()) {
         blocks.insert("righe".into(), quote_table(&req.lines, t));
@@ -1180,6 +1356,7 @@ pub fn make(req: &Request) -> Result<Made, String> {
             *data = t.into_bytes();
         }
     }
+    add_pictures(&mut entries, media);
     missing.retain(|k| !k.ends_with("#plain"));
     Ok(Made { bytes: crate::ooxzip::write(&entries)?, number, missing, totals })
 }
@@ -1295,6 +1472,35 @@ mod tests {
     }
 
     #[test]
+    fn pictures_go_in_the_body_with_their_size() {
+        // A PNG header is enough to know the size: 800 × 400 pixels.
+        let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        png.extend_from_slice(&800u32.to_be_bytes());
+        png.extend_from_slice(&400u32.to_be_bytes());
+        png.extend_from_slice(&[8, 6, 0, 0, 0]);
+        assert_eq!(image_kind(&png), Some(("png", 800, 400)));
+        let body = "Prima\n\n![Logo del cliente|4cm](C:\\x\\logo.png)\n\nDopo";
+        assert_eq!(image_refs(body), vec!["C:\\x\\logo.png".to_string()]);
+        let req = Request {
+            template: String::new(),
+            title: String::new(),
+            values: HashMap::new(),
+            body: body.into(),
+            lines: Vec::new(),
+            pictures: [("C:\\x\\logo.png".to_string(), Picture { bytes: png })].into(),
+        };
+        let made = make(&req).unwrap();
+        let entries = crate::ooxzip::read(&made.bytes).unwrap();
+        assert!(entries.iter().any(|(n, _)| n == "word/media/ei_immagine1.png"));
+        let doc = part_text(&entries, "word/document.xml").unwrap();
+        assert!(doc.contains("cx=\"1440000\" cy=\"720000\""), "{doc}");
+        assert!(part_text(&entries, "[Content_Types].xml").unwrap().contains("Extension=\"png\""));
+        assert!(part_text(&entries, "word/_rels/document.xml.rels").unwrap().contains("rIdEiPic1"));
+        assert_eq!(markdown(&made.bytes).unwrap(), "Prima\n\n[immagine: Logo del cliente]\n\nDopo");
+        assert!(make(&Request { pictures: [("C:\\x\\logo.png".to_string(), Picture { bytes: b"no".to_vec() })].into(), ..req }).is_err());
+    }
+
+    #[test]
     fn a_blank_document_reads_back() {
         let req = Request {
             template: String::new(),
@@ -1302,6 +1508,7 @@ mod tests {
             values: HashMap::new(),
             body: "## Premessa\nRiga uno\nRiga due".into(),
             lines: lines_of(Some(&serde_json::json!([{ "descrizione": "Servizio", "prezzo": 100 }]))).unwrap(),
+            pictures: HashMap::new(),
         };
         let made = make(&req).unwrap();
         let text = markdown(&made.bytes).unwrap();
@@ -1336,8 +1543,20 @@ mod live {
             { "descrizione": "Libro", "prezzo": 10, "iva": 4 }
         ]))).unwrap();
         let body = "# Oggetto dell'offerta\n\nGentile cliente,\nle inviamo la nostra **migliore** offerta.\n\n## Punti\n\n- primo punto\n- secondo *punto*\n  - sotto punto\n1. numerato\n\n| Voce | Valore |\n|---|---|\n| Tempo | 3 giorni |\n| Costo | 100 € |\n\nCordiali saluti.";
-        let req = super::Request { template: String::new(), title: "Offerta di prova".into(), values: Default::default(), body: body.into(), lines: lines.clone() };
+        let req = super::Request { template: String::new(), title: "Offerta di prova".into(), values: Default::default(), body: body.into(), lines: lines.clone(), pictures: Default::default() };
         std::fs::write(out.join("vuoto.docx"), super::make(&req).unwrap().bytes).unwrap();
+        // EI_IMAGES = pictures separated by ";": one at its size, the others 5 cm wide.
+        if let Ok(list) = std::env::var("EI_IMAGES") {
+            let mut md = String::from("# Con immagini\n\nTesto prima.\n");
+            let mut pictures = std::collections::HashMap::new();
+            for (i, p) in list.split(';').enumerate() {
+                md.push_str(&if i == 0 { format!("\n![Prima immagine]({p})\n") } else { format!("\n![Immagine {i}|5cm]({p})\n") });
+                pictures.insert(p.to_string(), super::Picture { bytes: std::fs::read(p).unwrap() });
+            }
+            md.push_str("\nTesto dopo.");
+            let req = super::Request { template: std::env::var("EI_TEMPLATE_NAME").unwrap_or_default(), title: "Immagini".into(), values: Default::default(), body: md, lines: Vec::new(), pictures };
+            std::fs::write(out.join("immagini.docx"), super::make(&req).unwrap().bytes).unwrap();
+        }
         if let Ok(t) = std::env::var("EI_TEMPLATE") {
             let entries = crate::ooxzip::read(&std::fs::read(&t).unwrap()).unwrap();
             println!("segnaposto: {:?}", super::placeholders(&entries));
@@ -1386,6 +1605,7 @@ mod live_make {
             values: [("Cliente".to_string(), "Farmacia Rossi".to_string())].into(),
             body: "Come da accordi telefonici.".into(),
             lines,
+            pictures: Default::default(),
         };
         for i in 0..2 {
             let made = super::make(&req).unwrap();

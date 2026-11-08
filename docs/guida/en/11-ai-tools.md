@@ -22,7 +22,7 @@ With **Settings → Chat → Can use the PC** on (default), engines with tools (
 | Memory | Search, save notes, write pages, read sources, check | No (writes only to the memory, never deletes) |
 | Tasks and skills | Create tasks, list them; read and save skills | Saving a skill yes |
 | Custom integrations | Create, edit, read records and sources, add records, call their actions | Creating, writing and calling yes |
-| Word and PDF documents | Read them; create new Word documents, also from your templates; make their PDF with Word | Creating and making the PDF yes |
+| Word and PDF documents | Read them; create new Word documents, also from your templates and with pictures; make their PDF with Word; merge and split PDFs | Creating, making the PDF, merging and splitting yes |
 
 Anything that opens, runs or changes something asks **Allow / Deny** in the island, with a clear description.
 
@@ -40,10 +40,16 @@ The chat reads **Word documents** (`.docx`) and **PDFs**: drag them into the cha
 
 It can also **write new Word documents**:
 - **from scratch:** "write me a letter to Rossi about renewing the contract, in Word";
-- **from your own template:** first say "use this file as a template" (a `.docx` or `.dotx` in the Tray or on the PC). EasyIsland keeps a copy and never changes it. In the template, write in braces where the data goes: `{cliente}`, `{data}`, `{numero}`, `{corpo}` for the text, `{righe}` for the table, `{totale}`. Header, logo, footer and styles stay yours;
+- **from your own template:** first say "use this file as a template" (a `.docx` or `.dotx` in the Tray or on the PC). EasyIsland keeps a copy and never changes it. In the template, write in braces where the data goes: `{cliente}`, `{data}`, `{numero}`, `{corpo}` for the text, `{righe}` for the table, `{totale}`. You choose the names: `{vat number}`, `{due date}`, `{contact}`… the chat fills them with what you tell it, and tells you which ones stayed empty. Header, logo, footer and styles stay yours;
 - **quotes:** the chat only passes the lines (description, quantity, price, VAT): **EasyIsland computes taxable amount, VAT and total**, never the AI, and `{numero}` becomes the year's progressive number for that template (1/2026, 2/2026…).
 
 The document **always goes in the Tray** and in the work folder, or the folder you ask for; it never overwrites a file. With **Word installed** it also makes the **PDF** ("…and the PDF too", or "turn this Word file into PDF"). Every new document asks **Allow / Deny**.
+
+**Pictures:** "put the logo from the Tray at the top" or "add the site photo, 8 cm wide". PNG, JPEG and GIF, at most as wide as the page.
+
+It can also read **a whole folder** of Word files and PDFs ("analyse the quotes in the Offerte PDF folder"), faster and cheaper than extracting the text with other programs.
+
+**Merging and splitting PDFs:** "merge these three PDFs", "first the quote, then pages 1-2 of the terms", "extract pages 3-5", "split the PDF into one file per page" or "into 1-2 and 3-end". A Word file among the ones to merge becomes PDF with Word. The originals don't change; the new files go in the Tray and the work folder. Fillable fields and bookmarks are not copied; protected PDFs cannot be merged (open them and print them with "Microsoft Print to PDF", then merge that copy).
 
 ## Recipes: it learns by use
 After a successful answer, EasyIsland remembers **which tools** were needed for that kind of question. On a similar question the chat goes straight to the right tools: faster and with fewer tokens. In **Settings → Chat → Recipes** you see how many there are and forget them with one click.
@@ -55,6 +61,10 @@ After a successful answer, EasyIsland remembers **which tools** were needed for 
 - **The other engines** (Anthropic API, OpenAI, OpenRouter, Gemini, Ollama, LM Studio) go through opencode with the same provider and model.
 
 Every command appears **in full** on the card before it runs.
+
+**Claude's effort.** In the engine menu (the "Claude (subscription) ▾" button under the field) choose how much Claude reasons: from **Low** (fast and cheap) to **Max**. It applies at once, even mid-conversation, and stays for the next chats; **Claude Code's default** uses its own.
+
+**Background work.** For long jobs Claude can have several agents work at once, or leave commands running. Under the conversation **In the background** lists each job: **✕** asks to stop one, **Stop all** stops them all. Meanwhile you can keep writing. When they end, Claude writes the result as in a normal reply (you see the steps while it works) and the island tells you, even when closed.
 
 ### ⚡ Automatic
 The ⚡ button in the chat header (terminal mode only) applies **to the current conversation** and turns off with "New chat". When on, the chat has an amber border.

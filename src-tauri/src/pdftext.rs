@@ -17,7 +17,7 @@ const MAX_PAGES: usize = 3000;
 const MAX_TEXT: usize = 200_000;
 
 #[derive(Debug, Clone)]
-enum Obj {
+pub(crate) enum Obj {
     Null,
     Bool(#[allow(dead_code)] bool),
     Num(f64),
@@ -31,13 +31,13 @@ enum Obj {
 }
 
 impl Obj {
-    fn dict(&self) -> Option<&[(String, Obj)]> {
+    pub(crate) fn dict(&self) -> Option<&[(String, Obj)]> {
         match self {
             Obj::Dict(d) | Obj::Stream(d, _) => Some(d),
             _ => None,
         }
     }
-    fn get(&self, key: &str) -> Option<&Obj> {
+    pub(crate) fn get(&self, key: &str) -> Option<&Obj> {
         self.dict()?.iter().rev().find(|(k, _)| k == key).map(|(_, v)| v)
     }
     fn num(&self) -> Option<f64> {
@@ -46,7 +46,7 @@ impl Obj {
             _ => None,
         }
     }
-    fn name(&self) -> Option<&str> {
+    pub(crate) fn name(&self) -> Option<&str> {
         match self {
             Obj::Name(n) => Some(n),
             _ => None,
@@ -338,9 +338,9 @@ fn parse(lx: &mut Lexer, first: Tok, depth: usize) -> Obj {
 
 // ---------------------------------------------------------------- the file
 
-struct Doc {
-    objects: HashMap<u32, Obj>,
-    trailers: Vec<Obj>,
+pub(crate) struct Doc {
+    pub(crate) objects: HashMap<u32, Obj>,
+    pub(crate) trailers: Vec<Obj>,
 }
 
 fn find(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
@@ -348,7 +348,7 @@ fn find(hay: &[u8], needle: &[u8], from: usize) -> Option<usize> {
 }
 
 impl Doc {
-    fn read(b: &[u8]) -> Doc {
+    pub(crate) fn read(b: &[u8]) -> Doc {
         let mut doc = Doc { objects: HashMap::new(), trailers: Vec::new() };
         let mut lx = Lexer::new(b);
         let mut last: [Option<Tok>; 2] = [None, None];
@@ -420,7 +420,7 @@ impl Doc {
         doc
     }
 
-    fn resolve<'a>(&'a self, mut o: &'a Obj) -> &'a Obj {
+    pub(crate) fn resolve<'a>(&'a self, mut o: &'a Obj) -> &'a Obj {
         for _ in 0..16 {
             match o {
                 Obj::Ref(id) => match self.objects.get(id) {
@@ -438,7 +438,7 @@ impl Doc {
         Some(self.resolve(v))
     }
 
-    fn encrypted(&self) -> bool {
+    pub(crate) fn encrypted(&self) -> bool {
         self.trailers.iter().any(|t| t.get("Encrypt").is_some())
     }
 

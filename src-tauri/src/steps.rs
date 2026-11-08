@@ -78,6 +78,8 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "document_template_add" => t("Aggiunge un modello di documento"),
         "document_create" => t("Crea un documento Word"),
         "document_pdf" => t("Trasforma un documento in PDF"),
+        "pdf_merge" => t("Unisce dei PDF"),
+        "pdf_split" => t("Divide un PDF"),
         "custom_create" => t("Crea un'integrazione personale"),
         "custom_update" => t("Modifica un'integrazione personale"),
         "custom_list" => t("Guarda le integrazioni personali"),

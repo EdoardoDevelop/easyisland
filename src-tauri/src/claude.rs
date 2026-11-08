@@ -117,6 +117,25 @@ Markdown is rendered: use short paragraphs, lists, tables and code blocks when t
 /// Where an answer that comes after the turn goes (claude_cli::follow).
 pub type Later = std::sync::Arc<dyn Fn(String) + Send + Sync>;
 
+/// A command or sub-agent Claude Code left running after its turn (its
+/// `background_tasks_changed` line): the island's chat lists them.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct BgTask {
+    pub id: String,
+    /// "local_bash", "local_agent", …
+    pub kind: String,
+    pub description: String,
+}
+
+/// Claude Code's effort levels (`claude --help`, 8 Nov 2026).
+pub const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
+
+/// Who hears of the background work of a conversation (lib.rs chat_send).
+pub type OnTasks = std::sync::Arc<dyn Fn(&[BgTask]) + Send + Sync>;
+/// A turn Claude Code started by itself is being written: its steps and text so
+/// far (Some), or it ended (None). The island's chat shows it like a turn.
+pub type OnWorking = std::sync::Arc<dyn Fn(Option<&str>) + Send + Sync>;
+
 #[derive(Default)]
 pub struct Chat {
     /// Full multi-turn history, including tool_use / tool_result blocks.
@@ -147,6 +166,11 @@ pub struct Chat {
     /// Answers Claude Code writes after the turn, when a command it left in
     /// the background ends (Agent Chat: posted in the chat).
     later: Mutex<Option<Later>>,
+    /// The island's chat: the list of its background work as it changes.
+    on_tasks: Mutex<Option<OnTasks>>,
+    on_working: Mutex<Option<OnWorking>>,
+    /// Claude Code's effort for this conversation (`--effort`); None = its own.
+    effort: Mutex<Option<String>>,
     /// «Ferma» on this conversation of the island (each one has its own, lib.rs `chat_stop`).
     pub(crate) stop: tokio::sync::Notify,
     /// Reads only, and asks nobody (team.rs): what is not allowed is refused.
@@ -178,6 +202,22 @@ impl Chat {
         self.later.lock().unwrap().clone()
     }
 
+    pub(crate) fn set_on_tasks(&self, f: OnTasks) {
+        *self.on_tasks.lock().unwrap() = Some(f);
+    }
+
+    pub(crate) fn on_tasks(&self) -> Option<OnTasks> {
+        self.on_tasks.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_on_working(&self, f: OnWorking) {
+        *self.on_working.lock().unwrap() = Some(f);
+    }
+
+    pub(crate) fn on_working(&self) -> Option<OnWorking> {
+        self.on_working.lock().unwrap().clone()
+    }
+
     pub fn reset(&self) {
         self.messages.lock().unwrap().clear();
         *self.cli_session.lock().unwrap() = None;
@@ -206,6 +246,15 @@ impl Chat {
 
     pub(crate) fn set_log_id(&self, id: Option<String>) {
         *self.log_id.lock().unwrap() = id;
+    }
+
+    /// Claude Code's effort for this conversation (`--effort`), when one was picked.
+    pub(crate) fn set_effort(&self, effort: Option<String>) {
+        *self.effort.lock().unwrap() = effort.filter(|e| EFFORTS.contains(&e.as_str()));
+    }
+
+    pub(crate) fn effort(&self) -> Option<String> {
+        self.effort.lock().unwrap().clone()
     }
 
     pub(crate) fn set_folder(&self, folder: Option<String>) {

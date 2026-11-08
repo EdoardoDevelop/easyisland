@@ -220,6 +220,19 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     });
 }
 
+/// An answer written after the turn, when work left in the background ended
+/// (claude_cli::follow): one more assistant line of the conversation.
+pub fn later(chat: &Chat, reply: &str) {
+    let Some(id) = chat.log_id() else { return };
+    let now = now();
+    with_store(|s| {
+        let Some(c) = s.list.iter_mut().find(|c| c.id == id) else { return };
+        c.lines.push(Line { role: "assistant".into(), content: reply.to_string() });
+        c.updated = now;
+        s.save();
+    });
+}
+
 /// The last answer as it ended up (team.rs: after the check).
 pub fn amend(chat: &Chat, reply: &str) {
     let Some(id) = chat.log_id() else { return };

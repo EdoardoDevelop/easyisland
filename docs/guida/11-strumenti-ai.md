@@ -22,7 +22,7 @@ Con **Impostazioni → Chat → Può usare il PC** acceso (predefinito), i motor
 | Memoria | Cercare, salvare note, scrivere pagine, leggere le fonti, controllare | No (scrive solo nella memoria, non cancella) |
 | Compiti e abilità | Creare compiti, elencarli; leggere e salvare abilità | Salvare un'abilità sì |
 | Integrazioni personali | Crearle, modificarle, leggere schede e fonti, aggiungere schede, chiamare le loro azioni | Creare, scrivere e chiamare sì |
-| Documenti Word e PDF | Leggerli; creare documenti Word nuovi, anche dai tuoi modelli; farne il PDF con Word | Creare e fare il PDF sì |
+| Documenti Word e PDF | Leggerli; creare documenti Word nuovi, anche dai tuoi modelli e con immagini; farne il PDF con Word; unire e dividere PDF | Creare, fare il PDF, unire e dividere sì |
 
 Tutto ciò che apre, esegue o cambia qualcosa chiede **Consenti / Nega** nell'isola, con una descrizione chiara.
 
@@ -40,10 +40,16 @@ La chat legge i **documenti Word** (`.docx`) e i **PDF**: trascinali nella chat 
 
 Può anche **scrivere documenti Word nuovi**:
 - **da zero:** «scrivimi una lettera per Rossi sul rinnovo del contratto, in Word»;
-- **da un tuo modello:** prima di' «usa questo file come modello» (un `.docx` o `.dotx` nel Vassoio o sul PC). EasyIsland ne tiene una copia e non lo modifica mai. Nel modello scrivi tra graffe dove vanno i dati: `{cliente}`, `{data}`, `{numero}`, `{corpo}` per il testo, `{righe}` per la tabella, `{totale}`. Intestazione, logo, piè di pagina e stili restano i tuoi;
+- **da un tuo modello:** prima di' «usa questo file come modello» (un `.docx` o `.dotx` nel Vassoio o sul PC). EasyIsland ne tiene una copia e non lo modifica mai. Nel modello scrivi tra graffe dove vanno i dati: `{cliente}`, `{data}`, `{numero}`, `{corpo}` per il testo, `{righe}` per la tabella, `{totale}`. I nomi li scegli tu: `{partita iva}`, `{scadenza}`, `{referente}`… la chat li compila con quello che le dici, e ti dice quali sono rimasti vuoti. Intestazione, logo, piè di pagina e stili restano i tuoi;
 - **preventivi:** la chat passa solo le righe (descrizione, quantità, prezzo, IVA): **imponibile, IVA e totale li calcola EasyIsland**, mai l'AI, e `{numero}` diventa il progressivo dell'anno di quel modello (1/2026, 2/2026…).
 
 Il documento va **sempre nel Vassoio** e nella cartella di lavoro, o nella cartella che chiedi; non sovrascrive mai un file. Con **Word installato** fa anche il **PDF** («…e fammi anche il PDF», o «trasforma questo Word in PDF»). Ogni documento nuovo chiede **Consenti / Nega**.
+
+**Immagini:** «metti il logo che ho nel Vassoio in cima» o «aggiungi la foto del sopralluogo, larga 8 cm». PNG, JPEG e GIF, al massimo larghe quanto la pagina.
+
+Può leggere anche **una cartella intera** di Word e PDF («analizza le offerte nella cartella Offerte PDF»), più rapido ed economico che estrarre il testo con altri programmi.
+
+**Unire e dividere PDF:** «unisci questi tre PDF», «metti prima il preventivo, poi le pagine 1-2 delle condizioni», «estrai le pagine 3-5», «dividi il PDF in un file per pagina» o «in 1-2 e 3-fine». Anche un Word fra i file da unire: diventa PDF con Word. Gli originali non cambiano; i file nuovi vanno nel Vassoio e nella cartella di lavoro. I campi compilabili e i segnalibri non vengono copiati; i PDF protetti non si possono unire (aprili e stampali con «Microsoft Print to PDF», poi unisci quella copia).
 
 ## Ricette: impara con l'uso
 Dopo una risposta riuscita, EasyIsland ricorda **quali strumenti** sono serviti per quel tipo di domanda. Alla domanda simile la chat va dritta agli strumenti giusti: più veloce e con meno token. In **Impostazioni → Chat → Ricette** vedi quante sono e le dimentichi con un clic.
@@ -55,6 +61,10 @@ Dopo una risposta riuscita, EasyIsland ricorda **quali strumenti** sono serviti 
 - **Gli altri motori** (API di Anthropic, OpenAI, OpenRouter, Gemini, Ollama, LM Studio) passano da opencode con lo stesso fornitore e modello.
 
 Ogni comando compare **per intero** sulla card prima di partire.
+
+**Impegno di Claude.** Nel menu del motore (il pulsante «Claude (abbonamento) ▾» sotto il campo) scegli quanto ragiona Claude: da **Basso** (veloce ed economico) a **Massimo**. Vale subito, anche a metà conversazione, e resta per le chat successive; **Predefinito di Claude Code** usa il suo.
+
+**Lavori in background.** Per i lavori lunghi Claude può far lavorare più agenti insieme, o lasciare comandi in esecuzione. Sotto la conversazione compare **In background** con ogni lavoro: **✕** chiede di fermarne uno, **Ferma tutto** li ferma tutti. Intanto puoi continuare a scrivere. Quando finiscono, Claude scrive il risultato come in una risposta normale (vedi i passi mentre lavora) e l'isola ti avvisa, anche da chiusa.
 
 ### ⚡ Automatica
 Il pulsante ⚡ nella testata della chat (solo con la modalità terminale) vale **per la conversazione in corso** e si spegne con «Nuova chat». Da acceso la chat ha il bordo ambra.

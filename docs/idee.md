@@ -100,11 +100,11 @@ Prove di @claudio sul PC lavoro, dettagli in `RDM-Devolutions-Cloud-connessione.
 ## Strumenti di EasyIsland per gli altri motori via API
 Fatto per Anthropic con chiave; opencode li ha. Senza: OpenRouter, OpenAI, Gemini, Ollama, LM Studio (`openai.rs`), salvo Modalità terminale via opencode. Servirebbe `tools` da `hook/src/tool_list.rs`, `tool_calls` dallo stream, ciclo come `claude.rs`, ripiego al 400 e interruttore. Edoardo ha scelto il 19/10 di non farlo per ora.
 
-## Documenti Word e PDF nella chat (21/10, primo giro fatto il 7/11)
-Fatti creare, compilare, leggere `.docx`, Word → PDF e lettura dei PDF (`docs/chat.md` → Documenti Word e PDF). Lettore PDF scritto in casa invece della libreria approvata (`docs/decisioni.md`). Restano:
-- revisioni tracciate, commenti, moduli PDF, unire e dividere PDF;
+## Documenti Word e PDF nella chat (21/10, fatto il 7–8/11)
+Fatti creare, compilare, leggere `.docx` con immagini, Word → PDF, lettura, unione e divisione dei PDF (`docs/chat.md` → Documenti Word e PDF). Revisioni e commenti esclusi (`docs/decisioni.md`). Restano:
+- moduli PDF; copiare pagine dai PDF cifrati senza password di apertura (RC4/AES);
 - elenco dei modelli in Impostazioni (oggi solo dalla chat e dalla cartella `documenti\modelli`);
-- immagini nel corpo (oggi solo quelle già nel modello);
+- immagini al posto di un segnaposto in mezzo al testo;
 - PDF più difficili: font Type3, codifiche CJK senza ToUnicode, LZW e ASCII85.
 
 ## Recapiti tra due EasyIsland (25/10, da valutare)

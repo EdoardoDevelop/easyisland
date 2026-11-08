@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 7/11 — Integrazioni personali: nomi e cartella dalla chat
+`title` per la riga di «Salvate», `filename` e `folder` su ogni documento, con più campi (`docs/integrazioni.md` → Nomi). Si impostano solo dalla chat.
+
+### 7/11 — Integrazioni personali: HTML, PDF, script
+Modelli HTML veri (`core/template.ts`: escape, `cleanPage`), `{{data|lunga}}`, `{{numero|it}}`, `{{#se}}`, `{{^campo}}`, `{{file:logo.png}}`; a capo nelle tabelle Markdown; PDF con WebView2 (`pdf.rs`, provato con `real_print`); azione `script` e `quick` con i dati della scheda in `EASYISLAND_SCHEDA`, conferma nella card; `quick_action_create/update/delete`; `custom::watch` per i `.json` cambiati a mano. Cambia la regola «mai codice» (`CLAUDE.md`), su richiesta di Edoardo. Da provare con l'app vera.
+
 ### 7/11 — Memoria: scheda, percorso, dedotto
 `memory_page` con `brief` dà riassunto e collegamenti senza il testo; `memory_path` trova la strada fra due pagine; i collegamenti ricavati da un motore finiscono con `(dedotto)`. I file `.md` restano (`docs/decisioni.md`). Gruppi e percorso erano già nella Mappa. Da provare con la memoria vera e un motore vero. Il campo in alto cerca gli stessi nodi della Mappa e mostra la costellazione (`views/constellation.ts`); Invio apre una chat nuova dal nodo con la sua scheda.
 

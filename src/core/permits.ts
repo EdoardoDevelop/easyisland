@@ -34,6 +34,8 @@ const OTHERS: Record<string, string> = {
   skill_save: t("Salvare un'abilità"),
   document_create: t("Creare un documento Word"),
   document_pdf: t("Trasformare un documento in PDF"),
+  pdf_merge: t("Unire dei PDF"),
+  pdf_split: t("Dividere un PDF"),
   document_template_add: t("Aggiungere un modello di documento"),
   custom_create: t("Creare un'integrazione personale"),
   custom_update: t("Cambiare un'integrazione personale"),
