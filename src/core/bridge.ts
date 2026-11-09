@@ -345,8 +345,9 @@ export const Bridge = {
   /** One of them into the history: the conversation's id, to reopen. */
   chatClaudeSessionImport: (id: string) => callOrThrow<string>("chat_claude_session_import", { id }),
   /** «Terminale» in the chat: the user's PowerShell in the project folder. */
-  terminalOpen: (folder: string | null) => callOrThrow<number>("terminal_open", { folder }),
-  terminalWrite: (id: number, line: string) => callOrThrow<void>("terminal_write", { id, line }),
+  terminalOpen: (folder: string | null, cols: number, rows: number) => callOrThrow<number>("terminal_open", { folder, cols, rows }),
+  terminalWrite: (id: number, data: string) => callOrThrow<void>("terminal_write", { id, data }),
+  terminalResize: (id: number, cols: number, rows: number) => call<void>("terminal_resize", { id, cols, rows }),
   terminalClose: (id: number) => call<void>("terminal_close", { id }),
   /** The pull request of the project's branch and its checks, read with gh. */
   chatPullRequest: (folder: string) => call<{ number: number; title: string; url: string; state: string; passed: number; pending: number; failed: string[] } | null>("chat_pull_request", { folder }),

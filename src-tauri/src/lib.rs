@@ -3118,13 +3118,20 @@ async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, Strin
 
 /// «Terminale» in the chat: the user's own PowerShell in the project's folder (terminal.rs).
 #[tauri::command]
-fn terminal_open(app: AppHandle, folder: Option<String>) -> Result<u32, String> {
-    terminal::open(&app, folder.as_deref())
+fn terminal_open(app: AppHandle, folder: Option<String>, cols: u16, rows: u16) -> Result<u32, String> {
+    terminal::open(&app, folder.as_deref(), cols, rows)
 }
 
+/// Keys and pasted text, raw (xterm.js in chat.ts).
 #[tauri::command]
-fn terminal_write(id: u32, line: String) -> Result<(), String> {
-    terminal::write(id, &line)
+fn terminal_write(id: u32, data: String) -> Result<(), String> {
+    terminal::write(id, &data)
+}
+
+/// The panel's size in characters.
+#[tauri::command]
+fn terminal_resize(id: u32, cols: u16, rows: u16) {
+    terminal::resize(id, cols, rows);
 }
 
 #[tauri::command]
@@ -4516,6 +4523,7 @@ pub fn run() {
             chat_claude_commands,
             terminal_open,
             terminal_write,
+            terminal_resize,
             terminal_close,
             preview_to_chat,
             chat_pull_request,

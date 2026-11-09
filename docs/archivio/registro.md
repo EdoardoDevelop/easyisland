@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 7/11 — Documenti Word e PDF nella chat
+`document_read`, `document_templates`, `document_template_add`, `document_create`, `document_pdf` (`docx.rs`, `ooxzip.rs`, `pdftext.rs`, `documents.rs`): ZIP e lettore PDF scritti in casa, nessuna dipendenza nuova (`flate2`, `crc32fast` erano già nell'albero). Modelli in `documenti\modelli`, segnaposto anche spezzati fra run, totali e numero calcolati dall'app, PDF con Word. Testo dei PDF e dei Word anche ai motori via API e a «da-leggere». Provato con Word e file veri; manca la prova dalla chat dell'app.
+
 ### 7/11 — Agent Chat: motori con più contesto
 Cartella del progetto, conversazione che continua (60 min, 20 turni), messaggio intero, un incarico che ripete l'owner non apre un secondo turno (`docs/integrazioni.md`). Da provare con turni veri.
 

@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.36** — **A real terminal in the chat.** The **Terminal** is Windows' console (PowerShell 7 when installed) drawn as in Windows
+Terminal: colours, Tab, arrows and history, **Ctrl+C** to stop a command (copies when text is selected), **Ctrl+V** to paste, editors,
+passwords and the interactive questions of `npm` and `git`; it fits its panel and follows the chat into its window. The **empty chat**
+drawing starts again by itself after a moment out of view.
+
 **1.0.35** — **The "cards" chat, more polished and more accessible.** Cards are the chat's only look, with adjustable **card
 opacity** and shared measures for spacing, radii and text; the **detached window** has its own margin and follows the island's theme and
 colour, scrollbars show only under the mouse and the **Preview** is light in light mode. **Ezzy**, EasyIsland's animated logo, is among the

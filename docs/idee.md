@@ -2,6 +2,9 @@
 
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
+## Terminale vero nella chat (9/11/2026)
+Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale). Restano: più schede di terminale, scelta della shell (cmd, WSL), link cliccabili (`@xterm/addon-web-links`, altra dipendenza).
+
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).

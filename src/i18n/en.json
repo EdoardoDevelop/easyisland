@@ -1907,7 +1907,6 @@
   "RDM non trovato": "RDM not found",
   "Connessioni in RDM": "Connections in RDM",
   "Manca PowerShell 7 (pwsh): serve al modulo di Remote Desktop Manager.": "PowerShell 7 (pwsh) is missing: Remote Desktop Manager's module needs it.",
-  "PowerShell non si avvia: {e}": "PowerShell does not start: {e}",
   "Remote Desktop Manager non ha risposto in tempo: forse l'origine dati chiede un accesso. Aprila una volta in RDM e salva le credenziali.": "Remote Desktop Manager did not answer in time: maybe the data source asks for a login. Open it once in RDM and save the credentials.",
   "Manca il modulo Devolutions.PowerShell. In PowerShell 7: Install-Module Devolutions.PowerShell -Scope CurrentUser": "The Devolutions.PowerShell module is missing. In PowerShell 7: Install-Module Devolutions.PowerShell -Scope CurrentUser",
   "Il modulo di Remote Desktop Manager chiede una licenza valida.": "Remote Desktop Manager's module asks for a valid license.",
@@ -4738,7 +4737,6 @@
   "I controlli della pull request #{n} non passano: {names}. Leggi i log con `gh pr checks {n}` e `gh run view --log-failed`, trova la causa e correggi.": "The checks of pull request #{n} fail: {names}. Read the logs with `gh pr checks {n}` and `gh run view --log-failed`, find the cause and fix it.",
   "Controlli: {ok} riusciti, {ko} non riusciti, {wait} in corso. Letti con gh ogni minuto al massimo.": "Checks: {ok} passed, {ko} failed, {wait} running. Read with gh at most once a minute.",
   "Terminale: un PowerShell tuo nella cartella del progetto": "Terminal: your own PowerShell in the project folder",
-  "Comando (Invio). Per editor e password usa Terminale di Windows.": "Command (Enter). For editors and passwords use Windows Terminal.",
   "Riavvia": "Restart",
   "Chiude questo PowerShell (anche un comando bloccato) e ne apre un altro": "Closes this PowerShell (a stuck command too) and opens another",
   "Chiudi il terminale": "Close the terminal",
@@ -4756,7 +4754,6 @@
   "Il fast mode di Claude Code non è disponibile in questa modalità.": "Claude Code's fast mode is not available in this mode.",
   "Il fast mode di Claude Code non è attivo ({why}).": "Claude Code's fast mode is not on ({why}).",
   "Propone una conversazione a parte": "Proposes a separate conversation",
-  "PowerShell non si avvia.": "PowerShell does not start.",
   "[PowerShell si è chiuso]": "[PowerShell closed]",
   "Il terminale si è chiuso: aprine un altro.": "The terminal closed: open another one.",
   "Opacità delle card": "Card opacity",
@@ -4775,5 +4772,8 @@
   "Disegno": "Drawing",
   "scrivi qui sotto o riprendi una conversazione": "write below or pick up a conversation",
   "Risposta arrivata nella chat": "A reply arrived in the chat",
-  "{name} ha finito": "{name} has finished"
+  "{name} ha finito": "{name} has finished",
+  "PowerShell non si avvia: {e}": "PowerShell does not start: {e}",
+  "Il terminale non si avvia: {e}": "The terminal does not start: {e}",
+  "Il terminale c'è solo su Windows.": "The terminal is only on Windows."
 }

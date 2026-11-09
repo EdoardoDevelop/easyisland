@@ -14,6 +14,7 @@ import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
 import { TypeLine, foldSteps, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
+import { ChatTerm } from "./chat-terminal";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -386,18 +387,20 @@ export function buildPrompt(
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
   // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
   const termBtn = h("button", { class: "history-btn", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }, svg(ICONS.lineTerminal, 13, { stroke: 1.8 })) as HTMLButtonElement;
-  const termOut = h("pre", { class: "chat-term-out" });
-  const termIn = h("input", { class: "chat-term-in", type: "text", spellcheck: "false", placeholder: t("Comando (Invio). Per editor e password usa Terminale di Windows.") }) as HTMLInputElement;
+  // xterm.js draws the conversation's terminal here (chat-terminal.ts).
+  const termBox = h("div", { class: "chat-term-box" });
   const termRow = h("div", { class: "chat-term" },
     h("div", { class: "chat-term-head" }, h("span", { text: t("Terminale") }),
       h("button", { class: "chat-queued-btn", text: t("Riavvia"), title: t("Chiude questo PowerShell (anche un comando bloccato) e ne apre un altro"), onclick: () => void restartTerminal() }),
       h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiudi il terminale"), onclick: () => closeTerminal() })),
-    termOut, termIn);
+    termBox);
   termRow.style.display = "none";
   // Out of the view (in the Anteprima's panel): taken home before its window goes (popout.ts rescue).
   termRow.dataset.followsView = "";
-  /** One PowerShell per conversation, with what it printed. */
-  const terms = new Map<string, { id: number; lines: string[] }>();
+  /** One terminal per conversation (chat-terminal.ts), with what it printed. */
+  const terms = new Map<string, ChatTerm>();
+  /** Output of a terminal that arrived before its id came back from terminal_open. */
+  const early = new Map<number, string>();
   const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, previewBtn, desktopBtn, exportBtn, popBtn);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
@@ -2265,32 +2268,49 @@ export function buildPrompt(
     const pane = layout.ownerDocument.getElementById("preview-pane");
     const home = open && pane ? pane : layout;
     if (termRow.parentElement !== home) home.append(termRow);
+    // The conversation's own terminal (another conversation, another window: chat-terminal.ts mount).
+    const term = terms.get(State.chat.sid);
+    if (term) term.mount(termBox);
+    else termBox.replaceChildren();
     if (State.chatTermOpen !== open) {
       State.chatTermOpen = open;
       onHeightChange();
     }
   }
   function drawTerminal() {
-    const term = terms.get(State.chat.sid);
     placeTerminal();
-    termOut.textContent = term ? term.lines.join("\n") : "";
-    termOut.scrollTop = termOut.scrollHeight;
     onHeightChange();
   }
   async function openTerminal() {
     const c = State.chat;
+    const term: ChatTerm = new ChatTerm(
+      (data) => { if (term.id) void Bridge.terminalWrite(term.id, data).catch(() => undefined); },
+      (cols, rows) => { if (term.id) void Bridge.terminalResize(term.id, cols, rows); },
+    );
+    terms.set(c.sid, term);
+    drawTerminal();
+    // Its size once the panel has made room for it.
+    await new Promise((r) => window.setTimeout(r, 150));
+    term.refit();
+    const { cols, rows } = term.size();
     try {
-      const id = await Bridge.terminalOpen(c.folder ?? (State.settings.chatFolder || null));
-      terms.set(c.sid, { id, lines: [] });
-      drawTerminal();
-      termIn.focus();
+      term.id = await Bridge.terminalOpen(c.folder ?? (State.settings.chatFolder || null), cols, rows);
+      const first = early.get(term.id);
+      early.delete(term.id);
+      if (first) term.output(first);
+      term.refit();
+      if (terms.get(State.chat.sid) === term) term.focus();
     } catch (e) {
+      terms.delete(c.sid);
+      term.unmount();
+      drawTerminal();
       flash(String(e).replace(/^Error:\s*/, ""));
     }
   }
   function closeTerminal() {
     const term = terms.get(State.chat.sid);
-    if (term) void Bridge.terminalClose(term.id);
+    if (term?.id) void Bridge.terminalClose(term.id);
+    term?.unmount();
     terms.delete(State.chat.sid);
     drawTerminal();
     input.focus();
@@ -2303,25 +2323,15 @@ export function buildPrompt(
     if (terms.has(State.chat.sid)) closeTerminal();
     else void openTerminal();
   });
-  termIn.addEventListener("keydown", (e) => {
-    e.stopPropagation();
-    if ((e as KeyboardEvent).key !== "Enter") return;
-    const term = terms.get(State.chat.sid);
-    const line = termIn.value;
-    termIn.value = "";
-    if (!term) return;
-    term.lines.push(`> ${line}`);
-    drawTerminal();
-    void Bridge.terminalWrite(term.id, line).catch((err) => { term.lines.push(String(err).replace(/^Error:\s*/, "")); drawTerminal(); });
-  });
-  void onEvent<{ id: number; text: string; error?: boolean }>("terminal-out", (p) => {
-    for (const term of terms.values()) {
-      if (term.id !== p.id) continue;
-      term.lines.push(p.text);
-      // The last 2000 lines.
-      if (term.lines.length > 2000) term.lines.splice(0, term.lines.length - 2000);
-      if (terms.get(State.chat.sid) === term) drawTerminal();
+  void onEvent<{ id: number; data: string; closed?: boolean }>("terminal-out", (p) => {
+    const term = [...terms.values()].find((x) => x.id === p.id);
+    if (!term) {
+      // Before terminal_open answered: kept for it (a little, never forever).
+      if (early.size < 8) early.set(p.id, (early.get(p.id) ?? "") + p.data);
+      return;
     }
+    term.output(p.data);
+    if (p.closed) term.closed = true;
   });
   // A piece of work Claude proposed and the user allowed (agent.rs chat_start): a conversation of its own, beside this one.
   void onEvent<{ title: string; prompt: string; folder?: string | null }>("chat-new", (p) => {
