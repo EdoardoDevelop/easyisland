@@ -2,6 +2,15 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.35** — **The "cards" chat, more polished and more accessible.** Cards are the chat's only look, with adjustable **card
+opacity** and shared measures for spacing, radii and text; the **detached window** has its own margin and follows the island's theme and
+colour, scrollbars show only under the mouse and the **Preview** is light in light mode. **Ezzy**, EasyIsland's animated logo, is among the
+characters. An **empty chat** shows a faint, slow drawing (Ezzy, a turning island, a sea of dots, stars, aurora, network; in Appearance →
+Chat) and below it your **last three conversations** to pick up with one click. Replies read as clearly as questions, the header icons are
+drawn, the title is short and paths become the file's name. Accessibility: text with enough **contrast** in dark and light, controls of at
+least **24 px**, a keyboard **focus ring** and **screen reader announcements** when a reply arrives, a permission is needed or an agent
+finishes.
+
 **1.0.34** — **The chat does everything Claude Desktop does, and more.** With Claude Code, conversations reopened from the history
 **resume their session** with all its context, and so do Edit, Regenerate and Branch, from that very point. The **context ring** is always
 there, after background work and when reopening a chat too; **/compatta** summarizes the conversation with any engine. The mode button goes

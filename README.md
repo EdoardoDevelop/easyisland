@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.35** — **cards** chat with an animated **empty chat** and your last conversations, **Ezzy** among the characters, better **accessibility**.
 - **1.0.34** — a chat **on par with Claude Desktop**: resumed sessions, **Plan** mode, Claude Code's commands, **⟲ Files**, PRs, terminal.
 - **1.0.33** — custom integrations with **HTML templates**, direct **PDF** with the file name you choose and **script** buttons; **Running** in Agent Chat.
 - **1.0.32** — memory **constellation** in the field at the top, a chat from a node with Enter, a memory that costs fewer tokens.
-- **1.0.31** — two-row **chat** with **animated icons**, context ring and project branch; a clean startup.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 

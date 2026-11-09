@@ -2,6 +2,15 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.35** — **Chat «a schede», più curata e più accessibile.** Le schede sono l'aspetto unico della chat, con **opacità delle card**
+regolabile e misure comuni per spazi, raggi e testo; la **finestra staccata** ha il suo margine e segue tema e colore dell'isola, le barre
+di scorrimento compaiono solo sotto il mouse e l'**Anteprima** è chiara nel modo chiaro. **Ezzy**, il logo animato di EasyIsland, è fra i
+personaggi. Una **chat vuota** mostra un disegno tenue e lento (Ezzy, un'isola che gira, un mare di puntini, stelle, aurora, rete; in
+Aspetto → Chat) e sotto le tue **ultime tre conversazioni** da riprendere con un clic. Le risposte si leggono quanto le domande, le icone
+della testata sono disegnate, il titolo è corto e i percorsi diventano il nome del file. Accessibilità: testi con **contrasto** sufficiente
+in scuro e in chiaro, controlli di almeno **24 px**, un **anello del focus** da tastiera e **annunci per i lettori di schermo** quando
+arriva una risposta, serve un permesso o un agente finisce.
+
 **1.0.34** — **La chat fa tutto quello che fa Claude Desktop, e di più.** Con Claude Code le conversazioni riaperte dalla cronologia
 **riprendono la loro sessione** con tutto il contesto, e così Modifica, Rigenera e Dirama, che ripartono da quel punto. L'**anello del
 contesto** c'è sempre, anche dopo i lavori in background e riaprendo una chat; **/compatta** riassume la conversazione con ogni motore.
