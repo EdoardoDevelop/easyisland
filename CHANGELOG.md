@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.37** — **L'isola non si blocca più** quando una chat nomina un percorso di rete che non risponde (es. la cartella
+condivisa di un server spento): i percorsi si controllano fuori dall'interfaccia e un server di rete ha al massimo un secondo e mezzo.
+La finestra della **Memoria** si apre ingrandita; il disegno della **chat vuota** si muove anche nella chat in finestra.
+
 **1.0.36** — **Un terminale vero nella chat.** Il **Terminale** è la console di Windows (PowerShell 7 se c'è) disegnata come in
 Terminale di Windows: colori, Tab, frecce e cronologia, **Ctrl+C** per fermare un comando (copia se c'è una selezione), **Ctrl+V** per
 incollare, editor, password e domande interattive di `npm` e `git`; si adatta al pannello e segue la chat nella sua finestra. Il disegno
