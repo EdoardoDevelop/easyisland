@@ -4770,5 +4770,10 @@
   "Cielo stellato": "Starry sky",
   "Aurora": "Aurora",
   "Rete di punti": "Network of dots",
-  "un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni": "a faint, slow drawing instead of the empty space, until you write the first message; it stops when the chat is not in view and stays still if Windows reduces animations"
+  "un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni": "a faint, slow drawing instead of the empty space, until you write the first message; it stops when the chat is not in view and stays still if Windows reduces animations",
+  "Come si presenta la vista Chat.": "How the Chat view looks.",
+  "Disegno": "Drawing",
+  "scrivi qui sotto o riprendi una conversazione": "write below or pick up a conversation",
+  "Risposta arrivata nella chat": "A reply arrived in the chat",
+  "{name} ha finito": "{name} has finished"
 }

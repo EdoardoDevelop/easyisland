@@ -15,6 +15,7 @@ import {
 import type { Suggestion } from "./context";
 import { buildSelectionMenu, type SelectionMenu } from "./selection-menu";
 import { Sound } from "../core/sound";
+import { startAnnouncer } from "../core/announce";
 import { OPENED_BY_APP, OPEN_URLS, State, barEdge, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
@@ -282,6 +283,8 @@ export class Island {
     });
     // After the start-up greeting the island is compact: WebView2 may keep less memory.
     window.setTimeout(() => { if (State.mode !== "expanded") void Bridge.webviewMemoryLow(true); }, 15000);
+    // Screen readers hear a reply, a permission, an agent that finished (core/announce.ts).
+    startAnnouncer();
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();

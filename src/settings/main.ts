@@ -685,20 +685,7 @@ function terminalRow(): HTMLElement {
       select([["docked", t("Nell'isola, a destra")], ["window", t("Finestra separata")], ["off", t("Spenta")]],
         settings.chatPreview === false ? "off" : settings.previewDocked ? "docked" : "window",
         (v) => { settings.chatPreview = v !== "off"; settings.previewDocked = v === "docked"; void save(); }),
-      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser") })),
-    h("div", { class: "row" },
-      h("label", { text: t("Chat vuota") }),
-      // What fills a new conversation before the first message (src/views/chat-empty.ts).
-      select([
-        ["ezzy", t("Ezzy che galleggia")],
-        ["isola", t("Isola che gira")],
-        ["onde", t("Mare di puntini")],
-        ["stelle", t("Cielo stellato")],
-        ["aurora", t("Aurora")],
-        ["rete", t("Rete di punti")],
-        ["nessuna", t("Niente")],
-      ], settings.chatEmptyArt ?? "ezzy", (v) => { settings.chatEmptyArt = v; void save(); }),
-      h("span", { class: "hint note", text: t("un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni") })));
+      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser") })));
 }
 
 /** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */
@@ -2846,12 +2833,32 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
     ],
+    chat: () => [
+      intro(t("Come si presenta la vista Chat.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Chat vuota") })),
+        h("div", { class: "row" },
+          h("label", { text: t("Disegno") }),
+          // What fills a new conversation before the first message (src/views/chat-empty.ts).
+          select([
+            ["ezzy", t("Ezzy che galleggia")],
+            ["isola", t("Isola che gira")],
+            ["onde", t("Mare di puntini")],
+            ["stelle", t("Cielo stellato")],
+            ["aurora", t("Aurora")],
+            ["rete", t("Rete di punti")],
+            ["nessuna", t("Niente")],
+          ], settings.chatEmptyArt ?? "ezzy", (v) => { settings.chatEmptyArt = v; commit(); }),
+          h("span", { class: "hint note", text: t("un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni") }),
+        ),
+      ),
+    ],
   };
   return [tabs, ...sections[tab]()];
 }
 
 /** The tabs of Aspetto, in order. */
-type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
+type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta" | "chat";
 const LOOK_TABS = (): [LookTab, string][] => [
   ["tema", t("Tema")],
   ["font", t("Font")],
@@ -2860,6 +2867,7 @@ const LOOK_TABS = (): [LookTab, string][] => [
   ["barra", t("Barra fissa")],
   ["chiusa", t("Isola chiusa")],
   ["aperta", t("Isola aperta")],
+  ["chat", t("Chat")],
 ];
 const LOOK_TAB_KEY = "easyisland.settings.aspetto";
 let lookTabNow: LookTab | null = null;

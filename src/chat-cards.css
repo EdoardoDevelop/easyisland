@@ -39,7 +39,7 @@ html[data-chat-look="cards"] {
   --cc-ink: #e4e5e8;
   --cc-reply: #c9cbd0;
   --cc-dim: #8f939b;
-  --cc-faint: #6f737a;
+  --cc-faint: #7d8189; /* ≥4.5:1 on the card: it carries text (Copia, group names) */
   --cc-user: rgba(255, 255, 255, 0.08);
   --cc-menu: #1f1f22;
 }
@@ -55,8 +55,8 @@ html[data-chat-look="cards"][data-scheme="light"] {
   --cc-hover: rgba(0, 0, 0, 0.07);
   --cc-ink: #1f2226;
   --cc-reply: #464a52;
-  --cc-dim: #6b7079;
-  --cc-faint: #8a8f97;
+  --cc-dim: #5f646c;
+  --cc-faint: #70757d;
   --cc-user: rgba(0, 0, 0, 0.05);
   --cc-menu: #ffffff;
 }
@@ -201,7 +201,7 @@ html[data-chat-look="cards"][data-ui="windows"] .chat-card .bubble {
 html[data-chat-look="cards"] .chat-card .reply,
 html[data-chat-look="cards"][data-ui="windows"] .chat-card .reply {
   font-size: var(--cc-t-body);
-  color: var(--cc-reply);
+  color: var(--cc-ink); /* the answer weighs as much as the question */
   line-height: 1.6;
   padding-top: 0;
   gap: var(--cc-s2);
@@ -224,7 +224,7 @@ html[data-chat-look="cards"] .chat-card .md-steps > summary {
 }
 
 /* Copia, Rigenera: small, their text on the same edge as the answer's. */
-html[data-chat-look="cards"] .chat-card .msg-actions { height: 22px; margin: var(--cc-s1) 0 0 calc(-1 * var(--cc-s2)); gap: 0; }
+html[data-chat-look="cards"] .chat-card .msg-actions { height: 24px; margin: var(--cc-s1) 0 0 calc(-1 * var(--cc-s2)); gap: 0; }
 html[data-chat-look="cards"] .chat-card .msg-act {
   padding: 0 var(--cc-s2);
   border-radius: var(--cc-r-ctl);
@@ -390,3 +390,33 @@ html[data-chat-look="cards"] .chat-card .chat-empty {
   z-index: 0;
   pointer-events: none;
 }
+/* Under the picture: the last three conversations, to pick up again. */
+html[data-chat-look="cards"] .chat-card .chat-body.has-recent .chat-empty { height: calc(100% - 48px - 112px - 120px); }
+html[data-chat-look="cards"] .chat-card .chat-recent {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: min(360px, calc(100% - 2 * var(--cc-s5)));
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-s1);
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cc-s3);
+  padding: 6px var(--cc-s3);
+  border: 0;
+  border-radius: var(--cc-r-item);
+  background: var(--cc-soft);
+  font: 400 var(--cc-t-ui) var(--font);
+  color: var(--cc-reply);
+  text-align: left;
+  cursor: pointer;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-chat-look="cards"] .chat-card .chat-recent-when { flex: none; font-size: var(--cc-t-small); color: var(--cc-faint); font-variant-numeric: tabular-nums; }
+/* «Vai in fondo»: a drawn arrow, centred. */
+html[data-chat-look="cards"] .chat-card .chat-jump { display: grid; place-items: center; }

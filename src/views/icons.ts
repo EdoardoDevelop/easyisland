@@ -8,6 +8,15 @@ export const ICONS = {
   popOut: "M13 4h7v7M20 4l-8.5 8.5M17.5 14.5v4A1.5 1.5 0 0 1 16 20H5.5A1.5 1.5 0 0 1 4 18.5V8a1.5 1.5 0 0 1 1.5-1.5h4",
   // an arrow coming back into a window — «Rimetti nell'isola»
   popIn: "M20 4l-8.5 8.5M11.5 6.5v6h6M17.5 14.5v4A1.5 1.5 0 0 1 16 20H5.5A1.5 1.5 0 0 1 4 18.5V8a1.5 1.5 0 0 1 1.5-1.5h3",
+  // Line icons of the chat's head (drawn with stroke 1.8, like sidebar and preview):
+  // an arrow into a tray — «Esporta»
+  lineExport: "M12 4v10.5M7.5 10l4.5 4.5 4.5-4.5M5 19.5h14",
+  // an arrow leaving to the upper right — «Continua nell'app»
+  lineOut: "M7.5 16.5 16.5 7.5M9.5 7.5h7v7",
+  // an arrow down to a line — «Vai in fondo»
+  lineDown: "M12 5v11.5M6.5 11 12 16.5 17.5 11M6 20h12",
+  // a prompt in a window — «Terminale»
+  lineTerminal: "M4.5 4.5h15a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM7.5 9.5l3 2.5-3 2.5M12.5 15h4",
   // minus — minimize the island as an app
   minimize: "M5 11h14v2H5z",
   // square / two squares — full screen on and off

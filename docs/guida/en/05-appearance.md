@@ -6,7 +6,7 @@ Everything is in **Settings → Look**. Sections with the purple label are saved
 
 ![Settings, Look page](../media/settings.png)
 
-The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixed bar**, **Closed island** and **Open island**; the window remembers the last one open. Next to each setting a **small picture** shows what it changes: a tiny screen with the island, the character or the bar, redrawn as soon as you change the value (some are animated, for example the mouse arriving and the island opening). In **Character** the chosen character moves as it does in the island; in **Position** a click on a spot of the tiny screen picks the corner. Sound volumes are in **General**, next to Sound.
+The page has eight tabs at the top: **Theme**, **Font**, **Character**, **Position**, **Fixed bar**, **Closed island**, **Open island** and **Chat**; the window remembers the last one open. Next to each setting a **small picture** shows what it changes: a tiny screen with the island, the character or the bar, redrawn as soon as you change the value (some are animated, for example the mouse arriving and the island opening). In **Character** the chosen character moves as it does in the island; in **Position** a click on a spot of the tiny screen picks the corner. Sound volumes are in **General**, next to Sound.
 
 ## Theme
 - **Style**: **Windows 11** (default: like system apps, with **Windows' accent colour** and line icons) or **Classic** (the original look with coloured icons).
@@ -90,6 +90,11 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 | **Width** and **Minimum height** | Up to the screen edges (also by dragging its bottom corner); **Defaults** go back to 640 px |
 | **Field at the top** | The search field in the island |
 | **Like an app** | Taskbar icon, Alt+Tab, minimise |
+
+## Chat
+| Option | What it does |
+|---|---|
+| **Empty chat → Drawing** | What a new conversation shows before the first message: Ezzy floating (default), a turning island, a sea of dots, a starry sky, an aurora, a network of dots or nothing |
 
 ## Characters
 Characters drawn in code, all with the same expressions:

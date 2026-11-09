@@ -6980,3 +6980,24 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 /* The menu scrolls when long; its rows never squeeze. */
 .engine-menu > * { flex-shrink: 0; }
 .chat-bar .engine-menu { max-height: min(340px, 60vh); }
+
+/* Minimum sizes and contrast (review of 9 Nov 2026): every control the mouse
+   aims at is at least 24×24 px, every text at least 4.5:1 on its background.
+   The light copies of these colours that the generator gets wrong are fixed in
+   style-light.css. */
+.icon-btn { width: 24px; height: 24px; }
+.clip-btn { min-width: 24px; min-height: 24px; color: var(--c, #b4b8c0); }
+.agent-chip { height: 24px; }
+.files-layout, .work-crumb { min-height: 24px; }
+.files-layout { min-width: 24px; }
+.files-back { min-width: 24px; min-height: 24px; display: inline-grid; place-items: center; }
+.link-btn { min-height: 24px; }
+.ask-foot .link-btn { padding: 0 2px; }
+.files-clear { color: #ff6b77; }
+.qa-count { color: #b4b8c0; }
+/* Keyboard focus: a clear ring in the app's accent on every control, never the
+   browser's thin default (mouse clicks show none: :focus-visible). */
+#island :is(button, a[href], select, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 2px;
+}

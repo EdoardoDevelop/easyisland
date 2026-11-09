@@ -27,6 +27,19 @@ export function setHistoryDemo(list: ChatSummary[]) {
   historyDemo = list;
 }
 
+/**
+ * A conversation's title as shown: its first line, a file path reduced to the
+ * file's name, at most ~70 characters cut on a word. The full one goes in title=.
+ */
+function shortTitle(text: string): string {
+  const line = (text.split("\n").find((l) => l.trim()) ?? "").trim();
+  const named = line.replace(/(?:[A-Za-z]:\\|\\\\|~?\/)[^\s"'«»<>|]*[\\/]([^\s\\/"'«»<>|]+)/g, "$1");
+  if (named.length <= 70) return named;
+  const cut = named.slice(0, 70);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 40 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, "")}…`;
+}
+
 /** Starts a question from outside the chat (a quick action, a shortcut). */
 export function sendToChat(query: string) {
   externalSend?.(query);
@@ -354,7 +367,7 @@ export function buildPrompt(
   // The conversation's title, as the history knows it (its first question until then).
   const titleEl = h("span", { class: "chat-title" });
   // «Esporta»: the conversation as a Markdown file in the Vassoio.
-  const exportBtn = h("button", { class: "history-btn", title: t("Esporta la conversazione in Markdown (nel Vassoio)"), text: "⤓" }) as HTMLButtonElement;
+  const exportBtn = h("button", { class: "history-btn", title: t("Esporta la conversazione in Markdown (nel Vassoio)") }, svg(ICONS.lineExport, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
@@ -366,13 +379,13 @@ export function buildPrompt(
   // Opens the Anteprima, and closes it when it is open in the island.
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
-  const desktopBtn = h("button", { class: "history-btn desktop-btn", text: "↗" }) as HTMLButtonElement;
+  const desktopBtn = h("button", { class: "history-btn desktop-btn" }, svg(ICONS.lineOut, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // «Apri in una finestra» / «Rimetti nell'isola» (popout.ts): the chat as a window of its own and back.
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
   // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
-  const termBtn = h("button", { class: "history-btn", text: ">_", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }) as HTMLButtonElement;
+  const termBtn = h("button", { class: "history-btn", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }, svg(ICONS.lineTerminal, 13, { stroke: 1.8 })) as HTMLButtonElement;
   const termOut = h("pre", { class: "chat-term-out" });
   const termIn = h("input", { class: "chat-term-in", type: "text", spellcheck: "false", placeholder: t("Comando (Invio). Per editor e password usa Terminale di Windows.") }) as HTMLInputElement;
   const termRow = h("div", { class: "chat-term" },
@@ -414,7 +427,7 @@ export function buildPrompt(
   }
   // Scrolled up to read: new text does not pull the view down; ↓ goes back.
   let stick = true;
-  const jumpBtn = h("button", { class: "chat-jump", title: t("Vai in fondo"), text: "↓" }) as HTMLButtonElement;
+  const jumpBtn = h("button", { class: "chat-jump", title: t("Vai in fondo") }, svg(ICONS.lineDown, 13, { stroke: 1.8 })) as HTMLButtonElement;
   jumpBtn.style.display = "none";
   // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
   let streamEl: HTMLElement | null = null;
@@ -510,7 +523,36 @@ export function buildPrompt(
   let bgKey = "";
   // The picture of an empty conversation (chat-empty.ts), behind it.
   const empty = new ChatEmpty();
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
+  // An empty conversation: the last three to pick up again, above the field
+  // (Edoardo, 9/11: his own conversations, never suggested questions).
+  const recent = h("div", { class: "chat-recent" });
+  recent.style.display = "none";
+  let recentRead = 0;
+  let recentBusy = false;
+  function showRecent(on: boolean) {
+    if (!on || State.settings.chatHistory === false) {
+      if (recent.style.display !== "none") recent.style.display = "none";
+      recent.parentElement?.classList.remove("has-recent");
+      return;
+    }
+    recent.style.bottom = `${bar.offsetHeight + 32}px`;
+    recent.style.display = recent.childElementCount ? "" : "none";
+    recent.parentElement?.classList.toggle("has-recent", recent.childElementCount > 0);
+    if (recentBusy || Date.now() - recentRead < 30_000) return;
+    recentBusy = true;
+    void loadHistory("").then((list) => {
+      recentRead = Date.now();
+      const top = list.filter((c) => c.turns > 0 && c.id !== State.chat.logId).sort((a, b) => b.updated - a.updated).slice(0, 3);
+      recent.replaceChildren(...top.map((c) =>
+        h("button", { class: "chat-recent-item", title: c.title, onclick: () => void reopen(c.id) },
+          h("span", { class: "chat-recent-title", text: shortTitle(c.title) }),
+          h("span", { class: "chat-recent-when", text: when(c.updated) }))));
+      const shown = top.length > 0 && !State.chatHistory.length;
+      recent.style.display = shown ? "" : "none";
+      recent.parentElement?.classList.toggle("has-recent", shown);
+    }).finally(() => { recentBusy = false; });
+  }
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
   const el = h(
     "div",
     { class: "view" },
@@ -2673,8 +2715,9 @@ export function buildPrompt(
           : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora"));
       // The conversation's title: as the history has it, else its first question.
       const known = lastList.find((x) => x.id === State.chat.logId)?.title;
-      titleEl.textContent = known ?? State.chatHistory.find((m) => m.role === "user")?.content ?? "";
-      titleEl.title = titleEl.textContent;
+      const fullTitle = known ?? State.chatHistory.find((m) => m.role === "user")?.content ?? "";
+      titleEl.textContent = shortTitle(fullTitle);
+      titleEl.title = fullTitle;
       // The history, read the first time the chat shows with its sidebar open.
       if (!historyRead && layout.classList.contains("side-open") && State.view === "prompt") {
         historyRead = true;
@@ -2735,7 +2778,9 @@ export function buildPrompt(
         askEl.remove();
       }
       // An empty conversation: its quiet picture (Impostazioni → Chat → «Chat vuota»).
-      empty.show(!State.chatHistory.length && !sending && !req && !asked ? emptyArt(State.settings.chatEmptyArt) : null);
+      const blank = !State.chatHistory.length && !sending && !req && !asked;
+      empty.show(blank ? emptyArt(State.settings.chatEmptyArt) : null);
+      showRecent(blank);
       const elsewhere = State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid && State.pendingApproval.chatSid !== State.chatSid
         ? State.chats.find((c) => c.sid === State.pendingApproval?.chatSid) : undefined;
       const otherText = elsewhere

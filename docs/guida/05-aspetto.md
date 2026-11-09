@@ -6,7 +6,7 @@ Tutto in **Impostazioni → Aspetto**. Le sezioni con l'etichetta viola si salva
 
 ![Impostazioni, pagina Aspetto](../media/settings.png)
 
-La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizione**, **Barra fissa**, **Isola chiusa** e **Isola aperta**; la finestra ricorda l'ultima aperta. Accanto a ogni voce c'è una **piccola immagine** che mostra cosa cambia: uno schermo in miniatura con l'isola, il personaggio o la barra, ridisegnato appena cambi il valore (alcune sono animate, per esempio il mouse che arriva e l'isola che si apre). In **Personaggio** il personaggio scelto si muove come nell'isola; in **Posizione** un clic su un punto dello schermo in miniatura sceglie l'angolo. I volumi dei suoni sono in **Generale**, accanto a Suono.
+La pagina è divisa in otto schede, in alto: **Tema**, **Font**, **Personaggio**, **Posizione**, **Barra fissa**, **Isola chiusa**, **Isola aperta** e **Chat**; la finestra ricorda l'ultima aperta. Accanto a ogni voce c'è una **piccola immagine** che mostra cosa cambia: uno schermo in miniatura con l'isola, il personaggio o la barra, ridisegnato appena cambi il valore (alcune sono animate, per esempio il mouse che arriva e l'isola che si apre). In **Personaggio** il personaggio scelto si muove come nell'isola; in **Posizione** un clic su un punto dello schermo in miniatura sceglie l'angolo. I volumi dei suoni sono in **Generale**, accanto a Suono.
 
 ## Tema
 - **Stile**: **Windows 11** (predefinito: come le app di sistema, con il **colore d'accento di Windows** e icone a linea) o **Classico** (l'aspetto originale con le icone colorate).
@@ -90,6 +90,11 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
 | **Larghezza** e **Altezza minima** | Fino ai bordi dello schermo (anche trascinando l'angolo in basso); **Predefinite** riporta a 640 px |
 | **Campo in alto** | Il campo di ricerca nell'isola |
 | **Come un'app** | Icona nella barra delle applicazioni, Alt+Tab, riduci a icona |
+
+## Chat
+| Opzione | Cosa fa |
+|---|---|
+| **Chat vuota → Disegno** | Cosa si vede in una conversazione nuova prima del primo messaggio: Ezzy che galleggia (di serie), un'isola che gira, un mare di puntini, un cielo stellato, un'aurora, una rete di punti o niente |
 
 ## Personaggi
 Personaggi disegnati nel codice, tutti con le stesse espressioni:
