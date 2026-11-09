@@ -9,7 +9,8 @@ characters. An **empty chat** shows a faint, slow drawing (Ezzy, a turning islan
 Chat) and below it your **last three conversations** to pick up with one click. Replies read as clearly as questions, the header icons are
 drawn, the title is short and paths become the file's name. Accessibility: text with enough **contrast** in dark and light, controls of at
 least **24 px**, a keyboard **focus ring** and **screen reader announcements** when a reply arrives, a permission is needed or an agent
-finishes.
+finishes. The chat's **terminal** opens in the right-hand panel like the Preview (under it when it is open) and the **chat in a window**
+opens maximized.
 
 **1.0.34** — **The chat does everything Claude Desktop does, and more.** With Claude Code, conversations reopened from the history
 **resume their session** with all its context, and so do Edit, Regenerate and Branch, from that very point. The **context ring** is always

@@ -9,7 +9,8 @@ personaggi. Una **chat vuota** mostra un disegno tenue e lento (Ezzy, un'isola c
 Aspetto → Chat) e sotto le tue **ultime tre conversazioni** da riprendere con un clic. Le risposte si leggono quanto le domande, le icone
 della testata sono disegnate, il titolo è corto e i percorsi diventano il nome del file. Accessibilità: testi con **contrasto** sufficiente
 in scuro e in chiaro, controlli di almeno **24 px**, un **anello del focus** da tastiera e **annunci per i lettori di schermo** quando
-arriva una risposta, serve un permesso o un agente finisce.
+arriva una risposta, serve un permesso o un agente finisce. Il **terminale** della chat si apre nel pannello a destra come l'Anteprima
+(sotto di lei se è aperta) e la **chat in finestra** si apre ingrandita.
 
 **1.0.34** — **La chat fa tutto quello che fa Claude Desktop, e di più.** Con Claude Code le conversazioni riaperte dalla cronologia
 **riprendono la loro sessione** con tutto il contesto, e così Modifica, Rigenera e Dirama, che ripartono da quel punto. L'**anello del
