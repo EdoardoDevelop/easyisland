@@ -4927,6 +4927,7 @@ pub fn run() {
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));
             // Passwords written before redact.rs existed: out of the history and the memory, once.
             std::thread::spawn(redact::scrub_once);
+            std::thread::spawn(log::scrub_once);
             std::thread::spawn(checkpoints::prune);
             hooks::ensure_hook_exe(&handle);
             // Coucou's autostart entry starts Coucou, not this app.

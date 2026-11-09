@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 9/11 — Agent Chat: token nel campo sbagliato, log senza segreti
+Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»: ora `agentchat.rs` lo riconosce dai prefissi `ac_`/`ow_` e lo dice (`misplaced`, `hello`, `owner_send`). `easyisland.log` aveva il `Bearer` di un comando di opencode: `log::mask` su ogni riga e `log::scrub_once` sul log vecchio. `docs/integrazioni.md`, `docs/architettura.md` → Robustezza.
+
 ### 9/11 — Indice della memoria in RAM
 `brain::Index`: pagine e grafo tenuti in RAM per cartella e rifatti solo quando cambia un file (percorso, ora, dimensione) o la lingua; i `.md` restano la fonte, niente database (deciso con Edoardo). Test `the_index_follows_the_files`. Sistemata una gara fra il test degli hook (cambia USERPROFILE) e quello del terminale. `docs/chat.md` → Secondo cervello.
 
@@ -61,6 +64,3 @@ Dump di un AppHangB1: thread principale in `CreateFile` su `\\192.168.0.250\c` (
 
 ### 9/11 — Terminale vero (1.0.36), nel pannello; chat in finestra ingrandita
 Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). Poi terminale vero: ConPTY in `terminal.rs` (test con una shell vera) e xterm.js in `chat-terminal.ts`, unica dipendenza nuova (`docs/decisioni.md`). Disegno della chat vuota che riparte da solo (`chat-empty.ts`). `docs/chat.md` → Terminale.
-
-### 8/11 — Chat «a schede»
-Aspetto di serie della chat (`theme.chatLook` = `cards`, «Classico» in Impostazioni → Aspetto → Tema) con «Opacità delle card» (`theme.cardOpacity`): schede sul colore dell'isola, campo che galleggia, domande a destra in un fumetto leggero, nessun grassetto. Dopo una revisione del design, misure comuni in `src/chat-cards.css` (spazi, raggi, tre grandezze di testo, un solo accento sull'invio; `docs/architettura.md` → Aspetto della chat). Poi: «Classico» tolto, finestra staccata con margine e tema che segue l'isola, Anteprima anche chiara, Ezzy (logo animato) fra i personaggi, disegno della chat vuota sceglibile in Aspetto → Chat (`chat-empty.ts`). Revisione con Impeccable e UI/UX Pro Max (9/11): contrasto di Copia/Rigenera, icone disegnate nella testata, ultime tre conversazioni nella chat vuota, risposta scura quanto la domanda, titolo accorciato. Poi verifica con le regole di UI/UX Pro Max: contrasti ≥4,5:1, bersagli ≥24 px, anello del focus, annunci per i lettori di schermo (`announce.ts`; `docs/architettura.md` → Accessibilità).

@@ -608,6 +608,20 @@ pub(crate) fn net_error(e: &reqwest::Error) -> String {
     }
 }
 
+/// How the server starts the tokens it makes: an agent's, the owner's for apps.
+const AGENT_PREFIX: &str = "ac_";
+
+/// The agent's token refused while the field below holds an agent's token:
+/// a new one was made in «Agenti» (the old one stops working) and pasted in
+/// the wrong field (Edoardo, 9 Nov 2026). Says so instead of «creane uno».
+fn misplaced(e: String) -> String {
+    let refused = e == t("Token di Agent Chat non valido: creane uno nella pagina della chat, «Agenti».");
+    if refused && crate::secrets::get(OWNER_TOKEN_KEY).is_some_and(|o| o.trim().starts_with(AGENT_PREFIX)) {
+        return t("Il token di questo PC non vale più, e nel campo «Token per scrivere come te» c'è il token di un agente: probabilmente è quello nuovo, incollato nel campo sbagliato. Spostalo nel campo «Token» (Impostazioni → Integrazioni → Agent Chat).").into();
+    }
+    e
+}
+
 pub(crate) async fn answer(resp: reqwest::Response) -> Result<Value, String> {
     let status = resp.status().as_u16();
     let v: Value = resp.json().await.unwrap_or(Value::Null);
@@ -738,6 +752,9 @@ async fn publish_capabilities(app: &AppHandle, srv: &Server, me: &str) {
 /// Who the token is, the owner's name and the last message's id.
 async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
     let me = get(srv, "/api/me", 20).await?;
+    if me.get("kind").and_then(Value::as_str) == Some("owner") {
+        return Err(t("Nel campo «Token» c'è il tuo token per scrivere come te (ow_…): lì va il token di questo PC, creato nella pagina della chat → «Agenti»; il tuo va nel campo «Token per scrivere come te».").into());
+    }
     if me.get("kind").and_then(Value::as_str) != Some("agent") {
         return Err(t("Serve il token personale di un agente (pagina di Agent Chat → «Agenti»), non quello vecchio comune a tutti.").into());
     }
@@ -842,6 +859,7 @@ pub fn spawn(app: AppHandle) {
                         }
                     }
                     Err(e) => {
+                        let e = misplaced(e);
                         log::line(format!("agentchat: {e}"));
                         set_status(|s| {
                             s.error = Some(e);
@@ -883,6 +901,7 @@ pub fn spawn(app: AppHandle) {
                     }
                 }
                 Err(e) => {
+                    let e = misplaced(e);
                     log::line(format!("agentchat: {e}"));
                     let unauthorized = e.contains("401") || e.contains(&*t("Token di Agent Chat non valido: creane uno nella pagina della chat, «Agenti»."));
                     set_status(|s| s.error = Some(e));
@@ -917,6 +936,9 @@ pub async fn owner_send(app: &AppHandle, room: &str, text: &str, thread: Option<
     let url = crate::secrets::get(URL_KEY).and_then(|u| clean_url(&u)).ok_or_else(|| t("Manca l'indirizzo di Agent Chat (Impostazioni → Integrazioni → Agent Chat)."))?;
     let token = crate::secrets::get(OWNER_TOKEN_KEY).filter(|t| !t.trim().is_empty())
         .ok_or_else(|| t("Per scrivere come te serve il «Token per scrivere come te»: crealo nella pagina della chat (menu → Scrivere da un'app) e incollalo in Impostazioni → Integrazioni → Agent Chat."))?;
+    if token.trim().starts_with(AGENT_PREFIX) {
+        return Err(t("Nel campo «Token per scrivere come te» c'è il token di un agente (ac_…): lì va il tuo, che inizia con ow_ (pagina della chat: menu → Scrivere da un'app); quello dell'agente va nel campo «Token».").into());
+    }
     let srv = Server { url, token: token.trim().to_string() };
     if text.trim().is_empty() && files.is_empty() {
         return Err(t("Scrivi un messaggio.").into());
