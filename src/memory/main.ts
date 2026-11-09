@@ -188,14 +188,19 @@ function rememberedSource(): string {
   }
 }
 
-/** «Questo PC», one button per other PC and «Tutte», when there is another PC. */
+/** The origin of Claude Code's own notes (cc_memory.rs). */
+const CLAUDE_CODE = "claude-code";
+
+/** «Questo PC», one button per other PC (and Claude Code) and «Tutte», when there is one. */
 function renderSources(names: string[]) {
   clear(sourcesBox);
   sourcesBox.style.display = names.length ? "flex" : "none";
   if (!names.length) return;
   const choices: [string, string, string][] = [
     ["", t("Questo PC"), t("La memoria di questo PC")],
-    ...names.map((n): [string, string, string] => [n, n, t("La copia della memoria di {name}, che arriva da Agent Chat", { name: n })]),
+    ...names.map((n): [string, string, string] => n === CLAUDE_CODE
+      ? [n, "Claude Code", t("Le note che Claude Code salva da solo, di ogni account: si leggono soltanto")]
+      : [n, n, t("La copia della memoria di {name}, che arriva da Agent Chat", { name: n })]),
     ["*", t("Tutte"), t("Questo PC e le memorie degli altri PC insieme")],
   ];
   for (const [id, name, title] of choices) {
@@ -330,7 +335,7 @@ function renderPanel() {
     return;
   }
   panel.append(
-    h("span", { class: "mem-chip" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: [kindName(n.kind), n.date, originOf(n.id) && t("memoria di {name}", { name: originOf(n.id) })].filter(Boolean).join(" · ") })),
+    h("span", { class: "mem-chip" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: [kindName(n.kind), n.date, originOf(n.id) && (originOf(n.id) === CLAUDE_CODE ? t("memoria di Claude Code, si legge soltanto") : t("memoria di {name}", { name: originOf(n.id) }))].filter(Boolean).join(" · ") })),
     h("h2", { text: n.label }),
   );
   if (n.text) panel.append(h("div", { class: "mem-text", text: n.text }));
@@ -476,12 +481,13 @@ async function load() {
       if (!g) return;
     }
     // Both: the other PCs' things say whose they are.
-    if (source === "*") for (const n of g.nodes) if (n.origin) n.label = `${n.label} · ${n.origin}`;
+    if (source === "*") for (const n of g.nodes) if (n.origin) n.label = `${n.label} · ${n.origin === CLAUDE_CODE ? "Claude Code" : n.origin}`;
     renderSources(g.sources ?? []);
     // Reading and checking work on this PC's memory only; the links of a copy can be judged here too.
     const copy = !!source && source !== "*";
     for (const b of [inboxBtn, readBtn, checkBtn]) b.style.display = copy ? "none" : "";
-    linkBtn.style.display = source === "*" ? "none" : "";
+    // Claude Code's notes are only read: nothing to link or check there.
+    linkBtn.style.display = source === "*" || source === CLAUDE_CODE ? "none" : "";
     full = g;
     model = new Model(filtered(g));
     // ?select=… on the first load; a page chosen in the island's field (memory-select) any time.

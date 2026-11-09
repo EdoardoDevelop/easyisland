@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 8/11 — Lavori in background nella chat
+Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro risultati venivano letti e buttati, e un messaggio scritto intanto apriva un secondo processo che li rilanciava. Ora lista sotto la conversazione con ✕ e «Ferma tutto», messaggi allo stesso processo, risultati nella chat con avviso (`docs/chat.md` → Modalità terminale). `document_read` legge anche una cartella intera. Provato sul portatile con 6 agenti e 62 PDF: risultati e confronto finale arrivati; aggiunto il turno «al lavoro» mentre Claude scrive da solo, i passi che si scrivono con i caratteri, le frasi d'attesa mentre ragiona e l'impegno di Claude nel menu del motore (sul portatile era quello predefinito, più alto).
+
 ### 8/11 — Immagini nei Word, unire e dividere PDF
 `![didascalia](percorso)` nel corpo di `document_create` (PNG, JPEG, GIF, larghe al massimo quanto la colonna); `pdf_merge` (anche estrarre e riordinare, Word convertiti prima) e `pdf_split` in `pdfpages.rs`, con il parser di `pdftext.rs`. PDF cifrati rifiutati. Revisioni e commenti esclusi.
 

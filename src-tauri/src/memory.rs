@@ -258,8 +258,17 @@ pub fn search(query: &str, month: &str) -> Result<String, String> {
             break;
         }
     }
-    if found.is_empty() {
+    // Then what Claude Code remembers by itself (cc_memory.rs), read only.
+    let cc = crate::cc_memory::search(&words, MAX_FOUND / 2);
+    if found.is_empty() && cc.is_empty() {
         return Ok(t("Niente in memoria su questo.").into());
+    }
+    if !cc.is_empty() {
+        if !found.is_empty() {
+            found.push(String::new());
+        }
+        found.push(t("Dalla memoria di Claude Code (si legge soltanto):").into());
+        found.extend(cc);
     }
     Ok(found.join("\n"))
 }

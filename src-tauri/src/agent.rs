@@ -146,7 +146,9 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "memory_note" if args.get("shared").and_then(Value::as_bool) == Some(true) => crate::memshare::note(app, arg(args, "text")).await,
         "memory_note" => crate::brain::changed(app, crate::memory::note(arg(args, "text"))),
         "memory_page" if args.get("brief").and_then(Value::as_bool) == Some(true) => crate::brain::tool_brief(arg(args, "title")).or_else(|e| crate::memshare::brief(app, arg(args, "title")).ok_or(e)),
-        "memory_page" => crate::brain::tool_read(arg(args, "title")).or_else(|e| crate::memshare::page(app, arg(args, "title")).ok_or(e)),
+        "memory_page" => crate::brain::tool_read(arg(args, "title"))
+            .or_else(|e| crate::memshare::page(app, arg(args, "title")).ok_or(e))
+            .or_else(|e| crate::cc_memory::page(arg(args, "title")).ok_or(e)),
         "memory_path" => crate::brain::tool_path(arg(args, "from"), arg(args, "to")).or_else(|e| crate::memshare::path(app, arg(args, "from"), arg(args, "to")).ok_or(e)),
         "memory_page_write" => crate::brain::changed(app, crate::brain::tool_write(arg(args, "title"), arg(args, "text"), arg(args, "version"), arg(args, "source"))),
         "memory_inbox" => crate::brain::tool_inbox(arg(args, "file")),

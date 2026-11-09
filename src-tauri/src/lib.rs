@@ -28,6 +28,7 @@ mod desktop;
 mod clipboard;
 mod clipimage;
 mod brain;
+mod cc_memory;
 mod memory;
 mod memshare;
 mod webview_memory;
@@ -201,6 +202,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let mut settings = settings.migrated();
     settings.commit_active();
     i18n::set(&settings.language);
+    cc_memory::set_on(settings.memory_claude_code);
     let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
@@ -1631,6 +1633,11 @@ pub(crate) async fn chat_turn(
     let memory = match (memory, if remember && fresh && memory_tools { memshare::preface(&app) } else { None }) {
         (Some(m), Some(o)) => Some(format!("{m}{o}")),
         (m, o) => m.or(o),
+    };
+    // What Claude Code learnt about the user (cc_memory.rs), read only.
+    let memory = match (memory, if remember && fresh && memory_tools { cc_memory::preface() } else { None }) {
+        (Some(m), Some(c)) => Some(format!("{m}{c}")),
+        (m, c) => m.or(c),
     };
     // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
     let skills = if fresh && memory_tools { skills::index() } else { None };
@@ -4402,6 +4409,7 @@ pub fn run() {
     let moved = legacy::migrate();
     let mut loaded = settings::load();
     i18n::set(&loaded.language);
+    cc_memory::set_on(loaded.memory_claude_code);
     // Zammad's address and token, when a widget became the integration (schema 5).
     settings::apply_pending_secrets(&mut loaded);
     let gate = Arc::new(PollGate::new());

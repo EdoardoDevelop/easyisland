@@ -829,7 +829,7 @@ pub fn tool_check() -> String {
 // ── Search ───────────────────────────────────────────────────────────────────
 
 /// Lower case without accents, as the field at the top does: "citta" finds "Città".
-fn fold(s: &str) -> String {
+pub(crate) fn fold(s: &str) -> String {
     s.to_lowercase()
         .chars()
         .map(|c| match c {
@@ -1123,7 +1123,7 @@ pub struct Graph {
     pub sources: Vec<String>,
 }
 
-fn cut(text: &str, max: usize) -> String {
+pub(crate) fn cut(text: &str, max: usize) -> String {
     let one = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if one.chars().count() <= max {
         return one;
@@ -1152,8 +1152,19 @@ pub fn graph_of(source: &str, other: Option<String>) -> Graph {
     }
     let mut g = match source {
         "" => graph(),
+        crate::cc_memory::ORIGIN => {
+            let mut g = crate::cc_memory::graph(&[]);
+            g.events.sort_by(|a, b| a.date.cmp(&b.date));
+            g
+        }
         "*" => {
             let mut g = graph();
+            // Claude Code's notes, tied to the pages of this PC they name.
+            let pages: Vec<(String, String)> = g.nodes.iter().filter(|n| n.kind == "page").map(|n| (n.id.clone(), n.label.clone())).collect();
+            let mut cc = crate::cc_memory::graph(&pages);
+            g.nodes.append(&mut cc.nodes);
+            g.edges.append(&mut cc.edges);
+            g.events.append(&mut cc.events);
             for name in sources.iter().filter(|n| crate::memshare::copy_dir(n).exists()) {
                 let mut o = graph_in(&crate::memshare::copy_dir(name), false);
                 tag(&mut o, name);
@@ -1179,6 +1190,9 @@ pub fn graph_of(source: &str, other: Option<String>) -> Graph {
         }
         _ => graph(),
     };
+    if !crate::cc_memory::notes().is_empty() {
+        sources.push(crate::cc_memory::ORIGIN.to_string());
+    }
     g.sources = sources;
     g
 }
@@ -1627,7 +1641,7 @@ pub(crate) fn candidates(dir: &Path, skip: &HashSet<String>) -> Vec<Candidates> 
     out
 }
 
-fn file_day(time: std::time::SystemTime) -> String {
+pub(crate) fn file_day(time: std::time::SystemTime) -> String {
     let secs = time.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     // Civil date from days since 1970 (UTC is close enough for a day on the timeline).
     let z = secs.div_euclid(86_400) + 719_468;
@@ -1644,6 +1658,9 @@ fn file_day(time: std::time::SystemTime) -> String {
 
 /// The file behind a node of the window, to open it in its editor.
 pub fn node_file(id: &str) -> Option<PathBuf> {
+    if id.starts_with(&format!("{}|", crate::cc_memory::ORIGIN)) {
+        return crate::cc_memory::file_of(id);
+    }
     // Another PC's memory: its copy (memshare.rs), pages and notes only.
     if let Some((name, inner)) = id.split_once('|') {
         if !valid_source(name) {

@@ -733,6 +733,10 @@ pub struct Settings {
     /// once by a task; off, by the evening digest.
     #[serde(default = "default_true")]
     pub remember_now: bool,
+    /// «Memoria di Claude Code» (cc_memory.rs): its own notes, read only, in
+    /// memory_search, memory_page and the memory window.
+    #[serde(default = "default_true")]
+    pub memory_claude_code: bool,
     /// The second brain at work (brain_watch.rs): a closed Zammad ticket…
     #[serde(default = "default_true")]
     pub brain_tickets: bool,
@@ -1211,6 +1215,7 @@ impl Default for Settings {
             tasks_engine: String::new(),
             memory_engine: String::new(),
             remember_now: true,
+            memory_claude_code: true,
             brain_tickets: true,
             brain_mail: true,
             brain_promises: true,
