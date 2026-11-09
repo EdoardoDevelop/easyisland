@@ -255,8 +255,19 @@ pub fn pages() -> Vec<Page> {
     pages_in(&pages_dir())
 }
 
-/// The pages of a folder (this PC's or the copy of another PC's memory).
+/// The pages of a folder (this PC's or the copy of another PC's memory),
+/// read again only when a file in it changes ([`Index`]).
 pub(crate) fn pages_in(dir: &Path) -> Vec<Page> {
+    let stamp = stamp_dir(dir, 0);
+    if let Some(known) = PAGES.lookup(dir, &stamp) {
+        return known;
+    }
+    let out = read_pages(dir);
+    PAGES.keep(dir, stamp, out.clone());
+    out
+}
+
+fn read_pages(dir: &Path) -> Vec<Page> {
     let mut out: Vec<Page> = std::fs::read_dir(dir)
         .map(|r| {
             r.flatten()
@@ -1073,7 +1084,7 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
 
 // ── The window ───────────────────────────────────────────────────────────────
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
     pub id: String,
@@ -1087,7 +1098,7 @@ pub struct Node {
     pub origin: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Edge {
     pub from: String,
@@ -1099,7 +1110,7 @@ pub struct Edge {
     pub strength: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
     /// "AAAA-MM-GG" or "AAAA-MM-GG HH:MM".
@@ -1110,7 +1121,7 @@ pub struct Event {
     pub node: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Graph {
     pub nodes: Vec<Node>,
@@ -1232,8 +1243,88 @@ pub fn graph() -> Graph {
     graph_in(&crate::memory::dir(), true)
 }
 
-/// The memory in `dir`; `local`: this PC's (sources, diary, check and da-leggere).
+/// The memory in `dir`; `local`: this PC's (with check and da-leggere). The
+/// map is made again only when a file of the folder (or the AI's links beside a
+/// copy) changes, or the language: the field at the top asks for it at every
+/// key ([`Index`]).
 fn graph_in(dir: &Path, local: bool) -> Graph {
+    let mut stamp = stamp_dir(dir, 2);
+    stamp.extend(stamp_file(&crate::memory_links::file_for(dir)));
+    stamp.push((PathBuf::from(if crate::i18n::english() { "en" } else { "it" }), std::time::UNIX_EPOCH, 0));
+    let mut g = match GRAPHS.lookup(dir, &stamp) {
+        Some(g) => g,
+        None => {
+            let g = make_graph(dir);
+            GRAPHS.keep(dir, stamp, g.clone());
+            g
+        }
+    };
+    if local {
+        g.check = check();
+        g.inbox = inbox_files().into_iter().map(|f| f.name).collect();
+    }
+    g
+}
+
+/// What files hold, to tell whether they changed: (path, time, size).
+type Stamp = Vec<(PathBuf, std::time::SystemTime, u64)>;
+
+/// The last result per folder, with the stamp it was made from. The `.md`
+/// files stay the memory: this is only a copy in RAM, made again from them.
+struct Index<T: Clone> {
+    kept: std::sync::Mutex<Vec<(PathBuf, Stamp, T)>>,
+}
+
+/// Folders kept at most (this PC's and the copies of the other PCs').
+const INDEX_FOLDERS: usize = 8;
+
+static PAGES: Index<Vec<Page>> = Index::new();
+static GRAPHS: Index<Graph> = Index::new();
+
+impl<T: Clone> Index<T> {
+    const fn new() -> Self {
+        Index { kept: std::sync::Mutex::new(Vec::new()) }
+    }
+
+    fn lookup(&self, dir: &Path, stamp: &Stamp) -> Option<T> {
+        let kept = self.kept.lock().ok()?;
+        kept.iter().find(|(d, s, _)| d == dir && s == stamp).map(|(_, _, v)| v.clone())
+    }
+
+    fn keep(&self, dir: &Path, stamp: Stamp, value: T) {
+        let Ok(mut kept) = self.kept.lock() else { return };
+        kept.retain(|(d, ..)| d != dir);
+        if kept.len() >= INDEX_FOLDERS {
+            kept.remove(0);
+        }
+        kept.push((dir.to_path_buf(), stamp, value));
+    }
+}
+
+/// The files of `dir` and, `depth` levels down, of its folders.
+fn stamp_dir(dir: &Path, depth: u32) -> Stamp {
+    let mut out = Vec::new();
+    let Ok(r) = std::fs::read_dir(dir) else { return out };
+    for e in r.flatten() {
+        let Ok(meta) = e.metadata() else { continue };
+        if meta.is_dir() {
+            if depth > 0 {
+                out.extend(stamp_dir(&e.path(), depth - 1));
+            }
+            continue;
+        }
+        out.push((e.path(), meta.modified().unwrap_or(std::time::UNIX_EPOCH), meta.len()));
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
+fn stamp_file(path: &Path) -> Stamp {
+    std::fs::metadata(path).map(|m| vec![(path.to_path_buf(), m.modified().unwrap_or(std::time::UNIX_EPOCH), m.len())]).unwrap_or_default()
+}
+
+/// The map of the memory in `dir`, from its files.
+fn make_graph(dir: &Path) -> Graph {
     let all = pages_in(&dir.join("pagine"));
     let mut nodes: Vec<Node> = Vec::new();
     let mut edges: Vec<Edge> = Vec::new();
@@ -1494,8 +1585,8 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
         nodes,
         edges,
         events,
-        check: if local { check() } else { Vec::new() },
-        inbox: if local { inbox_files().into_iter().map(|f| f.name).collect() } else { Vec::new() },
+        check: Vec::new(),
+        inbox: Vec::new(),
         folder: dir.to_string_lossy().into_owned(),
         sources: Vec::new(),
     }
@@ -1978,6 +2069,27 @@ mod tests {
         assert!(found.contains("«Bianchi», che non esiste"), "{found}");
         assert!(found.contains("isolata, senza collegamenti: «Verdi»"), "{found}");
         assert!(found.contains("da oltre 6 mesi: «Verdi»"), "{found}");
+    }
+
+    /// The map in RAM is made again as soon as a file changes, is added or removed.
+    #[test]
+    fn the_index_follows_the_files() {
+        let dir = std::env::temp_dir().join(format!("easyisland-index-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("pagine")).unwrap();
+        std::fs::write(dir.join("pagine").join("rossi.md"), "# Rossi\nCliente.\n").unwrap();
+        let labels = |g: &Graph| g.nodes.iter().filter(|n| n.kind == "page").map(|n| n.label.clone()).collect::<Vec<_>>();
+        assert_eq!(labels(&graph_in(&dir, false)), ["Rossi"]);
+        assert_eq!(labels(&graph_in(&dir, false)), ["Rossi"]);
+        std::fs::write(dir.join("pagine").join("rossi.md"), "# Rossi Srl\nCliente di Milano.\n").unwrap();
+        assert_eq!(labels(&graph_in(&dir, false)), ["Rossi Srl"]);
+        std::fs::write(dir.join("pagine").join("verdi.md"), "# Verdi\n").unwrap();
+        assert_eq!(labels(&graph_in(&dir, false)).len(), 2);
+        std::fs::remove_file(dir.join("pagine").join("verdi.md")).unwrap();
+        assert_eq!(labels(&graph_in(&dir, false)), ["Rossi Srl"]);
+        std::fs::write(dir.join("MEMORIA.md"), "- 2026-11-09: Sentito Rossi Srl per il rinnovo\n").unwrap();
+        assert!(graph_in(&dir, false).nodes.iter().any(|n| n.kind == "note"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Two pages are tied only by what is written: a first name in both bodies
