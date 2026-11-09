@@ -105,7 +105,7 @@ Trascina la voce **Chat** del menu fuori dall'isola e lasciala dove vuoi, oppure
 Con Claude Code, nel menu del motore: **Modello di Claude** (Fable, Opus, Sonnet, Haiku o quello delle Impostazioni) per questa conversazione, e Claude continua la stessa sessione con il modello scelto; **Fast mode** per risposte più rapide, che costa di più e richiede l'uso extra attivo sull'account Claude (se manca, la chat lo dice).
 
 ## Terminale
-**>_** in alto nella chat apre un PowerShell tuo nella cartella del progetto, nel pannello a destra come l'Anteprima (se l'Anteprima è aperta, sotto di lei): scrivi un comando e Invio, l'uscita compare lì. È tuo, non di Claude: quello che scrivi parte senza card. **Riavvia** chiude anche un comando bloccato. Per editor e password usa Terminale di Windows.
+**>_** in alto nella chat apre un PowerShell tuo nella cartella del progetto, nel pannello a destra come l'Anteprima (se l'Anteprima è aperta, sotto di lei): è un terminale vero, come Terminale di Windows: colori, Tab, frecce e cronologia, Ctrl+C per fermare un comando (copia se hai selezionato del testo), Ctrl+V per incollare, editor e password. È tuo, non di Claude: quello che scrivi parte senza card. **Riavvia** ne apre uno nuovo.
 
 ## Sessioni di Claude Code fuori da EasyIsland
 In fondo alla cronologia, **Claude Code fuori da EasyIsland** elenca le sessioni degli ultimi 30 giorni aperte dal terminale, da Claude Desktop o da un editor. Un clic la porta nella cronologia e la riprende qui, con tutto il contesto. Con la modalità terminale lavora nella sua cartella; senza, la conversazione arriva come testo.

@@ -1399,27 +1399,11 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .chat-term-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-2); }
 .chat-term-head span { flex: 1; }
-.chat-term-out {
-  margin: 0;
-  padding: 2px 8px;
-  max-height: 180px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: calc(11px + var(--fs-up, 0px));
-  color: var(--ink);
-}
-.chat-term-in {
-  margin: 4px 8px 6px;
-  padding: 3px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 5px;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--ink);
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: calc(11px + var(--fs-up, 0px));
-}
+/* xterm.js inside (chat-terminal.ts): the box takes what the head leaves. */
+.chat-term-box { flex: 1 1 auto; min-height: 120px; padding: 2px 4px 4px 8px; display: flex; }
+.chat-xterm { flex: 1 1 auto; min-width: 0; min-height: 0; }
+.chat-xterm .xterm { height: 100%; }
+.chat-xterm .xterm-viewport { background: transparent !important; }
 
 /* The project's pull request and its checks. */
 .pr-pick.failed { color: #f08a8a; }
@@ -5614,7 +5598,7 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   border-radius: 0 0 10px 10px;
 }
 #preview-pane.term-only > .chat-term { top: 0; height: auto; border-width: 0; border-radius: 10px; }
-#preview-pane > .chat-term .chat-term-out { flex: 1 1 auto; max-height: none; min-height: 0; }
+#preview-pane > .chat-term .chat-term-box { min-height: 0; }
 /* A little room under the top bar (BODY_GAP in layout.ts). */
 #island.railed #body { margin-top: 8px; }
 

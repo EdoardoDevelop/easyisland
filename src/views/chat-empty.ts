@@ -47,6 +47,10 @@ export class ChatEmpty {
   private start = performance.now();
   private pal: Palette | null = null;
   private palKey = "";
+  private rafWin: Window | null = null;
+  private watched: Window | null = null;
+  private resizeObs: ResizeObserver | null = null;
+  private watchedOff: (() => void) | null = null;
 
   constructor() {
     this.el = document.createElement("canvas");
@@ -74,10 +78,36 @@ export class ChatEmpty {
     return !!this.kind && this.el.isConnected && this.el.clientWidth > 0 && this.el.clientHeight > 0 && !this.el.ownerDocument.hidden;
   }
 
-  /** Starts the frames if they are not running (a sync after the chat came back into view restarts them). */
+  /**
+   * Restarts the frames by itself when the canvas gets its size back or its
+   * page shows again. Before, the frames stopped at a moment out of view (the
+   * island opening, the window behind another) and came back only with the
+   * next sync of the chat: on a quiet PC the drawing stayed still.
+   */
+  private watch(w: Window): void {
+    if (this.watched === w) return;
+    this.resizeObs?.disconnect();
+    this.watchedOff?.();
+    this.watched = w;
+    const again = () => { if (this.kind) this.wake(); };
+    const RO = (w as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ?? ResizeObserver;
+    this.resizeObs = new RO(again);
+    this.resizeObs.observe(this.el);
+    w.document.addEventListener("visibilitychange", again);
+    this.watchedOff = () => w.document.removeEventListener("visibilitychange", again);
+  }
+
+  /** Starts the frames if they are not running. */
   private wake(): void {
-    if (this.raf) return;
     const w = this.win();
+    this.watch(w);
+    // A frame asked of another window (the chat moved to or from its own) never comes there: asked again here.
+    if (this.raf && this.rafWin !== w) {
+      try { this.rafWin?.cancelAnimationFrame(this.raf); } catch { /* that window is gone */ }
+      this.raf = 0;
+    }
+    if (this.raf) return;
+    this.rafWin = w;
     const step = (now: number) => {
       this.raf = 0;
       if (!this.visible()) return;

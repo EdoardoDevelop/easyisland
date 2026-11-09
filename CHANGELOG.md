@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.36** — **Un terminale vero nella chat.** Il **Terminale** è la console di Windows (PowerShell 7 se c'è) disegnata come in
+Terminale di Windows: colori, Tab, frecce e cronologia, **Ctrl+C** per fermare un comando (copia se c'è una selezione), **Ctrl+V** per
+incollare, editor, password e domande interattive di `npm` e `git`; si adatta al pannello e segue la chat nella sua finestra. Il disegno
+della **chat vuota** riparte da solo dopo un momento in cui la chat non si vedeva.
+
 **1.0.35** — **Chat «a schede», più curata e più accessibile.** Le schede sono l'aspetto unico della chat, con **opacità delle card**
 regolabile e misure comuni per spazi, raggi e testo; la **finestra staccata** ha il suo margine e segue tema e colore dell'isola, le barre
 di scorrimento compaiono solo sotto il mouse e l'**Anteprima** è chiara nel modo chiaro. **Ezzy**, il logo animato di EasyIsland, è fra i

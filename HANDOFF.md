@@ -1,10 +1,11 @@
 # Handoff — EasyIsland
 
-_9 novembre 2026. **1.0.35** in `main` (tag `v1.0.35`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_9 novembre 2026. **1.0.36** in `main` (tag `v1.0.36`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Terminale vero nella chat** (9/11): fatto con ConPTY e xterm.js (`docs/chat.md` → Terminale); da provare dal vivo (editor, Ctrl+C, finestra staccata). Restano più schede e scelta della shell (`docs/idee.md`).
 - [ ] **Riduci animazioni** (`docs/architettura.md` → Accessibilità): personaggi, apertura dell'isola, Ezzy, luccichio e transizioni CSS non lo rispettano ancora; scelto di rimandarlo il 9/11.
 - [ ] **Notizie** (`docs/chat.md` → Notizie, piano in `docs/idee.md`): fatte (1.0.14–1.0.15) argomenti anche scelti da un motore (mai persone né il nome dell'utente), Google/Bing News, vista elenco/miniature/schede, «Di più»/«Non mi interessa», Panoramica, Buongiorno, Telegram, barra, scheda fissa. Da provare dal vivo; mancano riassunti del motore e argomenti cambiati dalla chat.
 - [ ] **Allegati della chat** (1.0.15, `docs/chat.md` → Allegati): più file, cartelle, 📎. Da provare con i vari motori.
@@ -49,8 +50,8 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 9/11 — Terminale nel pannello, chat in finestra ingrandita
-Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). `docs/chat.md` → Terminale.
+### 9/11 — Terminale vero (1.0.36), nel pannello; chat in finestra ingrandita
+Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). Poi terminale vero: ConPTY in `terminal.rs` (test con una shell vera) e xterm.js in `chat-terminal.ts`, unica dipendenza nuova (`docs/decisioni.md`). Disegno della chat vuota che riparte da solo (`chat-empty.ts`). `docs/chat.md` → Terminale.
 
 ### 8/11 — Chat «a schede»
 Aspetto di serie della chat (`theme.chatLook` = `cards`, «Classico» in Impostazioni → Aspetto → Tema) con «Opacità delle card» (`theme.cardOpacity`): schede sul colore dell'isola, campo che galleggia, domande a destra in un fumetto leggero, nessun grassetto. Dopo una revisione del design, misure comuni in `src/chat-cards.css` (spazi, raggi, tre grandezze di testo, un solo accento sull'invio; `docs/architettura.md` → Aspetto della chat). Poi: «Classico» tolto, finestra staccata con margine e tema che segue l'isola, Anteprima anche chiara, Ezzy (logo animato) fra i personaggi, disegno della chat vuota sceglibile in Aspetto → Chat (`chat-empty.ts`). Revisione con Impeccable e UI/UX Pro Max (9/11): contrasto di Copia/Rigenera, icone disegnate nella testata, ultime tre conversazioni nella chat vuota, risposta scura quanto la domanda, titolo accorciato. Poi verifica con le regole di UI/UX Pro Max: contrasti ≥4,5:1, bersagli ≥24 px, anello del focus, annunci per i lettori di schermo (`announce.ts`; `docs/architettura.md` → Accessibilità).
@@ -64,5 +65,3 @@ Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro ri
 ### 8/11 — Immagini nei Word, unire e dividere PDF
 `![didascalia](percorso)` nel corpo di `document_create` (PNG, JPEG, GIF, larghe al massimo quanto la colonna); `pdf_merge` (anche estrarre e riordinare, Word convertiti prima) e `pdf_split` in `pdfpages.rs`, con il parser di `pdftext.rs`. PDF cifrati rifiutati. Revisioni e commenti esclusi.
 
-### 7/11 — Documenti Word e PDF nella chat
-`document_read`, `document_templates`, `document_template_add`, `document_create`, `document_pdf` (`docx.rs`, `ooxzip.rs`, `pdftext.rs`, `documents.rs`): ZIP e lettore PDF scritti in casa, nessuna dipendenza nuova (`flate2`, `crc32fast` erano già nell'albero). Modelli in `documenti\modelli`, segnaposto anche spezzati fra run, totali e numero calcolati dall'app, PDF con Word. Testo dei PDF e dei Word anche ai motori via API e a «da-leggere». Provato con Word e file veri; manca la prova dalla chat dell'app.
