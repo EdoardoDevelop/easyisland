@@ -583,9 +583,11 @@ fn flash_if_behind(app: AppHandle) {
 }
 
 /// A folder dropped on the island goes to the chat, not into the drop sequence.
+/// Async, like the other commands that touch the disk: a network path that does
+/// not answer must not hold the main thread.
 #[tauri::command]
-fn is_folder(path: String) -> bool {
-    std::path::Path::new(&path).is_dir()
+async fn is_folder(path: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || std::path::Path::new(&path).is_dir()).await.unwrap_or(false)
 }
 
 /// Right click on the resting character: the notification-area menu at the cursor.
@@ -3288,25 +3290,31 @@ fn inbox_open(name: String, reveal: bool) -> Result<(), String> {
 /// click there (Windows' own warnings for downloaded programs included);
 /// "Mostra nella cartella" selects it.
 #[tauri::command]
-fn file_open(path: String, reveal: bool) -> Result<(), String> {
-    let path = std::path::PathBuf::from(&path);
-    if !path.is_file() {
-        return Err(t("Il file non c'è più.").into());
-    }
-    let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
-    spawned.map(|_| ()).map_err(|e| e.to_string())
+async fn file_open(path: String, reveal: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = std::path::PathBuf::from(&path);
+        if !path.is_file() {
+            return Err(t("Il file non c'è più.").to_string());
+        }
+        let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
+        spawned.map(|_| ()).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// The chat's reply names these paths: which exist, and where (chatpaths.rs).
+/// Off the main thread: the paths come from the chat's text and may be on a
+/// server that does not answer (the island hung on 9 Nov 2026).
 #[tauri::command]
-fn paths_info(app: AppHandle, paths: Vec<String>, base: Option<String>) -> Vec<chatpaths::PathInfo> {
-    chatpaths::infos(&app, &paths, base.as_deref())
+async fn paths_info(app: AppHandle, paths: Vec<String>, base: Option<String>) -> Result<Vec<chatpaths::PathInfo>, String> {
+    tauri::async_runtime::spawn_blocking(move || chatpaths::infos(&app, &paths, base.as_deref())).await.map_err(|e| e.to_string())
 }
 
 /// A path of a reply: "open", "reveal" or "download" (a copy in Downloads).
 #[tauri::command]
-fn path_action(app: AppHandle, path: String, action: String) -> Result<String, String> {
-    chatpaths::act(&app, &path, &action)
+async fn path_action(app: AppHandle, path: String, action: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || chatpaths::act(&app, &path, &action)).await.map_err(|e| e.to_string())?
 }
 
 /// "Estrai…" on a dropped ZIP: what is inside.
@@ -3897,17 +3905,22 @@ async fn preview_servers() -> Vec<preview::Server> {
 
 /// «Apri fuori»: an address in the default browser, a file in its program.
 #[tauri::command]
-fn preview_external(path_or_url: String, reveal: bool) -> Result<(), String> {
+async fn preview_external(path_or_url: String, reveal: bool) -> Result<(), String> {
     if path_or_url.starts_with("http://") || path_or_url.starts_with("https://") {
         open_url_now(&path_or_url);
         return Ok(());
     }
-    let p = std::path::PathBuf::from(&path_or_url);
-    if reveal {
-        reveal_in_explorer(&p).map(|_| ()).map_err(|e| e.to_string())
-    } else {
-        actions::shell_open(&path_or_url).map_err(|_| i18n::tf("Non riesco ad aprire «{p}».", &[("p", &path_or_url)]))
-    }
+    // Off the main thread: a path on a server that does not answer waits there.
+    tauri::async_runtime::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(&path_or_url);
+        if reveal {
+            reveal_in_explorer(&p).map(|_| ()).map_err(|e| e.to_string())
+        } else {
+            actions::shell_open(&path_or_url).map_err(|_| i18n::tf("Non riesco ad aprire «{p}».", &[("p", &path_or_url)]))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// The flows window (src/flows/, docs/flussi.md): made the first time it is
@@ -4059,6 +4072,11 @@ pub fn show_memory_window(app: &AppHandle) {
     // (island::keep_settings_above) and would stay in front of this one.
     island::keep_settings_above(app, false);
     let _ = win.unminimize();
+    // Every opening is maximized (the map wants the whole screen); while it is
+    // already open, a size the user chose stays.
+    if !win.is_visible().unwrap_or(false) {
+        let _ = win.maximize();
+    }
     let _ = win.show();
     let _ = win.set_focus();
     let _ = win.emit("memory-refresh", ());

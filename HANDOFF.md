@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 9/11 — Isola bloccata da un percorso di rete in chat
+Dump di un AppHangB1: thread principale in `CreateFile` su `\\192.168.0.250\c` (server Imec non raggiungibile), scritto in una chat. `paths_info` era sincrono. Ora `paths_info`, `path_action`, `is_folder`, `file_open`, `preview_external` sono async con `spawn_blocking`, e `chatpaths.rs` guarda i percorsi di rete per massimo 1,5 s, poi salta quel server per 2 minuti (test `a_dead_server_does_not_hold_the_caller`). `docs/chat.md` → Anteprima, `docs/architettura.md` → Robustezza.
+
 ### 9/11 — Terminale vero (1.0.36), nel pannello; chat in finestra ingrandita
 Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). Poi terminale vero: ConPTY in `terminal.rs` (test con una shell vera) e xterm.js in `chat-terminal.ts`, unica dipendenza nuova (`docs/decisioni.md`). Disegno della chat vuota che riparte da solo (`chat-empty.ts`). `docs/chat.md` → Terminale.
 
@@ -61,7 +64,3 @@ Analisi di 41 chat, log e sessioni di Claude Code del portatile (`docs/chat.md`)
 
 ### 8/11 — Lavori in background nella chat
 Sul portatile Claude Code aveva lasciato 4 sotto-agenti in background: i loro risultati venivano letti e buttati, e un messaggio scritto intanto apriva un secondo processo che li rilanciava. Ora lista sotto la conversazione con ✕ e «Ferma tutto», messaggi allo stesso processo, risultati nella chat con avviso (`docs/chat.md` → Modalità terminale). `document_read` legge anche una cartella intera. Provato sul portatile con 6 agenti e 62 PDF: risultati e confronto finale arrivati; aggiunto il turno «al lavoro» mentre Claude scrive da solo, i passi che si scrivono con i caratteri, le frasi d'attesa mentre ragiona e l'impegno di Claude nel menu del motore (sul portatile era quello predefinito, più alto).
-
-### 8/11 — Immagini nei Word, unire e dividere PDF
-`![didascalia](percorso)` nel corpo di `document_create` (PNG, JPEG, GIF, larghe al massimo quanto la colonna); `pdf_merge` (anche estrarre e riordinare, Word convertiti prima) e `pdf_split` in `pdfpages.rs`, con il parser di `pdftext.rs`. PDF cifrati rifiutati. Revisioni e commenti esclusi.
-

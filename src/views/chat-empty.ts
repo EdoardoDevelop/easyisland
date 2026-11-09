@@ -44,7 +44,9 @@ export class ChatEmpty {
   private kind: EmptyArt | null = null;
   private raf = 0;
   private last = 0;
-  private start = performance.now();
+  // Wall clock, the same in every window: the chat in its own window has a performance.now() that starts again from 0,
+  // and the frames stopped there (the last one looked hours in the future).
+  private start = Date.now();
   private pal: Palette | null = null;
   private palKey = "";
   private rafWin: Window | null = null;
@@ -65,7 +67,7 @@ export class ChatEmpty {
     if (k !== this.kind) {
       this.kind = k;
       this.el.style.display = k ? "" : "none";
-      this.start = performance.now();
+      this.start = Date.now();
     }
     if (k) this.wake();
   }
@@ -108,7 +110,8 @@ export class ChatEmpty {
     }
     if (this.raf) return;
     this.rafWin = w;
-    const step = (now: number) => {
+    const step = () => {
+      const now = Date.now();
       this.raf = 0;
       if (!this.visible()) return;
       const calm = w.matchMedia("(prefers-reduced-motion: reduce)").matches;

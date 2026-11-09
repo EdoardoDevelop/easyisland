@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.37** — **The island no longer freezes** when a chat names a network path that does not answer (e.g. the shared
+folder of a server that is off): paths are checked away from the interface and a network server gets a second and a half at most.
+The **Memory** window opens maximized; the **empty chat** drawing moves in the chat's own window too.
+
 **1.0.36** — **A real terminal in the chat.** The **Terminal** is Windows' console (PowerShell 7 when installed) drawn as in Windows
 Terminal: colours, Tab, arrows and history, **Ctrl+C** to stop a command (copies when text is selected), **Ctrl+V** to paste, editors,
 passwords and the interactive questions of `npm` and `git`; it fits its panel and follows the chat into its window. The **empty chat**
