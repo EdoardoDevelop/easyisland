@@ -49,6 +49,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 9/11 — Terminale nel pannello, chat in finestra ingrandita
+Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). `docs/chat.md` → Terminale.
+
 ### 8/11 — Chat «a schede»
 Aspetto di serie della chat (`theme.chatLook` = `cards`, «Classico» in Impostazioni → Aspetto → Tema) con «Opacità delle card» (`theme.cardOpacity`): schede sul colore dell'isola, campo che galleggia, domande a destra in un fumetto leggero, nessun grassetto. Dopo una revisione del design, misure comuni in `src/chat-cards.css` (spazi, raggi, tre grandezze di testo, un solo accento sull'invio; `docs/architettura.md` → Aspetto della chat). Poi: «Classico» tolto, finestra staccata con margine e tema che segue l'isola, Anteprima anche chiara, Ezzy (logo animato) fra i personaggi, disegno della chat vuota sceglibile in Aspetto → Chat (`chat-empty.ts`). Revisione con Impeccable e UI/UX Pro Max (9/11): contrasto di Copia/Rigenera, icone disegnate nella testata, ultime tre conversazioni nella chat vuota, risposta scura quanto la domanda, titolo accorciato. Poi verifica con le regole di UI/UX Pro Max: contrasti ≥4,5:1, bersagli ≥24 px, anello del focus, annunci per i lettori di schermo (`announce.ts`; `docs/architettura.md` → Accessibilità).
 

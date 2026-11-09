@@ -580,6 +580,7 @@ export const Bridge = {
   popoutChat: (window: string | null) => call<void>("popout_chat", { window }),
   popoutClose: (window: string) => call<void>("popout_close", { window }),
   popoutWiden: (window: string, width: number) => call<void>("popout_widen", { window, width }),
+  popoutMaximize: (window: string) => call<void>("popout_maximize", { window }),
   memoryGraph: (source: string) => call<import("../memory/data").MemGraph>("memory_graph", { source }),
   /** «Collega con l'IA» (memory_ai.rs): what the engine added. */
   memoryLink: (source = "") => callOrThrow<string>("memory_link", { source }),
