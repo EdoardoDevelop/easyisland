@@ -394,6 +394,8 @@ export function buildPrompt(
       h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiudi il terminale"), onclick: () => closeTerminal() })),
     termOut, termIn);
   termRow.style.display = "none";
+  // Out of the view (in the Anteprima's panel): taken home before its window goes (popout.ts rescue).
+  termRow.dataset.followsView = "";
   /** One PowerShell per conversation, with what it printed. */
   const terms = new Map<string, { id: number; lines: string[] }>();
   const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, previewBtn, desktopBtn, exportBtn, popBtn);
@@ -2251,10 +2253,26 @@ export function buildPrompt(
     c.streamed = p.text;
     if (c === State.chat) State.notify();
   });
+  /**
+   * The terminal opens as the Anteprima does: in its panel beside the chat
+   * (island.ts paneShown), under the page when that is open too. Closed, it
+   * waits hidden in the view; it follows the chat into its own window.
+   */
+  function placeTerminal() {
+    const open = terms.has(State.chat.sid);
+    termRow.style.display = open ? "" : "none";
+    termBtn.classList.toggle("on", open);
+    const pane = layout.ownerDocument.getElementById("preview-pane");
+    const home = open && pane ? pane : layout;
+    if (termRow.parentElement !== home) home.append(termRow);
+    if (State.chatTermOpen !== open) {
+      State.chatTermOpen = open;
+      onHeightChange();
+    }
+  }
   function drawTerminal() {
     const term = terms.get(State.chat.sid);
-    termRow.style.display = term ? "" : "none";
-    termBtn.classList.toggle("on", !!term);
+    placeTerminal();
     termOut.textContent = term ? term.lines.join("\n") : "";
     termOut.scrollTop = termOut.scrollHeight;
     onHeightChange();
@@ -2542,6 +2560,7 @@ export function buildPrompt(
   return {
     el,
     sync() {
+      placeTerminal();
       const file = State.droppedFile;
       const text = State.chatText;
       const win = State.chatWindow;

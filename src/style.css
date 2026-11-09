@@ -5601,6 +5601,20 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   border-radius: 4px;
 }
 .preview-pane-grip:hover { background: rgba(255, 255, 255, 0.12); }
+/* The chat's «Terminale» in the panel (chat.ts placeTerminal): under the page,
+   or the whole panel when the Anteprima is closed (island.ts paneTermTop). */
+#preview-pane > .chat-term {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  margin: 0;
+  border-width: 1px 0 0;
+  border-radius: 0 0 10px 10px;
+}
+#preview-pane.term-only > .chat-term { top: 0; height: auto; border-width: 0; border-radius: 10px; }
+#preview-pane > .chat-term .chat-term-out { flex: 1 1 auto; max-height: none; min-height: 0; }
 /* A little room under the top bar (BODY_GAP in layout.ts). */
 #island.railed #body { margin-top: 8px; }
 

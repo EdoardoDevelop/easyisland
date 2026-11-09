@@ -378,6 +378,27 @@ html[data-chat-look="cards"] #preview-pane {
   border-radius: var(--cc-r-card);
   background: var(--cc-panel);
 }
+/* The terminal in it: a card inside the card, under the page or in its place. */
+html[data-chat-look="cards"] #preview-pane > .chat-term {
+  left: 7px;
+  right: 7px;
+  bottom: 7px;
+  height: calc(42% - 7px);
+  border: 1px solid var(--cc-line);
+  border-radius: var(--cc-r-item);
+  background: var(--cc-deep);
+}
+html[data-chat-look="cards"] #preview-pane.term-only > .chat-term { top: 7px; height: auto; border-width: 1px; border-radius: var(--cc-r-item); }
+html[data-chat-look="cards"] #preview-pane > .chat-term .chat-term-head { padding: var(--cc-s2) var(--cc-s3) var(--cc-s1); font-size: var(--cc-t-small); color: var(--cc-dim); }
+html[data-chat-look="cards"] #preview-pane > .chat-term .chat-term-out { padding: var(--cc-s1) var(--cc-s3); }
+html[data-chat-look="cards"] #preview-pane > .chat-term .chat-term-in {
+  margin: var(--cc-s1) var(--cc-s2) var(--cc-s2);
+  padding: var(--cc-s1) var(--cc-s2);
+  border-radius: var(--cc-r-ctl);
+  border-color: var(--cc-line);
+}
+html[data-chat-look="cards"][data-scheme="light"] #preview-pane > .chat-term { background: #f6f7f9; }
+html[data-chat-look="cards"][data-scheme="light"] #preview-pane > .chat-term .chat-term-in { background: #ffffff; }
 
 /* The picture of an empty conversation (chat-empty.ts): behind the head and
    the field, never in the way of a click. */

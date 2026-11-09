@@ -123,6 +123,16 @@ function paneInset(): number {
   return document.documentElement.dataset.chatLook === "cards" ? 7 : 1;
 }
 
+/**
+ * Where the Anteprima's page ends in its panel `pane` (box `r`): the bottom,
+ * or the top of the chat's «Terminale» that chat.ts lays under it.
+ */
+function paneTermTop(pane: HTMLElement, r: DOMRect): number {
+  const term = pane.querySelector<HTMLElement>(":scope > .chat-term");
+  if (!term || term.style.display === "none") return r.bottom;
+  return term.getBoundingClientRect().top;
+}
+
 export class Island {
   readonly fsm = new IslandStateMachine();
 
@@ -756,7 +766,7 @@ export class Island {
 
   /** The Anteprima's panel is in the open island (not on the greeting and the drop views; not with the chat in its window). */
   private get paneShown(): boolean {
-    return this.paneOpen && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !isPopped("chat");
+    return (this.paneOpen || State.chatTermOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !isPopped("chat");
   }
 
   /**
@@ -840,7 +850,11 @@ export class Island {
         at,
         // The Anteprima beside the chat in its window, as in the island.
         decorate: (doc, body) => this.paneInWindow(doc, body),
-        named: (name) => void Bridge.popoutChat(name),
+        named: (name) => {
+          void Bridge.popoutChat(name);
+          // The chat's window opens maximized, as an app would.
+          void Bridge.popoutMaximize(name);
+        },
       });
       if (!ok) return;
       if (State.view === "prompt") {
@@ -2967,14 +2981,16 @@ ${note}` : text };
     }
     const shown = this.paneShown;
     this.islandEl.classList.toggle("paned", shown);
+    this.paneEl.classList.toggle("term-only", !this.paneOpen);
     this.paneEl.style.width = `${Math.max(0, this.paneRoom - 10)}px`;
     let next = { x: 0, y: 0, w: 0, h: 0 };
-    if (shown) {
+    if (shown && this.paneOpen) {
       const r = this.paneEl.getBoundingClientRect();
       // Inside its 1 px border; clipped to the island while it grows.
       // Never out of the island nor of the window (a webview there is cut by the screen).
       const right = Math.min(r.right, this.islandEl.getBoundingClientRect().right - 10, window.innerWidth);
-      const bottom = Math.min(r.bottom, window.innerHeight);
+      // The chat's terminal under the page (paneTermTop).
+      const bottom = Math.min(paneTermTop(this.paneEl, r), window.innerHeight);
       // The chat «a schede»: the page sits inside its card, with room around it (paneInset).
       const k = paneInset();
       if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + k), y: Math.round(r.top + k), w: Math.round(right - r.left - 2 * k), h: Math.round(bottom - r.top - 2 * k) };
@@ -3031,20 +3047,23 @@ ${note}` : text };
     });
     return () => {
       const open = State.previewOpen;
-      island.classList.toggle("paned", open);
+      island.classList.toggle("paned", open || State.chatTermOpen);
+      pane.classList.toggle("term-only", !open);
       // Just opened in a narrow window: the window grows by the panel, as the island would.
-      if (open && !wasOpen) {
+      const any = open || State.chatTermOpen;
+      if (any && !wasOpen) {
         const need = (State.settings.previewWidth || PANE_W) + PANE_VIEWS_MIN_W + 60;
         const name = poppedName("chat");
         if (win.innerWidth < need && name) void Bridge.popoutWiden(name, need);
       }
-      wasOpen = open;
+      wasOpen = any;
       pane.style.width = `${widthNow()}px`;
       let next = { x: 0, y: 0, w: 0, h: 0 };
       if (open) {
         const r = pane.getBoundingClientRect();
         const k = paneInset();
-        if (r.width > 40 && r.height > 40) next = { x: Math.round(r.left + k), y: Math.round(r.top + k), w: Math.round(r.width - 2 * k), h: Math.round(r.height - 2 * k) };
+        const h = paneTermTop(pane, r) - r.top;
+        if (r.width > 40 && h > 40) next = { x: Math.round(r.left + k), y: Math.round(r.top + k), w: Math.round(r.width - 2 * k), h: Math.round(h - 2 * k) };
       }
       if (gen === this.paneGen && sent.x === next.x && sent.y === next.y && sent.w === next.w && sent.h === next.h) return;
       gen = this.paneGen;

@@ -99,6 +99,18 @@ export function popOut(
 
   let frame = 0;
   let done = false;
+  // What of the view sits elsewhere in the window (the chat's terminal in the
+  // Anteprima's panel, data-follows-view) goes back into it before the page
+  // goes: a page that goes takes the click handlers of what is in it.
+  const rescue = () => {
+    try {
+      for (const el of Array.from(win.document.querySelectorAll<HTMLElement>("[data-follows-view]"))) {
+        if (!host.el.contains(el)) host.el.append(el);
+      }
+    } catch {
+      // Its page is out of reach already.
+    }
+  };
   let decorated: (() => void) | null = null;
   const draw = () => {
     frame = 0;
@@ -122,6 +134,7 @@ export function popOut(
   const safe = (): void => {
     if (done) return;
     keep(key, win);
+    rescue();
     holder().append(host.el);
     // A redraw asked of the page that goes never comes: asked again of the next one.
     frame = 0;
@@ -199,6 +212,7 @@ export function popOut(
     window.clearInterval(watch);
     unsubscribe();
     popped.delete(key);
+    rescue();
     host.el.remove();
     back();
     State.notify();

@@ -99,13 +99,13 @@ A question goes into the history as soon as you send it: if the answer stops (Ea
 ![The conversation history](../media/chat-history.png)
 
 ## In a window
-Drag the **Chat** entry of the menu out of the island and let go where you like, or press the arrow button at the top of the chat, or right-click **Chat** → **Open in a window**: the chat becomes a normal Windows window, with taskbar and Alt+Tab, to resize and place where you like. It is the same chat: conversations, engines, permissions and Stop stay the island's, and the **Chat** entry in the menu brings the window forward. Closing the window, or the same button (now «Put the chat back in the island»), puts the chat back in the island; the window remembers its size and place. The **Preview** stays beside the chat in the window too, with the same divider to widen it (the window grows if needed), and goes back to the island with the chat.
+Drag the **Chat** entry of the menu out of the island and let go where you like, or press the arrow button at the top of the chat, or right-click **Chat** → **Open in a window**: the chat becomes a normal Windows window, opened maximized, with taskbar and Alt+Tab, to resize and place where you like. It is the same chat: conversations, engines, permissions and Stop stay the island's, and the **Chat** entry in the menu brings the window forward. Closing the window, or the same button (now «Put the chat back in the island»), puts the chat back in the island; the window remembers its size and place. The **Preview** stays beside the chat in the window too, with the same divider to widen it (the window grows if needed), and goes back to the island with the chat.
 
 ## Model and fast mode
 With Claude Code, in the engine menu: **Claude's model** (Fable, Opus, Sonnet, Haiku or the one in Settings) for this conversation, and Claude goes on with the same session on the chosen model; **Fast mode** for faster answers, which costs more and needs extra usage on the Claude account (if missing, the chat says so).
 
 ## Terminal
-**>_** at the top of the chat opens your own PowerShell in the project folder, under the conversation: type a command and Enter, the output shows there. It is yours, not Claude's: what you type runs without a card. **Restart** also closes a stuck command. For editors and passwords use Windows Terminal.
+**>_** at the top of the chat opens your own PowerShell in the project folder, in the right-hand panel like the Preview (under it when the Preview is open): type a command and Enter, the output shows there. It is yours, not Claude's: what you type runs without a card. **Restart** also closes a stuck command. For editors and passwords use Windows Terminal.
 
 ## Claude Code sessions outside EasyIsland
 At the bottom of the history, **Claude Code outside EasyIsland** lists the sessions of the last 30 days opened from the terminal, Claude Desktop or an editor. A click brings one into the history and resumes it here, with all its context. In terminal mode it works in its folder; without it, the conversation arrives as text.

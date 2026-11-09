@@ -2162,6 +2162,15 @@ fn popout_widen(app: AppHandle, window: String, width: f64) {
     }
 }
 
+/// The chat's window opens maximized (asked by Edoardo on 9 Nov 2026); the
+/// window keeps its usual size for when it is restored.
+#[tauri::command]
+fn popout_maximize(app: AppHandle, window: String) {
+    if let Some(w) = popout_find(&app, &window) {
+        let _ = w.maximize();
+    }
+}
+
 /// A popped-out window closed by EasyIsland («Rimetti nell'isola», or its ✕
 /// once its view is home): a page cannot close a window it did not open.
 #[tauri::command]
@@ -4557,6 +4566,7 @@ pub fn run() {
             popout_chat,
             popout_close,
             popout_widen,
+            popout_maximize,
             memory_job,
             memory_node_open,
             memory_window_open,

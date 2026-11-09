@@ -1606,6 +1606,8 @@ class AppState {
   set chatDesktop(v: boolean) { this.chat.desktop = v; }
   /** The Anteprima is open as the island's panel (island.ts setPaneOpen). */
   previewOpen = false;
+  /** The chat's «Terminale» is open (chat.ts): it takes the Anteprima's panel, under the page if that is open too. */
+  chatTermOpen = false;
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;
