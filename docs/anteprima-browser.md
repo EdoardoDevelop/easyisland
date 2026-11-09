@@ -1,6 +1,6 @@
 # Anteprima nel browser: tutte le query string
 
-Con `npm run dev` l'app gira nel browser, all'indirizzo `http://localhost:1420/`, senza Rust. L'URL decide la scena, la lingua, il tema e qualsiasi impostazione che sia un valore semplice. I parametri senza valore vanno scritti da soli: `?scene=chat&terminal&pane`.
+Con `npm run dev` l'app gira nel browser, all'indirizzo `http://localhost:1420/`, senza Rust. L'URL decide la scena, la lingua, il tema e qualsiasi impostazione che sia un valore semplice. I parametri senza valore vanno scritti da soli: `?scene=chat&terminal&pane`. `wide` dà all'isola tutta la finestra del browser come area di lavoro (per vedere la chat larga, con `islandWidth`).
 
 Dove si leggono:
 - `src/main.ts`: parametri generali e sovrascrittura delle impostazioni;

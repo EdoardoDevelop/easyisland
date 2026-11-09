@@ -2292,11 +2292,11 @@ function appearanceSections(): HTMLElement[] {
   // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
   const characterRow = h("div", { class: "row" },
     h("label", { text: t("Personaggio") }),
-    // The animated logo is chosen in «Nell'isola», next to the still one.
+    // Ezzy, the EasyIsland logo alive (logo-anim.ts), is one of them (8 Nov 2026).
     select<string>(
-      characters().filter((c) => c.id !== LOGO_ID).map((c) => [c.id, c.name] as [string, string]),
-      th.character && th.character !== LOGO_ID ? th.character : DEFAULT_SETTINGS.theme.character,
-      (v) => { th.character = v; commit(); drawColorRow(); },
+      characters().map((c) => [c.id, c.name] as [string, string]),
+      th.character || DEFAULT_SETTINGS.theme.character,
+      (v) => { th.character = v; commit(); drawColorRow(); showFigure(); },
     ),
   );
   const logoRow = h("div", { class: "row" });
@@ -2331,38 +2331,29 @@ function appearanceSections(): HTMLElement[] {
       h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
     );
   };
-  // «Nell'isola»: the animated logo is the character «EasyIsland» (logo-anim.ts),
-  // offered here as its own choice next to the still logo.
-  type IslandFigure = Theme["figure"] | "logo-anim";
-  const figureNow = (): IslandFigure => ((th.figure ?? "character") === "character" && th.character === LOGO_ID ? "logo-anim" : th.figure ?? "character");
-  let lastCharacter = th.character && th.character !== LOGO_ID ? th.character : DEFAULT_SETTINGS.theme.character;
+  // «Nell'isola»: a character (Ezzy, the animated logo, among them) or a still picture.
+  type IslandFigure = Theme["figure"];
+  const figureNow = (): IslandFigure => th.figure ?? "character";
   const showFigure = () => {
     const f = figureNow();
     characterRow.style.display = f === "character" ? "" : "none";
-    colorRow.style.display = f === "character" ? "" : "none";
+    // Ezzy keeps the logo's colours: no colour to pick.
+    colorRow.style.display = f === "character" && th.character !== LOGO_ID ? "" : "none";
     logoRow.style.display = f === "logo" ? "" : "none";
     if (f === "logo") void drawLogoRow();
   };
   const figureRow = h("div", { class: "row" },
     h("label", { text: t("Nell'isola") }),
     select<IslandFigure>(
-      [["character", t("Il personaggio")], ["logo-anim", t("Il logo di EasyIsland, animato")], ["easyisland", t("Il logo di EasyIsland, fermo")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
+      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland, fermo")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
       figureNow(),
       (v) => {
-        if (th.character && th.character !== LOGO_ID) lastCharacter = th.character;
-        if (v === "logo-anim") {
-          th.figure = "character";
-          th.character = LOGO_ID;
-        } else {
-          th.figure = v;
-          // Back to a character: the one chosen before the animated logo.
-          if (v === "character" && th.character === LOGO_ID) th.character = lastCharacter;
-        }
+        th.figure = v;
         commit();
         showFigure();
       },
     ),
-    h("span", { class: "hint note", text: t("il logo animato si muove come un personaggio (segue il mouse, cambia con gli stati); il logo fermo, il tuo logo e il meteo sono immagini ferme, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+    h("span", { class: "hint note", text: t("il personaggio si muove (segue il mouse, cambia con gli stati; Ezzy è il logo di EasyIsland animato); il logo fermo, il tuo logo e il meteo sono immagini ferme, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
   );
   showFigure();
 
@@ -2592,6 +2583,11 @@ function appearanceSections(): HTMLElement[] {
             slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
             h("span", { class: "hint note", text: t("sotto l'isola si intravede quello che c'è dietro") }),
           ),
+          h("div", { class: "row" },
+            h("label", { text: t("Opacità delle card") }),
+            slider(0, 100, 5, pct(th.cardOpacity ?? 0.25), "%", (v) => { th.cardOpacity = v / 100; commit(); }),
+            h("span", { class: "hint note", text: t("i pannelli dentro l'isola, come la chat: più bassa, più si vede il colore dell'isola e più sono scuri (o chiari, in modalità chiara); per scurire ancora scegli un colore dell'isola più scuro") }),
+          ),
         ),
         pictured("compactBg", h("div", { class: "row" },
           h("label", { text: t("Sfondo a isola chiusa") }),
@@ -2686,7 +2682,7 @@ function appearanceSections(): HTMLElement[] {
           h("label", { text: t("Nella barra") }),
           select<string>([
             ["", t("Come nell'isola")],
-            ["logo", t("Il logo di EasyIsland, animato")],
+            ["logo", t("Ezzy, il logo di EasyIsland animato")],
             ["logo-still", t("Il logo di EasyIsland, fermo")],
             ["mylogo", t("Il mio logo")],
             ["weather", t("Il meteo")],
@@ -2837,12 +2833,32 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
     ],
+    chat: () => [
+      intro(t("Come si presenta la vista Chat.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Chat vuota") })),
+        h("div", { class: "row" },
+          h("label", { text: t("Disegno") }),
+          // What fills a new conversation before the first message (src/views/chat-empty.ts).
+          select([
+            ["ezzy", t("Ezzy che galleggia")],
+            ["isola", t("Isola che gira")],
+            ["onde", t("Mare di puntini")],
+            ["stelle", t("Cielo stellato")],
+            ["aurora", t("Aurora")],
+            ["rete", t("Rete di punti")],
+            ["nessuna", t("Niente")],
+          ], settings.chatEmptyArt ?? "ezzy", (v) => { settings.chatEmptyArt = v; commit(); }),
+          h("span", { class: "hint note", text: t("un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni") }),
+        ),
+      ),
+    ],
   };
   return [tabs, ...sections[tab]()];
 }
 
 /** The tabs of Aspetto, in order. */
-type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
+type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta" | "chat";
 const LOOK_TABS = (): [LookTab, string][] => [
   ["tema", t("Tema")],
   ["font", t("Font")],
@@ -2851,6 +2867,7 @@ const LOOK_TABS = (): [LookTab, string][] => [
   ["barra", t("Barra fissa")],
   ["chiusa", t("Isola chiusa")],
   ["aperta", t("Isola aperta")],
+  ["chat", t("Chat")],
 ];
 const LOOK_TAB_KEY = "easyisland.settings.aspetto";
 let lookTabNow: LookTab | null = null;

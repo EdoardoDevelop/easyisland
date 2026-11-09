@@ -1,0 +1,422 @@
+/* The chat «a schede» (theme.chatLook = "cards", the default since 8 Nov
+   2026; «Classico» keeps the old look): the conversations' sidebar, the
+   conversation and the terminal are cards of their own on the island's colour,
+   with room between them; the field floats over the bottom of the
+   conversation on its shadow; the conversation is one quiet column, what
+   the user writes on the right in a soft bubble, the answers without one. Dark by default: the cards
+   blend the theme's panel colour into a near black (or white, in light mode)
+   as much as «Opacità delle card» says.
+
+   One set of measures for every piece (8 Nov 2026, after a design review):
+   - space 4 · 8 · 12 · 16 · 24 (--cc-s1…s5);
+   - radius 16 cards and field · 10 items, bubble, menus, inner cards · 8
+     buttons and chips · round only for send; inline code 4;
+   - text 3 sizes on the theme's base (+ --fs-up): body 13 (messages, field),
+     ui 12 (title, lists, menus), small 11 (steps, chips, actions); weight 400
+     everywhere, no bold in the chat (Edoardo);
+   - one accent, the send button; chips and focus are neutral. */
+
+html[data-chat-look="cards"] {
+  --cc-s1: 4px;
+  --cc-s2: 8px;
+  --cc-s3: 12px;
+  --cc-s4: 16px;
+  --cc-s5: 24px;
+  --cc-r-card: 16px;
+  --cc-r-item: 10px;
+  --cc-r-ctl: 8px;
+
+  --cc-base: var(--card);
+  --cc-deep: #0c0c0e;
+  --cc-line: rgba(255, 255, 255, 0.075);
+  --cc-bar: #232326;
+  --cc-bar-line: rgba(255, 255, 255, 0.09);
+  --cc-bar-focus: rgba(255, 255, 255, 0.18);
+  --cc-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.35);
+  --cc-panel: color-mix(in srgb, var(--cc-base) calc(var(--card-alpha, 0.25) * 100%), var(--cc-deep));
+  --cc-soft: rgba(255, 255, 255, 0.06);
+  --cc-hover: rgba(255, 255, 255, 0.09);
+  --cc-ink: #e4e5e8;
+  --cc-reply: #c9cbd0;
+  --cc-dim: #8f939b;
+  --cc-faint: #7d8189; /* ≥4.5:1 on the card: it carries text (Copia, group names) */
+  --cc-user: rgba(255, 255, 255, 0.08);
+  --cc-menu: #1f1f22;
+}
+html[data-chat-look="cards"][data-ui="windows"] { --cc-base: var(--layer); }
+html[data-chat-look="cards"][data-scheme="light"] {
+  --cc-deep: #ffffff;
+  --cc-line: rgba(0, 0, 0, 0.07);
+  --cc-bar: #ffffff;
+  --cc-bar-line: rgba(0, 0, 0, 0.09);
+  --cc-bar-focus: rgba(0, 0, 0, 0.2);
+  --cc-shadow: 0 14px 34px rgba(30, 35, 50, 0.14), 0 3px 8px rgba(30, 35, 50, 0.07);
+  --cc-soft: rgba(0, 0, 0, 0.045);
+  --cc-hover: rgba(0, 0, 0, 0.07);
+  --cc-ink: #1f2226;
+  --cc-reply: #464a52;
+  --cc-dim: #5f646c;
+  --cc-faint: #70757d;
+  --cc-user: rgba(0, 0, 0, 0.05);
+  --cc-menu: #ffffff;
+}
+
+/* The sizes are set here, not on html: a var() in a custom property resolves
+   where it is declared, and --fs-up exists only inside the open island. */
+html[data-chat-look="cards"] .chat-card {
+  --cc-t-body: calc(13px + var(--fs-up, 0px));
+  --cc-t-ui: calc(12px + var(--fs-up, 0px));
+  --cc-t-small: calc(11px + var(--fs-up, 0px));
+}
+
+/* The frame: no card of its own, the island's colour between the cards. */
+html[data-chat-look="cards"] .card.chat-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+html[data-chat-look="cards"] .chat-card .chat-layout { gap: var(--cc-s2); }
+
+/* No bold anywhere in the chat (8 Nov 2026). */
+html[data-chat-look="cards"] .chat-card :is(.chat-title, .md-h, .msg-act, .engine-pick, .engine-item,
+  .side-new, .side-group, .side-project-toggle, .history-title, .second-btn, .new-chat-btn,
+  .chat-ask-title, .chat-ask-what, .chat-other-ask, .chat-queued-btn, .slash-item, .bubble-file) { font-weight: 400; }
+
+/* ── The conversations ─────────────────────────────────────────────────── */
+html[data-chat-look="cards"] .chat-card .chat-side {
+  border: 1px solid var(--cc-line);
+  border-radius: var(--cc-r-card);
+  background: var(--cc-panel);
+  padding: var(--cc-s3) var(--cc-s2);
+  gap: var(--cc-s2);
+}
+html[data-chat-look="cards"] .chat-card .chat-layout.narrow.side-open .chat-side { box-shadow: var(--cc-shadow); }
+html[data-chat-look="cards"] .chat-card .side-top { margin: 0; gap: var(--cc-s1); }
+html[data-chat-look="cards"] .chat-card .side-new {
+  margin: 0;
+  height: 32px;
+  padding: 0 var(--cc-s3);
+  border-radius: var(--cc-r-ctl);
+  font-size: var(--cc-t-ui);
+  color: var(--cc-ink);
+  background: var(--cc-soft);
+}
+/* «Nuovo» is the main action; «Cerca» beside it stays quiet. */
+html[data-chat-look="cards"] .chat-card .side-top .side-new + .side-new { background: transparent; color: var(--cc-dim); }
+html[data-chat-look="cards"] .chat-card .side-new:hover,
+html[data-chat-look="cards"] .chat-card .side-top .side-new + .side-new:hover,
+html[data-chat-look="cards"] .chat-card .side-new.on { background: var(--cc-hover); color: var(--cc-ink); }
+/* A group's name sits closer to its conversations than to the ones above. */
+html[data-chat-look="cards"] .chat-card .side-group {
+  padding: var(--cc-s4) 10px var(--cc-s1);
+  font-size: var(--cc-t-small);
+  color: var(--cc-faint);
+}
+html[data-chat-look="cards"] .chat-card .side-group:first-child { padding-top: var(--cc-s1); }
+html[data-chat-look="cards"] .chat-card .chat-side .history-item {
+  padding: 6px var(--cc-s1) 6px 10px;
+  border-radius: var(--cc-r-ctl);
+}
+html[data-chat-look="cards"] .chat-card .chat-side .history-item:hover { background: var(--cc-soft); }
+/* «You are here»: the same tint as the island's menu on the left. */
+html[data-chat-look="cards"] .chat-card .chat-side .history-item.on { background: var(--cc-hover); box-shadow: none; }
+html[data-chat-look="cards"] .chat-card .chat-side .history-title { font-size: var(--cc-t-ui); color: var(--cc-reply); }
+html[data-chat-look="cards"] .chat-card .chat-side .history-item.on .history-title { color: var(--cc-ink); }
+
+/* The chat's scrolling lists: a thin bar without arrows, seen only under the
+   pointer (always there, with its arrows, it was heavy). */
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu) { scrollbar-color: auto; scrollbar-width: auto; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-button { display: none; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-track { background: transparent; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  background-clip: padding-box;
+}
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu):hover::-webkit-scrollbar-thumb { background-color: var(--cc-hover); }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-thumb:hover { background-color: var(--cc-faint); }
+
+/* ── The conversation ──────────────────────────────────────────────────── */
+html[data-chat-look="cards"] .chat-card .chat-body {
+  border: 1px solid var(--cc-line);
+  border-radius: var(--cc-r-card);
+  background: var(--cc-panel);
+  padding: var(--cc-s3) var(--cc-s4) var(--cc-s4);
+  gap: var(--cc-s2);
+}
+/* The head: no line under it, the title quiet (it repeats the first question),
+   the buttons without a disc until the pointer is on them. */
+html[data-chat-look="cards"] .chat-card .chat-head { padding: 0; border-bottom: 0; min-height: 28px; gap: var(--cc-s1); }
+html[data-chat-look="cards"] .chat-card .chat-title {
+  margin-left: var(--cc-s1);
+  font-size: var(--cc-t-ui);
+  color: var(--cc-dim);
+}
+html[data-chat-look="cards"] .chat-card .chat-head .history-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--cc-r-ctl);
+  background: transparent;
+  color: var(--cc-dim);
+}
+html[data-chat-look="cards"] .chat-card .chat-head .history-btn:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .history-btn.on,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .history-btn.on { background: var(--cc-soft); color: var(--cc-ink); }
+
+/* One column, one rhythm: 24 between turns, 8 inside a turn. */
+html[data-chat-look="cards"] .chat-card .chat-log {
+  gap: var(--cc-s5);
+  padding-top: var(--cc-s3);
+  /* Room for the field that floats over the bottom. */
+  padding-bottom: 40px;
+}
+html[data-chat-look="cards"] .chat-card .chat-row + .second-row { margin-top: calc(var(--cc-s3) - var(--cc-s5)); }
+
+/* What the user writes: on the right, in a soft bubble. Its Copia/Modifica
+   appear on hover in the gap under it, without taking room. */
+html[data-chat-look="cards"] .chat-card .chat-row.user {
+  position: relative;
+  justify-content: flex-end;
+  padding-left: 48px;
+}
+html[data-chat-look="cards"] .chat-card .chat-row.user.with-actions { align-items: flex-end; }
+html[data-chat-look="cards"] .chat-card .chat-row.user .msg-actions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin: 1px calc(-1 * var(--cc-s2)) 0 0;
+}
+html[data-chat-look="cards"] .chat-card .bubble,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .bubble {
+  background: var(--cc-user);
+  padding: var(--cc-s2) var(--cc-s3);
+  border-radius: var(--cc-r-item);
+  font-size: var(--cc-t-body);
+  line-height: 1.5;
+  color: var(--cc-ink);
+}
+html[data-chat-look="cards"] .chat-card .reply,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .reply {
+  font-size: var(--cc-t-body);
+  color: var(--cc-ink); /* the answer weighs as much as the question */
+  line-height: 1.6;
+  padding-top: 0;
+  gap: var(--cc-s2);
+}
+/* Bold and code stand out by a step of colour only, never as white on grey. */
+html[data-chat-look="cards"] .chat-card .md strong { font-weight: 400; color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .md-code {
+  font-size: calc(var(--cc-t-body) - 1.5px);
+  /* Cascadia Mono's SemiLight where Windows has it: the regular cut reads as bold beside Segoe UI. */
+  font-weight: 350;
+  color: inherit;
+  background: var(--cc-soft);
+  border-radius: 4px;
+}
+html[data-chat-look="cards"] .chat-card .md-step .md-code { padding: 0; font: inherit; background: none; }
+html[data-chat-look="cards"] .chat-card .md-step,
+html[data-chat-look="cards"] .chat-card .md-steps > summary {
+  font-size: var(--cc-t-small);
+  color: var(--cc-dim);
+}
+
+/* Copia, Rigenera: small, their text on the same edge as the answer's. */
+html[data-chat-look="cards"] .chat-card .msg-actions { height: 24px; margin: var(--cc-s1) 0 0 calc(-1 * var(--cc-s2)); gap: 0; }
+html[data-chat-look="cards"] .chat-card .msg-act {
+  padding: 0 var(--cc-s2);
+  border-radius: var(--cc-r-ctl);
+  font-size: var(--cc-t-small);
+  color: var(--cc-faint);
+}
+html[data-chat-look="cards"] .chat-card .msg-act:hover { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .second-btn,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .second-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--cc-line);
+  border-radius: var(--cc-r-ctl);
+  font-size: var(--cc-t-small);
+  color: var(--cc-dim);
+  background: transparent;
+}
+html[data-chat-look="cards"] .chat-card .second-btn:hover,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .second-btn:hover { background: var(--cc-soft); color: var(--cc-ink); }
+
+/* A permission the chat waits for: an inner card, amber only on its title. */
+html[data-chat-look="cards"] .chat-card .chat-ask {
+  gap: var(--cc-s2);
+  padding: var(--cc-s3);
+  border-radius: var(--cc-r-item);
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+  background: color-mix(in srgb, var(--amber) 6%, transparent);
+}
+html[data-chat-look="cards"] .chat-card .chat-ask-title { font-size: var(--cc-t-ui); }
+html[data-chat-look="cards"] .chat-card .chat-ask-what { font-size: var(--cc-t-small); color: var(--cc-reply); }
+html[data-chat-look="cards"] .chat-card .chat-ask-always { font-size: var(--cc-t-small); color: var(--cc-dim); }
+html[data-chat-look="cards"] .chat-card .chat-ask-row { gap: var(--cc-s2); }
+html[data-chat-look="cards"] .chat-card .chat-other-ask { border-radius: var(--cc-r-ctl); font-size: var(--cc-t-small); }
+
+/* ── The field: floating over the bottom of the conversation, on its shadow ── */
+html[data-chat-look="cards"] .chat-card .chat-bar,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .chat-bar {
+  z-index: 3;
+  margin-top: calc(-1 * var(--cc-s5));
+  padding: var(--cc-s3) var(--cc-s3) var(--cc-s2);
+  gap: var(--cc-s2);
+  border-radius: var(--cc-r-card);
+  background: var(--cc-bar);
+  border: 1px solid var(--cc-bar-line);
+  box-shadow: var(--cc-shadow);
+}
+/* Focus: the edge a step lighter, no coloured ring (the accent is the send button's). */
+html[data-chat-look="cards"] .chat-card .chat-bar:focus-within,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .chat-bar:focus-within {
+  border-color: var(--cc-bar-focus);
+  box-shadow: var(--cc-shadow);
+}
+html[data-chat-look="cards"] .chat-card .chat-input { font-size: var(--cc-t-body); line-height: 1.5; padding: 0 var(--cc-s1); }
+html[data-chat-look="cards"] .chat-card .chat-tools { gap: var(--cc-s1); }
+/* Every control under the text: 28 high, corners of 8, neutral. */
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn, .clip-btn, .mic-btn) {
+  height: 28px;
+  min-width: 28px;
+  border-radius: var(--cc-r-ctl);
+  font-size: var(--cc-t-small);
+  justify-content: center;
+}
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .clip-btn, .mic-btn) { padding: 0 6px; }
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn:not(.on):not(.mode), .clip-btn:not(.on), .mic-btn:not(.on)) {
+  color: var(--cc-dim);
+  background: transparent;
+  opacity: 1;
+}
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn:not(.on):not(.mode), .clip-btn:not(.on), .mic-btn:not(.on)):hover {
+  color: var(--cc-ink);
+  background: var(--cc-hover);
+}
+html[data-chat-look="cards"] .chat-card .new-chat-btn svg { color: inherit; }
+html[data-chat-look="cards"] .chat-card .chat-tools .clip-btn.on { color: var(--cc-ink); background: var(--cc-hover); }
+html[data-chat-look="cards"] .chat-card .engine-pick,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-pick {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--cc-r-ctl);
+  font-size: var(--cc-t-small);
+  color: var(--cc-reply);
+  background: var(--cc-soft);
+}
+html[data-chat-look="cards"] .chat-card .engine-pick:hover,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-pick:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .send-btn,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .send-btn {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  margin-left: var(--cc-s1);
+  border-radius: 50%;
+}
+html[data-chat-look="cards"] .chat-card .ctx-meter { font-size: var(--cc-t-small); color: var(--cc-dim); }
+
+/* The menus over the field (engine, «/» commands): one surface, items of 8. */
+html[data-chat-look="cards"] .chat-card :is(.engine-menu, .slash-menu) {
+  padding: var(--cc-s1);
+  border-radius: var(--cc-r-item);
+  background: var(--cc-menu);
+  border: 1px solid var(--cc-bar-line);
+  box-shadow: var(--cc-shadow);
+}
+html[data-chat-look="cards"] .chat-card .chat-bar .engine-menu { margin-bottom: var(--cc-s2); }
+/* Its group names as written, not in capitals, and its notes small and dim. */
+html[data-chat-look="cards"] .chat-card .engine-head {
+  padding: var(--cc-s3) 10px var(--cc-s1);
+  font-size: var(--cc-t-small);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cc-faint);
+}
+html[data-chat-look="cards"] .chat-card .engine-note { padding: var(--cc-s1) 10px var(--cc-s2); font-size: var(--cc-t-small); color: var(--cc-dim); }
+html[data-chat-look="cards"] .chat-card :is(.engine-item, .slash-item) {
+  padding: 6px 10px;
+  border-radius: var(--cc-r-ctl);
+  font-size: var(--cc-t-ui);
+  color: var(--cc-reply);
+}
+html[data-chat-look="cards"] .chat-card :is(.engine-item, .slash-item):hover { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .engine-item.on,
+html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-item.on { background: var(--cc-hover); color: var(--cc-ink); }
+
+/* The terminal: a card of its own, above the field. */
+html[data-chat-look="cards"] .chat-card .chat-term {
+  margin: 0 0 40px;
+  border-radius: var(--cc-r-item);
+  border: 1px solid var(--cc-line);
+  background: var(--cc-deep);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+html[data-chat-look="cards"] .chat-card .chat-term-head { padding: var(--cc-s2) var(--cc-s3) var(--cc-s1); font-size: var(--cc-t-small); color: var(--cc-dim); }
+html[data-chat-look="cards"] .chat-card .chat-term-out { padding: var(--cc-s1) var(--cc-s3); }
+html[data-chat-look="cards"] .chat-card .chat-term-in {
+  margin: var(--cc-s1) var(--cc-s2) var(--cc-s2);
+  padding: var(--cc-s1) var(--cc-s2);
+  border-radius: var(--cc-r-ctl);
+  border-color: var(--cc-line);
+}
+html[data-chat-look="cards"][data-scheme="light"] .chat-card .chat-term { background: #f6f7f9; }
+html[data-chat-look="cards"][data-scheme="light"] .chat-card .chat-term-in { background: #ffffff; }
+
+/* The lines over the field (queue, background work, hints) keep clear of it. */
+html[data-chat-look="cards"] .chat-card .chat-queue,
+html[data-chat-look="cards"] .chat-card .chat-hint { position: relative; z-index: 3; }
+
+/* The Anteprima beside the chat: a card too, the page inside it with room around (island.ts paneInset). */
+html[data-chat-look="cards"] #preview-pane {
+  border: 1px solid var(--cc-line);
+  border-radius: var(--cc-r-card);
+  background: var(--cc-panel);
+}
+
+/* The picture of an empty conversation (chat-empty.ts): behind the head and
+   the field, never in the way of a click. */
+html[data-chat-look="cards"] .chat-card .chat-empty {
+  position: absolute;
+  left: var(--cc-s4);
+  top: 48px;
+  width: calc(100% - 2 * var(--cc-s4));
+  height: calc(100% - 48px - 112px);
+  z-index: 0;
+  pointer-events: none;
+}
+/* Under the picture: the last three conversations, to pick up again. */
+html[data-chat-look="cards"] .chat-card .chat-body.has-recent .chat-empty { height: calc(100% - 48px - 112px - 120px); }
+html[data-chat-look="cards"] .chat-card .chat-recent {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: min(360px, calc(100% - 2 * var(--cc-s5)));
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-s1);
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cc-s3);
+  padding: 6px var(--cc-s3);
+  border: 0;
+  border-radius: var(--cc-r-item);
+  background: var(--cc-soft);
+  font: 400 var(--cc-t-ui) var(--font);
+  color: var(--cc-reply);
+  text-align: left;
+  cursor: pointer;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-chat-look="cards"] .chat-card .chat-recent-when { flex: none; font-size: var(--cc-t-small); color: var(--cc-faint); font-variant-numeric: tabular-nums; }
+/* «Vai in fondo»: a drawn arrow, centred. */
+html[data-chat-look="cards"] .chat-card .chat-jump { display: grid; place-items: center; }

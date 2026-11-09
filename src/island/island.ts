@@ -15,6 +15,7 @@ import {
 import type { Suggestion } from "./context";
 import { buildSelectionMenu, type SelectionMenu } from "./selection-menu";
 import { Sound } from "../core/sound";
+import { startAnnouncer } from "../core/announce";
 import { OPENED_BY_APP, OPEN_URLS, State, barEdge, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
@@ -116,6 +117,11 @@ const RETURNABLE = (v: IslandViewName) =>
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
 
 const modeOrder = (m: IslandMode) => (m === "hidden" ? 0 : m === "compact" ? 1 : 2);
+
+/** How far the Anteprima's page sits inside its frame: 1 px (its border), or room around it in the chat «a schede». */
+function paneInset(): number {
+  return document.documentElement.dataset.chatLook === "cards" ? 7 : 1;
+}
 
 export class Island {
   readonly fsm = new IslandStateMachine();
@@ -277,6 +283,8 @@ export class Island {
     });
     // After the start-up greeting the island is compact: WebView2 may keep less memory.
     window.setTimeout(() => { if (State.mode !== "expanded") void Bridge.webviewMemoryLow(true); }, 15000);
+    // Screen readers hear a reply, a permission, an agent that finished (core/announce.ts).
+    startAnnouncer();
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
@@ -2967,7 +2975,9 @@ ${note}` : text };
       // Never out of the island nor of the window (a webview there is cut by the screen).
       const right = Math.min(r.right, this.islandEl.getBoundingClientRect().right - 10, window.innerWidth);
       const bottom = Math.min(r.bottom, window.innerHeight);
-      if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + 1), y: Math.round(r.top + 1), w: Math.round(right - r.left - 2), h: Math.round(bottom - r.top - 2) };
+      // The chat «a schede»: the page sits inside its card, with room around it (paneInset).
+      const k = paneInset();
+      if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + k), y: Math.round(r.top + k), w: Math.round(right - r.left - 2 * k), h: Math.round(bottom - r.top - 2 * k) };
     }
     const p = this.paneSent;
     if (p.x === next.x && p.y === next.y && p.w === next.w && p.h === next.h) return;
@@ -3033,7 +3043,8 @@ ${note}` : text };
       let next = { x: 0, y: 0, w: 0, h: 0 };
       if (open) {
         const r = pane.getBoundingClientRect();
-        if (r.width > 40 && r.height > 40) next = { x: Math.round(r.left + 1), y: Math.round(r.top + 1), w: Math.round(r.width - 2), h: Math.round(r.height - 2) };
+        const k = paneInset();
+        if (r.width > 40 && r.height > 40) next = { x: Math.round(r.left + k), y: Math.round(r.top + k), w: Math.round(r.width - 2 * k), h: Math.round(r.height - 2 * k) };
       }
       if (gen === this.paneGen && sent.x === next.x && sent.y === next.y && sent.w === next.w && sent.h === next.h) return;
       gen = this.paneGen;
@@ -3428,6 +3439,10 @@ ${note}` : text };
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
     this.islandBackground = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
     this.islandEl.style.background = this.islandBackground;
+    // The views' cards: how much of their own grey covers the island's colour (Impostazioni → Aspetto).
+    document.documentElement.style.setProperty("--card-alpha", String(Math.max(0, Math.min(1, t.cardOpacity ?? 0.25))));
+    // The chat's look (chat-cards.css): always the cards since 8 Nov 2026 (the choice in Impostazioni is gone).
+    document.documentElement.dataset.chatLook = "cards";
     this.onRestChange?.();
   }
 

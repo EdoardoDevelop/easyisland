@@ -36,7 +36,7 @@ html[data-ui="windows"] #island.pop:not(.bare) { box-shadow: var(--pop-shadow); 
 
 html[data-ui="windows"] .card {
   border-radius: 8px;
-  background: var(--layer);
+  background: color-mix(in srgb, var(--layer) calc(var(--card-alpha, 0.25) * 100%), transparent);
   border-color: var(--stroke);
 }
 

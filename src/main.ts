@@ -4,6 +4,7 @@ import { barFont } from "./core/fonts";
 import "./style.css";
 import "./style-windows.css";
 import "./style-light.css";
+import "./chat-cards.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";

@@ -446,6 +446,11 @@ pub struct Theme {
     pub island_color: String,
     #[serde(default = "one")]
     pub island_opacity: f64,
+    /// The panels inside the island (the views' cards): below 1 the island's
+    /// darker colour shows through. 0.25 by default (8 Nov 2026: darker, as
+    /// Claude Desktop's chat).
+    #[serde(default = "default_card_opacity")]
+    pub card_opacity: f64,
     /// Volume multipliers per sound family, 0–1.
     #[serde(default = "one")]
     pub volume_alerts: f64,
@@ -514,6 +519,7 @@ impl Default for Theme {
             slime_color: String::new(),
             island_color: default_island_color(),
             island_opacity: 1.0,
+            card_opacity: default_card_opacity(),
             volume_alerts: 1.0,
             volume_ui: 1.0,
             volume_emotes: 1.0,
@@ -545,6 +551,15 @@ fn default_figure() -> String {
 fn default_character() -> String {
     "jarvis-sfera".into()
 }
+
+fn default_chat_empty_art() -> String {
+    "ezzy".into()
+}
+
+fn default_card_opacity() -> f64 {
+    0.25
+}
+
 fn default_island_color() -> String {
     "#000000".into()
 }
@@ -987,6 +1002,10 @@ pub struct Settings {
     /// terminale» edits open in the preview window.
     #[serde(default = "default_true")]
     pub chat_preview: bool,
+    /// The picture of an empty chat (src/views/chat-empty.ts): "ezzy" (default),
+    /// "isola", "onde", "stelle", "aurora", "rete", "nessuna".
+    #[serde(default = "default_chat_empty_art")]
+    pub chat_empty_art: String,
     /// The preview as a panel on the right of the open island (resizable by
     /// its edge) instead of a window of its own.
     #[serde(default)]
@@ -1278,6 +1297,7 @@ impl Default for Settings {
             chat_team_check: true,
             chat_folder: String::new(),
             chat_preview: true,
+            chat_empty_art: default_chat_empty_art(),
             preview_docked: false,
             preview_width: 0.0,
             chat_instructions: String::new(),

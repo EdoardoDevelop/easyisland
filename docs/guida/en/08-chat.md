@@ -5,6 +5,7 @@
 ![The chat from the island](../media/chat.png)
 
 ## Writing
+- An **empty chat** shows a faint, slow drawing until you write: **Ezzy** floating by default; in Settings → Appearance → Chat → **Empty chat** you can pick a turning island, a sea of dots, a starry sky, an aurora, a network of dots or nothing. It stops when the chat is not in view and stays still if Windows reduces animations. Under the drawing are your **last three conversations**: one click picks one up again.
 - The field is **multi-line**: <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. What you're writing survives a restart. <kbd>↑</kbd> in an empty field brings back the last question.
 - Answers are in **markdown**: headings, lists, tables, code with **Copy**. While the engine works you see its reasoning and the tools it uses: the current one types itself at the bottom, with a caret. When the answer is done the steps fold into **N steps**: a click opens them.
 - With Terminal mode, **Project…** under the field picks this chat's folder, so it reads the project's rules and git; the button also shows the branch. With Claude Code, a ring under the field says how full the conversation's context is: from 80% it turns orange, and it is time to start a new one. **Default folder** uses the one in Settings. Changing it opens a new conversation.

@@ -14,10 +14,10 @@
 
 const COLOR_PROPS = /^(color|background(-color|-image)?|border(-(top|right|bottom|left))?(-color)?|outline(-color)?|box-shadow|text-shadow|fill|stroke|caret-color|text-decoration-color|column-rule-color|--[\w-]+)$/;
 
-/** Files that get a light copy: the island's and the settings' own styles. */
+/** Files that get a light copy: the island's, the settings', the flows' and the Anteprima's own styles. */
 export function wantsLight(id) {
   const f = id.replace(/\\/g, "/").split("?")[0];
-  return /\/src\/(style|style-windows|settings\/settings|settings\/settings-windows|flows\/flows)\.css$/.test(f);
+  return /\/src\/(style|style-windows|settings\/settings|settings\/settings-windows|flows\/flows|preview\/preview)\.css$/.test(f);
 }
 
 // ── Colours ───────────────────────────────────────────────────────────────────

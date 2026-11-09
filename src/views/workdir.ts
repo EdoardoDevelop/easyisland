@@ -171,7 +171,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
       iconBtn(e.dir ? "folder" : "file", e.dir ? t("Apri la cartella") : t("Apri"), "#38BDF8", () => {
         if (e.dir) go(e.rel); else void Bridge.workOpen(e.rel, false).catch(fail);
       }),
-      h("button", { class: open === e.rel ? "clip-btn on" : "clip-btn", title: t("Altro"), style: "--c:#8E939C",
+      h("button", { class: open === e.rel ? "clip-btn on" : "clip-btn", title: t("Altro"),
         onclick: (ev: Event) => { ev.stopPropagation(); open = open === e.rel ? "" : e.rel; trashing = ""; drawn = ""; State.notify(); } },
       h("span", { text: "⋯" }))));
     if (open === e.rel) {

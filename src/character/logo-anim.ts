@@ -17,11 +17,11 @@ import type { LogoCharacter } from "./character";
 
 export type LogoState = "idle" | "working" | "attention" | "done";
 
-/** The logo as a character of the island (Impostazioni → Aspetto → «EasyIsland»). */
+/** The logo as a character of the island: Ezzy (Impostazioni → Aspetto → Personaggio; named by Edoardo on 8 Nov 2026). */
 export const LOGO_CHARACTER: LogoCharacter = {
   kind: "logo",
   id: "easyisland",
-  name: "EasyIsland",
+  name: "Ezzy",
   color: [0.56, 0.04, 0.66],
   aspect: 68 / 62,
   wearsIntegrationColor: false,

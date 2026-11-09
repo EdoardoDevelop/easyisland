@@ -8,7 +8,7 @@ import { h, svg, clear, dot, brandOrDot, markIcon } from "./dom";
 import { ICONS } from "./icons";
 import { actionIcon, actionIconSvg } from "./action-icons";
 import { Ticker } from "./ticker";
-import { State, canAskSession, canOpen, engineLabel, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import type { IslandViewName } from "../core/layout";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
@@ -200,7 +200,8 @@ function bubble(): [string, string] {
     return [req.questions?.length ? t("{who} ha una domanda", { who }) : t("{who} chiede un permesso", { who }), req.command || req.tool || ""];
   }
   switch (State.view) {
-    case "prompt": return [t("Chiedimi pure."), `Chat · ${engineLabel(State.settings)}`];
+    // The engine is on the chip under the field: not repeated here.
+    case "prompt": return [t("Chiedimi pure."), State.chatHistory.length ? t("Chat") : t("scrivi qui sotto o riprendi una conversazione")];
     case "actions": case "run": case "rewrite": return [t("Le tue azioni."), t("anche sul testo selezionato nell'app in primo piano")];
     case "files": case "unzip": return [t("File e schermo."), t("Rilascia un file sull'isola o riquadra una zona")];
     case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];

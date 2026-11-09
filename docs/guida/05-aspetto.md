@@ -6,12 +6,13 @@ Tutto in **Impostazioni → Aspetto**. Le sezioni con l'etichetta viola si salva
 
 ![Impostazioni, pagina Aspetto](../media/settings.png)
 
-La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizione**, **Barra fissa**, **Isola chiusa** e **Isola aperta**; la finestra ricorda l'ultima aperta. Accanto a ogni voce c'è una **piccola immagine** che mostra cosa cambia: uno schermo in miniatura con l'isola, il personaggio o la barra, ridisegnato appena cambi il valore (alcune sono animate, per esempio il mouse che arriva e l'isola che si apre). In **Personaggio** il personaggio scelto si muove come nell'isola; in **Posizione** un clic su un punto dello schermo in miniatura sceglie l'angolo. I volumi dei suoni sono in **Generale**, accanto a Suono.
+La pagina è divisa in otto schede, in alto: **Tema**, **Font**, **Personaggio**, **Posizione**, **Barra fissa**, **Isola chiusa**, **Isola aperta** e **Chat**; la finestra ricorda l'ultima aperta. Accanto a ogni voce c'è una **piccola immagine** che mostra cosa cambia: uno schermo in miniatura con l'isola, il personaggio o la barra, ridisegnato appena cambi il valore (alcune sono animate, per esempio il mouse che arriva e l'isola che si apre). In **Personaggio** il personaggio scelto si muove come nell'isola; in **Posizione** un clic su un punto dello schermo in miniatura sceglie l'angolo. I volumi dei suoni sono in **Generale**, accanto a Suono.
 
 ## Tema
 - **Stile**: **Windows 11** (predefinito: come le app di sistema, con il **colore d'accento di Windows** e icone a linea) o **Classico** (l'aspetto originale con le icone colorate).
 - **Modalità**: **Scura** (predefinita), **Chiara** o **Automatica (come Windows)**, che segue la modalità delle app di Windows (Impostazioni di Windows → Personalizzazione → Colori) e cambia da sola quando la cambi lì. Vale per entrambi gli stili, per l'isola e per la finestra delle Impostazioni.
 - **Colore** e **opacità dell'isola**: «Quello del tema» è il grigio di Windows o il nero del Classico, in chiaro il loro equivalente chiaro; un colore scelto da te resta quello.
+- **Opacità delle card**: i pannelli dentro l'isola, come la chat. Più bassa, più si vede il colore dell'isola e più sono scuri (di serie 25%); per scurire ancora scegli un colore dell'isola più scuro.
 - **Sfondo a isola chiusa**: spento, resta solo il personaggio.
 
 ## Font
@@ -24,8 +25,8 @@ Per ognuno: famiglia, **dimensione** e **spessore**; **Ripristina** torna al fon
 Nell'app ci sono quattro font a puntini e retrò (licenza SIL Open Font License): **Doto** (a matrice di punti), **DotGothic16**, **VT323** e **Space Mono**. Puoi scegliere anche qualsiasi font installato in Windows. Il font a puntini va bene per titoli e orologio; per i testi lunghi è meglio un font leggibile, per esempio Space Mono.
 
 ## Personaggio
-- **Nell'isola**: il personaggio, il logo di EasyIsland animato o fermo, il tuo logo o il meteo (vedi sotto).
-- **Personaggio** e il suo **colore**.
+- **Nell'isola**: il personaggio, il logo di EasyIsland fermo, il tuo logo o il meteo (vedi sotto).
+- **Personaggio** e il suo **colore**. Tra i personaggi c'è **Ezzy**, il logo di EasyIsland animato, che tiene i suoi colori.
 - **Saluto all'avvio**: di serie il **logo di EasyIsland** che si disegna da solo (il bordo arcobaleno, la coda, poi gli occhi), oppure il personaggio; al centro dello schermo o dove sta il personaggio.
 - **Segue il mouse**: anche nella vista compatta il personaggio guarda il cursore (consuma un po' di più).
 - **Fumetto**: in alto il personaggio dice cosa succede.
@@ -90,6 +91,11 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
 | **Campo in alto** | Il campo di ricerca nell'isola |
 | **Come un'app** | Icona nella barra delle applicazioni, Alt+Tab, riduci a icona |
 
+## Chat
+| Opzione | Cosa fa |
+|---|---|
+| **Chat vuota → Disegno** | Cosa si vede in una conversazione nuova prima del primo messaggio: Ezzy che galleggia (di serie), un'isola che gira, un mare di puntini, un cielo stellato, un'aurora, una rete di punti o niente |
+
 ## Personaggi
 Personaggi disegnati nel codice, tutti con le stesse espressioni:
 
@@ -108,7 +114,7 @@ Personaggi disegnati nel codice, tutti con le stesse espressioni:
 Il personaggio reagisce: saluta all'avvio, festeggia quando un agente finisce, si preoccupa per un errore, ti guarda quando passi con il mouse. Durante il meteo può avere il cielo dietro.
 
 ## Logo o meteo al posto del personaggio
-In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland, animato** o **fermo**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni né stati, per un aspetto più professionale. Il **logo di EasyIsland, animato** invece si muove come un personaggio. Segue il mouse con gli occhi, sbatte le palpebre, cambia con gli stati (i colori girano mentre un agente lavora) e «mangia» i file come gli altri.
+In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland, fermo**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni né stati, per un aspetto più professionale. **Ezzy**, il logo di EasyIsland animato, è invece uno dei personaggi e si muove come gli altri. Segue il mouse con gli occhi, sbatte le palpebre, cambia con gli stati (i colori girano mentre un agente lavora) e «mangia» i file come gli altri.
 - **Il mio logo**: **Carica PNG…** e scegli l'immagine (meglio con lo sfondo trasparente). Viene ridotta a 512 px, resta su questo PC ed entra nel [backup](26-impostazioni.md). **Togli** la cancella; senza immagine compare il logo di EasyIsland.
 - **Il meteo**: il cielo e la temperatura di adesso, dall'integrazione **Meteo**, che dev'essere attiva.
 

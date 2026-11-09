@@ -7,6 +7,8 @@
 import "./preview.css";
 import { Bridge, IS_TAURI, onDragDrop, onEvent } from "../core/bridge";
 import { locale, syncLanguage, t } from "../core/i18n";
+import type { Settings } from "../core/state";
+import { applyUiStyle } from "../core/uistyle";
 import { renderMarkdown } from "../core/markdown";
 import { h, clear } from "../views/dom";
 import { codeHtml, csvRows, diffLines, escapeHtml, hunks } from "./code";
@@ -691,6 +693,10 @@ void onDragDrop((e) => {
 async function start(): Promise<void> {
   const info = await Bridge.boot();
   if (info) syncLanguage(info.settings.language);
+  // Light or dark as the island (Impostazioni → Aspetto → Modalità), and again when it changes.
+  applyUiStyle(info?.settings.theme.style, info?.settings.theme.scheme);
+  document.body.removeAttribute("style");
+  void onEvent<Settings>("settings-changed", (s) => applyUiStyle(s.theme?.style, s.theme?.scheme));
   document.documentElement.lang = locale().slice(0, 2);
   await refresh();
 }

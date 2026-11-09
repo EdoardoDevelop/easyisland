@@ -212,6 +212,7 @@ export function popOut(
         return;
       }
       lay();
+      mirror(win.document, background);
       keep(key, win);
       if (win.document.title !== title) win.document.title = title;
     } catch {
@@ -278,6 +279,24 @@ function dress(doc: Document, title: string) {
   doc.title = title;
 }
 
+/**
+ * The island's theme followed while the window is open: light/dark, style,
+ * --card-alpha (the attributes and the style of <html>) and the island's
+ * colour. Before, only the look of the moment it opened was copied.
+ */
+function mirror(doc: Document, fallback: string) {
+  const root = document.documentElement;
+  const there = doc.documentElement;
+  for (const a of Array.from(root.attributes)) {
+    if (a.name === "class") continue;
+    if (there.getAttribute(a.name) !== a.value) there.setAttribute(a.name, a.value);
+  }
+  const bg = (document.getElementById("island")?.style.background || fallback).replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, "rgb($1,$2,$3)");
+  const island = doc.getElementById("island");
+  if (island && island.style.background !== bg) island.style.background = bg;
+  if (doc.body && doc.body.style.background !== bg) doc.body.style.background = bg;
+}
+
 /** Room for the lists (--extra-h, --extra-w), as the island gives them when it grows. */
 function room(win: Window, island: HTMLElement) {
   island.style.setProperty("--extra-h", `${Math.max(0, win.innerHeight - 420)}px`);
@@ -321,4 +340,5 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 #island.popwin .view.detached .left-body { justify-content: flex-start; overflow-y: auto; }
 #island.popwin #content:has(.chat-card) { padding: 0; }
 #island.popwin .chat-card { border: 0; border-radius: 0; }
+html[data-chat-look="cards"] #island.popwin #content:has(.chat-card) { padding: 8px; }
 `;

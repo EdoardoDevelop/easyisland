@@ -22,3 +22,13 @@ html[data-scheme="light"] #island.pop.pop-bottom { --pop-shadow: 0 -6px 16px rgb
 
 /* Classic, light: white cards on the near-white island. */
 html[data-scheme="light"]:not([data-ui="windows"]) { --card: #ffffff; --card-flat: #f6f7f9; --tab-on: rgba(0, 0, 0, 0.06); }
+
+/* Contrast on white (review of 9 Nov 2026): the generated colours below stay too light. */
+html[data-scheme="light"] .clip-btn { color: var(--c, #4f545c); }
+html[data-scheme="light"] .files-head b { color: #5c6066; }
+html[data-scheme="light"] .work-panel .files-head .work-pick { color: #15703a; }
+html[data-scheme="light"] .files-clear { color: #ad1f2d; }
+html[data-scheme="light"] :is(.drop-capture, .files-tile.capture strong) { color: #006b79; }
+html[data-scheme="light"] .summary-news-count { color: #0a6b7d; }
+html[data-scheme="light"] .qa-count { color: #4f545c; }
+html[data-scheme="light"] #island :is(button, a[href], select, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible { outline-color: var(--accent, #0b6fa3); }
