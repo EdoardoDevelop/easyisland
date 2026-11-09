@@ -82,7 +82,7 @@ In **Settings → Chat and AI engines → Memory → Memory engine** you can pic
 **Link with AI** also checks the map's links: for every new or changed note the engine looks at the pages and notes it may belong to and keeps only the real ones (a shared word such as "server" or "customer" is no longer enough). The verdict stays in `collegamenti.json` beside the memory, travels with the shared memory, and the map uses it instead of guesses. It changes neither notes nor pages. On another PC's copy the button checks that copy from here, unless that PC already did. With many notes it works in parts: press it again until it says it is done.
 
 ## The Memory window
-The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn many ways. A note links to the pages it names, to those the AI confirmed and, until the AI has looked at it, to those it shares rare words with (a name, a device); links only guessed are dashed. Archived notes tied to nothing do not crowd the graph.
+The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own, maximized, with the memory drawn many ways. A note links to the pages it names, to those the AI confirmed and, until the AI has looked at it, to those it shares rare words with (a name, a device); links only guessed are dashed. Archived notes tied to nothing do not crowd the graph.
 
 At the top, «View» picks the drawing; beside it the filters:
 - **Colours by group / by kind**: groups are the subjects that go together (a customer with its people and notes), found by themselves, each with its colour and name.

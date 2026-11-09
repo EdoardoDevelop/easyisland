@@ -4059,6 +4059,11 @@ pub fn show_memory_window(app: &AppHandle) {
     // (island::keep_settings_above) and would stay in front of this one.
     island::keep_settings_above(app, false);
     let _ = win.unminimize();
+    // Every opening is maximized (the map wants the whole screen); while it is
+    // already open, a size the user chose stays.
+    if !win.is_visible().unwrap_or(false) {
+        let _ = win.maximize();
+    }
     let _ = win.show();
     let _ = win.set_focus();
     let _ = win.emit("memory-refresh", ());
