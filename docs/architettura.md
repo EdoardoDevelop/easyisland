@@ -109,7 +109,7 @@ Fatta il 29/10 sopra la finestra del personaggio. Impostazioni → Posizione →
 ## Robustezza
 In release `panic = "abort"`: un panic in qualsiasi thread chiude l'app. Da mantenere:
 - **Rust:** niente `&s[a..b]` o `[i]` su dati esterni (`s.get(a..b)?`; un taglio dentro una lettera accentata è un panic). `clamp` solo con `min <= max` garantito. Niente `Instant - Duration`.
-- **Comandi Tauri sincroni** girano sul thread principale: lavoro lento in `async` con `spawn_blocking` (`ingest_file`).
+- **Comandi Tauri sincroni** girano sul thread principale: lavoro lento in `async` con `spawn_blocking` (`ingest_file`). Vale per ogni accesso al disco su percorsi presi dal testo o dall'utente: un server di rete che non risponde tiene `CreateFile` decine di secondi (`chatpaths.rs`, `is_folder`, `file_open`, `preview_external`).
 - **File dell'utente:** `settings::write_atomic` (temporaneo, `sync_all`, rinomina); chat e riepilogo idem. `settings.bak.json` di riserva; un `settings.json` illeggibile diventa `settings.illeggibile-<secondi>.json` e si riparte dalla riserva (`load_from`), mai dai predefiniti sopra.
 - **Fotogramma:** ogni parte passa da `guard` (`island.ts`): eccezione loggata una volta, il ciclo continua. `safeCard` (`views.ts`) per card rotte; `State.notify` isola gli iscritti; `logPageErrors` (`main.ts`).
 - **Dati in ingresso:** eventi degli agenti da `sanitize` (`hooks.ts`); errore dentro `PermissionRequest` → domanda al terminale. `handleIntegration`/`handleWidget` accettano aggiornamenti vuoti. Dati 3CX (`data()` in `threecx.ts`) e Meteo (`readForecast`) normalizzati; una card nuova fa lo stesso.
