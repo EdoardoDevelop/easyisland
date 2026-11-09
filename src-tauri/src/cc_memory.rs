@@ -10,12 +10,20 @@
 //! apart): memory_search and the field at the top find them, memory_page
 //! opens one. Lines that look like a secret are hidden (redact.rs), as in
 //! the rest of the memory. Off with «Memoria di Claude Code» in Impostazioni.
+//!
+//! A note that says what EasyIsland's memory already says (Claude Code may
+//! save there too) is left out of memory_search, and in the map it is a line
+//! to that note instead of a node of its own ([`twin`]). Every note carries its
+//! date: the engine weighs an old one, and EasyIsland's memory wins. The files
+//! are read again only when one changes ([`notes`]).
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::SystemTime;
 
-use crate::brain::{fold, Edge, Event, Graph, Node};
+use crate::brain::{fold, key_words, similarity, Edge, Event, Graph, Node};
 use crate::i18n::{t, tf};
 
 /// The origin of its nodes in the memory window ("claude-code|…").
@@ -28,6 +36,12 @@ const MAX_BYTES: u64 = 64 * 1024;
 const MAX_PREFACE: usize = 2_500;
 
 static ON: AtomicBool = AtomicBool::new(true);
+
+/// The files as last read (path, time, size) and their notes.
+type Stamp = Vec<(PathBuf, SystemTime, u64)>;
+static CACHE: Mutex<Option<(Stamp, Vec<Note>)>> = Mutex::new(None);
+/// project_label by folder: finding the real folder walks the disk.
+static LABELS: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
 
 /// From the settings (`memory_claude_code`).
 pub fn set_on(on: bool) {
@@ -107,6 +121,17 @@ fn account_of(root: &Path) -> String {
 /// Code made from the path (its "-" were "\", ":" or "-": only a guess), without
 /// the user's own folder.
 pub fn project_label(folder: &str) -> String {
+    if let Some(known) = LABELS.lock().ok().and_then(|l| l.as_ref().and_then(|m| m.get(folder).cloned())) {
+        return known;
+    }
+    let label = label_of(folder);
+    if let Ok(mut l) = LABELS.lock() {
+        l.get_or_insert_with(HashMap::new).insert(folder.to_string(), label.clone());
+    }
+    label
+}
+
+fn label_of(folder: &str) -> String {
     if let Some(real) = real_path(folder) {
         let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_default();
         return match real.strip_prefix(&home) {
@@ -178,13 +203,18 @@ fn parse(text: &str) -> (String, String, String, String) {
     (name, description, kind, body.trim().to_string())
 }
 
-/// Every note of every account, newest first.
-pub fn notes() -> Vec<Note> {
-    if !on() {
-        return Vec::new();
-    }
+/// A note's file, before reading it.
+struct File {
+    account: String,
+    folder: String,
+    path: PathBuf,
+    modified: SystemTime,
+    len: u64,
+}
+
+/// The note files of every account (a listing: no file is read).
+fn files() -> Vec<File> {
     let mut out = Vec::new();
-    let mut files = 0;
     for root in roots() {
         let account = account_of(&root);
         let Ok(projects) = std::fs::read_dir(root.join("projects")) else { continue };
@@ -192,8 +222,7 @@ pub fn notes() -> Vec<Note> {
             let Ok(entries) = std::fs::read_dir(p.path().join("memory")) else { continue };
             let folder = p.file_name().to_string_lossy().into_owned();
             for e in entries.flatten() {
-                let path = e.path();
-                let file = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let file = e.file_name().to_string_lossy().into_owned();
                 if !file.ends_with(".md") || file.eq_ignore_ascii_case("MEMORY.md") {
                     continue;
                 }
@@ -201,29 +230,99 @@ pub fn notes() -> Vec<Note> {
                 if meta.len() > MAX_BYTES {
                     continue;
                 }
-                files += 1;
-                if files > MAX_FILES {
-                    break;
+                if out.len() >= MAX_FILES {
+                    return out;
                 }
-                let Ok(text) = std::fs::read_to_string(&path) else { continue };
-                let (name, description, kind, body) = parse(&text);
-                let name = if name.is_empty() { file.trim_end_matches(".md").to_string() } else { name };
-                let day = meta.modified().map(crate::brain::file_day).unwrap_or_default();
-                out.push(Note {
-                    account: account.clone(),
-                    folder: folder.clone(),
-                    name,
-                    description: crate::redact::redact(&description),
-                    kind,
-                    body: crate::redact::redact(&body),
-                    day,
-                    path: path.clone(),
-                });
+                out.push(File { account: account.clone(), folder: folder.clone(), path: e.path(), modified: meta.modified().unwrap_or(SystemTime::UNIX_EPOCH), len: meta.len() });
             }
         }
     }
-    out.sort_by(|a, b| b.day.cmp(&a.day).then(a.name.cmp(&b.name)));
     out
+}
+
+/// Every note of every account, newest first. Read again only when a file is
+/// added, removed or changed: search, map and the field at the top ask often.
+pub fn notes() -> Vec<Note> {
+    if !on() {
+        return Vec::new();
+    }
+    let files = files();
+    let stamp: Stamp = files.iter().map(|f| (f.path.clone(), f.modified, f.len)).collect();
+    if let Some(known) = CACHE.lock().ok().and_then(|c| c.as_ref().filter(|(s, _)| *s == stamp).map(|(_, n)| n.clone())) {
+        return known;
+    }
+    let mut out = Vec::new();
+    for f in files {
+        let Ok(text) = std::fs::read_to_string(&f.path) else { continue };
+        let (name, description, kind, body) = parse(&text);
+        let name = if name.is_empty() { f.path.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() } else { name };
+        out.push(Note {
+            account: f.account,
+            folder: f.folder,
+            name,
+            description: crate::redact::redact(&description),
+            kind,
+            body: crate::redact::redact(&body),
+            day: crate::brain::file_day(f.modified),
+            path: f.path,
+        });
+    }
+    out.sort_by(|a, b| b.day.cmp(&a.day).then(a.name.cmp(&b.name)));
+    if let Ok(mut c) = CACHE.lock() {
+        *c = Some((stamp, out.clone()));
+    }
+    out
+}
+
+/// What a note says in short: its description, else its first line.
+fn about(n: &Note) -> String {
+    if n.description.is_empty() {
+        first_line(&n.body)
+    } else {
+        n.description.clone()
+    }
+}
+
+/// A note's name as words ("no-ssh-config" → "no ssh config").
+fn name_words(n: &Note) -> String {
+    n.name.replace(['-', '_'], " ")
+}
+
+/// Two texts saying the same thing: at least three key words in common, and
+/// most of them shared (or most of the shorter one's).
+fn same(a: &BTreeSet<String>, b: &BTreeSet<String>) -> bool {
+    let common = a.intersection(b).count();
+    if common < 3 {
+        return false;
+    }
+    similarity(a, b) >= 0.5 || common as f32 / a.len().min(b.len()) as f32 >= 0.8
+}
+
+/// EasyIsland's memory as [`twin`] reads it: (id, text of a note or title of
+/// a page, is a page, key words of a note).
+type Local = Vec<(String, String, bool, BTreeSet<String>)>;
+
+fn local(rows: impl Iterator<Item = (String, String, bool)>) -> Local {
+    rows.map(|(id, text, page)| {
+        let words = if page { BTreeSet::new() } else { key_words(&text) };
+        (id, text, page, words)
+    })
+    .collect()
+}
+
+/// This PC's notes of MEMORIA.md and titles of its pages (memory_search).
+fn local_memory() -> Local {
+    let notes = crate::memory::notes_of(&crate::memory::read_main()).into_iter().map(|l| (String::new(), crate::brain::note_parts(&l).1, false));
+    let pages = crate::brain::pages().into_iter().map(|p| (String::new(), p.title, true));
+    local(notes.chain(pages))
+}
+
+/// The note or page of EasyIsland's memory a note of Claude Code repeats: a
+/// note saying the same, or a page with the note's very name.
+fn twin<'a>(n: &Note, mine: &'a Local) -> Option<&'a str> {
+    let words = key_words(&format!("{} {}", name_words(n), about(n)));
+    let name = fold(&name_words(n));
+    mine.iter().find(|(_, text, page, w)| if *page { fold(text) == name } else { same(&words, w) }).map(|(id, ..)| id.as_str())
 }
 
 /// In front of a new conversation: how the user wants to be worked with, as
@@ -233,7 +332,7 @@ pub fn preface() -> Option<String> {
     let mut lines = Vec::new();
     let mut size = 0;
     for n in notes().into_iter().filter(|n| matches!(n.kind.as_str(), "user" | "feedback") && project_label(&n.folder) == t("cartella utente")) {
-        let line = format!("- {}: {}", n.name, if n.description.is_empty() { first_line(&n.body) } else { n.description.clone() });
+        let line = format!("- {} ({}): {}", n.name, n.day, about(&n));
         size += line.chars().count();
         if size > MAX_PREFACE {
             break;
@@ -247,24 +346,25 @@ pub fn preface() -> Option<String> {
     Some(format!("{head}\n{}]\n\n", lines.join("\n")))
 }
 
-/// memory_search: the notes with every word, one line each.
+/// memory_search: the notes with every word, one line each with place and
+/// date; those EasyIsland's memory already says are left out.
 pub fn search(words: &[String], max: usize) -> Vec<String> {
     let words: Vec<String> = words.iter().map(|w| fold(w)).collect();
     if words.is_empty() {
         return Vec::new();
     }
-    notes()
+    let found: Vec<Note> = notes()
         .into_iter()
         .filter(|n| {
             let all = fold(&format!("{} {} {}", n.name, n.description, n.body));
             words.iter().all(|w| all.contains(w.as_str()))
         })
-        .take(max)
-        .map(|n| {
-            let about = if n.description.is_empty() { first_line(&n.body) } else { n.description.clone() };
-            format!("[{}] {}: {about}", n.place(), n.name)
-        })
-        .collect()
+        .collect();
+    if found.is_empty() {
+        return Vec::new();
+    }
+    let mine = local_memory();
+    found.into_iter().filter(|n| twin(n, &mine).is_none()).take(max).map(|n| format!("[{}, {}] {}: {}", n.place(), n.day, n.name, about(&n))).collect()
 }
 
 fn first_line(text: &str) -> String {
@@ -277,7 +377,10 @@ pub fn page(title: &str) -> Option<String> {
     let n = notes().into_iter().find(|n| fold(&n.name) == want)?;
     Some(format!(
         "{}\n\n# {}\n{}\n\n{}",
-        tf("(Nota della memoria di Claude Code, {place}: si legge soltanto, la scrive Claude Code.)", &[("place", &n.place())]),
+        tf(
+            "(Nota della memoria di Claude Code, {place}, del {day}: si legge soltanto, la scrive Claude Code. Se contraddice la memoria di EasyIsland, vale quella.)",
+            &[("place", &n.place()), ("day", &n.day)]
+        ),
         n.name,
         n.description,
         n.body
@@ -298,36 +401,52 @@ pub fn file_of(id: &str) -> Option<PathBuf> {
 }
 
 /// The notes for the memory window: one node each, one per project they come
-/// from, the [[links]] between them and, given `pages` (id, title), the pages
-/// of this PC each one names.
-pub fn graph(pages: &[(String, String)]) -> Graph {
+/// from, the [[links]] between them and, given this PC's map (`local`), the
+/// pages each one names. A note EasyIsland's memory already says is no node
+/// of its own: its project gets a line to that note or page instead.
+pub fn graph(local_map: &[Node]) -> Graph {
     let all = notes();
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
     let mut events = Vec::new();
     let mut projects: BTreeSet<String> = BTreeSet::new();
-    let by_name: HashMap<(String, String), String> = all.iter().map(|n| ((n.project_id(), fold(&n.name)), n.id())).collect();
-    let titles: Vec<(&String, String)> = pages.iter().map(|(id, title)| (id, fold(title))).filter(|(_, t)| t.chars().count() >= 4).collect();
+    let mine = local(
+        local_map
+            .iter()
+            .filter(|n| n.origin.is_empty() && matches!(n.kind, "note" | "page"))
+            .map(|n| (n.id.clone(), if n.kind == "page" { n.label.clone() } else { n.text.clone() }, n.kind == "page")),
+    );
+    let titles: Vec<(&String, String)> = mine.iter().filter(|(_, _, page, _)| *page).map(|(id, title, ..)| (id, fold(title))).filter(|(_, t)| t.chars().count() >= 4).collect();
+    let mut drawn: HashMap<(String, String), String> = HashMap::new();
     for n in &all {
-        let id = n.id();
-        let text = format!("{}\n{}", n.description, n.body);
         if projects.insert(n.project_id()) {
             nodes.push(Node { id: n.project_id(), kind: "source", label: n.place(), date: String::new(), text: String::new(), weight: 0, origin: ORIGIN.into() });
         }
+        if let Some(to) = twin(n, &mine) {
+            edges.push(Edge { from: n.project_id(), to: to.to_string(), label: t("anche in Claude Code").into(), strength: 2 });
+            continue;
+        }
+        let id = n.id();
+        drawn.insert((n.project_id(), fold(&n.name)), id.clone());
+        let text = format!("{}\n{}", n.description, n.body);
         nodes.push(Node { id: id.clone(), kind: "note", label: n.name.clone(), date: n.day.clone(), text: crate::brain::cut(&text, 1_200), weight: 0, origin: ORIGIN.into() });
         edges.push(Edge { from: id.clone(), to: n.project_id(), label: t("da").into(), strength: 2 });
         events.push(Event { date: n.day.clone(), lane: "note", text: format!("Claude Code: {}", n.name), node: id.clone() });
-        for target in wiki_links(&n.body) {
-            if let Some(to) = by_name.get(&(n.project_id(), fold(&target))) {
-                if *to != id {
-                    edges.push(Edge { from: id.clone(), to: to.clone(), label: String::new(), strength: 3 });
-                }
-            }
-        }
         let low = fold(&text);
         for (page, title) in &titles {
             if names(&low, title) {
                 edges.push(Edge { from: id.clone(), to: (*page).clone(), label: String::new(), strength: 2 });
+            }
+        }
+    }
+    // [[links]] between the notes drawn.
+    for n in &all {
+        let Some(from) = drawn.get(&(n.project_id(), fold(&n.name))) else { continue };
+        for target in wiki_links(&n.body) {
+            if let Some(to) = drawn.get(&(n.project_id(), fold(&target))) {
+                if to != from {
+                    edges.push(Edge { from: from.clone(), to: to.clone(), label: String::new(), strength: 3 });
+                }
             }
         }
     }
@@ -378,6 +497,27 @@ mod tests {
         assert!(!names("gli studi rossiccio", "rossi"));
     }
 
+    fn note(name: &str, description: &str) -> Note {
+        Note { account: "claude".into(), folder: "C--x".into(), name: name.into(), description: description.into(), kind: "feedback".into(), body: String::new(), day: "2026-11-01".into(), path: PathBuf::new() }
+    }
+
+    #[test]
+    fn a_note_easyisland_already_has_is_its_twin() {
+        let mine = local(
+            [
+                ("n:0".to_string(), "Le configurazioni si fanno dall'interfaccia del programma, mai via SSH: lo useranno altri tecnici".to_string(), false),
+                ("n:1".to_string(), "Farmacia Falchi: resta solo il job di backup verso il NAS".to_string(), false),
+                ("p:lavoro".to_string(), "Lavoro".to_string(), true),
+            ]
+            .into_iter(),
+        );
+        assert_eq!(twin(&note("no-ssh", "configurazioni dall'interfaccia del programma, mai SSH"), &mine), Some("n:0"));
+        assert_eq!(twin(&note("lavoro", "il lavoro di Edoardo"), &mine), Some("p:lavoro"));
+        assert_eq!(twin(&note("npm-pack", "lanciare npm run pack in background"), &mine), None);
+        // Two words in common are not the same thing.
+        assert_eq!(twin(&note("backup-com1", "job di backup su COM1"), &mine), None);
+    }
+
     #[test]
     fn project_folders_read_as_paths() {
         std::env::set_var("USERNAME", "Edoardo");
@@ -401,5 +541,17 @@ mod live {
         println!("--- search ssh\n{}", super::search(&["ssh".into()], 5).join("\n"));
         let g = super::graph(&[]);
         println!("--- graph: {} nodi, {} archi", g.nodes.len(), g.edges.len());
+        let mine = super::local_memory();
+        let start = std::time::Instant::now();
+        let again = super::notes().len();
+        println!("--- seconda lettura: {again} note in {:?}", start.elapsed());
+        let ids: Vec<(String, String, bool)> = mine.iter().enumerate().map(|(i, (_, text, page, _))| (format!("{i}"), text.clone(), *page)).collect();
+        let mine = super::local(ids.into_iter());
+        for n in &all {
+            if let Some(i) = super::twin(n, &mine) {
+                let i: usize = i.parse().unwrap_or(0);
+                println!("DOPPIONE: {} · {}\n   = {}", n.name, super::about(n), mine[i].1);
+            }
+        }
     }
 }

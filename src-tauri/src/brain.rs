@@ -309,7 +309,7 @@ const STOP: &[&str] = &[
 ];
 
 /// The words of `text` that can tie it to a subject: no stop words, no numbers or dates.
-fn key_words(text: &str) -> BTreeSet<String> {
+pub(crate) fn key_words(text: &str) -> BTreeSet<String> {
     words(text).into_iter().filter(|w| !STOP.contains(&w.as_str()) && !w.chars().all(|c| c.is_ascii_digit())).collect()
 }
 
@@ -331,7 +331,7 @@ fn wiki_links(text: &str) -> Vec<String> {
     out
 }
 
-fn similarity(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f32 {
+pub(crate) fn similarity(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f32 {
     if a.is_empty() || b.is_empty() {
         return 0.0;
     }
@@ -1132,7 +1132,7 @@ pub(crate) fn cut(text: &str, max: usize) -> String {
 }
 
 /// "- 2026-10-21: testo" → ("2026-10-21", "testo").
-fn note_parts(line: &str) -> (String, String) {
+pub(crate) fn note_parts(line: &str) -> (String, String) {
     let rest = line.trim().trim_start_matches("- ");
     match rest.split_once(": ") {
         Some((d, text)) if day_number(d).is_some() => (d.to_string(), text.to_string()),
@@ -1159,9 +1159,9 @@ pub fn graph_of(source: &str, other: Option<String>) -> Graph {
         }
         "*" => {
             let mut g = graph();
-            // Claude Code's notes, tied to the pages of this PC they name.
-            let pages: Vec<(String, String)> = g.nodes.iter().filter(|n| n.kind == "page").map(|n| (n.id.clone(), n.label.clone())).collect();
-            let mut cc = crate::cc_memory::graph(&pages);
+            // Claude Code's notes, tied to the pages of this PC they name;
+            // those this PC's memory already says are lines to it.
+            let mut cc = crate::cc_memory::graph(&g.nodes);
             g.nodes.append(&mut cc.nodes);
             g.edges.append(&mut cc.edges);
             g.events.append(&mut cc.events);

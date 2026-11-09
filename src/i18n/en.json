@@ -4782,6 +4782,7 @@
   "anche le note che Claude Code salva da solo (le sue preferenze e i fatti dei progetti, di ogni account) si trovano nella ricerca della memoria e nella mappa, alla voce «Claude Code». Si leggono soltanto: le scrive e le corregge Claude Code": "the notes Claude Code saves by itself (its preferences and the projects' facts, from every account) are found by the memory search and in the map, under «Claude Code». Read only: Claude Code writes and fixes them",
   "cartella utente": "user folder",
   "[Indicazioni dell'utente che Claude Code ha imparato (la sua memoria, si legge soltanto; il testo intero con memory_page e il titolo):": "[What Claude Code learnt about how the user wants to work (its memory, read only; the whole text with memory_page and the title):",
-  "(Nota della memoria di Claude Code, {place}: si legge soltanto, la scrive Claude Code.)": "(Note of Claude Code's memory, {place}: read only, Claude Code writes it.)",
-  "Dalla memoria di Claude Code (si legge soltanto):": "From Claude Code's memory (read only):"
+  "(Nota della memoria di Claude Code, {place}, del {day}: si legge soltanto, la scrive Claude Code. Se contraddice la memoria di EasyIsland, vale quella.)": "(Note of Claude Code's memory, {place}, of {day}: read only, Claude Code writes it. If it contradicts EasyIsland's memory, EasyIsland's memory wins.)",
+  "Dalla memoria di Claude Code (si legge soltanto; con la data: se contraddice quanto sopra, vale quanto sopra):": "From Claude Code's memory (read only; with the date: if it contradicts the above, the above wins):",
+  "anche in Claude Code": "also in Claude Code"
 }

@@ -67,7 +67,7 @@ pub(crate) fn notes_of(text: &str) -> Vec<String> {
     text.lines().filter(|l| l.trim_start().starts_with("- ")).map(|l| l.trim().to_string()).collect()
 }
 
-fn read_main() -> String {
+pub(crate) fn read_main() -> String {
     std::fs::read_to_string(main_file()).unwrap_or_default()
 }
 
@@ -267,7 +267,7 @@ pub fn search(query: &str, month: &str) -> Result<String, String> {
         if !found.is_empty() {
             found.push(String::new());
         }
-        found.push(t("Dalla memoria di Claude Code (si legge soltanto):").into());
+        found.push(t("Dalla memoria di Claude Code (si legge soltanto; con la data: se contraddice quanto sopra, vale quanto sopra):").into());
         found.extend(cc);
     }
     Ok(found.join("\n"))
