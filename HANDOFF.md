@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 10/11 — «Claude Code fuori da EasyIsland» senza le sessioni di EasyIsland
+La lista si riempiva delle sessioni avviate da EasyIsland stesso fuori dalla cartella della chat (sul PC di lavoro 176, in OneDrive\WORK, titolo «[Istruzioni dell'utente per questa chat…»). `desktop::outside` ora salta quelle con `entrypoint` «sdk-cli» (`claude -p`); restano «cli» e «claude-desktop». `docs/chat.md`.
+
 ### 10/11 — «File e schermo» riordinata, menu ⋯ della cartella di lavoro
 Il «⋯» della Cartella di lavoro metteva i pulsanti dentro la tessera e in griglia allungava la fila: ora usa il menu dell'isola come il Vassoio, «Sposta nel Cestino…» chiede conferma sopra l'elenco. In griglia solo «⋯» sulla tessera (Chiedi e Apri nel menu). Vassoio: «Fissa nel Vassoio» / «Togli la puntina» e puntina visibile. Pagina in sezioni (Vassoio, Cartella di lavoro, Raccolta, Registra), Raccolta vuota in una riga, icone disegnate al posto di ☰ ▦ +. `docs/strumenti.md`, guida 17.
 
@@ -62,5 +65,3 @@ Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»
 ### 9/11 — Indice della memoria in RAM
 `brain::Index`: pagine e grafo tenuti in RAM per cartella e rifatti solo quando cambia un file (percorso, ora, dimensione) o la lingua; i `.md` restano la fonte, niente database (deciso con Edoardo). Test `the_index_follows_the_files`. Sistemata una gara fra il test degli hook (cambia USERPROFILE) e quello del terminale. `docs/chat.md` → Secondo cervello.
 
-### 9/11 — Memoria di Claude Code in EasyIsland
-`cc_memory.rs`: le note che Claude Code salva da solo (`projects/*/memory/*.md`, ogni account) in sola lettura come provenienza «Claude Code»: `memory_search`, `memory_page`, campo in alto, Mappa (pulsante, nodi fonte per progetto, link alle pagine nominate). Nel preambolo solo `user`/`feedback` della cartella utente. Interruttore `memoryClaudeCode` (Secondo cervello). Poi: doppioni di MEMORIA.md fuori dalla ricerca e linee «anche in Claude Code» nella Mappa (`twin`), data su ogni nota (vale EasyIsland), file riletti solo se cambiano. `docs/chat.md` → Memoria di Claude Code; guida 12.
