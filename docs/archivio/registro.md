@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 9/11 — Isola bloccata da un percorso di rete in chat
+Dump di un AppHangB1: thread principale in `CreateFile` su `\\192.168.0.250\c` (server Imec non raggiungibile), scritto in una chat. `paths_info` era sincrono. Ora `paths_info`, `path_action`, `is_folder`, `file_open`, `preview_external` sono async con `spawn_blocking`, e `chatpaths.rs` guarda i percorsi di rete per massimo 1,5 s, poi salta quel server per 2 minuti (test `a_dead_server_does_not_hold_the_caller`). `docs/chat.md` → Anteprima, `docs/architettura.md` → Robustezza.
+
 ### 9/11 — Terminale vero (1.0.36), nel pannello; chat in finestra ingrandita
 Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). Poi terminale vero: ConPTY in `terminal.rs` (test con una shell vera) e xterm.js in `chat-terminal.ts`, unica dipendenza nuova (`docs/decisioni.md`). Disegno della chat vuota che riparte da solo (`chat-empty.ts`). `docs/chat.md` → Terminale.
 

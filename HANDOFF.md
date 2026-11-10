@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 10/11 — «File e schermo» riordinata, menu ⋯ della cartella di lavoro
+Il «⋯» della Cartella di lavoro metteva i pulsanti dentro la tessera e in griglia allungava la fila: ora usa il menu dell'isola come il Vassoio, «Sposta nel Cestino…» chiede conferma sopra l'elenco. In griglia solo «⋯» sulla tessera (Chiedi e Apri nel menu). Vassoio: «Fissa nel Vassoio» / «Togli la puntina» e puntina visibile. Pagina in sezioni (Vassoio, Cartella di lavoro, Raccolta, Registra), Raccolta vuota in una riga, icone disegnate al posto di ☰ ▦ +. `docs/strumenti.md`, guida 17.
+
 ### 10/11 — Revisione di design di tutte le finestre
 Critica Impeccable (25/40) su 54 schermate, poi tutto sistemato con Edoardo: una tavolozza Windows 11 per isola, Memoria, Anteprima, Flussi; Memoria con etichette mai sovrapposte (`src/memory/labels.ts`, `?many=300`), barra su una riga, `[[link]]` cliccabili; fumetto in alto con il problema in corso; contenuto delle card dall'alto (prima al centro, 14/10); card delle integrazioni con un solo stile di intestazione e link; Vassoio con ⋯; nomi accessibili sui pulsanti a icona; tasto «C» per Consenti (Y resta). Restano: emoji nei Flussi, testi d'aiuto lunghi nelle Impostazioni.
 
@@ -61,6 +64,3 @@ Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»
 
 ### 9/11 — Memoria di Claude Code in EasyIsland
 `cc_memory.rs`: le note che Claude Code salva da solo (`projects/*/memory/*.md`, ogni account) in sola lettura come provenienza «Claude Code»: `memory_search`, `memory_page`, campo in alto, Mappa (pulsante, nodi fonte per progetto, link alle pagine nominate). Nel preambolo solo `user`/`feedback` della cartella utente. Interruttore `memoryClaudeCode` (Secondo cervello). Poi: doppioni di MEMORIA.md fuori dalla ricerca e linee «anche in Claude Code» nella Mappa (`twin`), data su ogni nota (vale EasyIsland), file riletti solo se cambiano. `docs/chat.md` → Memoria di Claude Code; guida 12.
-
-### 9/11 — Isola bloccata da un percorso di rete in chat
-Dump di un AppHangB1: thread principale in `CreateFile` su `\\192.168.0.250\c` (server Imec non raggiungibile), scritto in una chat. `paths_info` era sincrono. Ora `paths_info`, `path_action`, `is_folder`, `file_open`, `preview_external` sono async con `spawn_blocking`, e `chatpaths.rs` guarda i percorsi di rete per massimo 1,5 s, poi salta quel server per 2 minuti (test `a_dead_server_does_not_hold_the_caller`). `docs/chat.md` → Anteprima, `docs/architettura.md` → Robustezza.

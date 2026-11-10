@@ -5,7 +5,9 @@
 // Vassoio, dragged out, its path copied, or sent to the Recycle Bin. The
 // Vassoio moves its files into the folder shown here (`current`).
 
-import { h, clear, tip } from "./dom";
+import { h, clear, tip, svg } from "./dom";
+import { ICONS } from "./icons";
+import { showMenu, type MenuItem } from "./ctxmenu";
 import { renderActionIcon } from "./action-icons";
 import { Bridge, type WorkEntry, type WorkListing } from "../core/bridge";
 import { State } from "../core/state";
@@ -50,11 +52,10 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
   let error = "";
   let loadedAt = 0;
   let loading = false;
-  /** The entry whose extra actions are open, the one being renamed, the one being moved. */
-  let open = "";
+  /** The entry being renamed, the one being moved, the one waiting for «Nel Cestino». */
   let renaming = "";
   let moving: WorkEntry | null = null;
-  let trashing = "";
+  let trashing: WorkEntry | null = null;
   let newFolder = false;
   let note = "";
   let drawn = "";
@@ -72,12 +73,15 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
   const banner = h("div", { class: "work-banner" });
   const status = h("div", { class: "files-note" });
   const pick = h("button", { class: "files-clear work-pick", text: t("Scegli…"), title: t("La cartella in cui la chat e Telegram possono lavorare") }) as HTMLButtonElement;
-  const mkdirBtn = h("button", { class: "files-layout", text: "+", title: t("Nuova cartella") }) as HTMLButtonElement;
-  const revealBtn = h("button", { class: "files-layout", title: t("Apri in Esplora file") }, renderActionIcon("i:folder", 12)) as HTMLButtonElement;
-  const layoutBtn = h("button", { class: "files-layout", title: t("Mostra come griglia") }) as HTMLButtonElement;
+  const headBtn = (title: string, icon: Node) =>
+    h("button", { class: "files-layout", title, "aria-label": title }, icon) as HTMLButtonElement;
+  const mkdirBtn = headBtn(t("Nuova cartella"), svg(ICONS.plus, 13));
+  const revealBtn = headBtn(t("Apri in Esplora file"), renderActionIcon("i:folder", 13));
+  const layoutBtn = headBtn(t("Mostra come griglia"), svg(ICONS.tiles, 12));
   const sortBtn = h("button", { class: "files-layout work-sort", title: t("Ordine: clic per cambiarlo (nome, data di modifica)") }) as HTMLButtonElement;
   const sortLabel: Record<Sort, string> = { name: t("Nome A→Z"), "name-desc": t("Nome Z→A"), new: t("Più recenti"), old: t("Meno recenti") };
-  const head = h("div", { class: "files-head" }, h("b", { text: t("Cartella di lavoro") }), mkdirBtn, revealBtn, layoutBtn, sortBtn, pick);
+  // The name on the left, the tools together on the right.
+  const head = h("div", { class: "files-head" }, h("b", { text: t("Cartella di lavoro") }), h("span", { class: "files-head-gap" }), sortBtn, layoutBtn, mkdirBtn, revealBtn, pick);
   const el = h("div", { class: "work-panel" }, head, crumbs, banner, list, status);
 
   const fail = (e: unknown) => { note = String(e).replace(/^Error:\s*/, ""); drawn = ""; State.notify(); };
@@ -102,7 +106,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     drawn = "";
     State.notify();
   }
-  const go = (to: string) => { open = ""; renaming = ""; trashing = ""; newFolder = false; note = ""; void load(to); };
+  const go = (to: string) => { renaming = ""; trashing = null; newFolder = false; note = ""; void load(to); };
   const full = (e: WorkEntry) => listing ? `${listing.root}\\${e.rel.replace(/\//g, "\\")}` : e.rel;
 
   pick.addEventListener("click", () => {
@@ -123,9 +127,22 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     State.notify();
   });
 
-  const iconBtn = (icon: string, title: string, color: string, fn: () => void) =>
-    h("button", { class: "clip-btn", title, style: `--c:${color}`,
-      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, renderActionIcon(`i:${icon}`, 13));
+  // The same row tools as the Vassoio: two in sight, the rest in the island's menu.
+  const iconBtn = (icon: string, title: string, fn: () => void) =>
+    h("button", { class: "files-act", title, "aria-label": title,
+      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, renderActionIcon(`i:${icon}`, 14));
+  const moreBtn = (name: string, items: () => MenuItem[]) => {
+    const b = h("button", { class: "files-act", title: t("Altre azioni"), "aria-label": t("Altre azioni per «{name}»", { name }),
+      "aria-haspopup": "menu" }, svg(ICONS.ellipsis, 14));
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const r = b.getBoundingClientRect();
+      const host = (b.closest("#island") as HTMLElement | null) ?? document.body;
+      showMenu(host, r.left, r.bottom + 2, "", items());
+    });
+    return b;
+  };
+  const redraw = () => { drawn = ""; State.notify(); };
   const textBtn = (label: string, fn: () => void, cls = "btn secondary") =>
     h("button", { class: cls, onclick: (e: Event) => { e.stopPropagation(); fn(); } }, h("span", { text: label }));
 
@@ -161,33 +178,29 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     const meta = grid
       ? (e.dir ? t("cartella") : `${ext ? `${ext} · ` : ""}${size(e.size)}`)
       : [e.dir ? t("cartella") : `${ext ? `${ext} · ` : ""}${size(e.size)}`, when].filter(Boolean).join(" · ");
-    const r = h("div", { class: `files-row work-row${e.dir ? " dir" : ""}${moving?.rel === e.rel ? " moving" : ""}`,
+    const openIt = () => { if (e.dir) go(e.rel); else void Bridge.workOpen(e.rel, false).catch(fail); };
+    const r = h("div", { class: `files-row work-row${e.dir ? " dir" : ""}${moving?.rel === e.rel ? " moving" : ""}${trashing?.rel === e.rel ? " trashing" : ""}`,
       title: e.dir ? t("Doppio clic: apri la cartella") : t("Trascina in un'altra app · doppio clic: apri"),
-      ondblclick: () => { if (e.dir) go(e.rel); else void Bridge.workOpen(e.rel, false).catch(fail); } },
+      ondblclick: openIt },
     fileBadge(e.name, full(e), { dir: e.dir, big: grid, stamp: e.at }),
     h("div", { class: "files-info" }, name, h("span", { class: "files-meta", text: meta })),
     h("span", { class: "files-tools" },
-      e.dir ? null : iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile({ name: e.name, path: full(e) })),
-      iconBtn(e.dir ? "folder" : "file", e.dir ? t("Apri la cartella") : t("Apri"), "#38BDF8", () => {
-        if (e.dir) go(e.rel); else void Bridge.workOpen(e.rel, false).catch(fail);
-      }),
-      h("button", { class: open === e.rel ? "clip-btn on" : "clip-btn", title: t("Altro"),
-        onclick: (ev: Event) => { ev.stopPropagation(); open = open === e.rel ? "" : e.rel; trashing = ""; drawn = ""; State.notify(); } },
-      h("span", { text: "⋯" }))));
-    if (open === e.rel) {
-      const sure = trashing === e.rel;
-      r.append(h("div", { class: "work-more" },
-        textBtn(t("Rinomina"), () => { renaming = e.rel; open = ""; drawn = ""; State.notify(); }),
-        textBtn(t("Sposta…"), () => { moving = e; open = ""; drawn = ""; State.notify(); }),
-        e.dir ? null : textBtn(t("Nel Vassoio"), () => void Bridge.workToInbox(e.rel).then(() => { note = t("«{name}» è nel Vassoio.", { name: e.name }); actions.refreshFiles(); drawn = ""; State.notify(); }).catch(fail)),
-        textBtn(t("Mostra in Esplora file"), () => void Bridge.workOpen(e.rel, true).catch(fail)),
-        textBtn(t("Copia percorso"), () => void navigator.clipboard.writeText(full(e)).then(() => { note = t("Percorso copiato ✓"); drawn = ""; State.notify(); }).catch(fail)),
-        textBtn(sure ? t("Sicuro? Nel Cestino") : t("Cestino"), () => {
-          if (!sure) { trashing = e.rel; drawn = ""; State.notify(); return; }
-          trashing = "";
-          void Bridge.workTrash(e.rel).then(() => { note = t("«{name}» è nel Cestino.", { name: e.name }); return load(); }).catch(fail);
-        }, sure ? "btn danger" : "btn secondary")));
-    }
+      e.dir ? null : iconBtn("chat", t("Chiedi alla chat su questo file"), () => actions.askAboutFile({ name: e.name, path: full(e) })),
+      iconBtn(e.dir ? "folder" : "file", e.dir ? t("Apri la cartella") : t("Apri"), openIt),
+      moreBtn(e.name, () => [
+        // As tiles only «⋯» is in sight: its menu starts with the buttons of the list.
+        ...(grid ? [
+          ...(e.dir ? [] : [{ label: t("Chiedi alla chat"), run: () => actions.askAboutFile({ name: e.name, path: full(e) }) }]),
+          { label: e.dir ? t("Apri la cartella") : t("Apri"), run: openIt },
+        ] : []),
+        { label: t("Rinomina"), sep: grid, run: () => { renaming = e.rel; trashing = null; redraw(); } },
+        { label: t("Sposta…"), run: () => { moving = e; trashing = null; redraw(); } },
+        ...(e.dir ? [] : [{ label: t("Nel Vassoio"), run: () => void Bridge.workToInbox(e.rel).then(() => { note = t("«{name}» è nel Vassoio.", { name: e.name }); actions.refreshFiles(); redraw(); }).catch(fail) }]),
+        { label: t("Mostra in Esplora file"), sep: true, run: () => void Bridge.workOpen(e.rel, true).catch(fail) },
+        { label: t("Copia percorso"), run: () => void navigator.clipboard.writeText(full(e)).then(() => { note = t("Percorso copiato ✓"); redraw(); }).catch(fail) },
+        // Asked again in the bar above the list: nothing goes with one click.
+        { label: t("Sposta nel Cestino…"), sep: true, danger: true, run: () => { trashing = e; moving = null; redraw(); } },
+      ])));
     // Pressed and moved: Windows' drag, as from the Vassoio (folders too).
     let press: { x: number; y: number } | null = null;
     r.addEventListener("pointerdown", (ev) => {
@@ -213,8 +226,9 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     revealBtn.style.display = has ? "" : "none";
     layoutBtn.style.display = has ? "" : "none";
     sortBtn.style.display = has ? "" : "none";
-    layoutBtn.textContent = grid ? "☰" : "▦";
+    layoutBtn.replaceChildren(svg(grid ? ICONS.rows : ICONS.tiles, 12));
     tip(layoutBtn, grid ? t("Mostra come elenco") : t("Mostra come griglia"));
+    layoutBtn.setAttribute("aria-label", grid ? t("Mostra come elenco") : t("Mostra come griglia"));
     sortBtn.textContent = sortLabel[sort];
     tip(sortBtn, t("Ordine: clic per cambiarlo (nome, data di modifica)"));
     list.classList.toggle("grid", grid);
@@ -239,6 +253,16 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
         }, "btn primary"),
         textBtn(t("Annulla"), () => { moving = null; drawn = ""; State.notify(); }));
     }
+    if (trashing) {
+      const gone = trashing;
+      banner.classList.add("danger");
+      banner.append(h("span", { text: t("Mettere «{name}» nel Cestino di Windows?", { name: gone.name }) }),
+        textBtn(t("Nel Cestino"), () => {
+          trashing = null;
+          void Bridge.workTrash(gone.rel).then(() => { note = t("«{name}» è nel Cestino.", { name: gone.name }); return load(); }).catch(fail);
+        }, "btn danger"),
+        textBtn(t("Annulla"), () => { trashing = null; redraw(); }));
+    } else banner.classList.remove("danger");
     if (newFolder) {
       const input = nameInput("", (v) => {
         newFolder = false;
@@ -263,7 +287,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     el,
     sync() {
       if (!loading && Date.now() - loadedAt > STALE_MS && !renaming && !newFolder) void load();
-      const k = `${loadedAt}|${open}|${renaming}|${trashing}|${moving?.rel ?? ""}|${newFolder}|${note}|${grid}|${sort}`;
+      const k = `${loadedAt}|${renaming}|${trashing?.rel ?? ""}|${moving?.rel ?? ""}|${newFolder}|${note}|${grid}|${sort}`;
       if (k === drawn) return;
       drawn = k;
       draw();

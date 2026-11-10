@@ -94,10 +94,11 @@ export function buildCollectPanel(actions: ViewActions): ViewHost {
   const empty = h("div", { class: "files-note" });
   const ask = h("button", { class: "col-ask", text: t("Chiedi alla chat") }) as HTMLButtonElement;
   const wipe = h("button", { class: "files-clear", text: t("Svuota") }) as HTMLButtonElement;
+  const meta = h("div", { class: "col-meta" }, name, fields);
+  const askRow = h("div", { class: "col-row" }, ask);
   const el = h("div", { class: "col-panel" },
-    h("div", { class: "files-head" }, h("b", { text: t("Raccolta") }), count, wipe),
-    h("div", { class: "col-meta" }, name, fields),
-    list, empty, h("div", { class: "col-row" }, ask));
+    h("div", { class: "files-head" }, h("b", { text: t("Raccolta") }), count, h("span", { class: "files-head-gap" }), wipe),
+    meta, list, empty, askRow);
 
   const edit = (input: HTMLInputElement, set: (v: string) => void) => {
     // The island must not close under the cursor while a field is being written.
@@ -145,8 +146,11 @@ export function buildCollectPanel(actions: ViewActions): ViewHost {
         wipe.classList.remove("confirm");
       }
       ask.disabled = !n;
+      // Empty, it is one line: name, fields and «Chiedi alla chat» come with the first piece.
+      meta.style.display = n ? "" : "none";
+      askRow.style.display = n ? "" : "none";
       const hotkey = State.settings.hotkeyCollect || t("la scorciatoia della Raccolta");
-      empty.textContent = n ? "" : t("Seleziona del testo in qualsiasi app, anche un nome e un prezzo su un sito, e premi {key}: finisce qui con la sua fonte. Da «Riquadra e chiedi» anche una zona dello schermo. Poi «Chiedi alla chat».", { key: hotkey });
+      empty.textContent = n ? "" : t("Seleziona del testo in qualsiasi app e premi {key}: finisce qui con la sua fonte, pronto per la chat.", { key: hotkey });
       empty.style.display = n ? "none" : "";
       clear(list);
       for (const it of current.items) {

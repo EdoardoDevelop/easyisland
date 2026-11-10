@@ -12,14 +12,13 @@ Trascina un file sull'isola (si apre anche se è impostata «solo con un clic»)
 ## Il Vassoio
 I file rilasciati, le zone dello schermo, le esportazioni della chat, i documenti delle integrazioni personali, i file arrivati da Telegram: tutto passa dal **Vassoio**, in elenco o a griglia.
 - Trascina un file del Vassoio in un'altra app (mail, chat, cartella).
-- **Chiedi alla chat**, **Apri**, **Mostra nella cartella**, **Copia**.
-- 📌 **Fissa**: i file fissati restano dopo il riavvio; gli altri si svuotano a ogni avvio.
-- L'icona verde lo sposta nella **cartella di lavoro**.
+- **Chiedi alla chat** e **Apri** sono sulla riga; nel menu **⋯** ci sono **Mostra nella cartella**, **Sposta nella cartella di lavoro**, **Fissa nel Vassoio** e **Togli dal vassoio**. A griglia, sulla tessera c'è solo **⋯** e anche Chiedi e Apri sono lì.
+- **Fissa nel Vassoio**: il file prende la puntina e resta dopo il riavvio e con **Svuota**; gli altri si svuotano a ogni avvio. **Togli la puntina** lo rimette come gli altri.
 
 Sono copie: gli originali non vengono toccati.
 
 ## Cartella di lavoro
-Una cartella del PC scelta da te con **Scegli…** (qui o in Impostazioni → Chat). Sotto il Vassoio la sfogli: doppio clic per entrare o aprire, «..» per salire, **+** nuova cartella, **▦** griglia o elenco, l'ordine (nome A→Z o Z→A, più recenti o meno recenti; le cartelle restano prima), trascinamento verso altre app. Su ogni voce: **Chiedi alla chat**, **Apri**, e in «⋯» **Rinomina**, **Sposta…**, **Nel Vassoio**, **Copia percorso**, **Cestino** (il Cestino di Windows: niente si cancella per sempre).
+Una cartella del PC scelta da te con **Scegli…** (qui o in Impostazioni → Chat). Sotto il Vassoio la sfogli: doppio clic per entrare o aprire, «..» per salire, **+** nuova cartella, **▦** griglia o elenco, l'ordine (nome A→Z o Z→A, più recenti o meno recenti; le cartelle restano prima), trascinamento verso altre app. Su ogni voce: **Chiedi alla chat**, **Apri**, e in «⋯» **Rinomina**, **Sposta…**, **Nel Vassoio**, **Mostra in Esplora file**, **Copia percorso**, **Sposta nel Cestino…**, che chiede conferma sopra l'elenco (il Cestino di Windows: niente si cancella per sempre).
 
 La chat la **legge senza chiedere** e ci sposta i file del Vassoio (con conferma); con la modalità terminale è la cartella in cui lavora. Da Telegram: `/cartella` la mostra a pulsanti e ti manda i file. Ogni percorso è controllato: niente esce dalla cartella.
 
@@ -39,7 +38,7 @@ Per mettere da parte pezzi presi da più app e poi farli elaborare tutti insieme
 
 - Seleziona del testo in qualsiasi app (sul sito del fornitore la riga con nome e prezzo) e premi <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. L'isola dice «Nella raccolta: 3» e puoi continuare. Ogni voce tiene la sua fonte: il programma, il titolo della finestra e, se copi da Chrome o Edge, l'indirizzo della pagina.
 - Da **Riquadra e chiedi**, **Nella raccolta** aggiunge una zona dello schermo: il testo letto da Windows più l'immagine.
-- In **File e schermo** la Raccolta ha un **nome** e, se vuoi, i **campi da ricavare** (per esempio «Prodotto, Prezzo, Fornitore»). La ✕ toglie una voce, **Svuota** le toglie tutte.
+- In **File e schermo**, dalla prima voce in poi, la Raccolta ha un **nome** e, se vuoi, i **campi da ricavare** (per esempio «Prodotto, Prezzo, Fornitore»). La ✕ toglie una voce, **Svuota** le toglie tutte.
 - **Chiedi alla chat** allega tutta la raccolta. Con i campi, la chat li ricava per ogni voce e li mostra in una tabella, poi aspetta la tua domanda («fammi il preventivo con ricarico del 20 %»).
 
 C'è una raccolta alla volta e resta anche dopo il riavvio, finché non la svuoti. La scorciatoia si cambia in Impostazioni → Azioni rapide.

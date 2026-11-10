@@ -174,7 +174,8 @@ export function buildRecorderPanel(actions: ViewActions): ViewHost {
     const live = d.live;
     clear(el);
     window.clearInterval(timer);
-    const head = h("div", { class: "rec-panel-head" }, h("span", { class: live ? "rec-dot" : "rec-dot off" }), h("b", { text: t("Registra") }));
+    // The same section title as Vassoio, Cartella di lavoro and Raccolta.
+    const head = h("div", { class: "files-head rec-panel-head" }, h("b", { text: t("Registra") }), h("span", { class: live ? "rec-dot" : "rec-dot off" }));
     el.append(head);
     if (live) {
       const time = h("b", { class: "rec-time", text: elapsed(live.since) });
