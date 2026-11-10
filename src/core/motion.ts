@@ -79,8 +79,15 @@ export function viewEnter(view: HTMLElement, from: HTMLElement | null, before: D
   if (level === "spente" || performance.now() < openingUntil) return;
   if (from && before) glideMark(from, before);
   if (level === "sobrie") return; // the CSS crossfade of .view is enough
-  // Only its pieces move, one after the other, not the view as a block (Edoardo, 10/11).
-  partsIn([view], 60, 300);
+  // The view slides in from the menu item that asked for it; its pieces follow one by one.
+  const vr = view.getBoundingClientRect();
+  const fr = from?.getBoundingClientRect();
+  view.style.transformOrigin = fr ? `0px ${Math.round(fr.top + fr.height / 2 - vr.top)}px` : "50% 0px";
+  view.animate(
+    [{ opacity: 0, transform: "translateX(-40px) scale(0.93)" }, { opacity: 1, transform: "none" }],
+    { duration: 500, easing: EASE_OUT },
+  );
+  partsIn([view], 40, 420);
 }
 
 /** The menu's accent mark (the `::before` of `.rail-item.on`) slides from the old item to the new one. */
@@ -145,7 +152,7 @@ function piecesOf(parts: Iterable<HTMLElement>, view: { w: number; h: number }):
  * animazioni dei contenuti e non della finestra… scegliamo noi un effetto per tutto»;
  * the circle, the curtain and the particles of 1.0.41 are gone).
  */
-function partsIn(parts: Iterable<HTMLElement>, delay: number, spread = 360) {
+function partsIn(parts: Iterable<HTMLElement>, delay: number, spread = 520) {
   // Hidden until the next frame, then measured once laid out (the island's menu is
   // hidden until the open layout applies: it would come in as one block).
   const list = [...parts];
@@ -169,10 +176,11 @@ function piecesIn(parts: HTMLElement[], delay: number, spread: number) {
     const side = el.closest("#rail, nav, .nav, .rail");
     el.animate(
       [
-        { opacity: 0, filter: "blur(4px)", translate: side ? "-10px 0px" : "0px 12px", scale: "0.97" },
+        { opacity: 0, filter: "blur(10px)", translate: side ? "-28px 0px" : "0px 30px", scale: "0.9" },
         { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: "1" },
       ],
-      { duration: 420, delay: delay + wait, easing: EASE_OUT, fill: "backwards" },
+      // Strong enough to be seen while the island is still growing (at 12 px nobody saw it).
+      { duration: 620, delay: delay + wait, easing: EASE_OUT, fill: "backwards" },
     );
   });
 }
@@ -180,8 +188,8 @@ function piecesIn(parts: HTMLElement[], delay: number, spread: number) {
 /** The island has started growing (island.ts springs): its contents come in. False when this level leaves the opening as it was (the light wave). */
 export function openIsland(parts: HTMLElement[]): boolean {
   if (level !== "ricche") return false;
-  openingUntil = performance.now() + 700;
-  partsIn(parts, 90);
+  openingUntil = performance.now() + 900;
+  partsIn(parts, 140);
   return true;
 }
 
@@ -226,7 +234,7 @@ function openWindow(root: HTMLElement) {
     root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
     return;
   }
-  partsIn([root], 60);
+  partsIn([root], 80);
 }
 
 /** Within the 300 ms the app waits before hiding the window (lib.rs `hide_after_fx`): the contents fade. */
