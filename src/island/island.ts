@@ -271,6 +271,7 @@ export class Island {
   private lastSyncedView: IslandViewName | null = null;
   /** The screen last shown at the open island, for its entrance (motion.ts viewEnter). */
   private lastViewKey = "";
+  private elasticUntil = 0;
   private lastMark: DOMRect | null = null;
   /** Natural content height reported by the current view (0 = its fixed height). */
   private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
@@ -684,9 +685,10 @@ export class Island {
       const at = this.botTarget(0, this.width.value);
       closeIsland(this.islandEl, this.contentEl, { x: at.cx, y: at.cy }, this.placement.v === "bottom");
     }
-    this.animateGeometry(modeOrder(mode) < modeOrder(prev));
+    const opening = mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized;
+    this.animateGeometry(modeOrder(mode) < modeOrder(prev), opening && motionLevel() === "ricche");
     // Opening (motion.ts): from the character, to the size the island is growing to.
-    if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized) {
+    if (opening) {
       const at = this.botTarget(this.height.target, this.width.target);
       const parts = [...this.islandEl.querySelectorAll<HTMLElement>("#header, #rail, #views")];
       if (!openIsland(this.islandEl, { x: at.cx, y: at.cy }, this.width.target, this.height.target, parts, this.placement.v === "bottom") && motionLevel() !== "spente") this.openWave();
@@ -2781,7 +2783,16 @@ ${note}` : text };
     this.animateGeometry(false);
   }
 
-  private animateGeometry(shrinking: boolean) {
+  /**
+   * `elastic`: the opening with «Ricche» animations, whose edge overshoots and rings
+   * like jelly (Edoardo, 10/11: «l'ondulazione… deve essere più marcata»). It lasts
+   * the whole opening: the fits that follow it (rail, header, content) keep it.
+   */
+  private animateGeometry(shrinking: boolean, elastic = false) {
+    const now = performance.now();
+    if (elastic) this.elasticUntil = now + 900;
+    if (shrinking) this.elasticUntil = 0;
+    elastic = now < this.elasticUntil;
     const { w, h, r } = this.targetSize();
     // The views are laid out at the open island's final width, not the animated
     // one (CSS: `.view` width from --view-w, anchored on the island's side): text
@@ -2797,9 +2808,10 @@ ${note}` : text };
       this.height.curveTowards(h);
       this.radius.curveTowards(r);
     } else {
-      this.width.springTo(w);
-      this.height.springTo(h);
-      this.radius.springTo(r);
+      const [response, damping] = elastic ? [0.6, 0.4] : [0.5, 0.72];
+      this.width.springTo(w, response, damping);
+      this.height.springTo(h, response, damping);
+      this.radius.springTo(r, response, damping);
     }
     this.ensureRunning();
   }

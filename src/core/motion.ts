@@ -91,17 +91,12 @@ export function viewEnter(view: HTMLElement, from: HTMLElement | null, before: D
   const vr = view.getBoundingClientRect();
   const fr = from?.getBoundingClientRect();
   view.style.transformOrigin = fr ? `0px ${Math.round(fr.top + fr.height / 2 - vr.top)}px` : "50% 0px";
+  // The view slides in from the menu; its pieces follow one by one from the item that asked for it.
   view.animate(
-    [{ opacity: 0, transform: "translateX(-40px) scale(0.93)", filter: "blur(10px)" }, { opacity: 1, transform: "none", filter: "blur(0px)" }],
+    [{ opacity: 0, transform: "translateX(-40px) scale(0.93)" }, { opacity: 1, transform: "none" }],
     { duration: 500, easing: EASE_OUT },
   );
-  let i = 0;
-  for (const el of view.querySelectorAll<HTMLElement>(STAGGER)) {
-    const r = el.getBoundingClientRect();
-    if (r.height === 0 || r.top > vr.bottom) continue;
-    el.animate([{ opacity: 0, transform: "translateY(22px) scale(0.95)" }, { opacity: 1, transform: "none" }], { duration: 440, delay: 80 + Math.min(i * 45, 320), easing: EASE_OUT, fill: "backwards" });
-    if (++i >= 14) break;
-  }
+  partsIn([view], 60, fr ? { x: fr.right, y: fr.top + fr.height / 2 } : { x: vr.left, y: vr.top }, null, 320);
 }
 
 /** The menu's accent mark (the `::before` of `.rail-item.on`) slides from the old item to the new one. */
@@ -129,13 +124,69 @@ function glideMark(item: HTMLElement, before: DOMRect) {
 
 type Pt = { x: number; y: number };
 
-/** `scope`'s parts come into focus one after the other. */
-function partsIn(parts: Iterable<HTMLElement>, delay: number) {
-  let i = 0;
-  for (const el of parts) {
-    el.animate([{ opacity: 0, filter: "blur(10px)", transform: "translateY(14px) scale(0.97)" }, { opacity: 1, filter: "blur(0px)", transform: "none" }], { duration: 480, delay: delay + Math.min(i * 50, 300), easing: EASE_OUT, fill: "backwards" });
-    i++;
+/** The pieces an opening animates one by one: menu items, buttons, cards, rows. */
+const PIECE = `${STAGGER}, .rail-item, button, h1, h2, h3, p, li, input, select, textarea, img, canvas, svg`;
+const MAX_PIECES = 48;
+
+/**
+ * The smallest pieces of `parts` in view (a card, not the section holding it):
+ * each comes in on its own instead of the whole block at once (Edoardo, 10/11).
+ * A part with no pieces inside comes in whole.
+ */
+function piecesOf(parts: Iterable<HTMLElement>, view: { w: number; h: number }): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  for (const part of parts) {
+    const found = [...part.querySelectorAll<HTMLElement>(PIECE)].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < view.h && r.left < view.w;
+    });
+    // Only the innermost: an element holding another piece stays still, its pieces move.
+    const leaves = found.filter((el) => !found.some((o) => o !== el && el.contains(o)));
+    // An svg inside a button moves with its button.
+    const kept = leaves.filter((el) => !leaves.some((o) => o !== el && o.contains(el)) && !(el.matches("svg, canvas, img") && el.parentElement?.closest("button, .rail-item")));
+    out.push(...(kept.length ? kept : [part]));
+    if (out.length >= MAX_PIECES) break;
   }
+  return out.slice(0, MAX_PIECES);
+}
+
+/**
+ * `parts`' pieces come in one by one, in the order the wave from `origin`
+ * (page coordinates) reaches them: the nearest first, each from its own side.
+ */
+function partsIn(parts: Iterable<HTMLElement>, delay: number, origin: Pt | null = null, frame: HTMLElement | null = null, spread = 420) {
+  // Until they are hidden behind the opening's first frame, then measured once laid out
+  // (the island's menu is hidden until the open layout applies: it would come in as one block).
+  const list = [...parts];
+  const hide = list.map((el) => el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1000 }));
+  requestAnimationFrame(() => { hide.forEach((a) => a.cancel()); piecesIn(list, Math.max(0, delay - 16), origin, frame, spread); });
+}
+
+function piecesIn(parts: HTMLElement[], delay: number, origin: Pt | null, frame: HTMLElement | null, spread: number) {
+  const view = { w: window.innerWidth, h: window.innerHeight };
+  const pieces = piecesOf(parts, view);
+  // `origin` is in `frame`'s coordinates (the island's), the pieces too.
+  const base = frame?.getBoundingClientRect() ?? { left: 0, top: 0 };
+  const at = (el: HTMLElement) => { const r = el.getBoundingClientRect(); return { x: r.left - base.left + r.width / 2, y: r.top - base.top + r.height / 2 }; };
+  const centres = pieces.map(at);
+  const o = origin ?? { x: 0, y: 0 };
+  const far = Math.max(1, ...centres.map((c) => Math.hypot(c.x - o.x, c.y - o.y)));
+  pieces.forEach((el, i) => {
+    const c = centres[i];
+    const dx = c.x - o.x, dy = c.y - o.y, d = Math.hypot(dx, dy) || 1;
+    const wait = origin ? (d / far) * spread : Math.min(i * 40, spread);
+    // Pushed out by the wave: from a little nearer the origin, a little small, out of focus.
+    // `translate` and `scale` add to the piece's own transform instead of replacing it.
+    const back = Math.min(26, 10 + d * 0.04);
+    el.animate(
+      [
+        { opacity: 0, filter: "blur(8px)", translate: `${(-dx / d) * back}px ${(-dy / d) * back}px`, scale: "0.82" },
+        { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: "1.04", offset: 0.62 },
+        { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: "1" },
+      ],
+      { duration: 520, delay: delay + wait, easing: EASE_OUT, fill: "backwards" },
+    );
+  });
 }
 
 /**
@@ -167,12 +218,27 @@ function overlay(follow: HTMLElement | null, ms: number): HTMLElement {
   return layer;
 }
 
+/**
+ * The wave of «Lancio» from `at`: a flash, then three rings one after the other
+ * out to `reach` (Edoardo, 10/11: «l'ondulazione mi piace ma deve essere più marcata»).
+ */
 function ring(layer: HTMLElement, at: Pt, reach: number) {
-  const el = document.createElement("div");
-  el.className = "fx-ring";
-  Object.assign(el.style, { position: "absolute", left: `${at.x}px`, top: `${at.y}px` });
-  layer.appendChild(el);
-  el.animate([{ transform: "scale(0.2)", opacity: 0.95 }, { transform: `scale(${Math.max(2, reach / 20)})`, opacity: 0 }], { duration: 720, easing: EASE_OUT, fill: "forwards" });
+  const flash = document.createElement("div");
+  flash.className = "fx-flash";
+  Object.assign(flash.style, { position: "absolute", left: `${at.x}px`, top: `${at.y}px` });
+  layer.appendChild(flash);
+  flash.animate([{ transform: "scale(0.3)", opacity: 0.9 }, { transform: `scale(${Math.max(3, reach / 60)})`, opacity: 0 }], { duration: 620, easing: EASE_OUT, fill: "forwards" });
+  [0, 130, 270].forEach((wait, i) => {
+    const el = document.createElement("div");
+    el.className = "fx-ring";
+    Object.assign(el.style, { position: "absolute", left: `${at.x}px`, top: `${at.y}px` });
+    layer.appendChild(el);
+    const end = Math.max(2, (reach * (1 - i * 0.18)) / 20);
+    el.animate(
+      [{ transform: "scale(0.2)", opacity: 0, borderWidth: "5px" }, { opacity: 1, offset: 0.12 }, { transform: `scale(${end})`, opacity: 0, borderWidth: "1px" }],
+      { duration: 900 - i * 80, delay: wait, easing: EASE_OUT, fill: "both" },
+    );
+  });
 }
 
 function seam(layer: HTMLElement, top: number, width: number) {
@@ -254,22 +320,22 @@ const radiusFrom = (o: Pt, w: number, h: number) => Math.hypot(Math.max(o.x, w -
  */
 export function openIsland(island: HTMLElement, bot: Pt, w: number, h: number, parts: HTMLElement[], fromBottom: boolean): boolean {
   if (level !== "ricche") return false;
-  openingUntil = performance.now() + 850;
-  const layer = overlay(island, 1100);
+  openingUntil = performance.now() + 1000;
+  const layer = overlay(island, 1300);
   if (fx === "lancio") {
-    ring(layer, bot, Math.max(w, h) * 0.55);
-    partsIn(parts, 150);
     const R = radiusFrom(bot, w, h);
+    ring(layer, bot, R);
+    partsIn(parts, 120, bot, island);
     island.animate([{ clipPath: `circle(0px at ${bot.x}px ${bot.y}px)` }, { clipPath: `circle(${R}px at ${bot.x}px ${bot.y}px)` }], { duration: 780, easing: EASE_OUT });
   } else if (fx === "sipario") {
     const line = seam(layer, fromBottom ? h : 0, w);
     const shut = fromBottom ? "inset(100% 0 0 0)" : "inset(0 0 100% 0)";
-    partsIn(parts, 200);
+    partsIn(parts, 200, { x: w / 2, y: fromBottom ? h : 0 }, island);
     line.animate([{ transform: "scaleX(0.2)", opacity: 0 }, { transform: "scaleX(1)", opacity: 1, offset: 0.3 }, { transform: `translateY(${fromBottom ? -h : h}px)`, opacity: 1, offset: 0.88 }, { transform: `translateY(${fromBottom ? -h : h}px)`, opacity: 0 }], { duration: 780, easing: EASE_OUT }).onfinish = () => line.remove();
     island.animate([{ clipPath: shut }, { clipPath: shut, offset: 0.25 }, { clipPath: "inset(0 0 0 0)" }], { duration: 760, easing: EASE_OUT });
   } else {
     void particles(layer, bot, { w, h }, false, island);
-    partsIn(parts, 400);
+    partsIn(parts, 360, bot, island);
     island.animate([{ opacity: 0, filter: "blur(8px)" }, { opacity: 0, filter: "blur(8px)", offset: 0.5 }, { opacity: 1, filter: "blur(0px)" }], { duration: 660, easing: EASE_OUT });
   }
   return true;
@@ -331,12 +397,12 @@ function openWindow(root: HTMLElement) {
     return;
   }
   const w = window.innerWidth, h = window.innerHeight, o = WINDOW_ICON;
-  const layer = overlay(null, 1100);
-  // The page's parts in view come into focus one after the other.
-  const parts = [...root.querySelectorAll<HTMLElement>("nav, header, section, .card, [data-stagger]")].filter((el) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.top < h; }).slice(0, 12);
-  partsIn(parts, 160);
+  const layer = overlay(null, 1300);
+  // The page's pieces in view come in one by one as the wave reaches them.
+  const parts = [root];
+  partsIn(parts, 140, fx === "sipario" ? { x: w / 2, y: 0 } : o);
   if (fx === "lancio") {
-    ring(layer, o, Math.max(w, h) * 0.6);
+    ring(layer, o, radiusFrom(o, w, h));
     root.animate([{ clipPath: `circle(0px at ${o.x}px ${o.y}px)` }, { clipPath: `circle(${radiusFrom(o, w, h)}px at ${o.x}px ${o.y}px)` }], { duration: 720, easing: EASE_OUT });
   } else if (fx === "sipario") {
     const line = seam(layer, 0, w);
