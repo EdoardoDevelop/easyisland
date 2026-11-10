@@ -977,10 +977,132 @@ pub fn tool_update(app: &AppHandle, args: &Value) -> Result<String, String> {
         c.id = id.to_string();
     }
     let old = get(&c.id).or_else(|| get(&c.name)).ok_or(t("Integrazione non trovata: usa custom_create per una nuova."))?;
-    c.id = old.id;
+    c.id = old.id.clone();
     c.enabled = old.enabled;
+    // The description as it was, dated, before it is replaced (the saved records are another file and stay).
+    let copy = keep_version(&old.id)?;
+    let new = normalize(c.clone())?;
+    let notes = changes(&old, &new, &records(&old.id));
     let c = save(app, c, false)?;
-    Ok(tf("Integrazione «{name}» aggiornata.", &[("name", &c.name)]))
+    let mut msg = tf("Integrazione «{name}» aggiornata. Versione di prima in {path}.", &[("name", &c.name), ("path", &copy.display().to_string())]);
+    if !notes.is_empty() {
+        msg.push_str(&format!("\n{}\n- {}", t("Cosa è cambiato (dillo all'utente):"), notes.join("\n- ")));
+    }
+    Ok(msg)
+}
+
+/// Before the Consenti / Nega card of a `custom_update`: what it changes, in
+/// `tool_input._changes`, so the card shows it (src/island/hooks.ts). Only
+/// added for the card: the decision sent back is a word, never the input.
+pub fn annotate(payload: &mut Value) {
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    if tool != "custom_update" && !tool.ends_with("__custom_update") {
+        return;
+    }
+    let Some(input) = payload.get("tool_input") else { return };
+    let Ok(mut c) = parse_def(input) else { return };
+    if let Some(id) = input.get("id").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+        c.id = id.to_string();
+    }
+    let Some(old) = get(&c.id).or_else(|| get(&c.name)) else { return };
+    c.id = old.id.clone();
+    let Ok(new) = normalize(c) else { return };
+    let notes = changes(&old, &new, &records(&old.id));
+    if let Some(obj) = payload.get_mut("tool_input").and_then(Value::as_object_mut) {
+        obj.insert("_changes".into(), json!(notes));
+        obj.insert("_name".into(), json!(old.name));
+    }
+}
+
+/// Older descriptions of an integration: `integrazioni\versioni\<id>-<data>.json`
+/// (a subfolder: `list` reads only the files of `integrazioni`).
+fn versions_dir() -> PathBuf {
+    dir().join("versioni")
+}
+
+/// Copies `<id>.json` into `versioni\` and keeps the last 20 of that id.
+fn keep_version(id: &str) -> Result<PathBuf, String> {
+    let from = def_file(id);
+    let bytes = std::fs::read(&from).map_err(|e| e.to_string())?;
+    let vdir = versions_dir();
+    std::fs::create_dir_all(&vdir).map_err(|e| e.to_string())?;
+    let to = vdir.join(format!("{id}-{}.json", crate::hooks::stamp()));
+    crate::settings::write_atomic(&to, &bytes).map_err(|e| e.to_string())?;
+    let prefix = format!("{id}-");
+    let mut mine: Vec<PathBuf> = std::fs::read_dir(&vdir)
+        .map(|r| r.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    mine.retain(|p| {
+        p.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+            // "<id>-20261110-081500.json": the id itself may have dashes, the stamp has none but one.
+            n.strip_prefix(&prefix).and_then(|rest| rest.strip_suffix(".json")).is_some_and(|s| s.len() == 15 && s.chars().all(|c| c.is_ascii_digit() || c == '-'))
+        })
+    });
+    mine.sort();
+    let extra = mine.len().saturating_sub(20);
+    for p in mine.iter().take(extra) {
+        let _ = std::fs::remove_file(p);
+    }
+    Ok(to)
+}
+
+/// What an update changes that the user may not expect, in words: fields that
+/// go (their values stop showing in the saved records), kinds, the counter,
+/// the template, the actions.
+pub fn changes(old: &Custom, new: &Custom, saved: &[Record]) -> Vec<String> {
+    let mut out = Vec::new();
+    let filled = |id: &str| {
+        saved.iter().filter(|r| r.values.get(id).is_some_and(|v| match v {
+            Value::Null => false,
+            Value::String(s) => !s.trim().is_empty(),
+            Value::Array(a) => !a.is_empty(),
+            _ => true,
+        })).count()
+    };
+    for f in &old.fields {
+        match new.fields.iter().find(|n| n.id == f.id) {
+            None => {
+                let n = filled(&f.id);
+                out.push(if n > 0 {
+                    tf("Tolto il campo «{label}» ({id}), compilato nelle schede salvate: {n}. Lì il valore non si vedrà più, e si perde se una di quelle schede viene salvata di nuovo.",
+                        &[("label", &f.label), ("id", &f.id), ("n", &n.to_string())])
+                } else {
+                    tf("Tolto il campo «{label}» ({id}).", &[("label", &f.label), ("id", &f.id)])
+                });
+            }
+            Some(n) if n.kind != f.kind => out.push(tf("Il campo «{label}» cambia tipo: da {a} a {b}.", &[("label", &f.label), ("a", &f.kind), ("b", &n.kind)])),
+            Some(n) if f.kind == "counter" && n.prefix != f.prefix => out.push(tf(
+                "Il numeratore «{label}» cambia prefisso da «{a}» a «{b}»: la numerazione riparte per il prefisso nuovo, le schede salvate tengono il loro numero.",
+                &[("label", &f.label), ("a", &f.prefix), ("b", &n.prefix)],
+            )),
+            Some(n) if f.kind == "rows" => {
+                for col in f.columns.iter().filter(|c| !n.columns.iter().any(|x| x.id == c.id)) {
+                    out.push(tf("Tolta la colonna «{col}» dalla tabella «{label}».", &[("col", &col.label), ("label", &f.label)]));
+                }
+            }
+            _ => {}
+        }
+    }
+    let added: Vec<&str> = new.fields.iter().filter(|n| !old.fields.iter().any(|f| f.id == n.id)).map(|n| n.label.as_str()).collect();
+    if !added.is_empty() {
+        out.push(tf("Campi nuovi (vuoti nelle schede salvate): {list}.", &[("list", &added.join(", "))]));
+    }
+    if new.template != old.template {
+        let (a, b) = (old.template.chars().count(), new.template.chars().count());
+        out.push(if b * 10 < a * 7 {
+            tf("Il modello del documento è molto più corto: da {a} a {b} caratteri.", &[("a", &a.to_string()), ("b", &b.to_string())])
+        } else {
+            tf("Cambia il modello del documento ({a} → {b} caratteri).", &[("a", &a.to_string()), ("b", &b.to_string())])
+        });
+    }
+    for a in &old.actions {
+        match new.actions.iter().find(|n| n.label == a.label) {
+            None => out.push(tf("Tolta l'azione «{label}».", &[("label", &a.label)])),
+            Some(n) if n.kind == "script" && n.script != a.script => out.push(tf("Cambia lo script dell'azione «{label}».", &[("label", &a.label)])),
+            _ => {}
+        }
+    }
+    out
 }
 
 pub fn tool_list() -> String {
@@ -1134,6 +1256,39 @@ mod tests {
         assert_eq!(next_counter(&f, &[]), format!("PREV-{year}-001"));
         let all = [rec(&format!("PREV-{year}-007")), rec(&format!("PREV-{year}-002")), rec("PREV-1999-950")];
         assert_eq!(next_counter(&f, &all), format!("PREV-{year}-008"));
+    }
+
+    #[test]
+    fn an_update_says_what_the_saved_records_lose() {
+        let field = |id: &str, kind: &str| Field { id: id.into(), label: id.into(), kind: kind.into(), ..Default::default() };
+        let mut numero = field("numero", "counter");
+        numero.prefix = "DDT-{anno}-".into();
+        let old = Custom {
+            fields: vec![numero.clone(), field("destinatario", "text"), field("note", "textarea")],
+            template: "x".repeat(1000),
+            actions: vec![Action { label: "PDF".into(), kind: "document".into(), ..Default::default() }],
+            ..Default::default()
+        };
+        let mut rap = numero;
+        rap.prefix = "RAP-{anno}-".into();
+        let new = Custom {
+            fields: vec![rap, field("cliente", "text"), field("note", "textarea"), field("servizi", "rows")],
+            template: "x".repeat(300),
+            ..Default::default()
+        };
+        let saved = [
+            Record { values: [("destinatario".to_string(), json!("Farmacia"))].into_iter().collect(), ..Default::default() },
+            Record { values: [("destinatario".to_string(), json!(""))].into_iter().collect(), ..Default::default() },
+        ];
+        let all = changes(&old, &new, &saved).join("\n");
+        assert!(all.contains("«destinatario»") && all.contains("schede salvate: 1."), "{all}");
+        assert!(all.contains("RAP-{anno}-"), "{all}");
+        assert!(all.contains("cliente, servizi"), "{all}");
+        assert!(all.contains("molto più corto"), "{all}");
+        assert!(all.contains("«PDF»"), "{all}");
+        assert!(!all.contains("«note»"), "{all}");
+        // Nothing changed, nothing said.
+        assert!(changes(&old, &old, &saved).is_empty());
     }
 
     #[test]

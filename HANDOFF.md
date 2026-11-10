@@ -51,6 +51,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 10/11 — Integrazioni personali: cosa cambia prima di `custom_update`
+Domanda di Edoardo sul «DDT Easytech» da trasformare in rapportino: la chat riscrive tutta la descrizione e la card non diceva cosa cambiava. Ora `custom::annotate` mette nella card campi tolti (con quante schede salvate li hanno), tipi, prefisso del numeratore, colonne, campi nuovi, modello molto più corto, azioni e script; prima di scrivere una copia datata in `integrazioni\versioni\`. Test `an_update_says_what_the_saved_records_lose`. `docs/integrazioni.md`.
+
 ### 10/11 — Animazioni a tre livelli
 `src/core/motion.ts`: onda di luce a ogni clic, viste che nascono dalla voce del menu, all'apertura di isola, Impostazioni, Memoria, Flussi e schermate i contenuti entrano uno dopo l'altro (Aspetto → Tema → Animazioni, di serie Ricche). Gli effetti sulla cornice della 1.0.41 (Lancio, Sipario, Particelle) e la molla più morbida sono stati tolti su richiesta di Edoardo: solo contenuti, un effetto per tutto. Chiusura delle finestre ritardata di 300 ms da `hide_after_fx` (lib.rs). Scelta fatta sull'artifact «Animazioni di EasyIsland». `docs/architettura.md` → Animazioni, guida 05.
 
@@ -62,7 +65,4 @@ Il «⋯» della Cartella di lavoro metteva i pulsanti dentro la tessera e in gr
 
 ### 10/11 — Revisione di design di tutte le finestre
 Critica Impeccable (25/40) su 54 schermate, poi tutto sistemato con Edoardo: una tavolozza Windows 11 per isola, Memoria, Anteprima, Flussi; Memoria con etichette mai sovrapposte (`src/memory/labels.ts`, `?many=300`), barra su una riga, `[[link]]` cliccabili; fumetto in alto con il problema in corso; contenuto delle card dall'alto (prima al centro, 14/10); card delle integrazioni con un solo stile di intestazione e link; Vassoio con ⋯; nomi accessibili sui pulsanti a icona; tasto «C» per Consenti (Y resta). Restano: emoji nei Flussi, testi d'aiuto lunghi nelle Impostazioni.
-
-### 9/11 — Agent Chat: token nel campo sbagliato, log senza segreti
-Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»: ora `agentchat.rs` lo riconosce dai prefissi `ac_`/`ow_` e lo dice (`misplaced`, `hello`, `owner_send`). `easyisland.log` aveva il `Bearer` di un comando di opencode: `log::mask` su ogni riga e `log::scrub_once` sul log vecchio. `docs/integrazioni.md`, `docs/architettura.md` → Robustezza.
 
