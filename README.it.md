@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.42** — **gruppi nel menu** come le cartelle del telefono, con colore; **campo collegato** che cerca e compila.
 - **1.0.41** — **animazioni** a ogni clic, cambio di schermata e apertura, con tre effetti a scelta: **Lancio**, **Sipario**, **Particelle**.
 - **1.0.40** — **Claude Code fuori da EasyIsland** senza le sessioni avviate da EasyIsland stesso.
 - **1.0.39** — **File e schermo** in sezioni, menu **⋯** della Cartella di lavoro sistemato, **puntina** nel Vassoio.
-- **1.0.38** — **un aspetto solo** per tutte le finestre; **Memoria** leggibile con tanti nodi e con le note di **Claude Code**.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

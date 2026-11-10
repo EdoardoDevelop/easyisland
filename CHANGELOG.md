@@ -2,6 +2,14 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.42** — **Gruppi nel menu** dell'isola, come le cartelle di un telefono: trascini un'integrazione sopra un'altra e
+nasce un gruppo, con il nome da scrivere subito e il **colore** che vuoi; ci trascini dentro le altre, le porti fuori per
+toglierle. Nelle **integrazioni personali** il **campo collegato** cerca mentre scrivi nelle schede di un'altra integrazione
+(clienti, listino, articoli…) e **compila da solo** gli altri campi, anche nelle righe di una tabella; i nomi nuovi possono
+essere aggiunti alla sorgente al salvataggio. Quando la chat cambia un'integrazione, la card dice **cosa cambia** e la
+versione di prima viene copiata. Animazioni con **un effetto solo, sui contenuti**, che entrano pezzo per pezzo; onde di
+luce nel campo Cerca; la mappa della **Memoria** si rinquadra quando la finestra cambia misura.
+
 **1.0.41** — **Animazioni** in tutta l'app, in **Aspetto → Tema → Animazioni**: a ogni clic un'onda di luce dal punto
 cliccato, le schermate che nascono dalla voce del menu con le card in cascata, e isola, Impostazioni, Memoria e Flussi che si
 aprono e si chiudono con l'**effetto di apertura** scelto: **Lancio** (a cerchio dal personaggio), **Sipario** (una linea di
