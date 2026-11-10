@@ -17,8 +17,7 @@ The page has eight tabs at the top: **Theme**, **Font**, **Character**, **Positi
 
 ## Animations
 Also in **Appearance → Theme**, section **Animations**:
-- **Animations**: **Rich** (the default), **Subtle** or **Off**. With Rich every click answers with a ripple of light from where you clicked, a new screen grows out of the menu item that opened it (its cards come in one after the other, the menu's mark slides to the new item), and the island and the windows open and close with the chosen effect. Subtle keeps only short fades, Off no movement. With Windows «Animation effects» off (Windows Settings → Accessibility → Visual effects), Rich becomes Subtle.
-- **Opening effect**: **Launch** (the island opens as a circle out of the character, with a ring of light, and goes back into it when it closes), **Curtain** (a line of light unrolls the island and rolls it back up) or **Particles** (the character's particles draw the edges, then the content lights up; the heaviest on the graphics card). It applies to Settings, Memory and Flows too, where the effect starts from the icon in the title bar.
+- **Animations**: **Rich** (the default), **Subtle** or **Off**. With Rich every click answers with a ripple of light from where you clicked, and when the island, Settings, Memory and Flows or a new screen open, their contents (menu items, buttons, cards, rows) come in one after the other, top to bottom; the menu's mark slides to the new item. Subtle keeps only short fades, Off no movement. With Windows «Animation effects» off (Windows Settings → Accessibility → Visual effects), Rich becomes Subtle.
 
 ## Font
 In **Appearance → Font** you pick two separate fonts, with a live preview:

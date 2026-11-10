@@ -679,17 +679,13 @@ export class Island {
     this.applyBare();
     this.updateWindowCollapsed();
     const closing = prev === "expanded" && mode !== "expanded";
-    // Before the content fades (syncDom): it goes back into the character.
-    if (closing && !State.maximized) {
-      const at = this.botTarget(0, this.width.value);
-      closeIsland(this.islandEl, this.contentEl, { x: at.cx, y: at.cy }, this.placement.v === "bottom");
-    }
+    // Before the content fades (syncDom).
+    if (closing && !State.maximized) closeIsland(this.contentEl);
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
-    // Opening (motion.ts): from the character, to the size the island is growing to.
+    // Opening (motion.ts): the contents come in while the island grows.
     if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized) {
-      const at = this.botTarget(this.height.target, this.width.target);
       const parts = [...this.islandEl.querySelectorAll<HTMLElement>("#header, #rail, #views")];
-      if (!openIsland(this.islandEl, { x: at.cx, y: at.cy }, this.width.target, this.height.target, parts, this.placement.v === "bottom") && motionLevel() !== "spente") this.openWave();
+      if (!openIsland(parts) && motionLevel() !== "spente") this.openWave();
     }
     this.scheduleWander();
     State.notify();

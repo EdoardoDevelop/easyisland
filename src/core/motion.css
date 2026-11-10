@@ -1,17 +1,3 @@
-/* The pieces of motion.ts that are drawn: the seam of
-   «Sipario», the particles' canvas. Above everything, never in the way. */
-.fx-seam {
-  height: 2px;
-  margin-top: -1px;
-  pointer-events: none;
-  z-index: 2147483000;
-  background: linear-gradient(90deg, transparent, var(--accent, #60cdff) 18%, #fff 50%, var(--accent, #60cdff) 82%, transparent);
-  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--accent, #60cdff) 70%, transparent);
-}
-.fx-particles {
-  pointer-events: none;
-  z-index: 2147483000;
-}
 /* The menu's mark while its copy glides to it (motion.ts glideMark). */
 .mark-gliding::before { opacity: 0; }
 

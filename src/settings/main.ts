@@ -2607,16 +2607,7 @@ function appearanceSections(): HTMLElement[] {
             settings.animations ?? "ricche",
             (v) => { settings.animations = v; applyMotion(settings); commit(); },
           ),
-          h("span", { class: "hint note", text: t("Ricche: ogni clic risponde con un'onda di luce, le schermate nascono dalla voce del menu, isola e finestre si aprono con l'effetto scelto qui sotto. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie") }),
-        ),
-        h("div", { class: "row" },
-          h("label", { text: t("Effetto di apertura") }),
-          select<Settings["openEffect"]>(
-            [["lancio", t("Lancio")], ["sipario", t("Sipario")], ["particelle", t("Particelle")]],
-            settings.openEffect ?? "lancio",
-            (v) => { settings.openEffect = v; applyMotion(settings); commit(); },
-          ),
-          h("span", { class: "hint note", text: t("come si aprono e si chiudono l'isola e le finestre. Lancio: a cerchio dal personaggio, con un anello di luce. Sipario: una linea di luce srotola la finestra. Particelle: le particelle del personaggio ne disegnano i bordi; la più pesante per la scheda video") }),
+          h("span", { class: "hint note", text: t("Ricche: ogni clic risponde con un'onda di luce e, quando si aprono isola, finestre e schermate, i contenuti entrano uno dopo l'altro. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie") }),
         ),
       ),
     ],
@@ -3355,7 +3346,7 @@ function profileChip(): HTMLElement {
 /** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
-  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle", "animations", "openEffect",
+  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle", "animations",
   "hoverSize", "compactStrip", "appBar", "chatInstructions", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
@@ -5790,8 +5781,8 @@ async function main() {
   // ?scheme=light: the light mode.
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
-  // ?animations=sobrie, ?openEffect=sipario: the motion (motion.ts).
-  for (const k of ["animations", "openEffect"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
+  // ?animations=sobrie: the motion (motion.ts).
+  for (const k of ["animations"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
   applyUiStyle(settings.theme.style, settings.theme.scheme);
   applyFonts(settings.theme.fonts);
   applyMotion(settings);

@@ -17,8 +17,7 @@ La pagina è divisa in otto schede, in alto: **Tema**, **Font**, **Personaggio**
 
 ## Animazioni
 Sempre in **Aspetto → Tema**, sezione **Animazioni**:
-- **Animazioni**: **Ricche** (predefinite), **Sobrie** o **Spente**. Con Ricche ogni clic risponde con un'onda di luce che parte dal punto cliccato, una schermata nuova nasce dalla voce del menu che l'ha aperta (le card entrano una dopo l'altra, il segno del menu scivola sulla voce nuova), e isola e finestre si aprono e si chiudono con l'effetto scelto. Sobrie lascia solo dissolvenze brevi, Spente nessun movimento. Se in Windows è acceso «Riduci animazioni» (Impostazioni di Windows → Accessibilità → Effetti visivi), Ricche diventa Sobrie.
-- **Effetto di apertura**: **Lancio** (l'isola si apre a cerchio dal personaggio, con un anello di luce, e alla chiusura ci rientra), **Sipario** (una linea di luce srotola l'isola e la riavvolge) o **Particelle** (le particelle del personaggio disegnano i bordi, poi il contenuto si accende; la più pesante per la scheda video). Vale anche per Impostazioni, Memoria e Flussi, dove l'effetto parte dall'icona nella barra del titolo.
+- **Animazioni**: **Ricche** (predefinite), **Sobrie** o **Spente**. Con Ricche ogni clic risponde con un'onda di luce che parte dal punto cliccato, e quando si aprono l'isola, Impostazioni, Memoria e Flussi o una schermata nuova i contenuti (voci del menu, pulsanti, card, righe) entrano uno dopo l'altro, dall'alto in basso; il segno del menu scivola sulla voce nuova. Sobrie lascia solo dissolvenze brevi, Spente nessun movimento. Se in Windows è acceso «Riduci animazioni» (Impostazioni di Windows → Accessibilità → Effetti visivi), Ricche diventa Sobrie.
 
 ## Font
 In **Aspetto → Font** scegli due font separati, con l'anteprima dal vivo:

@@ -4835,10 +4835,5 @@
   "Animazioni": "Animations",
   "Ricche": "Rich",
   "Sobrie": "Subtle",
-  "Ricche: ogni clic risponde con un'onda di luce, le schermate nascono dalla voce del menu, isola e finestre si aprono con l'effetto scelto qui sotto. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie": "Rich: every click answers with a ripple of light, screens grow out of their menu item, the island and the windows open with the effect chosen below. Subtle: short fades only. Off: no movement. With Windows «Animation effects» off, Rich becomes Subtle",
-  "Effetto di apertura": "Opening effect",
-  "Lancio": "Launch",
-  "Sipario": "Curtain",
-  "Particelle": "Particles",
-  "come si aprono e si chiudono l'isola e le finestre. Lancio: a cerchio dal personaggio, con un anello di luce. Sipario: una linea di luce srotola la finestra. Particelle: le particelle del personaggio ne disegnano i bordi; la più pesante per la scheda video": "how the island and the windows open and close. Launch: a circle out of the character, with a ring of light. Curtain: a line of light unrolls the window. Particles: the character's particles draw its edges; the heaviest on the graphics card"
+  "Ricche: ogni clic risponde con un'onda di luce e, quando si aprono isola, finestre e schermate, i contenuti entrano uno dopo l'altro. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie": "Rich: every click answers with a ripple of light and, when the island, windows and screens open, their contents come in one after another. Subtle: short fades only. Off: no motion. With Windows «Reduce animations» on, Rich becomes Subtle"
 }

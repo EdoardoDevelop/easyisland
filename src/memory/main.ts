@@ -831,7 +831,7 @@ async function applyLook() {
   document.body.removeAttribute("style");
   applyMotion(info?.settings);
   watchWindow(document.body, (name, run) => void onEvent(name, run));
-  void onEvent<{ theme?: { style?: string; scheme?: string }; animations?: string; openEffect?: string }>("settings-changed", (s) => { look(s.theme?.style, s.theme?.scheme); applyMotion(s); });
+  void onEvent<{ theme?: { style?: string; scheme?: string }; animations?: string }>("settings-changed", (s) => { look(s.theme?.style, s.theme?.scheme); applyMotion(s); });
 }
 
 void applyLook().finally(() => {

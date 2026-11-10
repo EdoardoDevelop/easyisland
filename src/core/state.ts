@@ -775,8 +775,6 @@ export interface Settings {
   hoverStyle: "icon" | "bar";
   /** The app's motion (motion.ts): all of it, short fades only, or none. */
   animations: "ricche" | "sobrie" | "spente";
-  /** How the island and the windows open and close (motion.ts). */
-  openEffect: "lancio" | "sipario" | "particelle";
   /** Hovered icon size, px. */
   hoverSize: number;
   /** The strip beside the closed island's character (status, quick replies): its side, or off. */
@@ -1402,7 +1400,6 @@ export const DEFAULT_SETTINGS: Settings = {
   iconSize: 24,
   hoverStyle: "icon",
   animations: "ricche",
-  openEffect: "lancio",
   hoverSize: 40,
   compactStrip: "right",
   appBar: true,

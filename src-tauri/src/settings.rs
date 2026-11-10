@@ -413,7 +413,6 @@ pub const PROFILE_KEYS: &[&str] = &[
     "iconSize",
     "hoverStyle",
     "animations",
-    "openEffect",
     "hoverSize",
     "compactStrip",
     "appBar",
@@ -884,9 +883,6 @@ pub struct Settings {
     /// The app's motion (motion.ts): "ricche" | "sobrie" | "spente".
     #[serde(default = "default_animations")]
     pub animations: String,
-    /// How the island and the windows open and close: "lancio" | "sipario" | "particelle".
-    #[serde(default = "default_open_effect")]
-    pub open_effect: String,
     /// Size of the hovered icon, logical px.
     #[serde(default = "default_hover_size")]
     pub hover_size: f64,
@@ -1152,9 +1148,6 @@ fn default_animations() -> String {
     "ricche".into()
 }
 
-fn default_open_effect() -> String {
-    "lancio".into()
-}
 fn default_hover_size() -> f64 {
     40.0
 }
@@ -1279,7 +1272,6 @@ impl Default for Settings {
             icon_size: default_icon_size(),
             hover_style: default_hover_style(),
             animations: default_animations(),
-            open_effect: default_open_effect(),
             hover_size: default_hover_size(),
             compact_strip: default_compact_strip(),
             app_bar: true,

@@ -77,7 +77,6 @@ const ENTRIES: &[Entry] = &[
     Entry { key: "iconSize", section: ISLAND, what: "grandezza del personaggio a riposo, px", kind: Kind::Number(12.0, 96.0) },
     Entry { key: "hoverStyle", section: ISLAND, what: "al passaggio del mouse: icon o bar", kind: Kind::Choice(&["icon", "bar"]) },
     Entry { key: "animations", section: ISLAND, what: "animazioni dell'app: ricche, sobrie, spente", kind: Kind::Choice(&["ricche", "sobrie", "spente"]) },
-    Entry { key: "openEffect", section: ISLAND, what: "come si aprono isola e finestre: lancio, sipario, particelle", kind: Kind::Choice(&["lancio", "sipario", "particelle"]) },
     Entry { key: "compactStrip", section: ISLAND, what: "striscia accanto al personaggio: right, left, off", kind: Kind::Choice(&["right", "left", "off"]) },
     Entry { key: "menuCharacter", section: ISLAND, what: "personaggio in testa al menu: large, medium, small", kind: Kind::Choice(&["large", "medium", "small"]) },
     Entry { key: "characterBubble", section: ISLAND, what: "il personaggio dice cosa succede nella barra in alto", kind: Kind::Bool },
