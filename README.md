@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.41** — **animations** on every click, screen change and opening, with three effects to pick from: **Launch**, **Curtain**, **Particles**.
 - **1.0.40** — **Claude Code outside EasyIsland** without the sessions EasyIsland started itself.
 - **1.0.39** — **Files and screen** in sections, the Working folder's **⋯** menu fixed, the **pin** in the Tray.
 - **1.0.38** — **one look** for every window; **Memory** readable with many nodes and with **Claude Code's** notes.
-- **1.0.37** — the island **no longer freezes** on a network path that does not answer in the chat; **Memory** opens maximized.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
