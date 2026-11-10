@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.40** — The chat history no longer fills up with sessions EasyIsland started itself: **Claude Code outside
+EasyIsland** shows only the ones you opened in a terminal or in Claude Desktop (before, dozens showed up, titled
+«[The user's instructions for this chat…», and could not be deleted).
+
 **1.0.39** — **Files and screen tidied up**: Tray, Working folder, Collection and Record in matching sections, an empty Collection
 in one line. The **Working folder's ⋯ menu** opens like the Tray's (it used to land inside the tile and stretch the whole row in grid
 view) and **Move to Recycle Bin…** asks for confirmation above the list. In grid view a tile shows only ⋯. In the Tray **Pin in the

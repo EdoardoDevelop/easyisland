@@ -215,6 +215,16 @@ fn head_lines(file: &Path) -> Vec<Value> {
     String::from_utf8_lossy(&bytes).lines().filter_map(|l| serde_json::from_str::<Value>(l).ok()).collect()
 }
 
+/// A session run with `claude -p` (`entrypoint` "sdk-cli"): EasyIsland's own
+/// (Modalità terminale in another folder, tasks, Telegram, Agent Chat, helpers,
+/// a conversation taken off the history), not the user's. Until 10 Nov 2026
+/// they filled «Claude Code fuori da EasyIsland», titled after the preface
+/// («[Istruzioni dell'utente per questa chat: …», «[Memoria dell'utente …»).
+/// The user's own are "cli" (terminal) and "claude-desktop".
+fn started_by_a_program(lines: &[Value]) -> bool {
+    lines.iter().map(|v| str_of(v, "entrypoint")).find(|e| !e.is_empty()) == Some("sdk-cli")
+}
+
 /// The sessions on disk not in `known` (the history's own), outside EasyIsland's chat folder.
 pub fn outside(known: &std::collections::HashSet<String>) -> Vec<Outside> {
     let Some(projects) = crate::claude_cli::claude_dir().map(|d| d.join("projects")) else { return Vec::new() };
@@ -243,6 +253,9 @@ pub fn outside(known: &std::collections::HashSet<String>) -> Vec<Outside> {
             break;
         }
         let lines = head_lines(&p);
+        if started_by_a_program(&lines) {
+            continue;
+        }
         let Some(title) = lines.iter().filter_map(text_of).find(|(r, _)| *r == "user").map(|(_, t)| t) else { continue };
         let folder = lines.iter().map(|v| str_of(v, "cwd")).find(|c| !c.is_empty()).unwrap_or_default().to_string();
         let one: String = title.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(80).collect();
@@ -372,6 +385,16 @@ mod tests {
             let (lines, folder) = super::whole(&s.id).unwrap();
             println!("righe {} cartella {folder} ultima risposta {:?} contesto {:?}", lines.len(), super::last_answer_uuid(&s.id), super::last_context(&s.id));
         }
+    }
+
+    #[test]
+    fn sessions_run_by_a_program_are_not_the_users() {
+        let ours = vec![json!({"type": "user", "entrypoint": "sdk-cli", "message": {"content": "[Istruzioni dell'utente per questa chat: …"}})];
+        assert!(started_by_a_program(&ours));
+        for ep in ["cli", "claude-desktop"] {
+            assert!(!started_by_a_program(&[json!({"type": "user", "entrypoint": ep, "message": {"content": "ciao"}})]));
+        }
+        assert!(!started_by_a_program(&[json!({"type": "user", "message": {"content": "vecchia, senza entrypoint"}})]));
     }
 
     #[test]
