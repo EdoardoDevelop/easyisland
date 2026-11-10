@@ -26,6 +26,10 @@ export function h<K extends keyof HTMLElementTagNameMap>(
     if (c == null || c === false) continue;
     el.append(typeof c === "string" ? document.createTextNode(c) : c);
   }
+  // An icon-only button is named by its tooltip for screen readers too.
+  if (tag === "button" && attrs.title && !attrs["aria-label"] && !WORDS.test(el.textContent ?? "")) {
+    el.setAttribute("aria-label", String(attrs.title));
+  }
   return el;
 }
 
@@ -70,6 +74,26 @@ export function svg(path: string, size = 14, opts: { fill?: string; stroke?: num
   });
   return el;
 }
+
+/**
+ * The card-level actions (Aggiorna, Apri…, Impostazioni…): one style for every
+ * integration, the system accent, never the integration's colour. In the head of
+ * cards whose body is a workspace (Zammad, RDM…), at the foot of the others.
+ */
+export function headActions(...buttons: (Node | null | false | undefined)[]): HTMLElement {
+  return h("span", { class: "int-head-actions" }, ...buttons);
+}
+
+/** A tooltip that changes with the state; an icon-only button gets it as its name too. */
+export function tip(el: HTMLElement, text: string) {
+  el.title = text;
+  if (el.tagName !== "BUTTON") return;
+  if (!WORDS.test(el.textContent ?? "")) el.setAttribute("aria-label", text);
+  else el.removeAttribute("aria-label");
+}
+
+/** A letter or a digit: a button whose text has none (☰, ▦, ✕) is icon-only. */
+const WORDS = /[\p{L}\p{N}]/u;
 
 export function clear(el: Element) {
   while (el.firstChild) el.removeChild(el.firstChild);

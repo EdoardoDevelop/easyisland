@@ -1,7 +1,7 @@
 // Chat view — DOM port of PromptView / ChatBubble / TypingDotsView from
 // IslandViewContent.swift.
 
-import { h, svg, clear, clipMark } from "./dom";
+import { h, svg, clear, clipMark, tip } from "./dom";
 import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
@@ -375,6 +375,7 @@ export function buildPrompt(
   const teamBtn = h("button", { class: "auto-btn team-btn" }, svg(ICONS.team, 12), h("span", { text: t("Multi agent") })) as HTMLButtonElement;
   // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
+  tip(remoteBtn, t("Accesso remoto"));
   // «Anteprima» (src/preview/): files and pages of the chat's work, in their window.
   const previewBtn = h("button", { class: "history-btn head-end", title: t("Anteprima: file e pagine web accanto alla chat") }, svg(ICONS.preview, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // Opens the Anteprima, and closes it when it is open in the island.
@@ -383,6 +384,10 @@ export function buildPrompt(
   const desktopBtn = h("button", { class: "history-btn desktop-btn" }, svg(ICONS.lineOut, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // «Apri in una finestra» / «Rimetti nell'isola» (popout.ts): the chat as a window of its own and back.
   const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
+  // Named from the start: sync() renames them, but only while the chat is on screen.
+  tip(desktopBtn, t("Continua in Claude Desktop, con tutta la conversazione"));
+  tip(popBtn, t("Apri la chat in una finestra"));
+  tip(folderBtn, t("Scegli la cartella del progetto per questa chat"));
   let popShown: boolean | null = null;
   popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
   // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
@@ -941,7 +946,7 @@ export function buildPrompt(
         }, ICON_PLAY_MS);
       }
     }
-    send.title = stopMode ? t("Ferma") : c.sending ? t("Metti in coda: parte a fine risposta (Ctrl+Invio: subito)") : t("Invia");
+    tip(send, stopMode ? t("Ferma") : c.sending ? t("Metti in coda: parte a fine risposta (Ctrl+Invio: subito)") : t("Invia"));
   }
 
   /** «Rigenera»: the last question asked again, its answer forgotten. */
@@ -2218,7 +2223,7 @@ export function buildPrompt(
     if (problem) {
       const before = input.placeholder;
       input.placeholder = problem;
-      remoteBtn.title = problem;
+      tip(remoteBtn, problem);
       window.setTimeout(() => { if (input.placeholder === problem) input.placeholder = before; }, 6000);
     }
     input.focus();
@@ -2637,9 +2642,9 @@ export function buildPrompt(
         folderBtn.dataset.label = folderKey;
         folderBtn.replaceChildren(folderLabel, ...(branch ? [h("span", { class: "folder-branch", text: ` · ${branch}` })] : []));
       }
-      folderBtn.title = ownFolder
+      tip(folderBtn, ownFolder
         ? [ownFolder, branch && t("Branch: {name}", { name: branch })].filter(Boolean).join("\n")
-        : t("Scegli la cartella del progetto per questa chat");
+        : t("Scegli la cartella del progetto per questa chat"));
       const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${assistant?.id ?? ""}`;
       if (chipRow.dataset.label !== chipKey) {
         chipRow.dataset.label = chipKey;
@@ -2694,18 +2699,18 @@ export function buildPrompt(
       // ↗: only for a Claude Code conversation that has started, never on a session copy.
       desktopBtn.style.display = State.chatEngine === "subscription" && State.chatHistory.length && !asked ? "" : "none";
       desktopBtn.classList.toggle("on", State.chatDesktop);
-      desktopBtn.title = State.chatDesktop
+      tip(desktopBtn, State.chatDesktop
         ? t("La conversazione è proseguita in Claude Desktop: ciò che scrivi lì torna qui. Clic per riaprirla lì")
-        : t("Continua in Claude Desktop, con tutta la conversazione");
+        : t("Continua in Claude Desktop, con tutta la conversazione"));
       if (State.chatDesktop && !sending && Date.now() - pulledAt > 4000) void pullDesktop(State.chat, false);
       // 🔌: only while a remote connection is open, never on a session copy.
       const remote = remoteData();
       remoteBtn.style.display = remote.connected && !asked ? "" : "none";
       remoteBtn.classList.toggle("on", !!remote.linked);
       remoteBtn.querySelector<HTMLElement>(".remote-name")!.textContent = remote.name || remote.host || "";
-      remoteBtn.title = remote.linked
+      tip(remoteBtn, remote.linked
         ? t("La chat lavora su {n}: ogni comando lì chiede Consenti / Nega. Clic per scollegarla", { n: remote.name || remote.host || "" })
-        : t("Collega la chat a {n}, il PC aperto in Accesso remoto", { n: remote.name || remote.host || "" });
+        : t("Collega la chat a {n}, il PC aperto in Accesso remoto", { n: remote.name || remote.host || "" }));
       el.querySelector(".chat-card")?.classList.toggle("remote", !!remote.linked && !asked);
       // "Automatica": only with Modalità terminale, never on a session copy.
       const terminal = State.settings.chatTerminal === true && !asked;
@@ -2714,18 +2719,18 @@ export function buildPrompt(
       const team = (State.settings.chatTeam ?? []).some((e) => e !== engineOf(State.chat)) && !State.chat.session;
       teamBtn.style.display = team ? "" : "none";
       teamBtn.classList.toggle("on", team && State.chat.team);
-      teamBtn.title = State.chat.team
+      tip(teamBtn, State.chat.team
         ? t("Multi agent acceso: questo motore guida, gli altri scelti in Impostazioni aiutano e controllano. Clic per spegnerlo")
-        : t("Multi agent: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo");
+        : t("Multi agent: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo"));
       previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
       const away = isPopped("chat");
       if (away !== popShown) {
         popShown = away;
         popBtn.replaceChildren(svg(away ? ICONS.popIn : ICONS.popOut, 12));
-        popBtn.title = away ? t("Rimetti la chat nell'isola") : t("Apri la chat in una finestra");
+        tip(popBtn, away ? t("Rimetti la chat nell'isola") : t("Apri la chat in una finestra"));
       }
       previewBtn.classList.toggle("on", State.previewOpen);
-      previewBtn.title = State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat");
+      tip(previewBtn, State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat"));
       autoBtn.classList.toggle("on", auto);
       const claudeMode = terminal && !auto && engineOf(State.chat) === "subscription" ? State.chat.mode : "";
       autoBtn.classList.toggle("mode", !!claudeMode);
@@ -2733,7 +2738,7 @@ export function buildPrompt(
       const labelEl = autoBtn.querySelector("span");
       if (labelEl && labelEl.textContent !== modeLabel) labelEl.textContent = modeLabel;
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
-      autoBtn.title = claudeMode === "plan"
+      tip(autoBtn, claudeMode === "plan"
         ? t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
         : claudeMode === "acceptEdits"
         ? t("Accetta modifiche: le modifiche ai file vanno senza chiedere, i comandi chiedono ancora. Clic: Piano")
@@ -2741,7 +2746,7 @@ export function buildPrompt(
         ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
           : t("Modalità di Claude Code. Clic: Accetta modifiche, poi Piano, poi Automatica, poi di nuovo Consenti / Nega"))
         : (auto ? t("Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega")
-          : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora"));
+          : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora")));
       // The conversation's title: as the history has it, else its first question.
       const known = lastList.find((x) => x.id === State.chat.logId)?.title;
       const fullTitle = known ?? State.chatHistory.find((m) => m.role === "user")?.content ?? "";

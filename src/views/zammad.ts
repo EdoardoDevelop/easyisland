@@ -9,12 +9,12 @@
 // redrawn here, so what is being typed keeps its caret; a draft is kept per
 // ticket. The counts and «Nuovo ticket» stay with the check (widgets.rs).
 
-import { h, brandOrDot, clear, clipMark } from "./dom";
+import { h, brandOrDot, clear, clipMark, headActions } from "./dom";
 import { State } from "../core/state";
 import { Bridge, onEvent, type TicketAdvice, type ZammadList, type ZammadTicket, type ZammadArticle, type ZammadOpt } from "../core/bridge";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
-import { timeAgo } from "./integrations";
+import { timeAgo, updatedAgo } from "./integrations";
 import { rdmActive, rdmLookFor } from "./rdm";
 
 export const ZAMMAD = "integration_zammad";
@@ -243,7 +243,7 @@ function draw(toBottom = false) {
 }
 
 function linkBtn(text: string, onclick: () => void, title?: string): HTMLElement {
-  return h("button", { class: "link-btn", style: `color:${COLOR}d9`, text, title: title ?? "",
+  return h("button", { class: "link-btn", text, title: title ?? "",
     onclick: (e: Event) => { e.stopPropagation(); onclick(); } });
 }
 
@@ -251,15 +251,15 @@ function head(): HTMLElement {
   const st = State.widgetStatus[ZAMMAD];
   return h("div", { class: "int-head zm-head" }, brandOrDot(ZAMMAD, COLOR, 7), h("b", { text: "Zammad" }),
     h("span", { class: "zm-sum", text: st?.summary ?? t("Ticket"), title: st?.summary ?? "" }),
-    st ? h("span", { class: "int-ago", text: timeAgo(st.at * 1000) }) : null,
-    h("span", { class: "zm-head-actions" },
-      linkBtn("↻", () => {
+    st ? updatedAgo(st.at * 1000) : null,
+    headActions(
+      linkBtn(t("Aggiorna"), () => {
         void Bridge.widgetRefresh(ZAMMAD);
         if (zm.openId) void openTicket(zm.openId, zm.openTitle);
         else void loadList();
-      }, t("Aggiorna")),
+      }),
       linkBtn(t("Apri Zammad"), () => void (zm.open ? Bridge.openUrl(zm.open.url) : Bridge.openZammad())),
-      h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"),
+      h("button", { class: "link-btn", text: t("Impostazioni…"),
         onclick: (e: Event) => { e.stopPropagation(); zm.openSettings(); } })));
 }
 
@@ -412,7 +412,7 @@ function detail(): HTMLElement {
       if (kindOf(v) === "pending") { zm.pendingState = v; draw(); } else setField("state_id", v);
     }, pendingBox),
     select(t("Proprietario"), d.owners, d.owner_id, (v) => setField("owner_id", v),
-      mine ? h("button", { class: "link-btn", style: `color:${COLOR}d9`, text: t("Assegna a me"),
+      mine ? h("button", { class: "link-btn", text: t("Assegna a me"),
         onclick: (e: Event) => { e.preventDefault(); e.stopPropagation(); setField("owner_id", d.me); } }) : null),
     d.priorities.length ? select(t("Priorità"), d.priorities, d.priority_id, (v) => setField("priority_id", v)) : null));
   statusEl = h("div", { class: "zm-saved" });

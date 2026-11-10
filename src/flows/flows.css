@@ -1,4 +1,7 @@
-/* The flows window (src/flows/main.ts): list | drawing + blocks | panel. */
+/* The flows window (src/flows/main.ts): list | drawing + blocks | panel.
+   Surfaces are Windows 11's, as in the island and Impostazioni: base --bg,
+   layer #242424, cards --card, 1 px --stroke. */
+html { --layer: #242424; }
 
 #flows-root.fl-root {
   display: grid;
@@ -11,7 +14,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #0f1013;
+  background: var(--bg, #202020);
   border-right: 1px solid var(--hairline);
 }
 
@@ -143,9 +146,30 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  padding-right: 10px;
+  border-right: 1px solid var(--hairline);
   color: var(--dim);
   white-space: nowrap;
 }
+
+/* Elimina: a quiet button next to Prova, red only when it asks for the second click. */
+.fl-del-flow:not(.danger) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  color: var(--dim) !important;
+}
+.fl-del-flow:not(.danger):hover { background: rgba(255, 255, 255, 0.06) !important; color: var(--ink) !important; }
+
+/* «Se non riesce»: folded under its title. */
+.fl-fail { display: flex; flex-direction: column; gap: 8px; }
+.fl-fail > summary {
+  margin: 10px 0 2px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: default;
+}
+.fl-fail[open] > summary { margin-bottom: 8px; }
 
 .fl-status {
   color: var(--dim);
@@ -180,9 +204,9 @@
   width: min(420px, 100%);
   padding: 10px 12px;
   border-radius: 12px;
-  background: #1e1f23;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  background: var(--card, #2b2b2b);
+  border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   position: relative;
 }
@@ -191,23 +215,39 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-.fl-card.picked {
-  border-color: var(--accent, #4cc2ff);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #4cc2ff) 35%, transparent);
-}
-
+/* The trigger and the last run's outcome: a 1 px tint of the whole border and,
+   for a run, a dot in the corner; never a thick coloured stripe. */
 .fl-card.trigger {
-  border-style: solid;
-  border-width: 1px 1px 1px 4px;
-  border-left-color: #4cc2ff;
+  border-color: color-mix(in srgb, var(--accent, #4cc2ff) 45%, transparent);
 }
 
 .fl-card.ran-ok {
-  border-left: 4px solid #22c55e;
+  border-color: rgba(34, 197, 94, 0.55);
 }
 
 .fl-card.ran-bad {
-  border-left: 4px solid #f4505e;
+  border-color: rgba(244, 80, 94, 0.6);
+}
+
+.fl-card.ran-ok::after,
+.fl-card.ran-bad::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.fl-card.ran-bad::after {
+  background: #f4505e;
+}
+
+.fl-card.picked {
+  border-color: var(--accent, #4cc2ff);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #4cc2ff) 35%, transparent);
 }
 
 .fl-card.dragging {
@@ -408,7 +448,7 @@
   gap: 6px 18px;
   padding: 10px 16px 12px;
   border-top: 1px solid var(--hairline);
-  background: #131417;
+  background: var(--layer, #242424);
 }
 
 .fl-pal-group {
@@ -443,8 +483,8 @@
   overflow-y: auto;
   padding: 6px;
   border-radius: 12px;
-  background: #222327;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #2c2c2c;
+  border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
@@ -487,7 +527,7 @@
   flex-direction: column;
   min-height: 0;
   border-left: 1px solid var(--hairline);
-  background: #131417;
+  background: var(--layer, #242424);
 }
 
 .fl-tabs {

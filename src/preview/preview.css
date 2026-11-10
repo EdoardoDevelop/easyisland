@@ -1,18 +1,20 @@
 /* The preview window: tabs on top, the bar, the content (where the browser
-   sits), the console below. Same dark palette as the memory window. */
+   sits), the console below. Windows 11's dark layers, as in the island,
+   Impostazioni and Flussi: base #202020, layer #242424, cards #2b2b2b,
+   1 px strokes, the system accent. */
 
 :root {
   color-scheme: dark;
-  --font: system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
-  --ink: #f5f6f8;
-  --dim: #9398a1;
-  --dim-2: #6b7079;
-  --bg: #0b0c10;
-  --bg-2: #101116;
-  --panel: #14151b;
+  --ink: #ffffff;
+  --dim: #c5c5c5;
+  --dim-2: #9d9d9d;
+  --bg: #202020;
+  --bg-2: #242424;
+  --panel: #2b2b2b;
   --hairline: rgba(255, 255, 255, 0.08);
-  --accent: #7c9cff;
+  --accent: var(--win-accent, #4cc2ff);
   --add: rgba(46, 160, 67, 0.18);
   --add-ink: #7ee2a0;
   --del: rgba(248, 81, 73, 0.16);
@@ -64,7 +66,7 @@ button {
   align-items: flex-end;
   gap: 2px;
   padding: 6px 8px 0;
-  background: #07080b;
+  background: #1c1c1c;
   border-bottom: 1px solid var(--hairline);
   min-height: 38px;
 }
@@ -242,7 +244,7 @@ button {
   padding: 0 12px;
   border: 1px solid var(--hairline);
   border-radius: 15px;
-  background: #07080b;
+  background: #1c1c1c;
   color: var(--ink);
   font: 12.5px var(--font);
   outline: none;
@@ -332,7 +334,7 @@ button {
 .pv-under {
   display: grid;
   place-items: center;
-  background: #1a1b21;
+  background: #2b2b2b;
 }
 
 .pv-wait {
@@ -485,7 +487,7 @@ button {
   padding: 10px 12px 10px 8px !important;
   text-align: right;
   color: var(--dim-2);
-  background: #090a0d;
+  background: #1c1c1c;
   border-right: 1px solid var(--hairline);
   user-select: none;
   position: sticky;
@@ -523,7 +525,7 @@ button {
 }
 .pv-comment-bar span { flex: 1; }
 .pv-d[data-i] { cursor: text; }
-.pv-d.said { box-shadow: inset 3px 0 0 #818cf8; }
+.pv-d.said { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pv-comment { padding: 4px 10px 6px 90px; }
 .pv-comment-input {
   width: 100%;
@@ -630,7 +632,7 @@ button {
   border: 1px solid var(--hairline);
   border-radius: 9px;
   overflow: hidden;
-  background: #07080b;
+  background: #1c1c1c;
 }
 
 .pv-md .md-pre-head {
@@ -664,7 +666,7 @@ button {
 .pv-md .md-quote {
   margin: 0 0 1em;
   padding: 2px 14px;
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--hairline);
   color: var(--dim);
 }
 
@@ -712,7 +714,7 @@ button {
 .pv-table th {
   position: sticky;
   top: -14px;
-  background: #1a1b21;
+  background: #2b2b2b;
 }
 
 .pv-rowno {
@@ -725,9 +727,9 @@ button {
 .pv-checker {
   display: grid;
   place-items: center;
-  background-color: #15161b;
-  background-image: linear-gradient(45deg, #1d1e24 25%, transparent 25%), linear-gradient(-45deg, #1d1e24 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #1d1e24 75%), linear-gradient(-45deg, transparent 75%, #1d1e24 75%);
+  background-color: #1f1f1f;
+  background-image: linear-gradient(45deg, #262626 25%, transparent 25%), linear-gradient(-45deg, #262626 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #262626 75%), linear-gradient(-45deg, transparent 75%, #262626 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
@@ -751,7 +753,7 @@ button {
   display: none;
   height: 220px;
   border-top: 1px solid var(--hairline);
-  background: #090a0d;
+  background: #1c1c1c;
   grid-template-rows: auto 1fr;
 }
 

@@ -84,7 +84,7 @@ interface Form {
 let panel: HTMLElement | null = null;
 
 /** The form, built once; `close` goes back to the card. */
-export function netConfigCard(color: string, close: () => void): HTMLElement {
+export function netConfigCard(close: () => void): HTMLElement {
   if (panel) {
     closeFn = close;
     // Put back into a rebuilt card: the field being typed in keeps the keyboard.
@@ -209,7 +209,7 @@ export function netConfigCard(color: string, close: () => void): HTMLElement {
   panel = h("div", { class: "int-card nc-card" },
     h("div", { class: "int-head" },
       h("b", { text: t("Rete") }), h("span", { text: t("Impostazioni della scheda") }),
-      h("button", { class: "link-btn nc-back", style: `color:${color}d9`, text: `← ${t("Indietro")}`, onclick: () => closeFn() })),
+      h("button", { class: "link-btn nc-back", text: `← ${t("Indietro")}`, onclick: () => closeFn() })),
     h("div", { class: "nc-row nc-top" }, label(t("Scheda")), choices),
     now,
     h("div", { class: "nc-row" }, label(t("Indirizzo")), addrSeg.el),

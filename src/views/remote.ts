@@ -10,7 +10,7 @@
 // password lives in its field until "Avvia connessione", then only in Rust's
 // memory; the field is emptied.
 
-import { h, brandOrDot, clear } from "./dom";
+import { h, brandOrDot, clear, headActions } from "./dom";
 import { State } from "../core/state";
 import { Bridge } from "../core/bridge";
 import { t } from "../core/i18n";
@@ -203,7 +203,7 @@ export function remoteCard(openSettings: () => void, openChat: () => void): HTML
   const trust = check(t("Aggiungi a TrustedHosts"), "trust", t("Solo per questa connessione: chiede l'amministratore e alla chiusura viene tolto"));
   const winrmOpts = h("div", { class: "nc-row" }, h("span", { class: "nc-label" }), https.el, trust.el);
   const startBtn = h("button", { class: "teams-btn light rm-start", text: t("Avvia connessione"), onclick: () => void start() }) as HTMLButtonElement;
-  const guideBtn = h("button", { class: "link-btn", style: "color:#8e939c", onclick: () => { form.guide = !form.guide; sync?.(); } });
+  const guideBtn = h("button", { class: "link-btn", onclick: () => { form.guide = !form.guide; sync?.(); } });
   const guideBox = h("div", { class: "rm-guide" });
   const formBox = h("div", { class: "rm-form" },
     h("div", { class: "nc-row" }, h("span", { class: "nc-label", text: t("Tipo") }), h("div", { class: "nc-seg" }, kindA, kindB)),
@@ -254,13 +254,13 @@ export function remoteCard(openSettings: () => void, openChat: () => void): HTML
 
   const status = h("span");
   const head = h("div", { class: "int-head" }, brandOrDot(REMOTE, COLOR, 7), h("b", { text: t("Accesso remoto") }), status,
-    h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
+    headActions(h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
   // Under an error: how to solve that one (the matching steps of «Se non va»).
   const fixBox = h("div", { class: "rm-fix" });
   const body = h("div", { class: "rec-body" }, formBox, liveBox, note, fixBox, guideArea);
   panel = h("div", { class: "int-card notion-card rm-card" }, head, body);
 
-  const copyBtn = (code: string) => h("button", { class: "link-btn", style: `color:${COLOR}`, text: t("Copia"),
+  const copyBtn = (code: string) => h("button", { class: "link-btn", text: t("Copia"),
     onclick: () => void navigator.clipboard.writeText(code).then(() => say(t("Copiato negli appunti ✓"), false), () => say(t("Copia non riuscita"))) });
   const drawSteps = (box: HTMLElement, steps: Step[]) => {
     steps.forEach((s, i) => {

@@ -277,7 +277,7 @@ function dailySection(): HTMLElement {
   });
   return h("section", {},
     h("h2", {}, h("span", { text: t("Riepilogo giornaliero degli agenti") })),
-    h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche non salvate e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
+    h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche da salvare in git e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
     h("div", { class: "row" },
       h("label", { text: t("Riepilogo") }),
       select<Settings["dailyRecap"]>(
@@ -1995,8 +1995,10 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const entries: { def: IntegrationDef; el: HTMLElement; text: string; refresh: () => void; open: (on: boolean) => void }[] = [];
 
   function updateNote() {
-    const used = settings.activeIntegrations.length;
-    note.textContent = t("Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive). Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
+    // Only the integrations listed here (the setting can hold widgets and old ids too),
+    // so the total agrees with the groups' «n di m attive» below.
+    const used = INTEGRATIONS.filter((d) => settings.activeIntegrations.includes(d.id)).length;
+    note.textContent = t("Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive in tutto). Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
   }
 
   for (const def of INTEGRATIONS) {

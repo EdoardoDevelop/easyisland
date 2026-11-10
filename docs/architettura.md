@@ -165,6 +165,9 @@ Impostazioni → Aspetto → Tema → Stile (`theme.style`, nei profili): **Wind
 - Icone a linea per integrazioni senza logo (`LINE_ICONS` in `icons.ts`, via `markIcon`) e voci fisse (`LINE_SECTIONS`); loghi ed emoji dell'utente restano; ridisegno al cambio di stile.
 - Restano dal Classico: loghi sbiaditi della Panoramica, colori, personaggi, animazioni.
 - Impostazioni: nome a sinistra, controllo a destra, `.note` sotto; controlli come Windows; barra del titolo scura (`.theme(Dark)`).
+- Una sola tavolozza (10/11/2026): isola, Impostazioni, Flussi (`flows.css`) e Anteprima (`preview.css`) usano i livelli del Windows 11 (base `#202020`, livello `#242424`, schede `#2b2b2b`, bordo 1 px `--stroke`, accento di sistema). Niente strisce colorate a sinistra di schede e righe: bordo 1 px tinto o pallino.
+- Menu a sinistra (`rail.ts`): nessuna voce accesa per le viste che non sono del menu (`NOWHERE`: momenti, riepilogo, giornata, proposte, ricerca); con la ricerca aperta nemmeno (`:has(#search.open)`). Elenco più lungo dell'isola: l'ultima riga sfuma (`.rail-list.more`). Nome lungo: puntini e tooltip.
+- Pulsanti solo icona: `title` e `aria-label` insieme (`h()` in `dom.ts` li copia; `tip()` per i tooltip che cambiano). Tessere della Panoramica: logo in basso a destra, in un margine dove il testo non arriva.
 - Anteprima: `?ui=classic`, `?scheme=light`; `SHOT_QUERY=ui=classic SHOT_DIR=… node scripts/screenshots.mjs`. Schermate del README in Windows 11.
 
 ## Modalità chiara e scura

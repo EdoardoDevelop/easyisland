@@ -4813,5 +4813,20 @@
   "quello che c'è da sapere": "what you need to know",
   "Notizie.": "News.",
   "{name} si è fermato con un errore.": "{name} stopped with an error.",
-  "{name} ha raggiunto un limite.": "{name} hit a limit."
+  "{name} ha raggiunto un limite.": "{name} hit a limit.",
+  "Elimina questo flusso": "Delete this flow",
+  "Console · 1 errore": "Console · 1 error",
+  "Console · {n} errori": "Console · {n} errors",
+  "Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche da salvare in git e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.": "In the morning (from 8) the agents' time yesterday, at the end of the day today's; in both, the repositories with uncommitted changes and the pull requests waiting (with gh or the GitHub token). It opens once, only when there is something to say. The repositories are the ones the agents worked in: only their path is kept, on this PC.",
+  "Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive in tutto). Le chiavi restano in Gestione credenziali di Windows, mai su disco.": "Choose which integrations to show in the island's menu ({n} on in all). Keys stay in Windows Credential Manager, never on disk.",
+  "Schede salvate ({n})": "Saved records ({n})",
+  "Schede salvate": "Saved records",
+  "Modifiche da salvare in git": "Uncommitted changes",
+  "aggiornato adesso": "updated just now",
+  "aggiornato {ago} fa": "updated {ago} ago",
+  "Altre azioni": "More actions",
+  "Altre azioni per «{name}»": "More actions for “{name}”",
+  "fissato": "pinned",
+  "Riattiva i suoni": "Turn sounds back on",
+  "C": "Y"
 }

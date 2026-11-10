@@ -34,6 +34,14 @@ export function timeAgo(value: unknown): string {
   return t("{n}g", { n: Math.floor(diff / 86400) });
 }
 
+/** «aggiornato 5m fa»: the freshness every integration card shows after its name. */
+export function updatedAgo(value: unknown): HTMLElement {
+  const ago = timeAgo(value);
+  const text = !ago ? "" : ago === t("adesso") ? t("aggiornato adesso") : t("aggiornato {ago} fa", { ago });
+  return h("span", { class: "int-ago", text });
+}
+
+
 /** Card titles that are not the task's own name, mapped to the brand logo's id. */
 const BRAND_BY_NAME: Record<string, string> = {
   Vercel: "integration_vercel", Resend: "integration_resend", GitHub: "integration_github", Stripe: "integration_stripe",
@@ -42,7 +50,7 @@ const BRAND_BY_NAME: Record<string, string> = {
 
 function header(color: string, name: string, kind: string, extra?: Node): HTMLElement {
   const id = BRAND_BY_NAME[name] ?? State.tasks.find((t) => t.name === name)?.id ?? "";
-  const row = h("div", { class: "int-head" }, brandOrDot(id, color, 7), h("b", { text: name }), h("span", { text: kind }));
+  const row = h("div", { class: "int-head" }, brandOrDot(id, color, 7), h("b", { text: name }), kind ? h("span", { text: kind }) : null);
   if (extra) row.append(extra);
   return row;
 }
@@ -139,7 +147,7 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
     );
   } else {
     actions.append(
-      h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }),
+      h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings }),
     );
   }
 
@@ -677,7 +685,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
   const sub = () => (notion.query.trim().length >= 2 ? t("Risultati")
     : data.tasksSet ? (dueCount() ? t("{n} da fare oggi", { n: dueCount() }) : t("In ordine")) : t("Le tue pagine"));
   const noteBtn = cfg.notionInbox
-    ? h("button", { class: "link-btn notion-new", style: "color:#E8E8E8d9", text: `+ ${t("Nota")}`, title: t("Nuova nota in «{p}»", { p: cfg.notionInbox.title }),
+    ? h("button", { class: "link-btn notion-new", text: `+ ${t("Nota")}`, title: t("Nuova nota in «{p}»", { p: cfg.notionInbox.title }),
       onclick: () => { notion.noteOpen = !notion.noteOpen; notion.noteState = ""; notion.redraw?.(); } })
     : undefined;
   const head = header("#E8E8E8", "Notion", sub(), noteBtn);
@@ -836,7 +844,7 @@ function clipboardCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElemen
   ensureLoaded(task.id);
   const items = arr(task.id, "items");
   const extra = items.some((i) => !i.pinned)
-    ? h("button", { class: "link-btn clip-clear", style: "color:#8e939c", text: t("Svuota"),
+    ? h("button", { class: "link-btn clip-clear", text: t("Svuota"),
       onclick: () => void Bridge.clipboardClear() })
     : undefined;
   const rows = h("div", { class: "int-rows tight clip-list" });
@@ -1004,8 +1012,8 @@ const WIDGET_KIND: Record<string, string> = {
 
 const LEVEL_COLOR = { ok: "#22C55E", warn: "#F5A524", error: "#F4505E" } as const;
 
-function copyInfoButton(color: string): HTMLElement {
-  const b = h("button", { class: "link-btn", style: `color:${color}d9`, text: t("Copia info PC") }) as HTMLButtonElement;
+function copyInfoButton(): HTMLElement {
+  const b = h("button", { class: "link-btn", text: t("Copia info PC") }) as HTMLButtonElement;
   b.addEventListener("click", async () => {
     b.disabled = true;
     b.textContent = t("Raccolgo…");
@@ -1043,23 +1051,24 @@ function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () =
   return h(
     "div",
     { class: "int-card" },
-    header(task.color, task.name, isWidget ? WIDGET_KIND[kind] ?? "Widget" : t("Integrazione"),
-      st ? h("span", { class: "int-ago", text: timeAgo(st.at * 1000) }) : undefined),
+    // An integration says only how fresh it is; a widget also its kind (Ping, Porta…).
+    header(task.color, task.name, isWidget ? WIDGET_KIND[kind] ?? "Widget" : "",
+      st ? updatedAgo(st.at * 1000) : undefined),
     h("div", { class: "int-status wrap" }, dot(color, 5),
       h("span", { text: st?.summary ?? t("In attesa del primo controllo…") })),
     rows,
     // Rete: a continuous ping in a terminal, and the adapter's settings.
     kind === "network" ? pingRow(task.color) : null,
     h("div", { class: "int-actions" },
-      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Aggiorna"),
+      h("button", { class: "link-btn", text: t("Aggiorna"),
         onclick: () => void Bridge.widgetRefresh(id) }),
       kind === "network" && openDetail
-        ? h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Modifica rete…"),
+        ? h("button", { class: "link-btn", text: t("Modifica rete…"),
           onclick: () => { resetNetConfig(); openDetail(); } })
         : null,
       // Everything a ticket asks for (name, serial, IP, Windows…), one click.
-      kind === "system" || kind === "network" ? copyInfoButton(task.color) : null,
-      h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }),
+      kind === "system" || kind === "network" ? copyInfoButton() : null,
+      h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings }),
     ),
   );
 }
@@ -1093,7 +1102,7 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
     const card = weatherCard(task, hooks.openSettings);
     if (card) return card;
   }
-  if (task.id === "integration_network" && hooks.detailOpen) return netConfigCard(task.color, hooks.closeDetail);
+  if (task.id === "integration_network" && hooks.detailOpen) return netConfigCard(hooks.closeDetail);
   if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) {
     return widgetCard(task, hooks.openSettings, task.id === "integration_network" ? hooks.openDetail : undefined);
   }

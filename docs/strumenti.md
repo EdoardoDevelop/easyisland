@@ -9,12 +9,13 @@
 - Copie nell'inbox, svuotata a ogni avvio. Le funzioni accettano solo nomi semplici dentro l'inbox.
 - **Fissati** (puntina, `inbox_keep`): restano a riavvio e «Svuota»; nomi in `inbox-kept.json` accanto all'inbox. Solo l'utente fissa.
 - Trascinamento verso altre app: `drag_out` → `SHDoDragDrop`. Griglia/elenco in `localStorage`.
+- Azioni di riga (`upload.ts`): «Chiedi alla chat» e «Apri» in vista, il resto (Mostra nella cartella, Sposta nella cartella di lavoro, Tieni/Non tenere più, Togli dal vassoio) nel menu «⋯» (`showMenu` di `ctxmenu.ts`); icone neutre, senza colori per azione.
 - Zona appena aggiunta da Riquadra e chiedi (`State.trayFresh`, 5 min) in cima con «Chiedi» (`askAboutPicture`) e «Copia» (`inbox_copy`). Scena `files&fresh`.
 
 ## Cartella di lavoro (`workdir.rs`, `src/views/workdir.ts`)
 - **È `settings.chatFolder`**, la stessa della Modalità terminale. «Scegli…» (`pick_folder`, `IFileOpenDialog`) in «File e schermo» o Impostazioni → Chat. Vuota/inesistente = nessuna (il terminale usa la cartella utente).
 - In «File e schermo» sotto il Vassoio: percorso cliccabile, «..», doppio clic per entrare/aprire, trascinamento fuori (anche cartelle), «+» cartella, Esplora file. Per voce: Chiedi alla chat, Apri, «⋯» Rinomina, Sposta…, Nel Vassoio, Mostra in Esplora file, Copia percorso, Cestino (due clic). Sottocartella in `localStorage`, riletta ogni 5 s a schermo; niente nascosti/sistema; max 500 voci.
-- Dal Vassoio l'icona verde sposta nella cartella aperta (`inbox_to_work`; fra dischi copia e toglie).
+- Dal Vassoio «⋯» → «Sposta nella cartella di lavoro» sposta nella cartella aperta (`inbox_to_work`; fra dischi copia e toglie).
 - **Sicurezza:** percorsi relativi controllati da `resolve` (niente `..`, unità, collegamenti che escono). Cestino di Windows (`SHFileOperationW`, `FOF_ALLOWUNDO`). Gli strumenti dei modelli leggono e spostano, non eliminano; modifiche e cancellazioni solo dalla Modalità terminale.
 - **Chat:** `list_work_folder` (sola lettura, senza chiedere) e `move_to_work_folder` (chiede). Claude Code la riceve con `--add-dir` sempre, opencode con `external_directory`. **Telegram:** `/cartella` e «Sposta nella cartella di lavoro» sotto un file ricevuto.
 - Anteprima: scena `files` (`Bridge.workList` finto). Test: `cargo test --lib workdir::`.

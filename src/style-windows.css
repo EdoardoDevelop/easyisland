@@ -23,6 +23,8 @@ html[data-ui="windows"] {
   --tab-on: rgba(255, 255, 255, 0.06);
   --hairline: rgba(255, 255, 255, 0.07);
   --stroke: rgba(255, 255, 255, 0.08);
+  /* Text links (the cards' actions) in the system accent. */
+  --link: var(--accent);
 }
 
 /* A thin border, as every Windows 11 surface has. */
@@ -205,6 +207,10 @@ html[data-ui="windows"] .md-copy:hover { background: color-mix(in srgb, var(--ac
 html[data-ui="windows"] .second-head,
 html[data-ui="windows"] .clip-btn.on { color: var(--accent); }
 html[data-ui="windows"] .chip { border-radius: 4px; }
+html[data-ui="windows"] .reply.md.second {
+  border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
 
 /* ── Quick actions: each keeps its own colour, on Windows' square-ish button ── */
 

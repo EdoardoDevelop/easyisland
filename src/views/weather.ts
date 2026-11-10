@@ -215,6 +215,6 @@ export function weatherCard(task: AgentTask, openSettings: () => void): HTMLElem
     h("div", { class: "wx-label", text: t("Prossimi giorni") }),
     days,
     h("div", { class: "int-actions" },
-      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Aggiorna"), onclick: () => void Bridge.widgetRefresh(task.id) }),
-      h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings })));
+      h("button", { class: "link-btn", text: t("Aggiorna"), onclick: () => void Bridge.widgetRefresh(task.id) }),
+      h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
 }

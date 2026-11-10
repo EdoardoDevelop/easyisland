@@ -82,7 +82,7 @@ export function buildDaily(actions: ViewActions): ViewHost {
       );
       if (s.linesAdded + s.linesRemoved > 0) chips.append(chip(`+${formatCount(s.linesAdded)} / −${formatCount(s.linesRemoved)}`, t("righe")));
     }
-    const repos = list(t("Modifiche non salvate"), s.digest.repos.map((r) =>
+    const repos = list(t("Modifiche da salvare in git"), s.digest.repos.map((r) =>
       row(r.name, `${r.branch ? `${r.branch} · ` : ""}${repoLine(r)}`, r.path, () => void Bridge.actionOpenApp(r.path, "").catch(() => {}))));
     const prs = s.digest.prs ?? [];
     const review = list(t("Pull request da rivedere"), prs.filter((p) => p.review).map((p) =>

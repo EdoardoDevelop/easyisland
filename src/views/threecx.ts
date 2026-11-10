@@ -1005,7 +1005,7 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
       h("div", { class: "int-status wrap" }, dot(info?.error ? RED : "#5b5f67", 5),
         h("span", { text: info?.error ?? (configured ? t("Collegamento a 3CX…") : t("Collego il centralino…")) })),
       h("div", { class: "int-actions" },
-        h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings })),
+        h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })),
     );
     return card;
   }

@@ -379,8 +379,10 @@ select {
   max-width: 100%;
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--dim-2);
+  opacity: 1;
 }
 
 /* Shortcut fields: click, then press the keys (hotkeyInput in main.ts). */

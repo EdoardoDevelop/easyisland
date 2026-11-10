@@ -13,7 +13,7 @@
 // field lives outside it (`composer`) and is moved into each new card, its
 // text, cursor and focus kept.
 
-import { h, brandOrDot, clipMark } from "./dom";
+import { h, brandOrDot, clipMark, headActions } from "./dom";
 import { State } from "../core/state";
 import { Bridge, onEvent } from "../core/bridge";
 import { renderMarkdown } from "../core/markdown";
@@ -535,7 +535,7 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
   const listening = d.listening !== false;
   const head = h("div", { class: "int-head" }, brandOrDot(AGENTCHAT, COLOR, 7), h("b", { text: "Agent Chat" }),
     h("span", { text: agentchatLine() }),
-    h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
+    headActions(h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
   const body = h("div", { class: "ac-body" });
   if (!d.configured) {
     body.append(h("div", { class: "hint rec-hint", text: t("Collega EasyIsland alla tua Agent Chat: serve il server (si installa con Docker) e un token creato nella sua pagina «Agenti». Indirizzo e token in Impostazioni → Integrazioni → Agent Chat.") }));

@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 10/11 — Revisione di design di tutte le finestre
+Critica Impeccable (25/40) su 54 schermate, poi tutto sistemato con Edoardo: una tavolozza Windows 11 per isola, Memoria, Anteprima, Flussi; Memoria con etichette mai sovrapposte (`src/memory/labels.ts`, `?many=300`), barra su una riga, `[[link]]` cliccabili; fumetto in alto con il problema in corso; contenuto delle card dall'alto (prima al centro, 14/10); card delle integrazioni con un solo stile di intestazione e link; Vassoio con ⋯; nomi accessibili sui pulsanti a icona; tasto «C» per Consenti (Y resta). Restano: emoji nei Flussi, testi d'aiuto lunghi nelle Impostazioni.
+
 ### 9/11 — Agent Chat: token nel campo sbagliato, log senza segreti
 Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»: ora `agentchat.rs` lo riconosce dai prefissi `ac_`/`ow_` e lo dice (`misplaced`, `hello`, `owner_send`). `easyisland.log` aveva il `Bearer` di un comando di opencode: `log::mask` su ogni riga e `log::scrub_once` sul log vecchio. `docs/integrazioni.md`, `docs/architettura.md` → Robustezza.
 
@@ -61,6 +64,3 @@ Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»
 
 ### 9/11 — Isola bloccata da un percorso di rete in chat
 Dump di un AppHangB1: thread principale in `CreateFile` su `\\192.168.0.250\c` (server Imec non raggiungibile), scritto in una chat. `paths_info` era sincrono. Ora `paths_info`, `path_action`, `is_folder`, `file_open`, `preview_external` sono async con `spawn_blocking`, e `chatpaths.rs` guarda i percorsi di rete per massimo 1,5 s, poi salta quel server per 2 minuti (test `a_dead_server_does_not_hold_the_caller`). `docs/chat.md` → Anteprima, `docs/architettura.md` → Robustezza.
-
-### 9/11 — Terminale vero (1.0.36), nel pannello; chat in finestra ingrandita
-Il «Terminale» della chat si apre nel pannello dell'Anteprima (da solo o sotto la pagina, `State.chatTermOpen`, `placeTerminal`, `paneTermTop`) e segue la chat nella finestra staccata (`data-follows-view`). La chat in finestra si apre ingrandita (`popout_maximize`). Poi terminale vero: ConPTY in `terminal.rs` (test con una shell vera) e xterm.js in `chat-terminal.ts`, unica dipendenza nuova (`docs/decisioni.md`). Disegno della chat vuota che riparte da solo (`chat-empty.ts`). `docs/chat.md` → Terminale.

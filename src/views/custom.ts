@@ -403,8 +403,8 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
     clear(tabs);
     if (hasData) tab("data", t("Dati"));
     if (hasForm) {
-      tab("form", d.record ? t("Scheda") : t("Nuova"));
-      tab("list", d.records ? t("Salvate ({n})", { n: d.records.length }) : t("Salvate"));
+      tab("form", d.record ? t("Scheda") : t("Nuova scheda"));
+      tab("list", d.records ? t("Schede salvate ({n})", { n: d.records.length }) : t("Schede salvate"));
     }
     clear(body);
     if (d.tab === "data" && hasData) body.append(dataView());

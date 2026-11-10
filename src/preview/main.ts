@@ -208,7 +208,7 @@ function drawBar(): void {
   segment(schemeBox, SCHEMES, state.view.scheme, (id) => void Bridge.previewView(state.view.preset, id, state.view.width, state.view.height));
   consoleBtn.style.display = tab?.browser ? "" : "none";
   const errors = tab?.errors ?? 0;
-  consoleBtn.textContent = errors > 0 ? `${t("Console")} · ${errors}` : t("Console");
+  consoleBtn.textContent = errors === 1 ? t("Console · 1 errore") : errors > 1 ? t("Console · {n} errori", { n: errors }) : t("Console");
   consoleBtn.classList.toggle("bad", errors > 0);
   consoleBtn.classList.toggle("on", consoleOpen);
   moreBtn.disabled = !tab;

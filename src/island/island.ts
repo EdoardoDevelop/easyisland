@@ -2007,7 +2007,7 @@ ${note}` : text };
   /**
    * Keys inside the open island (only when it has the keyboard: the chat, or
    * opened by a shortcut). Buttons with `data-key` in the view on screen answer
-   * to that key (N / Y / S on a permission, 1–9 on a question); ← → move between
+   * to that key (N / C or Y / S on a permission, 1–9 on a question); ← → move between
    * pills, ↑ ↓ scroll the view's list; Ctrl+N new chat, Ctrl+P keep open.
    */
   private onIslandKey(e: KeyboardEvent) {
@@ -2026,7 +2026,8 @@ ${note}` : text };
       return;
     }
     if (typing || ctrl || e.altKey || e.repeat) return;
-    const button = this.viewsEl.querySelector<HTMLElement>(`.view.on [data-key="${CSS.escape(key)}"]`);
+    const k = CSS.escape(key);
+    const button = this.viewsEl.querySelector<HTMLElement>(`.view.on :is([data-key="${k}"], [data-key-alt="${k}"])`);
     if (button) {
       e.preventDefault();
       button.click();
