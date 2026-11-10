@@ -209,7 +209,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `greeting` | il saluto all'avvio | — |
 | `compact` | la barra compatta | da usare con `hoverStyle=bar&revealDuration=0` |
 | `strip` | la striscia dell'isola chiusa | `strip=approval\|call\|live\|work\|app`; con `compactStrip=left` sta a sinistra |
-| `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many` |
+| `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many`; `gruppi` (due gruppi nel menu, uno aperto e uno chiuso) |
 | `files` | il Vassoio | `fresh`: una zona appena aggiunta |
 | `approval` | il permesso con il tempo rimasto | — |
 | `chat` | la chat | `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi agent al lavoro, `pensa=squadra-fine` con la risposta controllata) |
@@ -234,7 +234,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `diff` | le modifiche di Claude Code, dal gestore vero degli hook | — |
 | `agents` | Codex e Gemini CLI come li manda il relay | — |
 | `agenti` | la scheda Agenti | `claude`: l'altro pulsante |
-| `custom` | un'integrazione personale | `dati` |
+| `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`) |
 | `documento` | la chat chiede di creare un documento Word (card Consenti/Nega di `document_create`) | — |
 | `pdf` | la chat chiede di unire dei PDF (card Consenti/Nega di `pdf_merge`) | — |
 | `chat&background` | lavori lasciati in background da Claude Code sotto la conversazione, con ✕ e «Ferma tutto» | — |

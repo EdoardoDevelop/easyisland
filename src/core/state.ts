@@ -641,6 +641,8 @@ export interface Settings {
   pillOrder: string[];
   /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged (per profile). */
   tabOrder: string[];
+  /** Groups of the island's menu, made by dropping an integration on another (per profile, src/core/menu-groups.ts). */
+  menuGroups: MenuGroup[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
   /** The one field in the open island's top bar (src/views/search.ts). */
@@ -1335,6 +1337,7 @@ export const DEFAULT_SETTINGS: Settings = {
   integrationTabIcons: {},
   integrationColors: {},
   pillOrder: [],
+  menuGroups: [],
   tabOrder: [],
   lockOrder: false,
   searchBar: true,
@@ -1994,9 +1997,30 @@ export interface Skill {
   body: string;
 }
 
+/** A group of the island's menu: integrations dropped one on another, as on a phone. */
+export interface MenuGroup {
+  id: string;
+  name: string;
+  /** Task ids, in the group's order. */
+  items: string[];
+  /** Its rows shown under it. */
+  open?: boolean;
+  /** The folder's colour, "#rrggbb" (yellow when empty). */
+  color?: string;
+}
+
 /** An integration made by the user from the chat (custom.rs): a description, never code. */
-export interface CustomColumn { id: string; label: string; kind: string; options: string[]; formula?: string; format?: string }
-export interface CustomField {
+/** link: picked from `source`'s records, searched as you type; `fill` copies their values. */
+export interface CustomLink {
+  /** The integration whose records are picked from. */
+  source?: string;
+  /** Target field (or column) → a field of the record picked, or a template "{{cap}} {{citta}}". */
+  fill?: Record<string, string>;
+  /** A value written by hand goes into `source` when the record is saved. */
+  remember?: boolean;
+}
+export interface CustomColumn extends CustomLink { id: string; label: string; kind: string; options: string[]; formula?: string; format?: string }
+export interface CustomField extends CustomLink {
   id: string;
   label: string;
   kind: string;
@@ -2011,8 +2035,6 @@ export interface CustomField {
   digits?: number;
   /** Shown only when: "urgente" or "pagamento=Bonifico". */
   showIf?: string;
-  /** link: the integration whose records are picked from. */
-  source?: string;
   /** Summed or counted in the list of the saved records. */
   summary?: boolean;
   /** computed: money (default), number, percent, text, date, yesno. */

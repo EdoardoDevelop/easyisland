@@ -12,6 +12,10 @@ export interface MenuItem {
   sep?: boolean;
   danger?: boolean;
   disabled?: boolean;
+  /** A colour shown as a round dot before the label (a choice of colour). */
+  swatch?: string;
+  /** The current choice: a check after the label. */
+  checked?: boolean;
 }
 
 let open: HTMLElement | null = null;
@@ -37,9 +41,16 @@ export function showMenu(host: HTMLElement, x: number, y: number, title: string,
   for (const it of items) {
     if (it.sep) menu.append(h("div", { class: "ctx-sep" }));
     const b = h("button", {
-      class: `ctx-item${it.danger ? " danger" : ""}`, role: "menuitem", text: it.label,
+      class: `ctx-item${it.danger ? " danger" : ""}${it.swatch ? " swatched" : ""}`,
+      role: it.checked === undefined ? "menuitem" : "menuitemradio", text: it.swatch || it.checked !== undefined ? "" : it.label,
+      ...(it.checked !== undefined ? { "aria-checked": String(it.checked) } : {}),
       ...(it.disabled ? { disabled: "true" } : {}),
     });
+    if (it.swatch || it.checked !== undefined) {
+      if (it.swatch) b.append(h("span", { class: "ctx-swatch", style: `background:${it.swatch}` }));
+      b.append(h("span", { text: it.label }));
+      if (it.checked) b.append(h("span", { class: "ctx-check", text: "✓" }));
+    }
     // Not a press on the island: no drag, no opening, no closing.
     b.addEventListener("pointerdown", (e) => e.stopPropagation());
     b.addEventListener("click", (e) => {

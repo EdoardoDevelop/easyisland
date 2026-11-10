@@ -5756,6 +5756,31 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   border-radius: 50%;
 }
 .rail-list .rail-item.dragging { opacity: 0.7; }
+/* Groups of the menu (rail.ts, core/menu-groups.ts): a folder, the name, the
+   chevron; its rows indented under it when open. */
+.rail-group { --c: #f5a524; }
+.rail-chevron { flex: 0 0 auto; display: grid; place-items: center; color: var(--dim-3); transition: transform 0.15s ease-out; }
+.rail-chevron.open { transform: rotate(90deg); }
+.rail-member { padding-left: 21px; }
+.rail-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--win-accent, #4cc2ff) 70%, transparent);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+/* Let go here, it goes into this row's group (or makes one with it). */
+.rail-item.merge-target {
+  background: color-mix(in srgb, var(--win-accent, #4cc2ff) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--win-accent, #4cc2ff) 70%, transparent);
+}
+html[data-scheme="light"] .rail-rename { background: #fff; }
 /* Dragged out of the island (rail.ts tearable, sortable out): let go there, it becomes a window. */
 .rail-fixed .rail-item.dragging { opacity: 0.7; }
 .rail-item.tearing { opacity: 0.45; outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: -2px; }
@@ -6015,6 +6040,10 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .ctx-item:hover { background: rgba(255, 255, 255, 0.08); }
 .ctx-item:disabled { opacity: 0.4; }
 .ctx-item.danger { color: var(--red); }
+/* A choice of colour (a group of the menu): a dot, the name, a check on the current one. */
+.ctx-item.swatched, .ctx-item[role="menuitemradio"] { display: flex; align-items: center; gap: 8px; }
+.ctx-swatch { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
+.ctx-check { margin-left: auto; padding-left: 12px; color: var(--dim); }
 .ctx-sep {
   height: 1px;
   margin: 4px 6px;
@@ -6538,6 +6567,40 @@ textarea.custom-input { resize: vertical; }
 .custom-rows { display: flex; flex-direction: column; gap: 4px; }
 .custom-table { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)) 22px; gap: 4px; align-items: center; }
 .custom-th { font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-3); }
+/* A link searched as you type (src/views/custom-link.ts): the matches in the
+   flow under the box (the card's body scrolls: a floating list would be cut). */
+.custom-pick { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.custom-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.custom-pick-row { grid-column: 1 / -1; }
+.custom-pick-row:has(> .custom-pick-list[style*="none"]) { display: none; }
+.custom-pick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: default;
+}
+.custom-pick-item:hover, .custom-pick-item.on { background: color-mix(in srgb, var(--c, #38bdf8) 16%, transparent); }
+.custom-pick-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 calc(12px + var(--fs-up, 0px)) var(--font); }
+.custom-pick-detail { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
+.custom-pick-detail:empty { display: none; }
+.custom-pick-new { padding: 5px 8px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
+html[data-scheme="light"] .custom-pick-list { border-color: rgba(0, 0, 0, 0.1); background: rgba(0, 0, 0, 0.03); }
 .custom-del { width: 20px; height: 20px; }
 .custom-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 4px; }
 .custom-note { grid-column: 1 / -1; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); }

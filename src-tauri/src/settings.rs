@@ -397,6 +397,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "characterBubble",
     "pillOrder",
     "tabOrder",
+    "menuGroups",
     "anchorV",
     "anchorH",
     "offsetX",
@@ -670,6 +671,10 @@ pub struct Settings {
     /// "tab:drop") and integrations, as dragged in the island.
     #[serde(default)]
     pub tab_order: Vec<String>,
+    /// Groups of the island's menu, made by dropping an integration on another:
+    /// `{ id, name, items: [ids], open }` (src/views/rail.ts).
+    #[serde(default)]
+    pub menu_groups: Vec<Value>,
     /// No dragging pills and tabs around in the island. Belongs to the PC.
     #[serde(default)]
     pub lock_order: bool,
@@ -1204,6 +1209,7 @@ impl Default for Settings {
             integration_tab_icons: serde_json::Map::new(),
             integration_colors: serde_json::Map::new(),
             pill_order: Vec::new(),
+            menu_groups: Vec::new(),
             tab_order: Vec::new(),
             lock_order: false,
             search_bar: true,
