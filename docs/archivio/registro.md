@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 9/11 — Agent Chat: token nel campo sbagliato, log senza segreti
+Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»: ora `agentchat.rs` lo riconosce dai prefissi `ac_`/`ow_` e lo dice (`misplaced`, `hello`, `owner_send`). `easyisland.log` aveva il `Bearer` di un comando di opencode: `log::mask` su ogni riga e `log::scrub_once` sul log vecchio. `docs/integrazioni.md`, `docs/architettura.md` → Robustezza.
+
 ### 9/11 — Indice della memoria in RAM
 `brain::Index`: pagine e grafo tenuti in RAM per cartella e rifatti solo quando cambia un file (percorso, ora, dimensione) o la lingua; i `.md` restano la fonte, niente database (deciso con Edoardo). Test `the_index_follows_the_files`. Sistemata una gara fra il test degli hook (cambia USERPROFILE) e quello del terminale. `docs/chat.md` → Secondo cervello.
 

@@ -4835,5 +4835,20 @@
   "Animazioni": "Animations",
   "Ricche": "Rich",
   "Sobrie": "Subtle",
-  "Ricche: ogni clic risponde con un'onda di luce e, quando si aprono isola, finestre e schermate, i contenuti entrano uno dopo l'altro. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie": "Rich: every click answers with a ripple of light and, when the island, windows and screens open, their contents come in one after another. Subtle: short fades only. Off: no motion. With Windows «Reduce animations» on, Rich becomes Subtle"
+  "Ricche: ogni clic risponde con un'onda di luce e, quando si aprono isola, finestre e schermate, i contenuti entrano uno dopo l'altro. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie": "Rich: every click answers with a ripple of light and, when the island, windows and screens open, their contents come in one after another. Subtle: short fades only. Off: no motion. With Windows «Reduce animations» on, Rich becomes Subtle",
+  "Cosa cambia:": "What changes:",
+  "Nessun campo tolto o cambiato.": "No field removed or changed.",
+  "Le schede salvate restano; la versione di prima viene copiata in integrazioni\\versioni.": "Saved records stay; the previous version is copied to integrazioni\\versioni.",
+  "Integrazione «{name}» aggiornata. Versione di prima in {path}.": "Integration “{name}” updated. Previous version in {path}.",
+  "Cosa è cambiato (dillo all'utente):": "What changed (tell the user):",
+  "Tolto il campo «{label}» ({id}), compilato nelle schede salvate: {n}. Lì il valore non si vedrà più, e si perde se una di quelle schede viene salvata di nuovo.": "Removed the field “{label}” ({id}), filled in saved records: {n}. There its value will no longer show, and it is lost if one of those records is saved again.",
+  "Tolto il campo «{label}» ({id}).": "Removed the field “{label}” ({id}).",
+  "Il campo «{label}» cambia tipo: da {a} a {b}.": "The field “{label}” changes type: from {a} to {b}.",
+  "Il numeratore «{label}» cambia prefisso da «{a}» a «{b}»: la numerazione riparte per il prefisso nuovo, le schede salvate tengono il loro numero.": "The counter “{label}” changes prefix from “{a}” to “{b}”: numbering restarts for the new prefix, saved records keep their number.",
+  "Tolta la colonna «{col}» dalla tabella «{label}».": "Removed the column “{col}” from the table “{label}”.",
+  "Campi nuovi (vuoti nelle schede salvate): {list}.": "New fields (empty in saved records): {list}.",
+  "Il modello del documento è molto più corto: da {a} a {b} caratteri.": "The document template is much shorter: from {a} to {b} characters.",
+  "Cambia il modello del documento ({a} → {b} caratteri).": "The document template changes ({a} → {b} characters).",
+  "Tolta l'azione «{label}».": "Removed the action “{label}”.",
+  "Cambia lo script dell'azione «{label}».": "The script of the action “{label}” changes."
 }

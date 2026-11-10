@@ -275,22 +275,25 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
     }
     case "custom_create":
     case "custom_update": {
-      // Only when it holds a script: the rest reads well as it always did.
       let def = input.definition as { name?: string; actions?: { kind?: string; label?: string; script?: string }[] } | string | undefined;
       if (typeof def === "string") {
         try {
           def = JSON.parse(def) as { name?: string };
         } catch {
-          return null;
+          def = undefined;
         }
       }
+      // An update: what it changes, worked out by custom.rs on the real description and records (`annotate`).
+      const changes = Array.isArray(input._changes) ? (input._changes as unknown[]).map(String) : null;
       const scripts = (def as { actions?: { kind?: string; label?: string; script?: string }[] } | undefined)?.actions?.filter((a) => a.kind === "script") ?? [];
-      if (!scripts.length) return null;
-      const label = (def as { name?: string }).name ?? s("id");
-      return [
-        name === "custom_create" ? t("Creare l'integrazione «{name}»", { name: label }) : t("Cambiare l'integrazione «{name}»", { name: label }),
-        ...scripts.map((a) => `${t("Con lo script «{name}»:", { name: a.label ?? "" })}\n${a.script ?? ""}`),
-      ].join("\n");
+      if (!scripts.length && !changes) return null;
+      const label = String(input._name ?? "") || ((def as { name?: string } | undefined)?.name ?? s("id"));
+      const head = name === "custom_create" ? t("Creare l'integrazione «{name}»", { name: label }) : t("Cambiare l'integrazione «{name}»", { name: label });
+      const said = changes
+        ? [changes.length ? t("Cosa cambia:") : t("Nessun campo tolto o cambiato."), ...changes.map((c) => `• ${c}`),
+          t("Le schede salvate restano; la versione di prima viene copiata in integrazioni\\versioni.")]
+        : [];
+      return [head, ...said, ...scripts.map((a) => `${t("Con lo script «{name}»:", { name: a.label ?? "" })}\n${a.script ?? ""}`)].join("\n");
     }
     case "document_create": {
       const rows = Array.isArray(input.rows) ? input.rows.length : 0;

@@ -50,6 +50,13 @@ export class Stage {
   private h = 0;
   private dragging: { x: number; y: number; moved: boolean } | null = null;
   private hovered: string | null = null;
+  /**
+   * The user moved or zoomed the view: a resize then keeps what they look at in the
+   * middle. Otherwise it frames everything again (the window opened maximized after
+   * its first frame: the map stayed in the top left corner, Edoardo, 10/11).
+   */
+  private touched = false;
+  private refit = false;
 
   constructor(parent: HTMLElement, private host: Host) {
     parent.append(this.canvas);
@@ -67,6 +74,7 @@ export class Stage {
           this.dragging.moved = true;
           this.canvas.classList.add("dragging");
           this.view?.pan(dx, dy);
+          this.touched = true;
           this.dragging.x = e.clientX;
           this.dragging.y = e.clientY;
           this.host.tip(null);
@@ -96,6 +104,7 @@ export class Stage {
       e.preventDefault();
       const p = this.point(e);
       this.view?.zoom(Math.exp(-e.deltaY * 0.0015), p.x, p.y);
+      this.touched = true;
       this.host.tip(null);
       this.wake();
     }, { passive: false });
@@ -103,7 +112,8 @@ export class Stage {
     this.canvas.addEventListener("dblclick", (e) => {
       const p = this.point(e);
       const id = this.view?.hit(p.x, p.y) ?? null;
-      if (!(id && this.view?.focus?.(id))) this.view?.reset();
+      if (id && this.view?.focus?.(id)) this.touched = true;
+      else { this.view?.reset(); this.touched = false; }
       this.wake();
     });
     document.addEventListener("visibilitychange", () => this.wake());
@@ -136,8 +146,14 @@ export class Stage {
   private resize() {
     const r = this.canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
+    if (r.width < 2 || r.height < 2) return; // hidden: keep the last size
+    const was = { w: this.w, h: this.h };
     this.w = r.width;
     this.h = r.height;
+    if (was.w >= 2 && (Math.abs(was.w - r.width) > 1 || Math.abs(was.h - r.height) > 1)) {
+      if (this.touched) this.view?.pan((r.width - was.w) / 2, (r.height - was.h) / 2);
+      else this.refit = true;
+    }
     this.canvas.width = Math.max(1, Math.round(r.width * dpr));
     this.canvas.height = Math.max(1, Math.round(r.height * dpr));
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -151,6 +167,7 @@ export class Stage {
   show(view: View) {
     this.view = view;
     this.hovered = null;
+    this.touched = false;
     this.host.tip(null);
     this.wake();
   }
@@ -188,6 +205,13 @@ export class Stage {
     this.ctx.save();
     const more = this.view.draw(this.ctx, this.w, this.h, time);
     this.ctx.restore();
+    // After a draw at the new size (the view keeps it from there): everything framed again.
+    if (this.refit) {
+      this.refit = false;
+      this.view.reset();
+      this.wake();
+      return;
+    }
     if (more) this.wake();
   }
 }
