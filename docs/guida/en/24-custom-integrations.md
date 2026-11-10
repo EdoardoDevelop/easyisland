@@ -11,13 +11,16 @@ Write in the chat what you need, for example:
 
 The chat proposes useful fields, formulas and actions, asks what isn't clear and shows you **the preview of the description** with **Allow / Deny**. Confirming, the integration appears in the island's menu with its icon. To change it just ask ("add a discount field", "make the total bold"): same preview, same confirmation.
 
+When the chat **changes** an integration, the card says **what changes**: fields removed (and in how many saved records they were filled), type changes, a counter that restarts, new fields, a much shorter template, actions removed or with a changed script. Saved records stay, and the previous version is copied to `integrazioni\versioni`.
+
 > **Important:** a custom integration is a **description**: its actions are a fixed list. The only one holding commands is **Script**, and it always shows you what it is about to run.
 
 ![A custom integration](../media/custom.png)
 
 ## What it can have
 ### Fields
-Text, long text, number, **amount**, date, checkbox, choice and multiple choice, email, phone, link, **file** (from the Tray), **table of rows** (with computed columns too), **computed** (a formula), automatic **numbering** (e.g. `N-2026-0001`), **link** to another integration (e.g. the quote picking a client from the "Clients" records).
+Text, long text, number, **amount**, date, checkbox, choice and multiple choice, email, phone, link, **file** (from the Tray), **table of rows** (with computed columns too), **computed** (a formula), automatic **numbering** (e.g. `N-2026-0001`), **link** to another integration.
+- **Link with search**: type part of any value (name, town, VAT number…) and the other integration's records that contain it appear; pick one with the mouse or the arrows and <kbd>Enter</kbd>, and **the other fields fill themselves** (e.g. picking the client from "Clients" fills address and VAT number; picking a service from "Price list" gives the row its description and price). It works for any list: clients, suppliers, articles, services, vehicles. It works as a table column too. With **remember**, a new name typed by hand is added to the other integration when you save the record, together with the filled data. Just ask the chat: "when I pick the client fill address and VAT number, and remember new clients".
 - **Shown only if**: a field visible only when a formula is true (e.g. "IBAN" only if payment = Bank transfer).
 - **Total in the list**: summed or counted in the records list.
 

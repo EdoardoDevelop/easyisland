@@ -6538,6 +6538,40 @@ textarea.custom-input { resize: vertical; }
 .custom-rows { display: flex; flex-direction: column; gap: 4px; }
 .custom-table { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)) 22px; gap: 4px; align-items: center; }
 .custom-th { font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-3); }
+/* A link searched as you type (src/views/custom-link.ts): the matches in the
+   flow under the box (the card's body scrolls: a floating list would be cut). */
+.custom-pick { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.custom-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.custom-pick-row { grid-column: 1 / -1; }
+.custom-pick-row:has(> .custom-pick-list[style*="none"]) { display: none; }
+.custom-pick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: default;
+}
+.custom-pick-item:hover, .custom-pick-item.on { background: color-mix(in srgb, var(--c, #38bdf8) 16%, transparent); }
+.custom-pick-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 calc(12px + var(--fs-up, 0px)) var(--font); }
+.custom-pick-detail { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
+.custom-pick-detail:empty { display: none; }
+.custom-pick-new { padding: 5px 8px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
+html[data-scheme="light"] .custom-pick-list { border-color: rgba(0, 0, 0, 0.1); background: rgba(0, 0, 0, 0.03); }
 .custom-del { width: 20px; height: 20px; }
 .custom-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 4px; }
 .custom-note { grid-column: 1 / -1; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); }

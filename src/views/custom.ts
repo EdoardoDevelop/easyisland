@@ -14,10 +14,11 @@ import { renderMarkdown } from "../core/markdown";
 import { num, pick, scopeOf, truthy, tryRun, type Val } from "../core/expr";
 import { cellValue, cleanPage, htmlValue, isHtmlTemplate, italianNumber, longDate, onTableLine } from "../core/template";
 import {
-  State, type AgentTask, type Custom, type CustomAction, type CustomField, type CustomRecord, type CustomSource, type Notice,
+  State, type AgentTask, type Custom, type CustomAction, type CustomField, type CustomLink, type CustomRecord, type CustomSource, type Notice,
 } from "../core/state";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
+import { forgetSource, linkPicker, sourceRecords, type LinkKit } from "./custom-link";
 
 export interface CustomHooks {
   askChat(question: string): void;
@@ -324,6 +325,66 @@ function titleOf(c: Custom, r: CustomRecord): string {
   return v || r.created;
 }
 
+/** The field that holds a record's name: where a name written in a link goes (remember). */
+function nameField(c: Custom): CustomField | undefined {
+  return c.fields.find((x) => x.id === c.titleField) ?? c.fields.find((x) => x.kind === "text");
+}
+
+/** A value of a record for a link's `fill`: a field (computed ones too) or a template "{{cap}} {{citta}}". */
+function linkValue(c: Custom, r: CustomRecord, spec: string): unknown {
+  if (spec.includes("{{")) return fillTemplate({ ...c, template: spec }, r.values).replace(/\s+/g, " ").trim();
+  return withComputed(c, r.values)[spec] ?? "";
+}
+
+/** The same value as it reads: euro, dates, Sì/No by the field it comes from. */
+function linkText(c: Custom, r: CustomRecord, spec: string): string {
+  const v = linkValue(c, r, spec);
+  const f = spec.includes("{{") ? undefined : c.fields.find((x) => x.id === spec);
+  return f ? shown(formatOf(f), v) : String(v ?? "");
+}
+
+/**
+ * After a save: the names written by hand in links with `remember` go into
+ * their integration, with what was filled next to them (the plain `fill`
+ * entries, read backwards). Says what was added, or why not.
+ */
+async function rememberLinks(c: Custom, values: Record<string, unknown>): Promise<string[]> {
+  const said: string[] = [];
+  const done = new Set<string>();
+  const one = async (link: CustomLink, name: string, around: Record<string, unknown>) => {
+    const source = State.customs.find((x) => x.id === link.source);
+    const text = name.trim();
+    if (!link.remember || !source || !text || done.has(`${source.id}|${text.toLowerCase()}`)) return;
+    done.add(`${source.id}|${text.toLowerCase()}`);
+    const key = nameField(source);
+    const known = (await sourceRecords(source.id)).some((r) =>
+      titleOf(source, r).trim().toLowerCase() === text.toLowerCase() || (key && String(r.values[key.id] ?? "").trim().toLowerCase() === text.toLowerCase()));
+    if (known || !key) return;
+    const add: Record<string, unknown> = { [key.id]: text };
+    for (const [to, spec] of Object.entries(link.fill ?? {})) {
+      const v = around[to];
+      if (!spec.includes("{{") && spec !== key.id && v != null && v !== "") add[spec] = v;
+    }
+    try {
+      await Bridge.customRecordSave(source.id, "", add);
+      forgetSource(source.id);
+      forgetRecords(source.id);
+      said.push(t("«{text}» aggiunto a {name}.", { text, name: source.name }));
+    } catch (e) {
+      said.push(t("«{text}» non aggiunto a {name}: {e}", { text, name: source.name, e: String(e).replace(/^Error:\s*/, "") }));
+    }
+  };
+  for (const f of c.fields) {
+    if (f.kind === "link") await one(f, String(values[f.id] ?? ""), values);
+    if (f.kind === "rows" && Array.isArray(values[f.id])) {
+      for (const row of values[f.id] as Row[]) {
+        for (const col of f.columns.filter((x) => x.kind === "link")) await one(col, String(row[col.id] ?? ""), row);
+      }
+    }
+  }
+  return said;
+}
+
 // ── Sources ──────────────────────────────────────────────────────────────────
 
 function itemsOf(s: CustomSource, data: Val): Val[] {
@@ -427,6 +488,7 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
     });
     el.addEventListener("blur", () => hooks.holdOpen(false));
   };
+  const kit: LinkKit = { titleOf, valueOf: linkValue, textOf: linkText, hold };
 
   // ── Data from services ──
   function dataView(): HTMLElement {
@@ -562,23 +624,26 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           control = h("span", { class: "custom-computed", text: v || t("al salvataggio") });
           break;
         }
-        case "link":
+        case "link": {
+          // Searched as you type in the other integration; a pick fills the fields of `fill`.
+          const p = linkPicker(f, String(d.values[f.id] ?? ""), kit, (name, filled) => {
+            d.values[f.id] = name;
+            Object.assign(d.values, filled);
+            paint();
+          }, (text) => {
+            d.values[f.id] = text;
+          });
+          p.el.append(p.list);
+          control = p.el;
+          break;
+        }
         case "file": {
           const el = h("select", { class: "custom-input" }) as HTMLSelectElement;
           const current = String(d.values[f.id] ?? "");
           el.append(h("option", { value: "", text: "—" }));
-          if (current) el.append(h("option", { value: current, text: f.kind === "file" ? shown("file", current) : current }));
+          if (current) el.append(h("option", { value: current, text: shown("file", current) }));
           el.value = current;
-          if (f.kind === "link") {
-            // The other integration's records, by their name.
-            const source = State.customs.find((x) => x.id === f.source);
-            if (source) {
-              void Bridge.customRecords(source.id).then((list) => {
-                const names = [...new Set((list ?? []).map((r) => titleOf(source, r)))].filter((n) => n !== current).sort((a, b) => a.localeCompare(b));
-                el.append(...names.map((n) => h("option", { value: n, text: n })));
-              });
-            }
-          } else {
+          {
             // A file of the Vassoio (dropped, pasted, captured).
             void Bridge.inboxList().then((files) => {
               el.append(...(files ?? []).filter((x) => x.path !== current).map((x) => h("option", { value: x.path, text: x.name })));
@@ -674,9 +739,22 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
       table.style.setProperty("--cols", String(f.columns.length));
       table.append(...f.columns.map((col) => h("span", { class: "custom-th", text: col.label })), h("span", {}));
       rows.forEach((row, i) => {
+        // The matches of a link column go on a line of their own under the row, as wide as the table.
+        const under = h("div", { class: "custom-pick-row" });
         for (const col of f.columns) {
           let el: HTMLElement;
-          if (col.kind === "computed") {
+          if (col.kind === "link") {
+            const p = linkPicker(col, String(row[col.id] ?? ""), kit, (name, filled) => {
+              row[col.id] = name;
+              Object.assign(row, filled);
+              draw();
+              refresh();
+            }, (text) => {
+              row[col.id] = text;
+            });
+            under.append(p.list);
+            el = p.el;
+          } else if (col.kind === "computed") {
             el = h("span", { class: "custom-cell", "data-cell": `${f.id}|${i}|${col.id}` });
           } else if (col.kind === "checkbox") {
             const cb = h("input", { type: "checkbox" }) as HTMLInputElement;
@@ -709,6 +787,7 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           refresh();
         });
         table.append(del);
+        if (under.childElementCount) table.append(under);
       });
     };
     draw();
@@ -788,7 +867,9 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           d.values = { ...r.values };
           d.records = null;
           Sound.play("finish");
-          say(t("Scheda salvata."), true);
+          // Names written by hand in a link that remembers: into their integration.
+          const added = await rememberLinks(c!, d.values);
+          say([t("Scheda salvata."), ...added].join(" "), true);
           break;
         }
         case "document": {
