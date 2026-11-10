@@ -1,24 +1,14 @@
-/* The pieces of motion.ts that are drawn: the ring of «Lancio», the seam of
+/* The pieces of motion.ts that are drawn: the edge light of «Lancio», the seam of
    «Sipario», the particles' canvas. Above everything, never in the way. */
-.fx-ring {
-  width: 40px;
-  height: 40px;
-  margin: -20px 0 0 -20px;
-  border-radius: 50%;
-  border: 2px solid var(--accent, #60cdff);
-  box-shadow: 0 0 18px var(--accent, #60cdff), inset 0 0 12px color-mix(in srgb, var(--accent, #60cdff) 60%, transparent);
+/* «Lancio»: the edge of the island or the window lights up while it springs. */
+.fx-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42), inset 0 0 26px rgba(255, 255, 255, 0.1);
   pointer-events: none;
-  z-index: 2147483000;
 }
-.fx-flash {
-  width: 60px;
-  height: 60px;
-  margin: -30px 0 0 -30px;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, #fff 70%, var(--accent, #60cdff)) 0, color-mix(in srgb, var(--accent, #60cdff) 55%, transparent) 35%, transparent 70%);
-  pointer-events: none;
-  z-index: 2147483000;
-}
+html[data-scheme="light"] .fx-edge { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16), inset 0 0 26px rgba(255, 255, 255, 0.5); }
 .fx-seam {
   height: 2px;
   margin-top: -1px;

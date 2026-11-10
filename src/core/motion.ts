@@ -65,11 +65,13 @@ function ripple(doc: Document, el: HTMLElement, r: DOMRect, x: number, y: number
     borderRadius: radius, overflow: "hidden", pointerEvents: "none", zIndex: "2147483000",
   });
   const size = Math.max(r.width, r.height) * 2.8;
+  // Neutral: the control's own text colour (light on dark, dark on light), not the accent.
+  const ink = getComputedStyle(el).color;
   const dot = doc.createElement("span");
   Object.assign(dot.style, {
     position: "absolute", left: `${x - r.left - size / 2}px`, top: `${y - r.top - size / 2}px`, width: `${size}px`, height: `${size}px`,
     borderRadius: "50%",
-    background: "radial-gradient(circle, color-mix(in srgb, var(--accent, #60cdff) 70%, transparent) 0, color-mix(in srgb, var(--accent, #60cdff) 32%, transparent) 38%, transparent 66%)",
+    background: `radial-gradient(circle, color-mix(in srgb, ${ink} 34%, transparent) 0, color-mix(in srgb, ${ink} 14%, transparent) 40%, transparent 66%)`,
   });
   layer.appendChild(dot);
   doc.body.appendChild(layer);
@@ -77,8 +79,6 @@ function ripple(doc: Document, el: HTMLElement, r: DOMRect, x: number, y: number
 }
 
 // ── Level 2: a view change ──────────────────────────────────────────────────
-
-const STAGGER = ".card, .tile, .ov-card, .row, section, .setting, [data-stagger]";
 
 /**
  * `view` has just become the one shown; `from` is the menu item that asked for
@@ -125,29 +125,40 @@ function glideMark(item: HTMLElement, before: DOMRect) {
 type Pt = { x: number; y: number };
 
 /** The pieces an opening animates one by one: menu items, buttons, cards, rows. */
-const PIECE = `${STAGGER}, .rail-item, button, h1, h2, h3, p, li, input, select, textarea, img, canvas, svg`;
-const MAX_PIECES = 48;
+/** What moves as one piece: a control, a card, a row, a title. Anything else is opened up into its children. */
+const ATOM = ".card, .tile, .ov-card, .row, .setting, [data-stagger], .rail-item, button, a, input, select, textarea, label, h1, h2, h3, h4, p, li, img, canvas, svg, video, iframe, [role=button], [role=tab]";
+const SKIP = "script, style, template, .fx-layer, #open-wave, [hidden]";
+/** Past this many, the rest come in without blur (cheaper). */
+const BLURRED = 40;
+const MAX_PIECES = 160;
 
 /**
- * The smallest pieces of `parts` in view (a card, not the section holding it):
- * each comes in on its own instead of the whole block at once (Edoardo, 10/11).
- * A part with no pieces inside comes in whole.
+ * Every piece of `parts` in view, down to its controls, cards and rows: each
+ * comes in on its own instead of the whole block at once (Edoardo, 10/11). The
+ * DOM is opened up level by level, so the siblings of a piece that moves always
+ * move too (with a fixed list of tags a card title moved and its neighbour did not).
  */
 function piecesOf(parts: Iterable<HTMLElement>, view: { w: number; h: number }): HTMLElement[] {
   const out: HTMLElement[] = [];
-  for (const part of parts) {
-    const found = [...part.querySelectorAll<HTMLElement>(PIECE)].filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < view.h && r.left < view.w;
-    });
-    // Only the innermost: an element holding another piece stays still, its pieces move.
-    const leaves = found.filter((el) => !found.some((o) => o !== el && el.contains(o)));
-    // An svg inside a button moves with its button.
-    const kept = leaves.filter((el) => !leaves.some((o) => o !== el && o.contains(el)) && !(el.matches("svg, canvas, img") && el.parentElement?.closest("button, .rail-item")));
-    out.push(...(kept.length ? kept : [part]));
-    if (out.length >= MAX_PIECES) break;
-  }
-  return out.slice(0, MAX_PIECES);
+  // Shown, not "has a size": while the island grows its search box and its views are
+  // still 0 px wide (until 1.0.41 they and all they hold stayed still).
+  const seen = (el: HTMLElement) => {
+    if (!el.getClientRects().length) return false;
+    const r = el.getBoundingClientRect();
+    if (r.top >= view.h || r.left >= view.w || r.bottom < 0 || r.right < 0) return false;
+    const cs = getComputedStyle(el);
+    return cs.visibility !== "hidden" && cs.opacity !== "0";
+  };
+  const walk = (el: HTMLElement, depth: number) => {
+    if (out.length >= MAX_PIECES || el.matches(SKIP) || !seen(el)) return;
+    if (el.matches(ATOM) || depth > 9) { out.push(el); return; }
+    const kids = [...el.children].filter((k): k is HTMLElement => k instanceof HTMLElement && !k.matches(SKIP) && seen(k));
+    // A leaf (text, a dot, a bar) moves whole; so does a wrapper of a single thing that is not a piece yet.
+    if (!kids.length) { out.push(el); return; }
+    for (const k of kids) walk(k, depth + 1);
+  };
+  for (const part of parts) walk(part, 0);
+  return out;
 }
 
 /**
@@ -171,20 +182,27 @@ function piecesIn(parts: HTMLElement[], delay: number, origin: Pt | null, frame:
   const centres = pieces.map(at);
   const o = origin ?? { x: 0, y: 0 };
   const far = Math.max(1, ...centres.map((c) => Math.hypot(c.x - o.x, c.y - o.y)));
+  const dist = centres.map((c) => Math.hypot(c.x - o.x, c.y - o.y));
+  // The nearest get the blur, the far ones (many, small) only move: the cost stays bounded.
+  const near = [...dist].sort((x, y) => x - y)[Math.min(BLURRED, dist.length) - 1] ?? 0;
   pieces.forEach((el, i) => {
     const c = centres[i];
-    const dx = c.x - o.x, dy = c.y - o.y, d = Math.hypot(dx, dy) || 1;
-    const wait = origin ? (d / far) * spread : Math.min(i * 40, spread);
+    const dx = c.x - o.x, dy = c.y - o.y, d = dist[i] || 1;
+    // Small pieces travel less than big ones: a 20 px icon pushed 26 px looks thrown.
+    const r = el.getBoundingClientRect();
+    const size = Math.min(1, Math.max(r.width, r.height) / 160);
+    const wait = origin ? Math.pow(d / far, 0.85) * spread : Math.min(i * 30, spread);
+    const back = (8 + 16 * size) * (origin ? 1 : 0.7);
+    const blur = dist[i] <= near ? `blur(${(3 + 5 * size).toFixed(1)}px)` : "blur(0px)";
     // Pushed out by the wave: from a little nearer the origin, a little small, out of focus.
     // `translate` and `scale` add to the piece's own transform instead of replacing it.
-    const back = Math.min(26, 10 + d * 0.04);
     el.animate(
       [
-        { opacity: 0, filter: "blur(8px)", translate: `${(-dx / d) * back}px ${(-dy / d) * back}px`, scale: "0.82" },
-        { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: "1.04", offset: 0.62 },
+        { opacity: 0, filter: blur, translate: `${(-dx / d) * back}px ${(-dy / d) * back}px`, scale: `${0.86 - 0.04 * size}` },
+        { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: `${1 + 0.03 * size}`, offset: 0.6 },
         { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: "1" },
       ],
-      { duration: 520, delay: delay + wait, easing: EASE_OUT, fill: "backwards" },
+      { duration: 460 + 120 * size, delay: delay + wait, easing: EASE_OUT, fill: "backwards" },
     );
   });
 }
@@ -219,26 +237,16 @@ function overlay(follow: HTMLElement | null, ms: number): HTMLElement {
 }
 
 /**
- * The wave of «Lancio» from `at`: a flash, then three rings one after the other
- * out to `reach` (Edoardo, 10/11: «l'ondulazione mi piace ma deve essere più marcata»).
+ * «Lancio»'s light: the edge of `layer` (the island's or the window's shape)
+ * lights up and fades while it springs. Until 1.0.41 a ring spread from the
+ * character: Edoardo, 10/11: «il cerchio che si vede è proprio fastidioso… farei
+ * solo le ondulazioni nei bordi».
  */
-function ring(layer: HTMLElement, at: Pt, reach: number) {
-  const flash = document.createElement("div");
-  flash.className = "fx-flash";
-  Object.assign(flash.style, { position: "absolute", left: `${at.x}px`, top: `${at.y}px` });
-  layer.appendChild(flash);
-  flash.animate([{ transform: "scale(0.3)", opacity: 0.9 }, { transform: `scale(${Math.max(3, reach / 60)})`, opacity: 0 }], { duration: 620, easing: EASE_OUT, fill: "forwards" });
-  [0, 130, 270].forEach((wait, i) => {
-    const el = document.createElement("div");
-    el.className = "fx-ring";
-    Object.assign(el.style, { position: "absolute", left: `${at.x}px`, top: `${at.y}px` });
-    layer.appendChild(el);
-    const end = Math.max(2, (reach * (1 - i * 0.18)) / 20);
-    el.animate(
-      [{ transform: "scale(0.2)", opacity: 0, borderWidth: "5px" }, { opacity: 1, offset: 0.12 }, { transform: `scale(${end})`, opacity: 0, borderWidth: "1px" }],
-      { duration: 900 - i * 80, delay: wait, easing: EASE_OUT, fill: "both" },
-    );
-  });
+function edgeLight(layer: HTMLElement) {
+  const el = document.createElement("div");
+  el.className = "fx-edge";
+  layer.appendChild(el);
+  el.animate([{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], { duration: 900, easing: "ease-out", fill: "forwards" });
 }
 
 function seam(layer: HTMLElement, top: number, width: number) {
@@ -310,7 +318,6 @@ function particles(layer: HTMLElement, from: Pt, size: { w: number; h: number },
   });
 }
 
-const radiusFrom = (o: Pt, w: number, h: number) => Math.hypot(Math.max(o.x, w - o.x), Math.max(o.y, h - o.y)) + 24;
 
 /**
  * The island opens: `island` grows (island.ts springs) to `w`×`h`; `bot` is the
@@ -323,10 +330,9 @@ export function openIsland(island: HTMLElement, bot: Pt, w: number, h: number, p
   openingUntil = performance.now() + 1000;
   const layer = overlay(island, 1300);
   if (fx === "lancio") {
-    const R = radiusFrom(bot, w, h);
-    ring(layer, bot, R);
-    partsIn(parts, 120, bot, island);
-    island.animate([{ clipPath: `circle(0px at ${bot.x}px ${bot.y}px)` }, { clipPath: `circle(${R}px at ${bot.x}px ${bot.y}px)` }], { duration: 780, easing: EASE_OUT });
+    // The edge springs (island.ts, elastic) and lights up; the pieces follow the wave from the character.
+    edgeLight(layer);
+    partsIn(parts, 60, bot, island);
   } else if (fx === "sipario") {
     const line = seam(layer, fromBottom ? h : 0, w);
     const shut = fromBottom ? "inset(100% 0 0 0)" : "inset(0 0 100% 0)";
@@ -348,8 +354,9 @@ export function closeIsland(island: HTMLElement, content: HTMLElement, bot: Pt, 
   const w = island.offsetWidth, h = island.offsetHeight;
   const layer = overlay(island, 700);
   if (fx === "lancio") {
-    const R = radiusFrom(bot, w, h);
-    content.animate([{ clipPath: `circle(${R}px at ${bot.x}px ${bot.y}px)` }, { clipPath: `circle(0px at ${bot.x}px ${bot.y}px)` }], { duration: 300, easing: EASE_IN });
+    // Back into the character, without a circle: the contents shrink towards it and fade.
+    content.style.transformOrigin = `${bot.x}px ${bot.y}px`;
+    content.animate([{ transform: "none", opacity: 1, filter: "blur(0px)" }, { transform: "scale(0.9)", opacity: 0, filter: "blur(4px)" }], { duration: 260, easing: EASE_IN }).onfinish = () => { content.style.transformOrigin = ""; };
   } else if (fx === "sipario") {
     const line = seam(layer, fromBottom ? 0 : h, w);
     line.animate([{ transform: "none", opacity: 1 }, { transform: `translateY(${fromBottom ? h : -h}px)`, opacity: 1, offset: 0.8 }, { transform: `translateY(${fromBottom ? h : -h}px) scaleX(0.15)`, opacity: 0 }], { duration: 340, easing: EASE_IN }).onfinish = () => line.remove();
@@ -402,8 +409,13 @@ function openWindow(root: HTMLElement) {
   const parts = [root];
   partsIn(parts, 140, fx === "sipario" ? { x: w / 2, y: 0 } : o);
   if (fx === "lancio") {
-    ring(layer, o, radiusFrom(o, w, h));
-    root.animate([{ clipPath: `circle(0px at ${o.x}px ${o.y}px)` }, { clipPath: `circle(${radiusFrom(o, w, h)}px at ${o.x}px ${o.y}px)` }], { duration: 720, easing: EASE_OUT });
+    // A window's edges are Windows': its page springs out from the icon's corner instead, and its edge lights up.
+    edgeLight(layer);
+    root.style.transformOrigin = `${o.x}px ${o.y}px`;
+    root.animate(
+      [{ transform: "scale(0.94)", opacity: 0.4 }, { transform: "scale(1.018)", opacity: 1, offset: 0.42 }, { transform: "scale(0.996)", offset: 0.7 }, { transform: "none" }],
+      { duration: 760, easing: EASE_OUT },
+    );
   } else if (fx === "sipario") {
     const line = seam(layer, 0, w);
     line.animate([{ transform: "scaleX(0.2)", opacity: 0 }, { transform: "scaleX(1)", opacity: 1, offset: 0.3 }, { transform: `translateY(${h}px)`, opacity: 1, offset: 0.88 }, { transform: `translateY(${h}px)`, opacity: 0 }], { duration: 620, easing: EASE_OUT }).onfinish = () => line.remove();
@@ -419,7 +431,10 @@ function closeWindow(root: HTMLElement): Animation | null {
   if (level === "spente") return null;
   const w = window.innerWidth, h = window.innerHeight, o = WINDOW_ICON, keep = { fill: "forwards" as const };
   if (level === "sobrie") return root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: "ease-in", ...keep });
-  if (fx === "lancio") return root.animate([{ clipPath: `circle(${radiusFrom(o, w, h)}px at ${o.x}px ${o.y}px)` }, { clipPath: `circle(0px at ${o.x}px ${o.y}px)` }], { duration: 260, easing: EASE_IN, ...keep });
+  if (fx === "lancio") {
+    root.style.transformOrigin = `${o.x}px ${o.y}px`;
+    return root.animate([{ transform: "none", opacity: 1 }, { transform: "scale(0.95)", opacity: 0 }], { duration: 240, easing: EASE_IN, ...keep });
+  }
   const layer = overlay(null, 600);
   if (fx === "sipario") {
     const line = seam(layer, h, w);
