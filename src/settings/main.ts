@@ -3,6 +3,7 @@
 // the rest belongs to this PC.
 
 import "./settings.css";
+import { applyMotion, watchWindow } from "../core/motion";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { LOGO_CHARACTER } from "../character/logo-anim";
@@ -2597,6 +2598,27 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
         )),
       ),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Animazioni") }), profileChip()),
+        h("div", { class: "row" },
+          h("label", { text: t("Animazioni") }),
+          select<Settings["animations"]>(
+            [["ricche", t("Ricche")], ["sobrie", t("Sobrie")], ["spente", t("Spente")]],
+            settings.animations ?? "ricche",
+            (v) => { settings.animations = v; applyMotion(settings); commit(); },
+          ),
+          h("span", { class: "hint note", text: t("Ricche: ogni clic risponde con un'onda di luce, le schermate nascono dalla voce del menu, isola e finestre si aprono con l'effetto scelto qui sotto. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie") }),
+        ),
+        h("div", { class: "row" },
+          h("label", { text: t("Effetto di apertura") }),
+          select<Settings["openEffect"]>(
+            [["lancio", t("Lancio")], ["sipario", t("Sipario")], ["particelle", t("Particelle")]],
+            settings.openEffect ?? "lancio",
+            (v) => { settings.openEffect = v; applyMotion(settings); commit(); },
+          ),
+          h("span", { class: "hint note", text: t("come si aprono e si chiudono l'isola e le finestre. Lancio: a cerchio dal personaggio, con un anello di luce. Sipario: una linea di luce srotola la finestra. Particelle: le particelle del personaggio ne disegnano i bordi; la più pesante per la scheda video") }),
+        ),
+      ),
     ],
     font: () => fontSections(commit),
     personaggio: () => [
@@ -3333,7 +3355,7 @@ function profileChip(): HTMLElement {
 /** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
-  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
+  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle", "animations", "openEffect",
   "hoverSize", "compactStrip", "appBar", "chatInstructions", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
@@ -5768,8 +5790,12 @@ async function main() {
   // ?scheme=light: the light mode.
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
+  // ?animations=sobrie, ?openEffect=sipario: the motion (motion.ts).
+  for (const k of ["animations", "openEffect"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
   applyUiStyle(settings.theme.style, settings.theme.scheme);
   applyFonts(settings.theme.fonts);
+  applyMotion(settings);
+  watchWindow(document.body, (name, run) => void onEvent(name, run));
   // settings.html paints the body dark inline (no white flash while loading): the styles take over now.
   document.body.removeAttribute("style");
   const status = (await Bridge.hooksStatus()) ?? {
@@ -5849,6 +5875,7 @@ async function main() {
     }
     applyUiStyle(settings.theme.style, settings.theme.scheme);
     applyFonts(settings.theme.fonts);
+    applyMotion(settings);
     // The echo of a save made here (Rust may tidy a value) is taken without
     // redrawing: a redraw closed the open integration and the page jumped up.
     if (redraw && Date.now() - savedAt > 2000) render();

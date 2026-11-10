@@ -10,6 +10,7 @@ import "./memory.css";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import { syncLanguage, t } from "../core/i18n";
 import { applyUiStyle } from "../core/uistyle";
+import { applyMotion, watchWindow } from "../core/motion";
 import { h, clear, svg } from "../views/dom";
 import { ICONS } from "../views/icons";
 import { KIND_COLOR, Model, kindName, pathBetween, shortDate, type MemGraph, type MemNode, type NodeKind } from "./data";
@@ -828,7 +829,9 @@ async function applyLook() {
   const look = (style?: string, scheme?: string) => applyUiStyle(params.get("ui") ?? style, params.get("scheme") ?? scheme, repaint);
   look(info?.settings.theme.style, info?.settings.theme.scheme);
   document.body.removeAttribute("style");
-  void onEvent<{ theme?: { style?: string; scheme?: string } }>("settings-changed", (s) => look(s.theme?.style, s.theme?.scheme));
+  applyMotion(info?.settings);
+  watchWindow(document.body, (name, run) => void onEvent(name, run));
+  void onEvent<{ theme?: { style?: string; scheme?: string }; animations?: string; openEffect?: string }>("settings-changed", (s) => { look(s.theme?.style, s.theme?.scheme); applyMotion(s); });
 }
 
 void applyLook().finally(() => {

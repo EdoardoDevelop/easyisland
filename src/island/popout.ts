@@ -4,6 +4,7 @@
 // popout_window) and draws its view into, so nothing runs twice.
 
 import { watchIconClicks } from "../views/anim-icons";
+import { watchPresses } from "../core/motion";
 import { State } from "../core/state";
 import { Bridge } from "../core/bridge";
 import type { ViewHost } from "../views/views";
@@ -286,6 +287,7 @@ function dress(doc: Document, title: string) {
   doc.head.append(meta);
   for (const s of Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))) doc.head.append(s.cloneNode(true));
   watchIconClicks(doc);
+  watchPresses(doc);
   const own = doc.createElement("style");
   own.textContent = POPWIN_CSS;
   doc.head.append(own);

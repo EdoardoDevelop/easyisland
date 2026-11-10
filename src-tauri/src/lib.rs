@@ -3541,9 +3541,8 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
                     island::keep_settings_above(&handle, false);
-                    let _ = hidden.hide();
                     // Hidden, its page sleeps (webview_memory.rs).
-                    webview_memory::set_asleep(&hidden, true);
+                    hide_after_fx(&handle, &hidden);
                 }
                 // Above the island while in use (island::keep_settings_above).
                 tauri::WindowEvent::Focused(active) => island::keep_settings_above(&handle, *active),
@@ -3936,6 +3935,7 @@ async fn preview_external(path_or_url: String, reveal: bool) -> Result<(), Strin
 async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), String> {
     let id = id.unwrap_or_default();
     if let Some(win) = app.get_webview_window(FLOWS_LABEL) {
+        shown_count(FLOWS_LABEL, true);
         webview_memory::set_asleep(&win, false);
         // In front of Impostazioni, which is topmost while focused.
         island::keep_settings_above(&app, false);
@@ -3967,14 +3967,56 @@ async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), Str
         .build()
         .map_err(|e| e.to_string())?;
     let hidden = win.clone();
+    let handle = app.clone();
     win.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
-            let _ = hidden.hide();
-            webview_memory::set_asleep(&hidden, true);
+            hide_after_fx(&handle, &hidden);
         }
     });
     Ok(())
+}
+
+/// How many times each window was shown: a closing still waiting in
+/// [`hide_after_fx`] does not hide a window shown again meanwhile.
+static SHOWN: std::sync::Mutex<Vec<(String, u64)>> = std::sync::Mutex::new(Vec::new());
+
+fn shown_count(label: &str, bump: bool) -> u64 {
+    let mut list = SHOWN.lock().unwrap_or_else(|e| e.into_inner());
+    if !list.iter().any(|(l, _)| l == label) {
+        list.push((label.to_string(), 0));
+    }
+    let entry = list.iter_mut().find(|(l, _)| l == label).map(|(_, n)| n);
+    match entry {
+        Some(n) => {
+            *n += u64::from(bump);
+            *n
+        }
+        None => 0,
+    }
+}
+
+/// Closing Impostazioni, Memoria or Flussi: the page plays its closing
+/// (motion.ts `watchWindow`, «Animazioni» in Aspetto → Tema) for 300 ms, then
+/// the window hides and its page sleeps. With «Spente», at once.
+fn hide_after_fx(app: &AppHandle, win: &tauri::WebviewWindow) {
+    let quick = app.try_state::<Shared>().is_none_or(|s| s.settings.lock().map(|s| s.animations == "spente").unwrap_or(true));
+    if quick {
+        let _ = win.hide();
+        webview_memory::set_asleep(win, true);
+        return;
+    }
+    let label = win.label().to_string();
+    let shown = shown_count(&label, false);
+    let _ = win.emit_to(label.as_str(), "window-closing", ());
+    let win = win.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        if shown_count(&label, false) == shown {
+            let _ = win.hide();
+            webview_memory::set_asleep(&win, true);
+        }
+    });
 }
 
 static PENDING_FLOW: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
@@ -4048,11 +4090,11 @@ fn create_memory_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     {
         Ok(win) => {
             let hidden = win.clone();
+            let handle = app.clone();
             win.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = hidden.hide();
-                    webview_memory::set_asleep(&hidden, true);
+                    hide_after_fx(&handle, &hidden);
                 }
             });
         }
@@ -4074,6 +4116,7 @@ pub fn show_memory_window(app: &AppHandle) {
         log::line("memory window missing");
         return;
     };
+    shown_count(MEMORY_LABEL, true);
     webview_memory::set_asleep(&win, false);
     // Opened from Impostazioni: that window is topmost while it has the focus
     // (island::keep_settings_above) and would stay in front of this one.
@@ -4094,6 +4137,7 @@ pub fn show_settings_window(app: &AppHandle) {
         log::line("settings window missing");
         return;
     };
+    shown_count("settings", true);
     webview_memory::set_asleep(&win, false);
     let _ = win.unminimize();
     let _ = win.show();

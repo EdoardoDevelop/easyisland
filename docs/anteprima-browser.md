@@ -29,6 +29,8 @@ Ogni chiave di `Settings` (`src/core/state.ts`) presente in `DEFAULT_SETTINGS` s
 - **elenco**: valori separati da virgola, e vuoto vuol dire elenco vuoto (`activeIntegrations=` spegne tutte le integrazioni);
 - **testo**: il valore così com'è.
 
+Esempio per le animazioni (`src/core/motion.ts`): `?animations=sobrie`, `?openEffect=particelle`; per vedere l'apertura in una scena: `window.island.collapse(true)` e poi `window.island.expand("overview")` dalla console (dopo un `expand` così l'anteprima non richiude più). `settings.html` legge anche lei `animations` e `openEffect`.
+
 Le chiavi che non sono in `DEFAULT_SETTINGS` vengono ignorate. Lo stesso vale, in pratica, per quelle che contengono un oggetto, perché il valore diventerebbe un testo. Tutte queste chiavi si preparano solo nelle scene.
 
 Nel browser, `hooksInstalled` parte da `true`, così la card di Claude Code è visibile.

@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.41** — **Animazioni** in tutta l'app, in **Aspetto → Tema → Animazioni**: a ogni clic un'onda di luce dal punto
+cliccato, le schermate che nascono dalla voce del menu con le card in cascata, e isola, Impostazioni, Memoria e Flussi che si
+aprono e si chiudono con l'**effetto di apertura** scelto: **Lancio** (a cerchio dal personaggio), **Sipario** (una linea di
+luce) o **Particelle**. Ricche di serie; anche Sobrie o Spente, e con «Riduci animazioni» di Windows diventano Sobrie.
+
 **1.0.40** — La cronologia della chat non si riempie più delle sessioni avviate da EasyIsland stesso: **Claude Code fuori
 da EasyIsland** mostra solo quelle aperte da te nel terminale o in Claude Desktop (prima comparivano a decine, col titolo
 «[Istruzioni dell'utente per questa chat…», e non si potevano eliminare).

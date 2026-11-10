@@ -15,6 +15,7 @@ import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, ty
 import { h, clear } from "../views/dom";
 import { locale, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle } from "../core/uistyle";
+import { applyMotion, watchWindow } from "../core/motion";
 import { applyFonts } from "../core/fonts";
 import { CONDITIONS, GROUPS, PLACEHOLDERS, TRIGGERS, blankCondition, blankFlow, blankStep, block, missing, stepWords, triggerWords } from "./catalog";
 
@@ -821,10 +822,13 @@ async function main() {
   }
   applyUiStyle(settings.theme.style, settings.theme.scheme);
   applyFonts(settings.theme.fonts);
+  applyMotion(settings);
+  watchWindow(document.body, (name, run) => void onEvent(name, run));
   document.body.removeAttribute("style");
   open((await Bridge.flowPending()) ?? "");
   void onEvent<string>("flows-open", (id) => open(id));
   void onEvent<Settings>("settings-changed", (s) => {
+    applyMotion(s);
     // The echo of this window's own save is not taken: the panel keeps the
     // objects it is editing. A change from elsewhere (the chat made a flow,
     // the list in Impostazioni switched one off) redraws.
