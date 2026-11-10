@@ -87,11 +87,78 @@ html[data-ui="windows"] .search-bar {
   background: rgba(255, 255, 255, 0.05);
   color: var(--dim-2);
 }
+/* The accent line under the focused field is a layer of its own over the bottom
+   border: the field never moves (the 2 px border shifted it by half a pixel).
+   With «Ricche» animations three waves of light (white, violet, sky blue) run
+   along it as long as the field has the keyboard (Edoardo, 10/11: «Onda… tre onde»,
+   chosen on a preview at this slow pace). In: the line lights up behind the first
+   wave from the magnifier. Out (`.line-out`, search.ts): a wave runs back and puts
+   the colour out. The loop stops by itself when the island shuts (hidden). */
+html[data-ui="windows"] .search-bar { position: relative; }
 html[data-ui="windows"] .search-bar:focus-within {
   border-color: var(--stroke);
-  border-bottom: 2px solid var(--accent);
+  border-bottom-color: rgba(255, 255, 255, 0.3);
   background: #1f1f1f;
 }
+html[data-ui="windows"] .search-bar::before,
+html[data-ui="windows"] .search-bar::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  pointer-events: none;
+  opacity: 0;
+}
+html[data-ui="windows"] .search-bar::after { background: var(--accent); }
+html[data-ui="windows"] .search-bar:focus-within::after { opacity: 1; }
+html[data-anim="ricche"][data-ui="windows"] .search-bar:focus-within::after {
+  animation: search-line-in 2.4s var(--ease-out, ease-out) both;
+}
+html[data-anim="ricche"][data-ui="windows"] .search-bar:focus-within::before {
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(194, 92, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(89, 200, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat;
+  filter: drop-shadow(0 0 4px #59c8ff);
+  opacity: 1;
+  animation: search-waves 7.8s linear infinite;
+}
+html[data-anim="ricche"][data-ui="windows"] .search-bar.line-out:not(:focus-within)::after {
+  opacity: 1;
+  animation: search-line-out 2.4s var(--ease-out, ease-out) both;
+}
+html[data-anim="ricche"][data-ui="windows"] .search-bar.line-out:not(:focus-within)::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat;
+  filter: drop-shadow(0 0 4px #59c8ff);
+  animation: search-wave-back 2.4s var(--ease-out, ease-out) both;
+}
+html[data-anim="sobrie"][data-ui="windows"] .search-bar:focus-within::after {
+  animation: search-line-fade 0.18s ease-out both;
+}
+@keyframes search-line-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes search-waves {
+  0% { background-position: -35% 0, -35% 0, -35% 0; }
+  20% { background-position: 40% 0, 5% 0, -35% 0; }
+  45% { background-position: 135% 0, 40% 0, 5% 0; }
+  70% { background-position: 135% 0, 135% 0, 60% 0; }
+  90%, 100% { background-position: 135% 0, 135% 0, 135% 0; }
+}
+@keyframes search-line-out {
+  from { clip-path: inset(0 0 0 0); }
+  to { clip-path: inset(0 100% 0 0); }
+}
+@keyframes search-wave-back {
+  0% { opacity: 1; background-position: 120% 0; }
+  85% { opacity: 1; }
+  100% { opacity: 0; background-position: -20% 0; }
+}
+@keyframes search-line-fade { from { opacity: 0; } }
 html[data-ui="windows"] .search-results {
   border-radius: 8px;
   background: #2c2c2c;
