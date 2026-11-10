@@ -2,6 +2,13 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.38** — **One look for every window**, after a design review: island, Memory, Preview and Flows in Windows 11 colours, dark and
+light. **Memory** stays readable with hundreds of nodes (names no longer overlap, the graph opens fitted to the window), has its bar on
+one row with «Maintenance» and clickable `[[links]]`; it also reads **Claude Code's own memory**, read only, without duplicates and with
+each note's date. At the top the island says **what is wrong right now**, never «All quiet.» over an error; card content starts at the
+top; integration cards share one style; the **Tray** keeps two actions and puts the rest in the ⋯ menu. Agent Chat says when a **token is
+in the wrong field**, and the log no longer writes tokens or keys.
+
 **1.0.37** — **The island no longer freezes** when a chat names a network path that does not answer (e.g. the shared
 folder of a server that is off): paths are checked away from the interface and a network server gets a second and a half at most.
 The **Memory** window opens maximized; the **empty chat** drawing moves in the chat's own window too.
