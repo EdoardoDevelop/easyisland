@@ -6040,6 +6040,10 @@ html[data-scheme="light"] .rail-rename { background: #fff; }
 .ctx-item:hover { background: rgba(255, 255, 255, 0.08); }
 .ctx-item:disabled { opacity: 0.4; }
 .ctx-item.danger { color: var(--red); }
+/* A choice of colour (a group of the menu): a dot, the name, a check on the current one. */
+.ctx-item.swatched, .ctx-item[role="menuitemradio"] { display: flex; align-items: center; gap: 8px; }
+.ctx-swatch { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
+.ctx-check { margin-left: auto; padding-left: 12px; color: var(--dim); }
 .ctx-sep {
   height: 1px;
   margin: 4px 6px;

@@ -2248,7 +2248,11 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         void save();
         drawGroups();
       });
-      groupsBox.append(h("div", { class: "row" }, name, h("span", { class: "hint", text: names }), go));
+      // The folder's colour (yellow until one is chosen; also from the right click in the island).
+      const color = h("input", { type: "color", value: g.color && /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : "#f5a524",
+        title: t("Colore della cartella"), "aria-label": t("Colore della cartella") }) as HTMLInputElement;
+      color.addEventListener("change", () => { g.color = color.value; void save(); });
+      groupsBox.append(h("div", { class: "row" }, color, name, h("span", { class: "hint", text: names }), go));
     }
   };
   drawGroups();

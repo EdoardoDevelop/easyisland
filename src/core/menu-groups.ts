@@ -76,6 +76,28 @@ export function rename(groupId: string, name: string) {
   save();
 }
 
+/** The colours offered in the island (the ones its integrations and sections use). */
+export const GROUP_COLORS: { color: string; name: string }[] = [
+  { color: "#f5a524", name: "Giallo" },
+  { color: "#fb923c", name: "Arancione" },
+  { color: "#f4505e", name: "Rosso" },
+  { color: "#ec4899", name: "Rosa" },
+  { color: "#a78bfa", name: "Viola" },
+  { color: "#4c8dff", name: "Blu" },
+  { color: "#38bdf8", name: "Azzurro" },
+  { color: "#22c55e", name: "Verde" },
+  { color: "#8e939c", name: "Grigio" },
+];
+
+/** The folder's colour; "" back to yellow. */
+export function setColor(groupId: string, color: string) {
+  const g = groups().find((x) => x.id === groupId);
+  if (!g) return;
+  if (/^#[0-9a-f]{6}$/i.test(color)) g.color = color.toLowerCase();
+  else delete g.color;
+  save();
+}
+
 /** The group goes, its integrations stay in the menu where they were. */
 export function dissolve(groupId: string) {
   State.settings.menuGroups = groups().filter((g) => g.id !== groupId);

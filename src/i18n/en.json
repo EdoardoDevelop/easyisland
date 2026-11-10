@@ -4873,5 +4873,17 @@
   "Sciogli": "Ungroup",
   "Le integrazioni tornano nel menu una per una": "The integrations go back to the menu one by one",
   "Gruppi del menu": "Menu groups",
-  "{name}: clic per aprire o chiudere, trascina qui un'integrazione per aggiungerla": "{name}: click to open or close, drag an integration here to add it"
+  "{name}: clic per aprire o chiudere, trascina qui un'integrazione per aggiungerla": "{name}: click to open or close, drag an integration here to add it",
+  "Colore…": "Colour…",
+  "Colore di «{name}»": "Colour of “{name}”",
+  "Colore della cartella": "Folder colour",
+  "Giallo": "Yellow",
+  "Arancione": "Orange",
+  "Rosso": "Red",
+  "Rosa": "Pink",
+  "Viola": "Purple",
+  "Blu": "Blue",
+  "Azzurro": "Light blue",
+  "Verde": "Green",
+  "Grigio": "Grey"
 }

@@ -2005,6 +2005,8 @@ export interface MenuGroup {
   items: string[];
   /** Its rows shown under it. */
   open?: boolean;
+  /** The folder's colour, "#rrggbb" (yellow when empty). */
+  color?: string;
 }
 
 /** An integration made by the user from the chat (custom.rs): a description, never code. */

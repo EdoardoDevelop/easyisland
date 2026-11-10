@@ -2134,6 +2134,17 @@ ${note}` : text };
    * island's own entries. Only things a click can do anyway: nothing deletes,
    * sends or runs a command without its usual confirmation.
    */
+  /** «Colore…» on a group of the menu: the island's colours, under the group's row. */
+  private groupColorMenu(id: string) {
+    const g = MenuGroups.groups().find((x) => x.id === id);
+    const row = document.querySelector<HTMLElement>(`#rail [data-head="${CSS.escape(id)}"]`);
+    if (!g || !row) return;
+    const r = row.getBoundingClientRect();
+    const now = g.color ?? MenuGroups.GROUP_COLORS[0].color;
+    showMenu(this.islandEl, r.left + 24, r.bottom + 2, t("Colore di «{name}»", { name: g.name }),
+      MenuGroups.GROUP_COLORS.map((c) => ({ label: t(c.name), swatch: c.color, checked: c.color === now, run: () => MenuGroups.setColor(id, c.color) })));
+  }
+
   private contextItems(el: HTMLElement | null): { title: string; items: MenuItem[] } {
     const items: MenuItem[] = [];
     let title = "";
@@ -2176,6 +2187,7 @@ ${note}` : text };
         items: [
           { label: group.open ? t("Chiudi il gruppo") : t("Apri il gruppo"), run: () => MenuGroups.toggle(group.id) },
           { label: t("Rinomina"), run: () => renameGroup(group.id) },
+          { label: t("Colore…"), run: () => this.groupColorMenu(group.id) },
           { label: t("Sciogli il gruppo"), sep: true, run: () => MenuGroups.dissolve(group.id) },
         ],
       };

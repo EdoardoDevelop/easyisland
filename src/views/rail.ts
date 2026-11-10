@@ -288,6 +288,8 @@ export function buildRail(actions: ViewActions): ViewHost {
       renaming === g.id ? nameField(g) : h("span", { class: "rail-label", text: g.name }),
       h("span", { class: "rail-meta" }),
       h("span", { class: open ? "rail-chevron open" : "rail-chevron" }, svg(ICONS.chevronRight, 10, { stroke: 2 })));
+      // Its own colour (right click → Colore…, or Impostazioni); yellow from the CSS otherwise.
+      if (g.color) head.style.setProperty("--c", g.color);
       out.push(head);
       for (const m of members) {
         const r = taskRow(m);

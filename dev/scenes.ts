@@ -116,7 +116,7 @@ export async function runScene(island: Island, scene: string) {
       if (new URLSearchParams(location.search).has("gruppi")) {
         State.settings.menuGroups = [
           { id: "gufficio", name: "Ufficio", items: ["integration_zammad", "integration_3cx"], open: true },
-          { id: "gpc", name: "PC", items: ["integration_network", "integration_clipboard", "integration_media"], open: false },
+          { id: "gpc", name: "PC", items: ["integration_network", "integration_clipboard", "integration_media"], open: false, color: "#a78bfa" },
         ];
         State.notify();
       }
