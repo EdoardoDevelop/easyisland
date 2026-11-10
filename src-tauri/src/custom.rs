@@ -34,7 +34,12 @@ pub const FIELD_KINDS: &[&str] = &[
     "text", "textarea", "number", "money", "date", "checkbox", "select", "multiselect", "email", "phone", "url", "rows", "computed",
     "counter", "link", "file",
 ];
-pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date", "computed"];
+pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date", "computed", "link"];
+
+/// What a `link` copies from the record picked: target field (or column) → a
+/// field of the other integration ("indirizzo") or a short template with
+/// {{campi}} ("{{cap}} {{citta}}").
+pub type Fill = std::collections::BTreeMap<String, String>;
 pub const ACTION_KINDS: &[&str] = &["save", "document", "pdf", "copy", "ai", "url", "quick", "script", "notion", "fill", "export", "http", "task", "notice", "steps"];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -48,6 +53,12 @@ pub struct Column {
     pub formula: String,
     /// computed: money (default), number, percent, text, date, yesno.
     pub format: String,
+    /// link: the integration whose records are picked from.
+    pub source: String,
+    /// link: the row's other columns filled from the record picked.
+    pub fill: Fill,
+    /// link: a value written by hand goes into `source` when the record is saved.
+    pub remember: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -73,8 +84,12 @@ pub struct Field {
     pub digits: u32,
     /// Shown only when: "urgente" (checked or filled) or "pagamento=Bonifico".
     pub show_if: String,
-    /// link: the id of another integration, its records to pick from.
+    /// link: the id of another integration, its records to pick from (searched as you type).
     pub source: String,
+    /// link: the other fields filled from the record picked.
+    pub fill: Fill,
+    /// link: a value written by hand goes into `source` when the record is saved.
+    pub remember: bool,
     /// In the list of the saved records: summed (numbers) or counted (choices).
     pub summary: bool,
     /// computed: money (default), number, percent, text, date, yesno.
@@ -271,18 +286,37 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
                 if col.kind == "computed" && col.formula.trim().is_empty() {
                     return Err(tf("Colonna «{l}»: formula sulle colonne della riga, es. quantita*prezzo.", &[("l", &col.label)]));
                 }
+                if col.kind == "link" {
+                    col.source = col.source.trim().to_string();
+                    if !valid_id(&col.source) {
+                        return Err(tf("Colonna «{l}»: source, l'id dell'integrazione da cui scegliere (vedi custom_list).", &[("l", &col.label)]));
+                    }
+                }
+            }
+            // The row's columns a link fills: the others, never a computed one.
+            let targets: Vec<(String, String)> = f.columns.iter().map(|x| (x.id.clone(), x.kind.clone())).collect();
+            for col in f.columns.iter_mut().filter(|x| x.kind == "link") {
+                col.fill = check_fill(&col.label, &col.id, std::mem::take(&mut col.fill), &targets)?;
             }
         }
         if f.kind == "counter" {
             f.digits = if f.digits == 0 { 3 } else { f.digits.min(8) };
             f.prefix = f.prefix.chars().take(30).collect();
         }
-        if f.kind == "link" && !valid_id(f.source.trim()) {
-            return Err(tf("Campo «{l}»: source, l'id dell'integrazione da cui scegliere (vedi custom_list).", &[("l", &f.label)]));
+        if f.kind == "link" {
+            f.source = f.source.trim().to_string();
+            if !valid_id(&f.source) {
+                return Err(tf("Campo «{l}»: source, l'id dell'integrazione da cui scegliere (vedi custom_list).", &[("l", &f.label)]));
+            }
         }
         if f.kind == "computed" && f.formula.trim().is_empty() {
             return Err(tf("Campo «{l}»: formula, es. sum(quantita*prezzo) oppure imponibile*0,22.", &[("l", &f.label)]));
         }
+    }
+    // The fields a link fills: the form's others, never a table, a computed value or a counter.
+    let targets: Vec<(String, String)> = c.fields.iter().map(|x| (x.id.clone(), x.kind.clone())).collect();
+    for f in c.fields.iter_mut().filter(|x| x.kind == "link") {
+        f.fill = check_fill(&f.label, &f.id, std::mem::take(&mut f.fill), &targets)?;
     }
     if c.template.len() > MAX_TEMPLATE {
         return Err(t("template: al massimo 40.000 caratteri.").into());
@@ -376,6 +410,63 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         c.title_field = String::new();
     }
     Ok(c)
+}
+
+/// A link's `fill`: each target is another field (or column) that can hold a
+/// value, each source a field id of the other integration or a short template.
+fn check_fill(label: &str, own: &str, fill: Fill, targets: &[(String, String)]) -> Result<Fill, String> {
+    if fill.len() > 30 {
+        return Err(tf("«{l}»: fill, al massimo 30 campi da compilare.", &[("l", &label)]));
+    }
+    let mut out = Fill::new();
+    for (to, from) in fill {
+        let (to, from) = (to.trim().to_string(), from.trim().to_string());
+        let ok = to != own && targets.iter().any(|(id, kind)| id == &to && !matches!(kind.as_str(), "rows" | "computed" | "counter"));
+        if !ok {
+            return Err(tf("«{l}»: in fill «{t}» non è un campo da compilare (deve essere l'id di un altro campo, non calcolato).", &[("l", &label), ("t", &to)]));
+        }
+        if from.is_empty() || from.chars().count() > 300 {
+            return Err(tf("«{l}»: in fill, per «{t}» l'id di un campo dell'altra integrazione o un modello con {{campi}}.", &[("l", &label), ("t", &to)]));
+        }
+        out.insert(to, from);
+    }
+    Ok(out)
+}
+
+/// When the chat writes a description: the integrations its links pick from
+/// exist and `fill` names their fields. Read from their files, not `list`
+/// (which normalizes every description and would come back here).
+fn check_links(c: &Custom) -> Result<(), String> {
+    let mut wanted: Vec<(String, String, Fill)> = Vec::new();
+    for f in &c.fields {
+        if f.kind == "link" {
+            wanted.push((f.label.clone(), f.source.clone(), f.fill.clone()));
+        }
+        for col in f.columns.iter().filter(|x| x.kind == "link") {
+            wanted.push((col.label.clone(), col.source.clone(), col.fill.clone()));
+        }
+    }
+    for (label, source, fill) in wanted {
+        let other: Option<Custom> = if source == c.id {
+            Some(c.clone())
+        } else {
+            std::fs::read(def_file(&source)).ok().and_then(|b| serde_json::from_slice(&b).ok())
+        };
+        let Some(other) = other else {
+            return Err(tf("«{l}»: source «{s}» non è un'integrazione personale (vedi custom_list; creala prima).", &[("l", &label), ("s", &source)]));
+        };
+        for (to, from) in fill {
+            let names: Vec<String> = if from.contains("{{") {
+                from.split("{{").skip(1).filter_map(|x| x.split("}}").next()).map(|x| x.split('|').next().unwrap_or_default().trim().to_string()).collect()
+            } else {
+                vec![from.clone()]
+            };
+            if let Some(bad) = names.iter().find(|n| !other.fields.iter().any(|f| &f.id == *n)) {
+                return Err(tf("«{l}»: in fill, per «{t}», «{b}» non è un campo di «{s}».", &[("l", &label), ("t", &to), ("b", bad), ("s", &other.name)]));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// "https://api.esempio.it/v1/x?{{a}}" → "https://api.esempio.it": scheme and
@@ -966,7 +1057,9 @@ fn parse_def(args: &Value) -> Result<Custom, String> {
 }
 
 pub fn tool_create(app: &AppHandle, args: &Value) -> Result<String, String> {
-    let c = save(app, parse_def(args)?, true)?;
+    let c = parse_def(args)?;
+    check_links(&normalize(c.clone())?)?;
+    let c = save(app, c, true)?;
     Ok(tf("Integrazione «{name}» creata: è nel menu dell'isola con {n} campi. Puoi cambiarla con custom_update.", &[("name", &c.name), ("n", &c.fields.len().to_string())]))
 }
 
@@ -977,10 +1070,133 @@ pub fn tool_update(app: &AppHandle, args: &Value) -> Result<String, String> {
         c.id = id.to_string();
     }
     let old = get(&c.id).or_else(|| get(&c.name)).ok_or(t("Integrazione non trovata: usa custom_create per una nuova."))?;
-    c.id = old.id;
+    c.id = old.id.clone();
     c.enabled = old.enabled;
+    let new = normalize(c.clone())?;
+    check_links(&new)?;
+    let notes = changes(&old, &new, &records(&old.id));
+    // The description as it was, dated, before it is replaced (the saved records are another file and stay).
+    let copy = keep_version(&old.id)?;
     let c = save(app, c, false)?;
-    Ok(tf("Integrazione «{name}» aggiornata.", &[("name", &c.name)]))
+    let mut msg = tf("Integrazione «{name}» aggiornata. Versione di prima in {path}.", &[("name", &c.name), ("path", &copy.display().to_string())]);
+    if !notes.is_empty() {
+        msg.push_str(&format!("\n{}\n- {}", t("Cosa è cambiato (dillo all'utente):"), notes.join("\n- ")));
+    }
+    Ok(msg)
+}
+
+/// Before the Consenti / Nega card of a `custom_update`: what it changes, in
+/// `tool_input._changes`, so the card shows it (src/island/hooks.ts). Only
+/// added for the card: the decision sent back is a word, never the input.
+pub fn annotate(payload: &mut Value) {
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    if tool != "custom_update" && !tool.ends_with("__custom_update") {
+        return;
+    }
+    let Some(input) = payload.get("tool_input") else { return };
+    let Ok(mut c) = parse_def(input) else { return };
+    if let Some(id) = input.get("id").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+        c.id = id.to_string();
+    }
+    let Some(old) = get(&c.id).or_else(|| get(&c.name)) else { return };
+    c.id = old.id.clone();
+    let Ok(new) = normalize(c) else { return };
+    let notes = changes(&old, &new, &records(&old.id));
+    if let Some(obj) = payload.get_mut("tool_input").and_then(Value::as_object_mut) {
+        obj.insert("_changes".into(), json!(notes));
+        obj.insert("_name".into(), json!(old.name));
+    }
+}
+
+/// Older descriptions of an integration: `integrazioni\versioni\<id>-<data>.json`
+/// (a subfolder: `list` reads only the files of `integrazioni`).
+fn versions_dir() -> PathBuf {
+    dir().join("versioni")
+}
+
+/// Copies `<id>.json` into `versioni\` and keeps the last 20 of that id.
+fn keep_version(id: &str) -> Result<PathBuf, String> {
+    let from = def_file(id);
+    let bytes = std::fs::read(&from).map_err(|e| e.to_string())?;
+    let vdir = versions_dir();
+    std::fs::create_dir_all(&vdir).map_err(|e| e.to_string())?;
+    let to = vdir.join(format!("{id}-{}.json", crate::hooks::stamp()));
+    crate::settings::write_atomic(&to, &bytes).map_err(|e| e.to_string())?;
+    let prefix = format!("{id}-");
+    let mut mine: Vec<PathBuf> = std::fs::read_dir(&vdir)
+        .map(|r| r.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    mine.retain(|p| {
+        p.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+            // "<id>-20261110-081500.json": the id itself may have dashes, the stamp has none but one.
+            n.strip_prefix(&prefix).and_then(|rest| rest.strip_suffix(".json")).is_some_and(|s| s.len() == 15 && s.chars().all(|c| c.is_ascii_digit() || c == '-'))
+        })
+    });
+    mine.sort();
+    let extra = mine.len().saturating_sub(20);
+    for p in mine.iter().take(extra) {
+        let _ = std::fs::remove_file(p);
+    }
+    Ok(to)
+}
+
+/// What an update changes that the user may not expect, in words: fields that
+/// go (their values stop showing in the saved records), kinds, the counter,
+/// the template, the actions.
+pub fn changes(old: &Custom, new: &Custom, saved: &[Record]) -> Vec<String> {
+    let mut out = Vec::new();
+    let filled = |id: &str| {
+        saved.iter().filter(|r| r.values.get(id).is_some_and(|v| match v {
+            Value::Null => false,
+            Value::String(s) => !s.trim().is_empty(),
+            Value::Array(a) => !a.is_empty(),
+            _ => true,
+        })).count()
+    };
+    for f in &old.fields {
+        match new.fields.iter().find(|n| n.id == f.id) {
+            None => {
+                let n = filled(&f.id);
+                out.push(if n > 0 {
+                    tf("Tolto il campo «{label}» ({id}), compilato nelle schede salvate: {n}. Lì il valore non si vedrà più, e si perde se una di quelle schede viene salvata di nuovo.",
+                        &[("label", &f.label), ("id", &f.id), ("n", &n.to_string())])
+                } else {
+                    tf("Tolto il campo «{label}» ({id}).", &[("label", &f.label), ("id", &f.id)])
+                });
+            }
+            Some(n) if n.kind != f.kind => out.push(tf("Il campo «{label}» cambia tipo: da {a} a {b}.", &[("label", &f.label), ("a", &f.kind), ("b", &n.kind)])),
+            Some(n) if f.kind == "counter" && n.prefix != f.prefix => out.push(tf(
+                "Il numeratore «{label}» cambia prefisso da «{a}» a «{b}»: la numerazione riparte per il prefisso nuovo, le schede salvate tengono il loro numero.",
+                &[("label", &f.label), ("a", &f.prefix), ("b", &n.prefix)],
+            )),
+            Some(n) if f.kind == "rows" => {
+                for col in f.columns.iter().filter(|c| !n.columns.iter().any(|x| x.id == c.id)) {
+                    out.push(tf("Tolta la colonna «{col}» dalla tabella «{label}».", &[("col", &col.label), ("label", &f.label)]));
+                }
+            }
+            _ => {}
+        }
+    }
+    let added: Vec<&str> = new.fields.iter().filter(|n| !old.fields.iter().any(|f| f.id == n.id)).map(|n| n.label.as_str()).collect();
+    if !added.is_empty() {
+        out.push(tf("Campi nuovi (vuoti nelle schede salvate): {list}.", &[("list", &added.join(", "))]));
+    }
+    if new.template != old.template {
+        let (a, b) = (old.template.chars().count(), new.template.chars().count());
+        out.push(if b * 10 < a * 7 {
+            tf("Il modello del documento è molto più corto: da {a} a {b} caratteri.", &[("a", &a.to_string()), ("b", &b.to_string())])
+        } else {
+            tf("Cambia il modello del documento ({a} → {b} caratteri).", &[("a", &a.to_string()), ("b", &b.to_string())])
+        });
+    }
+    for a in &old.actions {
+        match new.actions.iter().find(|n| n.label == a.label) {
+            None => out.push(tf("Tolta l'azione «{label}».", &[("label", &a.label)])),
+            Some(n) if n.kind == "script" && n.script != a.script => out.push(tf("Cambia lo script dell'azione «{label}».", &[("label", &a.label)])),
+            _ => {}
+        }
+    }
+    out
 }
 
 pub fn tool_list() -> String {
@@ -1134,6 +1350,70 @@ mod tests {
         assert_eq!(next_counter(&f, &[]), format!("PREV-{year}-001"));
         let all = [rec(&format!("PREV-{year}-007")), rec(&format!("PREV-{year}-002")), rec("PREV-1999-950")];
         assert_eq!(next_counter(&f, &all), format!("PREV-{year}-008"));
+    }
+
+    #[test]
+    fn an_update_says_what_the_saved_records_lose() {
+        let field = |id: &str, kind: &str| Field { id: id.into(), label: id.into(), kind: kind.into(), ..Default::default() };
+        let mut numero = field("numero", "counter");
+        numero.prefix = "DDT-{anno}-".into();
+        let old = Custom {
+            fields: vec![numero.clone(), field("destinatario", "text"), field("note", "textarea")],
+            template: "x".repeat(1000),
+            actions: vec![Action { label: "PDF".into(), kind: "document".into(), ..Default::default() }],
+            ..Default::default()
+        };
+        let mut rap = numero;
+        rap.prefix = "RAP-{anno}-".into();
+        let new = Custom {
+            fields: vec![rap, field("cliente", "text"), field("note", "textarea"), field("servizi", "rows")],
+            template: "x".repeat(300),
+            ..Default::default()
+        };
+        let saved = [
+            Record { values: [("destinatario".to_string(), json!("Farmacia"))].into_iter().collect(), ..Default::default() },
+            Record { values: [("destinatario".to_string(), json!(""))].into_iter().collect(), ..Default::default() },
+        ];
+        let all = changes(&old, &new, &saved).join("\n");
+        assert!(all.contains("«destinatario»") && all.contains("schede salvate: 1."), "{all}");
+        assert!(all.contains("RAP-{anno}-"), "{all}");
+        assert!(all.contains("cliente, servizi"), "{all}");
+        assert!(all.contains("molto più corto"), "{all}");
+        assert!(all.contains("«PDF»"), "{all}");
+        assert!(!all.contains("«note»"), "{all}");
+        // Nothing changed, nothing said.
+        assert!(changes(&old, &old, &saved).is_empty());
+    }
+
+    #[test]
+    fn a_link_fills_other_fields_and_columns() {
+        let field = |id: &str, kind: &str| Field { id: id.into(), label: id.into(), kind: kind.into(), ..Default::default() };
+        let mut cliente = field("cliente", "link");
+        cliente.source = "clienti".into();
+        cliente.fill = [("indirizzo".to_string(), " indirizzo ".to_string()), ("recapito".to_string(), "{{cap}} {{citta}}".to_string())].into();
+        let col = |id: &str, kind: &str| Column { id: id.into(), label: id.into(), kind: kind.into(), ..Default::default() };
+        let mut servizio = col("servizio", "link");
+        servizio.source = "listino".into();
+        servizio.fill = [("prezzo".to_string(), "prezzo".to_string())].into();
+        let mut righe = field("righe", "rows");
+        righe.columns = vec![servizio, col("prezzo", "money"), col("totale", "computed")];
+        righe.columns[2].formula = "prezzo".into();
+        let base = Custom { name: "Rapportino".into(), fields: vec![cliente, field("indirizzo", "text"), field("recapito", "text"), righe], ..Default::default() };
+        let ok = normalize(base.clone()).expect("valid");
+        assert_eq!(ok.fields[0].fill.get("indirizzo").map(String::as_str), Some("indirizzo"));
+
+        // A computed value, a table, itself or a field that is not there: refused, with the reason.
+        for bad in ["righe", "cliente", "manca"] {
+            let mut c = base.clone();
+            c.fields[0].fill = [(bad.to_string(), "x".to_string())].into();
+            assert!(normalize(c).is_err(), "{bad}");
+        }
+        let mut c = base.clone();
+        c.fields[3].columns[0].fill = [("totale".to_string(), "prezzo".to_string())].into();
+        assert!(normalize(c).is_err());
+        let mut c = base;
+        c.fields[3].columns[0].source = String::new();
+        assert!(normalize(c).is_err());
     }
 
     #[test]

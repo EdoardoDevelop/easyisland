@@ -238,11 +238,13 @@ pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String>
 
 /// `request_decision` under a chosen id, so the caller can let it go when its
 /// turn is over (opencode.rs: a card must not outlive the turn that asked).
-pub async fn request_decision_id(app: &AppHandle, id: &str, payload: Value) -> Option<String> {
+pub async fn request_decision_id(app: &AppHandle, id: &str, mut payload: Value) -> Option<String> {
     // A reversible tool allowed for good, or by the running task: no card (permits.rs).
     if crate::permits::allowed_now(app, &payload) {
         return Some("allow".into());
     }
+    // A change to a personal integration: the card says what it changes (custom.rs).
+    crate::custom::annotate(&mut payload);
     // A permission asked during a task's turn: the island and Telegram, first answer wins (tasks.rs).
     let asked = payload.clone();
     let decision = if crate::tasks::in_turn() && payload.get("easyisland_chat").and_then(Value::as_bool) == Some(true) {

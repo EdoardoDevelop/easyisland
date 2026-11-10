@@ -29,7 +29,8 @@ import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type View
 import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
-import { buildRail, railBotSize } from "../views/rail";
+import { buildRail, railBotSize, renameGroup } from "../views/rail";
+import * as MenuGroups from "../core/menu-groups";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { canPreview, chatPathAction, chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
@@ -269,6 +270,9 @@ export class Island {
   /** A zone just put in the tray: until then (ms), the island reopens on the tray. */
   private trayUntil = 0;
   private lastSyncedView: IslandViewName | null = null;
+  /** The screen last shown at the open island, for its entrance (motion.ts viewEnter). */
+  private lastViewKey = "";
+  private lastMark: DOMRect | null = null;
   /** Natural content height reported by the current view (0 = its fixed height). */
   private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
 
@@ -676,17 +680,13 @@ export class Island {
     this.applyBare();
     this.updateWindowCollapsed();
     const closing = prev === "expanded" && mode !== "expanded";
-    // Before the content fades (syncDom): it goes back into the character.
-    if (closing && !State.maximized) {
-      const at = this.botTarget(0, this.width.value);
-      closeIsland(this.islandEl, this.contentEl, { x: at.cx, y: at.cy }, this.placement.v === "bottom");
-    }
+    // Before the content fades (syncDom).
+    if (closing && !State.maximized) closeIsland(this.contentEl);
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
-    // Opening (motion.ts): from the character, to the size the island is growing to.
+    // Opening (motion.ts): the contents come in while the island grows.
     if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized) {
-      const at = this.botTarget(this.height.target, this.width.target);
       const parts = [...this.islandEl.querySelectorAll<HTMLElement>("#header, #rail, #views")];
-      if (!openIsland(this.islandEl, { x: at.cx, y: at.cy }, this.width.target, this.height.target, parts, this.placement.v === "bottom") && motionLevel() !== "spente") this.openWave();
+      if (!openIsland(parts) && motionLevel() !== "spente") this.openWave();
     }
     this.scheduleWander();
     State.notify();
@@ -2134,6 +2134,17 @@ ${note}` : text };
    * island's own entries. Only things a click can do anyway: nothing deletes,
    * sends or runs a command without its usual confirmation.
    */
+  /** «Colore…» on a group of the menu: the island's colours, under the group's row. */
+  private groupColorMenu(id: string) {
+    const g = MenuGroups.groups().find((x) => x.id === id);
+    const row = document.querySelector<HTMLElement>(`#rail [data-head="${CSS.escape(id)}"]`);
+    if (!g || !row) return;
+    const r = row.getBoundingClientRect();
+    const now = g.color ?? MenuGroups.GROUP_COLORS[0].color;
+    showMenu(this.islandEl, r.left + 24, r.bottom + 2, t("Colore di «{name}»", { name: g.name }),
+      MenuGroups.GROUP_COLORS.map((c) => ({ label: t(c.name), swatch: c.color, checked: c.color === now, run: () => MenuGroups.setColor(id, c.color) })));
+  }
+
   private contextItems(el: HTMLElement | null): { title: string; items: MenuItem[] } {
     const items: MenuItem[] = [];
     let title = "";
@@ -2167,6 +2178,21 @@ ${note}` : text };
       );
     }
 
+    // A group of the menu (core/menu-groups.ts): its name, or let it go.
+    const groupId = el?.closest<HTMLElement>("[data-head]")?.dataset.head ?? "";
+    const group = groupId ? MenuGroups.groups().find((g) => g.id === groupId) : undefined;
+    if (group && !items.length) {
+      return {
+        title: group.name,
+        items: [
+          { label: group.open ? t("Chiudi il gruppo") : t("Apri il gruppo"), run: () => MenuGroups.toggle(group.id) },
+          { label: t("Rinomina"), run: () => renameGroup(group.id) },
+          { label: t("Colore…"), run: () => this.groupColorMenu(group.id) },
+          { label: t("Sciogli il gruppo"), sep: true, run: () => MenuGroups.dissolve(group.id) },
+        ],
+      };
+    }
+
     // An integration, a widget or an agent: a row of the menu, a tile, its open card.
     const rail = el?.closest<HTMLElement>("[data-rail]")?.dataset.rail ?? "";
     let id = el?.closest<HTMLElement>("[data-id]")?.dataset.id ?? "";
@@ -2192,6 +2218,9 @@ ${note}` : text };
         items.push({ label: t("Impostazioni «{name}»", { name: task.name }), sep: true, run: settingsAt("integrazioni", task.id) });
       }
       if (!session) items.splice(1, 0, { label: t("Apri in una finestra"), run: () => this.popOut(task.id) });
+      // In a group of the menu: out of it, in one click as well as by dragging.
+      const inGroup = el?.closest(".rail-member") ? MenuGroups.groupOf(task.id) : undefined;
+      if (inGroup) items.push({ label: t("Togli dal gruppo «{name}»", { name: inGroup.name }), run: () => MenuGroups.removeFrom(task.id) });
     }
 
     // A quick action.
@@ -4309,8 +4338,6 @@ ${note}` : text };
     this.islandEl.classList.toggle("pop", !!State.popover);
     this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
     this.islandEl.classList.toggle("open", expanded);
-    // Where the menu's mark was, for it to glide to the new item (motion.ts).
-    const markBefore = expanded && this.lastSyncedView !== State.view ? this.rail.el.querySelector(".rail-item.on")?.getBoundingClientRect() ?? null : null;
     if (railed) {
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
@@ -4322,14 +4349,24 @@ ${note}` : text };
     }
     this.search.el.style.display = this.searchShown ? "" : "none";
     guard("search", () => this.search.sync());
-    const changed = expanded && this.lastSyncedView !== State.view && this.lastSyncedView !== null;
     for (const [name, view] of this.views) {
       // The chat in its own window is drawn there (popout.ts).
       if (name === "prompt" && isPopped("chat")) continue;
       const on = name === State.view;
       view.el.classList.toggle("on", on);
       if (on) guard(`view ${name}`, () => view.sync());
-      if (on && changed) viewEnter(view.el, this.rail.el.querySelector<HTMLElement>(".rail-item.on"), markBefore);
+    }
+    // A new screen (motion.ts): another view, or another menu item on the same
+    // view (the integrations all show in Panoramica). The mark glides from the old item.
+    if (expanded) {
+      const item = this.rail.el.querySelector<HTMLElement>(".rail-item.on");
+      const viewKey = `${State.view}|${item?.dataset.rail ?? ""}`;
+      if (viewKey !== this.lastViewKey) {
+        const view = this.views.get(State.view);
+        if (this.lastViewKey && view) viewEnter(view.el, item, this.lastMark);
+        this.lastViewKey = viewKey;
+        this.lastMark = item?.getBoundingClientRect() ?? null;
+      }
     }
 
     // Views that know how tall their content is make the island grow (or

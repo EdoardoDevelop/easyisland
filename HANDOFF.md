@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_10 novembre 2026. **1.0.41** in `main` (tag `v1.0.41`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_10 novembre 2026. **1.0.42** in `main` (tag `v1.0.42`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -51,18 +51,18 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 10/11 — Gruppi nel menu dell'isola (ramo `claude/menu-gruppi`)
+Richiesta di Edoardo per il portatile di lavoro, pieno di integrazioni documentali: trascinando un'integrazione del menu sopra un'altra nasce un gruppo, come sul telefono (nome scritto sul posto, aggiungi trascinando sul gruppo, togli trascinando fuori, clic destro Rinomina/Colore/Sciogli, anche in Impostazioni). `src/core/menu-groups.ts`, `src/views/rail-drag.ts`, `settings.menuGroups` per profilo. Eccezione annotata in `docs/decisioni.md`. `docs/integrazioni.md` → Gruppi del menu, guida 18.
+
+### 10/11 — Integrazioni personali: cosa cambia prima di `custom_update`, campo collegato con ricerca (ramo `claude/campi-collegati`)
+Domanda di Edoardo sul «DDT Easytech» da trasformare in rapportino: la chat riscrive tutta la descrizione e la card non diceva cosa cambiava. Ora `custom::annotate` mette nella card campi tolti (con quante schede salvate li hanno), tipi, prefisso del numeratore, colonne, campi nuovi, modello molto più corto, azioni e script; prima di scrivere una copia datata in `integrazioni\versioni\`. Poi il `link` generico (campo o colonna): ricerca mentre si scrive in tutte le schede della sorgente, `fill` compila gli altri campi, `remember` aggiunge alla sorgente i nomi nuovi al salvataggio (`src/views/custom-link.ts`, scena `custom&collegato`). Test `an_update_says_what_the_saved_records_lose`, `a_link_fills_other_fields_and_columns`. `docs/integrazioni.md`, guida 24.
+
 ### 10/11 — Animazioni a tre livelli
-`src/core/motion.ts`: onda di luce a ogni clic, viste che nascono dalla voce del menu, apertura e chiusura di isola, Impostazioni, Memoria e Flussi con «Lancio», «Sipario» o «Particelle» (Aspetto → Tema → Animazioni; di serie Ricche + Lancio, richiesta di Edoardo). Chiusura delle finestre ritardata di 300 ms da `hide_after_fx` (lib.rs). Scelta fatta sull'artifact «Animazioni di EasyIsland». `docs/architettura.md` → Animazioni, guida 05.
+`src/core/motion.ts`: onda di luce a ogni clic, viste che nascono dalla voce del menu, all'apertura di isola, Impostazioni, Memoria, Flussi e schermate i contenuti entrano uno dopo l'altro (Aspetto → Tema → Animazioni, di serie Ricche). Gli effetti sulla cornice della 1.0.41 (Lancio, Sipario, Particelle) e la molla più morbida sono stati tolti su richiesta di Edoardo: solo contenuti, un effetto per tutto. Chiusura delle finestre ritardata di 300 ms da `hide_after_fx` (lib.rs). Scelta fatta sull'artifact «Animazioni di EasyIsland». `docs/architettura.md` → Animazioni, guida 05.
 
 ### 10/11 — «Claude Code fuori da EasyIsland» senza le sessioni di EasyIsland
 La lista si riempiva delle sessioni avviate da EasyIsland stesso fuori dalla cartella della chat (sul PC di lavoro 176, in OneDrive\WORK, titolo «[Istruzioni dell'utente per questa chat…»). `desktop::outside` ora salta quelle con `entrypoint` «sdk-cli» (`claude -p`); restano «cli» e «claude-desktop». `docs/chat.md`.
 
 ### 10/11 — «File e schermo» riordinata, menu ⋯ della cartella di lavoro
 Il «⋯» della Cartella di lavoro metteva i pulsanti dentro la tessera e in griglia allungava la fila: ora usa il menu dell'isola come il Vassoio, «Sposta nel Cestino…» chiede conferma sopra l'elenco. In griglia solo «⋯» sulla tessera (Chiedi e Apri nel menu). Vassoio: «Fissa nel Vassoio» / «Togli la puntina» e puntina visibile. Pagina in sezioni (Vassoio, Cartella di lavoro, Raccolta, Registra), Raccolta vuota in una riga, icone disegnate al posto di ☰ ▦ +. `docs/strumenti.md`, guida 17.
-
-### 10/11 — Revisione di design di tutte le finestre
-Critica Impeccable (25/40) su 54 schermate, poi tutto sistemato con Edoardo: una tavolozza Windows 11 per isola, Memoria, Anteprima, Flussi; Memoria con etichette mai sovrapposte (`src/memory/labels.ts`, `?many=300`), barra su una riga, `[[link]]` cliccabili; fumetto in alto con il problema in corso; contenuto delle card dall'alto (prima al centro, 14/10); card delle integrazioni con un solo stile di intestazione e link; Vassoio con ⋯; nomi accessibili sui pulsanti a icona; tasto «C» per Consenti (Y resta). Restano: emoji nei Flussi, testi d'aiuto lunghi nelle Impostazioni.
-
-### 9/11 — Agent Chat: token nel campo sbagliato, log senza segreti
-Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»: ora `agentchat.rs` lo riconosce dai prefissi `ac_`/`ow_` e lo dice (`misplaced`, `hello`, `owner_send`). `easyisland.log` aveva il `Bearer` di un comando di opencode: `log::mask` su ogni riga e `log::scrub_once` sul log vecchio. `docs/integrazioni.md`, `docs/architettura.md` → Robustezza.
 

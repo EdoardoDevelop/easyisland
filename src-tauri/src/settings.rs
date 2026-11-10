@@ -397,6 +397,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "characterBubble",
     "pillOrder",
     "tabOrder",
+    "menuGroups",
     "anchorV",
     "anchorH",
     "offsetX",
@@ -413,7 +414,6 @@ pub const PROFILE_KEYS: &[&str] = &[
     "iconSize",
     "hoverStyle",
     "animations",
-    "openEffect",
     "hoverSize",
     "compactStrip",
     "appBar",
@@ -671,6 +671,10 @@ pub struct Settings {
     /// "tab:drop") and integrations, as dragged in the island.
     #[serde(default)]
     pub tab_order: Vec<String>,
+    /// Groups of the island's menu, made by dropping an integration on another:
+    /// `{ id, name, items: [ids], open }` (src/views/rail.ts).
+    #[serde(default)]
+    pub menu_groups: Vec<Value>,
     /// No dragging pills and tabs around in the island. Belongs to the PC.
     #[serde(default)]
     pub lock_order: bool,
@@ -884,9 +888,6 @@ pub struct Settings {
     /// The app's motion (motion.ts): "ricche" | "sobrie" | "spente".
     #[serde(default = "default_animations")]
     pub animations: String,
-    /// How the island and the windows open and close: "lancio" | "sipario" | "particelle".
-    #[serde(default = "default_open_effect")]
-    pub open_effect: String,
     /// Size of the hovered icon, logical px.
     #[serde(default = "default_hover_size")]
     pub hover_size: f64,
@@ -1152,9 +1153,6 @@ fn default_animations() -> String {
     "ricche".into()
 }
 
-fn default_open_effect() -> String {
-    "lancio".into()
-}
 fn default_hover_size() -> f64 {
     40.0
 }
@@ -1211,6 +1209,7 @@ impl Default for Settings {
             integration_tab_icons: serde_json::Map::new(),
             integration_colors: serde_json::Map::new(),
             pill_order: Vec::new(),
+            menu_groups: Vec::new(),
             tab_order: Vec::new(),
             lock_order: false,
             search_bar: true,
@@ -1279,7 +1278,6 @@ impl Default for Settings {
             icon_size: default_icon_size(),
             hover_style: default_hover_style(),
             animations: default_animations(),
-            open_effect: default_open_effect(),
             hover_size: default_hover_size(),
             compact_strip: default_compact_strip(),
             app_bar: true,

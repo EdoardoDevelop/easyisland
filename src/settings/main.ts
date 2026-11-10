@@ -3,7 +3,7 @@
 // the rest belongs to this PC.
 
 import "./settings.css";
-import { applyMotion, watchWindow } from "../core/motion";
+import { applyMotion, viewEnter, watchWindow } from "../core/motion";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { LOGO_CHARACTER } from "../character/logo-anim";
@@ -2224,8 +2224,41 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
     h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
+  // Groups of the menu (core/menu-groups.ts): made in the island, named and let go here too.
+  const groupsBox = h("div", { class: "menu-groups" });
+  const drawGroups = () => {
+    groupsBox.replaceChildren();
+    const all = settings.menuGroups ?? [];
+    if (!all.length) {
+      groupsBox.append(h("div", { class: "hint", text: t("Nessun gruppo. Nell'isola trascina un'integrazione del menu sopra un'altra: nasce un gruppo con tutte e due. Trascinane altre sul gruppo per aggiungerle, fuori per toglierle.") }));
+      return;
+    }
+    for (const g of all) {
+      const name = h("input", { type: "text", value: g.name, maxlength: "40", spellcheck: "false", "aria-label": t("Nome del gruppo") }) as HTMLInputElement;
+      name.addEventListener("change", () => {
+        const v = name.value.trim();
+        if (!v) { name.value = g.name; return; }
+        g.name = v.slice(0, 40);
+        void save();
+      });
+      const names = g.items.map((id) => INTEGRATIONS.find((x) => x.id === id)?.name ?? (id.startsWith("custom:") ? id.slice(7) : id)).join(", ");
+      const go = h("button", { text: t("Sciogli"), title: t("Le integrazioni tornano nel menu una per una") });
+      go.addEventListener("click", () => {
+        settings.menuGroups = (settings.menuGroups ?? []).filter((x) => x.id !== g.id);
+        void save();
+        drawGroups();
+      });
+      // The folder's colour (yellow until one is chosen; also from the right click in the island).
+      const color = h("input", { type: "color", value: g.color && /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : "#f5a524",
+        title: t("Colore della cartella"), "aria-label": t("Colore della cartella") }) as HTMLInputElement;
+      color.addEventListener("change", () => { g.color = color.value; void save(); });
+      groupsBox.append(h("div", { class: "row" }, color, name, h("span", { class: "hint", text: names }), go));
+    }
+  };
+  drawGroups();
   return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, filterRow, list,
-    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow);
+    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow,
+    h("h3", { class: "int-sub", text: t("Gruppi del menu") }), groupsBox);
 }
 
 /** The first sentence of a hint, for the integration's row. */
@@ -2607,16 +2640,7 @@ function appearanceSections(): HTMLElement[] {
             settings.animations ?? "ricche",
             (v) => { settings.animations = v; applyMotion(settings); commit(); },
           ),
-          h("span", { class: "hint note", text: t("Ricche: ogni clic risponde con un'onda di luce, le schermate nascono dalla voce del menu, isola e finestre si aprono con l'effetto scelto qui sotto. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie") }),
-        ),
-        h("div", { class: "row" },
-          h("label", { text: t("Effetto di apertura") }),
-          select<Settings["openEffect"]>(
-            [["lancio", t("Lancio")], ["sipario", t("Sipario")], ["particelle", t("Particelle")]],
-            settings.openEffect ?? "lancio",
-            (v) => { settings.openEffect = v; applyMotion(settings); commit(); },
-          ),
-          h("span", { class: "hint note", text: t("come si aprono e si chiudono l'isola e le finestre. Lancio: a cerchio dal personaggio, con un anello di luce. Sipario: una linea di luce srotola la finestra. Particelle: le particelle del personaggio ne disegnano i bordi; la più pesante per la scheda video") }),
+          h("span", { class: "hint note", text: t("Ricche: ogni clic risponde con un'onda di luce e, quando si aprono isola, finestre e schermate, i contenuti entrano uno dopo l'altro. Sobrie: solo dissolvenze brevi. Spente: niente movimento. Con «Riduci animazioni» di Windows acceso, Ricche diventa Sobrie") }),
         ),
       ),
     ],
@@ -3355,7 +3379,7 @@ function profileChip(): HTMLElement {
 /** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
-  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle", "animations", "openEffect",
+  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle", "animations",
   "hoverSize", "compactStrip", "appBar", "chatInstructions", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
@@ -5790,8 +5814,8 @@ async function main() {
   // ?scheme=light: the light mode.
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
-  // ?animations=sobrie, ?openEffect=sipario: the motion (motion.ts).
-  for (const k of ["animations", "openEffect"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
+  // ?animations=sobrie: the motion (motion.ts).
+  for (const k of ["animations"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
   applyUiStyle(settings.theme.style, settings.theme.scheme);
   applyFonts(settings.theme.fonts);
   applyMotion(settings);
@@ -6033,7 +6057,24 @@ function render() {
   if (oldHeight) body.style.minHeight = `${oldHeight}px`;
   main.scrollTop = scrollTop;
   holdScroll(main, body);
+  // Another page or tab (motion.ts): it comes in from the item clicked; a redraw after a save does not.
+  const tabs = [...root.querySelectorAll(".subtab.on, [role=tab][aria-selected=true]")].map((e) => e.textContent).join("|");
+  const key = `${page.id}|${tabs}`;
+  const item = root.querySelector<HTMLElement>(".nav-item.on");
+  if (shownKey && key !== shownKey) {
+    viewEnter(body, page.id === shownKey.split("|")[0] ? root.querySelector<HTMLElement>(".subtab.on") : item, page.id === shownKey.split("|")[0] ? null : shownMark);
+    enteredAt = performance.now();
+  } else if (performance.now() - enteredAt < 700) {
+    // Redrawn right after the change, its data just arrived: the new pieces come in too
+    // (they appeared all at once, as a block).
+    viewEnter(body, null, null);
+  }
+  shownKey = key;
+  shownMark = item?.getBoundingClientRect() ?? null;
 }
+let shownKey = "";
+let shownMark: DOMRect | null = null;
+let enteredAt = 0;
 
 /**
  * A list redrawn in place (an action's type, a switch, Aggiungi, Elimina) left

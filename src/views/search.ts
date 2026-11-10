@@ -85,6 +85,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
   const sky = new Constellation();
   const results = h("div", { class: "search-results" }, sky.el, list);
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input);
+  // Leaving the field: its accent line goes out with a wave back (style-windows.css).
+  let lineOut = 0;
+  input.addEventListener("focus", () => { window.clearTimeout(lineOut); bar.classList.remove("line-out"); });
+  input.addEventListener("blur", () => {
+    bar.classList.add("line-out");
+    window.clearTimeout(lineOut);
+    lineOut = window.setTimeout(() => bar.classList.remove("line-out"), 2500);
+  });
   const el = h("div", { id: "search" }, results, bar);
 
   let apps: { name: string; path: string }[] = [];

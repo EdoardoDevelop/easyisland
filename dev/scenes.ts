@@ -112,6 +112,14 @@ export async function runScene(island: Island, scene: string) {
       await wait(300);
       // ?news: with the «Notizie» box under the tiles.
       if (new URLSearchParams(location.search).has("news")) sampleNews();
+      // ?gruppi: two groups in the menu, one open and one closed (core/menu-groups.ts).
+      if (new URLSearchParams(location.search).has("gruppi")) {
+        State.settings.menuGroups = [
+          { id: "gufficio", name: "Ufficio", items: ["integration_zammad", "integration_3cx"], open: true },
+          { id: "gpc", name: "PC", items: ["integration_network", "integration_clipboard", "integration_media"], open: false, color: "#a78bfa" },
+        ];
+        State.notify();
+      }
       session("working", ["Read · src/character/slime.ts", "Edit · src/character/engine.ts", "Bash · npm run build"]);
       // Panoramica: each tile with its latest line, as the integrations write them.
       for (const [id, line] of [
@@ -1276,6 +1284,42 @@ export async function runScene(island: Island, scene: string) {
         { name: "SRV-01", client: "Rossi Srl", disk: 71, online: true },
         { name: "SRV-02", client: "Bianchi Spa", disk: 94, online: true },
         { name: "NAS", client: "Studio Verdi", disk: 40, online: false }] } }, (n) => notices.push(n));
+      // &collegato: «Cliente» searched in «Clienti» and the rows' service in «Listino», each filling
+      // the fields next to it (link with fill, custom-link.ts). The browser has no records: some here.
+      if (new URLSearchParams(location.search).has("collegato")) {
+        const prev = State.customs[0];
+        prev.fields = prev.fields.flatMap((f) => f.id === "cliente"
+          ? [field({ id: "cliente", label: "Cliente", kind: "link", source: "clienti", remember: true, required: true,
+            fill: { indirizzo: "indirizzo", piva: "piva", recapito: "{{cap}} {{citta}}" } }),
+          field({ id: "indirizzo", label: "Indirizzo" }), field({ id: "piva", label: "Partita IVA" }), field({ id: "recapito", label: "CAP e città" })]
+          : [f]);
+        const voci = prev.fields.find((f) => f.id === "voci")!;
+        voci.columns[0] = { id: "descrizione", label: "Servizio", kind: "link", options: [], source: "listino", remember: true, fill: { prezzo: "prezzo" } };
+        State.customs.push(
+          { id: "clienti", name: "Clienti", icon: "👥", color: "#A78BFA", description: "Anagrafica", enabled: true, titleField: "ragione",
+            fields: [field({ id: "ragione", label: "Ragione sociale" }), field({ id: "indirizzo", label: "Indirizzo" }), field({ id: "cap", label: "CAP" }),
+              field({ id: "citta", label: "Città" }), field({ id: "piva", label: "Partita IVA" })], template: "", actions: [] },
+          { id: "listino", name: "Listino servizi", icon: "🏷️", color: "#F59E0B", description: "Servizi e prezzi", enabled: true, titleField: "servizio",
+            fields: [field({ id: "servizio", label: "Servizio" }), field({ id: "prezzo", label: "Prezzo", kind: "money" })], template: "", actions: [] });
+        const rec = (values: Record<string, unknown>, i: number) => ({ id: `r${i}`, created: "2026-11-01 09:00", updated: "2026-11-01 09:00", values });
+        const sample: Record<string, Record<string, unknown>[]> = {
+          clienti: [
+            { ragione: "Farmacia Falchi", indirizzo: "Via Roma 12", cap: "57123", citta: "Livorno", piva: "01234567890" },
+            { ragione: "Farmacia Comunale 1", indirizzo: "Piazza Cavour 3", cap: "56125", citta: "Pisa", piva: "09876543210" },
+            { ragione: "Studio Rossi", indirizzo: "Via Garibaldi 8", cap: "50123", citta: "Firenze", piva: "05555555555" },
+          ],
+          listino: [{ servizio: "Intervento tecnico (ora)", prezzo: 45 }, { servizio: "Uscita in sede", prezzo: 30 }, { servizio: "Assistenza remota (ora)", prezzo: 40 }],
+        };
+        Bridge.customRecords = async (id: string) => (sample[id] ?? []).map(rec);
+        // Saves kept here (window.savedRecords), to see what «remember» adds to Clienti and Listino.
+        const saved: { id: string; values: Record<string, unknown> }[] = [];
+        (window as unknown as { savedRecords: unknown }).savedRecords = saved;
+        Bridge.customRecordSave = async (id: string, _record: string, values: Record<string, unknown>) => {
+          saved.push({ id, values });
+          (sample[id] ??= []).push(values);
+          return rec({ ...values, ...(id === "preventivi" ? { numero: "PREV-2026-001" } : {}) }, saved.length);
+        };
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();

@@ -4008,7 +4008,8 @@ fn hide_after_fx(app: &AppHandle, win: &tauri::WebviewWindow) {
     }
     let label = win.label().to_string();
     let shown = shown_count(&label, false);
-    let _ = win.emit_to(label.as_str(), "window-closing", ());
+    // The label too: every page hears it, only this one plays its closing.
+    let _ = win.emit_to(label.as_str(), "window-closing", label.clone());
     let win = win.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(300));
