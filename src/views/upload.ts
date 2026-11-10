@@ -274,8 +274,10 @@ export function buildFiles(actions: ViewActions): ViewHost {
   try { grid = localStorage.getItem("trayLayout") === "grid"; } catch { /* no storage */ }
   const layoutBtn = h("button", { class: "files-layout" }) as HTMLButtonElement;
   const showLayout = () => {
-    layoutBtn.textContent = grid ? "☰" : "▦";
-    tip(layoutBtn, grid ? t("Mostra come elenco") : t("Mostra come griglia"));
+    const label = grid ? t("Mostra come elenco") : t("Mostra come griglia");
+    layoutBtn.replaceChildren(svg(grid ? ICONS.rows : ICONS.tiles, 12));
+    tip(layoutBtn, label);
+    layoutBtn.setAttribute("aria-label", label);
     list.classList.toggle("grid", grid);
   };
   layoutBtn.addEventListener("click", () => {
@@ -295,23 +297,26 @@ export function buildFiles(actions: ViewActions): ViewHost {
     onclick: () => actions.captureScreen() },
   h("strong", {}, renderActionIcon("i:camera", 14), h("span", { text: t("Riquadra e chiedi") })), hotkey);
   const head = h("div", { class: "files-head" },
-    h("b", { text: t("Vassoio") }), count, layoutBtn, clearAll);
+    h("b", { text: t("Vassoio") }), count, h("span", { class: "files-head-gap" }), layoutBtn, clearAll);
   const list = h("div", { class: "files-list" });
   showLayout();
   const note = h("div", { class: "files-note",
-    text: t("Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina.") });
+    text: t("Copie dei file rilasciati: trascinale in un'altra app, gli originali restano dove sono. Al riavvio il Vassoio si svuota, tranne i file fissati.") });
   // Registra: a conversation, the screen or one window (src/views/recorder.ts).
   const recorder = buildRecorderPanel(actions);
   // The work folder (src/views/workdir.ts), separate from the tray.
   const work = buildWorkPanel(actions);
   // La Raccolta: bits from any app, with their source, for the chat (src/views/collect.ts).
   const collect = buildCollectPanel(actions);
+  // From the most used down: the ways in, what was dropped, the work folder,
+  // then the tools (Raccolta, Registra). Each section under a thin line.
   const body = h("div", { class: "files-body" },
     h("h1", { class: "files-title", text: t("File e schermo") }),
     h("div", { class: "files-tiles" }, dropTile, captureTile),
+    h("section", { class: "files-section" }, head, list, note),
+    work.el,
     collect.el,
-    recorder.el,
-    head, list, note, work.el);
+    recorder.el);
   const card = h("div", { class: "card files-card" }, body);
   const el = h("div", { class: "view" }, card);
 
@@ -379,6 +384,8 @@ export function buildFiles(actions: ViewActions): ViewHost {
       count.textContent = files.length ? `· ${files.length} · ${size(total)}` : "";
       clearAll.style.display = files.some((f) => !f.kept) ? "" : "none";
       clear(list);
+      // The empty tray says it itself: the note would repeat it.
+      note.style.display = files.length ? "" : "none";
       if (files.length === 0) {
         list.append(h("div", { class: "files-empty", text: t("Il vassoio è vuoto. I file che rilasci sull'isola restano qui finché EasyIsland è aperto.") }));
         return;
@@ -394,18 +401,26 @@ export function buildFiles(actions: ViewActions): ViewHost {
           h("span", { class: "files-name", text: f.name, title: f.name }),
           h("span", { class: "files-meta" },
             isFresh ? h("span", { class: "files-fresh-tag", text: `${t("Appena aggiunta")} · ` }) : null,
-            `${f.kept ? `${t("fissato")} · ` : ""}${size(f.size)} · ${ago(f.at)}`),
+            // The pin the note speaks of: a fixed file stays after a restart and «Svuota».
+            f.kept ? h("span", { class: "files-pin", title: t("Fissato: resta anche dopo il riavvio e «Svuota»"),
+              "aria-label": t("Fissato") }, svg(ICONS.pin, 10)) : null,
+            `${size(f.size)} · ${ago(f.at)}`),
           err),
         h("span", { class: "files-tools" },
           iconBtn("chat", t("Chiedi alla chat su questo file"), () => actions.askAboutFile(f)),
           iconBtn("file", t("Apri"), () => void Bridge.inboxOpen(f.name, false).catch(fail)),
           moreBtn(f.name, () => [
-            { label: t("Mostra nella cartella"), run: () => void Bridge.inboxOpen(f.name, true).catch(fail) },
+            // As tiles only «⋯» is in sight: its menu starts with the two buttons of the list.
+            ...(grid ? [
+              { label: t("Chiedi alla chat"), run: () => actions.askAboutFile(f) },
+              { label: t("Apri"), run: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
+            ] : []),
+            { label: t("Mostra nella cartella"), sep: grid, run: () => void Bridge.inboxOpen(f.name, true).catch(fail) },
             ...(workHere === null ? [] : [{
               label: workHere ? t("Sposta nella cartella di lavoro, in «{dir}»", { dir: workHere }) : t("Sposta nella cartella di lavoro"),
               run: () => void Bridge.inboxToWork(f.name, workHere, false).then(() => { actions.refreshFiles(); work.reload(); }).catch(fail),
             }]),
-            { label: f.kept ? t("Non tenere più (si toglie al prossimo riavvio)") : t("Tieni anche dopo il riavvio e «Svuota»"),
+            { label: f.kept ? t("Togli la puntina") : t("Fissa nel Vassoio"),
               run: () => void Bridge.inboxKeep(f.name, !f.kept).then(() => actions.refreshFiles()).catch(fail) },
             { label: t("Togli dal vassoio"), sep: true, danger: true,
               run: () => void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail) },

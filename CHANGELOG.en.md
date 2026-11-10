@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.39** — **Files and screen tidied up**: Tray, Working folder, Collection and Record in matching sections, an empty Collection
+in one line. The **Working folder's ⋯ menu** opens like the Tray's (it used to land inside the tile and stretch the whole row in grid
+view) and **Move to Recycle Bin…** asks for confirmation above the list. In grid view a tile shows only ⋯. In the Tray **Pin in the
+Tray** / **Unpin**, with the pin shown on the file.
+
 **1.0.38** — **One look for every window**, after a design review: island, Memory, Preview and Flows in Windows 11 colours, dark and
 light. **Memory** stays readable with hundreds of nodes (names no longer overlap, the graph opens fitted to the window), has its bar on
 one row with «Maintenance» and clickable `[[links]]`; it also reads **Claude Code's own memory**, read only, without duplicates and with

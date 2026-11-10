@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.39** — **Files and screen** in sections, the Working folder's **⋯** menu fixed, the **pin** in the Tray.
 - **1.0.38** — **one look** for every window; **Memory** readable with many nodes and with **Claude Code's** notes.
 - **1.0.37** — the island **no longer freezes** on a network path that does not answer in the chat; **Memory** opens maximized.
 - **1.0.36** — a **real terminal** in the chat: colours, Tab, Ctrl+C, editors and passwords, beside the Preview.
-- **1.0.35** — **cards** chat with an animated **empty chat** and your last conversations, **Ezzy** among the characters, better **accessibility**.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 

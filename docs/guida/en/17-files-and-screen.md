@@ -12,14 +12,13 @@ Drag a file onto the island (it opens even when set to "only with a click"): the
 ## The Tray
 Dropped files, screen areas, chat exports, custom integrations' documents, files from Telegram: everything goes through the **Tray**, as a list or a grid.
 - Drag a file from the Tray into another app (mail, chat, folder).
-- **Ask the chat**, **Open**, **Show in folder**, **Copy**.
-- 📌 **Pin**: pinned files survive a restart; the others are cleared at every start.
-- The green icon moves it to the **working folder**.
+- **Ask the chat** and **Open** are on the row; the **⋯** menu holds **Show in folder**, **Move to the working folder**, **Pin in the Tray** and **Remove from the Tray**. As a grid, a tile shows only **⋯**, and Ask and Open are in it too.
+- **Pin in the Tray**: the file gets the pin and stays after a restart and **Empty**; the others are cleared at every start. **Unpin** puts it back with the others.
 
 They are copies: the originals are never touched.
 
 ## Working folder
-A folder on the PC chosen by you with **Choose…** (here or in Settings → Chat). Under the Tray you browse it: double-click to enter or open, ".." to go up, **+** new folder, **▦** grid or list, the order (name A→Z or Z→A, newest or oldest; folders stay first), drag to other apps. On every item: **Ask the chat**, **Open**, and in "⋯" **Rename**, **Move…**, **To the Tray**, **Copy path**, **Recycle Bin** (the Windows Recycle Bin: nothing is deleted for good).
+A folder on the PC chosen by you with **Choose…** (here or in Settings → Chat). Under the Tray you browse it: double-click to enter or open, ".." to go up, **+** new folder, **▦** grid or list, the order (name A→Z or Z→A, newest or oldest; folders stay first), drag to other apps. On every item: **Ask the chat**, **Open**, and in "⋯" **Rename**, **Move…**, **To the Tray**, **Show in File Explorer**, **Copy path**, **Move to Recycle Bin…**, which asks for confirmation above the list (the Windows Recycle Bin: nothing is deleted for good).
 
 The chat **reads it without asking** and moves Tray files into it (with confirmation); with terminal mode it's the folder it works in. From Telegram: `/cartella` shows it as buttons and sends you the files. Every path is checked: nothing gets out of the folder.
 
@@ -39,7 +38,7 @@ To set aside bits taken from several apps and then have the chat work on them al
 
 - Select some text in any app (on a supplier's site, the line with name and price) and press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. The island says "In the collection: 3" and you carry on. Every item keeps its source: the program, the window title and, when you copy from Chrome or Edge, the page address.
 - From **Box and ask**, **Into the collection** adds a zone of the screen: the text Windows reads plus the picture.
-- In **Files and screen** the Collection has a **name** and, if you want, the **fields to work out** (for example "Product, Price, Supplier"). The ✕ removes an item, **Empty** removes them all.
+- In **Files and screen**, from the first item on, the Collection has a **name** and, if you want, the **fields to work out** (for example "Product, Price, Supplier"). The ✕ removes an item, **Empty** removes them all.
 - **Ask the chat** attaches the whole collection. With fields, the chat works them out for every item and shows them in a table, then waits for your question ("make me the quote with a 20 % markup").
 
 There is one collection at a time, and it stays after a restart until you empty it. The shortcut is changed in Settings → Quick actions.

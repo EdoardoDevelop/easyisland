@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.39** — **File e schermo riordinata**: Vassoio, Cartella di lavoro, Raccolta e Registra in sezioni uguali, la Raccolta vuota
+in una riga. Il menu **⋯ della Cartella di lavoro** si apre come quello del Vassoio (prima finiva dentro la tessera e in griglia
+allungava la fila) e **Sposta nel Cestino…** chiede conferma sopra l'elenco. In griglia sulla tessera c'è solo ⋯. Nel Vassoio
+**Fissa nel Vassoio** / **Togli la puntina**, con la puntina visibile sul file.
+
 **1.0.38** — **Un aspetto solo per tutte le finestre**, dopo una revisione di design: isola, Memoria, Anteprima e Flussi con i colori di
 Windows 11, in scuro e in chiaro. La **Memoria** è leggibile anche con centinaia di nodi (i nomi non si sovrappongono più, il grafo si apre
 adattato alla finestra), ha la barra su una riga con «Manutenzione» e i `[[link]]` cliccabili; legge anche **la memoria di Claude Code**, in
