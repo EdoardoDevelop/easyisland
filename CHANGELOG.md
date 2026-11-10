@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.40** — La cronologia della chat non si riempie più delle sessioni avviate da EasyIsland stesso: **Claude Code fuori
+da EasyIsland** mostra solo quelle aperte da te nel terminale o in Claude Desktop (prima comparivano a decine, col titolo
+«[Istruzioni dell'utente per questa chat…», e non si potevano eliminare).
+
 **1.0.39** — **File e schermo riordinata**: Vassoio, Cartella di lavoro, Raccolta e Registra in sezioni uguali, la Raccolta vuota
 in una riga. Il menu **⋯ della Cartella di lavoro** si apre come quello del Vassoio (prima finiva dentro la tessera e in griglia
 allungava la fila) e **Sposta nel Cestino…** chiede conferma sopra l'elenco. In griglia sulla tessera c'è solo ⋯. Nel Vassoio

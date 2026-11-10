@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.40** — **Claude Code fuori da EasyIsland** senza le sessioni avviate da EasyIsland stesso.
 - **1.0.39** — **File e schermo** in sezioni, menu **⋯** della Cartella di lavoro sistemato, **puntina** nel Vassoio.
 - **1.0.38** — **un aspetto solo** per tutte le finestre; **Memoria** leggibile con tanti nodi e con le note di **Claude Code**.
 - **1.0.37** — l'isola **non si blocca** più per un percorso di rete che non risponde nella chat; **Memoria** ingrandita all'apertura.
-- **1.0.36** — un **terminale vero** nella chat: colori, Tab, Ctrl+C, editor e password, accanto all'Anteprima.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
