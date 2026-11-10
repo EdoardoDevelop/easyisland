@@ -3,7 +3,7 @@
 // the rest belongs to this PC.
 
 import "./settings.css";
-import { applyMotion, watchWindow } from "../core/motion";
+import { applyMotion, viewEnter, watchWindow } from "../core/motion";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { LOGO_CHARACTER } from "../character/logo-anim";
@@ -6033,7 +6033,16 @@ function render() {
   if (oldHeight) body.style.minHeight = `${oldHeight}px`;
   main.scrollTop = scrollTop;
   holdScroll(main, body);
+  // Another page or tab (motion.ts): it comes in from the item clicked; a redraw after a save does not.
+  const tabs = [...root.querySelectorAll(".subtab.on, [role=tab][aria-selected=true]")].map((e) => e.textContent).join("|");
+  const key = `${page.id}|${tabs}`;
+  const item = root.querySelector<HTMLElement>(".nav-item.on");
+  if (shownKey && key !== shownKey) viewEnter(body, page.id === shownKey.split("|")[0] ? root.querySelector<HTMLElement>(".subtab.on") : item, page.id === shownKey.split("|")[0] ? null : shownMark);
+  shownKey = key;
+  shownMark = item?.getBoundingClientRect() ?? null;
 }
+let shownKey = "";
+let shownMark: DOMRect | null = null;
 
 /**
  * A list redrawn in place (an action's type, a switch, Aggiungi, Elimina) left

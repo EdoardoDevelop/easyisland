@@ -269,6 +269,9 @@ export class Island {
   /** A zone just put in the tray: until then (ms), the island reopens on the tray. */
   private trayUntil = 0;
   private lastSyncedView: IslandViewName | null = null;
+  /** The screen last shown at the open island, for its entrance (motion.ts viewEnter). */
+  private lastViewKey = "";
+  private lastMark: DOMRect | null = null;
   /** Natural content height reported by the current view (0 = its fixed height). */
   private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
 
@@ -4309,8 +4312,6 @@ ${note}` : text };
     this.islandEl.classList.toggle("pop", !!State.popover);
     this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
     this.islandEl.classList.toggle("open", expanded);
-    // Where the menu's mark was, for it to glide to the new item (motion.ts).
-    const markBefore = expanded && this.lastSyncedView !== State.view ? this.rail.el.querySelector(".rail-item.on")?.getBoundingClientRect() ?? null : null;
     if (railed) {
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
@@ -4322,14 +4323,24 @@ ${note}` : text };
     }
     this.search.el.style.display = this.searchShown ? "" : "none";
     guard("search", () => this.search.sync());
-    const changed = expanded && this.lastSyncedView !== State.view && this.lastSyncedView !== null;
     for (const [name, view] of this.views) {
       // The chat in its own window is drawn there (popout.ts).
       if (name === "prompt" && isPopped("chat")) continue;
       const on = name === State.view;
       view.el.classList.toggle("on", on);
       if (on) guard(`view ${name}`, () => view.sync());
-      if (on && changed) viewEnter(view.el, this.rail.el.querySelector<HTMLElement>(".rail-item.on"), markBefore);
+    }
+    // A new screen (motion.ts): another view, or another menu item on the same
+    // view (the integrations all show in Panoramica). The mark glides from the old item.
+    if (expanded) {
+      const item = this.rail.el.querySelector<HTMLElement>(".rail-item.on");
+      const viewKey = `${State.view}|${item?.dataset.rail ?? ""}`;
+      if (viewKey !== this.lastViewKey) {
+        const view = this.views.get(State.view);
+        if (this.lastViewKey && view) viewEnter(view.el, item, this.lastMark);
+        this.lastViewKey = viewKey;
+        this.lastMark = item?.getBoundingClientRect() ?? null;
+      }
     }
 
     // Views that know how tall their content is make the island grow (or

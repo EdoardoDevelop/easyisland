@@ -23,7 +23,7 @@
   z-index: 2147483000;
 }
 /* The menu's mark while its copy glides to it (motion.ts glideMark). */
-.rail-item.mark-gliding::before { opacity: 0; }
+.mark-gliding::before { opacity: 0; }
 
 /* «Spente»: the views and the opening wave without movement either. */
 html[data-anim="spente"] .view,

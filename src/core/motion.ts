@@ -50,7 +50,7 @@ export function watchPresses(doc: Document): void {
     const r = el.getBoundingClientRect();
     if (r.width < 8 || r.height < 8) return;
     // `scale` adds to the element's own transform instead of replacing it.
-    el.animate([{ scale: "1" }, { scale: r.width > 260 ? "0.99" : "0.965", offset: 0.35 }, { scale: "1" }], { duration: 200, easing: EASE_OUT });
+    el.animate([{ scale: "1" }, { scale: r.width > 260 ? "0.98" : "0.93", offset: 0.3 }, { scale: "1.02", offset: 0.65 }, { scale: "1" }], { duration: 280, easing: EASE_OUT });
     if (level === "ricche") ripple(doc, el, r, e.clientX, e.clientY);
   }, true);
 }
@@ -64,21 +64,21 @@ function ripple(doc: Document, el: HTMLElement, r: DOMRect, x: number, y: number
     position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`,
     borderRadius: radius, overflow: "hidden", pointerEvents: "none", zIndex: "2147483000",
   });
-  const size = Math.max(r.width, r.height) * 2.4;
+  const size = Math.max(r.width, r.height) * 2.8;
   const dot = doc.createElement("span");
   Object.assign(dot.style, {
     position: "absolute", left: `${x - r.left - size / 2}px`, top: `${y - r.top - size / 2}px`, width: `${size}px`, height: `${size}px`,
     borderRadius: "50%",
-    background: "radial-gradient(circle, color-mix(in srgb, var(--accent, #60cdff) 45%, transparent) 0, color-mix(in srgb, var(--accent, #60cdff) 18%, transparent) 38%, transparent 66%)",
+    background: "radial-gradient(circle, color-mix(in srgb, var(--accent, #60cdff) 70%, transparent) 0, color-mix(in srgb, var(--accent, #60cdff) 32%, transparent) 38%, transparent 66%)",
   });
   layer.appendChild(dot);
   doc.body.appendChild(layer);
-  dot.animate([{ transform: "scale(0)", opacity: 1 }, { transform: "scale(1)", opacity: 0 }], { duration: 560, easing: EASE_OUT }).onfinish = () => layer.remove();
+  dot.animate([{ transform: "scale(0)", opacity: 1 }, { transform: "scale(1)", opacity: 0 }], { duration: 680, easing: EASE_OUT }).onfinish = () => layer.remove();
 }
 
 // ── Level 2: a view change ──────────────────────────────────────────────────
 
-const STAGGER = ".card, .tile, .ov-card, [data-stagger]";
+const STAGGER = ".card, .tile, .ov-card, .row, section, .setting, [data-stagger]";
 
 /**
  * `view` has just become the one shown; `from` is the menu item that asked for
@@ -92,14 +92,14 @@ export function viewEnter(view: HTMLElement, from: HTMLElement | null, before: D
   const fr = from?.getBoundingClientRect();
   view.style.transformOrigin = fr ? `0px ${Math.round(fr.top + fr.height / 2 - vr.top)}px` : "50% 0px";
   view.animate(
-    [{ opacity: 0, transform: "translateX(-16px) scale(0.975)", filter: "blur(6px)" }, { opacity: 1, transform: "none", filter: "blur(0px)" }],
-    { duration: 340, easing: EASE_OUT },
+    [{ opacity: 0, transform: "translateX(-40px) scale(0.93)", filter: "blur(10px)" }, { opacity: 1, transform: "none", filter: "blur(0px)" }],
+    { duration: 500, easing: EASE_OUT },
   );
   let i = 0;
   for (const el of view.querySelectorAll<HTMLElement>(STAGGER)) {
     const r = el.getBoundingClientRect();
     if (r.height === 0 || r.top > vr.bottom) continue;
-    el.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 320, delay: 60 + Math.min(i * 32, 190), easing: EASE_OUT, fill: "backwards" });
+    el.animate([{ opacity: 0, transform: "translateY(22px) scale(0.95)" }, { opacity: 1, transform: "none" }], { duration: 440, delay: 80 + Math.min(i * 45, 320), easing: EASE_OUT, fill: "backwards" });
     if (++i >= 14) break;
   }
 }
@@ -133,7 +133,7 @@ type Pt = { x: number; y: number };
 function partsIn(parts: Iterable<HTMLElement>, delay: number) {
   let i = 0;
   for (const el of parts) {
-    el.animate([{ opacity: 0, filter: "blur(6px)", transform: "translateY(6px)" }, { opacity: 1, filter: "blur(0px)", transform: "none" }], { duration: 380, delay: delay + Math.min(i * 28, 160), easing: EASE_OUT, fill: "backwards" });
+    el.animate([{ opacity: 0, filter: "blur(10px)", transform: "translateY(14px) scale(0.97)" }, { opacity: 1, filter: "blur(0px)", transform: "none" }], { duration: 480, delay: delay + Math.min(i * 50, 300), easing: EASE_OUT, fill: "backwards" });
     i++;
   }
 }
@@ -254,19 +254,19 @@ const radiusFrom = (o: Pt, w: number, h: number) => Math.hypot(Math.max(o.x, w -
  */
 export function openIsland(island: HTMLElement, bot: Pt, w: number, h: number, parts: HTMLElement[], fromBottom: boolean): boolean {
   if (level !== "ricche") return false;
-  openingUntil = performance.now() + 700;
-  const layer = overlay(island, 900);
+  openingUntil = performance.now() + 850;
+  const layer = overlay(island, 1100);
   if (fx === "lancio") {
     ring(layer, bot, Math.max(w, h) * 0.55);
     partsIn(parts, 150);
     const R = radiusFrom(bot, w, h);
-    island.animate([{ clipPath: `circle(0px at ${bot.x}px ${bot.y}px)` }, { clipPath: `circle(${R}px at ${bot.x}px ${bot.y}px)` }], { duration: 620, easing: EASE_OUT });
+    island.animate([{ clipPath: `circle(0px at ${bot.x}px ${bot.y}px)` }, { clipPath: `circle(${R}px at ${bot.x}px ${bot.y}px)` }], { duration: 780, easing: EASE_OUT });
   } else if (fx === "sipario") {
     const line = seam(layer, fromBottom ? h : 0, w);
     const shut = fromBottom ? "inset(100% 0 0 0)" : "inset(0 0 100% 0)";
     partsIn(parts, 200);
-    line.animate([{ transform: "scaleX(0.2)", opacity: 0 }, { transform: "scaleX(1)", opacity: 1, offset: 0.3 }, { transform: `translateY(${fromBottom ? -h : h}px)`, opacity: 1, offset: 0.88 }, { transform: `translateY(${fromBottom ? -h : h}px)`, opacity: 0 }], { duration: 640, easing: EASE_OUT }).onfinish = () => line.remove();
-    island.animate([{ clipPath: shut }, { clipPath: shut, offset: 0.28 }, { clipPath: "inset(0 0 0 0)" }], { duration: 620, easing: EASE_OUT });
+    line.animate([{ transform: "scaleX(0.2)", opacity: 0 }, { transform: "scaleX(1)", opacity: 1, offset: 0.3 }, { transform: `translateY(${fromBottom ? -h : h}px)`, opacity: 1, offset: 0.88 }, { transform: `translateY(${fromBottom ? -h : h}px)`, opacity: 0 }], { duration: 780, easing: EASE_OUT }).onfinish = () => line.remove();
+    island.animate([{ clipPath: shut }, { clipPath: shut, offset: 0.25 }, { clipPath: "inset(0 0 0 0)" }], { duration: 760, easing: EASE_OUT });
   } else {
     void particles(layer, bot, { w, h }, false, island);
     partsIn(parts, 400);
@@ -296,13 +296,15 @@ export function closeIsland(island: HTMLElement, content: HTMLElement, bot: Pt, 
 
 // ── Level 3 for the windows (Impostazioni, Memoria, Flussi) ──────────────────
 
+const ownLabel = (): string => (window as unknown as { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: { label?: string } } } }).__TAURI_INTERNALS__?.metadata?.currentWindow?.label ?? "";
+
 /** Where a window's own icon is: Windows draws it in the title bar, right above the page's top left. */
 const WINDOW_ICON: Pt = { x: 22, y: 0 };
 let shut = true;
 let closing: Animation | null = null;
 
 /** The page `root` plays the opening each time its window is shown after being closed, and the closing on `window-closing`. */
-export function watchWindow(root: HTMLElement, listen: (name: string, run: () => void) => void): void {
+export function watchWindow(root: HTMLElement, listen: (name: string, run: (label: string) => void) => void): void {
   watchPresses(document);
   const show = () => {
     closing?.cancel();
@@ -312,7 +314,13 @@ export function watchWindow(root: HTMLElement, listen: (name: string, run: () =>
     openWindow(root);
   };
   document.addEventListener("visibilitychange", show);
-  listen("window-closing", () => { shut = true; closing = closeWindow(root); });
+  // Every window hears the event (Tauri's `listen` takes any target): only the one closing plays it.
+  // Until 1.0.41 a window left open went black when another one closed.
+  listen("window-closing", (label) => {
+    if (label !== ownLabel()) return;
+    shut = true;
+    closing = closeWindow(root);
+  });
   show();
 }
 
@@ -323,10 +331,13 @@ function openWindow(root: HTMLElement) {
     return;
   }
   const w = window.innerWidth, h = window.innerHeight, o = WINDOW_ICON;
-  const layer = overlay(null, 900);
+  const layer = overlay(null, 1100);
+  // The page's parts in view come into focus one after the other.
+  const parts = [...root.querySelectorAll<HTMLElement>("nav, header, section, .card, [data-stagger]")].filter((el) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.top < h; }).slice(0, 12);
+  partsIn(parts, 160);
   if (fx === "lancio") {
     ring(layer, o, Math.max(w, h) * 0.6);
-    root.animate([{ clipPath: `circle(0px at ${o.x}px ${o.y}px)` }, { clipPath: `circle(${radiusFrom(o, w, h)}px at ${o.x}px ${o.y}px)` }], { duration: 560, easing: EASE_OUT });
+    root.animate([{ clipPath: `circle(0px at ${o.x}px ${o.y}px)` }, { clipPath: `circle(${radiusFrom(o, w, h)}px at ${o.x}px ${o.y}px)` }], { duration: 720, easing: EASE_OUT });
   } else if (fx === "sipario") {
     const line = seam(layer, 0, w);
     line.animate([{ transform: "scaleX(0.2)", opacity: 0 }, { transform: "scaleX(1)", opacity: 1, offset: 0.3 }, { transform: `translateY(${h}px)`, opacity: 1, offset: 0.88 }, { transform: `translateY(${h}px)`, opacity: 0 }], { duration: 620, easing: EASE_OUT }).onfinish = () => line.remove();
