@@ -2,6 +2,7 @@
 // and frames only while something moves (none when still or hidden).
 
 import type { Model } from "./data";
+import { paintBackground, pal } from "./theme";
 
 export interface Host {
   /** A node was picked (null: the background). */
@@ -36,6 +37,8 @@ export interface View {
   setColouring?(c: Colouring): void;
   /** The memory was read or written (memory-activity): the nodes it touched. */
   activity?(ids: string[], kind: "read" | "write"): void;
+  /** The node under the pointer: its label is written even where it would be left out. */
+  setHover?(id: string | null): void;
 }
 
 export class Stage {
@@ -46,6 +49,7 @@ export class Stage {
   private w = 0;
   private h = 0;
   private dragging: { x: number; y: number; moved: boolean } | null = null;
+  private hovered: string | null = null;
 
   constructor(parent: HTMLElement, private host: Host) {
     parent.append(this.canvas);
@@ -81,7 +85,13 @@ export class Stage {
         this.host.select(this.view?.hit(p.x, p.y) ?? null);
       }
     });
-    this.canvas.addEventListener("pointerleave", () => this.host.tip(null));
+    this.canvas.addEventListener("pointerleave", () => {
+      this.host.tip(null);
+      if (this.view?.setHover) {
+        this.view.setHover(null);
+        this.wake();
+      }
+    });
     this.canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const p = this.point(e);
@@ -107,6 +117,11 @@ export class Stage {
   private hoverAt(x: number, y: number) {
     const id = this.view?.hit(x, y) ?? null;
     this.canvas.classList.toggle("pointing", !!id);
+    if (this.view?.setHover && id !== this.hovered) {
+      this.hovered = id;
+      this.view.setHover(id);
+      this.wake();
+    }
     if (id) {
       this.host.tip(id, undefined, x, y);
       return;
@@ -135,6 +150,7 @@ export class Stage {
 
   show(view: View) {
     this.view = view;
+    this.hovered = null;
     this.host.tip(null);
     this.wake();
   }
@@ -247,25 +263,37 @@ export class Camera {
   }
 }
 
-/** A faint field of stars behind the graphs, fixed per size. */
+/**
+ * The stage's background: the window's own surface. In dark mode a very faint
+ * field of stars stays as a flourish (fixed per size, a little parallax).
+ */
 export function starfield(ctx: CanvasRenderingContext2D, w: number, h: number, cam: Camera) {
-  const g = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, Math.max(w, h) * 0.75);
-  g.addColorStop(0, "#0e1120");
-  g.addColorStop(1, "#06070a");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  // Parallax: the stars move a little with the camera.
+  paintBackground(ctx, w, h);
+  if (pal().light) return;
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  ctx.fillStyle = "rgba(200,210,255,0.5)";
-  for (let i = 0; i < 140; i++) {
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < 90; i++) {
     const x = (((rnd() * w * 1.4 + cam.tx * 0.08) % (w * 1.4)) + w * 1.4) % (w * 1.4) - w * 0.2;
     const y = (((rnd() * h * 1.4 + cam.ty * 0.08) % (h * 1.4)) + h * 1.4) % (h * 1.4) - h * 0.2;
-    const r = rnd() * 1.1 + 0.2;
-    ctx.globalAlpha = 0.15 + rnd() * 0.35;
+    const r = rnd() * 0.8 + 0.3;
+    ctx.globalAlpha = 0.04 + rnd() * 0.08;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
+
+/**
+ * The box of most points: the farthest few per side are left out, so one
+ * stray note far away does not shrink everything to a knot in the middle.
+ */
+export function coreBox(pts: { x: number; y: number; r?: number }[], trim = 0.03) {
+  if (!pts.length) return { x0: -100, y0: -100, x1: 100, y1: 100 };
+  const xs = pts.map((p) => p.x).sort((a, b) => a - b);
+  const ys = pts.map((p) => p.y).sort((a, b) => a - b);
+  const cut = pts.length > 40 ? Math.floor(pts.length * trim) : 0;
+  const pad = 30;
+  return { x0: xs[cut] - pad, y0: ys[cut] - pad, x1: xs[xs.length - 1 - cut] + pad, y1: ys[ys.length - 1 - cut] + pad };
 }

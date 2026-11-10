@@ -4,6 +4,8 @@
 
 import { KIND_COLOR, alpha, fit, type Model } from "./data";
 import { Camera, starfield, type View } from "./stage";
+import { Placer, label, type Rect } from "./labels";
+import { font, pal } from "./theme";
 
 interface Twig {
   id: string;
@@ -36,6 +38,9 @@ export class MindMapView implements View {
   private framed = false;
   private size = { w: 0, h: 0 };
   private born = 0;
+  private hovered: string | null = null;
+  /** Where each label (or dot) was drawn last, in screen pixels: for hits. */
+  private rects = new Map<string, Rect>();
 
   setModel(model: Model) {
     this.model = model;
@@ -136,6 +141,7 @@ export class MindMapView implements View {
     }
     let moving = this.cam.step();
     starfield(ctx, w, h, this.cam);
+    const p = pal();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
@@ -159,7 +165,7 @@ export class MindMapView implements View {
     const dim = (id: string) => (this.filter && !this.filter.has(id) ? 0.25 : 1);
 
     // Faint rings.
-    ctx.strokeStyle = "rgba(124,156,255,0.06)";
+    ctx.strokeStyle = p.line;
     ctx.lineWidth = 1 / k;
     for (const r of RING.slice(1)) {
       ctx.beginPath();
@@ -167,88 +173,110 @@ export class MindMapView implements View {
       ctx.stroke();
     }
 
+    const rels: { text: string; x: number; y: number; hue: string }[] = [];
     for (const t of this.twigs.values()) {
       if (!t.parent) continue;
-      const p = this.twigs.get(t.parent)!;
+      const pt = this.twigs.get(t.parent)!;
       const g = grown(t.depth);
       if (g <= 0) continue;
-      const ex = p.cx + (t.cx - p.cx) * g;
-      const ey = p.cy + (t.cy - p.cy) * g;
+      const ex = pt.cx + (t.cx - pt.cx) * g;
+      const ey = pt.cy + (t.cy - pt.cy) * g;
       // An organic branch: a curve leaving the parent outwards.
-      const pa = Math.atan2(p.cy, p.cx);
-      const out = p.depth === 0 ? 0 : 60;
-      const c1x = p.cx + Math.cos(pa) * out;
-      const c1y = p.cy + Math.sin(pa) * out;
-      const c2x = (p.cx + ex) / 2;
-      const c2y = (p.cy + ey) / 2;
+      const pa = Math.atan2(pt.cy, pt.cx);
+      const out = pt.depth === 0 ? 0 : 60;
+      const c1x = pt.cx + Math.cos(pa) * out;
+      const c1y = pt.cy + Math.sin(pa) * out;
+      const c2x = (pt.cx + ex) / 2;
+      const c2y = (pt.cy + ey) / 2;
       ctx.globalAlpha = dim(t.id);
-      ctx.strokeStyle = alpha(t.hue, 0.75);
-      ctx.lineWidth = Math.max(1.2, 9 - t.depth * 2.6);
+      ctx.strokeStyle = alpha(t.hue, p.light ? 0.85 : 0.7);
+      ctx.lineWidth = Math.max(1.2 / k, (6 - t.depth * 1.6));
       ctx.lineCap = "round";
-      ctx.shadowColor = t.hue;
-      ctx.shadowBlur = 8;
       ctx.beginPath();
-      ctx.moveTo(p.cx, p.cy);
+      ctx.moveTo(pt.cx, pt.cy);
       ctx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
       ctx.stroke();
-      ctx.shadowBlur = 0;
-      // The relation, along the branch.
-      if (t.rel && g >= 1 && k > 0.45) {
-        ctx.font = `italic ${10.5}px system-ui, "Segoe UI", sans-serif`;
-        ctx.fillStyle = alpha(t.hue, 0.9);
-        ctx.textAlign = "center";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(t.rel, (p.cx + t.cx) / 2, (p.cy + t.cy) / 2 - 4);
-      }
-    }
-    ctx.globalAlpha = 1;
-
-    // The labels as pills.
-    for (const t of this.twigs.values()) {
-      const g = t.depth ? grown(t.depth) : 1;
-      if (g < 1) continue;
-      const n = this.model!.byId.get(t.id)!;
-      const size = t.depth === 0 ? 17 : t.depth === 1 ? 13.5 : t.depth === 2 ? 12 : 11;
-      ctx.font = `${t.depth <= 1 ? 600 : 500} ${size}px system-ui, "Segoe UI", sans-serif`;
-      const label = fit(ctx, t.label, t.depth === 0 ? 260 : 170);
-      const tw = ctx.measureText(label).width;
-      const pw = tw + (t.depth === 0 ? 34 : 20);
-      const ph = size + (t.depth === 0 ? 20 : 11);
-      t.w = pw;
-      const x = t.cx - pw / 2;
-      const y = t.cy - ph / 2;
-      ctx.globalAlpha = dim(t.id);
-      const fill = t.depth === 0 ? ctx.createLinearGradient(x, y, x + pw, y + ph) : null;
-      if (fill) {
-        fill.addColorStop(0, alpha(KIND_COLOR[n.kind], 0.95));
-        fill.addColorStop(1, alpha(KIND_COLOR[n.kind], 0.55));
-      }
-      ctx.fillStyle = fill ?? (t.depth === 1 ? alpha(t.hue, 0.22) : "rgba(18,20,28,0.92)");
-      ctx.strokeStyle = t.id === this.selected ? "#ffffff" : alpha(t.hue, t.depth === 1 ? 0.9 : 0.5);
-      ctx.lineWidth = t.id === this.selected ? 2 : 1.2;
-      if (t.depth === 0) {
-        ctx.shadowColor = KIND_COLOR[n.kind];
-        ctx.shadowBlur = 26 + Math.sin(time / 500) * 6;
-        moving = true;
-      }
-      roundRect(ctx, x, y, pw, ph, ph / 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.stroke();
-      // A dot of the node's kind.
-      if (t.depth > 0) {
-        ctx.fillStyle = KIND_COLOR[n.kind];
-        ctx.beginPath();
-        ctx.arc(x + 9, t.cy, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = "#f5f6f8";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, t.cx + (t.depth > 0 ? 4 : 0), t.cy + 0.5);
+      if (t.rel && g >= 1) rels.push({ text: t.rel, x: (pt.cx + t.cx) / 2, y: (pt.cy + t.cy) / 2, hue: t.hue });
     }
     ctx.globalAlpha = 1;
     ctx.restore();
+
+    // The labels as pills, in screen pixels: never under 12 px, the centre and
+    // the picked one always, then ring by ring the most linked; a pill that
+    // would cover another is left as a dot (hover or zoom in to read it).
+    const placer = new Placer();
+    const order = [...this.twigs.values()]
+      .filter((t) => (t.depth ? grown(t.depth) : 1) >= 1)
+      .map((t) => ({ t, score: t.id === this.selected || t.id === this.hovered || t.depth === 0 ? 1e9 : (10 - t.depth) * 1e5 + rank(this.model!, t.id) }))
+      .sort((a, b) => b.score - a.score);
+    this.rects.clear();
+    const dots: Twig[] = [];
+    // Placed first, drawn after the dots: a pill always lies on top of the
+    // branches and of the dots of those left out.
+    const pills: (() => void)[] = [];
+    for (const { t, score } of order) {
+      const n = this.model!.byId.get(t.id)!;
+      const s = this.cam.toScreen(t.cx, t.cy);
+      if (s.x < -200 || s.y < -40 || s.x > w + 200 || s.y > h + 40) continue;
+      const size = t.depth === 0 ? 15 : t.depth === 1 ? 13 : 12;
+      ctx.font = font(size, t.depth <= 1 ? 600 : 500);
+      const label = fit(ctx, t.label, t.depth === 0 ? 260 : 180);
+      const tw = ctx.measureText(label).width;
+      const padX = t.depth === 0 ? 14 : 10;
+      const dotW = t.depth > 0 ? 10 : 0;
+      const pw = tw + padX * 2 + dotW;
+      const ph = size + (t.depth === 0 ? 14 : 10);
+      const r = { x0: s.x - pw / 2, y0: s.y - ph / 2, x1: s.x + pw / 2, y1: s.y + ph / 2 };
+      if (!placer.claim({ x0: r.x0 - 2, y0: r.y0 - 2, x1: r.x1 + 2, y1: r.y1 + 2 }, score >= 1e9)) {
+        dots.push(t);
+        continue;
+      }
+      this.rects.set(t.id, r);
+      pills.push(() => {
+        ctx.globalAlpha = dim(t.id);
+        // Opaque: the branches end at its border instead of crossing the text.
+        roundRect(ctx, r.x0, r.y0, pw, ph, 6);
+        ctx.fillStyle = p.card;
+        ctx.fill();
+        ctx.fillStyle = t.depth === 0 ? alpha(KIND_COLOR[n.kind], p.light ? 0.18 : 0.28) : alpha(t.hue, p.light ? 0.1 : 0.12);
+        ctx.fill();
+        ctx.strokeStyle = t.id === this.selected ? p.ring : alpha(t.depth === 0 ? KIND_COLOR[n.kind] : t.hue, t.depth <= 1 ? 0.9 : 0.55);
+        ctx.lineWidth = t.id === this.selected ? 2 : 1;
+        ctx.stroke();
+        // A dot of the node's kind.
+        if (t.depth > 0) {
+          ctx.fillStyle = KIND_COLOR[n.kind];
+          ctx.beginPath();
+          ctx.arc(r.x0 + padX + 2, s.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = p.ink;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, r.x0 + padX + dotW, s.y + 0.5);
+      });
+    }
+    // Those left out: a dot where they are.
+    for (const t of dots) {
+      const n = this.model!.byId.get(t.id)!;
+      const s = this.cam.toScreen(t.cx, t.cy);
+      ctx.globalAlpha = dim(t.id);
+      ctx.fillStyle = KIND_COLOR[n.kind];
+      ctx.strokeStyle = p.bg;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      this.rects.set(t.id, { x0: s.x - 7, y0: s.y - 7, x1: s.x + 7, y1: s.y + 7 });
+    }
+    for (const draw of pills) draw();
+    ctx.globalAlpha = 1;
+    // The relations along the branches, where there is room left.
+    for (const r of rels) {
+      const s = this.cam.toScreen(r.x, r.y);
+      label(ctx, placer, r.text, s.x, s.y - 4, { size: 11.5, weight: 500, color: p.dim, baseline: "bottom", max: 140 });
+    }
     return moving;
   }
 
@@ -264,13 +292,12 @@ export class MindMapView implements View {
   }
 
   hit(x: number, y: number): string | null {
-    const p = this.cam.toWorld(x, y);
-    for (const t of [...this.twigs.values()].reverse()) {
-      const half = Math.max(t.w / 2, 20);
-      const hh = t.depth === 0 ? 20 : 13;
-      if (Math.abs(p.x - t.cx) <= half && Math.abs(p.y - t.cy) <= hh) return t.id;
-    }
+    for (const [id, r] of this.rects) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return id;
     return null;
+  }
+
+  setHover(id: string | null) {
+    this.hovered = id;
   }
 
   pan(dx: number, dy: number) {

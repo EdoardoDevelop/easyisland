@@ -32,6 +32,29 @@ export function holderLine(m: Extract<Moment, { kind: "error" }>): string {
   return t("La porta {port} è occupata da {name} (PID {pid}).", { port: m.port, name: m.holder.name, pid: m.holder.pid });
 }
 
+/**
+ * The header's two lines while a moment is on screen: what it is and its
+ * subject, so the top never says «Tutto tranquillo.» over a failed build
+ * (design review, 9 Nov 2026).
+ */
+export function momentHeadline(m: Moment): [string, string] {
+  switch (m.kind) {
+    case "download": return [t("Download finito."), m.name];
+    case "tray": return [t("Un file nel Vassoio."), m.name];
+    case "recording": return [t("Registrazione pronta."), m.name];
+    case "error": return [t("Hai copiato un errore."), m.summary];
+    case "server": return [t("Server di sviluppo avviato."), `localhost:${m.port}`];
+    case "call": return [m.incoming ? t("Chiamata ricevuta.") : t("Chiamata fatta."), m.name || m.number];
+    case "ticket": return [t("Ticket assegnato a te."), m.title];
+    case "agentchat": return [t("Novità da Agent Chat."), m.title];
+    case "card": {
+      const head = m.level === "error" ? t("Claude Code segnala un problema.")
+        : m.level === "warn" ? t("Claude Code chiede attenzione.") : t("Claude Code ti scrive.");
+      return [head, m.title];
+    }
+  }
+}
+
 export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
   const host = h("div", { class: "view" });
   let key = "";

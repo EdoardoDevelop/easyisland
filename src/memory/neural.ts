@@ -5,8 +5,10 @@
 // neighbours: the memory «thinking». At rest nothing moves and no frame is
 // drawn; a click sends a pulse from the picked neuron too.
 
-import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
-import { Camera, type View } from "./stage";
+import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
+import { Camera, starfield, type View } from "./stage";
+import { Placer, label } from "./labels";
+import { pal } from "./theme";
 
 interface Neuron {
   n: MemNode;
@@ -89,6 +91,12 @@ export class NeuralView implements View {
     this.neurons.push({ n, x, y, r: (n.kind === "page" ? 4 : 2.4) + Math.min(5, Math.sqrt(n.weight)), colour, lit: 0 });
   }
 
+  private hovered: string | null = null;
+
+  setHover(id: string | null) {
+    this.hovered = id;
+  }
+
   setSelected(id: string | null) {
     this.selected = id;
     // Lit for good only once this click's pulses are over (draw).
@@ -121,11 +129,8 @@ export class NeuralView implements View {
     }
     let moving = this.cam.step();
     const now = performance.now();
-    const bg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
-    bg.addColorStop(0, "#0b1020");
-    bg.addColorStop(1, "#04050a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    starfield(ctx, w, h, this.cam);
+    const pl = pal();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
@@ -146,7 +151,7 @@ export class NeuralView implements View {
       const on = sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
       ctx.strokeStyle = mine
         ? alpha(selColour, Math.max(0.13, (0.55 + glow * 0.35) * stay))
-        : glow > 0 ? alpha(a.colour, 0.15 + glow * 0.6) : `rgba(140,160,220,${on ? 0.13 : sel ? 0.025 : 0.04})`;
+        : glow > 0 ? alpha(a.colour, 0.15 + glow * 0.6) : `rgba(${pl.link},${on ? 0.16 : sel ? 0.03 : 0.05})`;
       ctx.lineWidth = ((mine ? 0.7 + 0.8 * stay : 0.7) + glow * 1.4) / Math.sqrt(k);
       const [mx, my] = bend(a, b);
       ctx.beginPath();
@@ -156,7 +161,7 @@ export class NeuralView implements View {
       if (glow > 0) moving = true;
     }
     // Pulses: a bright head with a tail, then they run on.
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalCompositeOperation = pl.light ? "source-over" : "lighter";
     const done: Pulse[] = [];
     for (const p of this.pulses) {
       const u = (now - p.start) / p.dur;
@@ -195,7 +200,7 @@ export class NeuralView implements View {
     if (now - this.saidAt < GLOW_MS * 2) {
       const g = 1 - (now - this.saidAt) / (GLOW_MS * 2);
       const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 40);
-      core.addColorStop(0, `rgba(255,255,255,${0.7 * g})`);
+      core.addColorStop(0, pl.light ? `rgba(0,120,212,${0.4 * g})` : `rgba(255,255,255,${0.7 * g})`);
       core.addColorStop(1, "rgba(125,211,252,0)");
       ctx.fillStyle = core;
       ctx.beginPath();
@@ -220,24 +225,31 @@ export class NeuralView implements View {
       ctx.beginPath();
       ctx.arc(x.x, x.y, r * (3 + shine * 4), 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = glow > 0.2 || (picked && stay > 0.5) ? "#ffffff" : alpha(x.colour, dim ? 0.3 : 0.95);
+      ctx.fillStyle = glow > 0.2 || (picked && stay > 0.5) ? pl.ring : alpha(x.colour, dim ? 0.3 : 0.95);
       ctx.beginPath();
       ctx.arc(x.x, x.y, r * 0.55, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";
-    // Labels of the lit, the picked and the pages up close.
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.font = `500 ${11 / k}px system-ui, "Segoe UI", sans-serif`;
-    for (const x of this.neurons) {
-      const glow = now - x.lit < GLOW_MS;
-      const nearLit = stay > 0 && near.has(x.n.id);
-      if (!(glow || x.n.id === sel || nearLit || this.filter?.has(x.n.id) || (k > 1.3 && x.n.kind === "page") || k > 2.4)) continue;
-      ctx.fillStyle = glow || x.n.id === sel ? "#ffffff" : nearLit ? `rgba(225,232,248,${0.9 * stay})` : "rgba(210,220,240,0.8)";
-      ctx.fillText(fit(ctx, x.n.label, 150 / k), x.x, x.y + x.r + 6 / k);
-    }
     ctx.restore();
+    // Labels of the picked, the lit, its neighbours and the pages up close, in
+    // screen pixels; one that would cover another is left out.
+    const placer = new Placer();
+    const want = this.neurons
+      .map((x) => {
+        const glow = now - x.lit < GLOW_MS;
+        const nearLit = stay > 0 && near.has(x.n.id);
+        const score = x.n.id === sel || x.n.id === this.hovered ? 1e9 : glow ? 1e7 : nearLit ? 1e6 : this.filter?.has(x.n.id) ? 1e5
+          : (k > 1.1 && x.n.kind === "page") || k > 2.2 ? x.n.weight : -1;
+        return { x, score, nearLit };
+      })
+      .filter((c) => c.score >= 0)
+      .sort((a, b) => b.score - a.score);
+    for (const { x, score, nearLit } of want) {
+      const at = this.cam.toScreen(x.x, x.y);
+      if (at.x < -100 || at.x > w + 100 || at.y < -30 || at.y > h + 30) continue;
+      label(ctx, placer, x.n.label, at.x, at.y + x.r * k + 5, { size: 12, weight: score >= 1e9 ? 600 : 500, force: score >= 1e9, alpha: nearLit && score < 1e7 ? Math.max(0.3, stay) : 1, max: 170 });
+    }
     return moving;
   }
 

@@ -914,13 +914,17 @@ html.browser-preview #root {
   word-break: break-word;
 }
 
+/* From the top, at a fixed distance under the header: the eye starts there and
+   the buttons stay where they were (design review, Edoardo, 10 Nov 2026; before,
+   every card's content sat in the middle of its height). Only the empty view
+   (a row, buildEmpty) stays in the middle. */
 .stack {
   position: relative;
   z-index: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 5px;
 }
 
@@ -2385,11 +2389,11 @@ input[type="range"]::-webkit-slider-thumb {
   position: relative;
   z-index: 1;
   height: 100%;
-  /* Every tab's content in the middle of the card's height (Edoardo, 14
-     October 2026); content taller than the card starts at the top as before. */
+  /* From the top (Edoardo, 10 Nov 2026, after a design review: in the middle,
+     as asked on 14 Oct, it left half the card empty above short content). */
   display: flex;
   flex-direction: column;
-  justify-content: safe center;
+  justify-content: flex-start;
 }
 
 .left-body > * { flex-shrink: 0; }

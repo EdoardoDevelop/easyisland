@@ -6,6 +6,7 @@
 import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
 import { t } from "../core/i18n";
 import { type View } from "./stage";
+import { font, paintBackground, pal } from "./theme";
 
 interface Slice {
   id: string;
@@ -62,7 +63,7 @@ export class SunburstView implements View {
       });
       a += width;
     }
-    if (rest.length) this.slices.push({ id: "", label: t("{n} pagine in più", { n: rest.length }), a0: a, a1: a + span(rest.length), r0: 0.3, r1: 0.62, colour: "#4b5060" });
+    if (rest.length) this.slices.push({ id: "", label: t("{n} pagine in più", { n: rest.length }), a0: a, a1: a + span(rest.length), r0: 0.3, r1: 0.62, colour: "#8a8f99" });
   }
 
   setSelected(id: string | null) {
@@ -82,31 +83,25 @@ export class SunburstView implements View {
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
     this.size = { w, h };
-    const bg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
-    bg.addColorStop(0, "#10131f");
-    bg.addColorStop(1, "#06070a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    paintBackground(ctx, w, h);
+    const p = pal();
     const { cx, cy, R } = this.geometry(w, h);
     const sel = this.selected;
     const near = new Set<string>();
     if (sel && this.model) for (const nb of this.model.neighbours(sel)) near.add(nb.id);
     for (const s of this.slices) {
       const on = (!sel && !this.filter) || s.id === sel || near.has(s.id) || !!this.filter?.has(s.id);
-      const g = ctx.createRadialGradient(cx, cy, s.r0 * R, cx, cy, s.r1 * R);
-      g.addColorStop(0, alpha(s.colour, on ? 0.85 : 0.18));
-      g.addColorStop(1, alpha(s.colour, on ? 0.55 : 0.1));
-      ctx.fillStyle = g;
+      ctx.fillStyle = alpha(s.colour, on ? (s.r0 < 0.5 ? 0.85 : 0.6) : 0.15);
       ctx.beginPath();
       ctx.arc(cx, cy, s.r1 * R, s.a0, s.a1);
       ctx.arc(cx, cy, s.r0 * R, s.a1, s.a0, true);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = s.id === sel ? "#ffffff" : "rgba(6,7,10,0.9)";
+      ctx.strokeStyle = s.id === sel ? p.ring : p.bg;
       ctx.lineWidth = s.id === sel ? 2 : 1;
       ctx.stroke();
       // The pages' names along their slice, when it is wide enough.
-      if (s.r0 < 0.5 && (s.a1 - s.a0) * 0.46 * R > 26) {
+      if (s.r0 < 0.5 && (s.a1 - s.a0) * 0.46 * R > 30) {
         const mid = (s.a0 + s.a1) / 2;
         const r = 0.46 * R;
         ctx.save();
@@ -114,8 +109,9 @@ export class SunburstView implements View {
         let rot = mid;
         if (Math.cos(mid) < 0) rot += Math.PI;
         ctx.rotate(rot);
-        ctx.fillStyle = on ? "#f5f7fb" : "rgba(245,247,251,0.35)";
-        ctx.font = `600 ${Math.max(10, Math.min(13, R / 26))}px system-ui, "Segoe UI", sans-serif`;
+        // Dark letters on the bright slices, white on the dark ones.
+        ctx.fillStyle = on ? (p.light ? "#111111" : "#0b0b0b") : p.dim;
+        ctx.font = font(Math.max(12, Math.min(13, R / 26)), 600);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(fit(ctx, s.label, 0.3 * R), 0, 0);
@@ -123,20 +119,20 @@ export class SunburstView implements View {
       }
     }
     // The middle: the memory and its numbers.
-    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 0.28 * R);
-    core.addColorStop(0, "rgba(124,156,255,0.35)");
-    core.addColorStop(1, "rgba(124,156,255,0.05)");
-    ctx.fillStyle = core;
+    ctx.fillStyle = p.card;
     ctx.beginPath();
     ctx.arc(cx, cy, 0.28 * R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#f5f7fb";
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = p.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `700 ${Math.max(14, R / 12)}px system-ui, "Segoe UI", sans-serif`;
+    ctx.font = font(Math.max(16, R / 12), 600);
     ctx.fillText(String(this.notes), cx, cy - R * 0.04);
-    ctx.font = `500 ${Math.max(10, R / 30)}px system-ui, "Segoe UI", sans-serif`;
-    ctx.fillStyle = "rgba(220,226,240,0.75)";
+    ctx.font = font(Math.max(12, R / 30));
+    ctx.fillStyle = p.dim;
     ctx.fillText(t("note · {n} pagine", { n: this.pages }), cx, cy + R * 0.07);
     return false;
   }

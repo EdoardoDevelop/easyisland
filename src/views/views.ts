@@ -14,7 +14,7 @@ import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
 import { buildRecap } from "./recap";
-import { buildMoment, type MomentActions } from "./moment";
+import { buildMoment, momentHeadline, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
@@ -207,10 +207,18 @@ function bubble(): [string, string] {
     case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];
     case "remember": return [t("Me lo ricordo io."), t("lo metto nella pagina giusta della memoria")];
     case "talk": return [t("Dimmi pure."), t("il microfono è acceso solo adesso")];
+    // What is on screen, never «Tutto tranquillo.» over it.
+    case "moment": if (State.moment) return momentHeadline(State.moment); break;
+    case "recap": return [t("La tua settimana."), t("cosa hanno fatto gli agenti")];
+    case "daily": return [t("La giornata."), t("quello che c'è da sapere")];
+    case "news": return [t("Notizie."), ""];
   }
   if (State.showsSummary) {
     const news = State.tasks.filter((x) => x.pillBadge);
-    const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished");
+    // The most serious thing first: a session stopped by an error or a limit.
+    const stuck = State.sessionTasks.find((x) => x.state === "error" || x.state === "ratelimit");
+    if (stuck) return [stuck.state === "error" ? t("{name} si è fermato con un errore.", { name: stuck.name }) : t("{name} ha raggiunto un limite.", { name: stuck.name }), stuck.steps.at(-1) ?? ""];
+    const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished" && x.state !== "error" && x.state !== "ratelimit");
     const first = news.length === 1 ? t("Novità da {name}.", { name: news[0].name })
       : news.length > 1 ? t("{n} integrazioni hanno novità.", { n: news.length }) : t("Tutto tranquillo.");
     const second = busy.length === 1 ? t("{name} sta lavorando", { name: busy[0].name })

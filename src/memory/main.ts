@@ -8,9 +8,13 @@
 
 import "./memory.css";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
-import { t } from "../core/i18n";
-import { h, clear } from "../views/dom";
-import { KIND_COLOR, Model, kindName, pathBetween, type MemGraph, type MemNode, type NodeKind } from "./data";
+import { syncLanguage, t } from "../core/i18n";
+import { applyUiStyle } from "../core/uistyle";
+import { h, clear, svg } from "../views/dom";
+import { ICONS } from "../views/icons";
+import { KIND_COLOR, Model, kindName, pathBetween, shortDate, type MemGraph, type MemNode, type NodeKind } from "./data";
+import { forgetPalette } from "./theme";
+import { reserve } from "./labels";
 import { Stage, type Colouring, type View } from "./stage";
 import { GalaxyView } from "./galaxy";
 import { NeuralView } from "./neural";
@@ -93,21 +97,65 @@ let query = "";
 let source = rememberedSource();
 
 const root = document.getElementById("memory-root")!;
+
+/** Line icons of the window, on the 24×24 grid of src/views/icons.ts, stroke 1.6. */
+const LINE = {
+  chevronDown: "M6.5 9.5 12 15l5.5-5.5",
+  refresh: "M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4",
+  read: "M6 3.5h8l4 4v13H6zM14 3.5v4h4M9 12h6M9 15.5h6",
+  link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
+  check: "M12 3.5l7 2.8v5.2c0 4.2-3 7.5-7 9-4-1.5-7-4.8-7-9V6.3zM9 12l2 2 4-4",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5.5M12 7.8h.01",
+  inbox: "M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20M4 13.5 6.5 5h11l2.5 8.5V19H4z",
+};
+const icon = (path: string, size = 16) => svg(path, size, { stroke: 1.6 });
+
 // The views in one menu (Edoardo, 4 Nov 2026: eleven tabs took a whole line).
 const viewPick = h("select", { class: "mem-select mem-view-pick", title: t("Come disegnare la memoria") }) as HTMLSelectElement;
 for (const tb of TABS) viewPick.append(h("option", { value: tb.id, text: tb.name }));
 viewPick.addEventListener("change", () => show(viewPick.value as Tab));
-// Which memory, shown only when another PC's is copied here.
-const sourcesBox = h("div", { class: "mem-tabs mem-sources", style: "display:none" });
-const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
-const inboxBtn = h("button", { text: t("Da leggere"), title: t("Apri la cartella dei file da far imparare") }) as HTMLButtonElement;
-const readBtn = h("button", { text: t("Leggi adesso"), title: t("Un compito legge i file di da-leggere e scrive le pagine") }) as HTMLButtonElement;
-const linkBtn = h("button", { text: t("Collega con l'IA"), title: t("Il motore per la memoria crea le pagine degli argomenti, le relazioni tra pagine e i riassunti con gli altri nomi (solo aggiunte)") }) as HTMLButtonElement;
-const checkBtn = h("button", { text: t("Controlla"), title: t("Un compito controlla la memoria e ti propone come sistemarla") }) as HTMLButtonElement;
-const reloadBtn = h("button", { text: "↻", title: t("Aggiorna") }) as HTMLButtonElement;
+// Which memory, shown only when another PC's is copied here: a segmented control.
+const sourcesBox = h("div", { class: "mem-sources", role: "group", "aria-label": t("Quale memoria"), style: "display:none" });
+const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…"), "aria-label": t("Cerca nella memoria…") }) as HTMLInputElement;
+// «Da leggere» stays in sight with its count; the agent's jobs and the reload
+// go in one menu (side by side «Da leggere» and «Leggi adesso» were confusing).
+const inboxCount = h("span", { class: "mem-badge zero", text: "0" });
+const inboxBtn = h("button", { class: "mem-btn", title: t("Apri la cartella dei file da far imparare") }, icon(LINE.inbox), h("span", { text: t("Da leggere") }), inboxCount) as HTMLButtonElement;
+const menuItem = (path: string, name: string, about: string) =>
+  h("button", { role: "menuitem" }, icon(path), h("span", { text: name }), h("small", { text: about })) as HTMLButtonElement;
+const readBtn = menuItem(LINE.read, t("Leggi adesso"), t("Un compito legge i file di da-leggere e scrive le pagine"));
+const linkBtn = menuItem(LINE.link, t("Collega con l'IA"), t("Il motore per la memoria crea le pagine degli argomenti, le relazioni tra pagine e i riassunti con gli altri nomi (solo aggiunte)"));
+const checkBtn = menuItem(LINE.check, t("Controlla"), t("Un compito controlla la memoria e ti propone come sistemarla"));
+const reloadBtn = menuItem(LINE.refresh, t("Aggiorna"), t("Rilegge la memoria dai file"));
+const menu = h("div", { class: "mem-menu", role: "menu", hidden: "" }, readBtn, linkBtn, checkBtn, h("hr"), reloadBtn);
+const moreBtn = h("button", { class: "mem-btn mem-more", "aria-haspopup": "menu", "aria-expanded": "false" },
+  h("span", { text: t("Manutenzione") }), icon(LINE.chevronDown, 14)) as HTMLButtonElement;
+function openMenu(open: boolean) {
+  menu.hidden = !open;
+  moreBtn.setAttribute("aria-expanded", String(open));
+  if (open) (menu.querySelector("button:not([disabled]):not([style*='none'])") as HTMLElement | null)?.focus();
+}
+moreBtn.addEventListener("click", () => openMenu(menu.hidden));
+menu.addEventListener("click", (e) => {
+  if ((e.target as HTMLElement).closest("button")) openMenu(false);
+});
+menu.addEventListener("keydown", (e) => {
+  const items = [...menu.querySelectorAll<HTMLButtonElement>("button")].filter((b) => !b.disabled && b.style.display !== "none");
+  const at = items.indexOf(document.activeElement as HTMLButtonElement);
+  if (e.key === "Escape") {
+    openMenu(false);
+    moreBtn.focus();
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+  }
+});
+document.addEventListener("pointerdown", (e) => {
+  if (!menu.hidden && !(e.target as HTMLElement).closest(".mem-more-wrap")) openMenu(false);
+});
 const bar = h("div", { class: "mem-bar" },
-  h("div", { class: "mem-title" }, h("i"), h("span", { text: t("Memoria") })),
-  sourcesBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
+  h("div", { class: "mem-title" }, svg(ICONS.memory, 18, { stroke: 1.6 }), h("span", { text: t("Memoria") })),
+  sourcesBox, search, h("span", { class: "mem-spacer" }), inboxBtn, h("div", { class: "mem-more-wrap" }, moreBtn, menu));
 // The views, and the filters over them.
 const periodPick = h("select", { class: "mem-select", title: t("Solo ciò che ha una data in questo periodo (le pagine senza data restano)") }) as HTMLSelectElement;
 for (const [v, label] of [["all", t("Sempre")], ["30", t("Ultimo mese")], ["90", t("Ultimi 3 mesi")], ["365", t("Ultimo anno")]] as const) periodPick.append(h("option", { value: v, text: label }));
@@ -118,19 +166,65 @@ colourPick.value = filters.colours;
 const sureBox = h("input", { type: "checkbox" }) as HTMLInputElement;
 sureBox.checked = filters.sure;
 const sureLabel = h("label", { class: "mem-check", title: t("Nascondi i collegamenti solo stimati dalle parole in comune: restano quelli scritti nelle pagine, le note che nominano la pagina e quelli controllati dall'IA") }, sureBox, h("span", { text: t("Solo collegamenti sicuri") }));
-const viewBar = h("div", { class: "mem-viewbar" }, h("span", { class: "mem-view-label", text: t("Vista") }), viewPick, colourPick, periodPick, sureLabel);
+// How to use the view: shown over the stage until the first use, then behind ⓘ.
+const infoBtn = h("button", { class: "mem-icon", title: t("Come si usa questa vista"), "aria-label": t("Come si usa questa vista"), "aria-pressed": "false" }, icon(LINE.info)) as HTMLButtonElement;
+const viewBar = h("div", { class: "mem-viewbar" }, h("span", { class: "mem-view-label", text: t("Vista") }), viewPick, colourPick, periodPick, sureLabel, infoBtn);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
 const empty = h("div", { class: "mem-empty" });
-const hint = h("div", { class: "mem-hint" });
-const legend = h("div", { class: "mem-legend" });
-// The legend also filters: a click hides that kind from every view.
+const hint = h("div", { class: "mem-hint", role: "note" });
+const HINTED_KEY = "easyisland.memory.hinted";
+let hinted = (() => {
+  try {
+    return localStorage.getItem(HINTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+})();
+function showHint(on: boolean) {
+  hint.hidden = !on;
+  infoBtn.setAttribute("aria-pressed", String(on));
+  keepClear();
+}
+/** The legend and the hint over the stage: the views keep their labels out from under them. */
+function keepClear() {
+  requestAnimationFrame(() => {
+    const at = stageBox.getBoundingClientRect();
+    const rects = [legend, hint]
+      .filter((el) => !el.hidden && el.style.display !== "none" && el.isConnected)
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.width > 0)
+      .map((r) => ({ x0: r.left - at.left - 4, y0: r.top - at.top - 4, x1: r.right - at.left + 4, y1: r.bottom - at.top + 4 }));
+    reserve(rects);
+    stage.wake();
+  });
+}
+showHint(!hinted);
+infoBtn.addEventListener("click", () => showHint(hint.hidden));
+// The first click, drag or wheel on the stage: the hint has done its job.
+function used() {
+  if (!hint.hidden) showHint(false);
+  if (hinted) return;
+  hinted = true;
+  try {
+    localStorage.setItem(HINTED_KEY, "1");
+  } catch {
+    /* no storage */
+  }
+}
+stageBox.addEventListener("pointerdown", used);
+stageBox.addEventListener("wheel", used, { passive: true });
+const legend = h("div", { class: "mem-legend", role: "group", "aria-label": t("Tipi: clic per nascondere o mostrare") });
+// The legend also filters: a click hides that kind from every view. Only the
+// kinds the memory has (an empty «Nota archiviata» said nothing).
 function renderLegend() {
   clear(legend);
+  const present = new Set(full?.nodes.map((n) => n.kind) ?? []);
   for (const kind of ["page", "missing", "note", "source", "day", "old"] as NodeKind[]) {
+    if (full && !present.has(kind) && !filters.hidden.includes(kind)) continue;
     const off = filters.hidden.includes(kind);
-    const b = h("button", { class: off ? "off" : "", title: off ? t("Mostra di nuovo") : t("Nascondi questo tipo") },
+    const b = h("button", { class: off ? "off" : "", title: off ? t("Mostra di nuovo") : t("Nascondi questo tipo"), "aria-pressed": String(!off) },
       h("i", { style: `background:${KIND_COLOR[kind]}` }), h("span", { text: kindName(kind) }));
     b.addEventListener("click", () => {
       filters.hidden = off ? filters.hidden.filter((k) => k !== kind) : [...filters.hidden, kind];
@@ -142,6 +236,9 @@ function renderLegend() {
   }
 }
 renderLegend();
+const clearWatch = new ResizeObserver(() => keepClear());
+clearWatch.observe(legend);
+clearWatch.observe(stageBox);
 const panel = h("aside", { class: "mem-panel" });
 root.append(bar, viewBar, h("div", { class: "mem-main" }, stageBox, panel));
 
@@ -155,7 +252,7 @@ const stage = new Stage(stageBox, {
     // A node id: its label and kind.
     const n = model?.byId.get(text);
     clear(tip);
-    if (n) tip.append(h("div", { text: n.label }), h("small", { text: [kindName(n.kind), n.date].filter(Boolean).join(" · ") }));
+    if (n) tip.append(h("div", { text: n.label }), h("small", { text: [kindName(n.kind), shortDate(n.date)].filter(Boolean).join(" · ") }));
     else tip.append(h("div", { text }), h("small", { text: sub ?? "" }));
     tip.style.display = "block";
     const box = stageBox.getBoundingClientRect();
@@ -204,7 +301,7 @@ function renderSources(names: string[]) {
     ["*", t("Tutte"), t("Questo PC e le memorie degli altri PC insieme")],
   ];
   for (const [id, name, title] of choices) {
-    const b = h("button", { text: name, title }) as HTMLButtonElement;
+    const b = h("button", { text: name, title, "aria-pressed": String(id === source) }) as HTMLButtonElement;
     b.classList.toggle("on", id === source);
     b.addEventListener("click", () => {
       if (id === source) return;
@@ -235,8 +332,9 @@ function show(next: Tab) {
   }
   viewPick.value = next;
   hint.textContent = TABS.find((x) => x.id === next)!.hint;
-  legend.style.display = next === "timeline" ? "none" : "flex";
-  hint.classList.toggle("low", next === "timeline");
+  infoBtn.title = hint.textContent;
+  legend.style.display = next === "timeline" || next === "stream" || next === "sankey" ? "none" : "flex";
+  keepClear();
   const view = views[next];
   view.setSelected(selected);
   stage.show(view);
@@ -307,7 +405,7 @@ function renderPath() {
   for (const id of path) {
     const n = model.byId.get(id);
     if (!n) continue;
-    const b = h("button", {}, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: n.label }), h("small", { text: kindName(n.kind) })) as HTMLButtonElement;
+    const b = h("button", { class: "mem-link" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: n.label }), h("small", { text: kindName(n.kind) })) as HTMLButtonElement;
     b.addEventListener("click", () => {
       selected = n.id;
       for (const v of Object.values(views)) v.setSelected(n.id);
@@ -335,10 +433,10 @@ function renderPanel() {
     return;
   }
   panel.append(
-    h("span", { class: "mem-chip" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: [kindName(n.kind), n.date, originOf(n.id) && (originOf(n.id) === CLAUDE_CODE ? t("memoria di Claude Code, si legge soltanto") : t("memoria di {name}", { name: originOf(n.id) }))].filter(Boolean).join(" · ") })),
     h("h2", { text: n.label }),
+    h("span", { class: "mem-meta" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: [kindName(n.kind), shortDate(n.date), originOf(n.id) && (originOf(n.id) === CLAUDE_CODE ? t("memoria di Claude Code, si legge soltanto") : t("memoria di {name}", { name: originOf(n.id) }))].filter(Boolean).join(" · ") })),
   );
-  if (n.text) panel.append(h("div", { class: "mem-text", text: n.text }));
+  if (n.text) panel.append(pageText(n.text, n));
   if (n.kind === "missing") panel.append(h("div", { class: "mem-note", text: t("Altre pagine la citano ma non è ancora stata scritta: «Controlla» propone di crearla.") }));
   const links = model.neighbours(n.id);
   if (links.length) {
@@ -347,7 +445,7 @@ function renderPanel() {
     for (const nb of links.slice(0, 80)) {
       const other = model.byId.get(nb.id);
       if (!other) continue;
-      const b = h("button", {},
+      const b = h("button", { class: "mem-link" },
         h("i", { style: `background:${KIND_COLOR[other.kind]}` }),
         h("span", { text: other.label }),
         h("small", { text: [nb.label && (nb.out ? `${nb.label} →` : `← ${nb.label}`), inferred(n, other, nb.strength) && t("dedotto")].filter(Boolean).join(" · ") })) as HTMLButtonElement;
@@ -408,7 +506,7 @@ function renderOverview() {
     panel.append(h("h3", { text: t("Note senza collegamenti ({n})", { n: alone.length }) }));
     const list = h("div", { class: "mem-links" });
     for (const n of alone.slice(0, 12)) {
-      const b = h("button", {}, h("i", { style: "background:#f4505e" }), h("span", { text: n.label }), h("small", { text: n.date })) as HTMLButtonElement;
+      const b = h("button", { class: "mem-link" }, h("i", { style: "background:#e84855" }), h("span", { text: n.label }), h("small", { text: shortDate(n.date) })) as HTMLButtonElement;
       b.addEventListener("click", () => select(n.id));
       list.append(b);
     }
@@ -423,7 +521,7 @@ function renderOverview() {
     panel.append(h("div", { class: "mem-note", text: t("Niente da sistemare.") }));
   }
   // «Ricorda…»: a note straight into MEMORIA.md.
-  const remember = h("input", { class: "mem-search", style: "max-width:none", placeholder: t("Ricorda… (Invio per salvare)") }) as HTMLInputElement;
+  const remember = h("input", { class: "mem-search", placeholder: t("Ricorda… (Invio per salvare)"), "aria-label": t("Nuova nota") }) as HTMLInputElement;
   remember.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter" || !remember.value.trim()) return;
     try {
@@ -441,6 +539,38 @@ function renderOverview() {
     panel.append(h("div", { class: "mem-row" }, open));
   }
   panel.append(feedback);
+}
+
+/**
+ * A page's text with its [[links]] as links: a click picks that page (a page
+ * not written yet, or not in this view, stays plain but marked).
+ */
+function pageText(text: string, of: MemNode): HTMLElement {
+  const box = h("div", { class: "mem-text" });
+  const byLabel = new Map<string, string>();
+  for (const x of model?.g.nodes ?? []) {
+    if (x.kind !== "page" && x.kind !== "missing") continue;
+    // Same PC first: in «Tutte» the other PC's page has the PC in its label.
+    const key = x.label.split(" · ")[0].toLowerCase();
+    if ((x.origin ?? "") === (of.origin ?? "") || !byLabel.has(key)) byLabel.set(key, x.id);
+  }
+  const parts = text.split(/\[\[([^\]\n]+)\]\]/);
+  parts.forEach((part, i) => {
+    if (i % 2 === 0) {
+      if (part) box.append(part);
+      return;
+    }
+    const name = part.split("|").pop()!.trim();
+    const id = byLabel.get(part.split("|")[0].trim().toLowerCase());
+    if (!id) {
+      box.append(h("span", { class: "mem-wiki missing", text: name, title: t("Pagina non ancora scritta") }));
+      return;
+    }
+    const b = h("button", { class: "mem-wiki", text: name, title: t("Vai a {name}", { name }) }) as HTMLButtonElement;
+    b.addEventListener("click", () => select(id));
+    box.append(b);
+  });
+  return box;
 }
 
 function stat(n: number, label: string) {
@@ -486,9 +616,12 @@ async function load() {
     // Reading and checking work on this PC's memory only; the links of a copy can be judged here too.
     const copy = !!source && source !== "*";
     for (const b of [inboxBtn, readBtn, checkBtn]) b.style.display = copy ? "none" : "";
+    // Days of chat by the app's short date, not the file's ISO name.
+    for (const n of g.nodes) if (n.kind === "day") n.label = shortDate(n.label);
     // Claude Code's notes are only read: nothing to link or check there.
     linkBtn.style.display = source === "*" || source === CLAUDE_CODE ? "none" : "";
     full = g;
+    renderLegend();
     model = new Model(filtered(g));
     // ?select=… on the first load; a page chosen in the island's field (memory-select) any time.
     const asked = wanted ?? new URLSearchParams(location.search).get("select");
@@ -497,7 +630,9 @@ async function load() {
     for (const v of Object.values(views)) v.setModel(model);
     if (selected && !model.byId.has(selected)) selected = null;
     applySearch();
-    inboxBtn.textContent = t("Da leggere ({n})", { n: g.inbox.length });
+    inboxCount.textContent = String(g.inbox.length);
+    inboxCount.classList.toggle("zero", !g.inbox.length);
+    inboxBtn.setAttribute("aria-label", t("Da leggere ({n})", { n: g.inbox.length }));
     readBtn.disabled = !g.inbox.length;
     showEmpty();
     renderPanel();
@@ -582,7 +717,7 @@ const job = (kind: "inbox" | "check", btn: HTMLButtonElement) => async () => {
   btn.disabled = true;
   try {
     await Bridge.memoryJob(kind);
-    feedback.textContent = t("Compito avviato: lo segui nell'isola e in Agenti. Quando ha finito, «↻» mostra il risultato.");
+    feedback.textContent = t("Compito avviato: lo segui nell'isola e in Agenti. Quando ha finito, «Aggiorna» in Manutenzione mostra il risultato.");
     if (!selected) renderPanel();
   } catch (e) {
     fail(e);
@@ -677,5 +812,26 @@ window.addEventListener("focus", () => {
   if (Date.now() - loadedAt > 5000) void load();
 });
 
-show(tab);
-void load();
+/**
+ * The look of the island (Impostazioni → Aspetto: Windows 11 or Classico,
+ * dark, light or automatic), and again when it changes. In the browser
+ * preview from ?ui=classic and ?scheme=light|auto, as the island's page.
+ */
+async function applyLook() {
+  const params = new URLSearchParams(location.search);
+  const info = await Bridge.boot();
+  if (info) syncLanguage(info.settings.language);
+  const repaint = () => {
+    forgetPalette();
+    stage.wake();
+  };
+  const look = (style?: string, scheme?: string) => applyUiStyle(params.get("ui") ?? style, params.get("scheme") ?? scheme, repaint);
+  look(info?.settings.theme.style, info?.settings.theme.scheme);
+  document.body.removeAttribute("style");
+  void onEvent<{ theme?: { style?: string; scheme?: string } }>("settings-changed", (s) => look(s.theme?.style, s.theme?.scheme));
+}
+
+void applyLook().finally(() => {
+  show(tab);
+  void load();
+});

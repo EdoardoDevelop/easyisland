@@ -4,8 +4,10 @@
 // twinkle for a moment; a search lights the trail between the stars found.
 // Frames only while something moves: the twinkle lasts a few seconds.
 
-import { KIND_COLOR, alpha, fit, freshness, type MemNode, type Model } from "./data";
-import { Camera, type View } from "./stage";
+import { KIND_COLOR, alpha, freshness, type MemNode, type Model } from "./data";
+import { Camera, starfield, type View } from "./stage";
+import { Placer, label } from "./labels";
+import { inkOf, pal } from "./theme";
 
 interface Star {
   n: MemNode;
@@ -93,6 +95,12 @@ export class GalaxyView implements View {
     this.stars.push({ n, x, y, r: (page ? 2.6 : 1.4) + Math.min(4, Math.sqrt(n.weight) * 0.7), colour, fresh: freshness(n.date), phase: phase * Math.PI * 2, damp: 1 });
   }
 
+  private hovered: string | null = null;
+
+  setHover(id: string | null) {
+    this.hovered = id;
+  }
+
   setSelected(id: string | null) {
     this.selected = id;
     this.since = performance.now();
@@ -114,17 +122,15 @@ export class GalaxyView implements View {
     let moving = this.cam.step();
     const now = performance.now();
     const twinkling = now - this.since < TWINKLE_MS;
-    // The sky: deep blue to black, with a faint band of dust.
-    const sky = ctx.createLinearGradient(0, 0, w, h);
-    sky.addColorStop(0, "#050713");
-    sky.addColorStop(0.5, "#0a0d1f");
-    sky.addColorStop(1, "#030308");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
+    // The sky: the window's surface (light adds up only on a dark one).
+    starfield(ctx, w, h, this.cam);
+    const p = pal();
+    const add: GlobalCompositeOperation = p.light ? "source-over" : "lighter";
+    const core = (a: number) => (p.light ? `rgba(40,40,40,${a * 0.5})` : `rgba(255,255,255,${a})`);
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalCompositeOperation = add;
     // Each galaxy's glow: a wide soft disc and a bright core.
     for (const g of this.galaxies) {
       const disc = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r * 1.5);
@@ -162,7 +168,7 @@ export class GalaxyView implements View {
       for (const nb of lines) {
         const b = this.index.get(nb.id);
         if (!b) continue;
-        ctx.strokeStyle = `rgba(200,215,255,${nb.strength >= 3 ? 0.42 : nb.strength === 2 ? 0.26 : 0.13})`;
+        ctx.strokeStyle = `rgba(${p.link},${nb.strength >= 3 ? 0.5 : nb.strength === 2 ? 0.32 : 0.16})`;
         ctx.setLineDash(nb.strength >= 2 ? [] : [3 / k, 4 / k]);
         ctx.beginPath();
         ctx.moveTo(a0.x, a0.y);
@@ -170,19 +176,16 @@ export class GalaxyView implements View {
         ctx.stroke();
       }
       ctx.setLineDash([]);
-      ctx.globalCompositeOperation = "lighter";
+      ctx.globalCompositeOperation = add;
     }
     // The trail of a search, star to star.
     if (this.filter?.size) {
       const found = this.stars.filter((s) => this.filter!.has(s.n.id)).sort((a, b) => a.x - b.x);
-      ctx.strokeStyle = "rgba(255,240,200,0.55)";
+      ctx.strokeStyle = p.light ? "rgba(138,83,0,0.6)" : "rgba(255,240,200,0.55)";
       ctx.lineWidth = 1.2 / k;
-      ctx.shadowColor = "#fff1c4";
-      ctx.shadowBlur = 8;
       ctx.beginPath();
       found.forEach((s, i) => (i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y)));
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
     // The stars.
     for (const s of this.stars) {
@@ -193,7 +196,7 @@ export class GalaxyView implements View {
       const r = s.r * (picked ? 1.6 : 1);
       const reach = r * (picked ? 4 : 3);
       const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, reach);
-      glow.addColorStop(0, `rgba(255,255,255,${a})`);
+      glow.addColorStop(0, core(a));
       glow.addColorStop(0.3, alpha(s.colour, a * 0.6));
       glow.addColorStop(1, alpha(s.colour, 0));
       ctx.fillStyle = glow;
@@ -202,7 +205,7 @@ export class GalaxyView implements View {
       ctx.fill();
       // A cross of light on the bright ones, where there is room for it.
       if (!dim && ((s.r > 3.5 && s.damp > 0.6) || picked)) {
-        ctx.strokeStyle = `rgba(255,255,255,${a * 0.5})`;
+        ctx.strokeStyle = core(a * 0.5);
         ctx.lineWidth = 0.6 / k;
         ctx.beginPath();
         ctx.moveTo(s.x - r * 3, s.y);
@@ -213,41 +216,32 @@ export class GalaxyView implements View {
       }
     }
     ctx.globalCompositeOperation = "source-over";
-    // Names: the galaxies from afar, the stars closer.
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.restore();
+    // Names in screen pixels: the picked star first, then its surest
+    // neighbours, the found ones, the galaxies from afar and the pages; one
+    // that would overlap a name already written is left out (it shows on
+    // hover and closer up).
+    const placer = new Placer();
+    const nearRank = new Map(lines.map((nb, i) => [nb.id, i]));
+    const order = (s: Star) => (s.n.id === sel || s.n.id === this.hovered ? -2 : nearRank.get(s.n.id) ?? (this.filter?.has(s.n.id) ? 50 : 1000 - s.r * 10 - s.n.weight));
+    const named = this.stars
+      .filter((s) => s.n.id === sel || s.n.id === this.hovered || (nearRank.get(s.n.id) ?? MAX_NAMES) < MAX_NAMES || this.filter?.has(s.n.id) || (k > 1.1 && (s.n.kind === "page" || k > 2.2)))
+      .sort((a, b) => order(a) - order(b));
+    const star = (s: Star) => {
+      const at = this.cam.toScreen(s.x, s.y);
+      if (at.x < -100 || at.x > w + 100 || at.y < -30 || at.y > h + 30) return;
+      const forced = s.n.id === sel || s.n.id === this.hovered;
+      label(ctx, placer, s.n.label, at.x, at.y + s.r * k + 5, { size: 12, weight: forced ? 600 : 500, force: forced, max: forced ? 300 : 170 });
+    };
+    let i = 0;
+    for (; i < named.length && order(named[i]) < 100; i++) star(named[i]);
     if (k < 1.3) {
-      ctx.font = `600 ${14 / k}px system-ui, "Segoe UI", sans-serif`;
       for (const g of this.galaxies) {
-        ctx.fillStyle = alpha(g.colour, 0.9);
-        ctx.fillText(fit(ctx, g.name, 240 / k), g.x, g.y + g.r * 0.75);
+        const at = this.cam.toScreen(g.x, g.y + g.r * 0.75);
+        label(ctx, placer, g.name, at.x, at.y, { size: 14, weight: 600, color: inkOf(g.colour), max: 240, baseline: "middle" });
       }
     }
-    // Stars' names: the picked one first, then its surest neighbours, the
-    // found ones and the pages; one that would overlap a name already written
-    // is left out (it shows on hover and closer up).
-    ctx.font = `500 ${11 / k}px system-ui, "Segoe UI", sans-serif`;
-    const nearRank = new Map(lines.map((nb, i) => [nb.id, i]));
-    const order = (s: Star) => (s.n.id === sel ? -1 : nearRank.get(s.n.id) ?? 100 - s.r);
-    const named = this.stars
-      .filter((s) => s.n.id === sel || (nearRank.get(s.n.id) ?? MAX_NAMES) < MAX_NAMES || this.filter?.has(s.n.id) || (k > 1.6 && (s.n.kind === "page" || k > 2.6)))
-      .sort((a, b) => order(a) - order(b));
-    const taken: { x0: number; y0: number; x1: number; y1: number }[] = [];
-    const lineH = 14 / k;
-    ctx.shadowColor = "rgba(0,0,0,0.9)";
-    ctx.shadowBlur = 4;
-    for (const s of named) {
-      const text = fit(ctx, s.n.label, 160 / k);
-      const half = ctx.measureText(text).width / 2 + 3 / k;
-      const y = s.y + s.r + 9 / k;
-      const b = { x0: s.x - half, y0: y - lineH / 2, x1: s.x + half, y1: y + lineH / 2 };
-      if (s.n.id !== sel && taken.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0)) continue;
-      taken.push(b);
-      ctx.fillStyle = s.n.id === sel ? "#ffffff" : "rgba(220,226,240,0.88)";
-      ctx.fillText(text, s.x, y);
-    }
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    for (; i < named.length; i++) star(named[i]);
     if (twinkling) moving = true;
     return moving;
   }

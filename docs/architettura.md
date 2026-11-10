@@ -85,6 +85,7 @@ Fatta il 29/10 sopra la finestra del personaggio. Impostazioni → Posizione →
 - Provata dal vivo il 29/10 in alto (2560×1440 al 125 %). Da provare: in basso, secondo monitor, «…», cosa resta della fascia se l'app cade.
 
 ## Viste, menu e barra in alto
+- **Fumetto in alto** (`bubble` in `views.ts`, 10/11): dice la cosa più grave sullo schermo, mai «Tutto tranquillo.» sopra un problema: permesso o domanda, poi l'avviso aperto (`momentHeadline` in `moment.ts`), riepilogo e giornata, poi una sessione ferma per errore o limite, poi novità e lavoro. **Contenuto dall'alto** (`.stack`, `.left-body`, 10/11; prima al centro dell'altezza, chiesto il 14/10): al centro resta solo la vista vuota.
 - **Impianto** (dal 13/10): intestazione (`buildHeader` in `views.ts`) con fumetto, campo unico, pulsanti; **menu** a sinistra (`src/views/rail.ts`, `#rail`) con il personaggio in cima, poi Panoramica, Agenti, Chat, Azioni, File e schermo, integrazioni attive; viste a destra. Niente modalità modifica.
   - `botPosition` mette il personaggio in cima al menu quando `railShown` (non per saluto e sequenza file); misura da `menuCharacter` (`RAIL_BOT`), spazio in `railHead`.
   - Spazi per il personaggio nelle viste: `max(16px, calc(Npx * var(--bot-room, 1)))`, `#island.railed` mette `--bot-room: 0`.
