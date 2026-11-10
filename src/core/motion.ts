@@ -82,14 +82,8 @@ export function viewEnter(view: HTMLElement, from: HTMLElement | null, before: D
   if (level === "spente" || performance.now() < openingUntil) return;
   if (from && before) glideMark(from, before);
   if (level === "sobrie") return; // the CSS crossfade of .view is enough
-  // The view slides in from the menu item that asked for it; its pieces follow one by one.
-  const vr = view.getBoundingClientRect();
-  const fr = from?.getBoundingClientRect();
-  view.style.transformOrigin = fr ? `0px ${Math.round(fr.top + fr.height / 2 - vr.top)}px` : "50% 0px";
-  view.animate(
-    [{ opacity: 0, transform: "translateX(-40px) scale(0.93)" }, { opacity: 1, transform: "none" }],
-    { duration: 500, easing: EASE_OUT },
-  );
+  // Only its single pieces move, never the view or the tab as a block (Edoardo, 10/11,
+  // twice: «animazioni a blocco, tutto il contenuto della tab invece di ogni singolo»).
   partsIn([view], 40, 300);
 }
 
@@ -116,10 +110,12 @@ function glideMark(item: HTMLElement, before: DOMRect) {
 
 // ── Level 3: opening ────────────────────────────────────────────────────────
 
-/** What moves as one piece: a control, a card, a row, a title. Anything else is opened up into its children. */
-const ATOM = ".card, .tile, .ov-card, .row, .setting, [data-stagger], .rail-item, button, a, input, select, textarea, label, h1, h2, h3, h4, p, li, img, canvas, svg, video, iframe, [role=button], [role=tab]";
+/** Always one piece: a control, an image. */
+const CONTROL = "button, a, input, select, textarea, [role=button], [role=tab], [role=switch], .rail-item, img, canvas, svg, video, iframe";
+/** One piece only if nothing else is inside it (a card with a title, a text and a button is three pieces). */
+const BLOCK = ".card, .tile, .ov-card, .row, .setting, li, label, h1, h2, h3, h4, p, [data-stagger]";
 const SKIP = "script, style, template, #open-wave, [hidden]";
-const MAX_PIECES = 160;
+const MAX_PIECES = 300;
 const BLURRED = 40;
 /** The pieces still coming in: a closing stops them (they would go on arriving while the rest fades). */
 let entering: Animation[] = [];
@@ -129,26 +125,29 @@ function stopEntering() {
 }
 
 /**
- * Every piece of `parts` in view, down to its controls, cards and rows: each
- * comes in on its own instead of the whole block at once (Edoardo, 10/11). The
- * DOM is opened up level by level, so the siblings of a piece that moves move too.
+ * Every single piece of `parts` in view, down to its controls, titles and texts:
+ * each comes in on its own, never a card or a section as a block (Edoardo, 10/11).
+ * The DOM is opened up level by level, so the siblings of a piece that moves move too.
  */
 function piecesOf(parts: Iterable<HTMLElement>, view: { w: number; h: number }): HTMLElement[] {
   const out: HTMLElement[] = [];
   // Shown, not "has a size": while the island grows its search box and its views are
   // still 0 px wide (they and all they held stayed still).
+  // The view being shown is still transparent at first (its CSS fade waits 160 ms): it counts
+  // as shown, or all it holds came in as one block when it faded in.
   const seen = (el: HTMLElement) => {
     if (!el.getClientRects().length) return false;
     const r = el.getBoundingClientRect();
     if (r.top >= view.h || r.left >= view.w || r.bottom < 0 || r.right < 0) return false;
     const cs = getComputedStyle(el);
-    return cs.visibility !== "hidden" && cs.opacity !== "0";
+    return cs.visibility !== "hidden" && (cs.opacity !== "0" || el.matches(".view.on"));
   };
   const walk = (el: HTMLElement, depth: number) => {
     if (out.length >= MAX_PIECES || el.matches(SKIP) || !seen(el)) return;
-    if (el.matches(ATOM) || depth > 9) { out.push(el); return; }
+    if (el.matches(CONTROL) || depth > 12) { out.push(el); return; }
     const kids = [...el.children].filter((k): k is HTMLElement => k instanceof HTMLElement && !k.matches(SKIP) && seen(k));
-    if (!kids.length) { out.push(el); return; }
+    // A leaf, or a block with only text and inline bits inside (a title, a hint): one piece.
+    if (!kids.length || (el.matches(BLOCK) && !el.querySelector(`${CONTROL}, ${BLOCK}, div`))) { out.push(el); return; }
     for (const k of kids) walk(k, depth + 1);
   };
   for (const part of parts) walk(part, 0);

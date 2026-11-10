@@ -6028,12 +6028,20 @@ function render() {
   const tabs = [...root.querySelectorAll(".subtab.on, [role=tab][aria-selected=true]")].map((e) => e.textContent).join("|");
   const key = `${page.id}|${tabs}`;
   const item = root.querySelector<HTMLElement>(".nav-item.on");
-  if (shownKey && key !== shownKey) viewEnter(body, page.id === shownKey.split("|")[0] ? root.querySelector<HTMLElement>(".subtab.on") : item, page.id === shownKey.split("|")[0] ? null : shownMark);
+  if (shownKey && key !== shownKey) {
+    viewEnter(body, page.id === shownKey.split("|")[0] ? root.querySelector<HTMLElement>(".subtab.on") : item, page.id === shownKey.split("|")[0] ? null : shownMark);
+    enteredAt = performance.now();
+  } else if (performance.now() - enteredAt < 700) {
+    // Redrawn right after the change, its data just arrived: the new pieces come in too
+    // (they appeared all at once, as a block).
+    viewEnter(body, null, null);
+  }
   shownKey = key;
   shownMark = item?.getBoundingClientRect() ?? null;
 }
 let shownKey = "";
 let shownMark: DOMRect | null = null;
+let enteredAt = 0;
 
 /**
  * A list redrawn in place (an action's type, a switch, Aggiungi, Elimina) left
