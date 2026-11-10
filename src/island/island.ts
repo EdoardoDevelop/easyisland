@@ -41,6 +41,7 @@ import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
 import { applyUiStyle, islandHex, windowsLook } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
+import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -487,6 +488,7 @@ export class Island {
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
     this.rail = buildRail(actions);
+    watchPresses(document);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
     this.stripActions = {
@@ -649,7 +651,6 @@ export class Island {
         this.cloneEnter = true;
         this.mirror({ kind: "call", name: "squash", args: [] });
         this.mirror({ kind: "call", name: "emit", args: ["spark", 8] });
-        this.openWave();
       }
     }
     if (prev === "expanded") {
@@ -674,7 +675,19 @@ export class Island {
     this.islandEl.classList.toggle("bar-away", mode === "hidden" && barEdge(State.settings) != null);
     this.applyBare();
     this.updateWindowCollapsed();
+    const closing = prev === "expanded" && mode !== "expanded";
+    // Before the content fades (syncDom): it goes back into the character.
+    if (closing && !State.maximized) {
+      const at = this.botTarget(0, this.width.value);
+      closeIsland(this.islandEl, this.contentEl, { x: at.cx, y: at.cy }, this.placement.v === "bottom");
+    }
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
+    // Opening (motion.ts): from the character, to the size the island is growing to.
+    if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized) {
+      const at = this.botTarget(this.height.target, this.width.target);
+      const parts = [...this.islandEl.querySelectorAll<HTMLElement>("#header, #rail, #views")];
+      if (!openIsland(this.islandEl, { x: at.cx, y: at.cy }, this.width.target, this.height.target, parts, this.placement.v === "bottom") && motionLevel() !== "spente") this.openWave();
+    }
     this.scheduleWander();
     State.notify();
   }
@@ -4038,20 +4051,26 @@ ${note}` : text };
     el.classList.add("on");
   }
 
-  private updateBotTargets() {
+  /** Where the character goes, in the island's coordinates, for an island `height` tall and `width` wide. */
+  private botTarget(height: number, width: number) {
     // Centred on the views, not on the search bar under them.
     const compact = this.compactBox();
     const p = botPosition(
-      State.mode, State.view, this.height.value, State.uploadProgress,
+      State.mode, State.view, height, State.uploadProgress,
       compact, this.railShown ? railBotSize() : 0,
     );
     if (this.stripShown) {
       // In its square at one end, the strip on the other side.
       const side = compact.h;
-      p.cx = State.settings.compactStrip === "left" ? this.width.value - side / 2 : side / 2;
+      p.cx = State.settings.compactStrip === "left" ? width - side / 2 : side / 2;
       p.cy = side / 2;
       p.diameter = side * 0.56;
     }
+    return p;
+  }
+
+  private updateBotTargets() {
+    const p = this.botTarget(this.height.value, this.width.value);
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
@@ -4290,6 +4309,8 @@ ${note}` : text };
     this.islandEl.classList.toggle("pop", !!State.popover);
     this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
     this.islandEl.classList.toggle("open", expanded);
+    // Where the menu's mark was, for it to glide to the new item (motion.ts).
+    const markBefore = expanded && this.lastSyncedView !== State.view ? this.rail.el.querySelector(".rail-item.on")?.getBoundingClientRect() ?? null : null;
     if (railed) {
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
@@ -4301,12 +4322,14 @@ ${note}` : text };
     }
     this.search.el.style.display = this.searchShown ? "" : "none";
     guard("search", () => this.search.sync());
+    const changed = expanded && this.lastSyncedView !== State.view && this.lastSyncedView !== null;
     for (const [name, view] of this.views) {
       // The chat in its own window is drawn there (popout.ts).
       if (name === "prompt" && isPopped("chat")) continue;
       const on = name === State.view;
       view.el.classList.toggle("on", on);
       if (on) guard(`view ${name}`, () => view.sync());
+      if (on && changed) viewEnter(view.el, this.rail.el.querySelector<HTMLElement>(".rail-item.on"), markBefore);
     }
 
     // Views that know how tall their content is make the island grow (or
@@ -4440,6 +4463,7 @@ ${note}` : text };
 
   /** Applies settings coming from Rust at boot. */
   applySettings() {
+    applyMotion(State.settings);
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;

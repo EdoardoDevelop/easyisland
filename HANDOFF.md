@@ -45,10 +45,14 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro; torna davanti al cambio di finestra. Verificare con Start aperto.
 - **Limiti del piano da Anthropic:** `/api/oauth/usage` non è documentato; se smette, il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
 - **Rinnovo dell'accesso di Claude Code** (`renew.rs`): parte invisibile, apre `/usage`, si chiude senza processi; il rinnovo di un accesso scaduto va visto alla prossima scadenza. Dopo, Claude Code può usare una volta il renderer classico.
+- **Test instabile** `cc_memory::tests::project_folders_read_as_paths` (10/11): una volta su due nella suite completa fallisce, da solo passa; probabile gara con un altro test sulla lingua o sulle variabili d'ambiente. Da rendere indipendente.
 - **Chiave salvata in opencode vince su quella di EasyIsland** (2/11): in Modalità terminale OpenRouter, OpenAI, Gemini e API Anthropic passano da opencode (`opencode::via`, chiave in `OPENROUTER_API_KEY` ecc.), che preferisce la sua (`opencode auth list`). Sintomo: «User not found» solo in `~/.local/share/opencode/log/opencode.log`. Risolto a mano con `opencode auth logout openrouter`. Da fare: far vincere sempre la chiave di EasyIsland (`providers.openrouter.settings.apiKey` in `OPENCODE_CONFIG_CONTENT` non ha funzionato) o dirlo nell'errore.
 
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
+
+### 10/11 — Animazioni a tre livelli
+`src/core/motion.ts`: onda di luce a ogni clic, viste che nascono dalla voce del menu, apertura e chiusura di isola, Impostazioni, Memoria e Flussi con «Lancio», «Sipario» o «Particelle» (Aspetto → Tema → Animazioni; di serie Ricche + Lancio, richiesta di Edoardo). Chiusura delle finestre ritardata di 300 ms da `hide_after_fx` (lib.rs). Scelta fatta sull'artifact «Animazioni di EasyIsland». `docs/architettura.md` → Animazioni, guida 05.
 
 ### 10/11 — «Claude Code fuori da EasyIsland» senza le sessioni di EasyIsland
 La lista si riempiva delle sessioni avviate da EasyIsland stesso fuori dalla cartella della chat (sul PC di lavoro 176, in OneDrive\WORK, titolo «[Istruzioni dell'utente per questa chat…»). `desktop::outside` ora salta quelle con `entrypoint` «sdk-cli» (`claude -p`); restano «cli» e «claude-desktop». `docs/chat.md`.
@@ -61,7 +65,4 @@ Critica Impeccable (25/40) su 54 schermate, poi tutto sistemato con Edoardo: una
 
 ### 9/11 — Agent Chat: token nel campo sbagliato, log senza segreti
 Il token nuovo dell'agente «casa» era finito in «Token per scrivere come te»: ora `agentchat.rs` lo riconosce dai prefissi `ac_`/`ow_` e lo dice (`misplaced`, `hello`, `owner_send`). `easyisland.log` aveva il `Bearer` di un comando di opencode: `log::mask` su ogni riga e `log::scrub_once` sul log vecchio. `docs/integrazioni.md`, `docs/architettura.md` → Robustezza.
-
-### 9/11 — Indice della memoria in RAM
-`brain::Index`: pagine e grafo tenuti in RAM per cartella e rifatti solo quando cambia un file (percorso, ora, dimensione) o la lingua; i `.md` restano la fonte, niente database (deciso con Edoardo). Test `the_index_follows_the_files`. Sistemata una gara fra il test degli hook (cambia USERPROFILE) e quello del terminale. `docs/chat.md` → Secondo cervello.
 

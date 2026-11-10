@@ -15,6 +15,11 @@ The page has eight tabs at the top: **Theme**, **Font**, **Character**, **Positi
 - **Card opacity**: the panels inside the island, such as the chat. Lower, the more the island's colour shows and the darker they are (25% by default); to darken further pick a darker island colour.
 - **Background when closed**: off, only the character stays.
 
+## Animations
+Also in **Appearance → Theme**, section **Animations**:
+- **Animations**: **Rich** (the default), **Subtle** or **Off**. With Rich every click answers with a ripple of light from where you clicked, a new screen grows out of the menu item that opened it (its cards come in one after the other, the menu's mark slides to the new item), and the island and the windows open and close with the chosen effect. Subtle keeps only short fades, Off no movement. With Windows «Animation effects» off (Windows Settings → Accessibility → Visual effects), Rich becomes Subtle.
+- **Opening effect**: **Launch** (the island opens as a circle out of the character, with a ring of light, and goes back into it when it closes), **Curtain** (a line of light unrolls the island and rolls it back up) or **Particles** (the character's particles draw the edges, then the content lights up; the heaviest on the graphics card). It applies to Settings, Memory and Flows too, where the effect starts from the icon in the title bar.
+
 ## Font
 In **Appearance → Font** you pick two separate fonts, with a live preview:
 - **Titles' font**: titles and headings, names in cards and in the chat; also the fixed bar's elements (clock, widgets) when **Font from Appearance → Font** is on there.

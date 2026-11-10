@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 9/11 — Indice della memoria in RAM
+`brain::Index`: pagine e grafo tenuti in RAM per cartella e rifatti solo quando cambia un file (percorso, ora, dimensione) o la lingua; i `.md` restano la fonte, niente database (deciso con Edoardo). Test `the_index_follows_the_files`. Sistemata una gara fra il test degli hook (cambia USERPROFILE) e quello del terminale. `docs/chat.md` → Secondo cervello.
+
 ### 9/11 — Memoria di Claude Code in EasyIsland
 `cc_memory.rs`: le note che Claude Code salva da solo (`projects/*/memory/*.md`, ogni account) in sola lettura come provenienza «Claude Code»: `memory_search`, `memory_page`, campo in alto, Mappa (pulsante, nodi fonte per progetto, link alle pagine nominate). Nel preambolo solo `user`/`feedback` della cartella utente. Interruttore `memoryClaudeCode` (Secondo cervello). Poi: doppioni di MEMORIA.md fuori dalla ricerca e linee «anche in Claude Code» nella Mappa (`twin`), data su ogni nota (vale EasyIsland), file riletti solo se cambiano. `docs/chat.md` → Memoria di Claude Code; guida 12.
 

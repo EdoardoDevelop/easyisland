@@ -15,6 +15,11 @@ La pagina è divisa in otto schede, in alto: **Tema**, **Font**, **Personaggio**
 - **Opacità delle card**: i pannelli dentro l'isola, come la chat. Più bassa, più si vede il colore dell'isola e più sono scuri (di serie 25%); per scurire ancora scegli un colore dell'isola più scuro.
 - **Sfondo a isola chiusa**: spento, resta solo il personaggio.
 
+## Animazioni
+Sempre in **Aspetto → Tema**, sezione **Animazioni**:
+- **Animazioni**: **Ricche** (predefinite), **Sobrie** o **Spente**. Con Ricche ogni clic risponde con un'onda di luce che parte dal punto cliccato, una schermata nuova nasce dalla voce del menu che l'ha aperta (le card entrano una dopo l'altra, il segno del menu scivola sulla voce nuova), e isola e finestre si aprono e si chiudono con l'effetto scelto. Sobrie lascia solo dissolvenze brevi, Spente nessun movimento. Se in Windows è acceso «Riduci animazioni» (Impostazioni di Windows → Accessibilità → Effetti visivi), Ricche diventa Sobrie.
+- **Effetto di apertura**: **Lancio** (l'isola si apre a cerchio dal personaggio, con un anello di luce, e alla chiusura ci rientra), **Sipario** (una linea di luce srotola l'isola e la riavvolge) o **Particelle** (le particelle del personaggio disegnano i bordi, poi il contenuto si accende; la più pesante per la scheda video). Vale anche per Impostazioni, Memoria e Flussi, dove l'effetto parte dall'icona nella barra del titolo.
+
 ## Font
 In **Aspetto → Font** scegli due font separati, con l'anteprima dal vivo:
 - **Font dei titoli**: titoli e intestazioni, nomi nelle schede e in chat; anche gli elementi della barra fissa (orologio, widget), se lì è acceso **Font di Aspetto → Font**.

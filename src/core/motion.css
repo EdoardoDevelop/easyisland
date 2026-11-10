@@ -1,0 +1,31 @@
+/* The pieces of motion.ts that are drawn: the ring of «Lancio», the seam of
+   «Sipario», the particles' canvas. Above everything, never in the way. */
+.fx-ring {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 2px solid var(--accent, #60cdff);
+  box-shadow: 0 0 18px var(--accent, #60cdff), inset 0 0 12px color-mix(in srgb, var(--accent, #60cdff) 60%, transparent);
+  pointer-events: none;
+  z-index: 2147483000;
+}
+.fx-seam {
+  height: 2px;
+  margin-top: -1px;
+  pointer-events: none;
+  z-index: 2147483000;
+  background: linear-gradient(90deg, transparent, var(--accent, #60cdff) 18%, #fff 50%, var(--accent, #60cdff) 82%, transparent);
+  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--accent, #60cdff) 70%, transparent);
+}
+.fx-particles {
+  pointer-events: none;
+  z-index: 2147483000;
+}
+/* The menu's mark while its copy glides to it (motion.ts glideMark). */
+.rail-item.mark-gliding::before { opacity: 0; }
+
+/* «Spente»: the views and the opening wave without movement either. */
+html[data-anim="spente"] .view,
+html[data-anim="spente"] .view.on { transition: none; transform: none; }
+html[data-anim="spente"] #open-wave.on { animation: none; }
