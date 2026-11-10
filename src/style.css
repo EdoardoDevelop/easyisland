@@ -914,13 +914,17 @@ html.browser-preview #root {
   word-break: break-word;
 }
 
+/* From the top, at a fixed distance under the header: the eye starts there and
+   the buttons stay where they were (design review, Edoardo, 10 Nov 2026; before,
+   every card's content sat in the middle of its height). Only the empty view
+   (a row, buildEmpty) stays in the middle. */
 .stack {
   position: relative;
   z-index: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 5px;
 }
 
@@ -1821,10 +1825,11 @@ input[type="range"]::-webkit-slider-thumb {
   border: 1px solid var(--hairline);
 }
 
+/* The second engine's reply: a faint tinted panel with a 1 px edge, its head names it. */
 .reply.md.second {
   padding: 6px 10px;
-  border-left: 2px solid rgba(167, 139, 250, 0.6);
-  border-radius: 4px;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  border-radius: 6px;
   background: rgba(167, 139, 250, 0.06);
 }
 
@@ -2385,11 +2390,11 @@ input[type="range"]::-webkit-slider-thumb {
   position: relative;
   z-index: 1;
   height: 100%;
-  /* Every tab's content in the middle of the card's height (Edoardo, 14
-     October 2026); content taller than the card starts at the top as before. */
+  /* From the top (Edoardo, 10 Nov 2026, after a design review: in the middle,
+     as asked on 14 Oct, it left half the card empty above short content). */
   display: flex;
   flex-direction: column;
-  justify-content: safe center;
+  justify-content: flex-start;
 }
 
 .left-body > * { flex-shrink: 0; }
@@ -2405,7 +2410,8 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding-right: 24px;
+  /* A safe area for the card's corner buttons (Apri in una finestra, ↗). */
+  padding-right: 60px;
 }
 
 .int-head b {
@@ -2465,6 +2471,28 @@ input[type="range"]::-webkit-slider-thumb {
 .int-actions .link-btn {
   white-space: nowrap;
 }
+
+/* One look for every integration card's actions (Aggiorna, Apri…, Impostazioni…):
+   the accent as a text link, never the integration's colour (that stays on its logo).
+   At the foot (.int-actions) or, for cards that are a workspace, at the head's end. */
+:root { --link: #38bdf8; }
+.int-card .link-btn:not(.danger-link):not(.zm-back):not(.zm-advice-title) { color: var(--link); }
+.int-card .link-btn { font-weight: 400; padding: 0; }
+.int-card .link-btn:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.int-card .link-btn:disabled { color: var(--dim-3); }
+.int-actions { gap: 4px 16px; padding-top: 10px; }
+.int-head-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 auto;
+  padding-left: 8px;
+}
+/* The head's meta (summary, freshness): one line, dim, «·» between the parts. */
+.int-head > span:not(.int-head-actions) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.int-head > span + .int-ago::before { content: "·"; margin-right: 6px; }
+.int-head > .int-ago { font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-2); white-space: nowrap; }
 
 .int-rows {
   display: flex;
@@ -3904,9 +3932,24 @@ input[type="range"]::-webkit-slider-thumb {
 
 .files-tools {
   display: inline-flex;
-  gap: 4px;
+  gap: 2px;
   flex: 0 0 auto;
 }
+
+/* The tray's row actions: plain glyphs, a soft square under the mouse. */
+.files-act {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  cursor: default;
+}
+.files-act:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.files-act[aria-expanded="true"] { background: rgba(255, 255, 255, 0.08); }
 
 /* The zone just put in the tray by Riquadra e chiedi: lit, Chiedi and Copia in sight. */
 .files-row.fresh {
@@ -4853,11 +4896,12 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
-/* Panoramica: the logo (or a circle) large, faint, cut by the bottom-left corner. */
+/* Panoramica: the logo (or a circle) large, faint, cut by the bottom-right corner,
+   in a margin the status text never enters. */
 .summary-mark {
   position: absolute;
-  left: -12px;
-  bottom: -14px;
+  right: -10px;
+  bottom: -12px;
   width: 52px;
   height: 52px;
   display: grid;
@@ -4874,6 +4918,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .summary-row:hover .summary-mark { opacity: 0.26; }
 .summary-top, .summary-status { position: relative; }
+.summary-status { padding-right: 34px; }
 .summary-row:hover {
   background: #17191d;
   border-color: color-mix(in srgb, var(--c, #8e939c) 45%, transparent);
@@ -5626,6 +5671,14 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   overflow-y: auto;
   scrollbar-width: thin;
 }
+/* Rows past the bottom edge: the last visible one fades instead of being cut. */
+.rail-list.more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
+}
+/* While the search's results are open, no row of the menu is «here». */
+#island:has(#search.open) .rail-item.on { background: transparent; font-weight: inherit; }
+#island:has(#search.open) .rail-item.on::before { display: none; }
 .rail-label-head {
   padding: 10px 10px 4px;
   font-size: calc(10px + var(--fs-up, 0px));
@@ -5673,6 +5726,8 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   text-overflow: ellipsis;
 }
 .rail-meta { flex: 0 0 auto; }
+/* No badge: no gap kept for it, so a long name (Server dei clienti) has the room. */
+.rail-meta:empty:not(.dot) { display: none; }
 .rail-meta.count {
   min-width: 18px;
   height: 17px;
@@ -5811,9 +5866,22 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
   mask-image: linear-gradient(to bottom, #000 40%, transparent);
 }
-.wx-hero { position: relative; padding: 12px 0 30px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+.wx-hero { position: relative; z-index: 0; padding: 12px 0 30px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+/* A soft shade behind the place and the temperature: white text stays readable
+   when a white cloud drifts past. */
+.wx-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -12px 30% 10px -16px;
+  background: radial-gradient(ellipse 70% 80% at 10% 35%, rgba(0, 0, 0, 0.26), transparent 75%);
+  pointer-events: none;
+}
 .wx-place { display: flex; align-items: baseline; gap: 8px; }
-.wx-place b { font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); color: #fff; }
+.wx-place b { font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 10px rgba(0, 0, 0, 0.35); }
+/* The card's corner buttons over the sky: a dark glass of their own, above the clouds. */
+.card:has(.weather-card) > .jump { z-index: 5; color: #fff; background: rgba(0, 0, 0, 0.34); backdrop-filter: blur(8px); }
+.card:has(.weather-card) > .jump:hover { background: rgba(0, 0, 0, 0.5); }
 .wx-ago { font: 400 calc(10px + var(--fs-up, 0px)) var(--font); color: rgba(255, 255, 255, 0.7); }
 .wx-now { display: flex; align-items: center; gap: 12px; padding-top: 2px; }
 .wx-temp { font: 300 calc(46px + var(--fs-up, 0px))/1 var(--font); color: #fff; letter-spacing: -0.02em; }
@@ -5894,7 +5962,7 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   background: rgba(232, 84, 42, 0.28);
 }
 .rdm-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 2px 0; }
-.rdm-link { margin-left: 6px; flex: 0 0 auto; color: #E8542Ad9; font-size: calc(10.5px + var(--fs-up, 0px)); }
+.rdm-link { margin-left: 6px; flex: 0 0 auto; font-size: calc(10.5px + var(--fs-up, 0px)); }
 
 /* The island's right-click menu (src/views/ctxmenu.ts). */
 .ctx-menu {
@@ -6502,7 +6570,7 @@ textarea.custom-input { resize: vertical; }
 .custom-value b { font: 600 calc(15px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
 .custom-item .custom-record-title { display: flex; flex-direction: column; gap: 1px; }
 .custom-item-sub { font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.custom-item.warn { box-shadow: inset 3px 0 0 var(--amber); background: rgba(245, 165, 36, 0.08); }
+.custom-item.warn { box-shadow: inset 0 0 0 1px rgba(245, 165, 36, 0.45); background: rgba(245, 165, 36, 0.08); }
 .custom-raw { margin: 0; padding: 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.25); font: 400 11px var(--mono); color: var(--dim); white-space: pre-wrap; user-select: text; max-height: 220px; overflow: auto; }
 
 /* ── La Raccolta (src/views/collect.ts) ──────────────────────────────────── */
@@ -6751,7 +6819,6 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .zm-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .zm-head { flex-wrap: wrap; row-gap: 2px; }
 .zm-head .zm-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.zm-head-actions { margin-left: auto; display: inline-flex; gap: 2px; }
 .zm-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 7px; padding: 4px 2px 2px; }
 .zm-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
 .zm-tab { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; height: 24px; padding: 0 4px 0 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; background: transparent; color: var(--dim); font: 500 calc(11px + var(--fs-up, 0px)) var(--font); cursor: default; }

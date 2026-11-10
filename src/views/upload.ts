@@ -8,7 +8,8 @@ import { buildRecorderPanel } from "./recorder";
 import { buildWorkPanel } from "./workdir";
 import { buildCollectPanel } from "./collect";
 import { fileBadge } from "./filekind";
-import { h, clear, svg } from "./dom";
+import { h, clear, svg, tip } from "./dom";
+import { showMenu, type MenuItem } from "./ctxmenu";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { fileActions } from "./actions";
@@ -274,7 +275,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
   const layoutBtn = h("button", { class: "files-layout" }) as HTMLButtonElement;
   const showLayout = () => {
     layoutBtn.textContent = grid ? "☰" : "▦";
-    layoutBtn.title = grid ? t("Mostra come elenco") : t("Mostra come griglia");
+    tip(layoutBtn, grid ? t("Mostra come elenco") : t("Mostra come griglia"));
     list.classList.toggle("grid", grid);
   };
   layoutBtn.addEventListener("click", () => {
@@ -341,15 +342,22 @@ export function buildFiles(actions: ViewActions): ViewHost {
   });
   resetClear();
 
-  const iconBtn = (icon: string, title: string, color: string, fn: () => void) => {
-    const b = h("button", { class: "clip-btn", title, style: `--c:${color}`,
-      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, renderActionIcon(`i:${icon}`, 13));
+  // Two actions in sight (Chiedi, Apri), the rest in a menu: one quiet colour,
+  // a tooltip and a name for screen readers on each.
+  const iconBtn = (icon: string, title: string, fn: () => void) =>
+    h("button", { class: "files-act", title, "aria-label": title,
+      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, renderActionIcon(`i:${icon}`, 14));
+  const moreBtn = (name: string, items: () => MenuItem[]) => {
+    const b = h("button", { class: "files-act", title: t("Altre azioni"), "aria-label": t("Altre azioni per «{name}»", { name }),
+      "aria-haspopup": "menu" }, svg(ICONS.ellipsis, 14));
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const r = b.getBoundingClientRect();
+      const host = (b.closest("#island") as HTMLElement | null) ?? document.body;
+      showMenu(host, r.left, r.bottom + 2, "", items());
+    });
     return b;
   };
-  const pinBtn = (kept: boolean, fn: () => void) =>
-    h("button", { class: kept ? "clip-btn on" : "clip-btn", style: "--c:#A78BFA",
-      title: kept ? t("Non tenere più (si toglie al prossimo riavvio)") : t("Tieni anche dopo il riavvio e «Svuota»"),
-      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, svg(ICONS.pin, 13));
 
   return {
     el,
@@ -386,20 +394,22 @@ export function buildFiles(actions: ViewActions): ViewHost {
           h("span", { class: "files-name", text: f.name, title: f.name }),
           h("span", { class: "files-meta" },
             isFresh ? h("span", { class: "files-fresh-tag", text: `${t("Appena aggiunta")} · ` }) : null,
-            `${f.kept ? "📌 fissato · " : ""}${size(f.size)} · ${ago(f.at)}`),
+            `${f.kept ? `${t("fissato")} · ` : ""}${size(f.size)} · ${ago(f.at)}`),
           err),
         h("span", { class: "files-tools" },
-          iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile(f)),
-          iconBtn("file", t("Apri"), "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
-          iconBtn("folder", t("Mostra nella cartella"), "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
-          workHere === null ? null : iconBtn("upload",
-            workHere ? t("Sposta nella cartella di lavoro, in «{dir}»", { dir: workHere }) : t("Sposta nella cartella di lavoro"), "#22C55E",
-            () => void Bridge.inboxToWork(f.name, workHere, false).then(() => { actions.refreshFiles(); work.reload(); }).catch(fail)),
-          pinBtn(!!f.kept, () => void Bridge.inboxKeep(f.name, !f.kept).then(() => actions.refreshFiles()).catch(fail)),
-          iconBtn("trash", t("Togli dal vassoio"), "#F4505E", () => {
-
-            void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail);
-          })));
+          iconBtn("chat", t("Chiedi alla chat su questo file"), () => actions.askAboutFile(f)),
+          iconBtn("file", t("Apri"), () => void Bridge.inboxOpen(f.name, false).catch(fail)),
+          moreBtn(f.name, () => [
+            { label: t("Mostra nella cartella"), run: () => void Bridge.inboxOpen(f.name, true).catch(fail) },
+            ...(workHere === null ? [] : [{
+              label: workHere ? t("Sposta nella cartella di lavoro, in «{dir}»", { dir: workHere }) : t("Sposta nella cartella di lavoro"),
+              run: () => void Bridge.inboxToWork(f.name, workHere, false).then(() => { actions.refreshFiles(); work.reload(); }).catch(fail),
+            }]),
+            { label: f.kept ? t("Non tenere più (si toglie al prossimo riavvio)") : t("Tieni anche dopo il riavvio e «Svuota»"),
+              run: () => void Bridge.inboxKeep(f.name, !f.kept).then(() => actions.refreshFiles()).catch(fail) },
+            { label: t("Togli dal vassoio"), sep: true, danger: true,
+              run: () => void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail) },
+          ])));
         if (isFresh) {
           // Ask about it or copy it, without looking for the icons.
           const done = h("span", { class: "files-fresh-done" });

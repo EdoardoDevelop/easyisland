@@ -298,7 +298,9 @@ mod tests {
         let seen = Arc::new(M::new(String::new()));
         let closed = Arc::new(M::new(false));
         let (s2, c2) = (seen.clone(), closed.clone());
-        let id = spawn(None, 100, 30, Arc::new(move |_, text, done| {
+        // A folder of its own: the hooks test points USERPROFILE elsewhere for a while.
+        let folder = std::env::temp_dir().to_string_lossy().into_owned();
+        let id = spawn(Some(&folder), 100, 30, Arc::new(move |_, text, done| {
             s2.lock().unwrap().push_str(&text);
             if done {
                 *c2.lock().unwrap() = true;

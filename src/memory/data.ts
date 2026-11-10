@@ -1,6 +1,6 @@
 // The memory as the window sees it (brain.rs `graph`): nodes, links, the timeline.
 
-import { t } from "../core/i18n";
+import { locale, t } from "../core/i18n";
 
 export type NodeKind = "page" | "missing" | "note" | "old" | "source" | "day";
 
@@ -137,6 +137,15 @@ export class Model {
     }
     return out;
   }
+}
+
+/** "2026-11-07" (or with the time) as the app writes dates: «7 nov», with the year only when not this year. */
+export function shortDate(s: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s ?? "");
+  if (!m) return s;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  const thisYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(locale(), thisYear ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" });
 }
 
 /** "#rrggbb" with an alpha. */

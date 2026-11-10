@@ -192,6 +192,8 @@ html[data-ui="windows"] .chip {
 html[data-ui="windows"] .days .day { border-radius: 4px; }
 html[data-ui="windows"] .days .day.on { background: var(--accent); color: var(--on-accent); }
 html[data-ui="windows"] .hotkey-field .hotkey-hint,
+/* Placeholders at 4.5:1 or more on the fields' fill (Flussi too). */
+html[data-ui="windows"] :is(input, textarea)::placeholder { color: #a8a8a8; opacity: 1; }
 html[data-ui="windows"] input.hotkey-input.listening::placeholder { color: var(--accent); }
 html[data-ui="windows"] input.hotkey-input.listening {
   border-color: var(--accent);

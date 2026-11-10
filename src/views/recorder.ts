@@ -4,7 +4,7 @@
 // says so with Stop (`stripRecording`): never a recording without it showing.
 // When it ends a card asks what to do with the file (moment "recording").
 
-import { h, brandOrDot, clear } from "./dom";
+import { h, brandOrDot, clear, headActions } from "./dom";
 import { State } from "../core/state";
 import { Bridge } from "../core/bridge";
 import { t } from "../core/i18n";
@@ -124,7 +124,7 @@ export function recorderCard(openSettings: () => void): HTMLElement {
   }
   const head = h("div", { class: "int-head" }, brandOrDot(RECORDER, COLOR, 7), h("b", { text: t("Registra") }),
     h("span", { text: live ? t("In registrazione") : t("Fermo") }),
-    h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
+    headActions(h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
   return h("div", { class: "int-card notion-card" }, head, body);
 }
 

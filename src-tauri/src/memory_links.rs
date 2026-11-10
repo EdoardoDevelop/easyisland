@@ -48,7 +48,7 @@ struct Store {
 }
 
 /// The file for `dir`: its own, or for a copy the one kept beside it.
-fn file_for(dir: &Path) -> PathBuf {
+pub(crate) fn file_for(dir: &Path) -> PathBuf {
     let own = dir.join(FILE);
     if own.exists() {
         return own;

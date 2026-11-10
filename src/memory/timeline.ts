@@ -2,7 +2,8 @@
 // diary), with how busy each day was as a glowing wave on top. The wheel zooms
 // time around the pointer, dragging moves it.
 
-import { KIND_COLOR, alpha, fit, type MemEvent, type Model } from "./data";
+import { KIND_COLOR, alpha, fit, shortDate, type MemEvent, type Model } from "./data";
+import { font, inkOf, paintBackground, pal } from "./theme";
 import { language, t } from "../core/i18n";
 import type { View } from "./stage";
 
@@ -83,7 +84,8 @@ export class TimelineView implements View {
     const min = times.length ? Math.min(...times) : today - 30 * DAY;
     const max = Math.max(today, times.length ? Math.max(...times) : today);
     const span = Math.max(3 * DAY, max - min);
-    const msPx = (span * 1.1) / Math.max(200, w - 140);
+    // Room on the right for the last labels (they used to run under the panel).
+    const msPx = (span * 1.1) / Math.max(200, w - 300);
     const goal = { t0: min - span * 0.05 - 120 * msPx, msPx };
     if (now) {
       this.t0 = goal.t0;
@@ -95,9 +97,11 @@ export class TimelineView implements View {
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): boolean {
     this.size = { w, h };
+    // Framed once there is something: a frame drawn before the memory was
+    // read would keep the last month only.
     if (!this.framed) {
       this.fitAll(w, true);
-      this.framed = true;
+      this.framed = this.dots.length > 0;
     }
     let moving = false;
     if (this.goal) {
@@ -114,18 +118,21 @@ export class TimelineView implements View {
     const intro = Math.min(1, (time - this.born) / 900);
     if (intro < 1) moving = true;
 
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0b0d16");
-    bg.addColorStop(1, "#06070a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    paintBackground(ctx, w, h);
+    const p = pal();
+    // «oggi» first: the dates on top keep out of its way.
+    const nowX = this.x(Date.now());
+    const showNow = nowX > 110 && nowX < w;
+    ctx.font = font(12, 600);
+    const nowW = ctx.measureText(t("oggi")).width;
+    const nowBox = showNow ? { x0: nowX - nowW / 2 - 6, x1: nowX + nowW / 2 + 6 } : null;
 
-    this.drawTicks(ctx, w, h);
+    this.drawTicks(ctx, w, h, nowBox);
 
     // Lanes.
     LANES.forEach((lane, i) => {
       const y = this.laneY(i, h);
-      ctx.strokeStyle = alpha(lane.color, 0.16);
+      ctx.strokeStyle = alpha(lane.color, p.light ? 0.3 : 0.2);
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(110, y);
@@ -137,21 +144,19 @@ export class TimelineView implements View {
     this.drawWave(ctx, w, intro);
 
     // Today.
-    const nowX = this.x(Date.now());
-    if (nowX > 110 && nowX < w) {
-      const g = ctx.createLinearGradient(0, TOP, 0, h);
-      g.addColorStop(0, "rgba(124,156,255,0.0)");
-      g.addColorStop(0.2, "rgba(124,156,255,0.7)");
-      g.addColorStop(1, "rgba(124,156,255,0.1)");
-      ctx.strokeStyle = g;
+    if (showNow) {
+      ctx.strokeStyle = p.accent;
+      ctx.globalAlpha = 0.8;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(nowX, TOP);
       ctx.lineTo(nowX, h - 10);
       ctx.stroke();
-      ctx.fillStyle = "#c7d4ff";
-      ctx.font = "600 11px system-ui, 'Segoe UI', sans-serif";
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = p.accent;
+      ctx.font = font(12, 600);
       ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
       ctx.fillText(t("oggi"), nowX, TOP - 6);
     }
 
@@ -166,19 +171,12 @@ export class TimelineView implements View {
       const sel = !!this.selected && d.ev.node === this.selected;
       const r = (d.ev.lane === "diary" ? 2.6 : 5) * (sel ? 1.6 : 1) * intro;
       ctx.globalAlpha = lit ? 1 : 0.18;
-      const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
-      halo.addColorStop(0, alpha(lane.color, 0.45));
-      halo.addColorStop(1, alpha(lane.color, 0));
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(x, y, r * 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = sel ? "#ffffff" : lane.color;
+      ctx.fillStyle = sel ? p.ring : lane.color;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
       if (sel) {
-        ctx.strokeStyle = "#ffffff";
+        ctx.strokeStyle = p.ring;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.arc(x, y, r + 4 + Math.sin(time / 250) * 1.5, 0, Math.PI * 2);
@@ -191,29 +189,38 @@ export class TimelineView implements View {
         const ends = placed[d.lane];
         const slot = ends.findIndex((end) => end < x);
         if (slot >= 0) {
-          ctx.font = "500 11.5px system-ui, 'Segoe UI', sans-serif";
-          const label = fit(ctx, d.ev.text, 140);
+          ctx.font = font(12);
+          const label = fit(ctx, d.ev.text, 150);
           ends[slot] = x + 8 + ctx.measureText(label).width + 10;
-          ctx.fillStyle = "#dfe3ee";
+          ctx.fillStyle = p.ink;
           ctx.textAlign = "left";
           ctx.textBaseline = "middle";
-          ctx.fillText(label, x + 8, y + (slot ? 16 : -16));
+          // Near the right edge it goes to the left of its dot.
+          const lw = ctx.measureText(label).width;
+          if (x + 8 + lw > w - 8) {
+            ctx.textAlign = "right";
+            ctx.fillText(label, x - 8, y + (slot ? 16 : -16));
+          } else {
+            ctx.fillText(label, x + 8, y + (slot ? 16 : -16));
+          }
         }
       }
     }
     ctx.globalAlpha = 1;
 
     // Lane names over a solid strip on the left.
-    ctx.fillStyle = "rgba(8,9,13,0.92)";
+    ctx.fillStyle = p.bg;
     ctx.fillRect(0, TOP + WAVE + 6, 104, h);
+    ctx.fillStyle = p.line;
+    ctx.fillRect(104, TOP + WAVE + 6, 1, h);
     LANES.forEach((lane, i) => {
       const y = this.laneY(i, h);
       ctx.fillStyle = lane.color;
       ctx.beginPath();
       ctx.arc(18, y, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.font = "600 12px system-ui, 'Segoe UI', sans-serif";
-      ctx.fillStyle = "#dfe3ee";
+      ctx.font = font(13, 600);
+      ctx.fillStyle = p.ink;
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(lane.name(), 30, y);
@@ -235,8 +242,8 @@ export class TimelineView implements View {
       pts.push([x, base - (n / max) * (WAVE - 8) * intro]);
     }
     const g = ctx.createLinearGradient(0, TOP, 0, base);
-    g.addColorStop(0, "rgba(192,132,252,0.55)");
-    g.addColorStop(1, "rgba(192,132,252,0.02)");
+    g.addColorStop(0, "rgba(192,132,252,0.4)");
+    g.addColorStop(1, "rgba(192,132,252,0.03)");
     ctx.beginPath();
     ctx.moveTo(pts[0][0], base);
     for (let i = 0; i < pts.length; i++) {
@@ -252,10 +259,8 @@ export class TimelineView implements View {
     ctx.closePath();
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.strokeStyle = "rgba(216,180,254,0.85)";
+    ctx.strokeStyle = inkOf("#c084fc");
     ctx.lineWidth = 1.4;
-    ctx.shadowColor = "#c084fc";
-    ctx.shadowBlur = 10;
     ctx.beginPath();
     for (let i = 0; i < pts.length; i++) {
       const [x, y] = pts[i];
@@ -267,11 +272,11 @@ export class TimelineView implements View {
       }
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 
   /** Lines and dates: hours, days, months or years by the zoom. */
-  private drawTicks(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  private drawTicks(ctx: CanvasRenderingContext2D, w: number, h: number, avoid: { x0: number; x1: number } | null) {
+    const p = pal();
     const loc = language() === "en" ? "en-GB" : "it-IT";
     const pxDay = DAY / this.msPx;
     let step: "hour" | "day" | "week" | "month" | "year";
@@ -290,14 +295,14 @@ export class TimelineView implements View {
       case "month": d = new Date(start.getFullYear(), start.getMonth(), 1); break;
       default: d = new Date(start.getFullYear(), 0, 1);
     }
-    ctx.font = "500 11px system-ui, 'Segoe UI', sans-serif";
+    ctx.font = font(12);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     let guard = 0;
     while (d.getTime() <= end && guard++ < 600) {
       const x = this.x(d.getTime());
       if (x > 104) {
-        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.strokeStyle = p.line;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(x, TOP);
@@ -311,8 +316,12 @@ export class TimelineView implements View {
           case "month": label = d.toLocaleDateString(loc, { month: "long", year: "numeric" }); break;
           default: label = String(d.getFullYear());
         }
-        ctx.fillStyle = "#8b91a0";
-        ctx.fillText(label, x + 5, TOP - 6);
+        // A date under «oggi» is left out (they were written on each other).
+        const lw = ctx.measureText(label).width;
+        if (!avoid || x + 5 > avoid.x1 || x + 5 + lw < avoid.x0) {
+          ctx.fillStyle = p.dim;
+          ctx.fillText(label, x + 5, TOP - 6);
+        }
       }
       switch (step) {
         case "hour": d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + (pxDay > 3000 ? 1 : 3)); break;
@@ -346,7 +355,7 @@ export class TimelineView implements View {
 
   hover(x: number, y: number) {
     const d = this.dotAt(x, y);
-    return d ? { text: d.ev.text, sub: d.ev.date } : null;
+    return d ? { text: d.ev.text, sub: shortDate(d.ev.date) + (d.ev.date.length > 10 ? ` ${d.ev.date.slice(11, 16)}` : "") } : null;
   }
 
   pan(dx: number) {

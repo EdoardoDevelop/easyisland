@@ -36,10 +36,19 @@ function sectionOf(view: IslandViewName): Section | null {
   }
 }
 
+/**
+ * Views that are no row of the menu (a moment, the recap, the day's summary, a
+ * suggestion, a search's result…): nothing is lit while they are on screen.
+ */
+const NOWHERE: ReadonlySet<IslandViewName> = new Set<IslandViewName>([
+  "recap", "moment", "daily", "note", "notify", "searching", "result", "done", "remember", "talk", "barcard", "greeting", "mail",
+]);
+
 /** The lit row: a section, or the id of the integration whose card is on screen. */
 function current(): string {
   const s = sectionOf(State.view);
   if (s) return s;
+  if (NOWHERE.has(State.view)) return "";
   if (State.showsSummary && (State.view === "overview" || State.view === "empty")) return "oggi";
   const task = State.focusTask;
   if (isSessionTask(task)) return "agenti";
@@ -143,7 +152,7 @@ export function buildRail(actions: ViewActions): ViewHost {
   };
   const row = (id: string, icon: Element, label: string, onclick: () => void) =>
     h("button", { class: "rail-item", "data-rail": id, onclick: go(onclick) },
-      h("span", { class: "rail-icon" }, icon), h("span", { class: "rail-label", text: label }), h("span", { class: "rail-meta" }));
+      h("span", { class: "rail-icon" }, icon), h("span", { class: "rail-label", text: label, title: label }), h("span", { class: "rail-meta" }));
 
   const sections: Record<Section, HTMLElement> = {
     oggi: row("oggi", glyph("house"), t("Panoramica"), () => {
@@ -174,6 +183,10 @@ export function buildRail(actions: ViewActions): ViewHost {
     out: { outside: outsideIsland, drop: (id, e) => actions.popOut(id, { x: e.screenX, y: e.screenY }) },
   });
   const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, fixed, label, list);
+  // More rows below the edge: the last one fades out, so it reads as «scroll», not as cut.
+  const edge = () => list.classList.toggle("more", list.scrollHeight - list.scrollTop - list.clientHeight > 2);
+  list.addEventListener("scroll", edge, { passive: true });
+  new ResizeObserver(edge).observe(list);
 
   let listKey = "";
   let agentsLook: string | null = null;
@@ -235,8 +248,9 @@ export function buildRail(actions: ViewActions): ViewHost {
       label.style.display = tasks.length ? "" : "none";
 
       for (const b of el.querySelectorAll<HTMLElement>(".rail-item")) {
-        b.classList.toggle("on", b.dataset.rail === on);
+        b.classList.toggle("on", !!on && b.dataset.rail === on);
       }
+      edge();
       for (const b of list.querySelectorAll<HTMLElement>(".rail-item")) {
         const task = tasks.find((x) => x.id === b.dataset.id);
         const meta = b.querySelector<HTMLElement>(".rail-meta")!;

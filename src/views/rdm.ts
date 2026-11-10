@@ -5,7 +5,7 @@
 // selected text come here with `rdmLookFor` (a caller, a ticket's company,
 // an IP). What is being typed lives outside the card, rebuilt at each update.
 
-import { h, svg, clear, brandOrDot } from "./dom";
+import { h, svg, clear, brandOrDot, headActions } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { Bridge, type DvcItem, type RdmEntry } from "../core/bridge";
@@ -224,9 +224,9 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     if (q) {
       for (const e of rdm.found) body.append(row(e));
       const actions = h("div", { class: "rdm-actions" },
-        h("button", { class: "link-btn", style: `color:${COLOR}d9`, text: t("Cerca in RDM"), onclick: () => void Bridge.rdmFilter(q).catch(fail) }),
-        looksLikeHost(q) ? h("button", { class: "link-btn", style: `color:${COLOR}d9`, text: t("Connetti con RDP"), onclick: () => void Bridge.rdmQuick("RDP", q).catch(fail) }) : null,
-        looksLikeHost(q) ? h("button", { class: "link-btn", style: `color:${COLOR}d9`, text: "SSH", onclick: () => void Bridge.rdmQuick("SSH", q).catch(fail) }) : null);
+        h("button", { class: "link-btn", text: t("Cerca in RDM"), onclick: () => void Bridge.rdmFilter(q).catch(fail) }),
+        looksLikeHost(q) ? h("button", { class: "link-btn", text: t("Connetti con RDP"), onclick: () => void Bridge.rdmQuick("RDP", q).catch(fail) }) : null,
+        looksLikeHost(q) ? h("button", { class: "link-btn", text: "SSH", onclick: () => void Bridge.rdmQuick("SSH", q).catch(fail) }) : null);
       if (!rdm.found.length) {
         body.append(h("div", { class: "notion-note", text: canList ? t("Nessuna connessione trovata.") : t("L'elenco non è disponibile qui: la ricerca si apre in Remote Desktop Manager.") }));
       }
@@ -258,7 +258,7 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     : data.exe || data.protocol ? t("Ricerca in RDM") : t("RDM non trovato");
   // The list is the one saved at the last sync: it changes only on request.
   const running = data.running === true;
-  const sync = h("button", { class: "link-btn", style: "color:#8e939c", text: t("Sincronizza"), title: running ? t("RDM è avviato") : t("RDM non è avviato: la sincronizzazione legge comunque l'origine dati") }) as HTMLButtonElement;
+  const sync = h("button", { class: "link-btn", text: t("Sincronizza"), title: running ? t("RDM è avviato") : t("RDM non è avviato: la sincronizzazione legge comunque l'origine dati") }) as HTMLButtonElement;
   sync.addEventListener("click", async () => {
     sync.disabled = true;
     sync.textContent = t("Sincronizzo…");
@@ -266,10 +266,9 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     sync.disabled = false;
     sync.textContent = t("Sincronizza");
   });
-  const head = h("div", { class: "int-head" }, brandOrDot(RDM, COLOR, 7), h("b", { text: "Remote Desktop Manager" }), h("span", { text: sub }),
-    h("span", { class: "rdm-state", style: `color:${running ? "#22c55e" : "#8e939c"}`, title: running ? t("RDM è avviato") : t("RDM non è avviato"), text: "●" }),
-    sync,
-    h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
+  const head = h("div", { class: "int-head" }, brandOrDot(RDM, COLOR, 7), h("b", { text: "RDM", title: "Remote Desktop Manager" }), h("span", { text: sub }),
+    h("i", { class: "dot rdm-state", style: `width:6px;height:6px;background:${running ? "#22c55e" : "#8e939c"}`, title: running ? t("RDM è avviato") : t("RDM non è avviato") }),
+    headActions(sync, h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
   const cloudError = cloud.on && cloud.error ? h("div", { class: "notion-note bad", text: cloud.error }) : null;
   const card = h("div", { class: cloud.on ? "int-card notion-card rdm-cloud" : "int-card notion-card" }, head, cloudError, search);
   // With the cloud, the search's results while something is typed, its

@@ -277,7 +277,7 @@ function dailySection(): HTMLElement {
   });
   return h("section", {},
     h("h2", {}, h("span", { text: t("Riepilogo giornaliero degli agenti") })),
-    h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche non salvate e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
+    h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche da salvare in git e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
     h("div", { class: "row" },
       h("label", { text: t("Riepilogo") }),
       select<Settings["dailyRecap"]>(
@@ -1995,8 +1995,10 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const entries: { def: IntegrationDef; el: HTMLElement; text: string; refresh: () => void; open: (on: boolean) => void }[] = [];
 
   function updateNote() {
-    const used = settings.activeIntegrations.length;
-    note.textContent = t("Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive). Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
+    // Only the integrations listed here (the setting can hold widgets and old ids too),
+    // so the total agrees with the groups' «n di m attive» below.
+    const used = INTEGRATIONS.filter((d) => settings.activeIntegrations.includes(d.id)).length;
+    note.textContent = t("Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive in tutto). Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
   }
 
   for (const def of INTEGRATIONS) {
@@ -5347,6 +5349,9 @@ function secondBrainSection(): HTMLElement {
       h("span", { class: "hint note", text: t("in ticket, mail, «Ricorda» e note delle chiamate cerca le promesse («ti mando domani il preventivo») e le propone come promemoria in To Do, o nella pagina «Impegni»") })),
     h("div", { class: "row" }, h("label", { text: t("Riepilogo della settimana") }), week,
       h("span", { class: "hint note", text: t("il venerdì alle 17: cosa ha imparato la memoria in settimana e cosa è rimasto aperto. Se non è cambiato niente non parte") })),
+    h("div", { class: "row" }, h("label", { text: t("Memoria di Claude Code") }),
+      toggle(settings.memoryClaudeCode !== false, (v) => { settings.memoryClaudeCode = v; void save(); }),
+      h("span", { class: "hint note", text: t("anche le note che Claude Code salva da solo (le sue preferenze e i fatti dei progetti, di ogni account) si trovano nella ricerca della memoria e nella mappa, alla voce «Claude Code». Si leggono soltanto: le scrive e le corregge Claude Code") })),
     h("div", { class: "row" }, h("label", { text: t("«Ricorda questo» impara subito") }),
       toggle(settings.rememberNow !== false, (v) => { settings.rememberNow = v; void save(); }),
       h("span", { class: "hint note", text: t("quello che fai ricordare (scorciatoia, campo in alto, /ricorda su Telegram) lo legge subito un compito e lo mette nelle pagine della memoria; spento, aspetta il riordino della sera") })),

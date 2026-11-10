@@ -6,6 +6,8 @@
 import { alpha, fit, type Model } from "./data";
 import { t } from "../core/i18n";
 import { type View } from "./stage";
+import { font, paintBackground, pal } from "./theme";
+import { Placer } from "./labels";
 
 interface Stream {
   name: string;
@@ -62,7 +64,7 @@ export class StreamView implements View {
       this.streams.push({ name: group.name, colour: group.color, lead: pages[0]?.id ?? group.members[0] ?? null, counts: smooth(counts) });
     }
     for (const [, counts] of ranked.slice(MAX_STREAMS)) counts.forEach((c, i) => (other[i] += c));
-    if (sum(other)) this.streams.push({ name: t("Il resto"), colour: "#5b6070", lead: null, counts: smooth(other) });
+    if (sum(other)) this.streams.push({ name: t("Il resto"), colour: "#8a8f99", lead: null, counts: smooth(other) });
   }
 
   setSelected(id: string | null) {
@@ -73,16 +75,13 @@ export class StreamView implements View {
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
     this.size = { w, h };
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0b0e18");
-    bg.addColorStop(1, "#05060a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    paintBackground(ctx, w, h);
+    const p = pal();
     this.bands = [];
     const n = this.weeks.length;
     if (!n || !this.streams.length) {
-      ctx.fillStyle = "rgba(220,226,240,0.6)";
-      ctx.font = `500 13px system-ui, "Segoe UI", sans-serif`;
+      ctx.fillStyle = p.dim;
+      ctx.font = font(13);
       ctx.textAlign = "center";
       ctx.fillText(t("Ancora nessuna nota con la data"), w / 2, h / 2);
       return false;
@@ -103,6 +102,8 @@ export class StreamView implements View {
     const base = totals.map((tot) => mid - (tot * scale) / 2);
     const acc = new Array(n).fill(0);
     const sel = this.selected;
+    // The names never on each other: a stream whose name would cover another's goes without.
+    const placer = new Placer();
     for (const s of this.streams) {
       const topY: number[] = [];
       const botY: number[] = [];
@@ -122,23 +123,27 @@ export class StreamView implements View {
       curve(ctx, this.weeks.map((_, i) => xOf(i)).reverse(), [...botY].reverse(), false);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = "rgba(5,6,10,0.6)";
+      ctx.strokeStyle = p.bg;
       ctx.lineWidth = 1;
       ctx.stroke();
       // Its name where it is widest.
       let wi = 0;
       for (let i = 1; i < n; i++) if (s.counts[i] > s.counts[wi]) wi = i;
-      if ((botY[wi] - topY[wi]) > 14) {
-        ctx.fillStyle = on ? "#f8fafc" : "rgba(248,250,252,0.4)";
-        ctx.font = `600 ${Math.min(14, (botY[wi] - topY[wi]) * 0.5)}px system-ui, "Segoe UI", sans-serif`;
+      if ((botY[wi] - topY[wi]) > 22) {
+        ctx.fillStyle = on ? "#0b0b0b" : p.dim;
+        ctx.font = font(Math.max(12, Math.min(14, (botY[wi] - topY[wi]) * 0.5)), 600);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(fit(ctx, s.name, 200), Math.min(Math.max(xOf(wi), left + 80), right - 80), (topY[wi] + botY[wi]) / 2);
+        const name = fit(ctx, s.name, 200);
+        const nx = Math.min(Math.max(xOf(wi), left + 80), right - 80);
+        const ny = (topY[wi] + botY[wi]) / 2;
+        const half = ctx.measureText(name).width / 2 + 6;
+        if (placer.claim({ x0: nx - half, y0: ny - 10, x1: nx + half, y1: ny + 10 })) ctx.fillText(name, nx, ny);
       }
     }
     // The months under the river.
-    ctx.fillStyle = "rgba(200,206,220,0.55)";
-    ctx.font = `500 11px system-ui, "Segoe UI", sans-serif`;
+    ctx.fillStyle = p.dim;
+    ctx.font = font(12);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     let lastMonth = -1;

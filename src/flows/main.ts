@@ -628,7 +628,11 @@ function stepPanel(f: Automation, s: AutomationStep, i: number): HTMLElement {
     p.append(line(s.kind === "foreach" ? t("Finite le voci, vai a") : t("Dopo questo passo"), select<string>(targets, s.next ?? "", (v) => { s.next = v; commit(true); })));
   }
   if (!["wait", "confirm", "ask", "foreach"].includes(s.kind) && !(s.kind === "decide" && !s.branches?.some((x) => x.op === "model"))) {
-    p.append(h("h3", { text: t("Se non riesce") }),
+    // Collapsed until it says something: most steps never need it.
+    const fail = h("details", { class: "fl-fail" }, h("summary", { text: t("Se non riesce") }));
+    if ((s.retries ?? 0) > 0 || s.onError) fail.open = true;
+    p.append(fail);
+    fail.append(
       line(t("Riprova"), select<string>([["0", t("no")], ["1", t("1 volta")], ["2", t("2 volte")], ["3", t("3 volte")]], String(s.retries ?? 0), (v) => { s.retries = Number(v); commit(true); })),
       line(t("Poi"), select<string>([["", t("ferma il flusso")], ["end", t("finisci senza errore")], ...others.map((n): [string, string] => [n, t("vai a {x}", { x: n })])], s.onError ?? "", (v) => { s.onError = v; commit(true); })),
       note(t("Il motivo dell'errore è in {errore}.")));
@@ -726,9 +730,10 @@ function header(f: Automation): HTMLElement {
   name.addEventListener("input", () => { f.name = name.value; commit(); });
   name.addEventListener("change", () => refreshCanvas());
   statusEl = h("span", { class: "fl-status" });
-  const del = h("button", { class: "danger", text: t("Elimina") });
+  // Quiet until pressed: red only when it asks for the second click.
+  const del = h("button", { class: "fl-del-flow", text: t("Elimina"), title: t("Elimina questo flusso") });
   del.addEventListener("click", async () => {
-    if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = t("Sicuro? Clic di nuovo"); return; }
+    if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.classList.add("danger"); del.textContent = t("Sicuro? Clic di nuovo"); return; }
     settings.automations = flows().filter((a) => a.id !== f.id);
     current = flows()[0]?.id ?? "";
     try { await Bridge.flowDelete(f.id); } catch { /* the settings echo shows what is there */ }

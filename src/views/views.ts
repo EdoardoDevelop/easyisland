@@ -4,7 +4,7 @@ import type { Notice } from "../core/state";
 // identically.
 
 import { isSorting, sortable } from "./sortable";
-import { h, svg, clear, dot, brandOrDot, markIcon } from "./dom";
+import { h, svg, clear, dot, brandOrDot, markIcon, tip } from "./dom";
 import { ICONS } from "./icons";
 import { actionIcon, actionIconSvg } from "./action-icons";
 import { Ticker } from "./ticker";
@@ -14,7 +14,7 @@ import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
 import { buildRecap } from "./recap";
-import { buildMoment, type MomentActions } from "./moment";
+import { buildMoment, momentHeadline, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
@@ -128,11 +128,14 @@ function btn(
   kind: "primary" | "secondary",
   onClick: () => void,
   kbd?: string,
+  /** Another key that presses it too, not shown (Y for Consenti, as in English). */
+  alias?: string,
 ): HTMLElement {
   // The key shown on the button also presses it (onIslandKey in island.ts).
   return h(
     "button",
-    { class: `btn ${kind}`, onclick: onClick, ...(kbd ? { "data-key": kbd.toLowerCase() } : {}) },
+    { class: `btn ${kind}`, onclick: onClick, ...(kbd ? { "data-key": kbd.toLowerCase() } : {}),
+      ...(alias ? { "data-key-alt": alias.toLowerCase() } : {}) },
     h("span", { text: label }),
     kbd ? h("span", { class: "kbd", text: kbd }) : null,
   );
@@ -197,7 +200,12 @@ function bubble(): [string, string] {
   const task = State.focusTask;
   if (req) {
     const who = req.source === "chat" ? t("La chat") : task?.name ?? t("Un agente");
-    return [req.questions?.length ? t("{who} ha una domanda", { who }) : t("{who} chiede un permesso", { who }), req.command || req.tool || ""];
+    // A question: its short header (never the tool's name, AskUserQuestion).
+    if (req.questions?.length) {
+      const n = req.questions.length;
+      return [t("{who} ha una domanda", { who }), n > 1 ? t("{n} domande", { n }) : req.questions[0].header.trim() || t("Domanda")];
+    }
+    return [t("{who} chiede un permesso", { who }), req.command || req.tool || ""];
   }
   switch (State.view) {
     // The engine is on the chip under the field: not repeated here.
@@ -207,10 +215,18 @@ function bubble(): [string, string] {
     case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];
     case "remember": return [t("Me lo ricordo io."), t("lo metto nella pagina giusta della memoria")];
     case "talk": return [t("Dimmi pure."), t("il microfono è acceso solo adesso")];
+    // What is on screen, never «Tutto tranquillo.» over it.
+    case "moment": if (State.moment) return momentHeadline(State.moment); break;
+    case "recap": return [t("La tua settimana."), t("cosa hanno fatto gli agenti")];
+    case "daily": return [t("La giornata."), t("quello che c'è da sapere")];
+    case "news": return [t("Notizie."), ""];
   }
   if (State.showsSummary) {
     const news = State.tasks.filter((x) => x.pillBadge);
-    const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished");
+    // The most serious thing first: a session stopped by an error or a limit.
+    const stuck = State.sessionTasks.find((x) => x.state === "error" || x.state === "ratelimit");
+    if (stuck) return [stuck.state === "error" ? t("{name} si è fermato con un errore.", { name: stuck.name }) : t("{name} ha raggiunto un limite.", { name: stuck.name }), stuck.steps.at(-1) ?? ""];
+    const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished" && x.state !== "error" && x.state !== "ratelimit");
     const first = news.length === 1 ? t("Novità da {name}.", { name: news[0].name })
       : news.length > 1 ? t("{n} integrazioni hanno novità.", { n: news.length }) : t("Tutto tranquillo.");
     const second = busy.length === 1 ? t("{name} sta lavorando", { name: busy[0].name })
@@ -279,9 +295,10 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
 ${b}` : a;
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
-      pinBtn.title = State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)");
+      tip(pinBtn, State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)"));
       clear(soundBtn);
       soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 16));
+      tip(soundBtn, State.settings.soundEnabled ? t("Silenzia") : t("Riattiva i suoni"));
       soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
@@ -290,16 +307,16 @@ ${b}` : a;
       if (maxShown !== State.maximized) {
         maxShown = State.maximized;
         maxBtn.replaceChildren(svg(State.maximized ? ICONS.restore : ICONS.maximize, 14));
-        maxBtn.title = State.maximized ? t("Esci da schermo intero") : t("Schermo intero");
+        tip(maxBtn, State.maximized ? t("Esci da schermo intero") : t("Schermo intero"));
       }
       const plan = planGauge();
       planBtn.style.display = plan ? "" : "none";
       if (plan && plan.key !== planKey) {
         planKey = plan.key;
         planBtn.replaceChildren(...plan.parts);
-        planBtn.title = plan.title;
+        tip(planBtn, plan.title);
       }
-      closeBtn.title = State.pendingApproval ? t("Chiudi: rispondi nel terminale") : t("Chiudi (Esc)");
+      tip(closeBtn, State.pendingApproval ? t("Chiudi: rispondi nel terminale") : t("Chiudi (Esc)"));
     },
   };
 }
@@ -617,7 +634,7 @@ function safeCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
       h("div", { class: "int-head" }, dot(task.color, 7), h("b", { text: task.name })),
       h("div", { class: "int-status wrap" }, h("span", { text: t("Questa scheda non si può mostrare: i dati ricevuti non sono nel formato atteso. Riprovo al prossimo aggiornamento.") })),
       h("div", { class: "int-actions" },
-        h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: () => hooks.openSettings() })));
+        h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: () => hooks.openSettings() })));
   }
 }
 
@@ -801,7 +818,8 @@ function buildApproval(actions: ViewActions): ViewHost {
         b.title = t("Consenti e non chiedere più per quanto scritto sopra");
         row.append(b);
       }
-      row.append(btn(t("Consenti"), "primary", () => actions.decide("allow"), "Y"));
+      // C as Consenti (Y in English), the key shown; Y works in every language.
+      row.append(btn(t("Consenti"), "primary", () => actions.decide("allow"), t("C"), "Y"));
       // Not now: the island folds, the request keeps waiting and comes back on opening.
       const later = h("button", { class: "link-btn later-btn", text: t("Più tardi"), onclick: () => actions.foldCard() });
       later.title = t("Riduci l'isola senza rispondere (Esc): la richiesta resta in attesa");

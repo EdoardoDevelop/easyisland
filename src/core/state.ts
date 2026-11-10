@@ -683,6 +683,8 @@ export interface Settings {
   memoryEngine: string;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
   rememberNow?: boolean;
+  /** Claude Code's own memory, read only (cc_memory.rs). */
+  memoryClaudeCode?: boolean;
   /** «Parla» (talk.rs): its shortcut, and the reply read aloud too. */
   hotkeyTalk?: string;
   talkReply?: boolean;
@@ -1354,6 +1356,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tasksEngine: "",
   memoryEngine: "",
   rememberNow: true,
+  memoryClaudeCode: true,
   hotkeyTalk: "Win+Alt+V",
   talkReply: true,
   tasksMaxTurns: 12,

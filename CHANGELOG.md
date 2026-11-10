@@ -2,6 +2,13 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.38** — **Un aspetto solo per tutte le finestre**, dopo una revisione di design: isola, Memoria, Anteprima e Flussi con i colori di
+Windows 11, in scuro e in chiaro. La **Memoria** è leggibile anche con centinaia di nodi (i nomi non si sovrappongono più, il grafo si apre
+adattato alla finestra), ha la barra su una riga con «Manutenzione» e i `[[link]]` cliccabili; legge anche **la memoria di Claude Code**, in
+sola lettura, senza doppioni e con la data di ogni nota. In alto l'isola dice **il problema in corso**, mai «Tutto tranquillo.» sopra un
+errore; il contenuto delle card parte dall'alto; le card delle integrazioni hanno un solo stile; il **Vassoio** tiene due azioni e il resto
+nel menu ⋯. Agent Chat dice quando un **token è nel campo sbagliato**, e il registro non scrive più token o chiavi.
+
 **1.0.37** — **L'isola non si blocca più** quando una chat nomina un percorso di rete che non risponde (es. la cartella
 condivisa di un server spento): i percorsi si controllano fuori dall'interfaccia e un server di rete ha al massimo un secondo e mezzo.
 La finestra della **Memoria** si apre ingrandita; il disegno della **chat vuota** si muove anche nella chat in finestra.

@@ -8,7 +8,10 @@ const OTHER = "ufficio";
 
 /** `source`: "" this PC, OTHER its copy, "*" both (brain::graph_of). */
 export function demoGraph(source = ""): MemGraph {
+  // ?many=300: a big memory, to see how the views hold up with many nodes.
+  const many = Number(new URLSearchParams(location.search).get("many"));
   const mine = thisPc();
+  if (many > 0) grow(mine, Math.min(3000, many));
   const other = otherPc();
   const g = source === OTHER ? { ...other, folder: `C:\\Users\\…\\EasyIsland\\memoria-condivise\\${OTHER}` } : mine;
   if (source === "*") {
@@ -142,4 +145,85 @@ function thisPc(): MemGraph {
     inbox: ["articolo-firewall.html", "appunti-call-verdi.txt"],
     folder: "C:\\Users\\…\\EasyIsland\\memoria",
   };
+}
+
+/**
+ * Adds `count` made-up nodes to the small memory: customers with their people,
+ * devices and contracts as pages, notes about them, a few sources and days,
+ * linked the way brain.rs links them. Same seed, same memory.
+ */
+function grow(g: MemGraph, count: number) {
+  let seed = 42;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const pick = <T,>(a: readonly T[]): T => a[Math.floor(rnd() * a.length)];
+  const day = (back: number) => {
+    const d = new Date(Date.now() - back * 86_400_000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const firms = ["Farmacia Centrale", "Studio Bianchi", "Officina Neri", "Hotel Lago", "Comune di Sopra", "Cantina Colli", "Ottica Sole", "Dentista Ferri", "Panificio Gallo", "Autoscuola Riva", "Studio Legale Greco", "Agenzia Mare", "Scuola Arcobaleno", "Ferramenta Conti", "Palestra Forma", "Pizzeria Vesuvio", "Notaio Marino", "Clinica Vet Fido"];
+  const people = ["Giulia", "Luca", "Paolo", "Sara", "Andrea", "Chiara", "Matteo", "Elena", "Davide", "Francesca", "Simone", "Marta", "Stefano", "Valentina", "Alessio", "Irene"];
+  const surnames = ["Ricci", "Costa", "Fontana", "Moretti", "Barbieri", "Lombardi", "Galli", "Martini", "Leone", "Longo", "Gentile", "Rinaldi"];
+  const things = ["Firewall", "NAS", "Server", "Centralino 3CX", "Stampante", "Wi-Fi", "Backup", "Microsoft 365", "Antivirus", "Gestionale", "VPN", "Dominio"];
+  const notes = ["vuole il preventivo entro venerdì", "ha chiesto di spostare l'intervento", "paga a 30 giorni", "rinnovo del contratto a marzo", "il disco del NAS fa rumore", "chiamare dopo le 15", "password da cambiare ogni 90 giorni", "ticket aperto per la stampante", "aggiornamento del gestionale a fine mese", "la VPN cade la sera", "nuovo PC per la reception", "backup verificato, tutto a posto", "mail di sollecito per la fattura", "sopralluogo fissato per giovedì", "licenze Microsoft 365 da rinnovare"];
+  const pages: string[] = [];
+  let made = 0;
+  const addPage = (label: string, back: number, text: string) => {
+    const id = `p:big-${pages.length}`;
+    g.nodes.push({ id, kind: "page", label, date: day(back), text, weight: 0 });
+    g.events.push({ date: day(back), lane: "page", text: label, node: id });
+    pages.push(id);
+    made++;
+    return id;
+  };
+  const link = (from: string, to: string, label = "", strength?: number) => g.edges.push({ from, to, label, strength });
+  // A third pages, the rest notes, sources and days.
+  const pageCount = Math.max(6, Math.round(count * 0.28));
+  for (let i = 0; made < pageCount; i++) {
+    const firm = firms[i % firms.length] + (i >= firms.length ? ` ${Math.floor(i / firms.length) + 1}` : "");
+    const boss = `${pick(people)} ${pick(surnames)}`;
+    const firmId = addPage(firm, Math.floor(rnd() * 200), `Cliente, ${2 + Math.floor(rnd() * 20)} postazioni.\n- referente: [[${boss}]]`);
+    const bossId = addPage(boss, Math.floor(rnd() * 200), `Referente di ${firm}.\n- lavora per: [[${firm}]]`);
+    link(firmId, bossId, "referente");
+    const kit = addPage(`${pick(things)} ${firm}`, Math.floor(rnd() * 200), `In uso da ${firm}.`);
+    link(firmId, kit, "usa");
+    if (i > 0 && rnd() < 0.5) link(firmId, pages[Math.floor(rnd() * (pages.length - 3))], "", 2);
+  }
+  const noteIds: string[] = [];
+  for (let i = 0; made < count * 0.9; i++) {
+    const p = pick(pages);
+    const who = g.nodes.find((n) => n.id === p)!.label;
+    const text = `${who}: ${pick(notes)}`;
+    const id = `n:big-${i}`;
+    const back = Math.floor(rnd() * 180);
+    g.nodes.push({ id, kind: "note", label: text, date: day(back), text, weight: 0 });
+    g.events.push({ date: day(back), lane: "note", text, node: id });
+    link(id, p, "", 2);
+    if (rnd() < 0.35) link(id, pick(pages), "", 1);
+    if (noteIds.length && rnd() < 0.2) link(id, pick(noteIds), "", 1);
+    noteIds.push(id);
+    made++;
+  }
+  for (let i = 0; made < count; i++) {
+    const back = Math.floor(rnd() * 120);
+    if (i % 2) {
+      const id = `s:big-${i}.pdf`;
+      g.nodes.push({ id, kind: "source", label: `documento-${i}.pdf`, date: day(back), text: "", weight: 0 });
+      g.events.push({ date: day(back), lane: "source", text: `documento-${i}.pdf`, node: id });
+      link(pick(pages), id, "fonte");
+    } else {
+      const id = `d:big-${day(back + 7)}`;
+      if (!g.nodes.some((n) => n.id === id)) {
+        g.nodes.push({ id, kind: "day", label: day(back + 7), date: day(back + 7), text: "5 domande alla chat", weight: 0 });
+        link(id, pick(pages));
+      }
+    }
+    made++;
+  }
+  const degree = new Map<string, number>();
+  for (const e of g.edges) {
+    degree.set(e.from, (degree.get(e.from) ?? 0) + 1);
+    degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
+  }
+  for (const n of g.nodes) n.weight = degree.get(n.id) ?? 0;
+  g.events.sort((a, b) => a.date.localeCompare(b.date));
 }

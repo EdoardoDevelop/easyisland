@@ -4,7 +4,7 @@
 // on the strip beside the closed character during a meeting (`stripTeams`).
 // No account: chats, today's meetings and status will come with Graph (docs/idee.md).
 
-import { h, brandOrDot } from "./dom";
+import { h, brandOrDot, headActions } from "./dom";
 import { State } from "../core/state";
 import { Bridge } from "../core/bridge";
 import { t } from "../core/i18n";
@@ -133,6 +133,6 @@ export function teamsCard(openSettings: () => void): HTMLElement {
   rows.append(note);
   const head = h("div", { class: "int-head" }, brandOrDot(TEAMS, COLOR, 7), h("b", { text: "Microsoft Teams" }),
     h("span", { text: d.inCall ? t("In riunione") : d.running ? t("Aperto") : t("Chiuso") }),
-    h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
+    headActions(h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
   return h("div", { class: "int-card notion-card" }, head, rows);
 }

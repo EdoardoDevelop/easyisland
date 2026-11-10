@@ -6,6 +6,7 @@
 import { KIND_COLOR, alpha, fit, provenance, provenanceName, type Model, type Provenance } from "./data";
 import { t } from "../core/i18n";
 import { type View } from "./stage";
+import { font, paintBackground, pal } from "./theme";
 
 const SOURCE_COLOUR: Record<Provenance, string> = {
   chat: "#7c9cff",
@@ -70,7 +71,7 @@ export class SankeyView implements View {
     const topSet = new Set(top);
     const srcMap = new Map<Provenance, Side>();
     const pageMap = new Map<string, Side>();
-    const others: Side = { id: "", label: t("Altre pagine"), colour: "#5b6070", value: 0, y0: 0, y1: 0 };
+    const others: Side = { id: "", label: t("Altre pagine"), colour: "#8a8f99", value: 0, y0: 0, y1: 0 };
     this.flows = [];
     const flowMap = new Map<string, Flow>();
     for (const [k, v] of counts) {
@@ -118,14 +119,11 @@ export class SankeyView implements View {
   }
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
-    const bg = ctx.createLinearGradient(0, 0, w, 0);
-    bg.addColorStop(0, "#0b0e18");
-    bg.addColorStop(1, "#07080d");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    paintBackground(ctx, w, h);
+    const p = pal();
     if (!this.flows.length) {
-      ctx.fillStyle = "rgba(220,226,240,0.6)";
-      ctx.font = `500 13px system-ui, "Segoe UI", sans-serif`;
+      ctx.fillStyle = p.dim;
+      ctx.font = font(13);
       ctx.textAlign = "center";
       ctx.fillText(t("Ancora nessuna nota collegata a una pagina"), w / 2, h / 2);
       return false;
@@ -167,21 +165,30 @@ export class SankeyView implements View {
       ctx.fill();
     }
     // The two columns, with their names and numbers.
-    ctx.font = `600 12px system-ui, "Segoe UI", sans-serif`;
+    ctx.font = font(12, 600);
     ctx.textBaseline = "middle";
+    // A name only where the one above has ended (thin bands crowd them).
+    let after = -Infinity;
     for (const s of this.sources) {
       ctx.fillStyle = s.colour;
       ctx.fillRect(this.x0 - 10, s.y0, 10, s.y1 - s.y0);
-      ctx.fillStyle = "#e7ebf3";
+      ctx.fillStyle = p.ink;
       ctx.textAlign = "right";
-      ctx.fillText(`${s.label} · ${s.value}`, this.x0 - 16, (s.y0 + s.y1) / 2);
+      const y = (s.y0 + s.y1) / 2;
+      if (y - 8 < after) continue;
+      after = y + 8;
+      ctx.fillText(`${s.label} · ${s.value}`, this.x0 - 16, y);
     }
+    after = -Infinity;
     for (const s of this.pages) {
       ctx.fillStyle = s.colour;
       ctx.fillRect(this.x1, s.y0, 10, s.y1 - s.y0);
-      ctx.fillStyle = s.id === sel ? "#ffffff" : "#e7ebf3";
+      ctx.fillStyle = s.id === sel ? p.accent : p.ink;
       ctx.textAlign = "left";
-      ctx.fillText(fit(ctx, `${s.label} · ${s.value}`, w - this.x1 - 26), this.x1 + 16, (s.y0 + s.y1) / 2);
+      const y = (s.y0 + s.y1) / 2;
+      if (y - 8 < after && s.id !== sel) continue;
+      after = y + 8;
+      ctx.fillText(fit(ctx, `${s.label} · ${s.value}`, w - this.x1 - 26), this.x1 + 16, y);
     }
     return false;
   }

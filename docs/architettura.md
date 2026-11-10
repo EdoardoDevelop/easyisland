@@ -85,6 +85,7 @@ Fatta il 29/10 sopra la finestra del personaggio. Impostazioni → Posizione →
 - Provata dal vivo il 29/10 in alto (2560×1440 al 125 %). Da provare: in basso, secondo monitor, «…», cosa resta della fascia se l'app cade.
 
 ## Viste, menu e barra in alto
+- **Fumetto in alto** (`bubble` in `views.ts`, 10/11): dice la cosa più grave sullo schermo, mai «Tutto tranquillo.» sopra un problema: permesso o domanda, poi l'avviso aperto (`momentHeadline` in `moment.ts`), riepilogo e giornata, poi una sessione ferma per errore o limite, poi novità e lavoro. **Contenuto dall'alto** (`.stack`, `.left-body`, 10/11; prima al centro dell'altezza, chiesto il 14/10): al centro resta solo la vista vuota.
 - **Impianto** (dal 13/10): intestazione (`buildHeader` in `views.ts`) con fumetto, campo unico, pulsanti; **menu** a sinistra (`src/views/rail.ts`, `#rail`) con il personaggio in cima, poi Panoramica, Agenti, Chat, Azioni, File e schermo, integrazioni attive; viste a destra. Niente modalità modifica.
   - `botPosition` mette il personaggio in cima al menu quando `railShown` (non per saluto e sequenza file); misura da `menuCharacter` (`RAIL_BOT`), spazio in `railHead`.
   - Spazi per il personaggio nelle viste: `max(16px, calc(Npx * var(--bot-room, 1)))`, `#island.railed` mette `--bot-room: 0`.
@@ -111,6 +112,7 @@ In release `panic = "abort"`: un panic in qualsiasi thread chiude l'app. Da mant
 - **Rust:** niente `&s[a..b]` o `[i]` su dati esterni (`s.get(a..b)?`; un taglio dentro una lettera accentata è un panic). `clamp` solo con `min <= max` garantito. Niente `Instant - Duration`.
 - **Comandi Tauri sincroni** girano sul thread principale: lavoro lento in `async` con `spawn_blocking` (`ingest_file`). Vale per ogni accesso al disco su percorsi presi dal testo o dall'utente: un server di rete che non risponde tiene `CreateFile` decine di secondi (`chatpaths.rs`, `is_folder`, `file_open`, `preview_external`).
 - **File dell'utente:** `settings::write_atomic` (temporaneo, `sync_all`, rinomina); chat e riepilogo idem. `settings.bak.json` di riserva; un `settings.json` illeggibile diventa `settings.illeggibile-<secondi>.json` e si riparte dalla riserva (`load_from`), mai dai predefiniti sopra.
+- **Log senza segreti** (`log::mask`, 9/11): ogni riga di `easyisland.log` passa da `mask` (parola dopo Bearer/Basic/Token/-Password, parametri `token=`, `key=`, `password=`…, chiavi riconosciute da `moments::looks_secret`, token `ac_`/`ow_` di Agent Chat) e da `redact`. Prima un comando di opencode in attesa di Consenti scriveva qui il suo `Authorization: Bearer …`. `log::scrub_once` (segno `log-pulito-1`) ha ripulito il log già scritto, senza copia.
 - **Fotogramma:** ogni parte passa da `guard` (`island.ts`): eccezione loggata una volta, il ciclo continua. `safeCard` (`views.ts`) per card rotte; `State.notify` isola gli iscritti; `logPageErrors` (`main.ts`).
 - **Dati in ingresso:** eventi degli agenti da `sanitize` (`hooks.ts`); errore dentro `PermissionRequest` → domanda al terminale. `handleIntegration`/`handleWidget` accettano aggiornamenti vuoti. Dati 3CX (`data()` in `threecx.ts`) e Meteo (`readForecast`) normalizzati; una card nuova fa lo stesso.
 
@@ -163,6 +165,9 @@ Impostazioni → Aspetto → Tema → Stile (`theme.style`, nei profili): **Wind
 - Icone a linea per integrazioni senza logo (`LINE_ICONS` in `icons.ts`, via `markIcon`) e voci fisse (`LINE_SECTIONS`); loghi ed emoji dell'utente restano; ridisegno al cambio di stile.
 - Restano dal Classico: loghi sbiaditi della Panoramica, colori, personaggi, animazioni.
 - Impostazioni: nome a sinistra, controllo a destra, `.note` sotto; controlli come Windows; barra del titolo scura (`.theme(Dark)`).
+- Una sola tavolozza (10/11/2026): isola, Impostazioni, Flussi (`flows.css`) e Anteprima (`preview.css`) usano i livelli del Windows 11 (base `#202020`, livello `#242424`, schede `#2b2b2b`, bordo 1 px `--stroke`, accento di sistema). Niente strisce colorate a sinistra di schede e righe: bordo 1 px tinto o pallino.
+- Menu a sinistra (`rail.ts`): nessuna voce accesa per le viste che non sono del menu (`NOWHERE`: momenti, riepilogo, giornata, proposte, ricerca); con la ricerca aperta nemmeno (`:has(#search.open)`). Elenco più lungo dell'isola: l'ultima riga sfuma (`.rail-list.more`). Nome lungo: puntini e tooltip.
+- Pulsanti solo icona: `title` e `aria-label` insieme (`h()` in `dom.ts` li copia; `tip()` per i tooltip che cambiano). Tessere della Panoramica: logo in basso a destra, in un margine dove il testo non arriva.
 - Anteprima: `?ui=classic`, `?scheme=light`; `SHOT_QUERY=ui=classic SHOT_DIR=… node scripts/screenshots.mjs`. Schermate del README in Windows 11.
 
 ## Modalità chiara e scura

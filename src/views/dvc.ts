@@ -14,8 +14,6 @@ import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { kindLabel } from "./rdm";
 
-const COLOR = "#E8542A";
-
 type Form =
   | { kind: "cred"; name: string; user: string; domain: string; password: string; description: string }
   | { kind: "list"; name: string; recurse: boolean };
@@ -209,7 +207,7 @@ function isConnection(e: DvcItem): boolean {
 }
 
 function btn(text: string, onclick: () => void, title = ""): HTMLElement {
-  return h("button", { class: "link-btn", style: `color:${COLOR}d9`, text, title,
+  return h("button", { class: "link-btn", text, title,
     onclick: (ev: Event) => { ev.stopPropagation(); onclick(); } });
 }
 
@@ -394,7 +392,9 @@ function draw() {
   }
   // The list, and the pane of the entry picked below it (beside it when the card is wide).
   const list = h("div", { class: "dvc-list" });
-  const pane = panePart();
+  // A form being filled (Credenziale, Lista password) has the card to itself:
+  // the entry's pane would cover its last lines. It comes back on Annulla.
+  const pane = dv.form ? null : panePart();
   el.append(h("div", { class: pane ? "dvc-split with-pane" : "dvc-split" }, list, pane));
   appendList(list, b);
   // «Copiato», «Password negli appunti…»: where the eye is, the pane if open.

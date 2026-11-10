@@ -67,7 +67,7 @@ pub(crate) fn notes_of(text: &str) -> Vec<String> {
     text.lines().filter(|l| l.trim_start().starts_with("- ")).map(|l| l.trim().to_string()).collect()
 }
 
-fn read_main() -> String {
+pub(crate) fn read_main() -> String {
     std::fs::read_to_string(main_file()).unwrap_or_default()
 }
 
@@ -258,8 +258,17 @@ pub fn search(query: &str, month: &str) -> Result<String, String> {
             break;
         }
     }
-    if found.is_empty() {
+    // Then what Claude Code remembers by itself (cc_memory.rs), read only.
+    let cc = crate::cc_memory::search(&words, MAX_FOUND / 2);
+    if found.is_empty() && cc.is_empty() {
         return Ok(t("Niente in memoria su questo.").into());
+    }
+    if !cc.is_empty() {
+        if !found.is_empty() {
+            found.push(String::new());
+        }
+        found.push(t("Dalla memoria di Claude Code (si legge soltanto; con la data: se contraddice quanto sopra, vale quanto sopra):").into());
+        found.extend(cc);
     }
     Ok(found.join("\n"))
 }

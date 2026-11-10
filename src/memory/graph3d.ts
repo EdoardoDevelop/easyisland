@@ -3,8 +3,10 @@
 // Drag turns the globe (it keeps turning a little when let go), the wheel
 // zooms, double click shows everything. Frames only while something moves.
 
-import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
+import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
 import { Camera, starfield, type View } from "./stage";
+import { Placer, label } from "./labels";
+import { pal } from "./theme";
 
 interface Body {
   n: MemNode;
@@ -77,6 +79,12 @@ export class Graph3DView implements View {
     }
     this.heat = old.size ? 0.5 : 1;
     if (!old.size) this.framed = false;
+  }
+
+  private hovered: string | null = null;
+
+  setHover(id: string | null) {
+    this.hovered = id;
   }
 
   setSelected(id: string | null) {
@@ -196,6 +204,7 @@ export class Graph3DView implements View {
     this.cam.tx = this.yaw * 300;
     this.cam.ty = this.pitch * 300;
     starfield(ctx, w, h, this.cam);
+    const p = pal();
     this.project(w, h);
 
     const sel = this.selected;
@@ -211,7 +220,7 @@ export class Graph3DView implements View {
       if (!a.s || !b.s) continue;
       const on = sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
       const f = fog((a.d + b.d) / 2);
-      ctx.strokeStyle = on && sel ? alpha(KIND_COLOR[a.n.id === sel ? b.n.kind : a.n.kind], 0.8 * f) : `rgba(150,170,230,${(on ? 0.26 : 0.05) * f})`;
+      ctx.strokeStyle = on && sel ? alpha(KIND_COLOR[a.n.id === sel ? b.n.kind : a.n.kind], 0.8 * f) : `rgba(${p.link},${(on ? 0.3 : 0.06) * f})`;
       ctx.lineWidth = on && sel ? 1.6 : 0.8;
       ctx.beginPath();
       ctx.moveTo(a.sx, a.sy);
@@ -222,12 +231,9 @@ export class Graph3DView implements View {
         const from = a.n.id === sel ? a : b;
         const to = from === a ? b : a;
         ctx.fillStyle = alpha(KIND_COLOR[to.n.kind], 0.95);
-        ctx.shadowColor = KIND_COLOR[to.n.kind];
-        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.arc(from.sx + (to.sx - from.sx) * ((p % 1 + 1) % 1), from.sy + (to.sy - from.sy) * ((p % 1 + 1) % 1), 2.4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
         moving = true;
       }
     }
@@ -242,21 +248,19 @@ export class Graph3DView implements View {
       const r = Math.max(1.2, b.r * b.s * pulse);
       const f = fog(b.d);
       ctx.globalAlpha = (on ? 1 : 0.18) * f;
-      const halo = ctx.createRadialGradient(b.sx, b.sy, r * 0.3, b.sx, b.sy, r * 3.2);
-      halo.addColorStop(0, alpha(color, on ? 0.38 : 0.12));
-      halo.addColorStop(1, alpha(color, 0));
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(b.sx, b.sy, r * 3.2, 0, Math.PI * 2);
-      ctx.fill();
+      // A sphere: lit a little from the top left, ringed with the background.
       const body = ctx.createRadialGradient(b.sx - r * 0.35, b.sy - r * 0.35, r * 0.1, b.sx, b.sy, r);
-      body.addColorStop(0, "#ffffff");
-      body.addColorStop(0.35, color);
-      body.addColorStop(1, alpha(color, 0.7));
-      ctx.fillStyle = b.n.kind === "missing" ? "rgba(0,0,0,0)" : body;
+      body.addColorStop(0, alpha(color, 0.75));
+      body.addColorStop(1, color);
+      ctx.fillStyle = b.n.kind === "missing" ? p.bg : body;
       ctx.beginPath();
       ctx.arc(b.sx, b.sy, r, 0, Math.PI * 2);
       ctx.fill();
+      if (b.n.kind !== "missing") {
+        ctx.strokeStyle = p.bg;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
       if (b.n.kind === "missing") {
         ctx.setLineDash([3, 3]);
         ctx.strokeStyle = color;
@@ -265,7 +269,7 @@ export class Graph3DView implements View {
         ctx.setLineDash([]);
       }
       if (b.n.id === sel) {
-        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.strokeStyle = p.ring;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(b.sx, b.sy, r + 5, 0, Math.PI * 2);
@@ -273,24 +277,22 @@ export class Graph3DView implements View {
       }
     }
 
-    // Labels: the near pages, the picked one and its neighbours, the search.
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.font = `500 12px system-ui, "Segoe UI", sans-serif`;
-    for (const b of order) {
-      const on = lit(b.n.id);
-      const show = b.n.id === sel || near.has(b.n.id) || (this.filter?.has(b.n.id) ?? false) || (on && (b.n.kind === "page" || b.n.kind === "missing" || b.r * b.s > 9) && b.s > this.zoomK * 0.85);
-      if (!show) continue;
-      const r = b.r * b.s;
-      const label = fit(ctx, b.n.label, 180);
-      ctx.globalAlpha = (on ? 0.95 : 0.3) * fog(b.d);
-      ctx.fillStyle = "rgba(6,7,10,0.65)";
-      const tw = ctx.measureText(label).width;
-      ctx.fillRect(b.sx - tw / 2 - 3, b.sy + r + 3, tw + 6, 16);
-      ctx.fillStyle = b.n.id === sel ? "#ffffff" : "#dfe3ee";
-      ctx.fillText(label, b.sx, b.sy + r + 5);
+    // Labels in order of importance (the picked one, its neighbours, the
+    // search, then the nearest pages); one that would cover another is left out.
+    const placer = new Placer();
+    const want = order
+      .map((b) => {
+        const id = b.n.id;
+        const page = b.n.kind === "page" || b.n.kind === "missing";
+        const score = id === sel || id === this.hovered ? 1e9 : near.has(id) ? 1e7 + b.s : this.filter?.has(id) ? 1e6 + b.s
+          : lit(id) && (page || b.r * b.s > 9) ? b.s * 100 + b.n.weight : -1;
+        return { b, score };
+      })
+      .filter((c) => c.score >= 0)
+      .sort((a, b) => b.score - a.score);
+    for (const { b, score } of want) {
+      label(ctx, placer, b.n.label, b.sx, b.sy + b.r * b.s + 4, { size: 12, weight: score >= 1e9 ? 600 : 500, force: score >= 1e9, alpha: fog(b.d), max: 180 });
     }
-    ctx.globalAlpha = 1;
     return moving;
   }
 

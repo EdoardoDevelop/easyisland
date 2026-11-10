@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.38** — **un aspetto solo** per tutte le finestre; **Memoria** leggibile con tanti nodi e con le note di **Claude Code**.
 - **1.0.37** — l'isola **non si blocca** più per un percorso di rete che non risponde nella chat; **Memoria** ingrandita all'apertura.
 - **1.0.36** — un **terminale vero** nella chat: colori, Tab, Ctrl+C, editor e password, accanto all'Anteprima.
 - **1.0.35** — chat **a schede** con **chat vuota** animata e le ultime conversazioni, **Ezzy** fra i personaggi, **accessibilità** migliore.
-- **1.0.34** — chat **pari a Claude Desktop**: sessioni riprese, modalità **Piano**, comandi di Claude Code, **⟲ File**, PR, terminale.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

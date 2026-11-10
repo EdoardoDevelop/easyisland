@@ -5,7 +5,7 @@
 // Vassoio, dragged out, its path copied, or sent to the Recycle Bin. The
 // Vassoio moves its files into the folder shown here (`current`).
 
-import { h, clear } from "./dom";
+import { h, clear, tip } from "./dom";
 import { renderActionIcon } from "./action-icons";
 import { Bridge, type WorkEntry, type WorkListing } from "../core/bridge";
 import { State } from "../core/state";
@@ -74,8 +74,8 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
   const pick = h("button", { class: "files-clear work-pick", text: t("Scegli…"), title: t("La cartella in cui la chat e Telegram possono lavorare") }) as HTMLButtonElement;
   const mkdirBtn = h("button", { class: "files-layout", text: "+", title: t("Nuova cartella") }) as HTMLButtonElement;
   const revealBtn = h("button", { class: "files-layout", title: t("Apri in Esplora file") }, renderActionIcon("i:folder", 12)) as HTMLButtonElement;
-  const layoutBtn = h("button", { class: "files-layout" }) as HTMLButtonElement;
-  const sortBtn = h("button", { class: "files-layout work-sort" }) as HTMLButtonElement;
+  const layoutBtn = h("button", { class: "files-layout", title: t("Mostra come griglia") }) as HTMLButtonElement;
+  const sortBtn = h("button", { class: "files-layout work-sort", title: t("Ordine: clic per cambiarlo (nome, data di modifica)") }) as HTMLButtonElement;
   const sortLabel: Record<Sort, string> = { name: t("Nome A→Z"), "name-desc": t("Nome Z→A"), new: t("Più recenti"), old: t("Meno recenti") };
   const head = h("div", { class: "files-head" }, h("b", { text: t("Cartella di lavoro") }), mkdirBtn, revealBtn, layoutBtn, sortBtn, pick);
   const el = h("div", { class: "work-panel" }, head, crumbs, banner, list, status);
@@ -214,9 +214,9 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     layoutBtn.style.display = has ? "" : "none";
     sortBtn.style.display = has ? "" : "none";
     layoutBtn.textContent = grid ? "☰" : "▦";
-    layoutBtn.title = grid ? t("Mostra come elenco") : t("Mostra come griglia");
+    tip(layoutBtn, grid ? t("Mostra come elenco") : t("Mostra come griglia"));
     sortBtn.textContent = sortLabel[sort];
-    sortBtn.title = t("Ordine: clic per cambiarlo (nome, data di modifica)");
+    tip(sortBtn, t("Ordine: clic per cambiarlo (nome, data di modifica)"));
     list.classList.toggle("grid", grid);
     if (!listing) {
       list.append(h("div", { class: "files-empty", text: error || t("Scegli una cartella del PC: la chat e Telegram potranno consultarla e lavorarci.") }));

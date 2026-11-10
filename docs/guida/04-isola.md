@@ -66,7 +66,7 @@ L'isola si apre da sola quando serve, rispettando le regole di notifica del prof
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Cronologia degli Appunti |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Riquadra e chiedi |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> | Testo selezionato nella Raccolta, con la sua fonte |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Va alla richiesta in attesa: <kbd>N</kbd> nega, <kbd>Y</kbd> consente, <kbd>S</kbd> sempre, <kbd>1</kbd>–<kbd>9</kbd> sceglie |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Va alla richiesta in attesa: <kbd>N</kbd> nega, <kbd>C</kbd> (o <kbd>Y</kbd>) consente, <kbd>S</kbd> sempre, <kbd>1</kbd>–<kbd>9</kbd> sceglie |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Porta avanti l'app della sessione |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu delle azioni sul testo selezionato, in qualsiasi app |
 | <kbd>←</kbd> <kbd>→</kbd> nell'isola | Scheda precedente / successiva |

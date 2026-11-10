@@ -3,8 +3,10 @@
 // grey bubble. Packed by a spiral search (each circle at the closest free
 // place to the middle), drawn once: nothing moves unless you pan or zoom.
 
-import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
+import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
 import { Camera, type View } from "./stage";
+import { Placer, label } from "./labels";
+import { inkOf, paintBackground, pal } from "./theme";
 
 interface Circle {
   x: number;
@@ -32,7 +34,7 @@ export class BubblesView implements View {
       name: g.name, colour: g.color, nodes: g.members.map((id) => model.byId.get(id)!),
     }));
     const loose = model.g.nodes.filter((n) => !of.has(n.id) && n.kind !== "day");
-    if (loose.length) sets.push({ name: "", colour: "#5b6070", nodes: loose });
+    if (loose.length) sets.push({ name: "", colour: "#8a8f99", nodes: loose });
     // Inside each group: the nodes packed around their middle.
     const made: Bubble[] = sets.map((s) => {
       const items = s.nodes
@@ -54,6 +56,12 @@ export class BubblesView implements View {
     this.framed = false;
   }
 
+  private hovered: string | null = null;
+
+  setHover(id: string | null) {
+    this.hovered = id;
+  }
+
   setSelected(id: string | null) {
     this.selected = id;
   }
@@ -69,63 +77,50 @@ export class BubblesView implements View {
       this.framed = true;
     }
     const moving = this.cam.step();
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0c0f1a");
-    bg.addColorStop(1, "#05060a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    paintBackground(ctx, w, h);
+    const p = pal();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
     const sel = this.selected;
+    const names: { text: string; x: number; y: number; score: number; color?: string; group: boolean }[] = [];
     for (const b of this.bubbles) {
-      // The group's bubble: glassy, lit from the top left.
-      const g = ctx.createRadialGradient(b.x - b.r * 0.4, b.y - b.r * 0.5, b.r * 0.1, b.x, b.y, b.r);
-      g.addColorStop(0, alpha(b.colour, 0.28));
-      g.addColorStop(0.8, alpha(b.colour, 0.1));
-      g.addColorStop(1, alpha(b.colour, 0.35));
-      ctx.fillStyle = g;
+      // The group's bubble: a tint of its colour with a thin edge.
+      ctx.fillStyle = alpha(b.colour, p.light ? 0.08 : 0.1);
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = alpha(b.colour, 0.6);
-      ctx.lineWidth = 1.2 / k;
+      ctx.lineWidth = 1 / k;
       ctx.stroke();
       for (const c of b.inner) {
         const x = b.x + c.x;
         const y = b.y + c.y;
         const on = (!sel && !this.filter) || c.n.id === sel || !!this.filter?.has(c.n.id);
         const page = c.n.kind === "page" || c.n.kind === "missing";
-        const fill = ctx.createRadialGradient(x - c.r * 0.35, y - c.r * 0.4, c.r * 0.1, x, y, c.r);
-        fill.addColorStop(0, `rgba(255,255,255,${on ? 0.75 : 0.15})`);
-        fill.addColorStop(0.4, alpha(c.colour, on ? (page ? 0.85 : 0.6) : 0.15));
-        fill.addColorStop(1, alpha(c.colour, on ? 0.4 : 0.08));
-        ctx.fillStyle = fill;
+        ctx.fillStyle = alpha(c.colour, on ? (page ? 0.9 : 0.6) : 0.15);
         ctx.beginPath();
         ctx.arc(x, y, c.r, 0, Math.PI * 2);
         ctx.fill();
-        if (c.n.id === sel) {
-          ctx.strokeStyle = "#ffffff";
+        if (c.n.id === sel || c.n.id === this.hovered) {
+          ctx.strokeStyle = p.ring;
           ctx.lineWidth = 2 / k;
           ctx.stroke();
         }
-        if (page && c.r * k > 16) {
-          ctx.fillStyle = "#0a0c12";
-          ctx.font = `600 ${Math.min(12, c.r * 0.45)}px system-ui, "Segoe UI", sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(fit(ctx, c.n.label, c.r * 1.8), x, y);
-        }
+        const forced = c.n.id === sel || c.n.id === this.hovered;
+        if (forced || (on && page && c.r * k > 14)) names.push({ text: c.n.label, x, y, score: forced ? 1e9 : c.r, group: false });
       }
-      if (b.name) {
-        ctx.fillStyle = alpha(b.colour, 0.95);
-        ctx.font = `700 ${Math.max(11, Math.min(18, b.r / 7)) / Math.min(1, k)}px system-ui, "Segoe UI", sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(fit(ctx, b.name, b.r * 1.8), b.x, b.y - b.r - 4 / k);
-      }
+      if (b.name) names.push({ text: b.name, x: b.x, y: b.y - b.r, score: 1e6 + b.r, color: inkOf(b.colour), group: true });
     }
     ctx.restore();
+    // Names in screen pixels, the biggest first; never one on another.
+    const placer = new Placer();
+    names.sort((a, b) => b.score - a.score);
+    for (const n of names) {
+      const at = this.cam.toScreen(n.x, n.y);
+      if (n.group) label(ctx, placer, n.text, at.x, at.y - 4, { size: 14, weight: 600, color: n.color, baseline: "bottom", max: 240 });
+      else label(ctx, placer, n.text, at.x, at.y, { size: 12, weight: n.score >= 1e9 ? 600 : 500, baseline: "middle", force: n.score >= 1e9, max: 160 });
+    }
     return moving;
   }
 
