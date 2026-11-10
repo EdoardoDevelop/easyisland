@@ -5756,6 +5756,31 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   border-radius: 50%;
 }
 .rail-list .rail-item.dragging { opacity: 0.7; }
+/* Groups of the menu (rail.ts, core/menu-groups.ts): a folder, the name, the
+   chevron; its rows indented under it when open. */
+.rail-group { --c: #f5a524; }
+.rail-chevron { flex: 0 0 auto; display: grid; place-items: center; color: var(--dim-3); transition: transform 0.15s ease-out; }
+.rail-chevron.open { transform: rotate(90deg); }
+.rail-member { padding-left: 21px; }
+.rail-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--win-accent, #4cc2ff) 70%, transparent);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+/* Let go here, it goes into this row's group (or makes one with it). */
+.rail-item.merge-target {
+  background: color-mix(in srgb, var(--win-accent, #4cc2ff) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--win-accent, #4cc2ff) 70%, transparent);
+}
+html[data-scheme="light"] .rail-rename { background: #fff; }
 /* Dragged out of the island (rail.ts tearable, sortable out): let go there, it becomes a window. */
 .rail-fixed .rail-item.dragging { opacity: 0.7; }
 .rail-item.tearing { opacity: 0.45; outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: -2px; }

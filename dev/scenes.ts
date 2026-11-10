@@ -112,6 +112,14 @@ export async function runScene(island: Island, scene: string) {
       await wait(300);
       // ?news: with the «Notizie» box under the tiles.
       if (new URLSearchParams(location.search).has("news")) sampleNews();
+      // ?gruppi: two groups in the menu, one open and one closed (core/menu-groups.ts).
+      if (new URLSearchParams(location.search).has("gruppi")) {
+        State.settings.menuGroups = [
+          { id: "gufficio", name: "Ufficio", items: ["integration_zammad", "integration_3cx"], open: true },
+          { id: "gpc", name: "PC", items: ["integration_network", "integration_clipboard", "integration_media"], open: false },
+        ];
+        State.notify();
+      }
       session("working", ["Read · src/character/slime.ts", "Edit · src/character/engine.ts", "Bash · npm run build"]);
       // Panoramica: each tile with its latest line, as the integrations write them.
       for (const [id, line] of [

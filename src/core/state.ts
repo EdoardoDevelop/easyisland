@@ -641,6 +641,8 @@ export interface Settings {
   pillOrder: string[];
   /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged (per profile). */
   tabOrder: string[];
+  /** Groups of the island's menu, made by dropping an integration on another (per profile, src/core/menu-groups.ts). */
+  menuGroups: MenuGroup[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
   /** The one field in the open island's top bar (src/views/search.ts). */
@@ -1335,6 +1337,7 @@ export const DEFAULT_SETTINGS: Settings = {
   integrationTabIcons: {},
   integrationColors: {},
   pillOrder: [],
+  menuGroups: [],
   tabOrder: [],
   lockOrder: false,
   searchBar: true,
@@ -1992,6 +1995,16 @@ export interface Skill {
   engine: string;
   tools: string[];
   body: string;
+}
+
+/** A group of the island's menu: integrations dropped one on another, as on a phone. */
+export interface MenuGroup {
+  id: string;
+  name: string;
+  /** Task ids, in the group's order. */
+  items: string[];
+  /** Its rows shown under it. */
+  open?: boolean;
 }
 
 /** An integration made by the user from the chat (custom.rs): a description, never code. */

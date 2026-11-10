@@ -2224,8 +2224,37 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
     h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
+  // Groups of the menu (core/menu-groups.ts): made in the island, named and let go here too.
+  const groupsBox = h("div", { class: "menu-groups" });
+  const drawGroups = () => {
+    groupsBox.replaceChildren();
+    const all = settings.menuGroups ?? [];
+    if (!all.length) {
+      groupsBox.append(h("div", { class: "hint", text: t("Nessun gruppo. Nell'isola trascina un'integrazione del menu sopra un'altra: nasce un gruppo con tutte e due. Trascinane altre sul gruppo per aggiungerle, fuori per toglierle.") }));
+      return;
+    }
+    for (const g of all) {
+      const name = h("input", { type: "text", value: g.name, maxlength: "40", spellcheck: "false", "aria-label": t("Nome del gruppo") }) as HTMLInputElement;
+      name.addEventListener("change", () => {
+        const v = name.value.trim();
+        if (!v) { name.value = g.name; return; }
+        g.name = v.slice(0, 40);
+        void save();
+      });
+      const names = g.items.map((id) => INTEGRATIONS.find((x) => x.id === id)?.name ?? (id.startsWith("custom:") ? id.slice(7) : id)).join(", ");
+      const go = h("button", { text: t("Sciogli"), title: t("Le integrazioni tornano nel menu una per una") });
+      go.addEventListener("click", () => {
+        settings.menuGroups = (settings.menuGroups ?? []).filter((x) => x.id !== g.id);
+        void save();
+        drawGroups();
+      });
+      groupsBox.append(h("div", { class: "row" }, name, h("span", { class: "hint", text: names }), go));
+    }
+  };
+  drawGroups();
   return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, filterRow, list,
-    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow);
+    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow,
+    h("h3", { class: "int-sub", text: t("Gruppi del menu") }), groupsBox);
 }
 
 /** The first sentence of a hint, for the integration's row. */

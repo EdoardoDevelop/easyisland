@@ -29,7 +29,8 @@ import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type View
 import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
-import { buildRail, railBotSize } from "../views/rail";
+import { buildRail, railBotSize, renameGroup } from "../views/rail";
+import * as MenuGroups from "../core/menu-groups";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { canPreview, chatPathAction, chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
@@ -2166,6 +2167,20 @@ ${note}` : text };
       );
     }
 
+    // A group of the menu (core/menu-groups.ts): its name, or let it go.
+    const groupId = el?.closest<HTMLElement>("[data-head]")?.dataset.head ?? "";
+    const group = groupId ? MenuGroups.groups().find((g) => g.id === groupId) : undefined;
+    if (group && !items.length) {
+      return {
+        title: group.name,
+        items: [
+          { label: group.open ? t("Chiudi il gruppo") : t("Apri il gruppo"), run: () => MenuGroups.toggle(group.id) },
+          { label: t("Rinomina"), run: () => renameGroup(group.id) },
+          { label: t("Sciogli il gruppo"), sep: true, run: () => MenuGroups.dissolve(group.id) },
+        ],
+      };
+    }
+
     // An integration, a widget or an agent: a row of the menu, a tile, its open card.
     const rail = el?.closest<HTMLElement>("[data-rail]")?.dataset.rail ?? "";
     let id = el?.closest<HTMLElement>("[data-id]")?.dataset.id ?? "";
@@ -2191,6 +2206,9 @@ ${note}` : text };
         items.push({ label: t("Impostazioni «{name}»", { name: task.name }), sep: true, run: settingsAt("integrazioni", task.id) });
       }
       if (!session) items.splice(1, 0, { label: t("Apri in una finestra"), run: () => this.popOut(task.id) });
+      // In a group of the menu: out of it, in one click as well as by dragging.
+      const inGroup = el?.closest(".rail-member") ? MenuGroups.groupOf(task.id) : undefined;
+      if (inGroup) items.push({ label: t("Togli dal gruppo «{name}»", { name: inGroup.name }), run: () => MenuGroups.removeFrom(task.id) });
     }
 
     // A quick action.

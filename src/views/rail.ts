@@ -8,8 +8,10 @@
 import { h, svg, dot, brandIcon, markIcon } from "./dom";
 import { ICONS, LINE_SECTIONS } from "./icons";
 import { windowsLook } from "../core/uistyle";
-import { isSorting, sortable } from "./sortable";
-import { State, CLAUDE_TASK, isSessionTask, type AgentTask } from "../core/state";
+import { isRailDragging, railDrag } from "./rail-drag";
+import { State, CLAUDE_TASK, isSessionTask, type AgentTask, type MenuGroup } from "../core/state";
+import * as Groups from "../core/menu-groups";
+import { Bridge } from "../core/bridge";
 import { RAIL_BOT, railHead, type IslandViewName } from "../core/layout";
 import { t } from "../core/i18n";
 import type { ViewActions, ViewHost } from "./views";
@@ -88,6 +90,20 @@ function agentsIcon(): Element {
   if (look === "@logo") return brandIcon(CLAUDE_TASK, 15) ?? svg(ICONS.terminal, 15);
   if (look && look !== "@name") return h("span", { class: "rail-emoji", text: look });
   return glyph("terminal");
+}
+
+/** The group whose name is being written (just made, or «Rinomina» from its right click). */
+let renaming = "";
+
+/** «Rinomina» on a group's row (island.ts, right click): its name becomes a field. */
+export function renameGroup(id: string) {
+  renaming = id;
+  State.notify();
+}
+
+/** A group's icon: a folder (four icons in a square were too small to read at the menu's size). */
+function folderIcon(): Element {
+  return actionIconSvg(actionIcon("i:folder")!, 15);
 }
 
 /** A pointer out of the open island (the window may be larger than it). */
@@ -175,18 +191,114 @@ export function buildRail(actions: ViewActions): ViewHost {
   const fixed = h("div", { class: "rail-fixed" }, ...Object.values(sections));
   const label = h("div", { class: "rail-label-head", text: t("Integrazioni") });
   const list = h("div", { class: "rail-list" });
-  // Dragged into order as the pills were (Impostazioni → Integrazioni → Blocca lo spostamento).
-  // …or dragged out of the island: a window of its own (popout.ts).
-  sortable(list, {
+  // Dragged into order (Impostazioni → Integrazioni → Blocca lo spostamento), onto
+  // another to make a group (core/menu-groups.ts), or out of the island: a window
+  // of its own (popout.ts).
+  railDrag(list, {
     enabled: () => !State.settings.lockOrder,
-    onReorder: (ids) => actions.reorder(ids),
-    out: { outside: outsideIsland, drop: (id, e) => actions.popOut(id, { x: e.screenX, y: e.screenY }) },
+    outside: outsideIsland,
+    popOut: (id, e) => actions.popOut(id, { x: e.screenX, y: e.screenY }),
+    merge: (onto, dragged) => {
+      actions.blip();
+      const made = Groups.mergeInto(onto, dragged);
+      // A new group: its name is there to be written, as on a phone.
+      if (made) renameGroup(made);
+    },
+    addTo: (group, dragged) => {
+      actions.blip();
+      Groups.addTo(group, dragged);
+    },
+    commit: (order, members) => {
+      Groups.setMembers(members, new Set(order));
+      actions.reorder(order);
+    },
   });
   const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, fixed, label, list);
   // More rows below the edge: the last one fades out, so it reads as «scroll», not as cut.
   const edge = () => list.classList.toggle("more", list.scrollHeight - list.scrollTop - list.clientHeight > 2);
   list.addEventListener("scroll", edge, { passive: true });
   new ResizeObserver(edge).observe(list);
+
+  /** An integration's row. */
+  const taskRow = (x: AgentTask) => {
+    const b = row(x.id, taskIcon(x), x.name, () => {
+      // In a window of its own: that window comes forward instead.
+      if (actions.popped(x.id)) return;
+      actions.setFocus(x.id);
+      actions.setView("overview");
+    });
+    b.dataset.id = x.id;
+    b.style.setProperty("--c", x.color);
+    return b;
+  };
+
+  /** A group's name as a field: Invio or leaving it keeps it, Esc leaves the name it had. */
+  const nameField = (g: MenuGroup) => {
+    const input = h("input", { class: "rail-rename", type: "text", value: g.name, spellcheck: "false", maxlength: "40",
+      "aria-label": t("Nome del gruppo") }) as HTMLInputElement;
+    let done = false;
+    const end = (keep: boolean) => {
+      if (done) return;
+      done = true;
+      renaming = "";
+      actions.holdOpen(false);
+      if (keep && input.value.trim() && input.value.trim() !== g.name) Groups.rename(g.id, input.value);
+      else State.notify();
+    };
+    input.addEventListener("focus", () => {
+      actions.holdOpen(true);
+      void Bridge.focusWindow(true);
+    });
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") end(true);
+      if (e.key === "Escape") end(false);
+    });
+    input.addEventListener("blur", () => end(true));
+    // A click in the field is not a click on the group's row.
+    input.addEventListener("click", (e) => e.stopPropagation());
+    return input;
+  };
+
+  /**
+   * The menu's rows: each integration alone, or in its group, which stands where
+   * its first integration would. A group shows only the integrations turned on.
+   */
+  const entries = (tasks: AgentTask[], groups: MenuGroup[]): HTMLElement[] => {
+    const out: HTMLElement[] = [];
+    const placed = new Set<string>();
+    for (const x of tasks) {
+      const g = groups.find((y) => y.items.includes(x.id));
+      if (!g) {
+        out.push(taskRow(x));
+        continue;
+      }
+      if (placed.has(g.id)) continue;
+      placed.add(g.id);
+      const members = g.items.map((id) => tasks.find((y) => y.id === id)).filter((y): y is AgentTask => !!y);
+      const open = !!g.open;
+      const head = h("button", { class: "rail-item rail-group", "data-id": `group:${g.id}`, "data-head": g.id, "data-open": open ? "1" : "0",
+        "aria-expanded": String(open), title: t("{name}: clic per aprire o chiudere, trascina qui un'integrazione per aggiungerla", { name: g.name }),
+        onclick: () => {
+          if (renaming === g.id) return;
+          actions.blip();
+          Groups.toggle(g.id);
+        } },
+      h("span", { class: "rail-icon" }, folderIcon()),
+      renaming === g.id ? nameField(g) : h("span", { class: "rail-label", text: g.name }),
+      h("span", { class: "rail-meta" }),
+      h("span", { class: open ? "rail-chevron open" : "rail-chevron" }, svg(ICONS.chevronRight, 10, { stroke: 2 })));
+      out.push(head);
+      for (const m of members) {
+        const r = taskRow(m);
+        r.classList.add("rail-member");
+        r.dataset.group = g.id;
+        if (!open) r.style.display = "none";
+        out.push(r);
+      }
+    }
+    return out;
+  };
 
   let listKey = "";
   let agentsLook: string | null = null;
@@ -230,20 +342,17 @@ export function buildRail(actions: ViewActions): ViewHost {
       const tasks = State.tasks.filter((x) => !isSessionTask(x) && x.id !== "integration_recorder");
       const icons = State.settings.integrationTabIcons ?? {};
       // The look too: the Windows 11 one draws line glyphs where the classic has emojis.
-      const key = `${document.documentElement.dataset.ui}|` + tasks.map((x) => `${x.id}:${x.name}:${x.color}:${icons[x.id] ?? ""}`).join("|");
-      if (key !== listKey && !isSorting(list)) {
+      const groups = Groups.groups();
+      const key = `${document.documentElement.dataset.ui}|${renaming}|${JSON.stringify(groups)}|` +
+        tasks.map((x) => `${x.id}:${x.name}:${x.color}:${icons[x.id] ?? ""}`).join("|");
+      if (key !== listKey && !isRailDragging(list)) {
         listKey = key;
-        list.replaceChildren(...tasks.map((x) => {
-          const b = row(x.id, taskIcon(x), x.name, () => {
-            // In a window of its own: that window comes forward instead.
-            if (actions.popped(x.id)) return;
-            actions.setFocus(x.id);
-            actions.setView("overview");
-          });
-          b.dataset.id = x.id;
-          b.style.setProperty("--c", x.color);
-          return b;
-        }));
+        list.replaceChildren(...entries(tasks, groups));
+        const field = list.querySelector<HTMLInputElement>(".rail-rename");
+        if (field) {
+          field.focus();
+          field.select();
+        }
       }
       label.style.display = tasks.length ? "" : "none";
 
@@ -251,11 +360,22 @@ export function buildRail(actions: ViewActions): ViewHost {
         b.classList.toggle("on", !!on && b.dataset.rail === on);
       }
       edge();
+      // The dot of what has news: on its row, and on its group's row while the group is closed.
+      const dotOf = (task: AgentTask | undefined, id: string) => (task?.pillBadge && id !== on ? BADGE[task.pillBadge] : "");
       for (const b of list.querySelectorAll<HTMLElement>(".rail-item")) {
-        const task = tasks.find((x) => x.id === b.dataset.id);
-        const meta = b.querySelector<HTMLElement>(".rail-meta")!;
-        // Opened: its news has been seen.
-        const color = task?.pillBadge && b.dataset.rail !== on ? BADGE[task.pillBadge] : "";
+        const meta = b.querySelector<HTMLElement>(".rail-meta");
+        if (!meta) continue;
+        let color = "";
+        const head = b.dataset.head;
+        if (head) {
+          const g = groups.find((x) => x.id === head);
+          const closed = b.dataset.open !== "1";
+          color = closed ? (g?.items.map((id) => dotOf(tasks.find((x) => x.id === id), id)).find(Boolean) ?? "") : "";
+          // A closed group holding what is on screen: its row is lit.
+          b.classList.toggle("on", closed && !!g?.items.includes(on));
+        } else {
+          color = dotOf(tasks.find((x) => x.id === b.dataset.id), b.dataset.rail ?? "");
+        }
         meta.className = color ? "rail-meta dot" : "rail-meta";
         meta.style.background = color;
       }
@@ -264,8 +384,10 @@ export function buildRail(actions: ViewActions): ViewHost {
       // The head, the sections and every integration, without scrolling. The
       // list's rows, not its box: the box stretches with the island, and the
       // island grew after it up to the screen's height.
-      const first = list.firstElementChild as HTMLElement | null;
-      const last = list.lastElementChild as HTMLElement | null;
+      // A closed group's rows are hidden: the last row shown.
+      const shownRows = Array.from(list.children).filter((c): c is HTMLElement => c instanceof HTMLElement && c.style.display !== "none");
+      const first = shownRows[0] ?? null;
+      const last = shownRows[shownRows.length - 1] ?? null;
       const rows = first && last ? last.offsetTop + last.offsetHeight - first.offsetTop : 0;
       return head.offsetHeight + fixed.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + rows + 12;
     },

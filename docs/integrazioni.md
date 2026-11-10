@@ -79,7 +79,12 @@ Scelte in `integrationConfig` (`notionTasks`, `notionInbox`, `notionPins`, `Noti
 
 ## Impostazioni → Integrazioni
 - Gruppi (`INTEGRATION_GROUPS` in `src/settings/main.ts`): Lavoro e clienti, Sviluppo e servizi, Questo PC, «Altre». Una integrazione nuova va in un gruppo.
-- Una riga per integrazione: interruttore, colore, nome, stato (Spenta, Attiva, «Manca: chiave»), prima frase. Clic apre i dettagli, una alla volta (`openIntegration`). Ricerca e «Solo attive»; in fondo «Menu dell'isola» con il blocco dell'ordine.
+- Una riga per integrazione: interruttore, colore, nome, stato (Spenta, Attiva, «Manca: chiave»), prima frase. Clic apre i dettagli, una alla volta (`openIntegration`). Ricerca e «Solo attive»; in fondo «Menu dell'isola» con il blocco dell'ordine e «Gruppi del menu» (nome, integrazioni, «Sciogli»).
+
+## Gruppi del menu (`src/core/menu-groups.ts`, `src/views/rail-drag.ts`, 10/11)
+- `settings.menuGroups` (per profilo, `PROFILE_KEYS` in `settings.rs`, campo `menu_groups` nella struttura, sennò si perderebbe al salvataggio): `{ id, name, items, open }`. Il gruppo sta nel menu dove starebbe la sua prima integrazione accesa; mostra solo quelle accese, tiene le spente (`setMembers` con `shown`). Solo nel menu: Panoramica e barra fissa come prima.
+- `railDrag` al posto di `sortable` nel menu (la Panoramica resta su `sortable`): righe in un elenco piatto (`data-head`/`data-open` per il gruppo, `data-group` per le sue righe, nascoste se chiuso). Al centro di una riga (25–75 % dell'altezza) «dentro» (`merge-target`): su un'integrazione `mergeInto` (gruppo nuovo «Gruppo», «Gruppo 2»…, aperto, nome subito da scrivere: `renameGroup`), su un gruppo `addTo`. Sul bordo riordina: fra le righe di un gruppo aperto entra, fuori esce; un gruppo si sposta intero e mai dentro un altro. Fuori dall'isola un'integrazione va in finestra come prima. `lockOrder` blocca anche i gruppi.
+- Clic sul gruppo apre/chiude; pallino del gruppo chiuso = primo pallino dei suoi; gruppo chiuso acceso se contiene la scheda aperta. Clic destro (`contextItems`): Apri/Chiudi, Rinomina, Sciogli; sulle sue righe «Togli dal gruppo». Un gruppo vuoto sparisce. Scena `overview&gruppi`.
 
 ## Registra (`record.rs`, `src/views/recorder.ts`)
 - Solo Windows: audio WASAPI (microfono e loopback), 48 kHz 16 bit stereo con `AUTOCONVERTPCM`, mescolato su un orologio (muto = silenzio; > 2 s di ritardo scartato). Schermo con GDI (sotto il mouse, cursore, max 1920 px, 15 fps di serie). Media Foundation sink writer: `.mp4` H.264 + AAC o `.m4a`; encoder hardware se c'è. Un thread, max 4 ore.
