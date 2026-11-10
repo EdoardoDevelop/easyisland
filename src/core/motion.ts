@@ -12,8 +12,11 @@ import "./motion.css";
 
 export type AnimLevel ="ricche" | "sobrie" | "spente";
 
-const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
-const EASE_IN = "cubic-bezier(0.7, 0, 0.84, 0)";
+// The app's two curves (also `--ease-out`, `--ease-in-out` in motion.css): strong
+// ease-out for everything that enters or leaves, ease-in-out for what moves on
+// screen. Never an ease-in: it starts slow just when the eye is on it.
+const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
+const EASE_IN_OUT = "cubic-bezier(0.77, 0, 0.175, 1)";
 
 let level: AnimLevel = "ricche";
 /** Until this time an opening is playing: a view change then does not animate on top of it. */
@@ -87,7 +90,7 @@ export function viewEnter(view: HTMLElement, from: HTMLElement | null, before: D
     [{ opacity: 0, transform: "translateX(-40px) scale(0.93)" }, { opacity: 1, transform: "none" }],
     { duration: 500, easing: EASE_OUT },
   );
-  partsIn([view], 40, 420);
+  partsIn([view], 40, 300);
 }
 
 /** The menu's accent mark (the `::before` of `.rail-item.on`) slides from the old item to the new one. */
@@ -108,7 +111,7 @@ function glideMark(item: HTMLElement, before: DOMRect) {
   const frames = level === "ricche"
     ? [{ transform: `translateY(${dy}px) scaleY(1)` }, { transform: `translateY(${dy / 2}px) scaleY(2.2)`, offset: 0.45 }, { transform: "none" }]
     : [{ transform: `translateY(${dy}px)` }, { transform: "none" }];
-  ghost.animate(frames, { duration: 300, easing: EASE_OUT }).onfinish = () => { ghost.remove(); item.classList.remove("mark-gliding"); };
+  ghost.animate(frames, { duration: 300, easing: EASE_IN_OUT }).onfinish = () => { ghost.remove(); item.classList.remove("mark-gliding"); };
 }
 
 // ── Level 3: opening ────────────────────────────────────────────────────────
@@ -117,6 +120,13 @@ function glideMark(item: HTMLElement, before: DOMRect) {
 const ATOM = ".card, .tile, .ov-card, .row, .setting, [data-stagger], .rail-item, button, a, input, select, textarea, label, h1, h2, h3, h4, p, li, img, canvas, svg, video, iframe, [role=button], [role=tab]";
 const SKIP = "script, style, template, #open-wave, [hidden]";
 const MAX_PIECES = 160;
+const BLURRED = 40;
+/** The pieces still coming in: a closing stops them (they would go on arriving while the rest fades). */
+let entering: Animation[] = [];
+function stopEntering() {
+  for (const a of entering) a.cancel();
+  entering = [];
+}
 
 /**
  * Every piece of `parts` in view, down to its controls, cards and rows: each
@@ -152,7 +162,7 @@ function piecesOf(parts: Iterable<HTMLElement>, view: { w: number; h: number }):
  * animazioni dei contenuti e non della finestra… scegliamo noi un effetto per tutto»;
  * the circle, the curtain and the particles of 1.0.41 are gone).
  */
-function partsIn(parts: Iterable<HTMLElement>, delay: number, spread = 520) {
+function partsIn(parts: Iterable<HTMLElement>, delay: number, spread = 300) {
   // Hidden until the next frame, then measured once laid out (the island's menu is
   // hidden until the open layout applies: it would come in as one block).
   const list = [...parts];
@@ -161,27 +171,32 @@ function partsIn(parts: Iterable<HTMLElement>, delay: number, spread = 520) {
 }
 
 function piecesIn(parts: HTMLElement[], delay: number, spread: number) {
+  entering = entering.filter((a) => a.playState !== "finished");
   const view = { w: window.innerWidth, h: window.innerHeight };
   const pieces = piecesOf(parts, view);
   if (!pieces.length) return;
   const rects = pieces.map((el) => el.getBoundingClientRect());
   const top = Math.min(...rects.map((r) => r.top)), left = Math.min(...rects.map((r) => r.left));
   const tall = Math.max(1, Math.max(...rects.map((r) => r.top)) - top), wide = Math.max(1, Math.max(...rects.map((r) => r.left)) - left);
+  // Mostly down the page, a little across it: a row comes in from its left.
+  const waits = rects.map((r) => (((r.top - top) / tall) * 0.75 + ((r.left - left) / wide) * 0.25) * spread);
+  // Blur is the costly part: only the first BLURRED to arrive get it (a settings page has up to 160 pieces).
+  const blurUntil = [...waits].sort((x, y) => x - y)[Math.min(BLURRED, waits.length) - 1];
   pieces.forEach((el, i) => {
-    const r = rects[i];
-    // Mostly down the page, a little across it: a row comes in from its left.
-    const wait = (((r.top - top) / tall) * 0.75 + ((r.left - left) / wide) * 0.25) * spread;
+    const wait = waits[i];
+    const blur = wait <= blurUntil ? "blur(10px)" : "blur(0px)";
     // The menu slides in from its side, everything else rises. `translate` and `scale`
     // add to the piece's own transform instead of replacing it.
     const side = el.closest("#rail, nav, .nav, .rail");
-    el.animate(
+    const anim = el.animate(
       [
-        { opacity: 0, filter: "blur(10px)", translate: side ? "-28px 0px" : "0px 30px", scale: "0.9" },
+        { opacity: 0, filter: blur, translate: side ? "-28px 0px" : "0px 30px", scale: "0.9" },
         { opacity: 1, filter: "blur(0px)", translate: "0px 0px", scale: "1" },
       ],
       // Strong enough to be seen while the island is still growing (at 12 px nobody saw it).
       { duration: 620, delay: delay + wait, easing: EASE_OUT, fill: "backwards" },
     );
+    entering.push(anim);
   });
 }
 
@@ -197,7 +212,8 @@ export function openIsland(parts: HTMLElement[]): boolean {
 export function closeIsland(content: HTMLElement): void {
   if (level !== "ricche") return;
   openingUntil = 0;
-  content.animate([{ opacity: 1, filter: "blur(0px)" }, { opacity: 0, filter: "blur(3px)" }], { duration: 180, easing: EASE_IN });
+  stopEntering();
+  content.animate([{ opacity: 1, filter: "blur(0px)" }, { opacity: 0, filter: "blur(3px)" }], { duration: 180, easing: EASE_OUT });
 }
 
 // ── Level 3 for the windows (Impostazioni, Memoria, Flussi) ──────────────────
@@ -231,7 +247,7 @@ export function watchWindow(root: HTMLElement, listen: (name: string, run: (labe
 function openWindow(root: HTMLElement) {
   if (level === "spente") return;
   if (level === "sobrie") {
-    root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+    root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: EASE_OUT });
     return;
   }
   partsIn([root], 80);
@@ -240,5 +256,6 @@ function openWindow(root: HTMLElement) {
 /** Within the 300 ms the app waits before hiding the window (lib.rs `hide_after_fx`): the contents fade. */
 function closeWindow(root: HTMLElement): Animation | null {
   if (level === "spente") return null;
-  return root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: level === "sobrie" ? 140 : 200, easing: EASE_IN, fill: "forwards" });
+  stopEntering();
+  return root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: level === "sobrie" ? 140 : 200, easing: EASE_OUT, fill: "forwards" });
 }
