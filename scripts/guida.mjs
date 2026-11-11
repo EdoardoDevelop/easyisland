@@ -19,6 +19,12 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
 
+// Public address of site/ on GitHub Pages: canonical, hreflang, Open Graph and sitemap need absolute URLs.
+const SITE = "https://edoardodevelop.github.io/easyisland/";
+const OG_IMAGE = `${SITE}media/og.png`;
+const GUIDE_URL = { it: `${SITE}guida/`, en: `${SITE}en/guide/` };
+const pageUrl = (lang, slug) => GUIDE_URL[lang] + (slug === "index" ? "" : `${slug}.html`);
+
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const slugify = (s) =>
   s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/<[^>]+>/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -210,7 +216,18 @@ for (const lang of ["it", "en"]) {
 <link rel="icon" href="${L.up}media/icon.png">
 <link rel="stylesheet" href="${L.up}site.css">
 <link rel="stylesheet" href="${L.up}guida/guida.css">
-${twin ? `<link rel="alternate" hreflang="${otherLang}" href="${otherDir}${twin.slug}.html">` : ""}
+<link rel="canonical" href="${pageUrl(lang, p.slug)}">
+<link rel="alternate" hreflang="${lang}" href="${pageUrl(lang, p.slug)}">
+${twin ? `<link rel="alternate" hreflang="${otherLang}" href="${pageUrl(otherLang, twin.slug)}">` : ""}
+<link rel="alternate" hreflang="x-default" href="${lang === "en" || !twin ? pageUrl(lang, p.slug) : pageUrl("en", twin.slug)}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="EasyIsland">
+<meta property="og:locale" content="${lang === "it" ? "it_IT" : "en_US"}">
+<meta property="og:title" content="${esc(p.title)} — ${T.of}">
+<meta property="og:description" content="${esc(p.lead || `${T.of}: ${p.title}`)}">
+<meta property="og:url" content="${pageUrl(lang, p.slug)}">
+<meta property="og:image" content="${OG_IMAGE}">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body class="guide">
 <header class="top">
@@ -241,3 +258,22 @@ ${toc}
   writeFileSync(join(L.out, "search.json"), JSON.stringify(pages.map((p) => ({ s: p.slug, t: p.title, h: p.toc.map((t) => [t.id, t.text]), x: p.plain }))));
   console.log(`guida ${lang}: ${pages.length} pagine in ${L.out.slice(ROOT.length + 1)}`);
 }
+
+// sitemap.xml for Google Search Console: the two home pages and every guide page, with their twins.
+const entry = (loc, alts) => `<url><loc>${loc}</loc>${alts.map(([l, h]) => `<xhtml:link rel="alternate" hreflang="${l}" href="${h}"/>`).join("")}</url>`;
+const homes = [["en", SITE], ["it", `${SITE}it/`], ["x-default", SITE]];
+const urls = [entry(SITE, homes), entry(`${SITE}it/`, homes)];
+for (const lang of ["it", "en"]) {
+  for (const p of all[lang]) {
+    const twin = all[lang === "it" ? "en" : "it"].find((o) => o.num === p.num);
+    const alts = [[lang, pageUrl(lang, p.slug)]];
+    if (twin) alts.push([lang === "it" ? "en" : "it", pageUrl(lang === "it" ? "en" : "it", twin.slug)]);
+    urls.push(entry(pageUrl(lang, p.slug), alts));
+  }
+}
+writeFileSync(join(ROOT, "site", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urls.join("\n")}
+</urlset>
+`);
+console.log(`sitemap: ${urls.length} indirizzi in site/sitemap.xml`);

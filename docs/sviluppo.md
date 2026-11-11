@@ -2,7 +2,7 @@
 
 ## Guida sul sito
 - Pagine in `docs/guida/NN-slug.md` e `docs/guida/en/` (stesso NN = stessa pagina; NN = ordine nel menu). Prima riga `# Titolo`, poi `> sezione: …` / `> in breve: …` (EN: `> section:` / `> summary:`).
-- `node scripts/guida.mjs` → `site/guida/` e `site/en/guide/` con menu, indice, prima/dopo, ricerca (`search.json`), senza dipendenze. Immagini da `site/media/` (copiate da `screenshots/`); screenshot della guida: `node scripts/screenshots.mjs guida`.
+- `node scripts/guida.mjs` → `site/guida/` e `site/en/guide/` con menu, indice, prima/dopo, ricerca (`search.json`), senza dipendenze; scrive anche `site/sitemap.xml` e mette in ogni pagina canonical, hreflang assoluti e Open Graph (immagine `site/media/og.png`, 1200×630). Le home (`site/index.html`, `site/it/index.html`) hanno gli stessi tag e il JSON-LD `SoftwareApplication` scritti a mano. `robots.txt` non serve: GitHub Pages lo leggerebbe solo alla radice di `edoardodevelop.github.io`; la sitemap si invia da Google Search Console. Immagini da `site/media/` (copiate da `screenshots/`); screenshot della guida: `node scripts/screenshots.mjs guida`.
 - Homepage EN `site/index.html` (principale dal 27/10/2026), IT `site/it/index.html`; `site/en/index.html` rimanda alla radice. Le Impostazioni linkano la guida nella lingua dell'interfaccia (`HOMEPAGE` in `src/settings/main.ts`).
 - `site/` va su GitHub Pages (https://edoardodevelop.github.io/easyisland/) da `.github/workflows/pages.yml` a ogni push in `main` che tocca `site/`. Le novità in fondo alla homepage si aggiornano a ogni versione.
 
