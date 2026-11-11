@@ -4,7 +4,7 @@
 
 # EasyIsland
 
-**Your personal agent on Windows, in an island always within reach.**
+**A Dynamic Island for Claude Code and AI agents on Windows: your personal agent, in an island always within reach.**
 
 It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries out on its own the tasks you hand it, remembers customers, people and projects in a second brain you can explore, works with your services and tools, and reaches you on Telegram too. With the AI engine you choose, free or local included, and without interrupting what you are doing.
 
