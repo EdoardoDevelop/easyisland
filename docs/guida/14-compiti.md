@@ -80,6 +80,7 @@ strumenti: list_status, notion_add_row
 ```
 
 - **Dove**: `%APPDATA%\EasyIsland\abilita\`. In **Impostazioni → Flussi → Abilità** le crei, modifichi, elimini e apri la cartella.
+- **Importarle**: **Importa file…** (uno o più `.md`), **Importa cartella…** (anche le sottocartelle) o **Da Claude Code** (i suoi agenti e skill in `%USERPROFILE%\.claude`). Vanno bene gli agenti scritti per altri strumenti AI, per esempio la raccolta [The Agency](https://github.com/msitarzewski/agency-agents): EasyIsland li riconosce, salta README e guide, e ti mostra l'elenco con nome, descrizione e cartella. Scegli quali tenere (con ricerca e filtro per cartella); se un nome c'è già, decidi se sostituirla o tenerle tutte e due. Con **Adatta con un motore** ognuna viene tradotta in italiano, accorciata e ripulita dagli strumenti che EasyIsland non ha, e la rivedi prima di salvarla. Quelle oltre 20.000 caratteri si importano solo così. Niente viene scritto prima del tuo clic su **Importa** o **Salva**.
 - **Come si usano**: la chat e i compiti vedono l'elenco (nome e descrizione) e leggono quella giusta quando serve. Ogni abilità è anche un **comando**: `/chiusura-ticket` in chat e su Telegram.
 - **Motore**: un'abilità può indicare il motore preferito; un compito lo usa delegandogli quel passo.
 - **Si migliorano da sole**: alla fine di un compito l'agente può proporti di salvare il procedimento come abilità nuova (con Consenti / Nega).

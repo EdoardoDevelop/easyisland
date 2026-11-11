@@ -24,8 +24,8 @@ use crate::i18n::{t, tf};
 /// The index in front of a conversation, at most.
 const MAX_INDEX: usize = 3_000;
 /// One skill's file, at most.
-const MAX_BODY: usize = 20_000;
-const MAX_SKILLS: usize = 200;
+pub(crate) const MAX_BODY: usize = 20_000;
+pub(crate) const MAX_SKILLS: usize = 200;
 
 #[derive(Clone, Debug, Default, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -65,7 +65,7 @@ pub fn slug(name: &str) -> String {
     out.trim_end_matches('-').chars().take(40).collect()
 }
 
-fn valid_id(id: &str) -> bool {
+pub(crate) fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.len() <= 40 && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 

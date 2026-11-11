@@ -2,6 +2,13 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.43** — **Importare abilità** da file e cartelle, in **Impostazioni → Flussi → Abilità**: **Importa file…**,
+**Importa cartella…** (anche le sottocartelle) e **Da Claude Code**. Vanno bene gli agenti scritti per altri strumenti AI,
+come la raccolta **The Agency**, e le skill di Claude Code: EasyIsland li riconosce, salta README e guide e mostra l'**elenco**
+con nome, descrizione e cartella, da cui scegli quali tenere (ricerca, filtro per cartella, «esiste già»: sostituisci o tieni
+tutte e due). Con **Adatta con un motore** ognuna viene tradotta in italiano, accorciata e ripulita dagli strumenti che
+EasyIsland non ha, e la **rivedi prima di salvarla**.
+
 **1.0.42** — **Gruppi nel menu** dell'isola, come le cartelle di un telefono: trascini un'integrazione sopra un'altra e
 nasce un gruppo, con il nome da scrivere subito e il **colore** che vuoi; ci trascini dentro le altre, le porti fuori per
 toglierle. Nelle **integrazioni personali** il **campo collegato** cerca mentre scrivi nelle schede di un'altra integrazione

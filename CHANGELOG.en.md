@@ -2,6 +2,13 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.43** — **Importing skills** from files and folders, in **Settings → Flows → Skills**: **Import files…**,
+**Import folder…** (subfolders included) and **From Claude Code**. Agents written for other AI tools work too, such as the
+**The Agency** collection, and Claude Code's skills: EasyIsland recognises them, skips READMEs and guides and shows the
+**list** with name, description and folder, where you pick the ones to keep (search, folder filter, «already there»: replace
+or keep both). With **Adapt with an engine** each one is translated, shortened and cleaned of tools EasyIsland doesn't
+have, and you **review it before it is saved**.
+
 **1.0.42** — **Groups in the island's menu**, like a phone's folders: drag an integration onto another and a group is
 made, with its name to type right away and the **colour** you like; drag others in, drag them out to remove them. In
 **custom integrations** the **link field** searches another integration's records as you type (clients, price list,

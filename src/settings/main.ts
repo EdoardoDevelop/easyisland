@@ -10,14 +10,14 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 
 /** The animated logo's character id (logo-anim.ts). */
 const LOGO_ID = LOGO_CHARACTER.id;
-import { type DoneItem, type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
+import { type DoneItem, type MemoryInfo, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
-import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
+import { N_, language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle, uiStyle } from "../core/uistyle";
 import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type FontPick } from "../core/fonts";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
@@ -5419,12 +5419,378 @@ function skillsSection(): HTMLElement {
   });
   const folder = h("button", { text: t("Apri la cartella") }) as HTMLButtonElement;
   folder.addEventListener("click", () => void Bridge.skillsOpen());
+  const importFrom = (label: string, from: "files" | "folder" | "claude", title: string) => {
+    const b = h("button", { text: label, title }) as HTMLButtonElement;
+    b.addEventListener("click", () => void startSkillImport(from, b));
+    return b;
+  };
   void refreshSkills();
+  // Browser preview: ?page=compiti&importa opens the import with demo files.
+  if (!IS_TAURI && new URLSearchParams(location.search).has("importa")) {
+    setTimeout(() => void startSkillImport("folder", h("button", {}) as HTMLButtonElement), 300);
+  }
   return h("section", {},
     h("h2", {}, h("span", { text: t("Abilità") })),
     h("span", { class: "hint", text: t("Procedure scritte una volta, che la chat e i compiti seguono quando servono: per esempio «resoconto mensile di un cliente» o «controllo dei backup». Ognuna è un file .md che puoi modificare, ha un motore preferito se vuoi, ed è anche il comando /nome nella chat. Si creano anche dalla chat: «ricordati come si fa…».") }),
-    h("div", { class: "row" }, add, folder),
+    h("div", { class: "row", style: "flex-wrap:wrap" }, add,
+      importFrom(t("Importa file…"), "files", t("Uno o più file .md, anche scritti per altri agenti AI")),
+      importFrom(t("Importa cartella…"), "folder", t("Una cartella con agenti o skill, per esempio una raccolta scaricata da GitHub: elenca quelli che trova, anche nelle sottocartelle")),
+      importFrom(t("Da Claude Code"), "claude", t("Gli agenti e le skill di Claude Code in %USERPROFILE%\\.claude")),
+      folder),
+    h("div", { id: "skills-import" }),
     list);
+}
+
+// ── Abilità → «Importa…» (skillimport.rs) ─────────────────────────────────────
+
+interface ImportRow {
+  c: SkillCandidate;
+  on: boolean;
+  /** The skill with the same id goes (otherwise this one becomes «… (2)»). */
+  replace: boolean;
+  /** The engine's rewrite, editable before saving. */
+  adapted?: SkillPick;
+  error?: string;
+}
+
+interface SkillImport {
+  scan: SkillScan;
+  rows: ImportRow[];
+  query: string;
+  group: string;
+  adapt: boolean;
+  engine: string;
+  stage: "pick" | "adapting" | "review";
+  /** «Ferma» while adapting. */
+  stop: boolean;
+}
+
+let skillImport: SkillImport | null = null;
+
+async function startSkillImport(from: "files" | "folder" | "claude", button: HTMLButtonElement) {
+  const box = document.getElementById("skills-import");
+  if (!box) return;
+  button.disabled = true;
+  try {
+    const scan = IS_TAURI ? await Bridge.skillsImportScan(from) : demoSkillScan();
+    if (!scan) return; // cancelled
+    if (!readyEngines) await loadReadyEngines();
+    const engine = readyEngines?.has(settings.chatEngine) ? settings.chatEngine : [...(readyEngines ?? [])][0] ?? settings.chatEngine;
+    skillImport = {
+      scan,
+      // Nothing ticked when there are many: the user picks; a few, all of them.
+      rows: scan.items.map((c) => ({ c, on: scan.items.length <= 10 && !c.tooLong, replace: false })),
+      query: "", group: "", adapt: false, engine, stage: "pick", stop: false,
+    };
+    paintSkillImport();
+  } catch (e) {
+    clear(box);
+    box.append(h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") }));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function paintSkillImport(notice?: HTMLElement) {
+  const box = document.getElementById("skills-import");
+  if (!box) return;
+  clear(box);
+  if (notice) box.append(notice);
+  const s = skillImport;
+  if (!s) return;
+  if (s.stage === "pick") box.append(importPickPanel(s));
+  else if (s.stage === "adapting") box.append(importProgressPanel(s));
+  else box.append(importReviewPanel(s));
+}
+
+const KIND_LABEL: Record<SkillCandidate["kind"], string> = {
+  agent: N_("agente"),
+  skill: N_("skill di Claude Code"),
+  markdown: N_("Markdown"),
+};
+
+function closeSkillImport(notice?: HTMLElement) {
+  skillImport = null;
+  paintSkillImport(notice);
+}
+
+/** Step 1: what was found, ticked by the user. */
+function importPickPanel(s: SkillImport): HTMLElement {
+  const groups = [...new Set(s.rows.map((r) => r.c.group).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const list = h("div", { class: "prop-list skill-import-list" });
+  const foot = h("div", { class: "row", style: "flex-wrap:wrap" });
+  const warn = h("div", {});
+  const visible = () => {
+    const q = s.query.trim().toLowerCase();
+    return s.rows.filter((r) => (!s.group || r.c.group === s.group)
+      && (!q || `${r.c.name} ${r.c.description} ${r.c.id}`.toLowerCase().includes(q)));
+  };
+  const usable = (r: ImportRow) => s.adapt || !r.c.tooLong;
+
+  const paintFoot = () => {
+    const chosen = s.rows.filter((r) => r.on && usable(r));
+    const added = chosen.filter((r) => !r.c.exists || !r.replace).length;
+    clear(warn);
+    if (s.scan.existing + added > s.scan.max) {
+      warn.append(h("div", { class: "notice warn", text: t("Ci sono già {n} abilità: ne entrano ancora {free} (massimo {max}).", { n: String(s.scan.existing), free: String(Math.max(0, s.scan.max - s.scan.existing)), max: String(s.scan.max) }) }));
+    }
+    go.disabled = chosen.length === 0;
+    go.textContent = s.adapt
+      ? t("Adatta {n} abilità", { n: String(chosen.length) })
+      : t("Importa {n} abilità", { n: String(chosen.length) });
+  };
+
+  const row = (r: ImportRow): HTMLElement => {
+    const box = h("input", { type: "checkbox" }) as HTMLInputElement;
+    box.checked = r.on && usable(r);
+    box.disabled = !usable(r);
+    const item = h("div", { class: box.checked ? "prop-item" : "prop-item off", "data-item": `import-${r.c.id}` });
+    box.addEventListener("change", () => {
+      r.on = box.checked;
+      item.className = box.checked ? "prop-item" : "prop-item off";
+      paintFoot();
+    });
+    const meta = [
+      t(KIND_LABEL[r.c.kind]),
+      t("{n} caratteri", { n: r.c.body.length.toLocaleString(locale()) }),
+      r.c.dropped.length ? t("senza: {f}", { f: r.c.dropped.join(", ") }) : "",
+    ].filter(Boolean).join(" · ");
+    const extra: Node[] = [];
+    if (r.c.exists) {
+      const pick = h("select", {}) as HTMLSelectElement;
+      pick.append(h("option", { value: "both", text: t("Tieni tutte e due") }), h("option", { value: "replace", text: t("Sostituisci quella che c'è") }));
+      pick.value = r.replace ? "replace" : "both";
+      pick.addEventListener("change", () => { r.replace = pick.value === "replace"; paintFoot(); });
+      extra.push(h("div", { class: "row skill-import-warn" }, h("span", { class: "hint warn-text", text: t("C'è già un'abilità /{id}", { id: r.c.id }) }), pick));
+    }
+    if (r.c.tooLong) {
+      extra.push(h("span", { class: "hint warn-text", text: t("Troppo lunga per un'abilità (massimo 20.000 caratteri): si importa solo adattandola con un motore, che la accorcia.") }));
+    }
+    item.append(
+      h("label", { class: "prop-main" }, box,
+        h("span", { class: "skill-import-text" },
+          h("span", { class: "skill-import-name" },
+            h("b", { text: r.c.name }),
+            h("span", { class: "hint", text: ` /${r.c.id}` }),
+            r.c.group ? h("span", { class: "skill-import-group", text: r.c.group }) : ""),
+          r.c.description ? h("span", { class: "hint", text: r.c.description }) : "",
+          h("span", { class: "hint skill-import-meta", text: meta }))),
+      ...extra);
+    return item;
+  };
+
+  const paintRows = () => {
+    clear(list);
+    const rows = visible();
+    if (!rows.length) list.append(h("span", { class: "hint", text: t("Nessuna corrisponde.") }));
+    for (const r of rows) list.append(row(r));
+  };
+
+  const search = h("input", { type: "search", value: s.query, placeholder: t("Cerca per nome o descrizione"), style: "flex:1 1 200px" }) as HTMLInputElement;
+  search.addEventListener("input", () => { s.query = search.value; paintRows(); });
+  const tools: Node[] = [search];
+  if (groups.length > 1) {
+    const group = h("select", {}) as HTMLSelectElement;
+    group.append(h("option", { value: "", text: t("Tutte le cartelle ({n})", { n: String(s.rows.length) }) }));
+    for (const g of groups) group.append(h("option", { value: g, text: `${g} (${s.rows.filter((r) => r.c.group === g).length})` }));
+    group.value = s.group;
+    group.addEventListener("change", () => { s.group = group.value; paintRows(); });
+    tools.push(group);
+  }
+  const mark = (on: boolean) => () => {
+    for (const r of visible()) if (usable(r)) r.on = on;
+    paintRows();
+    paintFoot();
+  };
+  tools.push(h("button", { class: "link-btn", text: t("Tutte"), onclick: mark(true) }), h("button", { class: "link-btn", text: t("Nessuna"), onclick: mark(false) }));
+
+  const adapt = h("input", { type: "checkbox" }) as HTMLInputElement;
+  adapt.checked = s.adapt;
+  const engine = h("select", {}) as HTMLSelectElement;
+  for (const e of CHAT_ENGINES) {
+    const ready = !readyEngines || readyEngines.has(e.id);
+    engine.append(h("option", { value: e.id, text: ready ? e.name : `${e.name} — ${t("non pronto")}`, disabled: !ready }));
+  }
+  engine.value = s.engine;
+  engine.disabled = !s.adapt;
+  engine.addEventListener("change", () => { s.engine = engine.value; });
+  adapt.addEventListener("change", () => {
+    s.adapt = adapt.checked;
+    engine.disabled = !s.adapt;
+    paintRows();
+    paintFoot();
+  });
+
+  const go = h("button", { class: "primary" }) as HTMLButtonElement;
+  go.addEventListener("click", () => {
+    const chosen = s.rows.filter((r) => r.on && usable(r));
+    if (!chosen.length) return;
+    if (s.adapt) void runAdapt(s);
+    else void saveImport(chosen.map((r) => ({ name: r.c.name, description: r.c.description, body: r.c.body, replace: r.c.exists && r.replace })));
+  });
+  const cancel = h("button", { text: t("Annulla"), onclick: () => closeSkillImport() }) as HTMLButtonElement;
+  foot.append(go, cancel);
+
+  const found = t("{n} trovate in {root}", { n: String(s.scan.items.length), root: s.scan.root });
+  const notes: Node[] = [];
+  if (s.scan.ignored) notes.push(h("span", { class: "hint", text: t("{n} file .md saltati: README, guide, note senza nome né descrizione.", { n: String(s.scan.ignored) }) }));
+  if (s.scan.truncated) notes.push(h("div", { class: "notice warn", text: t("Cartella molto grande: letti solo i primi 2.000 file .md. Scegli una sottocartella per vedere il resto.") }));
+
+  paintRows();
+  paintFoot();
+  if (!s.rows.length) {
+    return h("div", { class: "task qa-edit skill-import" },
+      h("div", { class: "task-head" }, h("span", { class: "task-title", text: t("Importa abilità") })),
+      h("div", { class: "notice warn", text: t("Nessun agente né skill qui: servono file .md con un'intestazione name/description, o cartelle con SKILL.md. Un file senza intestazione si importa scegliendolo con «Importa file…».") }),
+      ...notes,
+      h("div", { class: "row" }, cancel));
+  }
+  return h("div", { class: "task qa-edit skill-import" },
+    h("div", { class: "task-head" }, h("span", { class: "task-title", text: t("Importa abilità") })),
+    h("span", { class: "hint path", text: found }),
+    ...notes,
+    h("div", { class: "row", style: "flex-wrap:wrap" }, ...tools),
+    list,
+    h("label", { class: "row skill-import-adapt" }, adapt,
+      h("span", { text: t("Adatta con un motore") }), engine),
+    h("span", { class: "hint note", text: t("il motore le traduce in italiano, le accorcia e toglie i riferimenti a strumenti che EasyIsland non ha; le vedi tutte prima di salvarle. Una chiamata per abilità. Senza, si importano così come sono, in pochi istanti.") }),
+    warn,
+    foot);
+}
+
+/** Step 2 (optional): the engine rewrites them one by one. */
+async function runAdapt(s: SkillImport) {
+  s.stage = "adapting";
+  s.stop = false;
+  const todo = s.rows.filter((r) => r.on);
+  for (const r of todo) { r.adapted = undefined; r.error = undefined; }
+  for (let i = 0; i < todo.length && !s.stop; i++) {
+    const r = todo[i];
+    progress = { at: i + 1, of: todo.length, name: r.c.name };
+    paintSkillImport();
+    try {
+      r.adapted = IS_TAURI ? await Bridge.skillAdapt(r.c.name, r.c.description, r.c.body, s.engine) : await demoAdapt(r.c);
+    } catch (e) {
+      r.error = String(e).replace(/^Error:\s*/, "");
+    }
+    if (skillImport !== s) return; // closed meanwhile
+  }
+  s.stage = "review";
+  paintSkillImport();
+}
+
+let progress = { at: 0, of: 0, name: "" };
+
+function importProgressPanel(s: SkillImport): HTMLElement {
+  const stop = h("button", { text: s.stop ? t("Mi fermo dopo questa…") : t("Ferma") }) as HTMLButtonElement;
+  stop.disabled = s.stop;
+  stop.addEventListener("click", () => { s.stop = true; paintSkillImport(); });
+  return h("div", { class: "task qa-edit skill-import" },
+    h("div", { class: "task-head" }, h("span", { class: "task-title", text: t("Importa abilità") })),
+    h("div", { class: "row" },
+      h("span", { text: t("Adatto {at} di {of}: {name}…", { at: String(progress.at), of: String(progress.of), name: progress.name }) })),
+    h("progress", { max: String(progress.of), value: String(Math.max(0, progress.at - 1)), style: "width:100%" }),
+    h("div", { class: "row" }, stop));
+}
+
+/** Step 3: the rewrites, editable, before saving. */
+function importReviewPanel(s: SkillImport): HTMLElement {
+  const done = s.rows.filter((r) => r.on && (r.adapted || r.error));
+  const list = h("div", { class: "tasks" });
+  const save = h("button", { class: "primary" }) as HTMLButtonElement;
+  const count = () => {
+    const n = done.filter((r) => r.on && (r.adapted || !r.c.tooLong)).length;
+    save.textContent = t("Salva {n} abilità", { n: String(n) });
+    save.disabled = n === 0;
+  };
+  for (const r of done) {
+    const box = h("input", { type: "checkbox" }) as HTMLInputElement;
+    const original = !r.adapted;
+    box.checked = !(original && r.c.tooLong);
+    box.disabled = original && r.c.tooLong;
+    const p = r.adapted ?? { name: r.c.name, description: r.c.description, body: r.c.body };
+    r.adapted = r.adapted ?? (r.c.tooLong ? undefined : { ...p });
+    const name = h("input", { type: "text", value: p.name, style: "flex:1 1 220px" }) as HTMLInputElement;
+    const description = h("input", { type: "text", value: p.description, placeholder: t("Quando usarla"), style: "flex:1 1 320px" }) as HTMLInputElement;
+    const body = h("textarea", { class: "mono" }) as HTMLTextAreaElement;
+    body.value = p.body;
+    body.style.minHeight = "160px";
+    const sync = () => {
+      if (r.adapted) Object.assign(r.adapted, { name: name.value, description: description.value, body: body.value });
+      size.textContent = t("Istruzioni · {n} caratteri", { n: body.value.length.toLocaleString(locale()) });
+    };
+    const size = h("summary", {});
+    name.addEventListener("input", sync);
+    description.addEventListener("input", sync);
+    body.addEventListener("input", sync);
+    box.addEventListener("change", () => { r.on = box.checked; card.classList.toggle("off", !box.checked); count(); });
+    const card = h("div", { class: "task skill-import-review" },
+      h("label", { class: "task-head" }, box, h("span", { class: "task-title", text: r.c.name }),
+        r.c.exists ? h("span", { class: "hint", text: r.replace ? t("sostituisce /{id}", { id: r.c.id }) : t("accanto a /{id}", { id: r.c.id }) }) : ""),
+      r.error ? h("div", { class: "notice err", text: t("Non adattata ({e}): resta com'era.", { e: r.error.replace(/\.\s*$/, "") }) }) : "",
+      h("div", { class: "row" }, name),
+      h("div", { class: "row" }, description),
+      h("details", {}, size, body));
+    sync();
+    list.append(card);
+  }
+  save.addEventListener("click", () => {
+    const picks = done.filter((r) => r.on && r.adapted).map((r) => ({ ...r.adapted!, replace: r.c.exists && r.replace }));
+    void saveImport(picks);
+  });
+  count();
+  const back = h("button", { text: t("Indietro"), onclick: () => { s.stage = "pick"; paintSkillImport(); } }) as HTMLButtonElement;
+  const cancel = h("button", { text: t("Annulla"), onclick: () => closeSkillImport() }) as HTMLButtonElement;
+  const failed = done.filter((r) => r.error).length;
+  return h("div", { class: "task qa-edit skill-import" },
+    h("div", { class: "task-head" }, h("span", { class: "task-title", text: t("Controlla prima di salvare") })),
+    h("span", { class: "hint", text: failed
+      ? t("{n} adattate, {f} non riuscite. Apri «Istruzioni» per leggerle o correggerle.", { n: String(done.length - failed), f: String(failed) })
+      : t("{n} adattate. Apri «Istruzioni» per leggerle o correggerle.", { n: String(done.length) }) }),
+    list,
+    h("div", { class: "row" }, save, back, cancel));
+}
+
+async function saveImport(picks: SkillPick[]) {
+  let notice: HTMLElement;
+  try {
+    const report = IS_TAURI ? await Bridge.skillsImport(picks) : { saved: picks.map((p) => p.name), errors: [] as [string, string][] };
+    notice = h("div", { class: report.errors.length ? "notice warn" : "notice ok" },
+      h("div", { text: report.saved.length === 1 ? t("Importata 1 abilità.") : t("Importate {n} abilità.", { n: String(report.saved.length) }) }),
+      ...report.errors.map(([name, why]) => h("div", { text: `${name}: ${why}` })));
+  } catch (e) {
+    notice = h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") });
+  }
+  closeSkillImport(notice);
+  await refreshSkills();
+}
+
+/** Browser preview (npm run dev): a folder like The Agency's. */
+function demoSkillScan(): SkillScan {
+  const item = (group: string, id: string, name: string, description: string, extra: Partial<SkillCandidate> = {}): SkillCandidate => ({
+    path: `C:\\Users\\demo\\agency-agents\\${group}\\${id}.md`, id, name, description, group, kind: "agent",
+    body: `# ${name}\n\n## Core Mission\n${description}\n\n## Critical Rules\n- Be precise.\n`, dropped: ["color"], exists: false, tooLong: false, ...extra,
+  });
+  return {
+    root: "C:\\Users\\demo\\agency-agents", ignored: 14, truncated: false, existing: 6, max: 200,
+    items: [
+      item("engineering", "frontend-developer", "Frontend Developer", "React/Vue/Angular, UI implementation, performance"),
+      item("engineering", "backend-architect", "Backend Architect", "API design, database architecture, scalability"),
+      item("engineering", "devops-automator", "DevOps Automator", "CI/CD, infrastructure automation, cloud operations", { tooLong: true, body: "x".repeat(24000) }),
+      item("finance", "financial-analyst", "Financial Analyst", "Budgets, forecasts, cash flow and reporting for small businesses"),
+      item("sales", "sales-engineer", "Sales Engineer", "Technical pre-sales, demos, proposals and objection handling", { exists: true }),
+      item("support", "support-responder", "Support Responder", "Customer support replies that are fast, kind and accurate"),
+      item("support", "analytics-reporter", "Analytics Reporter", "Turns support data into weekly reports and insights"),
+      item("project-management", "project-shepherd", "Project Shepherd", "Keeps cross-team projects on time, with clear owners and dates"),
+      item("skills", "pdf-tools", "Pdf tools", "Fill, merge and split PDF files", { kind: "skill", group: "skills", dropped: [] }),
+    ],
+  };
+}
+
+async function demoAdapt(c: SkillCandidate): Promise<SkillPick> {
+  await new Promise((r) => setTimeout(r, 450));
+  if (c.id === "backend-architect") throw new Error(t("Il motore non ha risposto."));
+  return { name: `${c.name} (IT)`, description: `Quando serve: ${c.description}`, body: `# Ruolo\n${c.description}\n\n## Regole\n- Sii preciso.\n- Usa gli strumenti disponibili.` };
 }
 
 async function refreshSkills() {
