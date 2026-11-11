@@ -80,6 +80,42 @@ pub fn follow(hwnd: HWND) {
     send(hwnd);
 }
 
+/// barsys.rs, every turn of its loop (~2 s) while the element is in the bar: the
+/// window in front read here too, not only through context.rs's hook thread.
+/// That thread also moves the island at each change of window: once stuck there,
+/// the title stood still until EasyIsland was restarted (Edoardo, 10 Nov 2026,
+/// «a volte dovevo chiudere e riaprire, stavolta non va per niente»). Only the
+/// window and its title are sent from here; the hook on title changes stays on
+/// its thread. A change the hook missed is written in the log, once until it
+/// catches up again, to tell whether that thread is the one stuck.
+pub fn poll() {
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+    if !WATCH.load(Ordering::SeqCst) {
+        return;
+    }
+    let hwnd = unsafe { GetForegroundWindow() };
+    if hwnd.0.is_null() {
+        return;
+    }
+    let ours = crate::context::exe_path(hwnd).is_some_and(|p| p.to_lowercase().ends_with("\\easyisland.exe"));
+    if (ours && !working_window(hwnd)) || crate::island::is_shell(hwnd) {
+        return;
+    }
+    let before = FOLLOWED.swap(hwnd.0 as isize, Ordering::SeqCst);
+    if before != hwnd.0 as isize {
+        // Seen here first: the hook thread did not follow this change (yet).
+        if !MISSED.swap(true, Ordering::SeqCst) {
+            crate::log::line("barra fissa: cambio di finestra letto dal controllo periodico, il thread delle finestre non l'aveva seguito");
+        }
+    } else {
+        MISSED.store(false, Ordering::SeqCst);
+    }
+    send(hwnd);
+}
+
+/// A change of window seen by `poll` before the hook: said in the log once.
+static MISSED: AtomicBool = AtomicBool::new(false);
+
 /// One of EasyIsland's windows the user works in: not the island, not the bar or the character's.
 fn working_window(hwnd: HWND) -> bool {
     use tauri::Manager;

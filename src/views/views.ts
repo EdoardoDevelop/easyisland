@@ -4,6 +4,7 @@ import type { Notice } from "../core/state";
 // identically.
 
 import { isSorting, sortable } from "./sortable";
+import * as MenuGroups from "../core/menu-groups";
 import { h, svg, clear, dot, brandOrDot, markIcon, tip } from "./dom";
 import { ICONS } from "./icons";
 import { actionIcon, actionIconSvg } from "./action-icons";
@@ -497,7 +498,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       } else if (showsSummary()) {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
-          + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`;
+          + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`
+          + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
         if (key !== cardKey && !sorting) {
@@ -663,6 +665,13 @@ function renderSummary(actions: ViewActions): HTMLElement {
       h("span", { class: "summary-status", text: status || " " }));
     row.style.setProperty("--c", t.color);
     if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
+    // In a group of the menu: a line along the bottom in the folder's colour (Edoardo, 10/11).
+    const group = MenuGroups.groupOf(t.id);
+    if (group) {
+      row.classList.add("in-group");
+      row.style.setProperty("--g", group.color ?? "#f5a524");
+      row.title = `${row.title} · ${group.name}`;
+    }
     grid.append(row);
   }
   if (!State.tasks.length) grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));

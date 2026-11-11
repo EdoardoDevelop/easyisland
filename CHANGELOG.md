@@ -8,6 +8,9 @@ come la raccolta **The Agency**, e le skill di Claude Code: EasyIsland li ricono
 con nome, descrizione e cartella, da cui scegli quali tenere (ricerca, filtro per cartella, «esiste già»: sostituisci o tieni
 tutte e due). Con **Adatta con un motore** ognuna viene tradotta in italiano, accorciata e ripulita dagli strumenti che
 EasyIsland non ha, e la **rivedi prima di salvarla**.
+Nel menu, trascinando un'integrazione una **linea** mostra dove andrà e si sposta solo al rilascio, così si riesce a
+portarla **dentro un gruppo**; nella **Panoramica** i riquadri di un gruppo hanno una striscia del suo colore. Il **titolo
+della finestra** nella barra non resta più fermo.
 
 **1.0.42** — **Gruppi nel menu** dell'isola, come le cartelle di un telefono: trascini un'integrazione sopra un'altra e
 nasce un gruppo, con il nome da scrivere subito e il **colore** che vuoi; ci trascini dentro le altre, le porti fuori per

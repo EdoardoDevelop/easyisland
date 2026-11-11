@@ -8,6 +8,9 @@ What changed in each version, newest first. The latest ones are summed up in the
 **list** with name, description and folder, where you pick the ones to keep (search, folder filter, «already there»: replace
 or keep both). With **Adapt with an engine** each one is translated, shortened and cleaned of tools EasyIsland doesn't
 have, and you **review it before it is saved**.
+In the menu, dragging an integration shows a **line** where it will go and moves it only on release, so it can be
+dropped **into a group**; in the **Overview** a group's tiles have a stripe of its colour. The **window title** in the bar
+no longer gets stuck.
 
 **1.0.42** — **Groups in the island's menu**, like a phone's folders: drag an integration onto another and a group is
 made, with its name to type right away and the **colour** you like; drag others in, drag them out to remove them. In

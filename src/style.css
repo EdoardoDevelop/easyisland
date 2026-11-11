@@ -4926,6 +4926,18 @@ input[type="range"]::-webkit-slider-thumb {
 .summary-row.badge-approval { border-color: rgba(245, 165, 36, 0.6); }
 .summary-row.badge-error { border-color: rgba(244, 80, 94, 0.6); }
 .summary-row.badge-finished { border-color: rgba(34, 197, 94, 0.5); }
+/* In a group of the menu: a line along the bottom in the folder's colour, cut by the tile's corners. */
+.summary-row.in-group::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--g, #f5a524);
+  opacity: 0.7;
+  pointer-events: none;
+}
 .summary-top {
   display: flex;
   align-items: center;
@@ -5679,6 +5691,9 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Never sideways: rows coming in from the side (motion.ts, a group opened or closed)
+     poked out for a moment and a horizontal scroll bar flashed under the list. */
+  overflow-x: hidden;
   scrollbar-width: thin;
 }
 /* Rows past the bottom edge: the last visible one fades instead of being cut. */
@@ -5775,6 +5790,9 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   outline: none;
   user-select: text;
 }
+/* Let go here, it goes before or after this row (rail-drag.ts): a line on that edge. */
+.rail-item.drop-before { box-shadow: inset 0 2px 0 var(--win-accent, #4cc2ff); border-radius: 0 0 10px 10px; }
+.rail-item.drop-after { box-shadow: inset 0 -2px 0 var(--win-accent, #4cc2ff); border-radius: 10px 10px 0 0; }
 /* Let go here, it goes into this row's group (or makes one with it). */
 .rail-item.merge-target {
   background: color-mix(in srgb, var(--win-accent, #4cc2ff) 22%, transparent);
