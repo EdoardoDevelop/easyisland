@@ -9,7 +9,7 @@ import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, barEdge, barThickness, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
-import { forgetRecords, receiveSource } from "./views/custom";
+import { forgetRecords, previewFor, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
@@ -355,6 +355,12 @@ function linkCharacterWindow(island: Island) {
     sentKey = key;
     send(m);
   };
+  // The chat's custom_preview (custom.rs): the document made here, as «Documento» makes it.
+  void onEvent<{ req: string; id: string; values: Record<string, unknown> }>("custom-preview", (p) => {
+    void previewFor(p.id, p.values ?? {})
+      .then((r) => Bridge.customPreviewDone(p.req, r.html, r.text))
+      .catch((e: unknown) => Bridge.customPreviewDone(p.req, "", `${t("Anteprima non riuscita")}: ${String(e).replace(/^Error:\s*/, "")}`));
+  });
   void onEvent<{ exe?: string; name?: string; title?: string; icon?: string }>("bar-window", (v) => {
     State.barWindow = v ?? null;
     push();

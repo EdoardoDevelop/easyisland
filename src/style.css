@@ -6559,6 +6559,8 @@ html[data-scheme="light"] .work-banner.danger { color: #ad1f2d; background: rgba
 .custom-body {
   max-height: calc(250px + var(--extra-h, 0px));
   overflow-y: auto;
+  /* Never sideways: a link's list over the form must not make the card scroll left and right. */
+  overflow-x: hidden;
   padding-right: 6px;
   scrollbar-width: thin;
 }
@@ -6585,20 +6587,33 @@ textarea.custom-input { resize: vertical; }
 .custom-rows { display: flex; flex-direction: column; gap: 4px; }
 .custom-table { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)) 22px; gap: 4px; align-items: center; }
 .custom-th { font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-3); }
-/* A link searched as you type (src/views/custom-link.ts): the matches in the
-   flow under the box (the card's body scrolls: a floating list would be cut). */
-.custom-pick { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* A link searched as you type (src/views/custom-link.ts): the matches over the
+   form, under the box (or above it, `.up`, when the card's scrolling area has no
+   room below), at most 240 px and then scrolling; never pushing the form down
+   (Edoardo, 11 Nov 2026). The menu's colours, as the right click's. */
+.custom-pick { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .custom-pick-list {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 40;
+  width: max(100%, 260px);
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.22);
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: #1a1c20;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
-.custom-pick-row { grid-column: 1 / -1; }
-.custom-pick-row:has(> .custom-pick-list[style*="none"]) { display: none; }
+.custom-pick-list.up { top: auto; bottom: calc(100% + 3px); }
+/* A column of a table: the last one opens to the left, inside the card. */
+.custom-pick.end .custom-pick-list { left: auto; right: 0; }
+.custom-pick-item { flex: 0 0 auto; }
 .custom-pick-item {
   display: flex;
   flex-direction: column;
@@ -6618,7 +6633,7 @@ textarea.custom-input { resize: vertical; }
 .custom-pick-detail { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
 .custom-pick-detail:empty { display: none; }
 .custom-pick-new { padding: 5px 8px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
-html[data-scheme="light"] .custom-pick-list { border-color: rgba(0, 0, 0, 0.1); background: rgba(0, 0, 0, 0.03); }
+html[data-scheme="light"] .custom-pick-list { border-color: rgba(0, 0, 0, 0.1); background: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); }
 .custom-del { width: 20px; height: 20px; }
 .custom-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 4px; }
 .custom-note { grid-column: 1 / -1; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); }

@@ -2088,6 +2088,8 @@ export interface Custom {
   enabled: boolean;
   fields: CustomField[];
   template: string;
+  /** Another integration whose template (and pictures) it uses when its own is empty. */
+  templateFrom?: string;
   actions: CustomAction[];
   /** How a record reads in the list, with {{campi}}; before titleField. */
   title?: string;

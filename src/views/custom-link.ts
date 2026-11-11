@@ -52,9 +52,12 @@ export function filledFrom(link: CustomLink, source: Custom, r: CustomRecord, ki
 
 export interface Picker {
   el: HTMLElement;
-  /** Where the list of matches goes (under the box, or a row of its own in a table). */
-  list: HTMLElement;
 }
+
+/** Matches shown at most; the list scrolls past its height. */
+const MAX_MATCHES = 30;
+/** The list's height (as in style.css), to choose between below and above the box. */
+const LIST_H = 240;
 
 /**
  * The box. `pick` gets the record's name and the values to fill; `typed` every
@@ -69,9 +72,33 @@ export function linkPicker(link: CustomLink, value: string, kit: LinkKit, pick: 
     placeholder: source ? t("Cerca in {name}…", { name: source.name }) : t("Integrazione collegata non trovata"),
   }) as HTMLInputElement;
   kit.hold(input);
+  // Over the form, not in its flow (Edoardo, 11 Nov 2026: the matches pushed the rest of the form down).
   const list = h("div", { class: "custom-pick-list", role: "listbox" });
   list.style.display = "none";
-  const el = h("div", { class: "custom-pick" }, input);
+  const el = h("div", { class: "custom-pick" }, input, list);
+
+  /** Below the box, or above it when the card's scrolling area has no room below. */
+  const place = () => {
+    const area = el.closest<HTMLElement>(".custom-body") ?? document.body;
+    const a = area.getBoundingClientRect();
+    const b = input.getBoundingClientRect();
+    const need = Math.min(LIST_H, list.scrollHeight || LIST_H);
+    const below = a.bottom - b.bottom;
+    const above = b.top - a.top;
+    list.classList.toggle("up", below < need && above > below);
+    // Wider than the box: towards the left when it would come out of the card on the right.
+    el.classList.toggle("end", b.left + Math.max(b.width, list.offsetWidth) > a.right - 4);
+  };
+
+  /** The one picked with the arrows in sight: the list scrolls, never the card around it. */
+  const reveal = () => {
+    const item = list.querySelector<HTMLElement>(".custom-pick-item.on");
+    if (!item) return;
+    const top = item.offsetTop;
+    const bottom = top + item.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+  };
   let found: CustomRecord[] = [];
   let active = -1;
   let records: CustomRecord[] = [];
@@ -110,7 +137,7 @@ export function linkPicker(link: CustomLink, value: string, kit: LinkKit, pick: 
         const nb = fold(kit.titleOf(source, b));
         return Number(nb.startsWith(q)) - Number(na.startsWith(q)) || na.localeCompare(nb);
       })
-      .slice(0, 8);
+      .slice(0, MAX_MATCHES);
     if (active >= found.length) active = found.length - 1;
     found.forEach((r, i) => {
       const item = h("button", { class: i === active ? "custom-pick-item on" : "custom-pick-item", type: "button", role: "option", "aria-selected": String(i === active) },
@@ -133,6 +160,8 @@ export function linkPicker(link: CustomLink, value: string, kit: LinkKit, pick: 
     shown = true;
     list.style.display = "";
     input.setAttribute("aria-expanded", "true");
+    place();
+    reveal();
   };
 
   const open = () => {
@@ -170,5 +199,5 @@ export function linkPicker(link: CustomLink, value: string, kit: LinkKit, pick: 
     }
   });
   input.addEventListener("blur", () => window.setTimeout(close, 120));
-  return { el, list };
+  return { el };
 }

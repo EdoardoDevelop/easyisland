@@ -325,6 +325,44 @@ function titleOf(c: Custom, r: CustomRecord): string {
   return v || r.created;
 }
 
+/**
+ * The description with the template it really uses: its own, or, when that is
+ * empty and `templateFrom` names another integration, that one's (one look for
+ * DDT and register, 11 Nov 2026; its pictures are found by custom.rs `asset`).
+ */
+export function withTemplate(c: Custom): Custom {
+  if (c.template?.trim() || !c.templateFrom) return c;
+  const other = State.customs.find((x) => x.id === c.templateFrom);
+  return other?.template ? { ...c, template: other.template } : c;
+}
+
+/** The page of the document: an HTML template as it is, cleaned; Markdown on EasyIsland's own page. */
+export async function pageFor(c: Custom, values: Record<string, unknown>, answer: Val, name: string): Promise<string> {
+  const ct = withTemplate(c);
+  if (!isHtmlTemplate(ct.template)) return asHtml(name, fillTemplate(ct, values, answer, "md"));
+  const wanted = [...new Set([...ct.template.matchAll(/\{\{file:([^{}]+)\}\}/g)].map((m) => m[1].trim()))];
+  const files: Record<string, string> = {};
+  for (const file of wanted) files[file] = await Bridge.customAsset(c.id, file);
+  return cleanPage(fillTemplate(ct, values, answer, "html", files), name);
+}
+
+/**
+ * The chat's `custom_preview` (custom.rs): the document with these values, made
+ * as «Documento» makes it, and its text for the chat. Nothing is saved.
+ */
+export async function previewFor(id: string, values: Record<string, unknown>): Promise<{ html: string; text: string }> {
+  const c = State.customs.find((x) => x.id === id);
+  if (!c) throw new Error(t("Integrazione non trovata."));
+  const all = { ...blank(c), ...values };
+  const name = `${c.name} ${titleOf(c, { id: "", created: "", updated: "", values: all })}`;
+  const html = await pageFor(c, all, null, name);
+  const ct = withTemplate(c);
+  const text = isHtmlTemplate(ct.template)
+    ? (new DOMParser().parseFromString(html, "text/html").body.textContent ?? "").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim()
+    : fillTemplate(ct, all, null, "md");
+  return { html, text };
+}
+
 /** The field that holds a record's name: where a name written in a link goes (remember). */
 function nameField(c: Custom): CustomField | undefined {
   return c.fields.find((x) => x.id === c.titleField) ?? c.fields.find((x) => x.kind === "text");
@@ -439,7 +477,9 @@ function cardTitle(c: Custom): HTMLElement {
 }
 
 export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
-  const c = State.customs.find((x) => `custom:${x.id}` === task.id);
+  // With the template it really uses (its own, or the one of `templateFrom`): document, copy, preview.
+  const found = State.customs.find((x) => `custom:${x.id}` === task.id);
+  const c = found ? withTemplate(found) : undefined;
   if (!c) return h("div", { class: "int-card" }, h("div", { class: "int-empty", text: t("Integrazione non trovata.") }));
   const d = draftOf(c);
   let fillOpen = false;
@@ -633,7 +673,6 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           }, (text) => {
             d.values[f.id] = text;
           });
-          p.el.append(p.list);
           control = p.el;
           break;
         }
@@ -696,6 +735,29 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
       });
       buttons.append(fresh);
     }
+    // The document as it would come out, without saving: no record, no number used
+    // (a counter shows the one the next record would get). Edoardo, 11 Nov 2026.
+    if (c!.template.trim() && c!.actions.some((a) => a.kind === "document" || a.kind === "pdf")) {
+      const look = h("button", { class: "link-btn", text: t("Anteprima"), title: t("Il documento con questi dati, senza salvare la scheda né usare un numero") }) as HTMLButtonElement;
+      look.addEventListener("click", async () => {
+        look.disabled = true;
+        try {
+          const next = await Bridge.customCounters(c!.id);
+          const values = { ...d.values };
+          for (const [k, v] of Object.entries(next)) if (!values[k]) values[k] = v;
+          const name = `${c!.name} ${titleOf(c!, { id: "", created: "", updated: "", values })}`;
+          const path = await Bridge.customPreviewFile(c!.id, await pageFor(c!, values, d.answer, name));
+          await Bridge.previewOpen(path, true);
+          d.note = { text: t("Anteprima aperta: niente è stato salvato."), ok: true };
+        } catch (e) {
+          d.note = { text: String(e).replace(/^Error:\s*/, ""), ok: false };
+        } finally {
+          look.disabled = false;
+          paint();
+        }
+      });
+      buttons.append(look);
+    }
     box.append(buttons, note);
     if (d.ask) {
       const ask = d.ask;
@@ -739,8 +801,6 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
       table.style.setProperty("--cols", String(f.columns.length));
       table.append(...f.columns.map((col) => h("span", { class: "custom-th", text: col.label })), h("span", {}));
       rows.forEach((row, i) => {
-        // The matches of a link column go on a line of their own under the row, as wide as the table.
-        const under = h("div", { class: "custom-pick-row" });
         for (const col of f.columns) {
           let el: HTMLElement;
           if (col.kind === "link") {
@@ -752,7 +812,8 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
             }, (text) => {
               row[col.id] = text;
             });
-            under.append(p.list);
+            // In the right half of the table the matches open towards the left, inside the card.
+            if (f.columns.indexOf(col) >= f.columns.length / 2) p.el.classList.add("end");
             el = p.el;
           } else if (col.kind === "computed") {
             el = h("span", { class: "custom-cell", "data-cell": `${f.id}|${i}|${col.id}` });
@@ -787,7 +848,6 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           refresh();
         });
         table.append(del);
-        if (under.childElementCount) table.append(under);
       });
     };
     draw();
@@ -810,13 +870,9 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
     }
   }
 
-  /** The page of the document: an HTML template as it is, cleaned; Markdown on EasyIsland's own page. */
+  /** The page of the document (see `pageFor`). */
   async function pageOf(name: string): Promise<string> {
-    if (!isHtmlTemplate(c!.template)) return asHtml(name, fillTemplate(c!, d.values, d.answer, "md"));
-    const wanted = [...new Set([...c!.template.matchAll(/\{\{file:([^{}]+)\}\}/g)].map((m) => m[1].trim()))];
-    const files: Record<string, string> = {};
-    for (const file of wanted) files[file] = await Bridge.customAsset(c!.id, file);
-    return cleanPage(fillTemplate(c!, d.values, d.answer, "html", files), name);
+    return pageFor(c!, d.values, d.answer, name);
   }
 
   /**
