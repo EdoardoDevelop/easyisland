@@ -345,7 +345,10 @@ export function buildRail(actions: ViewActions): ViewHost {
       const icons = State.settings.integrationTabIcons ?? {};
       // The look too: the Windows 11 one draws line glyphs where the classic has emojis.
       const groups = Groups.groups();
-      const key = `${document.documentElement.dataset.ui}|${renaming}|${JSON.stringify(groups)}|` +
+      // Opening or closing a group is not in the key: it is done in place below, so the
+      // other rows are not rebuilt (and do not come in again with their animation).
+      const shape = groups.map((g) => ({ ...g, open: undefined }));
+      const key = `${document.documentElement.dataset.ui}|${renaming}|${JSON.stringify(shape)}|` +
         tasks.map((x) => `${x.id}:${x.name}:${x.color}:${icons[x.id] ?? ""}`).join("|");
       if (key !== listKey && !isRailDragging(list)) {
         listKey = key;
@@ -354,6 +357,16 @@ export function buildRail(actions: ViewActions): ViewHost {
         if (field) {
           field.focus();
           field.select();
+        }
+      }
+      if (!isRailDragging(list)) {
+        for (const g of groups) {
+          const head = list.querySelector<HTMLElement>(`[data-head="${CSS.escape(g.id)}"]`);
+          if (!head || (head.dataset.open === "1") === !!g.open) continue;
+          head.dataset.open = g.open ? "1" : "0";
+          head.setAttribute("aria-expanded", String(!!g.open));
+          head.querySelector(".rail-chevron")?.classList.toggle("open", !!g.open);
+          for (const r of list.querySelectorAll<HTMLElement>(`[data-group="${CSS.escape(g.id)}"]`)) r.style.display = g.open ? "" : "none";
         }
       }
       label.style.display = tasks.length ? "" : "none";

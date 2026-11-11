@@ -87,6 +87,11 @@ pub fn start(app: AppHandle) {
             match cmd {
                 Some(Cmd::Watch(w)) => {
                     if w == watch {
+                        // The same elements, asked again by an island that has just (re)loaded:
+                        // its page has no title yet, so it goes out again (fgwin clears what it sent).
+                        if watch.contains("title") {
+                            crate::fgwin::watch(true);
+                        }
                         continue;
                     }
                     watch = w;
@@ -124,6 +129,10 @@ pub fn start(app: AppHandle) {
             }
             if watch.is_empty() {
                 continue;
+            }
+            // The window in front, also read here: the bar's title never waits on context.rs's thread alone.
+            if watch.contains("title") {
+                crate::fgwin::poll();
             }
             if watch.contains("volume") {
                 state["volume"] = volume(Flow::Render)

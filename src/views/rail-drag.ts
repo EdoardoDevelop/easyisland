@@ -6,6 +6,11 @@
 // them it leaves. A group's row carries its rows along. Out of the island an
 // integration becomes a window, as before.
 //
+// Nothing moves while dragging (10/11, tried with a real mouse): the row aimed
+// at lights up, or a line shows where it would go; it moves on the release. Moving
+// at once shifted the rows as the pointer came in from an edge, and the middle of
+// a row, where a group is made, was never reached.
+//
 // The rows are one flat list: a group's row (`data-head`, `data-open`) is
 // followed by its own (`data-group`), hidden when it is closed.
 
@@ -33,7 +38,7 @@ export function isRailDragging(list: HTMLElement): boolean {
 export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
   let drag: {
     el: HTMLElement; block: HTMLElement[]; x: number; y: number; started: boolean; sort: boolean;
-    before: HTMLElement[]; into: HTMLElement | null;
+    before: HTMLElement[]; into: HTMLElement | null; place: { target: HTMLElement; after: boolean } | null;
   } | null = null;
 
   const rows = () => Array.from(list.children).filter((c): c is HTMLElement => c instanceof HTMLElement && !!c.dataset.id);
@@ -59,6 +64,10 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
     drag?.into?.classList.remove("merge-target");
     if (drag) drag.into = null;
   };
+  const clearPlace = () => {
+    drag?.place?.target.classList.remove("drop-before", "drop-after");
+    if (drag) drag.place = null;
+  };
 
   list.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest("input")) return;
@@ -67,7 +76,7 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
     const sort = opts.enabled();
     // Locked: an integration can still leave the island, a group cannot.
     if (!sort && el.dataset.head) return;
-    drag = { el, block: blockOf(el), x: e.clientX, y: e.clientY, started: false, sort, before: rows(), into: null };
+    drag = { el, block: blockOf(el), x: e.clientX, y: e.clientY, started: false, sort, before: rows(), into: null, place: null };
   });
 
   window.addEventListener("pointermove", (e) => {
@@ -89,6 +98,7 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
     el.classList.toggle("tearing", away);
     if (away || !drag.sort) {
       clearInto();
+      clearPlace();
       return;
     }
     const target = rows().find((s) => {
@@ -98,6 +108,12 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
     });
     if (!target) {
       clearInto();
+      // Back on itself: nowhere to go. In the gap between two rows: the last place shown stays.
+      const self = drag.block.some((b) => {
+        const br = b.getBoundingClientRect();
+        return e.clientY >= br.top && e.clientY <= br.bottom;
+      });
+      if (self) clearPlace();
       return;
     }
     const r = target.getBoundingClientRect();
@@ -105,6 +121,7 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
     // On the middle of a row: into it (an integration only; a group never goes into another).
     const sameGroup = !!el.dataset.group && (target.dataset.head === el.dataset.group || target.dataset.group === el.dataset.group);
     if (!isGroup && !sameGroup && at > MIDDLE[0] && at < MIDDLE[1]) {
+      clearPlace();
       if (drag.into !== target) {
         clearInto();
         drag.into = target;
@@ -113,21 +130,32 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
       return;
     }
     clearInto();
-    const all = rows();
-    const forward = all.indexOf(target) > all.indexOf(drag.block[0]);
+    // Near an edge: where it would go, shown by a line; nothing moves until the release
+    // (moving at once shifted the rows, and the middle of the one aimed at was never reached).
+    const after = at >= 0.5;
+    if (drag.place?.target !== target || drag.place.after !== after) {
+      clearPlace();
+      drag.place = { target, after };
+      target.classList.add(after ? "drop-after" : "drop-before");
+    }
+  });
+
+  /** The release near an edge: the dragged rows go before or after the row aimed at. */
+  const moveTo = (block: HTMLElement[], target: HTMLElement, after: boolean) => {
+    const isGroup = !!block[0].dataset.head;
     // A group moves only around whole groups: never between another one's rows.
     let anchor = target;
     if (isGroup && target.dataset.group) {
       anchor = list.querySelector<HTMLElement>(`[data-head="${CSS.escape(target.dataset.group)}"]`) ?? target;
     }
-    if (forward) {
-      // Past a closed group (or past an open one, for a group): after its last row.
+    if (after) {
+      // After a closed group (or any group, for a group): after its last row.
       if (anchor.dataset.head && (isGroup || anchor.dataset.open !== "1")) anchor = lastOf(anchor);
-      anchor.after(...drag.block);
+      anchor.after(...block);
     } else {
-      anchor.before(...drag.block);
+      anchor.before(...block);
     }
-  });
+  };
 
   const finish = (e: PointerEvent) => {
     const d = drag;
@@ -138,6 +166,8 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
     for (const b of d.block) b.classList.remove("dragging", "tearing");
     const into = d.into;
     into?.classList.remove("merge-target");
+    const place = d.place;
+    place?.target.classList.remove("drop-before", "drop-after");
     // The release would also be a click on the row: swallow it.
     const swallow = (c: Event) => { c.stopPropagation(); c.preventDefault(); };
     list.addEventListener("click", swallow, { capture: true, once: true });
@@ -158,6 +188,9 @@ export function railDrag(list: HTMLElement, opts: RailDragOptions): void {
       else opts.merge(into.dataset.id!, id);
       return;
     }
+    // Let go without a place shown (on itself): nothing changes.
+    if (!place) return;
+    moveTo(d.block, place.target, place.after);
     // Where each row is now, and so in which group.
     const order: string[] = [];
     const members: Record<string, string[]> = {};
