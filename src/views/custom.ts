@@ -20,6 +20,7 @@ import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { forgetSource, linkPicker, sourceRecords, type LinkKit } from "./custom-link";
 import { fileViewer, viewKind } from "./file-viewer";
+import { dependsOn, optionsPicker } from "./custom-options";
 
 export interface CustomHooks {
   askChat(question: string): void;
@@ -219,15 +220,42 @@ function fillText(c: Custom, text: string, all: Record<string, unknown>, answer:
 }
 
 /** The same for a request's body: values that are not text go in as JSON. */
-function fillBody(c: Custom, text: string, all: Record<string, unknown>, answer: Val): string {
-  return text.replace(/\{\{([A-Za-zÀ-ÿ0-9_.]+)\}\}/g, (m, k: string) => {
+export function fillBody(c: Custom, text: string, all: Record<string, unknown>, answer: Val): string {
+  return text.replace(/\{\{([A-Za-zÀ-ÿ0-9_.]+)\}\}/g, (m, k: string, at: number, whole: string) => {
     if (k.startsWith("secret:")) return m;
     const f = c.fields.find((x) => x.id === k);
-    if (!f) return fillText(c, m, all, answer);
+    const quoted = inJsonString(whole.slice(0, at));
+    if (!f) {
+      const out = fillText(c, m, all, answer);
+      return out === m ? m : quoted ? jsonInner(out) : jsonBare(out);
+    }
     const v = all[k];
-    // Inside quotes: the text; outside: the JSON value (numbers, lists, rows).
-    return typeof v === "string" ? v.replace(/\\/g, "\\\\").replace(/"/g, '\\"') : JSON.stringify(v ?? null);
+    // Between quotes the text escaped; outside them the JSON value ("0,9" → 0.9, lists, rows).
+    if (quoted) return jsonInner(typeof v === "string" ? v : v == null ? "" : JSON.stringify(v));
+    return typeof v === "string" ? jsonBare(v) : JSON.stringify(v ?? null);
   });
+}
+
+/** Whether the end of a JSON text is inside a string (odd unescaped quotes). As in custom.rs. */
+function inJsonString(s: string): boolean {
+  let inside = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (escaped) escaped = false;
+    else if (ch === "\\" && inside) escaped = true;
+    else if (ch === '"') inside = !inside;
+  }
+  return inside;
+}
+
+const jsonInner = (s: string) => JSON.stringify(s).slice(1, -1);
+
+/** Outside quotes: a number when it reads as one ("0,9" → 0.9), true/false/null, else a JSON string. */
+function jsonBare(s: string): string {
+  const v = s.trim();
+  if (v === "true" || v === "false" || v === "null") return v;
+  const n = v.includes(",") && !v.includes(".") ? v.replace(",", ".") : v;
+  return /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/.test(n) ? n : JSON.stringify(s);
 }
 
 /** {{#se formula}}…{{/se}} and {{^campo}}…{{/campo}} (only when empty), the inner ones first. */
@@ -491,7 +519,11 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
   const body = h("div", { class: "custom-body" });
   const tabs = h("div", { class: "custom-tabs" });
   const hasForm = c.fields.length > 0;
-  const hasData = (c.sources ?? []).length > 0;
+  // A source that only lists the choices of a select (optionsFrom, no values, title or
+  // alert) stays out of «Dati»: custom-options.ts reads it, once, when it is needed.
+  const shownSources = (c.sources ?? []).filter((s) => !(c.fields.some((f) => f.optionsFrom?.source === s.id)
+    && !s.alert && !s.title && !Object.keys(s.values ?? {}).length));
+  const hasData = shownSources.length > 0;
 
   const tab = (id: Draft["tab"], label: string) => {
     const b = h("button", { class: d.tab === id ? "chip-btn on" : "chip-btn", text: label }) as HTMLButtonElement;
@@ -536,7 +568,7 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
   // ── Data from services ──
   function dataView(): HTMLElement {
     const box = h("div", { class: "custom-list" });
-    for (const s of c!.sources ?? []) {
+    for (const s of shownSources) {
       const key = `${c!.id}/${s.id}`;
       const got = sourceData.get(key);
       const refresh = h("button", { class: "link-btn", text: t("Aggiorna") }) as HTMLButtonElement;
@@ -628,6 +660,36 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           break;
         }
         case "select": {
+          if (f.optionsFrom?.source) {
+            // From a source of its own: searched as you type; the selects that depend on it empty.
+            // A select that depends on this one (its `match` reads it) empties when the value
+            // changes, picked or typed, and so on down the chain.
+            const emptyAfter = (id: string, seen = new Set<string>()) => {
+              for (const x of c!.fields) {
+                if (x.id === id || seen.has(x.id) || !dependsOn(x, id)) continue;
+                seen.add(x.id);
+                d.values[x.id] = "";
+                const shown = box.querySelector<HTMLInputElement>(`.custom-pick-input[data-field="${x.id}"]`);
+                if (shown) {
+                  shown.value = "";
+                  shown.title = "";
+                }
+                emptyAfter(x.id, seen);
+              }
+            };
+            control = optionsPicker(c!, f, () => d.values, hold, (value, fill) => {
+              const changed = String(d.values[f.id] ?? "") !== value;
+              d.values[f.id] = value;
+              Object.assign(d.values, fill);
+              if (changed) emptyAfter(f.id);
+              paint();
+            }, (text) => {
+              const changed = String(d.values[f.id] ?? "") !== text;
+              d.values[f.id] = text;
+              if (changed) emptyAfter(f.id);
+            });
+            break;
+          }
           const el = h("select", { class: "custom-input" }) as HTMLSelectElement;
           el.append(h("option", { value: "", text: "—" }), ...f.options.map((o) => h("option", { value: o, text: o })));
           el.value = String(d.values[f.id] ?? "");

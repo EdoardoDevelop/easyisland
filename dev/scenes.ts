@@ -1352,11 +1352,32 @@ export async function runScene(island: Island, scene: string) {
         Bridge.customHttp = async () => ({ status: 200, ok: true, file: "C:\\Temp\\EasyIsland\\risposte\\risposta-1a2b.wav", data: { file: "C:\\Temp\\EasyIsland\\risposte\\risposta-1a2b.wav", type: "audio/wav", size: 8044 } });
         Bridge.customKeep = async (_path: string, filename: string) => `C:\\Users\\Me\\WORK\\Audio TTS\\${filename.slice(0, 40) || "risposta"}.wav`;
       }
+      // &opzioni: «Motore» and «Voce» chosen from a source of the integration itself
+      // (optionsFrom, custom-options.ts), the voice depending on the model, the price filled.
+      if (new URLSearchParams(location.search).has("opzioni")) {
+        State.customs.push({
+          id: "ttspeak", name: "TTSpeak", icon: "🗣️", color: "#38BDF8", description: "Testo in voce", enabled: true, titleField: "testo",
+          fields: [field({ id: "modello", label: "Motore", kind: "select", optionsFrom: { source: "motori", value: "id", label: "name" }, fill: { prezzo: "pricing.prompt", nota: "{{name}} ({{id}})" } }),
+            field({ id: "voce", label: "Voce", kind: "select", optionsFrom: { source: "motori", match: { id: "{{modello}}" }, list: "supported_voices" } }),
+            field({ id: "prezzo", label: "Prezzo per token" }), field({ id: "nota", label: "Motore scelto" }),
+            field({ id: "testo", label: "Testo", kind: "textarea" })],
+          template: "", actions: [],
+          sources: [{ id: "motori", label: "Motori", url: "https://openrouter.ai/api/v1/models?output_modalities=speech", every: 0, items: "data" }],
+        });
+        const voices = Array.from({ length: 97 }, (_, i) => `voce-${String(i + 1).padStart(2, "0")}`);
+        const data = { data: [
+          { id: "openai/gpt-4o-mini-tts", name: "GPT-4o mini TTS", pricing: { prompt: "0.0000006" }, supported_voices: ["alloy", "echo", "fable", "nova", "shimmer"] },
+          { id: "google/gemini-2.5-flash-tts", name: "Gemini 2.5 Flash TTS", pricing: { prompt: "0.0000005" }, supported_voices: [{ id: "Kore", name: "Kore" }, { id: "Puck", name: "Puck" }] },
+          { id: "esempio/molte-voci", name: "Molte voci", pricing: { prompt: "0.000001" }, supported_voices: voices },
+        ] };
+        const before = Bridge.customFetch;
+        Bridge.customFetch = async (id: string, source: string) => (id === "ttspeak" ? { status: 200, ok: true, data } : before(id, source));
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
       const q = new URLSearchParams(location.search);
-      State.setFocus(q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
+      State.setFocus(q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

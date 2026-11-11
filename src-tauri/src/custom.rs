@@ -94,6 +94,27 @@ pub struct Field {
     pub summary: bool,
     /// computed: money (default), number, percent, text, date, yesno.
     pub format: String,
+    /// select: the choices read from a source of the same integration
+    /// (searched as you type); `fill` then copies paths of the item picked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options_from: Option<OptionsFrom>,
+}
+
+/// A select's choices from a source (11 Nov 2026, for models and voices of a
+/// service that change): its items, or a list inside the item that matches.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct OptionsFrom {
+    /// The id of one of `sources`.
+    pub source: String,
+    /// Paths in each choice: what is saved and what is shown ("" = the choice itself, or "id").
+    pub value: String,
+    pub label: String,
+    /// Only the item whose paths equal these ({{campi}} allowed): { "id": "{{modello}}" }.
+    #[serde(rename = "match")]
+    pub matching: std::collections::BTreeMap<String, String>,
+    /// A list inside that item whose elements are the choices ("supported_voices").
+    pub list: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -270,8 +291,24 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         if !FIELD_KINDS.contains(&f.kind.as_str()) {
             return Err(tf("Campo «{l}»: kind deve essere uno di {k}.", &[("l", &f.label), ("k", &FIELD_KINDS.join(", "))]));
         }
-        if matches!(f.kind.as_str(), "select" | "multiselect") && f.options.is_empty() {
-            return Err(tf("Campo «{l}»: options con le scelte.", &[("l", &f.label)]));
+        if f.kind != "select" {
+            f.options_from = None;
+        }
+        if matches!(f.kind.as_str(), "select" | "multiselect") && f.options.is_empty() && f.options_from.is_none() {
+            return Err(tf("Campo «{l}»: options con le scelte (o optionsFrom con una fonte).", &[("l", &f.label)]));
+        }
+        if let Some(o) = &mut f.options_from {
+            o.source = o.source.trim().to_string();
+            // By its id; written as its label's key, saved with the id (the card looks by id).
+            let Some(s) = c.sources.iter().find(|s| s.id == o.source || key_of(&s.label) == o.source) else {
+                return Err(tf("Campo «{l}»: optionsFrom.source, l'id di una delle sources di questa integrazione.", &[("l", &f.label)]));
+            };
+            if !s.id.trim().is_empty() {
+                o.source = s.id.trim().to_string();
+            }
+            if o.matching.len() > 5 || o.list.len() > 200 || o.value.len() > 200 || o.label.len() > 200 {
+                return Err(tf("Campo «{l}»: optionsFrom troppo lungo (match al massimo 5 voci).", &[("l", &f.label)]));
+            }
         }
         if f.kind == "rows" {
             if f.columns.is_empty() {
@@ -324,7 +361,8 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
     }
     // The fields a link fills: the form's others, never a table, a computed value or a counter.
     let targets: Vec<(String, String)> = c.fields.iter().map(|x| (x.id.clone(), x.kind.clone())).collect();
-    for f in c.fields.iter_mut().filter(|x| x.kind == "link") {
+    // A select from a source fills them too, with paths of the item picked ("pricing.prompt").
+    for f in c.fields.iter_mut().filter(|x| x.kind == "link" || x.options_from.is_some()) {
         f.fill = check_fill(&f.label, &f.id, std::mem::take(&mut f.fill), &targets)?;
     }
     if c.template.len() > MAX_TEMPLATE {
@@ -909,7 +947,7 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
 pub struct Reply {
     pub status: u16,
     pub ok: bool,
-    /// The answer read as JSON when it is, else as text (cut at 200 KB); for a
+    /// The answer read as JSON when it is, else as text (cut at 2 MB); for a
     /// file, { file, type, size } (so {{risposta.file}} and store work).
     pub data: Value,
     /// A file the service answered with (audio, picture, PDF…), in a temp folder.
@@ -917,7 +955,8 @@ pub struct Reply {
     pub file: Option<String>,
 }
 
-const MAX_ANSWER: usize = 200 * 1024;
+/// 2 MB: a list of a service's models with their voices (optionsFrom) is long, and cut it is no longer JSON.
+const MAX_ANSWER: usize = 2 * 1024 * 1024;
 /// A file answered by a service: at most this (a long audio or a short video).
 const MAX_FILE: usize = 200 * 1024 * 1024;
 
@@ -1647,19 +1686,60 @@ fn fill_values(text: &str, values: &Map<String, Value>, encode: bool, json_body:
         };
         let key = after.get(..end).unwrap_or_default().trim();
         let whole = rest.get(start..start + 2 + end + 2).unwrap_or_default();
+        // In a JSON body: between quotes the text escaped, outside them a value
+        // ("speed": {{velocita}} with "0,9" → 0.9; other text → "quoted").
+        let quoted = json_body && in_json_string(&out);
         match values.get(key) {
             _ if key.starts_with("secret:") => out.push_str(whole),
             Some(Value::String(s)) if encode => out.push_str(&url_encode(s)),
-            Some(Value::String(s)) if json_body => out.push_str(&s.replace('\\', "\\\\").replace('"', "\\\"")),
+            Some(Value::String(s)) if quoted => out.push_str(&json_inner(s)),
+            Some(Value::String(s)) if json_body => out.push_str(&json_bare(s)),
+            Some(v) if quoted => out.push_str(&json_inner(&v.to_string())),
             Some(Value::String(s)) => out.push_str(s),
             Some(v) if encode => out.push_str(&url_encode(&v.to_string())),
             Some(v) => out.push_str(&v.to_string()),
-            None => out.push_str(if json_body { "null" } else { "" }),
+            None => out.push_str(if json_body && !quoted { "null" } else { "" }),
         }
         rest = after.get(end + 2..).unwrap_or_default();
     }
     out.push_str(rest);
     out
+}
+
+/// Whether the end of a JSON text being written is inside a string (odd unescaped quotes).
+fn in_json_string(text: &str) -> bool {
+    let mut inside = false;
+    let mut escaped = false;
+    for ch in text.chars() {
+        match ch {
+            _ if escaped => escaped = false,
+            '\\' if inside => escaped = true,
+            '"' => inside = !inside,
+            _ => {}
+        }
+    }
+    inside
+}
+
+/// A text escaped for inside a JSON string: quotes, backslashes, new lines, controls.
+fn json_inner(s: &str) -> String {
+    let q = serde_json::to_string(s).unwrap_or_default();
+    q.get(1..q.len().saturating_sub(1)).unwrap_or_default().to_string()
+}
+
+/// A text outside quotes in a JSON body: a number when it reads as one ("0,9"
+/// → 0.9), true/false/null as they are, anything else as a JSON string.
+fn json_bare(s: &str) -> String {
+    let t = s.trim();
+    if matches!(t, "true" | "false" | "null") {
+        return t.to_string();
+    }
+    let n = if t.contains(',') && !t.contains('.') { t.replace(',', ".") } else { t.to_string() };
+    if serde_json::from_str::<serde_json::Number>(&n).is_ok() {
+        n
+    } else {
+        serde_json::to_string(s).unwrap_or_default()
+    }
 }
 
 fn url_encode(s: &str) -> String {
@@ -1972,6 +2052,39 @@ mod tests {
         assert_eq!(fill_values("https://x.it/s?q={{q}}&n={{n}}", &v, true, false), "https://x.it/s?q=a%20b%2Fc&n=3");
         assert_eq!(fill_values(r#"{"nome":"{{nome}}","n":{{n}},"x":{{manca}}}"#, &v, false, true), r#"{"nome":"Ro\"ssi","n":3,"x":null}"#);
         assert_eq!(fill_values("Bearer {{secret:token}}", &v, false, false), "Bearer {{secret:token}}");
+    }
+
+    #[test]
+    fn a_json_body_gets_numbers_bare_and_text_escaped() {
+        let v: Map<String, Value> = serde_json::from_value(json!({ "vel": "0,9", "testo": "a \"b\"\nc", "voce": "alloy", "n": 2 })).unwrap();
+        let body = fill_values(r#"{"input":"{{testo}}","speed":{{vel}},"voice":{{voce}},"n":"{{n}}"}"#, &v, false, true);
+        assert_eq!(body, r#"{"input":"a \"b\"\nc","speed":0.9,"voice":"alloy","n":"2"}"#);
+        assert!(serde_json::from_str::<Value>(&body).is_ok());
+        assert_eq!(json_bare("007"), "\"007\"");
+        assert_eq!(json_bare("1.5"), "1.5");
+    }
+
+    #[test]
+    fn a_select_takes_its_choices_from_a_source_of_its_own() {
+        let mut c: Custom = serde_json::from_value(json!({
+            "name": "TTS",
+            "sources": [{ "id": "motori", "url": "https://openrouter.ai/api/v1/models", "items": "data" }],
+            "fields": [
+                { "id": "modello", "label": "Motore", "kind": "select", "optionsFrom": { "source": "motori", "value": "id", "label": "name" }, "fill": { "prezzo": "pricing.prompt" } },
+                { "id": "voce", "label": "Voce", "kind": "select", "optionsFrom": { "source": "motori", "match": { "id": "{{modello}}" }, "list": "supported_voices" } },
+                { "id": "prezzo", "label": "Prezzo", "kind": "text" }
+            ]
+        })).unwrap();
+        let n = normalize(c.clone()).unwrap();
+        assert_eq!(n.fields[1].options_from.as_ref().unwrap().matching.get("id").map(String::as_str), Some("{{modello}}"));
+        assert_eq!(n.fields[0].fill.get("prezzo").map(String::as_str), Some("pricing.prompt"));
+        // Written as the source's label: saved with its id, the one the card looks for.
+        let mut by_label = c.clone();
+        by_label.sources[0].label = "Motori TTS".into();
+        by_label.fields[0].options_from.as_mut().unwrap().source = "motori_tts".into();
+        assert_eq!(normalize(by_label).unwrap().fields[0].options_from.as_ref().unwrap().source, "motori");
+        c.fields[0].options_from.as_mut().unwrap().source = "altro".into();
+        assert!(normalize(c).unwrap_err().contains("optionsFrom"));
     }
 
     #[test]

@@ -2039,6 +2039,17 @@ export interface CustomField extends CustomLink {
   summary?: boolean;
   /** computed: money (default), number, percent, text, date, yesno. */
   format?: string;
+  /** select: the choices from a source of the same integration (custom-options.ts). */
+  optionsFrom?: CustomOptionsFrom;
+}
+export interface CustomOptionsFrom {
+  source: string;
+  value?: string;
+  label?: string;
+  /** Only the item whose paths equal these, with {{campi}}: { id: "{{modello}}" }. */
+  match?: Record<string, string>;
+  /** A list inside that item whose elements are the choices. */
+  list?: string;
 }
 export interface CustomAction {
   label: string;

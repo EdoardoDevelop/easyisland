@@ -234,7 +234,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `diff` | le modifiche di Claude Code, dal gestore vero degli hook | — |
 | `agents` | Codex e Gemini CLI come li manda il relay | — |
 | `agenti` | la scheda Agenti | `claude`: l'altro pulsante |
-| `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`); `media` («Messaggi vocali»: campo file con un'immagine e «Genera la voce» che risponde con un audio, salvato con `filename`) |
+| `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`); `media` («Messaggi vocali»: campo file con un'immagine e «Genera la voce» che risponde con un audio, salvato con `filename`); `opzioni` («TTSpeak»: Motore e Voce da una fonte finta con `optionsFrom`, 97 voci in «Molte voci», prezzo e nota compilati) |
 | `documento` | la chat chiede di creare un documento Word (card Consenti/Nega di `document_create`) | — |
 | `pdf` | la chat chiede di unire dei PDF (card Consenti/Nega di `pdf_merge`) | — |
 | `chat&background` | lavori lasciati in background da Claude Code sotto la conversazione, con ✕ e «Ferma tutto» | — |

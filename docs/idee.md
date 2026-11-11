@@ -19,7 +19,7 @@ Fatte l'11/11 tutte e sei (`docs/integrazioni.md` → Integrazioni personali): t
 Fatti l'11/11 (`docs/integrazioni.md` → File in risposta, Lettore, Script): file ricevuti da `http` salvati senza script (`folder`, `filename`, `tray`), lettore nella scheda (immagini, audio, video, PDF, testo, Word) anche per il campo `file`, chiavi negli script come `EASYISLAND_SECRET_<NOME>`, esempio di `EASYISLAND_SCHEDA` nella descrizione di `custom_create`. La TTS si può rifare con un'azione `http`. Restano:
 - «Non chiedere più» per uno `script` approvato (legato all'hash): contro la regola del clic a ogni pressione, serve l'ok di Edoardo; con `http` che salva i file la TTS non ne ha più bisogno.
 - Ritorno dallo script: file `EASYISLAND_RISULTATO` (JSON `{ valori, messaggio }`) che compila campi e mostra un avviso nell'isola.
-- `select` con `optionsFrom { source, items, value, label }` e opzioni dipendenti da un altro campo (voci per motore).
+- Fatto l'11/11: `select` con `optionsFrom` e tendine dipendenti (`docs/integrazioni.md` → Scelte da una fonte). Resta: lo stesso per le colonne delle tabelle.
 - Campo `file` in uscita: file del Vassoio in `multipart/form-data` o base64 (clonazione voce, trascrizione).
 
 ## Agente personale (dal 23/10/2026)
