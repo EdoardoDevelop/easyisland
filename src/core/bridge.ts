@@ -55,6 +55,38 @@ export interface AgentchatInfo {
   engines: [string, string, number?, number?][];
 }
 
+/** A file that would become a skill (skillimport.rs `Candidate`). */
+export interface SkillCandidate {
+  path: string;
+  id: string;
+  name: string;
+  description: string;
+  /** The folder it sits in, "" at the top. */
+  group: string;
+  kind: "agent" | "skill" | "markdown";
+  body: string;
+  dropped: string[];
+  exists: boolean;
+  tooLong: boolean;
+}
+
+export interface SkillScan {
+  root: string;
+  items: SkillCandidate[];
+  ignored: number;
+  truncated: boolean;
+  existing: number;
+  max: number;
+}
+
+/** What gets saved (skillimport.rs `Pick`). */
+export interface SkillPick {
+  name: string;
+  description: string;
+  body: string;
+  replace?: boolean;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   if (!IS_TAURI) return null;
   try {
@@ -569,6 +601,11 @@ export const Bridge = {
   skillDelete: (id: string) => callOrThrow<void>("skill_delete", { id }),
   skillsOpen: () => call<void>("skills_open"),
   skillPrompt: (id: string, arg: string) => callOrThrow<string>("skill_prompt", { id, arg }),
+  /** Abilità → «Importa…» (skillimport.rs): null when the dialog is cancelled. */
+  skillsImportScan: (from: "files" | "folder" | "claude") => callOrThrow<SkillScan | null>("skills_import_scan", { from }),
+  skillsImport: (picks: SkillPick[]) => callOrThrow<{ saved: string[]; errors: [string, string][] }>("skills_import", { picks }),
+  skillAdapt: (name: string, description: string, body: string, engine: string) =>
+    callOrThrow<SkillPick>("skill_adapt", { name, description, body, engine }),
   taskControl: (id: string, action: "start" | "pause" | "resume" | "stop" | "delete") => callOrThrow<void>("task_control", { id, action }),
   taskAnswer: (id: string, text: string) => callOrThrow<void>("task_answer", { id, text }),
   taskLog: (id: string) => call<string>("task_log", { id }),

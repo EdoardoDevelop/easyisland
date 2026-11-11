@@ -80,6 +80,7 @@ strumenti: list_status, notion_add_row
 ```
 
 - **Where**: `%APPDATA%\EasyIsland\abilita\`. In **Settings → Flows → Skills** you create, edit, delete them and open the folder. The header keys are in Italian (`nome`, `descrizione`, `motore`, `strumenti`).
+- **Importing them**: **Import files…** (one or more `.md`), **Import folder…** (subfolders included) or **From Claude Code** (its agents and skills in `%USERPROFILE%\.claude`). Agents written for other AI tools work too, for example the [The Agency](https://github.com/msitarzewski/agency-agents) collection: EasyIsland recognises them, skips READMEs and guides, and shows you the list with name, description and folder. Pick the ones to keep (with search and a folder filter); when a name is already taken, choose whether to replace it or keep both. With **Adapt with an engine** each one is translated into your language, shortened and cleaned of tools EasyIsland doesn't have, and you review it before it is saved. Those over 20,000 characters can only be imported this way. Nothing is written before your click on **Import** or **Save**.
 - **How they're used**: the chat and tasks see the list (name and description) and read the right one when needed. Each skill is also a **command**: `/ticket-closing` in the chat and on Telegram.
 - **Engine**: a skill can state the preferred engine; a task uses it by delegating that step.
 - **They improve by themselves**: at the end of a task the agent may propose saving the procedure as a new skill (with Allow / Deny).

@@ -5,6 +5,13 @@ Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò 
 ## Terminale vero nella chat (9/11/2026)
 Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale). Restano: più schede di terminale, scelta della shell (cmd, WSL), link cliccabili (`@xterm/addon-web-links`, altra dipendenza).
 
+## Importare abilità da file e cartelle (11/11/2026)
+Fatto l'11/11 nella 1.0.43 (`docs/chat.md` → Abilità → Importa), partendo da The Agency (`github.com/msitarzewski/agency-agents`, MIT). Restano:
+- ruolo per tutta la conversazione («Parla con: …»), invece del solo `/id` per un messaggio;
+- ruoli in `task_delegate` (motore + abilità) e squadre da `strategy/runbooks.json` di The Agency come modelli di Compito;
+- installare gli stessi file negli agenti di codice (`~/.claude/agents/`, Codex, Gemini, opencode), solo file nuovi, con anteprima;
+- adattamento di più abilità insieme (oggi una chiamata per abilità, in sequenza).
+
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).

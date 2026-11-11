@@ -1,10 +1,11 @@
 # Handoff — EasyIsland
 
-_10 novembre 2026. **1.0.42** in `main` (tag `v1.0.42`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_11 novembre 2026. **1.0.42** in `main` (tag `v1.0.42`); **1.0.43** pronta su `claude/abilita-import` (import delle abilità), da unire in `claude/sviluppo`. Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Importa abilità** (1.0.43, `docs/chat.md` → Abilità → Importa): provato su The Agency vera con `live_scan` e nell'anteprima; da provare nell'app con «Da Claude Code», una cartella vera e «Adatta con un motore» con i vari motori (risposta nel formato giusto, durata). Seguiti in `docs/idee.md`.
 - [ ] **Terminale vero nella chat** (9/11): fatto con ConPTY e xterm.js (`docs/chat.md` → Terminale); da provare dal vivo (editor, Ctrl+C, finestra staccata). Restano più schede e scelta della shell (`docs/idee.md`).
 - [ ] **Riduci animazioni** (`docs/architettura.md` → Accessibilità): personaggi, apertura dell'isola, Ezzy, luccichio e transizioni CSS non lo rispettano ancora; scelto di rimandarlo il 9/11.
 - [ ] **Notizie** (`docs/chat.md` → Notizie, piano in `docs/idee.md`): fatte (1.0.14–1.0.15) argomenti anche scelti da un motore (mai persone né il nome dell'utente), Google/Bing News, vista elenco/miniature/schede, «Di più»/«Non mi interessa», Panoramica, Buongiorno, Telegram, barra, scheda fissa. Da provare dal vivo; mancano riassunti del motore e argomenti cambiati dalla chat.
@@ -51,6 +52,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 11/11 — Importare abilità da file e cartelle (ramo `claude/abilita-import`, 1.0.43)
+Spunto di Edoardo: The Agency (`msitarzewski/agency-agents`, agenti in Markdown). Impostazioni → Flussi → Abilità: «Importa file…», «Importa cartella…», «Da Claude Code»; `skillimport.rs` riconosce agenti, `SKILL.md` e Markdown, toglie i campi altrui, salta README e guide; elenco con ricerca, filtro per cartella, «esiste già», «troppo lunga»; «Adatta con un motore» (`skill_adapt`, un `chat_turn` Helper per abilità) con revisione prima di salvare. Su The Agency: 284 trovate, 45 saltate, 64 oltre 20.000 caratteri. Scartato prima ZapFast (WhatsApp non ufficiale: rischio di ban del numero).
+
 ### 10/11 — Gruppi nel menu dell'isola (ramo `claude/menu-gruppi`)
 Richiesta di Edoardo per il portatile di lavoro, pieno di integrazioni documentali: trascinando un'integrazione del menu sopra un'altra nasce un gruppo, come sul telefono (nome scritto sul posto, aggiungi trascinando sul gruppo, togli trascinando fuori, clic destro Rinomina/Colore/Sciogli, anche in Impostazioni). `src/core/menu-groups.ts`, `src/views/rail-drag.ts`, `settings.menuGroups` per profilo. Eccezione annotata in `docs/decisioni.md`. `docs/integrazioni.md` → Gruppi del menu, guida 18.
 
@@ -62,7 +66,3 @@ Domanda di Edoardo sul «DDT Easytech» da trasformare in rapportino: la chat ri
 
 ### 10/11 — «Claude Code fuori da EasyIsland» senza le sessioni di EasyIsland
 La lista si riempiva delle sessioni avviate da EasyIsland stesso fuori dalla cartella della chat (sul PC di lavoro 176, in OneDrive\WORK, titolo «[Istruzioni dell'utente per questa chat…»). `desktop::outside` ora salta quelle con `entrypoint` «sdk-cli» (`claude -p`); restano «cli» e «claude-desktop». `docs/chat.md`.
-
-### 10/11 — «File e schermo» riordinata, menu ⋯ della cartella di lavoro
-Il «⋯» della Cartella di lavoro metteva i pulsanti dentro la tessera e in griglia allungava la fila: ora usa il menu dell'isola come il Vassoio, «Sposta nel Cestino…» chiede conferma sopra l'elenco. In griglia solo «⋯» sulla tessera (Chiedi e Apri nel menu). Vassoio: «Fissa nel Vassoio» / «Togli la puntina» e puntina visibile. Pagina in sezioni (Vassoio, Cartella di lavoro, Raccolta, Registra), Raccolta vuota in una riga, icone disegnate al posto di ☰ ▦ +. `docs/strumenti.md`, guida 17.
-

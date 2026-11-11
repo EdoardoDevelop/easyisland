@@ -258,7 +258,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 
 | Pagina | Query |
 |---|---|
-| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto` |
+| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto`; `importa` (con `page=compiti`: import di abilità con file e motore finti) |
 | `memoria.html` | `tab=timeline\|graph\|graph3d\|mind\|concept`, `select=<id del nodo>`, `ui=classic`, `scheme=light\|auto`, `many=<n>` (memoria finta grande, fino a 3000 nodi, per provare le etichette) |
 | `anteprima.html` | `tab=<numero>` (di serie 2) |
 | `dev/icons-preview.html` | solo le icone animate |

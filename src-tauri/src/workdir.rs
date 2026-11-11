@@ -309,6 +309,11 @@ pub fn pick_folder(start: Option<String>) -> Result<Option<String>, String> {
 
 /// Windows' open dialog for the chat's 📎: several files, or several folders; empty when cancelled.
 pub fn pick_paths(folders: bool) -> Result<Vec<String>, String> {
+    pick_paths_titled(folders, if folders { t("Allega cartelle alla chat") } else { t("Allega file alla chat") })
+}
+
+/// The same dialog with its own title (Abilità → «Importa…»).
+pub fn pick_paths_titled(folders: bool, title: &str) -> Result<Vec<String>, String> {
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
     use windows::Win32::UI::Shell::{FileOpenDialog, IFileOpenDialog, FOS_ALLOWMULTISELECT, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, SIGDN_FILESYSPATH};
     unsafe {
@@ -320,7 +325,7 @@ pub fn pick_paths(folders: bool) -> Result<Vec<String>, String> {
                 options |= FOS_PICKFOLDERS;
             }
             dialog.SetOptions(options)?;
-            let title: Vec<u16> = if folders { t("Allega cartelle alla chat") } else { t("Allega file alla chat") }.encode_utf16().chain([0]).collect();
+            let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
             dialog.SetTitle(windows::core::PCWSTR(title.as_ptr()))?;
             if dialog.Show(None).is_err() {
                 return Ok(Vec::new()); // cancelled

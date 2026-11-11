@@ -93,6 +93,7 @@ mod secrets;
 mod settings;
 mod teams;
 mod custom;
+mod skillimport;
 mod skills;
 mod tasks;
 mod team;
@@ -4339,6 +4340,47 @@ fn skills_open() -> Result<(), String> {
     Command::new("explorer").arg(skills::dir()).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Abilità → «Importa…» (skillimport.rs): "files", "folder" or "claude" (Claude Code's
+/// agents and skills) → what they would become; None when the dialog is cancelled.
+#[tauri::command]
+async fn skills_import_scan(from: String) -> Result<Option<skillimport::Scan>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = match from.as_str() {
+            "claude" => {
+                let dirs = skillimport::claude_code_dirs();
+                if dirs.is_empty() {
+                    return Err(t("Nessun agente né skill di Claude Code in %USERPROFILE%\\.claude.").into());
+                }
+                dirs
+            }
+            "folder" => workdir::pick_paths_titled(true, t("Cartelle da cui importare le abilità"))?,
+            _ => workdir::pick_paths_titled(false, t("File da importare come abilità"))?,
+        };
+        Ok((!paths.is_empty()).then(|| skillimport::scan(&paths)))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// «Importa N abilità»: only what the user ticked, after the list.
+#[tauri::command]
+fn skills_import(picks: Vec<skillimport::Pick>) -> skillimport::Report {
+    skillimport::import(&picks)
+}
+
+/// «Adatta con …»: one skill rewritten by an engine, shown before it is saved.
+#[tauri::command]
+async fn skill_adapt(app: AppHandle, name: String, description: String, body: String, engine: String) -> Result<skillimport::Pick, String> {
+    let chat = claude::Chat::default();
+    let engine = Some(engine).filter(|e| !e.trim().is_empty());
+    let opencode = engine.as_deref() == Some("opencode");
+    let reply = chat_turn(&app, &chat, skillimport::adapt_prompt(&name, &description, &body), None, engine, None, false, Channel::Helper, &|_| {}).await;
+    if opencode {
+        opencode::forget(chat.cli_session());
+    }
+    skillimport::adapted(&reply?.text, &name, &description)
+}
+
 /// What a skill's «/command» sends to the chat.
 #[tauri::command]
 fn skill_prompt(id: String, arg: String) -> Result<String, String> {
@@ -4529,6 +4571,9 @@ pub fn run() {
             skill_delete,
             skills_open,
             skill_prompt,
+            skills_import_scan,
+            skills_import,
+            skill_adapt,
             engines_ready,
             set_collapsed,
             drag_island,

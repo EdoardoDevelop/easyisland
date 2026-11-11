@@ -1280,3 +1280,20 @@ html[data-font-text-weight] :is(label, .hint, p, input, textarea, select) { font
   outline: 2px solid rgba(56, 189, 248, 0.8);
   outline-offset: 2px;
 }
+
+/* Abilità → «Importa…» (importPickPanel in main.ts). */
+.skill-import-list { max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.skill-import-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.skill-import-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
+.skill-import-group { font: 500 10.5px var(--font); color: #a5f3fc; background: rgba(34, 211, 238, 0.12); border-radius: 999px; padding: 1px 8px; }
+.skill-import-meta { opacity: 0.75; font-size: 11px; }
+.skill-import-warn { flex: 1 1 100%; padding-left: 24px; }
+.skill-import .hint.warn-text { color: #fbc06a; flex: 1 1 100%; padding-left: 24px; }
+.skill-import .skill-import-warn .hint.warn-text { flex: 0 1 auto; padding-left: 0; }
+.skill-import-adapt { align-items: center; gap: 8px; }
+.skill-import-adapt input { accent-color: #22d3ee; }
+.skill-import-review.off > :not(.task-head) { display: none; }
+.skill-import-review.off .task-title { opacity: 0.5; text-decoration: line-through; }
+.skill-import-review .task-head input { accent-color: #22d3ee; }
+.skill-import-review summary { cursor: pointer; font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+
