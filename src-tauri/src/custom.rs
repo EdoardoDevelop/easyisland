@@ -112,9 +112,15 @@ pub struct Action {
     /// document: "html" (printable, the default), "pdf" or "md".
     pub format: String,
     /// document: a folder for a copy, besides the Vassoio (%VARIABILI% allowed).
+    /// http: where a file the service answers with is kept (then only there,
+    /// unless `tray`).
     pub folder: String,
     /// document: the file's name, with {{campi}}, as it reads ("{{numero}} {{cliente}}").
+    /// http: the same for a file the service answers with (the extension
+    /// comes from its type); with folder or filename the file is kept.
     pub filename: String,
+    /// http: a file kept in `folder` goes into the Vassoio too.
+    pub tray: bool,
     /// script: the commands, as they are ({{campi}} are not filled in: the
     /// record's data is in the JSON file named by EASYISLAND_SCHEDA).
     pub script: String,
@@ -903,11 +909,138 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
 pub struct Reply {
     pub status: u16,
     pub ok: bool,
-    /// The answer read as JSON when it is, else as text (cut at 200 KB).
+    /// The answer read as JSON when it is, else as text (cut at 200 KB); for a
+    /// file, { file, type, size } (so {{risposta.file}} and store work).
     pub data: Value,
+    /// A file the service answered with (audio, picture, PDF…), in a temp folder.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
 }
 
 const MAX_ANSWER: usize = 200 * 1024;
+/// A file answered by a service: at most this (a long audio or a short video).
+const MAX_FILE: usize = 200 * 1024 * 1024;
+
+/// Files answered by the services, until kept or a day old: %TEMP%\EasyIsland\risposte.
+fn answers_dir() -> PathBuf {
+    std::env::temp_dir().join("EasyIsland").join("risposte")
+}
+
+/// The extension of a file by its Content-Type; None for text and JSON (read as data).
+fn file_ext(content_type: &str, bytes: &[u8]) -> Option<&'static str> {
+    let ct = content_type.split(';').next().unwrap_or_default().trim().to_ascii_lowercase();
+    let text = ct.starts_with("text/") || ct.contains("json") || ct.contains("xml") || ct.contains("javascript") || ct == "application/x-www-form-urlencoded";
+    if text {
+        return None;
+    }
+    let ext = match ct.as_str() {
+        "audio/mpeg" | "audio/mp3" => "mp3",
+        "audio/wav" | "audio/x-wav" | "audio/wave" | "audio/vnd.wave" => "wav",
+        "audio/ogg" => "ogg",
+        "audio/opus" => "opus",
+        "audio/aac" => "aac",
+        "audio/flac" | "audio/x-flac" => "flac",
+        "audio/webm" => "weba",
+        "audio/mp4" | "audio/x-m4a" | "audio/m4a" => "m4a",
+        "video/mp4" => "mp4",
+        "video/webm" => "webm",
+        "video/quicktime" => "mov",
+        "image/png" => "png",
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "image/bmp" => "bmp",
+        "application/pdf" => "pdf",
+        "application/zip" => "zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
+        // Without a type: text stays text, anything else is a file.
+        "" if std::str::from_utf8(bytes.get(..bytes.len().min(4096)).unwrap_or_default()).is_ok() => return None,
+        _ => "bin",
+    };
+    Some(ext)
+}
+
+/// A file answered by a service, in answers_dir (the ones older than a day go).
+fn answer_file(bytes: &[u8], ext: &str) -> Result<PathBuf, String> {
+    let dir = answers_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    if let Ok(list) = std::fs::read_dir(&dir) {
+        for e in list.flatten() {
+            let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age.as_secs() > 24 * 3600);
+            if old {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+    let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let path = dir.join(format!("risposta-{stamp}.{ext}"));
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+/// A file answered by a service kept: in `folder` (never over another file)
+/// and, with `tray` or without a folder, in the Vassoio. Only files of
+/// answers_dir. The path of the copy to show.
+pub fn keep(path: &str, filename: &str, folder: &str, tray: bool) -> Result<String, String> {
+    let src = PathBuf::from(path);
+    let inside = src.parent().is_some_and(|p| p == answers_dir()) && src.is_file();
+    if !inside {
+        return Err(t("Non è un file ricevuto da un servizio.").into());
+    }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_string();
+    let base = base_of("risposta", filename, &ext);
+    let mut shown = String::new();
+    if !folder.trim().is_empty() {
+        let target = PathBuf::from(expand_env(folder.trim()));
+        std::fs::create_dir_all(&target).map_err(|e| tf("Cartella non raggiungibile: {e}", &[("e", &e.to_string())]))?;
+        let out = free_path(&target, &base, &ext);
+        std::fs::copy(&src, &out).map_err(|e| tf("File non salvato nella cartella: {e}", &[("e", &e.to_string())]))?;
+        shown = out.display().to_string();
+    }
+    if folder.trim().is_empty() || tray {
+        // Into the Vassoio with its own name (ingest keeps the name).
+        let named = src.with_file_name(format!("{base}.{ext}"));
+        let from = if named.exists() {
+            src.clone()
+        } else {
+            std::fs::copy(&src, &named).map_err(|e| e.to_string())?;
+            named
+        };
+        let file = crate::files::ingest(&from.to_string_lossy());
+        if from != src {
+            let _ = std::fs::remove_file(&from);
+        }
+        let file = file?;
+        if shown.is_empty() {
+            shown = file.path;
+        }
+    }
+    Ok(shown)
+}
+
+/// The keys of an integration for one of its own scripts, as
+/// EASYISLAND_SECRET_<NOME> variables: only when `script` is the text of a
+/// script action of its approved description; never shown or logged.
+pub fn script_secrets(id: &str, script: &str) -> Vec<(String, String)> {
+    let Some(c) = get(id) else { return Vec::new() };
+    if !c.actions.iter().any(|a| a.kind == "script" && a.script == script) {
+        return Vec::new();
+    }
+    c.secrets
+        .iter()
+        .filter_map(|name| {
+            let value = crate::secrets::get(&format!("custom:{id}:{name}"))?;
+            Some((secret_var(name), value))
+        })
+        .collect()
+}
+
+/// "api key" → EASYISLAND_SECRET_API_KEY.
+pub fn secret_var(name: &str) -> String {
+    let var: String = name.trim().chars().map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_uppercase() } else { '_' }).collect();
+    format!("EASYISLAND_SECRET_{var}")
+}
 
 /// {{secret:nome}} → the key kept for this integration; an error naming the missing one.
 fn with_secrets(id: &str, text: &str) -> Result<String, String> {
@@ -941,7 +1074,8 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
     }
     let url = with_secrets(&c.id, url)?;
     let method = reqwest::Method::from_bytes(method_of(method)?.as_bytes()).map_err(|e| e.to_string())?;
-    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
+    // 60 s: a voice or a picture made by the service takes a while.
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(60)).build().map_err(|e| e.to_string())?;
     let mut req = client.request(method, &url).header("User-Agent", "EasyIsland");
     for (k, v) in headers {
         let v = v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string());
@@ -957,11 +1091,21 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
     }
     let resp = req.send().await.map_err(|e| tf("Il servizio non risponde: {e}", &[("e", &e.without_url().to_string())]))?;
     let status = resp.status();
+    let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
     let bytes = resp.bytes().await.map_err(|e| e.without_url().to_string())?;
+    if let Some(ext) = file_ext(&content_type, &bytes) {
+        if bytes.len() > MAX_FILE {
+            return Err(t("Il file ricevuto supera i 200 MB.").into());
+        }
+        let path = answer_file(&bytes, ext)?.display().to_string();
+        let mime = content_type.split(';').next().unwrap_or_default().trim().to_string();
+        let data = json!({ "file": path, "type": mime, "size": bytes.len() });
+        return Ok(Reply { status: status.as_u16(), ok: status.is_success(), data, file: Some(path) });
+    }
     let cut = bytes.get(..bytes.len().min(MAX_ANSWER)).unwrap_or_default();
     let text = String::from_utf8_lossy(cut).to_string();
     let data = serde_json::from_str::<Value>(&text).unwrap_or(Value::String(text));
-    Ok(Reply { status: status.as_u16(), ok: status.is_success(), data })
+    Ok(Reply { status: status.as_u16(), ok: status.is_success(), data, file: None })
 }
 
 /// A source read now.
@@ -1539,6 +1683,15 @@ pub async fn tool_call(args: &Value) -> Result<String, String> {
         headers.insert(k.clone(), json!(fill_values(v.as_str().unwrap_or_default(), &values, false, false)));
     }
     let r = http(&c.id, &a.method, &fill_values(&a.url, &values, true, false), &headers, &fill_values(&a.body, &values, false, true)).await?;
+    if let Some(file) = &r.file {
+        let kept = if r.ok && (!a.folder.trim().is_empty() || !a.filename.trim().is_empty()) {
+            keep(file, &fill_values(&a.filename, &values, false, false), &a.folder, a.tray)?
+        } else {
+            file.clone()
+        };
+        let kind = r.data.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
+        return Ok(tf("HTTP {s}: un file ({kind}) in {path}", &[("s", &r.status.to_string()), ("kind", &kind), ("path", &kept)]));
+    }
     let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
     Ok(format!("HTTP {}\n{}", r.status, text.chars().take(20_000).collect::<String>()))
 }
@@ -1686,6 +1839,27 @@ mod tests {
         assert_eq!(r["integrationColors"]["custom:clienti"], "#22c55e");
         assert_eq!(r["profiles"][0]["values"]["pillOrder"][0], "custom:clienti");
         assert_eq!(r["other"], "custom:clienti-ddt-2", "only the whole name");
+    }
+
+    #[test]
+    fn a_file_answer_is_told_from_text_by_its_type() {
+        assert_eq!(file_ext("audio/mpeg", b"ID3"), Some("mp3"));
+        assert_eq!(file_ext("image/png; charset=binary", b""), Some("png"));
+        assert_eq!(file_ext("application/octet-stream", b""), Some("bin"));
+        assert_eq!(file_ext("application/json; charset=utf-8", b"{}"), None);
+        assert_eq!(file_ext("text/plain", b"ciao"), None);
+        assert_eq!(file_ext("", b"{\"a\":1}"), None, "no type and text: data");
+        assert_eq!(file_ext("", &[0xff, 0xfb, 0x90, 0x00]), Some("bin"), "no type and not text: a file");
+    }
+
+    #[test]
+    fn only_answered_files_are_kept_and_keys_get_plain_names() {
+        let outside = std::env::temp_dir().join("easyisland-test-keep.mp3");
+        std::fs::write(&outside, b"x").unwrap();
+        assert!(keep(&outside.to_string_lossy(), "", "", false).is_err());
+        let _ = std::fs::remove_file(&outside);
+        assert_eq!(secret_var("api key"), "EASYISLAND_SECRET_API_KEY");
+        assert_eq!(secret_var("openrouter"), "EASYISLAND_SECRET_OPENROUTER");
     }
 
     #[test]

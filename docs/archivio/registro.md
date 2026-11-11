@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 10/11 — Animazioni a tre livelli
+`src/core/motion.ts`: onda di luce a ogni clic, viste che nascono dalla voce del menu, all'apertura di isola, Impostazioni, Memoria, Flussi e schermate i contenuti entrano uno dopo l'altro (Aspetto → Tema → Animazioni, di serie Ricche). Gli effetti sulla cornice della 1.0.41 (Lancio, Sipario, Particelle) e la molla più morbida sono stati tolti su richiesta di Edoardo: solo contenuti, un effetto per tutto. Chiusura delle finestre ritardata di 300 ms da `hide_after_fx` (lib.rs). Scelta fatta sull'artifact «Animazioni di EasyIsland». `docs/architettura.md` → Animazioni, guida 05.
+
 ### 10/11 — «Claude Code fuori da EasyIsland» senza le sessioni di EasyIsland
 La lista si riempiva delle sessioni avviate da EasyIsland stesso fuori dalla cartella della chat (sul PC di lavoro 176, in OneDrive\WORK, titolo «[Istruzioni dell'utente per questa chat…»). `desktop::outside` ora salta quelle con `entrypoint` «sdk-cli» (`claude -p`); restano «cli» e «claude-desktop». `docs/chat.md`.
 

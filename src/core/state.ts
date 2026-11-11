@@ -2059,8 +2059,10 @@ export interface CustomAction {
   shell?: string;
   /** document: a folder for a copy, besides the Vassoio. */
   folder?: string;
-  /** document: the file's name, with {{campi}}. */
+  /** document: the file's name, with {{campi}}. http: the same for a file answered by the service. */
   filename?: string;
+  /** http: a file kept in `folder` goes into the Vassoio too. */
+  tray?: boolean;
 }
 /** Data read from a service (custom.rs Source). */
 export interface CustomSource {

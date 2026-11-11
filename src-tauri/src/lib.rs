@@ -407,7 +407,12 @@ async fn action_run_script(
 ) -> Result<actions::ScriptResult, String> {
     log::line(format!("action script ({shell}) run {run_id}"));
     match data {
-        Some(data) => actions::run_script_with(&run_id, &shell, &script, &data).await,
+        Some(data) => {
+            // A script of an integration's own description gets its keys.
+            let id = data.get("integrazione").and_then(serde_json::Value::as_str).unwrap_or_default();
+            let secrets = custom::script_secrets(id, &script);
+            actions::run_script_with(&run_id, &shell, &script, &data, &secrets).await
+        }
         None => actions::run_script(&run_id, &shell, &script).await,
     }
 }
@@ -4316,6 +4321,24 @@ async fn custom_fetch(id: String, source: String) -> Result<custom::Reply, Strin
     custom::fetch(&id, &source).await
 }
 
+/// A file answered by a service kept (folder and/or Vassoio): the path of the copy.
+#[tauri::command]
+async fn custom_keep(path: String, filename: String, folder: String, tray: bool) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || custom::keep(&path, &filename, &folder, tray)).await.map_err(|e| e.to_string())?
+}
+
+/// The viewer of a file in a card: its bytes (pictures, audio, video, PDF).
+#[tauri::command]
+async fn file_bytes(path: String) -> Result<tauri::ipc::Response, String> {
+    tauri::async_runtime::spawn_blocking(move || files::viewer_bytes(&path)).await.map_err(|e| e.to_string())?.map(tauri::ipc::Response::new)
+}
+
+/// The viewer of a file in a card: its text (text files, Word).
+#[tauri::command]
+async fn file_text(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || files::viewer_text(&path)).await.map_err(|e| e.to_string())?
+}
+
 /// «Compila con l'IA»: the fields read from a pasted text.
 #[tauri::command]
 async fn custom_fill(app: AppHandle, id: String, text: String) -> Result<serde_json::Map<String, serde_json::Value>, String> {
@@ -4587,6 +4610,9 @@ pub fn run() {
             custom_fill,
             custom_http,
             custom_fetch,
+            custom_keep,
+            file_bytes,
+            file_text,
             custom_to_notion,
             skill_save,
             skill_delete,

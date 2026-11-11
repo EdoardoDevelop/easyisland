@@ -592,7 +592,12 @@ export const Bridge = {
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
   /** An integration's call to a service (keys put in by Rust) and a source read now. */
   customHttp: (id: string, method: string, url: string, headers: Record<string, string>, body: string) =>
-    callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_http", { id, method, url, headers, body }),
+    callOrThrow<{ status: number; ok: boolean; data: unknown; file?: string }>("custom_http", { id, method, url, headers, body }),
+  /** A file answered by a service kept in `folder` and/or the Vassoio: the path of the copy. */
+  customKeep: (path: string, filename: string, folder: string, tray: boolean) => callOrThrow<string>("custom_keep", { path, filename, folder, tray }),
+  /** The viewer of a file in a card (file-viewer.ts): bytes of pictures, audio, video, PDF; text of text and Word. */
+  fileBytes: (path: string) => callOrThrow<ArrayBuffer>("file_bytes", { path }),
+  fileText: (path: string) => callOrThrow<string>("file_text", { path }),
   customFetch: (id: string, source: string) => callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_fetch", { id, source }),
   /** «Compila con l'IA»: the fields read from a pasted text. */
   customFill: (id: string, text: string) => callOrThrow<Record<string, unknown>>("custom_fill", { id, text }),

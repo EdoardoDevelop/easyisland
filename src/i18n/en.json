@@ -4949,5 +4949,18 @@
   "new_id: lettere minuscole, cifre e trattini.": "new_id: lowercase letters, digits and dashes.",
   "new_id: c'è già un'integrazione «{id}».": "new_id: there is already an integration “{id}”.",
   "L'id cambia da «{a}» a «{b}»: schede, cartella e collegamenti delle altre integrazioni seguono.": "The id changes from “{a}” to “{b}”: records, folder and the other integrations' links follow.",
-  "Prova il documento di un'integrazione": "Tries an integration's document"
+  "Prova il documento di un'integrazione": "Tries an integration's document",
+  "Scegli dal PC…": "Choose from the PC…",
+  "Salvato: {name}": "Saved: {name}",
+  "Audio ricevuto": "Audio received",
+  "Questo tipo di file si apre con il suo programma.": "This kind of file opens with its own program.",
+  "(vuoto)": "(empty)",
+  "Il file non si riesce a mostrare: aprilo con «Apri».": "The file can't be shown: open it with “Open”.",
+  "Non è un file ricevuto da un servizio.": "It is not a file received from a service.",
+  "Cartella non raggiungibile: {e}": "Folder not reachable: {e}",
+  "File non salvato nella cartella: {e}": "File not saved in the folder: {e}",
+  "Il file ricevuto supera i 200 MB.": "The file received is over 200 MB.",
+  "HTTP {s}: un file ({kind}) in {path}": "HTTP {s}: a file ({kind}) in {path}",
+  "Questo tipo di file non si mostra qui.": "This kind of file isn't shown here.",
+  "Il file supera i 200 MB: aprilo con il suo programma.": "The file is over 200 MB: open it with its own program."
 }

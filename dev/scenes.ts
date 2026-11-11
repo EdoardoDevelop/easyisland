@@ -1320,10 +1320,43 @@ export async function runScene(island: Island, scene: string) {
           return rec({ ...values, ...(id === "preventivi" ? { numero: "PREV-2026-001" } : {}) }, saved.length);
         };
       }
+      // &media: a service that answers with an audio file (an http action, its player and
+      // «Salva»), and a file field with a picture (file-viewer.ts). Bytes made here.
+      if (new URLSearchParams(location.search).has("media")) {
+        State.customs.push({
+          id: "voce", name: "Messaggi vocali", icon: "🔊", color: "#F472B6", description: "Testo in voce", enabled: true, titleField: "testo",
+          fields: [field({ id: "testo", label: "Testo", kind: "textarea", default: "Buongiorno, la chiamo per l'appuntamento di domani." }),
+            field({ id: "foto", label: "Immagine", kind: "file", default: "C:\\Users\\Me\\Pictures\\logo.png" })],
+          template: "", secrets: ["openrouter"],
+          actions: [{ label: "Genera la voce", kind: "http", method: "POST", url: "https://openrouter.ai/api/v1/audio", prompt: "", quick: "", database: "", format: "", filename: "{{testo}}" }],
+        });
+        const wav = () => {
+          const rate = 8000, n = rate;
+          const b = new DataView(new ArrayBuffer(44 + n));
+          const s = (o: number, t: string) => [...t].forEach((ch, i) => b.setUint8(o + i, ch.charCodeAt(0)));
+          s(0, "RIFF"); b.setUint32(4, 36 + n, true); s(8, "WAVEfmt "); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+          b.setUint32(24, rate, true); b.setUint32(28, rate, true); b.setUint16(32, 1, true); b.setUint16(34, 8, true); s(36, "data"); b.setUint32(40, n, true);
+          for (let i = 0; i < n; i++) b.setUint8(44 + i, 128 + Math.round(60 * Math.sin((i / rate) * 2 * Math.PI * 440)));
+          return b.buffer;
+        };
+        const png = async () => {
+          const cv = document.createElement("canvas");
+          cv.width = 320; cv.height = 160;
+          const g = cv.getContext("2d")!;
+          g.fillStyle = "#F472B6"; g.fillRect(0, 0, 320, 160);
+          g.fillStyle = "#fff"; g.font = "bold 32px sans-serif"; g.fillText("Logo", 110, 92);
+          const blob = await new Promise<Blob>((done) => cv.toBlob((x) => done(x!), "image/png"));
+          return blob.arrayBuffer();
+        };
+        Bridge.fileBytes = async (path: string) => (path.endsWith(".png") ? png() : wav());
+        Bridge.customHttp = async () => ({ status: 200, ok: true, file: "C:\\Temp\\EasyIsland\\risposte\\risposta-1a2b.wav", data: { file: "C:\\Temp\\EasyIsland\\risposte\\risposta-1a2b.wav", type: "audio/wav", size: 8044 } });
+        Bridge.customKeep = async (_path: string, filename: string) => `C:\\Users\\Me\\WORK\\Audio TTS\\${filename.slice(0, 40) || "risposta"}.wav`;
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
-      State.setFocus(new URLSearchParams(location.search).has("dati") ? "custom:server" : "custom:preventivi");
+      const q = new URLSearchParams(location.search);
+      State.setFocus(q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

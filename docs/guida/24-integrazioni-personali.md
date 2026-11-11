@@ -19,7 +19,7 @@ Quando la chat **cambia** un'integrazione, la card dice **cosa cambia**: i campi
 
 ## Cosa può avere
 ### Campi
-Testo, testo lungo, numero, **importo**, data, casella, scelta e scelta multipla, email, telefono, link, **file** (dal Vassoio), **tabella di righe** (con colonne anche calcolate), **calcolato** (una formula), **numerazione** automatica (es. `N-2026-0001`), **collegamento** a un'altra integrazione.
+Testo, testo lungo, numero, **importo**, data, casella, scelta e scelta multipla, email, telefono, link, **file** (dal Vassoio o dal PC, e lo vedi nella scheda: immagini, PDF, testi e Word, audio e video con il lettore), **tabella di righe** (con colonne anche calcolate), **calcolato** (una formula), **numerazione** automatica (es. `N-2026-0001`), **collegamento** a un'altra integrazione.
 - **Collegamento con ricerca**: scrivi una parte di qualunque dato (nome, città, partita IVA…) e sopra il modulo compaiono le schede dell'altra integrazione che lo contengono (il campo prende il nome della scheda scelta); ne scegli una con il mouse o con frecce e <kbd>Invio</kbd>, e **gli altri campi si compilano da soli** (es. scegliendo il cliente da «Clienti» si riempiono indirizzo e partita IVA; scegliendo un servizio da «Listino» la riga prende descrizione e prezzo). Vale per qualsiasi elenco: clienti, fornitori, articoli, servizi, mezzi. Funziona anche come colonna di una tabella. Con **ricorda**, un nome nuovo scritto a mano viene aggiunto all'altra integrazione quando salvi la scheda, insieme ai dati compilati. Basta chiederlo alla chat: «quando scelgo il cliente compila indirizzo e P.IVA, e ricorda i clienti nuovi».
 - **Compare solo se**: un campo visibile solo quando una formula è vera (es. «IBAN» solo se pagamento = Bonifico).
 - **Totale nell'elenco**: sommato o contato nella lista delle schede.
@@ -54,10 +54,10 @@ Il modello può essere anche **HTML vero**, con la tua grafica: basta che cominc
 | **Compila con l'AI** | Incolli una mail o un testo e l'AI riempie i campi |
 | **Link** | Apre un indirizzo con i campi |
 | **Azione rapida** | Esegue una tua azione; se è uno script riceve i dati della scheda |
-| **Script** | Esegue comandi PowerShell o del Prompt: te li mostra e aspetta «Esegui» ogni volta. I dati della scheda sono nel file JSON indicato dalla variabile `EASYISLAND_SCHEDA`: in PowerShell leggilo con `Get-Content -Raw -Encoding UTF8`, o le lettere accentate si rovinano |
+| **Script** | Esegue comandi PowerShell o del Prompt: te li mostra e aspetta «Esegui» ogni volta. I dati della scheda sono nel file JSON indicato dalla variabile `EASYISLAND_SCHEDA`: in PowerShell leggilo con `Get-Content -Raw -Encoding UTF8`, o le lettere accentate si rovinano. Le chiavi dell'integrazione arrivano come variabili `EASYISLAND_SECRET_NOME`, senza scriverle nei comandi |
 | **Notion** | Aggiunge la scheda a un database |
 | **Esporta CSV** | Tutte le schede, per Excel |
-| **Chiamata a un servizio** | GET/POST/PUT/PATCH/DELETE all'API di un tuo servizio, con i campi nel corpo; la risposta può riempire i campi e comparire in un messaggio |
+| **Chiamata a un servizio** | GET/POST/PUT/PATCH/DELETE all'API di un tuo servizio, con i campi nel corpo; la risposta può riempire i campi e comparire in un messaggio. Se il servizio risponde con un **file** (una voce in mp3, un'immagine, un PDF) lo ascolti o lo vedi nella scheda e lo salvi; con una cartella e un nome scelti si salva da solo, senza mai sovrascrivere |
 | **Compito** | Avvia un [compito](14-compiti.md) con i campi nell'obiettivo |
 | **Avviso** | Un avviso nell'isola |
 | **Sequenza** | Più azioni in fila (es. salva, poi chiama il servizio, poi fai il documento) |

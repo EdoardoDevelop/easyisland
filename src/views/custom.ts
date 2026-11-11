@@ -19,6 +19,7 @@ import {
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { forgetSource, linkPicker, sourceRecords, type LinkKit } from "./custom-link";
+import { fileViewer, viewKind } from "./file-viewer";
 
 export interface CustomHooks {
   askChat(question: string): void;
@@ -41,6 +42,8 @@ interface Draft {
   answer: Val;
   /** A script waiting for the user's click, shown in the card. */
   ask: { name: string; shell: string; script: string; done: (go: boolean) => void } | null;
+  /** A file the last "http" action answered with and no field took: its viewer under the note. */
+  media?: { path: string; action: string; kept: boolean } | null;
 }
 
 const drafts = new Map<string, Draft>();
@@ -688,12 +691,24 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
               el.append(...(files ?? []).filter((x) => x.path !== current).map((x) => h("option", { value: x.path, text: x.name })));
             });
           }
-          el.addEventListener("change", () => {
+          el.append(h("option", { value: "\u0000pick", text: t("Scegli dal PC…") }));
+          el.addEventListener("change", async () => {
+            if (el.value === "\u0000pick") {
+              el.value = current;
+              try {
+                const got = await Bridge.chatPick(false);
+                if (got?.[0]?.path) d.values[f.id] = got[0].path;
+              } catch (e) {
+                console.warn(e);
+              }
+              paint();
+              return;
+            }
             d.values[f.id] = el.value;
-            refresh();
+            paint();
           });
           hold(el);
-          control = el;
+          control = current ? h("div", { class: "custom-file" }, el, fileViewer(current, { place: `${c!.id}/${f.id}` })) : el;
           break;
         }
         default: {
@@ -709,7 +724,8 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           control = el;
         }
       }
-      const row = h("div", { class: f.kind === "rows" || f.kind === "textarea" ? "custom-row wide" : "custom-row" }, label, control);
+      const wide = f.kind === "rows" || f.kind === "textarea" || (f.kind === "file" && !!d.values[f.id]);
+      const row = h("div", { class: wide ? "custom-row wide" : "custom-row" }, label, control);
       if (f.showIf) conditional.push({ f, row });
       box.append(row);
     }
@@ -759,6 +775,24 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
       buttons.append(look);
     }
     box.append(buttons, note);
+    // The file the last call answered with (an mp3, a picture…): to hear or see, and to keep.
+    if (d.media) {
+      const m = d.media;
+      const a = c!.actions.find((x) => x.label === m.action);
+      const save = m.kept ? undefined : async () => {
+        try {
+          const name = a?.filename ? fillText(c!, a.filename, withComputed(c!, d.values), d.answer) : "";
+          const path = await Bridge.customKeep(m.path, name, a?.folder ?? "", !!a?.tray);
+          d.media = { ...m, path, kept: true };
+          d.note = { text: t("Salvato: {name}", { name: path.split(/[\\/]/).pop() ?? path }), ok: true };
+        } catch (e) {
+          d.note = { text: String(e).replace(/^Error:\s*/, ""), ok: false };
+        }
+        paint();
+      };
+      const title = viewKind(m.path) === "audio" ? t("Audio ricevuto") : t("File ricevuto");
+      box.append(fileViewer(m.path, { title, onSave: save, place: `${c!.id}/risposta` }));
+    }
     if (d.ask) {
       const ask = d.ask;
       const go = h("button", { class: "btn primary", text: t("Esegui") });
@@ -998,6 +1032,16 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           const headers: Record<string, string> = {};
           for (const [k, v] of Object.entries(a.headers ?? {})) headers[k] = fillText(c!, String(v), all, d.answer);
           const r = await Bridge.customHttp(c!.id, a.method || "GET", fillText(c!, a.url, all, d.answer, true), headers, a.body ? fillBody(c!, a.body, all, d.answer) : "");
+          d.media = null;
+          // A file (audio, picture, PDF…): kept where the action says, else shown to keep later.
+          if (r.file && r.ok) {
+            let path = r.file;
+            const keepIt = !!(a.folder?.trim() || a.filename?.trim());
+            if (keepIt) path = await Bridge.customKeep(r.file, a.filename ? fillText(c!, a.filename, all, d.answer) : "", a.folder ?? "", !!a.tray);
+            r.data = { ...(r.data as Record<string, unknown>), file: path };
+            const stored = Object.values(a.store ?? {}).some((p) => String(p) === "file");
+            if (!stored) d.media = { path, action: a.label, kept: keepIt };
+          }
           d.answer = r.data as Val;
           // What of the answer goes into the fields.
           for (const [field, path] of Object.entries(a.store ?? {})) {
@@ -1008,7 +1052,8 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
             say(t("Il servizio ha risposto {s}: {text}", { s: r.status, text: (typeof r.data === "string" ? r.data : JSON.stringify(r.data)).slice(0, 200) }), false);
             return false;
           }
-          say(a.message ? fillText(c!, a.message, withComputed(c!, d.values), d.answer) : t("Fatto ({s}).", { s: r.status }), true);
+          const savedTo = r.file && (a.folder?.trim() || a.filename?.trim()) ? t("Salvato: {name}", { name: String((r.data as Record<string, unknown>).file ?? "").split(/[\\/]/).pop() ?? "" }) : "";
+          say(a.message ? fillText(c!, a.message, withComputed(c!, d.values), d.answer) : savedTo || t("Fatto ({s}).", { s: r.status }), true);
           break;
         }
         case "task": {
