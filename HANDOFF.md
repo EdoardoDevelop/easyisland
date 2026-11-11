@@ -52,6 +52,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 11/11 — Sito: home nuova, animata, e schermate aggiornate
+Richiesta di Edoardo («moderno, con animazioni ed effetto wow»), approvata su anteprima. `site/index.html` e `site/it/index.html` rifatte con `site/home.css` + `site/home.js`: la barra in alto è un'isola con il logo (gli occhi seguono il mouse) che chiede un permesso, annuncia un compito finito o una chiamata 3CX secondo la sezione in vista; vetrina a schede per compiti e memoria, griglia delle integrazioni, personaggi. Solo scura. Tutte le schermate di `site/media/` e `site/media/en/` rigenerate dal programma attuale (più `search-ovunque` e `zammad`); `screenshots/` (README) non toccata. Guida: stessa tavolozza e caratteri via `site/site.css`. Dettagli in `docs/sviluppo.md`.
+
 ### 11/11 — Integrazioni personali, i sei seguiti dal PC di lavoro
 Segnalati in Agent Chat dal Claude del portatile (DDT, «Clienti», «Registro lavori e vendite»): tendina dei `link` sovrapposta al modulo (sopra o sotto, verso sinistra se serve, scorre da sola); «Anteprima» nella card e `custom_preview` senza salvare né usare numeri (`next_counters`, pagina composta dall'isola con `custom-preview`/`custom_preview_done`); `custom_update` a pezzi (`patched`) e `new_id` (`rename_id`, impostazioni con `renamed_task`); `templateFrom` e `integrazioni\_comune` per logo e modello condivisi; descrizione di `custom_create` sul valore dei `link`. Tre test nuovi in `custom.rs`. `docs/integrazioni.md`, guida 24.
 
@@ -63,6 +66,3 @@ Richiesta di Edoardo per il portatile di lavoro, pieno di integrazioni documenta
 
 ### 10/11 — Integrazioni personali: cosa cambia prima di `custom_update`, campo collegato con ricerca (ramo `claude/campi-collegati`)
 Domanda di Edoardo sul «DDT Easytech» da trasformare in rapportino: la chat riscrive tutta la descrizione e la card non diceva cosa cambiava. Ora `custom::annotate` mette nella card campi tolti (con quante schede salvate li hanno), tipi, prefisso del numeratore, colonne, campi nuovi, modello molto più corto, azioni e script; prima di scrivere una copia datata in `integrazioni\versioni\`. Poi il `link` generico (campo o colonna): ricerca mentre si scrive in tutte le schede della sorgente, `fill` compila gli altri campi, `remember` aggiunge alla sorgente i nomi nuovi al salvataggio (`src/views/custom-link.ts`, scena `custom&collegato`). Test `an_update_says_what_the_saved_records_lose`, `a_link_fills_other_fields_and_columns`. `docs/integrazioni.md`, guida 24.
-
-### 10/11 — Animazioni a tre livelli
-`src/core/motion.ts`: onda di luce a ogni clic, viste che nascono dalla voce del menu, all'apertura di isola, Impostazioni, Memoria, Flussi e schermate i contenuti entrano uno dopo l'altro (Aspetto → Tema → Animazioni, di serie Ricche). Gli effetti sulla cornice della 1.0.41 (Lancio, Sipario, Particelle) e la molla più morbida sono stati tolti su richiesta di Edoardo: solo contenuti, un effetto per tutto. Chiusura delle finestre ritardata di 300 ms da `hide_after_fx` (lib.rs). Scelta fatta sull'artifact «Animazioni di EasyIsland». `docs/architettura.md` → Animazioni, guida 05.

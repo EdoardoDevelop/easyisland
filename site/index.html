@@ -7,7 +7,9 @@
 <title>EasyIsland — Dynamic Island for Claude Code &amp; AI agents on Windows</title>
 <meta name="description" content="Free, open-source Dynamic Island for Windows: approve Claude Code, Codex, opencode and Gemini CLI permissions from an animated island, plus an AI agent with tasks, memory and automations. Local-first, no telemetry.">
 <link rel="icon" href="media/icon.png">
-<link rel="stylesheet" href="site.css">
+<meta name="theme-color" content="#09090c">
+<link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="home.css">
 <link rel="canonical" href="https://edoardodevelop.github.io/easyisland/">
 <link rel="alternate" hreflang="en" href="https://edoardodevelop.github.io/easyisland/">
 <link rel="alternate" hreflang="it" href="https://edoardodevelop.github.io/easyisland/it/">
@@ -23,108 +25,237 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "EasyIsland", "operatingSystem": "Windows 10, Windows 11", "applicationCategory": "DeveloperApplication", "description": "Free, open-source Dynamic Island for Windows: approve Claude Code, Codex, opencode and Gemini CLI permissions from an animated island, plus an AI agent with tasks, memory and automations. Local-first, no telemetry.", "inLanguage": "en", "url": "https://edoardodevelop.github.io/easyisland/", "image": "https://edoardodevelop.github.io/easyisland/media/og.png", "downloadUrl": "https://github.com/EdoardoDevelop/easyisland/releases/latest", "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "author": {"@type": "Person", "name": "Edoardo Monti"}, "codeRepository": "https://github.com/EdoardoDevelop/easyisland"}</script>
+<script>document.documentElement.classList.add("js")</script>
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-<a href="index.html"><img src="media/icon.png" alt="EasyIsland"></a>
-<span class="name">EasyIsland</span>
-<nav>
-<a href="index.html" class="on">Home</a>
-<a href="en/guide/index.html">Guide</a>
-<a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a>
-<a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a>
-<a href="it/index.html" hreflang="it">Italiano</a>
-</nav>
+<!-- The navigation is the product: an island that reacts to what you are reading. -->
+<div class="island" id="island" data-state="idle">
+  <a class="isl-char" href="#top" aria-label="EasyIsland, back to top">
+    <span class="isl-badge" aria-hidden="true">!</span>
+    <span class="isl-mark"><img src="media/icon.png" width="40" height="40" alt="">
+      <svg viewBox="0 0 512 512" aria-hidden="true"><rect x="140" y="165" width="260" height="130" fill="#06060a"/>
+        <g class="lid"><g id="pupils"><circle cx="209" cy="229" r="54" fill="#fff"/><circle cx="350" cy="229" r="33" fill="#fff"/></g></g></svg></span>
+  </a>
+  <div class="isl-layers" id="layers">
+    <div class="isl-layer on" data-layer="idle">
+      <span class="isl-brand">EasyIsland</span>
+      <a class="isl-link opt" href="#agents">Agents</a>
+      <a class="isl-link opt" href="#brain">Tasks &amp; memory</a>
+      <a class="isl-link opt" href="en/guide/index.html">Guide</a>
+      <a class="isl-link opt" href="https://github.com/EdoardoDevelop/easyisland">GitHub</a>
+      <a class="isl-link" href="it/index.html" hreflang="it" lang="it">Italiano</a>
+      <a class="isl-btn go" style="display:inline-flex;align-items:center" href="https://github.com/EdoardoDevelop/easyisland/releases/latest">Download</a>
+    </div>
+    <div class="isl-layer" data-layer="approval">
+      <span class="isl-txt"><b>Claude Code asks</b><span>Bash · npm run pack</span></span>
+      <button class="isl-btn" data-answer="Denied. Claude will find another way.">Deny</button>
+      <button class="isl-btn go" data-answer="Allowed. Claude keeps going.">Allow</button>
+    </div>
+    <div class="isl-layer" data-layer="call">
+      <span class="isl-txt"><b>Cliente Srl</b><span>+39 051 123456 · 3CX</span></span>
+      <button class="isl-btn yes" data-answer="On the line · 0:01">Answer</button>
+      <button class="isl-btn no" data-answer="Declined.">Decline</button>
+    </div>
+    <div class="isl-layer" data-layer="done">
+      <span class="isl-txt"><b>Task finished</b><span>Monthly report Rossi · 4/4 steps</span></span>
+      <button class="isl-btn go" data-answer="Draft opened in Notion.">Open</button>
+    </div>
+    <div class="isl-layer" data-layer="answer"><span class="isl-ok" id="answer"></span></div>
+  </div>
+</div>
+
+<main id="top">
+
+<header class="hero">
+  <div class="aurora" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div>
+  <div class="wrap">
+    <h1 id="h1">Your agents, one island away.</h1>
+    <p class="lede">EasyIsland lives at the top of your Windows screen. Approve <b>Claude Code, Codex, opencode and Gemini CLI</b> in one click, hand off whole tasks, and keep a second brain of your clients and projects. With the AI engine you choose.</p>
+    <div class="cta">
+      <a class="btn pri" href="https://github.com/EdoardoDevelop/easyisland/releases/latest">
+        <svg viewBox="0 0 18 18" aria-hidden="true"><path fill="currentColor" d="M0 2.5 7.3 1.5v7H0zm8.2-1.1L18 0v8.5H8.2zM0 9.4h7.3v7L0 15.4zm8.2 0H18V18l-9.8-1.4z"/></svg>
+        Download for Windows</a>
+      <a class="btn sec" href="en/guide/index.html">Read the guide</a>
+    </div>
+    <p class="fine">Free and open source (MIT) · Windows 10/11 · English or Italian · no telemetry</p>
+  </div>
+  <div class="stage" id="stage">
+    <div class="float a"><img src="media/en/strip-approval.png" width="554" height="88" alt="Permission request with Deny and Allow next to the character"></div>
+    <div class="float b"><img src="media/en/strip-call.png" width="588" height="88" alt="Incoming 3CX call with Answer and Decline next to the character"></div>
+    <img class="stage-shot" src="media/en/overview.png" width="1408" height="1088" alt="The open island: menu with the character on the left, Overview with every integration as a tile" fetchpriority="high">
+  </div>
 </header>
 
-<div class="hero">
-<h1>Your personal agent on Windows</h1>
-<p class="meta" style="font-size:17px">
-In an island always at hand: it drives your coding agents —
-<strong>Claude Code, Codex, opencode, Antigravity, Gemini CLI</strong> — with <strong>Deny / Allow / Always</strong>,
-<strong>carries out on its own the tasks</strong> you hand it, remembers customers, people and projects
-in a <strong>second brain</strong> you can explore, works with your services (<strong>3CX as the PC's phone</strong> too)
-and reaches you on Telegram. With the AI engine you choose, free or local included, without interrupting what you're doing. Free and open source (MIT).
-</p>
-<a class="btn" href="https://github.com/EdoardoDevelop/easyisland/releases">Download for Windows</a>
-<a class="btn ghost" href="en/guide/index.html">Read the guide</a>
-<a class="btn ghost" href="https://github.com/EdoardoDevelop/easyisland">See on GitHub</a>
-<img class="demo" src="media/en/overview.png" alt="The open island: menu on the left with the character, Overview with the integrations as tiles">
-<p class="meta">Windows 10/11 · Tauri 2 + Rust · English or Italian · no telemetry</p>
+<div class="engines" aria-label="Works with">
+  <div class="track" id="track">
+    <span>Claude Code</span><span>Codex</span><span>opencode</span><span>Gemini CLI</span><span>Antigravity</span><span>Cursor</span><span>Copilot</span><span>Ollama</span><span>LM Studio</span><span>OpenRouter</span><span>OpenAI</span>
+  </div>
 </div>
 
-<h2>New in 1.0.0: your personal agent</h2>
-<p>EasyIsland doesn't just wait for your questions: it <b>carries tasks forward on its own</b>, with a plan, your tools and an AI engine of your choice for each task, asks you only what only you know (on Telegram too) and tells you when it's done. A <b>Heartbeat</b> checks what you ask every now and then and speaks only when needed; <b>Skills</b> are your own procedures in .md files. And the memory becomes a <b>second brain</b>: linked pages about clients, people and projects, files to learn from, a check that proposes how to tidy it and a window to explore it as a <b>graph, mind map, concept map and timeline</b>. Ask the chat for the feature you're missing and it becomes a <b>custom integration</b>: forms, dashboards, links to your services' APIs. <a href="en/guide/index.html">Everything is in the guide</a>.</p>
-<img src="media/en/memoria-grafo.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="EasyIsland's memory as a graph">
-<img src="media/en/memoria-mappa.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="The memory as a mind map">
-<img src="media/en/compiti.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="A task at work in the island">
-<img src="media/en/custom.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="A custom integration created from the chat">
+<section id="agents" data-island="approval">
+  <div class="wrap split">
+    <div class="copy">
+      <h2 data-r="blur">Deny. Allow. Always.</h2>
+      <p class="lede" data-r="up" style="--d:1">Coding sessions become live cards: progress, steps and <b>file changes in real time</b>. When an agent needs you, the answer is next to the character. Look up: the island just asked you something.</p>
+      <ul class="ticks" data-r="up" style="--d:2">
+        <li><span><b>One-click permissions</b> with the rule the agent proposes, session-only rules and "Later" with a countdown.</span></li>
+        <li><span><b>"Finished" card</b> with the last message in markdown and "Continue".</span></li>
+        <li><span><b>Ask this session</b>: question a read-only copy without touching the real work.</span></li>
+        <li><span>The relay <b>never blocks the agent</b>: if the app doesn't answer, everything carries on in the terminal.</span></li>
+      </ul>
+      <a class="more" href="en/guide/agents.html">Coding agents in the guide <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="stack" data-r="right">
+      <img src="media/en/agenti.png" width="1408" height="1006" loading="lazy" alt="Agents tab with Claude Code and opencode at work">
+      <img src="media/en/approval.png" width="1408" height="1006" loading="lazy" alt="A Claude Code permission request in the island">
+    </div>
+  </div>
+</section>
 
-<h2>One island, one menu, everything one click away</h2>
-<p>Open the island and on the left there's a <b>menu with the character on top</b>: <b>Overview</b> (every integration and agent as tiles, with their state), <b>Agents</b>, <b>Chat</b>, <b>Actions</b>, <b>Files and screen</b> and your integrations, each with its logo and a dot when there's news. At the top the character tells you what's going on in a speech bubble, and <b>a single field</b> searches integrations, actions and programs or, with <kbd>Ctrl+Enter</kbd>, asks the chat. Drag the corner and the island grows up to the screen edges.</p>
+<section id="brain" data-island="done">
+  <div class="wrap">
+    <div class="show-head">
+      <h2 data-r="blur">Hand it a task. Get it back done.</h2>
+      <p class="lede" data-r="up" style="--d:1">Since 1.0 EasyIsland is a personal agent: it plans, uses your tools, asks only what only you know, and remembers. Its memory is a <b>second brain</b> you can walk through.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="What the agent does" data-r="up">
+      <button class="tab" role="tab" aria-selected="true" data-cap="&lt;b&gt;Tasks&lt;/b&gt; run on their own with a plan, your tools and the engine you pick for each one. A &lt;b&gt;Heartbeat&lt;/b&gt; checks what you ask every now and then and speaks only when needed; &lt;b&gt;Skills&lt;/b&gt; are your own procedures in .md files." data-glow="#1f7bff">Tasks<i></i></button>
+      <button class="tab" role="tab" aria-selected="false" data-cap="&lt;b&gt;Linked pages&lt;/b&gt; about clients, people and projects. Click a node and see everything the agent knows about it, and where it learned it." data-glow="#6a2cff">Memory graph<i></i></button>
+      <button class="tab" role="tab" aria-selected="false" data-cap="The same memory as a &lt;b&gt;mind map&lt;/b&gt;: start from a client and follow the branches to contracts, devices and conversations." data-glow="#e6007a">Mind map<i></i></button>
+      <button class="tab" role="tab" aria-selected="false" data-cap="What happened and when: notes, sources and chat days laid out on a &lt;b&gt;timeline&lt;/b&gt;." data-glow="#ff4b1f">Timeline<i></i></button>
+      <button class="tab" role="tab" aria-selected="false" data-cap="Ask the chat for the feature you&#x27;re missing and it becomes a &lt;b&gt;custom integration&lt;/b&gt;: forms, dashboards, links to your services&#x27; APIs." data-glow="#00e5a0">Custom integrations<i></i></button>
+    </div>
+    <div class="screen" id="screen" data-r="up">
+      <div class="pane on"><img src="media/en/compiti.png" width="1408" height="1006" loading="lazy" alt="A task at work in the island"></div>
+      <div class="pane"><img src="media/en/memoria-grafo.png" width="2360" height="1520" loading="lazy" alt="The memory as a graph of linked pages"></div>
+      <div class="pane"><img src="media/en/memoria-mappa.png" width="2360" height="1520" loading="lazy" alt="The memory as a mind map"></div>
+      <div class="pane"><img src="media/en/memoria-timeline.png" width="2360" height="1520" loading="lazy" alt="The memory as a timeline"></div>
+      <div class="pane"><img src="media/en/custom.png" width="1408" height="1088" loading="lazy" alt="A custom integration created from the chat"></div>
+    </div>
+    <p class="caption" id="caption"></p>
+  </div>
+</section>
 
-<h2>Quick replies, with the island closed</h2>
-<p>You don't even need to open it: when an agent asks a simple permission or the phone rings, <b>Deny / Allow</b> or <b>Answer / Decline</b> appear <b>next to the character</b>, and during the call the duration with <b>Mute</b> and <b>Hang up</b>. Questions, plans and risky commands always open their card.</p>
-<div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:16px 0">
-<img src="media/en/strip-approval.png" style="width:100%;max-width:298px" alt="Permission with Deny and Allow next to the character">
-<img src="media/en/strip-call.png" style="width:100%;max-width:312px" alt="3CX call with Answer and Decline next to the character">
+<section id="chat">
+  <div class="wrap split flip">
+    <div data-r="left"><img src="media/en/chat.png" width="1408" height="1006" loading="lazy" alt="Chat from the island" style="filter:drop-shadow(0 30px 50px rgba(0,0,0,.65))"></div>
+    <div class="copy">
+      <h2 data-r="blur">Chat with the engine you want.</h2>
+      <p class="lede" data-r="up" style="--d:1">Your Claude subscription with no key, an API key, or a model running on your own PC. The chat can <b>use the PC</b> through EasyIsland, with Allow / Deny on everything that changes something.</p>
+      <div class="chips" data-r="up" style="--d:2"><span>Claude Pro/Max</span><span>Anthropic API</span><span>OpenRouter</span><span>OpenAI</span><span>Gemini</span><span>Ollama</span><span>LM Studio</span><span>opencode</span><span>Antigravity</span></div>
+      <ul class="ticks" data-r="up" style="--d:3">
+        <li><span>Attach copied text <kbd>Ctrl+Alt+K</kbd>, dropped files, a window or an area of the screen.</span></li>
+        <li><span>Edit, Regenerate, Branch and a <b>second opinion</b> from another engine.</span></li>
+      </ul>
+      <a class="more" href="en/guide/chat.html">The chat in the guide <span aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>
+
+<section id="more" data-island="call">
+  <div class="wrap">
+    <h2 data-r="blur" style="max-width:14ch">The rest of your day fits in there too.</h2>
+    <div class="bento">
+      <article class="cell c-7 crop" data-r="up">
+        <h3>3CX, right in the PC</h3>
+        <p>EasyIsland registers as the <b>WebRTC phone of your extension</b>: call, answer, transfer, voicemail with transcription, queues and a real-time team.</p>
+        <div class="shot"><img src="media/en/threecx.png" width="1408" height="1088" loading="lazy" alt="3CX: incoming call, call in progress and recent calls"></div>
+      </article>
+      <article class="cell c-5 crop" data-r="up" style="--d:1">
+        <h3>Quick actions in any app</h3>
+        <p>Select text anywhere and your actions appear at the mouse. Rewrites show <b>before/after</b> and paste only after "Replace".</p>
+        <div class="keys" aria-label="Win plus Alt plus A"><kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></div>
+        <div class="shot" style="padding-top:22px"><img src="media/en/rewrite.png" width="1408" height="1006" loading="lazy" alt="Rewrite: before and after, with Replace"></div>
+      </article>
+      <article class="cell c-5" data-r="up">
+        <h3>One field finds everything</h3>
+        <p>Integrations, actions, programs, memory, tickets and contacts. <kbd>Ctrl+Enter</kbd> asks the chat instead.</p>
+        <div class="shot"><img src="media/en/search-ovunque.png" width="1408" height="1088" loading="lazy" alt="Searching 'rossi' across memory, remote desktops and tickets"></div>
+      </article>
+      <article class="cell c-7 crop" data-r="up" style="--d:1">
+        <h3>Tickets, mail, remote desktops</h3>
+        <p><b>Zammad, Outlook, Teams, Notion, Telegram</b>, WinRM and SSH, Remote Desktop Manager. Missing one? Ask the chat and it becomes a custom integration.</p>
+        <div class="shot"><img src="media/en/zammad.png" width="1408" height="1088" loading="lazy" alt="Zammad tickets in the island"></div>
+      </article>
+      <article class="cell c-4" data-r="up">
+        <h3>"When… then…"</h3>
+        <p>Automations written in plain words in the chat, or suggested from your habits.</p>
+        <div class="keys" style="font-size:16px;color:var(--dim);margin-top:auto">when a ticket escalates <span style="color:var(--sky)">→</span> ping me on Telegram</div>
+      </article>
+      <article class="cell c-8" data-r="up" style="--d:1">
+        <h3>Your services, one dot away</h3>
+        <p>Each integration sits in the menu with its logo and a dot when there's news. Plus widgets for sites, certificates, domains, servers, calendars and APIs.</p>
+        <div class="logos">
+          <span><img src="media/brand/3CX.svg" alt="3CX" loading="lazy"></span><span><img src="media/brand/outlook.svg" alt="Outlook" loading="lazy"></span><span><img src="media/brand/teams.svg" alt="Teams" loading="lazy"></span><span><img src="media/brand/notion.svg" alt="Notion" loading="lazy"></span><span><img src="media/brand/zammad.svg" alt="Zammad" loading="lazy"></span><span><img src="media/brand/rdm.svg" alt="Remote Desktop Manager" loading="lazy"></span>
+          <span><img src="media/brand/github.svg" alt="GitHub" loading="lazy"></span><span><img src="media/brand/vercel.svg" alt="Vercel" loading="lazy"></span><span><img src="media/brand/stripe.svg" alt="Stripe" loading="lazy"></span><span><img src="media/brand/resend.svg" alt="Resend" loading="lazy"></span><span><img src="media/brand/n8n.svg" alt="n8n" loading="lazy"></span><span><img src="media/brand/Claude.svg" alt="Claude" loading="lazy"></span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="characters">
+  <div class="wrap center">
+    <h2 data-r="blur">Pick who keeps you company.</h2>
+    <p class="lede" data-r="up" style="--d:1">Eleven characters drawn in code, or your own logo in their place. Windows 11 or Classic style, light or dark. With the island tucked away the CPU stays at <b>~0%</b>.</p>
+    <div class="chars" data-r="up" style="--d:2">
+      <figure style="--i:0"><div class="sprite"><img src="media/chars/goccia.png" alt="" loading="lazy"></div><figcaption>Goccia</figcaption></figure>
+      <figure style="--i:1"><div class="sprite"><img src="media/chars/slime.png" alt="" loading="lazy"></div><figcaption>Slime</figcaption></figure>
+      <figure style="--i:2"><div class="sprite"><img src="media/chars/geco.png" alt="" loading="lazy"></div><figcaption>Geco</figcaption></figure>
+      <figure style="--i:3"><div class="sprite"><img src="media/chars/fiamma.png" alt="" loading="lazy"></div><figcaption>Fiamma</figcaption></figure>
+      <figure style="--i:4"><div class="sprite"><img src="media/chars/magma.png" alt="" loading="lazy"></div><figcaption>Magma</figcaption></figure>
+      <figure style="--i:5"><div class="sprite"><img src="media/chars/pietra.png" alt="" loading="lazy"></div><figcaption>Pietra</figcaption></figure>
+      <figure style="--i:6"><div class="sprite"><img src="media/chars/roccia.png" alt="" loading="lazy"></div><figcaption>Roccia</figcaption></figure>
+      <figure style="--i:7"><div class="sprite"><img src="media/chars/foglia.png" alt="" loading="lazy"></div><figcaption>Foglia</figcaption></figure>
+      <figure style="--i:8"><div class="sprite"><img src="media/chars/jarvis.png" alt="" loading="lazy"></div><figcaption>Jarvis</figcaption></figure>
+      <figure style="--i:9"><div class="sprite"><img src="media/chars/jarvis-sfera.png" alt="" loading="lazy"></div><figcaption>Jarvis Sfera</figcaption></figure>
+      <figure style="--i:10"><div class="sprite"><img src="media/chars/jarvis-plasma.png" alt="" loading="lazy"></div><figcaption>Jarvis Plasma</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="privacy" data-r="up">
+    <h2>Private on purpose.</h2>
+    <div class="facts">
+      <div><h3>No account, no telemetry</h3><p>The network is used only for the services you configure and the update check, which you can turn off.</p></div>
+      <div><h3>Secrets stay in Windows</h3><p>Keys and passwords live in the Windows Credential Manager. Never on disk, never in git.</p></div>
+      <div><h3>Updates after your click</h3><p>Nothing installs on its own, and every update has a verified signature.</p></div>
+    </div>
+  </div>
 </div>
 
-<h2>Coding agents in the island</h2>
-<p>Sessions of <strong>Claude Code, Codex, opencode, Antigravity and Gemini CLI</strong> (Cursor and Copilot too) become live cards: progress, steps, <strong>file changes in real time</strong> with lines added/removed and a Changes tab with context that opens VS Code at the right line.</p>
-<ul>
-<li><b>Deny / Allow / Always</b> on permissions (with the rule proposed by the agent, or a session-only rule), answers to questions, <b>"Later"</b> with a countdown.</li>
-<li><b>"Finished"</b> card with the last message in markdown and <b>"Continue"</b>.</li>
-<li><b>"Ask this session"</b>: question a read-only copy without touching the real work.</li>
-<li><b>Daily and weekly recaps</b> and Pro/Max <b>plan limits</b> shown in the island.</li>
-<li>The relay <b>never blocks the agent</b>: if the app doesn't answer, everything carries on in the terminal.</li>
-</ul>
-<img src="media/en/approval.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Claude Code permission in the island">
-<img src="media/en/agenti.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Agents tab with Claude Code and opencode at work">
+<section id="install">
+  <div class="wrap">
+    <h2 data-r="blur">Up in two minutes.</h2>
+    <ol class="steps">
+      <li data-r="up"><h3>Download the installer</h3><p>Get <b>EasyIsland-Windows-setup.exe</b> from the <a class="more" style="margin:0" href="https://github.com/EdoardoDevelop/easyisland/releases">releases</a>. Current user only, no administrator.</p></li>
+      <li data-r="up" style="--d:1"><h3>Run it</h3><p>The installer isn't signed yet: SmartScreen shows a warning, click <b>More info → Run anyway</b>.</p></li>
+      <li data-r="up" style="--d:2"><h3>Connect your agents</h3><p>Notification area icon → Settings → Coding agents → <b>Install</b>, then pick the engine on the Chat page.</p></li>
+    </ol>
+  </div>
+</section>
 
-<h2>Chat with the engine you want</h2>
-<p><strong>Claude subscription</strong> (your Pro/Max through Claude Code, no key), <strong>Anthropic API key</strong>, <strong>OpenRouter, OpenAI, Gemini</strong>, local <strong>Ollama and LM Studio</strong> models, <strong>opencode</strong> and <strong>Antigravity</strong> with tools. The chat can <b>use the PC</b> through EasyIsland (programs, quick actions, Notion, To Do, settings…) with Allow / Deny on everything that changes something, or work like a terminal in a folder you choose.</p>
-<img src="media/en/chat.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Chat from the island">
-<ul>
-<li>Attach <b>copied text</b> (<kbd>Ctrl+Alt+K</kbd>), <b>dropped files</b>, <b>images</b>, a <b>window</b> or an <b>area of the screen</b> (<kbd>Ctrl+Alt+Shift+S</kbd>).</li>
-<li>Edit, Regenerate, Branch and <b>Second opinion</b> from another engine; / commands, @ attachments, assistants, dictation.</li>
-<li><b>History</b> on this PC only, and a <b>memory</b> in .md files the chat remembers in every conversation.</li>
-</ul>
-
-<h2>3CX right in the PC</h2>
-<p>Pick <b>"This PC"</b> among the devices: EasyIsland registers as the <b>WebRTC phone of your extension</b> — call, answer, mute, keypad tones, ringtone, transfer and divert. Plus a <b>real-time team</b>, <b>chat</b>, <b>voicemail with transcription</b>, queues and history.</p>
-<img src="media/en/threecx.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="3CX: incoming call, call in progress and contacts">
-
-<h2>Quick actions, automations, any app</h2>
-<p>Links, programs, PowerShell scripts and AI prompts with global shortcuts and <b>suggestions for the app you're using</b>. Select text in <b>any program</b>, press <b>Win+Alt+A</b> and your actions appear at the mouse; rewrites show <b>before/after</b> and paste only after <b>"Replace"</b>, keeping the formatting. <b>"When… then…"</b> automations created in Settings, in plain words in the chat, or suggested from your habits.</p>
-<img src="media/en/actions.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Quick actions with suggestions for Outlook">
-<img src="media/en/rewrite.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Replace: before and after">
-
-<h2>Collection: set aside, then ask</h2>
-<p>Putting a quote together and going through suppliers' sites? Select a name and a price, press <kbd>Ctrl+Alt+Shift+R</kbd> and they go into the <b>Collection</b> with their source (program, window, page address from Chrome and Edge); an area of the screen too, from Box and ask. Give it a name and the fields to work out, and <b>Ask the chat</b> hands it all over: the chat puts them in a table and waits for your question. It works for any job, not only quotes.</p>
-
-<h2>Integrations and widgets</h2>
-<p><strong>Zammad</strong>, <strong>Outlook</strong>, <strong>Teams</strong>, <strong>Notion</strong> (with an editable mini Notion), <strong>Telegram</strong>, <strong>remote access</strong> with WinRM and SSH, <strong>Remote Desktop Manager</strong>, <strong>PC status</strong>, <strong>security</strong>, <strong>network</strong>, <strong>weather</strong> with a live sky, <strong>clipboard</strong>, <strong>media</strong>, <strong>GitHub, Vercel, Stripe, Resend, Cal.com, n8n</strong>, plus widgets for sites, certificates, domains, servers, calendars and APIs.</p>
-<div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:16px 0">
-<img src="media/en/clipboard.png" style="width:100%;max-width:310px;border-radius:14px;border:1px solid var(--line)" alt="Clipboard with texts and images">
-<img src="media/en/network.png" style="width:100%;max-width:310px;border-radius:14px;border:1px solid var(--line)" alt="Network: IP, Wi-Fi, VPN and latency">
-<img src="media/en/media.png" style="width:100%;max-width:310px;border-radius:14px;border:1px solid var(--line)" alt="Media playing with controls">
+<div class="final">
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="wrap">
+    <img class="logo" src="media/icon.png" width="104" height="104" alt="">
+    <h2 data-r="blur">Give your agents an island.</h2>
+    <div class="cta">
+      <a class="btn pri" href="https://github.com/EdoardoDevelop/easyisland/releases/latest">Download for Windows</a>
+      <a class="btn sec" href="https://github.com/EdoardoDevelop/easyisland">See on GitHub</a>
+    </div>
+    <p class="fine">New in 1.0.43: import skills from files and folders, with an engine that adapts them.</p>
+  </div>
 </div>
-<img src="media/en/meteo.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Weather with the live sky">
+</main>
 
-<h2>Ten characters, zero distractions</h2>
-<p>Goccia, Slime, Geco, Fiamma, Magma, Pietra, Roccia, Foglia, Jarvis, Jarvis Sfera and Jarvis Plasma — drawn in code, or in their place the EasyIsland logo, your own PNG logo or the weather; synthesised sounds, a Windows 11 or Classic style in light, dark or automatic mode, free position on several screens. With the island tucked away the CPU stays at ~0%.</p>
-<img src="media/en/characters.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="EasyIsland's characters">
-
-<div class="card"><b>Private on purpose.</b> No account, no telemetry. Keys and passwords only in the Windows Credential Manager, never on disk or in git. Updates install only after your click, with a verified signature.</div>
-
-<h2>Installation</h2>
-<p>Go to the <a href="https://github.com/EdoardoDevelop/easyisland/releases"><b>releases</b></a>, download <b>EasyIsland-Windows-setup.exe</b> of the latest version and run it (current user only, no administrator). The installer isn't signed yet: SmartScreen shows a warning, click <b>More info → Run anyway</b>. Then: notification area icon → Settings → Coding agents → Install (Claude Code) and the Chat page for the engine. Step by step in the <a href="en/guide/installation.html">guide</a>.</p>
-
-<p class="meta">New in 1.0.43: import skills from files and folders, such as The Agency's agents or Claude Code's, with a list to pick from and an engine that adapts them. In 1.0.42: menu groups like a phone's folders, and a link field that searches another integration and fills the other fields.<a href="en/guide/chat.html">The chat</a>.</p>
-<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland is open source (MIT) · <a href="en/guide/index.html">Guide</a> · <a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a> · <a href="it/index.html">Italiano</a></footer>
-</div>
+<footer><div class="wrap">
+  <span>© 2026 Edoardo Monti · EasyIsland is open source (MIT)</span>
+  <nav><a href="en/guide/index.html">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a href="mailto:edoardo.develop@gmail.com">Contact</a><a href="it/index.html" hreflang="it" lang="it">Italiano</a></nav>
+</div></footer>
+<script src="home.js"></script>
 </body>
 </html>

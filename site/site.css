@@ -1,7 +1,12 @@
-:root{--bg:#0e0f12;--card:#16171b;--ink:#f3f4f6;--dim:#a1a6b0;--line:#26282e;--accent:#4da3ff}
+/* The guide's base (the home has its own home.css): same dark palette and faces as the home. */
+@font-face{font-family:"Bricolage";src:url(fonts/bricolage.woff2) format("woff2");font-weight:200 800;font-stretch:75% 100%;font-display:swap}
+@font-face{font-family:"Hanken";src:url(fonts/hanken.woff2) format("woff2");font-weight:400 700;font-display:swap}
+:root{--bg:#09090c;--card:#15151c;--ink:#f5f3ee;--dim:#aba8b6;--line:#272733;--accent:#4cc2ff}
 @media (prefers-color-scheme: light){:root{--bg:#fafafa;--card:#fff;--ink:#16171b;--dim:#5f646d;--line:#e6e7ea;--accent:#0b63ce}}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Inter",sans-serif}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 "Hanken","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage","Segoe UI Variable Display","Segoe UI",sans-serif;letter-spacing:-.02em}
+::selection{background:#4cc2ff;color:#04202e}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px}
 header{display:flex;align-items:center;gap:12px;margin-bottom:36px;flex-wrap:wrap}
