@@ -85,6 +85,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "custom_update" => t("Modifica un'integrazione personale"),
         "custom_list" => t("Guarda le integrazioni personali"),
         "custom_get" => t("Legge un'integrazione personale"),
+        "custom_preview" => t("Prova il documento di un'integrazione"),
         "custom_records" => t("Legge i dati di un'integrazione"),
         "custom_fetch" => t("Aggiorna i dati di un'integrazione"),
         "custom_call" => t("Usa un'integrazione personale"),

@@ -4286,6 +4286,24 @@ fn custom_asset(id: String, name: String) -> Result<String, String> {
     custom::asset(&id, &name)
 }
 
+/// «Anteprima» in the card: the numbers the next record would get, not taken.
+#[tauri::command]
+fn custom_counters(id: String) -> serde_json::Map<String, serde_json::Value> {
+    custom::next_counters(&id)
+}
+
+/// «Anteprima» in the card: the page in a temp file, for the Anteprima window.
+#[tauri::command]
+fn custom_preview_file(id: String, html: String) -> Result<String, String> {
+    custom::preview_file(&id, &html).map(|p| p.display().to_string())
+}
+
+/// The page the island made for the chat's `custom_preview`.
+#[tauri::command]
+fn custom_preview_done(req: String, html: String, text: String) {
+    custom::preview_done(&req, html, text);
+}
+
 /// An integration's "http" action: its call, {{campi}} filled by the island, keys put in here.
 #[tauri::command]
 async fn custom_http(id: String, method: String, url: String, headers: serde_json::Map<String, serde_json::Value>, body: String) -> Result<custom::Reply, String> {
@@ -4562,6 +4580,9 @@ pub fn run() {
             custom_document,
             custom_pdf,
             custom_asset,
+            custom_counters,
+            custom_preview_file,
+            custom_preview_done,
             custom_copy,
             custom_fill,
             custom_http,

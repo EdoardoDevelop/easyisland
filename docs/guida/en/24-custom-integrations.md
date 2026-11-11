@@ -11,7 +11,7 @@ Write in the chat what you need, for example:
 
 The chat proposes useful fields, formulas and actions, asks what isn't clear and shows you **the preview of the description** with **Allow / Deny**. Confirming, the integration appears in the island's menu with its icon. To change it just ask ("add a discount field", "make the total bold"): same preview, same confirmation.
 
-When the chat **changes** an integration, the card says **what changes**: fields removed (and in how many saved records they were filled), type changes, a counter that restarts, new fields, a much shorter template, actions removed or with a changed script. Saved records stay, and the previous version is copied to `integrazioni\versioni`.
+When the chat **changes** an integration, the card says **what changes**: fields removed (and in how many saved records they were filled), type changes, a counter that restarts, new fields, a much shorter template, actions removed or with a changed script. Saved records stay, and the previous version is copied to `integrazioni\versioni`. For a small change the chat sends only the piece that changes (a field, the name, the template), not the whole description; it can also change the **id** (e.g. from `clienti-ddt` to `clienti`), and links, menu and Overview find it again.
 
 > **Important:** a custom integration is a **description**: its actions are a fixed list. The only one holding commands is **Script**, and it always shows you what it is about to run.
 
@@ -20,7 +20,7 @@ When the chat **changes** an integration, the card says **what changes**: fields
 ## What it can have
 ### Fields
 Text, long text, number, **amount**, date, checkbox, choice and multiple choice, email, phone, link, **file** (from the Tray), **table of rows** (with computed columns too), **computed** (a formula), automatic **numbering** (e.g. `N-2026-0001`), **link** to another integration.
-- **Link with search**: type part of any value (name, town, VAT number…) and the other integration's records that contain it appear; pick one with the mouse or the arrows and <kbd>Enter</kbd>, and **the other fields fill themselves** (e.g. picking the client from "Clients" fills address and VAT number; picking a service from "Price list" gives the row its description and price). It works for any list: clients, suppliers, articles, services, vehicles. It works as a table column too. With **remember**, a new name typed by hand is added to the other integration when you save the record, together with the filled data. Just ask the chat: "when I pick the client fill address and VAT number, and remember new clients".
+- **Link with search**: type part of any value (name, town, VAT number…) and the other integration's records that contain it appear over the form (the field takes the name of the record picked); pick one with the mouse or the arrows and <kbd>Enter</kbd>, and **the other fields fill themselves** (e.g. picking the client from "Clients" fills address and VAT number; picking a service from "Price list" gives the row its description and price). It works for any list: clients, suppliers, articles, services, vehicles. It works as a table column too. With **remember**, a new name typed by hand is added to the other integration when you save the record, together with the filled data. Just ask the chat: "when I pick the client fill address and VAT number, and remember new clients".
 - **Shown only if**: a field visible only when a formula is true (e.g. "IBAN" only if payment = Bank transfer).
 - **Total in the list**: summed or counted in the records list.
 
@@ -33,6 +33,10 @@ A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`)
 **Where to save and what to call the file** you tell the chat, when you create the integration or later: "save the PDFs in `C:\Documents\DDT`", "name the file number and client", "show number and client in the list". You can use several fields together, such as `{{number}} {{client}}`. The document always goes to the Tray and also to the chosen folder, never overwriting: if the name exists it becomes `name (2).pdf`. Characters Windows does not accept in file names are removed, and `/` becomes `-`.
 
 The template can also be **real HTML** with your own design: it just has to start with a tag such as `<!doctype html>`, `<style>` or `<div>`. Field values are always escaped, and scripts and dangerous links are removed.
+
+**Preview**: the link under the buttons opens the document with the data you typed, **without saving the record or using a number** (the counter shows the one the next record would get). The chat can do the same to try a template before telling you it is ready.
+
+**One look for several integrations**: ask the chat for the register to "use the DDT template"; logo and pictures (`{{file:logo.png}}`) are looked for in the integration's folder, then in the one it takes the template from, then in `integrazioni\_comune`, where you can put the logo once for all.
 
 - `{{date|lunga}}`: the date in full, "7 novembre 2026".
 - `{{amount|it}}`: the number the Italian way, "1.234,5".

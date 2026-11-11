@@ -586,6 +586,9 @@ export const Bridge = {
   customPdf: (name: string, html: string, file: string, folder: string) => callOrThrow<{ name: string; path: string }>("custom_pdf", { name, html, file, folder }),
   /** {{file:nome}}: a file of the integration's folder as a data: URI. */
   customAsset: (id: string, name: string) => callOrThrow<string>("custom_asset", { id, name }),
+  customCounters: (id: string) => call<Record<string, unknown>>("custom_counters", { id }).then((r) => r ?? {}),
+  customPreviewFile: (id: string, html: string) => callOrThrow<string>("custom_preview_file", { id, html }),
+  customPreviewDone: (req: string, html: string, text: string) => call<void>("custom_preview_done", { req, html, text }),
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
   /** An integration's call to a service (keys put in by Rust) and a source read now. */
   customHttp: (id: string, method: string, url: string, headers: Record<string, string>, body: string) =>

@@ -12,6 +12,9 @@ Fatto l'11/11 nella 1.0.43 (`docs/chat.md` → Abilità → Importa), partendo d
 - installare gli stessi file negli agenti di codice (`~/.claude/agents/`, Codex, Gemini, opencode), solo file nuovi, con anteprima;
 - adattamento di più abilità insieme (oggi una chiamata per abilità, in sequenza).
 
+## Integrazioni personali, seguiti (11/11/2026, dal PC lavoro: DDT, «Clienti», «Registro lavori e vendite»)
+Fatte l'11/11 tutte e sei (`docs/integrazioni.md` → Integrazioni personali): tendina dei `link` sovrapposta, «Anteprima» e `custom_preview` senza salvare, `custom_update` a pezzi, `templateFrom` e `integrazioni\_comune`, `new_id`, descrizione di `custom_create`. Resta: un modo per mettere un'immagine in `_comune` senza Esplora file (oggi la copia l'utente o la chat in Modalità terminale).
+
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).

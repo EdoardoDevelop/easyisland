@@ -11,7 +11,7 @@ Scrivi in chat quello che ti serve, per esempio:
 
 La chat propone campi, calcoli e azioni utili, ti chiede quello che non è chiaro e ti mostra **l'anteprima della descrizione** con **Consenti / Nega**. Confermando, l'integrazione compare nel menu dell'isola con la sua icona. Per cambiarla basta chiedere («aggiungi un campo sconto», «fai il totale in grassetto»): stessa anteprima, stessa conferma.
 
-Quando la chat **cambia** un'integrazione, la card dice **cosa cambia**: i campi tolti (e in quante schede salvate erano compilati), i cambi di tipo, il numeratore che riparte, i campi nuovi, il modello molto più corto, le azioni tolte o con lo script cambiato. Le schede salvate restano, e la versione di prima viene copiata in `integrazioni\versioni`.
+Quando la chat **cambia** un'integrazione, la card dice **cosa cambia**: i campi tolti (e in quante schede salvate erano compilati), i cambi di tipo, il numeratore che riparte, i campi nuovi, il modello molto più corto, le azioni tolte o con lo script cambiato. Le schede salvate restano, e la versione di prima viene copiata in `integrazioni\versioni`. Per un ritocco la chat manda solo il pezzo che cambia (un campo, il nome, il modello), non tutta la descrizione; può anche cambiare l'**id** (es. da `clienti-ddt` a `clienti`), e collegamenti, menu e Panoramica la ritrovano.
 
 > **Importante:** un'integrazione personale è una **descrizione**: le sue azioni sono un elenco fisso. L'unica che contiene comandi è **Script**, e ti mostra sempre cosa sta per eseguire.
 
@@ -20,7 +20,7 @@ Quando la chat **cambia** un'integrazione, la card dice **cosa cambia**: i campi
 ## Cosa può avere
 ### Campi
 Testo, testo lungo, numero, **importo**, data, casella, scelta e scelta multipla, email, telefono, link, **file** (dal Vassoio), **tabella di righe** (con colonne anche calcolate), **calcolato** (una formula), **numerazione** automatica (es. `N-2026-0001`), **collegamento** a un'altra integrazione.
-- **Collegamento con ricerca**: scrivi una parte di qualunque dato (nome, città, partita IVA…) e compaiono le schede dell'altra integrazione che lo contengono; ne scegli una con il mouse o con frecce e <kbd>Invio</kbd>, e **gli altri campi si compilano da soli** (es. scegliendo il cliente da «Clienti» si riempiono indirizzo e partita IVA; scegliendo un servizio da «Listino» la riga prende descrizione e prezzo). Vale per qualsiasi elenco: clienti, fornitori, articoli, servizi, mezzi. Funziona anche come colonna di una tabella. Con **ricorda**, un nome nuovo scritto a mano viene aggiunto all'altra integrazione quando salvi la scheda, insieme ai dati compilati. Basta chiederlo alla chat: «quando scelgo il cliente compila indirizzo e P.IVA, e ricorda i clienti nuovi».
+- **Collegamento con ricerca**: scrivi una parte di qualunque dato (nome, città, partita IVA…) e sopra il modulo compaiono le schede dell'altra integrazione che lo contengono (il campo prende il nome della scheda scelta); ne scegli una con il mouse o con frecce e <kbd>Invio</kbd>, e **gli altri campi si compilano da soli** (es. scegliendo il cliente da «Clienti» si riempiono indirizzo e partita IVA; scegliendo un servizio da «Listino» la riga prende descrizione e prezzo). Vale per qualsiasi elenco: clienti, fornitori, articoli, servizi, mezzi. Funziona anche come colonna di una tabella. Con **ricorda**, un nome nuovo scritto a mano viene aggiunto all'altra integrazione quando salvi la scheda, insieme ai dati compilati. Basta chiederlo alla chat: «quando scelgo il cliente compila indirizzo e P.IVA, e ricorda i clienti nuovi».
 - **Compare solo se**: un campo visibile solo quando una formula è vera (es. «IBAN» solo se pagamento = Bonifico).
 - **Totale nell'elenco**: sommato o contato nella lista delle schede.
 
@@ -33,6 +33,10 @@ Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {
 **Dove salvare e come chiamare il file** lo dici alla chat, quando crei l'integrazione o dopo: «salva i PDF in `C:\Documenti\DDT`», «chiama il file numero e cliente», «nell'elenco mostra numero e cliente». Puoi usare più campi insieme, come `{{numero}} {{cliente}}`. Il documento va sempre nel Vassoio e in più nella cartella scelta, senza mai sovrascrivere: se il nome esiste già diventa `nome (2).pdf`. I caratteri che Windows non accetta nei nomi di file vengono tolti, e `/` diventa `-`.
 
 Il modello può essere anche **HTML vero**, con la tua grafica: basta che cominci con un tag come `<!doctype html>`, `<style>` o `<div>`. I valori dei campi sono sempre protetti e script e link pericolosi vengono tolti.
+
+**Anteprima**: il link sotto i pulsanti apre il documento con i dati che hai scritto, **senza salvare la scheda né usare un numero** (il numeratore mostra quello che avrebbe la prossima). La chat può fare lo stesso per provare un modello prima di dirti che è pronto.
+
+**Stessa grafica per più integrazioni**: chiedi alla chat che il registro «usi il modello dei DDT»; logo e immagini (`{{file:logo.png}}`) si cercano nella cartella dell'integrazione, poi in quella da cui prende il modello, poi in `integrazioni\_comune`, dove puoi mettere il logo una volta per tutte.
 
 - `{{data|lunga}}`: la data per esteso, «7 novembre 2026».
 - `{{importo|it}}`: il numero con la virgola, «1.234,5».

@@ -174,6 +174,9 @@ pub struct Custom {
     pub fields: Vec<Field>,
     /// The document: Markdown with {{campo}}, {{#righe}}…{{/righe}} for a table's rows.
     pub template: String,
+    /// The id of another integration whose template (and pictures) this one uses
+    /// when its own `template` is empty: one look for DDT and register (11 Nov 2026).
+    pub template_from: String,
     pub actions: Vec<Action>,
     /// How a record reads in the list, with {{campi}} ("{{numero}} · {{cliente}}"); before `title_field`.
     pub title: String,
@@ -402,8 +405,12 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         }
     }
     c.secrets = c.secrets.iter().map(|x| x.trim().to_string()).filter(|x| key_ok(x)).take(10).collect();
-    // No template: one with every field, so a document can always be made.
-    if c.template.trim().is_empty() {
+    c.template_from = c.template_from.trim().to_lowercase();
+    if !c.template_from.is_empty() && (!valid_id(&c.template_from) || c.template_from == c.id) {
+        return Err(t("templateFrom: l'id di un'altra integrazione personale, di cui usare il modello (vedi custom_list).").into());
+    }
+    // No template (and none borrowed): one with every field, so a document can always be made.
+    if c.template.trim().is_empty() && c.template_from.is_empty() {
         c.template = default_template(&c);
     }
     if !c.title_field.is_empty() && !c.fields.iter().any(|f| f.id == c.title_field) {
@@ -437,6 +444,9 @@ fn check_fill(label: &str, own: &str, fill: Fill, targets: &[(String, String)]) 
 /// exist and `fill` names their fields. Read from their files, not `list`
 /// (which normalizes every description and would come back here).
 fn check_links(c: &Custom) -> Result<(), String> {
+    if !c.template_from.is_empty() && !def_file(&c.template_from).exists() {
+        return Err(tf("templateFrom: «{s}» non è un'integrazione personale (vedi custom_list).", &[("s", &c.template_from)]));
+    }
     let mut wanted: Vec<(String, String, Fill)> = Vec::new();
     for f in &c.fields {
         if f.kind == "link" {
@@ -798,6 +808,12 @@ fn assets_dir(id: &str) -> PathBuf {
     dir().join(id)
 }
 
+/// Pictures every integration can use with {{file:…}} (a logo for all the documents):
+/// `integrazioni\_comune`, a name no integration can have (ids have no «_»).
+pub fn common_dir() -> PathBuf {
+    dir().join("_comune")
+}
+
 fn mime_of(name: &str) -> Option<&'static str> {
     let ext = name.rsplit('.').next()?.to_lowercase();
     Some(match ext.as_str() {
@@ -815,21 +831,31 @@ fn asset_name_ok(name: &str) -> bool {
     !name.is_empty() && name.len() <= 120 && !name.contains("..") && name.chars().all(|c| c.is_alphanumeric() || matches!(c, '.' | '_' | '-' | ' '))
 }
 
-/// {{file:nome}}: a picture of the integration's folder as a data: URI. The real
-/// path is checked too, so a link in the folder does not lead out of it.
+/// {{file:nome}}: a picture as a data: URI, looked for in the integration's folder,
+/// then in the one of the integration whose template it uses (`templateFrom`),
+/// then in `integrazioni\_comune`. The real path is checked too, so a link in a
+/// folder does not lead out of it.
 pub fn asset(id: &str, name: &str) -> Result<String, String> {
     let name = name.trim();
     let c = get(id).ok_or(t("Integrazione non trovata."))?;
-    let missing = || tf("{{file:{n}}}: non c'è nella cartella integrazioni\\{id}.", &[("n", &name.to_string()), ("id", &c.id)]);
+    let missing = || tf("{{file:{n}}}: non c'è in integrazioni\\{id} né in integrazioni\\_comune.", &[("n", &name.to_string()), ("id", &c.id)]);
     if !asset_name_ok(name) {
         return Err(tf("{{file:{n}}}: solo il nome di un file, senza cartelle.", &[("n", &name.to_string())]));
     }
     let mime = mime_of(name).ok_or_else(|| tf("{{file:{n}}}: solo immagini png, jpg, gif, webp o svg.", &[("n", &name.to_string())]))?;
-    let root = assets_dir(&c.id).canonicalize().map_err(|_| missing())?;
-    let path = root.join(name).canonicalize().map_err(|_| missing())?;
-    if !path.starts_with(&root) || !path.is_file() {
-        return Err(missing());
+    let mut folders = vec![assets_dir(&c.id)];
+    if valid_id(&c.template_from) {
+        folders.push(assets_dir(&c.template_from));
     }
+    folders.push(common_dir());
+    let path = folders
+        .iter()
+        .find_map(|f| {
+            let root = f.canonicalize().ok()?;
+            let p = root.join(name).canonicalize().ok()?;
+            (p.starts_with(&root) && p.is_file()).then_some(p)
+        })
+        .ok_or_else(missing)?;
     if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > MAX_ASSET {
         return Err(tf("{{file:{n}}}: al massimo 5 MB.", &[("n", &name.to_string())]));
     }
@@ -1063,26 +1089,260 @@ pub fn tool_create(app: &AppHandle, args: &Value) -> Result<String, String> {
     Ok(tf("Integrazione «{name}» creata: è nel menu dell'isola con {n} campi. Puoi cambiarla con custom_update.", &[("name", &c.name), ("n", &c.fields.len().to_string())]))
 }
 
-pub fn tool_update(app: &AppHandle, args: &Value) -> Result<String, String> {
-    let mut c = parse_def(args)?;
-    let id = args.get("id").and_then(Value::as_str).unwrap_or_default();
-    if !id.is_empty() {
-        c.id = id.to_string();
+/// The pieces `custom_update` can be given instead of the whole `definition`
+/// (Edoardo, 11 Nov 2026: a 5.000-character template sent again to rename a field).
+const PATCH_KEYS: &[&str] = &[
+    "name", "description", "icon", "color", "title", "titleField", "template", "templateFrom", "field", "fields", "remove_fields", "action",
+    "actions", "remove_actions", "source", "remove_sources", "secrets",
+];
+
+/// The description after a `custom_update`: `definition` whole, or the old one
+/// with the pieces given (a field or an action replaced by its id or label, or
+/// added; some taken away; name, template…). Returns (old, new), new not normalized.
+fn updated(args: &Value) -> Result<(Custom, Custom), String> {
+    let id = args.get("id").and_then(Value::as_str).unwrap_or_default().trim();
+    let whole = args.get("definition").is_some_and(|d| !d.is_null());
+    let mut c = if whole { parse_def(args)? } else { Custom::default() };
+    let key = if id.is_empty() { c.name.clone() } else { id.to_string() };
+    let old = get(&key).or_else(|| get(&c.name)).ok_or(t("Integrazione non trovata: usa custom_create per una nuova."))?;
+    if !whole {
+        if !PATCH_KEYS.iter().any(|k| args.get(*k).is_some()) && args.get("new_id").is_none() {
+            return Err(t("custom_update: definition intera, oppure i pezzi da cambiare (name, template, field, remove_fields, action…).").into());
+        }
+        c = patched(&old, args)?;
     }
-    let old = get(&c.id).or_else(|| get(&c.name)).ok_or(t("Integrazione non trovata: usa custom_create per una nuova."))?;
     c.id = old.id.clone();
     c.enabled = old.enabled;
+    Ok((old, c))
+}
+
+/// The old description with the pieces of `args` put in.
+fn patched(old: &Custom, args: &Value) -> Result<Custom, String> {
+    let mut c = old.clone();
+    let text = |k: &str| args.get(k).and_then(Value::as_str).map(str::to_string);
+    if let Some(v) = text("name") { c.name = v; }
+    if let Some(v) = text("description") { c.description = v; }
+    if let Some(v) = text("icon") { c.icon = v; }
+    if let Some(v) = text("color") { c.color = v; }
+    if let Some(v) = text("title") { c.title = v; }
+    if let Some(v) = text("titleField") { c.title_field = v; }
+    if let Some(v) = text("template") { c.template = v; }
+    if let Some(v) = text("templateFrom") { c.template_from = v; }
+    if let Some(v) = args.get("secrets").and_then(Value::as_array) {
+        c.secrets = v.iter().filter_map(Value::as_str).map(str::to_string).collect();
+    }
+    // A field: in place of the one with its id, or at the end (`after`: behind that id).
+    let mut fields: Vec<Value> = args.get("fields").and_then(Value::as_array).cloned().unwrap_or_default();
+    if let Some(f) = args.get("field").filter(|f| f.is_object()) {
+        fields.push(f.clone());
+    }
+    for raw in fields {
+        let after = raw.get("after").and_then(Value::as_str).map(str::to_string);
+        let f: Field = serde_json::from_value(raw).map_err(|e| tf("field: {e}", &[("e", &e.to_string())]))?;
+        let at = c.fields.iter().position(|x| !f.id.is_empty() && x.id == f.id);
+        match (at, after.and_then(|a| c.fields.iter().position(|x| x.id == a))) {
+            (Some(i), _) => c.fields[i] = f,
+            (None, Some(j)) => c.fields.insert(j + 1, f),
+            (None, None) => c.fields.push(f),
+        }
+    }
+    for id in args.get("remove_fields").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str) {
+        c.fields.retain(|x| x.id != id);
+    }
+    let mut actions: Vec<Value> = args.get("actions").and_then(Value::as_array).cloned().unwrap_or_default();
+    if let Some(a) = args.get("action").filter(|a| a.is_object()) {
+        actions.push(a.clone());
+    }
+    for raw in actions {
+        let a: Action = serde_json::from_value(raw).map_err(|e| tf("action: {e}", &[("e", &e.to_string())]))?;
+        match c.actions.iter().position(|x| x.label == a.label) {
+            Some(i) => c.actions[i] = a,
+            None => c.actions.push(a),
+        }
+    }
+    for label in args.get("remove_actions").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str) {
+        c.actions.retain(|x| x.label != label);
+    }
+    if let Some(raw) = args.get("source").filter(|s| s.is_object()) {
+        let s: Source = serde_json::from_value(raw.clone()).map_err(|e| tf("source: {e}", &[("e", &e.to_string())]))?;
+        match c.sources.iter().position(|x| x.id == s.id) {
+            Some(i) => c.sources[i] = s,
+            None => c.sources.push(s),
+        }
+    }
+    for id in args.get("remove_sources").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str) {
+        c.sources.retain(|x| x.id != id);
+    }
+    Ok(c)
+}
+
+pub fn tool_update(app: &AppHandle, args: &Value) -> Result<String, String> {
+    let (old, c) = updated(args)?;
     let new = normalize(c.clone())?;
     check_links(&new)?;
+    let new_id = args.get("new_id").and_then(Value::as_str).map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty() && *s != old.id);
+    if let Some(n) = &new_id {
+        rename_check(n)?;
+    }
     let notes = changes(&old, &new, &records(&old.id));
     // The description as it was, dated, before it is replaced (the saved records are another file and stay).
     let copy = keep_version(&old.id)?;
-    let c = save(app, c, false)?;
+    let mut c = save(app, c, false)?;
     let mut msg = tf("Integrazione «{name}» aggiornata. Versione di prima in {path}.", &[("name", &c.name), ("path", &copy.display().to_string())]);
+    if let Some(n) = new_id {
+        let moved = rename_id(app, &old.id, &n)?;
+        c.id = n.clone();
+        msg.push_str(&format!("\n{}", tf("Id cambiato da «{a}» a «{b}»: {n} collegamenti di altre integrazioni aggiornati, e il menu e la Panoramica la ritrovano.", &[("a", &old.id), ("b", &n), ("n", &moved.to_string())])));
+    }
     if !notes.is_empty() {
         msg.push_str(&format!("\n{}\n- {}", t("Cosa è cambiato (dillo all'utente):"), notes.join("\n- ")));
     }
     Ok(msg)
+}
+
+// ── Preview without saving (Edoardo, 11 Nov 2026: saving a record to see the
+// document used up a DDT number) ────────────────────────────────────────────
+
+/// The numbers the next record would get, without taking them: { counter field: "DDT-2026-014" }.
+pub fn next_counters(id: &str) -> Map<String, Value> {
+    let Some(c) = get(id) else { return Map::new() };
+    let all = records(&c.id);
+    c.fields.iter().filter(|f| f.kind == "counter").map(|f| (f.id.clone(), json!(next_counter(f, &all)))).collect()
+}
+
+/// The page of a preview, in the temp folder (never in the Vassoio, never a record).
+pub fn preview_file(id: &str, html: &str) -> Result<PathBuf, String> {
+    let folder = std::env::temp_dir().join("EasyIsland").join("anteprime");
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let safe: String = id.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(40).collect();
+    let path = folder.join(format!("{}.html", if safe.is_empty() { "anteprima" } else { &safe }));
+    std::fs::write(&path, html.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+/// Previews asked of the island by `custom_preview`, waiting for its page.
+static PREVIEWS: std::sync::Mutex<Option<std::collections::HashMap<String, tokio::sync::oneshot::Sender<(String, String)>>>> =
+    std::sync::Mutex::new(None);
+
+/// The island's answer (lib.rs `custom_preview_done`): the page and its text.
+pub fn preview_done(req: &str, html: String, text: String) {
+    let tx = PREVIEWS.lock().unwrap().as_mut().and_then(|m| m.remove(req));
+    if let Some(tx) = tx {
+        let _ = tx.send((html, text));
+    }
+}
+
+/// `custom_preview`: the document with the values given (or empty), made by the
+/// island exactly as «Documento» makes it, saved in a temp file. Nothing saved,
+/// no number taken: a counter shows the number the next record would get.
+pub async fn tool_preview(app: &AppHandle, args: &Value) -> Result<String, String> {
+    let id = args.get("id").and_then(Value::as_str).unwrap_or_default();
+    let c = get(id).ok_or(t("Integrazione non trovata."))?;
+    let mut values = args.get("values").and_then(Value::as_object).cloned().unwrap_or_default();
+    let counters = next_counters(&c.id);
+    for (k, v) in &counters {
+        let empty = values.get(k).is_none_or(|x| x.is_null() || x.as_str().is_some_and(str::is_empty));
+        if empty {
+            values.insert(k.clone(), v.clone());
+        }
+    }
+    let req = format!("p{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0));
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    PREVIEWS.lock().unwrap().get_or_insert_with(Default::default).insert(req.clone(), tx);
+    let _ = app.emit_to(crate::island::WINDOW_LABEL, "custom-preview", json!({ "req": req, "id": c.id, "values": values }));
+    let got = tokio::time::timeout(std::time::Duration::from_secs(20), rx).await;
+    PREVIEWS.lock().unwrap().as_mut().map(|m| m.remove(&req));
+    let (html, text) = match got {
+        Ok(Ok(v)) => v,
+        _ => return Err(t("L'isola non ha composto l'anteprima (è aperta?). Riprova.").into()),
+    };
+    if html.is_empty() {
+        return Err(text);
+    }
+    let path = preview_file(&c.id, &html)?;
+    let mut out = tf("Anteprima di «{name}» in {path} (aprila con preview_open per vederla). Niente è stato salvato.", &[("name", &c.name), ("path", &path.display().to_string())]);
+    if !counters.is_empty() {
+        out.push_str(&format!(" {}", t("Il numero mostrato è quello che avrebbe la prossima scheda: non è stato usato.")));
+    }
+    let text: String = text.chars().take(8000).collect();
+    out.push_str(&format!("\n\n{text}"));
+    Ok(out)
+}
+
+/// A new id for an integration: valid and not taken.
+fn rename_check(new_id: &str) -> Result<(), String> {
+    if !valid_id(new_id) {
+        return Err(t("new_id: lettere minuscole, cifre e trattini.").into());
+    }
+    if def_file(new_id).exists() {
+        return Err(tf("new_id: c'è già un'integrazione «{id}».", &[("id", &new_id.to_string())]));
+    }
+    Ok(())
+}
+
+/// Moves an integration to a new id (Edoardo, 11 Nov 2026: «Clienti» still
+/// called `clienti-ddt`): its description, records and folder; the links of
+/// the other integrations that pick from it; and in the settings, every
+/// profile too, each place that names `custom:<old>` (order, groups, icons,
+/// colours). Returns how many links of other integrations it changed.
+fn rename_id(app: &AppHandle, old_id: &str, new_id: &str) -> Result<usize, String> {
+    rename_check(new_id)?;
+    let mut c = get(old_id).ok_or(t("Integrazione non trovata."))?;
+    c.id = new_id.to_string();
+    let bytes = serde_json::to_vec_pretty(&c).map_err(|e| e.to_string())?;
+    crate::settings::write_atomic(&def_file(new_id), &bytes).map_err(|e| e.to_string())?;
+    if records_file(old_id).exists() {
+        std::fs::rename(records_file(old_id), records_file(new_id)).map_err(|e| e.to_string())?;
+    }
+    if assets_dir(old_id).is_dir() {
+        std::fs::rename(assets_dir(old_id), assets_dir(new_id)).map_err(|e| e.to_string())?;
+    }
+    let _ = std::fs::remove_file(def_file(old_id));
+    // The links of the others (a link to itself moved with it above).
+    let mut moved = 0;
+    for mut other in list().into_iter().filter(|o| o.id != new_id) {
+        let mut touched = false;
+        if other.template_from == old_id {
+            other.template_from = new_id.to_string();
+            touched = true;
+        }
+        for f in &mut other.fields {
+            if f.kind == "link" && f.source == old_id {
+                f.source = new_id.to_string();
+                touched = true;
+            }
+            for col in f.columns.iter_mut().filter(|x| x.kind == "link" && x.source == old_id) {
+                col.source = new_id.to_string();
+                touched = true;
+            }
+        }
+        if touched {
+            moved += 1;
+            let bytes = serde_json::to_vec_pretty(&other).map_err(|e| e.to_string())?;
+            crate::settings::write_atomic(&def_file(&other.id), &bytes).map_err(|e| e.to_string())?;
+        }
+    }
+    let (from, to) = (format!("custom:{old_id}"), format!("custom:{new_id}"));
+    crate::agent::update_settings(app, |s| {
+        if let Ok(v) = serde_json::to_value(&*s) {
+            if let Ok(back) = serde_json::from_value(renamed_task(v, &from, &to)) {
+                *s = back;
+            }
+        }
+    })?;
+    crate::log::line(format!("integrazioni personali: {old_id} → {new_id}"));
+    changed(app);
+    Ok(moved)
+}
+
+/// Every string equal to `from`, and every key, become `to` (the settings, profiles included).
+fn renamed_task(v: Value, from: &str, to: &str) -> Value {
+    match v {
+        Value::String(s) if s == from => Value::String(to.to_string()),
+        Value::Array(a) => Value::Array(a.into_iter().map(|x| renamed_task(x, from, to)).collect()),
+        Value::Object(o) => Value::Object(o.into_iter().map(|(k, x)| (if k == from { to.to_string() } else { k }, renamed_task(x, from, to))).collect()),
+        other => other,
+    }
 }
 
 /// Before the Consenti / Nega card of a `custom_update`: what it changes, in
@@ -1094,14 +1354,12 @@ pub fn annotate(payload: &mut Value) {
         return;
     }
     let Some(input) = payload.get("tool_input") else { return };
-    let Ok(mut c) = parse_def(input) else { return };
-    if let Some(id) = input.get("id").and_then(Value::as_str).filter(|s| !s.is_empty()) {
-        c.id = id.to_string();
-    }
-    let Some(old) = get(&c.id).or_else(|| get(&c.name)) else { return };
-    c.id = old.id.clone();
+    let Ok((old, c)) = updated(input) else { return };
     let Ok(new) = normalize(c) else { return };
-    let notes = changes(&old, &new, &records(&old.id));
+    let mut notes = changes(&old, &new, &records(&old.id));
+    if let Some(n) = input.get("new_id").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty() && *n != old.id) {
+        notes.push(tf("L'id cambia da «{a}» a «{b}»: schede, cartella e collegamenti delle altre integrazioni seguono.", &[("a", &old.id), ("b", &n.to_string())]));
+    }
     if let Some(obj) = payload.get_mut("tool_input").and_then(Value::as_object_mut) {
         obj.insert("_changes".into(), json!(notes));
         obj.insert("_name".into(), json!(old.name));
@@ -1383,6 +1641,65 @@ mod tests {
         assert!(!all.contains("«note»"), "{all}");
         // Nothing changed, nothing said.
         assert!(changes(&old, &old, &saved).is_empty());
+    }
+
+    #[test]
+    fn an_update_by_pieces_keeps_the_rest() {
+        let field = |id: &str, kind: &str| Field { id: id.into(), label: id.into(), kind: kind.into(), ..Default::default() };
+        let old = Custom {
+            id: "ddt".into(),
+            name: "DDT".into(),
+            fields: vec![field("numero", "counter"), field("cliente", "text"), field("note", "textarea")],
+            template: "<div>lungo</div>".repeat(300),
+            actions: vec![Action { label: "PDF".into(), kind: "pdf".into(), ..Default::default() }],
+            ..Default::default()
+        };
+        let args = json!({
+            "id": "ddt",
+            "name": "Rapportino",
+            "field": { "id": "ore", "label": "Ore", "kind": "number", "after": "cliente" },
+            "fields": [{ "id": "cliente", "label": "Cliente finale", "kind": "text" }],
+            "remove_fields": ["note"],
+            "action": { "label": "Salva", "kind": "save" }
+        });
+        let c = patched(&old, &args).unwrap();
+        assert_eq!(c.name, "Rapportino");
+        assert_eq!(c.template, old.template, "the template stays when not given");
+        assert_eq!(c.fields.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["numero", "cliente", "ore"]);
+        assert_eq!(c.fields[1].label, "Cliente finale");
+        assert_eq!(c.actions.iter().map(|a| a.label.as_str()).collect::<Vec<_>>(), ["PDF", "Salva"]);
+        assert!(normalize(c).is_ok());
+    }
+
+    #[test]
+    fn a_new_id_follows_into_the_settings() {
+        let s = json!({
+            "pillOrder": ["integration_weather", "custom:clienti-ddt"],
+            "menuGroups": [{ "id": "g1", "items": ["custom:clienti-ddt"] }],
+            "integrationColors": { "custom:clienti-ddt": "#22c55e" },
+            "profiles": [{ "values": { "pillOrder": ["custom:clienti-ddt"] } }],
+            "other": "custom:clienti-ddt-2"
+        });
+        let r = renamed_task(s, "custom:clienti-ddt", "custom:clienti");
+        assert_eq!(r["pillOrder"][1], "custom:clienti");
+        assert_eq!(r["menuGroups"][0]["items"][0], "custom:clienti");
+        assert_eq!(r["integrationColors"]["custom:clienti"], "#22c55e");
+        assert_eq!(r["profiles"][0]["values"]["pillOrder"][0], "custom:clienti");
+        assert_eq!(r["other"], "custom:clienti-ddt-2", "only the whole name");
+    }
+
+    #[test]
+    fn a_borrowed_template_is_not_replaced_by_the_default_one() {
+        let base = Custom { id: "registro".into(), name: "Registro".into(), fields: vec![Field { id: "a".into(), label: "A".into(), kind: "text".into(), ..Default::default() }], ..Default::default() };
+        let mut c = base.clone();
+        c.template_from = " DDT-Easytech ".into();
+        let n = normalize(c).unwrap();
+        assert_eq!(n.template_from, "ddt-easytech");
+        assert!(n.template.is_empty());
+        assert!(!normalize(base.clone()).unwrap().template.is_empty(), "no template, none borrowed: the default one");
+        let mut own = base;
+        own.template_from = "registro".into();
+        assert!(normalize(own).is_err(), "not its own");
     }
 
     #[test]
