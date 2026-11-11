@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.43** — **import skills** from files and folders (The Agency, Claude Code's agents and skills), with a list to pick from and an engine that adapts them.
 - **1.0.42** — **menu groups** like a phone's folders, with a colour; a **link field** that searches and fills.
 - **1.0.41** — **animations** on every click, screen change and opening, with three effects to pick from: **Launch**, **Curtain**, **Particles**.
 - **1.0.40** — **Claude Code outside EasyIsland** without the sessions EasyIsland started itself.
-- **1.0.39** — **Files and screen** in sections, the Working folder's **⋯** menu fixed, the **pin** in the Tray.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
