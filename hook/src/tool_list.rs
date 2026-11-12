@@ -734,7 +734,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "document_create",
-            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*; un'immagine PNG, JPEG o GIF su una riga da sola: ![didascalia](percorso, nome di un file del Vassoio o della cartella di lavoro), larga al massimo quanto la pagina, ![didascalia|5cm](…) per la larghezza), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]: la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
+            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*; un'immagine PNG, JPEG o GIF su una riga da sola: ![didascalia](percorso, nome di un file del Vassoio o della cartella di lavoro), larga al massimo quanto la pagina, ![didascalia|5cm](…) per la larghezza), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]; da un listino o un portale dai invece costo (il prezzo del fornitore) e ricarico (percentuale) e il prezzo lo calcola EasyIsland; ivato true se prezzo o costo hanno già l'IVA dentro (EasyIsland la scorpora): la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "template": { "type": "string" },
                 "title": { "type": "string" },
@@ -744,8 +744,11 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                     "descrizione": { "type": "string" },
                     "quantita": { "type": "number" },
                     "prezzo": { "type": "number" },
+                    "costo": { "type": "number" },
+                    "ricarico": { "type": "number" },
+                    "ivato": { "type": "boolean" },
                     "iva": { "type": "number" }
-                }, "required": ["descrizione", "prezzo"] } },
+                }, "required": ["descrizione"] } },
                 "filename": { "type": "string" },
                 "folder": { "type": "string" },
                 "pdf": { "type": "boolean" }
