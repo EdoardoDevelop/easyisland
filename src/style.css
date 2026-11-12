@@ -1661,7 +1661,8 @@ input[type="range"]::-webkit-slider-thumb {
 /* «Cosa so fare»: the menu over the field, taller, with group titles. */
 .slash-menu.chat-help { max-height: 75%; }
 .chat-help .slash-item b { flex: 0 0 150px; }
-.chat-help .slash-item span { flex: 1 1 auto; min-width: 0; }
+.chat-help .slash-item span { flex: 1 1 auto; min-width: 0; white-space: normal; }
+.slash-menu.chat-help { z-index: 5; }
 .chat-help-title {
   padding: 7px 8px 2px;
   font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font);

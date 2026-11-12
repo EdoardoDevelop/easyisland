@@ -5133,5 +5133,7 @@
   "Insegna alla chat a cercare sul portale aperto nell'Anteprima": "Teaches the chat to search the portal open in the Preview",
   "Cerca {q} in tutti i portali e confronta prezzi e disponibilità": "Search {q} in all the portals and compare prices and availability",
   "Portali: {l}. «/portali codice» li cerca tutti.": "Portals: {l}. “/portali code” searches them all.",
-  "Nessun portale insegnato: apri un portale nell'Anteprima e scrivi /impara-portale.": "No portal taught: open a portal in the Preview and type /impara-portale."
+  "Nessun portale insegnato: apri un portale nell'Anteprima e scrivi /impara-portale.": "No portal taught: open a portal in the Preview and type /impara-portale.",
+  "Manuale: ogni comando e modifica chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica": "Manual: every command and edit asks Allow / Deny. Click: Accept edits, then Plan, then Automatic",
+  "Manuale: ogni comando e modifica chiede Consenti / Nega. Clic: Automatica, comandi e modifiche normali vanno da soli": "Manual: every command and edit asks Allow / Deny. Click: Automatic, normal commands and edits go by themselves"
 }

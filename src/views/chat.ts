@@ -561,13 +561,18 @@ export function buildPrompt(
   recent.style.display = "none";
   let recentRead = 0;
   let recentBusy = false;
+  /** The recent conversations sit above the field and, when shown, the tips row. */
+  function placeRecent() {
+    const tips = tipsRow.style.display !== "none" ? tipsRow.offsetHeight + 8 : 0;
+    recent.style.bottom = `${bar.offsetHeight + 32 + tips}px`;
+  }
   function showRecent(on: boolean) {
     if (!on || State.settings.chatHistory === false) {
       if (recent.style.display !== "none") recent.style.display = "none";
       recent.parentElement?.classList.remove("has-recent");
       return;
     }
-    recent.style.bottom = `${bar.offsetHeight + 32}px`;
+    placeRecent();
     recent.style.display = recent.childElementCount ? "" : "none";
     recent.parentElement?.classList.toggle("has-recent", recent.childElementCount > 0);
     if (recentBusy || Date.now() - recentRead < 30_000) return;
@@ -756,6 +761,7 @@ export function buildPrompt(
         close.addEventListener("click", () => {
           tipsClosed = key;
           tipsRow.style.display = "none";
+          placeRecent();
           onHeightChange();
         });
         tipsRow.replaceChildren(
@@ -769,6 +775,7 @@ export function buildPrompt(
       }
       if ((tipsRow.style.display !== "none") !== show) {
         tipsRow.style.display = show ? "" : "none";
+        placeRecent();
         onHeightChange();
       }
     })().finally(() => { tipsBusy = false; });
@@ -795,8 +802,14 @@ export function buildPrompt(
       }
     }
     helpPanel.append(h("div", { class: "engine-note", text: t("Scrivi «/» per i comandi, come /portali e /impara-portale. La guida completa: «Guida» in fondo alle Impostazioni.") }));
+    // Over the field and as wide as it (it is narrower than the island when wide).
+    helpPanel.style.left = `${bar.offsetLeft}px`;
+    helpPanel.style.right = "auto";
+    helpPanel.style.width = `${bar.offsetWidth}px`;
+    helpPanel.style.bottom = `${(bar.offsetParent as HTMLElement | null)?.clientHeight ? (bar.offsetParent as HTMLElement).clientHeight - bar.offsetTop + 8 : bar.offsetHeight + 16}px`;
     helpPanel.style.display = "";
     tipsRow.style.display = "none";
+    placeRecent();
     onHeightChange();
   }
   document.addEventListener("mousedown", (e) => {
@@ -1437,9 +1450,9 @@ export function buildPrompt(
       c.window = null;
       c.attach = [];
       c.session = null;
-      // An engine picked in the menu was for that conversation only; so was "Automatica".
+      // An engine picked in the menu was for that conversation only; "Automatica" starts on (Edoardo, 12 Nov 2026).
       c.engineOverride = null;
-      c.auto = false;
+      c.auto = true;
       c.mode = "";
       c.model = null;
       c.fast = false;
@@ -2326,7 +2339,7 @@ export function buildPrompt(
       c.session = null;
       c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
       c.folder = got.folder || null;
-      c.auto = false;
+      c.auto = true;
       c.mode = "";
       c.model = null;
       c.fast = false;
@@ -2885,7 +2898,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       autoBtn.classList.toggle("on", auto);
       const claudeMode = terminal && !auto && engineOf(State.chat) === "subscription" ? State.chat.mode : "";
       autoBtn.classList.toggle("mode", !!claudeMode);
-      const modeLabel = auto ? t("Automatica") : claudeMode === "plan" ? t("Piano") : claudeMode === "acceptEdits" ? t("Accetta modifiche") : t("Automatica");
+      const modeLabel = auto ? t("Automatica") : claudeMode === "plan" ? t("Piano") : claudeMode === "acceptEdits" ? t("Accetta modifiche") : t("Manuale");
       const labelEl = autoBtn.querySelector("span");
       if (labelEl && labelEl.textContent !== modeLabel) labelEl.textContent = modeLabel;
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
@@ -2895,9 +2908,9 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         ? t("Accetta modifiche: le modifiche ai file vanno senza chiedere, i comandi chiedono ancora. Clic: Piano")
         : State.chatEngine === "subscription"
         ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
-          : t("Modalità di Claude Code. Clic: Accetta modifiche, poi Piano, poi Automatica, poi di nuovo Consenti / Nega"))
+          : t("Manuale: ogni comando e modifica chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica"))
         : (auto ? t("Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega")
-          : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora")));
+          : t("Manuale: ogni comando e modifica chiede Consenti / Nega. Clic: Automatica, comandi e modifiche normali vanno da soli")));
       // The conversation's title: as the history has it, else its first question.
       const known = lastList.find((x) => x.id === State.chat.logId)?.title;
       const fullTitle = known ?? State.chatHistory.find((m) => m.role === "user")?.content ?? "";

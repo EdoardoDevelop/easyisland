@@ -67,11 +67,11 @@ Every command appears **in full** on the card before it runs.
 **Background work.** For long jobs Claude can have several agents work at once, or leave commands running. Under the conversation **In the background** lists each job: **✕** asks to stop one, **Stop all** stops them all. Meanwhile you can keep writing. When they end, Claude writes the result as in a normal reply (you see the steps while it works) and the island tells you, even when closed.
 
 ### ⚡ Automatic
-The ⚡ button in the chat header (terminal mode only) applies **to the current conversation** and turns off with "New chat". When on, the chat has an amber border.
+The ⚡ button under the chat field (terminal mode only) applies **to the current conversation** and is **on by default**: every new conversation starts in Automatic. A click turns it off and it becomes **Manual** (every action asks Allow / Deny). When on, the chat has an amber border.
 - **Claude Code**: its automatic mode approves normal actions and blocks risky ones.
 - **opencode and the others**: file changes, web and non-sensitive commands go through by themselves. Sensitive commands stay on the card (deleting, `git push` and `reset --hard`, installing, registry, services, network, processes, downloaded code), as do folders outside the working one and connector tools that delete.
 
-**Claude Code's modes**, as in Claude Desktop: with Claude Code the same button goes, at each click, through **Allow / Deny** (every action asks), **Accept edits** (file edits go by themselves, commands ask), **Plan** (Claude reads and prepares a plan without changing anything; you approve it on the card and then it works, and the chat goes back to Allow / Deny) and **Automatic**.
+**Claude Code's modes**, as in Claude Desktop: with Claude Code the same button goes, at each click, through **Manual** (every action asks Allow / Deny), **Accept edits** (file edits go by themselves, commands ask), **Plan** (Claude reads and prepares a plan without changing anything; you approve it on the card and then it works, and the chat goes back to Allow / Deny) and **Automatic**.
 
 **"Always" holds for the whole conversation**: a command, a site or file edits allowed with "Always" stop asking while the conversation goes on, even after a long pause.
 

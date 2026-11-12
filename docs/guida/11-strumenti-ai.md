@@ -67,11 +67,11 @@ Ogni comando compare **per intero** sulla card prima di partire.
 **Lavori in background.** Per i lavori lunghi Claude può far lavorare più agenti insieme, o lasciare comandi in esecuzione. Sotto la conversazione compare **In background** con ogni lavoro: **✕** chiede di fermarne uno, **Ferma tutto** li ferma tutti. Intanto puoi continuare a scrivere. Quando finiscono, Claude scrive il risultato come in una risposta normale (vedi i passi mentre lavora) e l'isola ti avvisa, anche da chiusa.
 
 ### ⚡ Automatica
-Il pulsante ⚡ nella testata della chat (solo con la modalità terminale) vale **per la conversazione in corso** e si spegne con «Nuova chat». Da acceso la chat ha il bordo ambra.
+Il pulsante ⚡ sotto il campo della chat (solo con la modalità terminale) vale **per la conversazione in corso** ed è **acceso di serie**: ogni conversazione nuova parte in Automatica. Un clic lo spegne e diventa **Manuale** (ogni azione chiede Consenti / Nega). Da acceso la chat ha il bordo ambra.
 - **Claude Code**: la sua modalità automatica approva le azioni normali e blocca quelle rischiose.
 - **opencode e gli altri**: passano da soli modifiche ai file, web e comandi non delicati. Restano sulla card i comandi delicati (cancellare, `git push` e `reset --hard`, installare, registro, servizi, rete, processi, codice scaricato), le cartelle fuori da quella di lavoro e gli strumenti dei connettori che cancellano.
 
-**Le modalità di Claude Code**, come in Claude Desktop: con Claude Code lo stesso pulsante passa, a ogni clic, fra **Consenti / Nega** (ogni azione chiede), **Accetta modifiche** (le modifiche ai file vanno da sole, i comandi chiedono), **Piano** (Claude legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora, e la chat torna a Consenti / Nega) e **Automatica**.
+**Le modalità di Claude Code**, come in Claude Desktop: con Claude Code lo stesso pulsante passa, a ogni clic, fra **Manuale** (ogni azione chiede Consenti / Nega), **Accetta modifiche** (le modifiche ai file vanno da sole, i comandi chiedono), **Piano** (Claude legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora, e la chat torna a Consenti / Nega) e **Automatica**.
 
 **«Sempre» vale per tutta la conversazione**: un comando, un sito o le modifiche ai file consentiti con «Sempre» non chiedono più finché la conversazione continua, anche dopo una pausa lunga.
 
