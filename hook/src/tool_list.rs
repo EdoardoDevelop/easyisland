@@ -961,6 +961,43 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "preview_scroll",
+            "Scorre la pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la rotella del mouse: action down (predefinita) o up, amount in schermate (1); con ref, selector o text_match scorre dentro quell'elemento. action to porta in vista l'elemento, hover ci passa sopra il mouse (menu che si aprono così). Per le liste che caricano altro scorrendo. Torna la pagina dopo, o solo l'esito con quiet.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "action": { "type": "string", "enum": ["down", "up", "to", "hover"] },
+                "amount": { "type": "number" },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "quiet": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "preview_act",
+            "Un'azione con mouse o tastiera veri nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva), sull'elemento ref (da preview_snapshot), selector o text_match, oppure sul punto x, y (pixel della schermata di preview_screenshot). action: click, double_click, right_click; key con keys («Enter», «Tab», «Escape», «ArrowDown», «Control+a»; più tasti separati da spazi), dopo aver messo il fuoco sull'elemento se c'è; type_keys scrive text come da tastiera (per le ricerche che suggeriscono mentre scrivi); select sceglie value (testo o valore) in una tendina <select>; check e uncheck per caselle e interruttori; drag trascina fino a to_ref, to_selector, to_text_match o to_x, to_y. Acquisti, ordini, carrello e pagamenti non si cliccano mai; password e dati di pagamento non si scrivono. Torna la pagina dopo, o solo l'esito con quiet. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "action": { "type": "string", "enum": ["click", "double_click", "right_click", "key", "type_keys", "select", "check", "uncheck", "drag"] },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "keys": { "type": "string" },
+                "text": { "type": "string" },
+                "value": { "type": "string" },
+                "to_ref": { "type": "string" },
+                "to_selector": { "type": "string" },
+                "to_text_match": { "type": "string" },
+                "to_x": { "type": "number" },
+                "to_y": { "type": "number" },
+                "quiet": { "type": "boolean" }
+            }, "required": ["action"] }),
+            false,
+        ),
+        (
             "switch_profile",
             "Attiva un profilo di EasyIsland per id (vedi list_profiles).",
             json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),

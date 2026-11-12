@@ -1103,6 +1103,147 @@ async fn eval(app: &AppHandle, id: u32, script: &str) -> Result<String, String> 
     tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())
 }
 
+/// One DevTools protocol call on the tab's page, waited for: its answer.
+async fn cdp_on(app: &AppHandle, id: u32, method: &'static str, params: Value) -> Result<Value, String> {
+    let w = app.get_webview(&web_label(id)).ok_or_else(|| t("Questa scheda non ha una pagina web aperta.").to_string())?;
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<String, String>>();
+    with_core(&w, move |core| {
+        cdp(&core, method, &params, move |r| {
+            let _ = tx.send(r);
+        });
+    })?;
+    let json = tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())??;
+    Ok(serde_json::from_str(&json).unwrap_or(Value::Null))
+}
+
+/// A script that may wait (fetch, a promise) on the tab's page: its value.
+/// eval_with_callback does not wait for promises.
+async fn eval_async(app: &AppHandle, id: u32, script: &str) -> Result<Value, String> {
+    let v = cdp_on(app, id, "Runtime.evaluate", json!({ "expression": script, "awaitPromise": true, "returnByValue": true, "timeout": 14000 })).await?;
+    if let Some(e) = v.get("exceptionDetails") {
+        let text = e.pointer("/exception/description").or_else(|| e.get("text")).and_then(Value::as_str).unwrap_or("Errore");
+        return Err(text.lines().next().unwrap_or_default().to_string());
+    }
+    Ok(v.pointer("/result/value").cloned().unwrap_or(Value::Null))
+}
+
+// ── Real input (preview_act, preview_scroll): mouse and keyboard as a person ──
+
+/// CDP's modifier bits: Alt 1, Ctrl 2, Meta 4, Shift 8.
+fn modifier_bit(name: &str) -> Option<u32> {
+    match name.to_ascii_lowercase().as_str() {
+        "alt" => Some(1),
+        "ctrl" | "control" => Some(2),
+        "meta" | "cmd" | "win" => Some(4),
+        "shift" => Some(8),
+        _ => None,
+    }
+}
+
+/// A key by name: (key, code, Windows virtual key, text it types).
+fn key_of(name: &str) -> Option<(String, String, u32, String)> {
+    let k = |key: &str, code: &str, vk: u32, text: &str| Some((key.to_string(), code.to_string(), vk, text.to_string()));
+    match name.to_ascii_lowercase().as_str() {
+        "enter" | "return" | "invio" => k("Enter", "Enter", 13, "\r"),
+        "tab" => k("Tab", "Tab", 9, ""),
+        "escape" | "esc" => k("Escape", "Escape", 27, ""),
+        "backspace" => k("Backspace", "Backspace", 8, ""),
+        "delete" | "del" | "canc" => k("Delete", "Delete", 46, ""),
+        "space" | "spazio" => k(" ", "Space", 32, " "),
+        "arrowup" | "up" | "su" => k("ArrowUp", "ArrowUp", 38, ""),
+        "arrowdown" | "down" | "giu" | "giù" => k("ArrowDown", "ArrowDown", 40, ""),
+        "arrowleft" | "left" | "sinistra" => k("ArrowLeft", "ArrowLeft", 37, ""),
+        "arrowright" | "right" | "destra" => k("ArrowRight", "ArrowRight", 39, ""),
+        "home" => k("Home", "Home", 36, ""),
+        "end" => k("End", "End", 35, ""),
+        "pageup" => k("PageUp", "PageUp", 33, ""),
+        "pagedown" => k("PageDown", "PageDown", 34, ""),
+        other => {
+            if let Some(n) = other.strip_prefix('f').and_then(|n| n.parse::<u32>().ok()).filter(|n| (1..=12).contains(n)) {
+                let name = format!("F{n}");
+                return Some((name.clone(), name, 111 + n, String::new()));
+            }
+            let mut chars = name.chars();
+            let c = chars.next()?;
+            if chars.next().is_some() {
+                return None;
+            }
+            let up = c.to_ascii_uppercase();
+            let (code, vk) = if up.is_ascii_alphabetic() {
+                (format!("Key{up}"), up as u32)
+            } else if c.is_ascii_digit() {
+                (format!("Digit{c}"), c as u32)
+            } else {
+                (String::new(), 0)
+            };
+            Some((c.to_string(), code, vk, c.to_string()))
+        }
+    }
+}
+
+/// "Control+a" → (modifiers, key); None for an unknown key.
+fn parse_combo(combo: &str) -> Option<(u32, (String, String, u32, String))> {
+    let parts: Vec<&str> = combo.split('+').map(str::trim).filter(|p| !p.is_empty()).collect();
+    let (last, mods) = parts.split_last()?;
+    let mut bits = 0;
+    for m in mods {
+        bits |= modifier_bit(m)?;
+    }
+    let mut key = key_of(last)?;
+    // With Ctrl or Alt a letter is a shortcut, not text.
+    if bits & 3 != 0 {
+        key.3.clear();
+    }
+    Some((bits, key))
+}
+
+async fn press(app: &AppHandle, id: u32, combo: &str) -> Result<(), String> {
+    let (mods, (key, code, vk, text)) = parse_combo(combo).ok_or_else(|| tf("Tasto sconosciuto: {k}", &[("k", &combo)]))?;
+    let mut down = json!({ "type": if text.is_empty() { "rawKeyDown" } else { "keyDown" }, "modifiers": mods, "key": key, "code": code, "windowsVirtualKeyCode": vk, "nativeVirtualKeyCode": vk });
+    if !text.is_empty() {
+        down["text"] = json!(text);
+        down["unmodifiedText"] = json!(text);
+    }
+    cdp_on(app, id, "Input.dispatchKeyEvent", down).await?;
+    cdp_on(app, id, "Input.dispatchKeyEvent", json!({ "type": "keyUp", "modifiers": mods, "key": key, "code": code, "windowsVirtualKeyCode": vk, "nativeVirtualKeyCode": vk })).await?;
+    Ok(())
+}
+
+async fn mouse(app: &AppHandle, id: u32, kind: &'static str, x: f64, y: f64, button: &str, clicks: u32) -> Result<(), String> {
+    cdp_on(app, id, "Input.dispatchMouseEvent", json!({ "type": kind, "x": x, "y": y, "button": button, "clickCount": clicks, "buttons": if kind == "mousePressed" { 1 } else { 0 } })).await?;
+    Ok(())
+}
+
+/// Where an element is on the screen (its centre, in CSS pixels of the
+/// viewport, after bringing it into view), found like preview_click finds it.
+async fn point_of(app: &AppHandle, id: u32, target: &Value, guard: bool) -> Result<(f64, f64, String), String> {
+    let script = format!(
+        "({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }}, false, {guard})"
+    );
+    let raw = eval(app, id, &script).await?;
+    let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+    if let Some(e) = v.get("error").and_then(Value::as_str) {
+        return Err(e.to_string());
+    }
+    let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina.").to_string())?;
+    let n = |i: usize| p.get(i).and_then(Value::as_f64).unwrap_or(0.0);
+    Ok((n(0), n(1), v.get("what").and_then(Value::as_str).unwrap_or_default().to_string()))
+}
+
+/// The element named by ref, selector or text_match in the arguments (prefix
+/// "to_" for a drag's end); None when none is given.
+fn target_of(args: &Value, prefix: &str) -> Option<Value> {
+    let s = |k: &str| args.get(format!("{prefix}{k}")).and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    let (r, sel, text) = (s("ref"), s("selector"), s("text_match"));
+    (!(r.is_empty() && sel.is_empty() && text.is_empty())).then(|| json!({ "ref": r, "selector": sel, "text": text }))
+}
+
+/// A point given as x, y (CSS pixels of the viewport, as in preview_screenshot).
+fn xy_of(args: &Value, prefix: &str) -> Option<(f64, f64)> {
+    let n = |k: &str| args.get(format!("{prefix}{k}")).and_then(Value::as_f64);
+    Some((n("x")?, n("y")?))
+}
+
 // ── Files ────────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Default)]
@@ -1462,12 +1603,12 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let tb = tab_for(&s("tab"))?;
             let target = json!({ "ref": s("ref"), "selector": s("selector"), "text": s("text_match") });
             let script = if name == "preview_click" {
-                format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }})")
+                format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
             } else {
                 let value = json!(s("text"));
                 let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(false);
                 format!(
-                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true)"
+                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
                 )
             };
             let raw = eval(app, tb.id, &script).await?;
@@ -1476,14 +1617,142 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 return Err(e.to_string());
             }
             let done = tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]);
-            // The page as it is now, so the chat sees what the action did.
-            settle(app, tb.id).await;
-            match page_snapshot(app, tb.id).await {
-                Ok(snap) => Ok(format!("{done}\n\n{snap}")),
-                Err(_) => Ok(done),
-            }
+            after(app, tb.id, done, args).await
+        }
+        "preview_scroll" => {
+            let tb = tab_for(&s("tab"))?;
+            let action = s("action");
+            let done = match action.as_str() {
+                "to" | "hover" => {
+                    let target = target_of(args, "").ok_or_else(|| t("Manca l'elemento: ref, selector o text_match.").to_string())?;
+                    let (x, y, what) = point_of(app, tb.id, &target, false).await?;
+                    if action == "hover" {
+                        mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    }
+                    tf("Fatto su «{what}».", &[("what", &what)])
+                }
+                "" | "down" | "up" => {
+                    let amount = args.get("amount").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 20.0);
+                    let size: Value = serde_json::from_str(&eval(app, tb.id, "[innerWidth, innerHeight]").await?).unwrap_or(Value::Null);
+                    let (w, h) = (size.get(0).and_then(Value::as_f64).unwrap_or(800.0), size.get(1).and_then(Value::as_f64).unwrap_or(600.0));
+                    // On an element (a list that scrolls by itself) or in the middle of the page.
+                    let (x, y) = match target_of(args, "") {
+                        Some(target) => point_of(app, tb.id, &target, false).await.map(|(x, y, _)| (x, y))?,
+                        None => (w / 2.0, h / 2.0),
+                    };
+                    let dy = h * 0.8 * amount * if action == "up" { -1.0 } else { 1.0 };
+                    cdp_on(app, tb.id, "Input.dispatchMouseEvent", json!({ "type": "mouseWheel", "x": x, "y": y, "deltaX": 0, "deltaY": dy })).await?;
+                    t("Pagina scorsa.").to_string()
+                }
+                other => return Err(tf("Azione sconosciuta: {a}", &[("a", &other)])),
+            };
+            after(app, tb.id, done, args).await
+        }
+        "preview_act" => {
+            let tb = tab_for(&s("tab"))?;
+            let action = s("action");
+            let tid = tb.id;
+            let at = |prefix: &str| -> Option<Value> { target_of(args, prefix) };
+            // The element (or x, y) the action is on, as a point; guarded unless it only looks.
+            let point = |prefix: &'static str, guard: bool| {
+                let target = at(prefix);
+                let xy = xy_of(args, prefix);
+                async move {
+                    match (target, xy) {
+                        (Some(target), _) => point_of(app, tid, &target, guard).await,
+                        (None, Some((x, y))) => Ok((x, y, format!("{x:.0}, {y:.0}"))),
+                        (None, None) => Err(t("Manca l'elemento: ref, selector, text_match oppure x e y.").to_string()),
+                    }
+                }
+            };
+            let done = match action.as_str() {
+                "click" | "double_click" | "right_click" => {
+                    let (x, y, what) = point("", true).await?;
+                    let button = if action == "right_click" { "right" } else { "left" };
+                    mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    for n in 1..=if action == "double_click" { 2 } else { 1 } {
+                        mouse(app, tb.id, "mousePressed", x, y, button, n).await?;
+                        mouse(app, tb.id, "mouseReleased", x, y, button, n).await?;
+                    }
+                    tf("Fatto su «{what}».", &[("what", &what)])
+                }
+                "drag" => {
+                    let (x, y, what) = point("", true).await?;
+                    let (x2, y2, to) = point("to_", true).await?;
+                    mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    mouse(app, tb.id, "mousePressed", x, y, "left", 1).await?;
+                    for i in 1..=8 {
+                        let f = i as f64 / 8.0;
+                        cdp_on(app, tb.id, "Input.dispatchMouseEvent", json!({ "type": "mouseMoved", "x": x + (x2 - x) * f, "y": y + (y2 - y) * f, "button": "left", "buttons": 1 })).await?;
+                    }
+                    mouse(app, tb.id, "mouseReleased", x2, y2, "left", 1).await?;
+                    tf("Trascinato «{a}» su «{b}».", &[("a", &what), ("b", &to)])
+                }
+                "key" => {
+                    let keys = s("keys");
+                    if keys.is_empty() {
+                        return Err(t("Manca keys, per esempio «Enter» o «Control+a».").into());
+                    }
+                    // On an element: focused first (and guarded: Invio on «Acquista» is a click).
+                    if let Some(target) = at("") {
+                        let script = format!("({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
+                        let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                        if let Some(e) = v.get("error").and_then(Value::as_str) {
+                            return Err(e.to_string());
+                        }
+                    }
+                    for combo in keys.split_whitespace() {
+                        press(app, tb.id, combo).await?;
+                    }
+                    tf("Premuto {k}.", &[("k", &keys)])
+                }
+                "type_keys" => {
+                    // As typed on the keyboard: for search boxes that suggest while you write.
+                    let target = at("").ok_or_else(|| t("Manca il campo: ref, selector o text_match.").to_string())?;
+                    let script = format!("({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
+                    let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                    if let Some(e) = v.get("error").and_then(Value::as_str) {
+                        return Err(e.to_string());
+                    }
+                    cdp_on(app, tb.id, "Input.insertText", json!({ "text": s("text") })).await?;
+                    tf("Scritto in «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())])
+                }
+                "select" | "check" | "uncheck" => {
+                    let target = at("").ok_or_else(|| t("Manca l'elemento: ref, selector o text_match.").to_string())?;
+                    let want = json!(s("value"));
+                    let body = match action.as_str() {
+                        "select" => format!("if (el.tagName !== 'SELECT') return 'not-select'; const w = String({want}).trim().toLowerCase(); const o = Array.from(el.options).find((o) => o.value.toLowerCase() === w || o.text.trim().toLowerCase() === w) || Array.from(el.options).find((o) => o.text.toLowerCase().includes(w)); if (!o) return 'no-option'; el.value = o.value; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); return o.text;"),
+                        _ => format!("const on = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true'; if (on !== {}) el.click(); return 'ok';", action == "check"),
+                    };
+                    let script = format!("({FIND})({target}, (el) => {{ {body} }}, false, true)");
+                    let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                    if let Some(e) = v.get("error").and_then(Value::as_str) {
+                        return Err(e.to_string());
+                    }
+                    match v.get("out").and_then(Value::as_str).unwrap_or_default() {
+                        "not-select" => return Err(t("Non è una tendina <select>: aprila con un clic e scegli la voce.").into()),
+                        "no-option" => return Err(tf("Nella tendina non c'è «{v}».", &[("v", &s("value"))])),
+                        _ => tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]),
+                    }
+                }
+                other => return Err(tf("Azione sconosciuta: {a}", &[("a", &other)])),
+            };
+            after(app, tb.id, done, args).await
         }
         _ => Err(format!("unknown tool {name}")),
+    }
+}
+
+/// After an action: the page as it is now, so the chat sees what it did;
+/// with `quiet` only the line (the next call reads what it needs).
+async fn after(app: &AppHandle, id: u32, done: String, args: &Value) -> Result<String, String> {
+    settle(app, id).await;
+    if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
+        return Ok(done);
+    }
+    match page_snapshot(app, id).await {
+        Ok(snap) => Ok(format!("{done}\n\n{snap}")),
+        Err(_) => Ok(done),
     }
 }
 
@@ -1623,8 +1892,10 @@ const WAIT: &str = r#"(q) => {
 
 /// Finds the element of preview_click / preview_type: a ref of preview_snapshot,
 /// a CSS selector, or the visible text (or label, placeholder, value) of a
-/// button, link or field. Typing never goes in a password or payment field.
-const FIND: &str = r#"(q, act, typing) => {
+/// button, link or field. Typing never goes in a password or payment field;
+/// with `guard` (a click, a key on it) nothing that buys, orders or fills a
+/// cart: those the user does.
+const FIND: &str = r#"(q, act, typing, guard) => {
   let el = null;
   if (q.ref) {
     const w = window.__eiRefs && window.__eiRefs.byRef.get(q.ref);
@@ -1642,8 +1913,15 @@ const FIND: &str = r#"(q, act, typing) => {
   if (!el) return { error: "Elemento non trovato nella pagina." };
   if (typing && (el.type === "password" || /cc-|card|cvc|iban/i.test(el.getAttribute("autocomplete") || "") || /card|cvc|cvv|iban/i.test(el.name || ""))) return { error: "Password e dati di pagamento li scrive l'utente." };
   const what = ((el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.tagName) + "").trim().slice(0, 60);
-  act(el);
-  return { what };
+  if (guard) {
+    const words = [el.innerText, el.value, el.getAttribute("aria-label"), el.getAttribute("title"), el.getAttribute("name"), el.id, el.className && el.className.baseVal === undefined ? el.className : ""].filter(Boolean).join(" ");
+    const buy = /aggiungi al carrello|al carrello|metti nel carrello|acquista|compra ora|compra subito|procedi all.ordine|procedi al pagamento|conferma (l.)?ordine|invia (l.)?ordine|completa (l.)?ordine|effettua (l.)?ordine|paga ora|pagamento|checkout|add to (cart|basket)|buy now|place (the )?order|pay now|add-?to-?cart|addtocart/i;
+    const form = el.form || el.closest("form");
+    const where = [el.getAttribute("href") || "", el.getAttribute("formaction") || "", form && (el.type === "submit" || el.tagName === "BUTTON") ? form.getAttribute("action") || "" : ""].join(" ");
+    if (buy.test(words) || /checkout|\/cart\b|carrello|add-?to-?cart|addtocart|basket/i.test(where)) return { error: "Acquisti, ordini e carrello li fa l'utente: EasyIsland non li clicca." };
+  }
+  const out = act(el);
+  return { what, out };
 }"#;
 
 fn cut(text: &str) -> String {
@@ -1695,6 +1973,31 @@ mod tests {
         let phone = View { preset: "mobile".into(), width: 375, height: 812, scheme: String::new(), zoom: "fit".into() };
         let (_, _, w, _, z) = frame(r, &phone, 1.0);
         assert!((w / z - 375.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn keys_and_shortcuts() {
+        let (m, k) = parse_combo("Enter").unwrap();
+        assert_eq!((m, k.0.as_str(), k.2, k.3.as_str()), (0, "Enter", 13, "\r"));
+        let (m, k) = parse_combo("Control+a").unwrap();
+        assert_eq!((m, k.1.as_str(), k.2, k.3.as_str()), (2, "KeyA", 65, ""));
+        let (m, k) = parse_combo("shift+Tab").unwrap();
+        assert_eq!((m, k.0.as_str()), (8, "Tab"));
+        assert_eq!(parse_combo("F5").unwrap().1 .2, 116);
+        assert_eq!(parse_combo("x").unwrap().1 .3, "x");
+        assert!(parse_combo("Hyper+a").is_none());
+        assert!(parse_combo("Invioo").is_none());
+        assert!(parse_combo("").is_none());
+    }
+
+    #[test]
+    fn targets_from_the_arguments() {
+        let a = json!({ "ref": "e3", "to_selector": "#b", "x": 10, "y": 20.5 });
+        assert_eq!(target_of(&a, "").unwrap()["ref"], "e3");
+        assert_eq!(target_of(&a, "to_").unwrap()["selector"], "#b");
+        assert!(target_of(&json!({}), "").is_none());
+        assert_eq!(xy_of(&a, ""), Some((10.0, 20.5)));
+        assert_eq!(xy_of(&a, "to_"), None);
     }
 
     #[test]

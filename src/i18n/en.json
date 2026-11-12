@@ -4981,5 +4981,20 @@
   "Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.": "Every step re-reads the whole context: click to compact the conversation.",
   "({n} caratteri: custom_get con part \"template\" per leggerlo)": "({n} characters: custom_get with part \"template\" to read it)",
   "({n} caratteri: custom_get con part \"all\" per leggerlo)": "({n} characters: custom_get with part \"all\" to read it)",
-  "Nessun template.": "No template."
+  "Nessun template.": "No template.",
+  "Tasto sconosciuto: {k}": "Unknown key: {k}",
+  "Elemento non trovato nella pagina.": "Element not found on the page.",
+  "Manca l'elemento: ref, selector o text_match.": "The element is missing: ref, selector or text_match.",
+  "Pagina scorsa.": "Page scrolled.",
+  "Azione sconosciuta: {a}": "Unknown action: {a}",
+  "Manca l'elemento: ref, selector, text_match oppure x e y.": "The element is missing: ref, selector, text_match or x and y.",
+  "Trascinato «{a}» su «{b}».": "Dragged “{a}” onto “{b}”.",
+  "Manca keys, per esempio «Enter» o «Control+a».": "keys is missing, for example “Enter” or “Control+a”.",
+  "Premuto {k}.": "Pressed {k}.",
+  "Manca il campo: ref, selector o text_match.": "The field is missing: ref, selector or text_match.",
+  "Scritto in «{what}».": "Typed in “{what}”.",
+  "Non è una tendina <select>: aprila con un clic e scegli la voce.": "It is not a <select> drop-down: open it with a click and pick the item.",
+  "Nella tendina non c'è «{v}».": "“{v}” is not in the drop-down.",
+  "Scorre la pagina": "Scrolls the page",
+  "Usa mouse e tastiera nella pagina": "Uses mouse and keyboard on the page"
 }
