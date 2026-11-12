@@ -228,7 +228,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "custom_create" => crate::custom::tool_create(app, args),
         "custom_update" => crate::custom::tool_update(app, args),
         "custom_list" => Ok(crate::custom::tool_list()),
-        "custom_get" => crate::custom::tool_get(arg(args, "id")),
+        "custom_get" => crate::custom::tool_get(arg(args, "id"), arg(args, "part")),
         "custom_preview" => crate::custom::tool_preview(app, args).await,
         "custom_records" => crate::custom::tool_records(arg(args, "id"), arg(args, "query"), args.get("limit").and_then(Value::as_u64).unwrap_or(30) as usize),
         "custom_add_record" => crate::custom::tool_add_record(app, args),

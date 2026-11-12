@@ -1428,8 +1428,29 @@ fn patched(old: &Custom, args: &Value) -> Result<Custom, String> {
     Ok(c)
 }
 
+/// A text custom_get shortened ("(38412 caratteri: custom_get con part …)").
+fn shortened(text: &str) -> bool {
+    let t = text.trim();
+    t.starts_with('(') && t.ends_with(')') && t.len() < 160 && t.contains("custom_get") && t.contains("part")
+}
+
+/// The template and scripts custom_get showed as their length, sent back as
+/// they were: the old texts stay (never "(38412 caratteri…)" in their place).
+fn keep_shortened(old: &Custom, c: &mut Custom) {
+    if shortened(&c.template) {
+        c.template = old.template.clone();
+    }
+    for (i, a) in c.actions.iter_mut().enumerate() {
+        if shortened(&a.script) {
+            let same = old.actions.iter().find(|o| o.label == a.label).or_else(|| old.actions.get(i));
+            a.script = same.map(|o| o.script.clone()).unwrap_or_default();
+        }
+    }
+}
+
 pub fn tool_update(app: &AppHandle, args: &Value) -> Result<String, String> {
-    let (old, c) = updated(args)?;
+    let (old, mut c) = updated(args)?;
+    keep_shortened(&old, &mut c);
     let new = normalize(c.clone())?;
     check_links(&new)?;
     let new_id = args.get("new_id").and_then(Value::as_str).map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty() && *s != old.id);
@@ -1717,9 +1738,32 @@ pub fn tool_list() -> String {
     all.iter().map(|c| format!("- {} ({}): {} · {} campi · {} schede", c.name, c.id, c.description, c.fields.len(), records(&c.id).len())).collect::<Vec<_>>().join("\n")
 }
 
-pub fn tool_get(id: &str) -> Result<String, String> {
+/// custom_get. Compact (12 Nov 2026): JSON on one line, and the template and
+/// long scripts as their length, read with `part` "template" or "all" when
+/// they are what changes. On the laptop a custom_get was up to 44k characters,
+/// then in every step of the chat after it.
+pub fn tool_get(id: &str, part: &str) -> Result<String, String> {
+    const LONG: usize = 600;
     let c = get(id).ok_or(t("Integrazione non trovata."))?;
-    serde_json::to_string_pretty(&c).map_err(|e| e.to_string())
+    match part.trim() {
+        "template" => return Ok(if c.template.trim().is_empty() { t("Nessun template.").into() } else { c.template.clone() }),
+        "all" => return serde_json::to_string(&c).map_err(|e| e.to_string()),
+        _ => {}
+    }
+    let mut v = serde_json::to_value(&c).map_err(|e| e.to_string())?;
+    let n = c.template.chars().count();
+    if n > LONG {
+        v["template"] = json!(tf("({n} caratteri: custom_get con part \"template\" per leggerlo)", &[("n", &n.to_string())]));
+    }
+    if let Some(actions) = v.get_mut("actions").and_then(Value::as_array_mut) {
+        for a in actions {
+            let n = a.get("script").and_then(Value::as_str).map_or(0, |s| s.chars().count());
+            if n > LONG {
+                a["script"] = json!(tf("({n} caratteri: custom_get con part \"all\" per leggerlo)", &[("n", &n.to_string())]));
+            }
+        }
+    }
+    serde_json::to_string(&v).map_err(|e| e.to_string())
 }
 
 pub fn tool_records(id: &str, query: &str, limit: usize) -> Result<String, String> {
@@ -1730,13 +1774,13 @@ pub fn tool_records(id: &str, query: &str, limit: usize) -> Result<String, Strin
         .take(limit.clamp(1, 200))
         .map(|r| json!({ "id": r.id, "updated": r.updated, "values": r.values }))
         .collect();
-    serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())
+    serde_json::to_string(&rows).map_err(|e| e.to_string())
 }
 
 /// custom_fetch: what a source of an integration says now (its approved address).
 pub async fn tool_fetch(id: &str, source: &str) -> Result<String, String> {
     let r = fetch(id, source).await?;
-    let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
+    let text = serde_json::to_string(&r.data).unwrap_or_default();
     let cut: String = text.chars().take(20_000).collect();
     Ok(format!("HTTP {}\n{cut}", r.status))
 }
@@ -1841,7 +1885,7 @@ pub async fn tool_call(args: &Value) -> Result<String, String> {
         let kind = r.data.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
         return Ok(tf("HTTP {s}: un file ({kind}) in {path}", &[("s", &r.status.to_string()), ("kind", &kind), ("path", &kept)]));
     }
-    let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
+    let text = serde_json::to_string(&r.data).unwrap_or_default();
     Ok(format!("HTTP {}\n{}", r.status, text.chars().take(20_000).collect::<String>()))
 }
 
@@ -1856,6 +1900,20 @@ pub fn tool_add_record(app: &AppHandle, args: &Value) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_shortened_template_sent_back_keeps_the_real_one() {
+        let old: Custom = serde_json::from_value(json!({
+            "name": "Prova", "fields": [{ "id": "a", "label": "A", "kind": "text" }],
+            "template": "<html>vero</html>", "actions": [{ "label": "Esegui", "kind": "script", "script": "Write-Host vero" }]
+        })).unwrap();
+        let mut c = old.clone();
+        c.template = "(38412 caratteri: custom_get con part \"template\" per leggerlo)".into();
+        c.actions[0].script = "(900 caratteri: custom_get con part \"all\" per leggerlo)".into();
+        keep_shortened(&old, &mut c);
+        assert_eq!((c.template.as_str(), c.actions[0].script.as_str()), ("<html>vero</html>", "Write-Host vero"));
+        assert!(!shortened("(nota)") && shortened("(12 caratteri: custom_get con part \"all\" per leggerlo)"));
+    }
 
     #[test]
     fn a_file_field_accepts_groups_and_extensions() {

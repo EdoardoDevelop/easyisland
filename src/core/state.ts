@@ -458,6 +458,8 @@ export interface ChatSessionState {
   fast: boolean;
   /** Claude Code's sub-agents (Agent tool) in Modalità terminale: off unless turned on. */
   agents: boolean;
+  /** The «context is heavy» line was shown in this conversation (chat.ts HEAVY_CONTEXT). */
+  heavyWarned?: boolean;
   /** «Multi motore» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];

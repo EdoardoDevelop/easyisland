@@ -2112,6 +2112,8 @@ input[type="range"]::-webkit-slider-thumb {
 .ctx-ring { display: none; width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(currentColor var(--p, 0%), rgba(255, 255, 255, 0.14) 0); -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 62%); mask: radial-gradient(closest-side, transparent 60%, #000 62%); }
 .ctx-meter.sized .ctx-ring { display: block; }
 .ctx-meter.full { color: #f5a524; }
+.ctx-meter.heavy { cursor: pointer; }
+.ctx-meter.heavy:hover { color: #ffc24d; }
 .chat-bar .engine-menu { top: auto; right: auto; bottom: 100%; left: 0; margin-bottom: 4px; }
 /* In the narrow island the row never wraps: the modes keep only their icon. */
 @container (max-width: 580px) {

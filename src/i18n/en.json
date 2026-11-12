@@ -4976,5 +4976,10 @@
   "Campo «{l}»: accept non valido ({v}). Usa audio, immagini, video, pdf, word, excel, testo o estensioni come mp3,wav.": "Field «{l}»: invalid accept ({v}). Use audio, immagini, video, pdf, word, excel, testo or extensions like mp3,wav.",
   "Qui va un file {list}.": "This needs a file of type {list}.",
   "Scegli un file": "Pick a file",
-  "[Dalla memoria, trovato da EasyIsland per questa domanda (se serve altro, memory_search):\n{body}]\n\n": "[From the memory, found by EasyIsland for this question (for more, memory_search):\n{body}]\n\n"
+  "[Dalla memoria, trovato da EasyIsland per questa domanda (se serve altro, memory_search):\n{body}]\n\n": "[From the memory, found by EasyIsland for this question (for more, memory_search):\n{body}]\n\n",
+  "La conversazione pesa {n} token e ogni passo li rilegge tutti: clic sull'indicatore del contesto (o /compatta) per riassumerla, o «Nuovo» se cambi argomento.": "The conversation weighs {n} tokens and every step re-reads them all: click the context meter (or /compatta) to summarize it, or «New» if you change subject.",
+  "Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.": "Every step re-reads the whole context: click to compact the conversation.",
+  "({n} caratteri: custom_get con part \"template\" per leggerlo)": "({n} characters: custom_get with part \"template\" to read it)",
+  "({n} caratteri: custom_get con part \"all\" per leggerlo)": "({n} characters: custom_get with part \"all\" to read it)",
+  "Nessun template.": "No template."
 }

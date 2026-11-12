@@ -794,8 +794,8 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "custom_get",
-            "La descrizione completa di un'integrazione personale (campi, template, azioni), da cambiare con custom_update.",
-            json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),
+            "La descrizione di un'integrazione personale (campi, azioni, fonti), da cambiare con custom_update. Il template HTML e gli script lunghi compaiono come lunghezza: part \"template\" dà solo il template, part \"all\" tutto; chiedili solo se devi leggerli o cambiarli.",
+            json!({ "type": "object", "properties": { "id": { "type": "string" }, "part": { "type": "string", "enum": ["template", "all"] } }, "required": ["id"] }),
             true,
         ),
         (

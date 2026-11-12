@@ -24,6 +24,9 @@ let externalSend: ((query: string) => void) | null = null;
 
 /** The browser preview has no backend: a scene fills the history list here (dev/scenes.ts). */
 let historyDemo: ChatSummary[] = [];
+
+/** Tokens of context past which the chat suggests compacting (12 Nov 2026: on the laptop 2/3 of a week's tokens were steps over this). */
+const HEAVY_CONTEXT = 100_000;
 export function setHistoryDemo(list: ChatSummary[]) {
   historyDemo = list;
 }
@@ -467,6 +470,14 @@ export function buildPrompt(
   // Two rows: the text on the whole width, under it what goes with the message.
   const contextPct = h("span", { class: "ctx-pct" });
   const contextMeter = h("span", { class: "ctx-meter" }, h("span", { class: "ctx-ring" }), contextPct);
+  // A heavy conversation: a click compacts it (as «/compatta»).
+  contextMeter.addEventListener("click", () => {
+    const c = State.chat;
+    if ((c.context?.[0] ?? 0) < HEAVY_CONTEXT) return;
+    flash("");
+    if (c.sending) c.queue.push("/compatta");
+    else void submit("/compatta", c);
+  });
   const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, prBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
   const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
   // "/" in the field: the commands, over the field.
@@ -780,6 +791,11 @@ export function buildPrompt(
       const note = (reply as { note?: string | null }).note;
       if (note && c === State.chat) flash(note);
       c.context = reply.context ?? null;
+      // Past HEAVY_CONTEXT every step re-reads it all: said once, the meter stays amber and compacts on a click.
+      if ((c.context?.[0] ?? 0) >= HEAVY_CONTEXT && !c.heavyWarned && c === State.chat) {
+        c.heavyWarned = true;
+        flash(t("La conversazione pesa {n} token e ogni passo li rilegge tutti: clic sull'indicatore del contesto (o /compatta) per riassumerla, o «Nuovo» se cambi argomento.", { n: Math.round((c.context?.[0] ?? 0) / 1000) + "k" }), true);
+      }
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
@@ -1331,6 +1347,7 @@ export function buildPrompt(
       c.model = null;
       c.fast = false;
       c.agents = false;
+      c.heavyWarned = false;
       c.team = false;
       c.desktop = false;
       c.assistant = null;
@@ -2196,6 +2213,7 @@ export function buildPrompt(
       c.model = null;
       c.fast = false;
       c.agents = false;
+      c.heavyWarned = false;
       c.team = false;
       c.desktop = false;
       c.at = Date.now();
@@ -2639,13 +2657,17 @@ export function buildPrompt(
       const [ctxUsed, ctxSize] = State.chat.context ?? [0, 0];
       const ctxShare = ctxSize ? Math.min(100, Math.round(ctxUsed / ctxSize * 100)) : 0;
       contextMeter.style.display = ctxUsed ? "" : "none";
-      contextMeter.classList.toggle("full", ctxShare >= 80);
+      const heavy = ctxUsed >= HEAVY_CONTEXT;
+      contextMeter.classList.toggle("full", ctxShare >= 80 || heavy);
+      contextMeter.classList.toggle("heavy", heavy);
       contextMeter.classList.toggle("sized", ctxSize > 0);
       contextMeter.style.setProperty("--p", `${ctxShare}%`);
       contextPct.textContent = ctxSize ? `${ctxShare}%` : `${Math.round(ctxUsed / 1000)}k`;
       contextMeter.title = ctxSize
         ? t("Contesto: {used} di {size} token", { used: ctxUsed.toLocaleString(locale()), size: ctxSize.toLocaleString(locale()) })
         : t("Contesto: {used} token", { used: ctxUsed.toLocaleString(locale()) });
+      if (heavy) contextMeter.title += `
+${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.")}`;
       const folderLabel = ownFolder ? folderName(ownFolder) : t("Progetto…");
       const folderKey = `${folderLabel}|${branch}`;
       if (folderBtn.dataset.label !== folderKey) {
