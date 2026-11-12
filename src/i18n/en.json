@@ -5011,5 +5011,10 @@
   "ERRORE:": "ERROR:",
   "Fermo al passo {n} di {tot}.": "Stopped at step {n} of {tot}.",
   "Pronto.": "Ready.",
-  "Fa più passi nella pagina": "Takes several steps on the page"
+  "Fa più passi nella pagina": "Takes several steps on the page",
+  "url deve essere dello stesso sito della scheda (apri prima quel sito).": "url must be on the same site as the tab (open that site first).",
+  "Il sito ha risposto {s}.": "The site answered {s}.",
+  "Nessun prodotto riconosciuto. Prova preview_network con data_only e body (la ricerca del sito può rispondere in JSON), url con json true, oppure preview_find e poi selectors.": "No product recognised. Try preview_network with data_only and body (the site's search may answer in JSON), url with json true, or preview_find and then selectors.",
+  "{n} prodotti da {url} (fonti: {src}); prezzi come li dà il sito, controlla se IVA inclusa.": "{n} products from {url} (sources: {src}); prices as the site gives them, check whether VAT is included.",
+  "Legge i prodotti della pagina": "Reads the page's products"
 }

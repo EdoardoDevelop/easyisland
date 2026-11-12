@@ -899,6 +899,21 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "preview_extract",
+            "I prodotti della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come JSON compatto: nome, codice (sku, mpn, EAN), marca, prezzo e valuta, disponibilità, link, foto, descrizione breve. Li riconosce da solo, senza sapere che sito è: dati schema.org, meta, dataLayer, risposte JSON ricevute dalla pagina. url: un'altra pagina dello stesso sito (con l'accesso dell'utente), con json true per le ricerche che rispondono in JSON (spesso «…?s=codice»). Per siti senza dati strutturati: selectors { item, name, price, sku, url, image, availability } (CSS, «img@src» per un attributo); per un JSON: items (percorso della lista) e fields { nome: percorso }. limit (20). Il modo meno caro di leggere prodotti e prezzi; le foto si prendono dagli indirizzi, senza guardarle.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "url": { "type": "string" },
+                "json": { "type": "boolean" },
+                "limit": { "type": "integer" },
+                "selectors": { "type": "object" },
+                "items": { "type": "string" },
+                "fields": { "type": "object" },
+                "network": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
             "preview_find",
             "Cerca nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) gli elementi con tutte le parole di query nel nome o nel testo (un pulsante, un campo, un prezzo, un codice): al massimo 25 righe con il riferimento [ref=…] per preview_click e preview_act e il titolo sotto cui stanno. Molto meno caro di preview_snapshot su una pagina grande.",
             json!({ "type": "object", "properties": {

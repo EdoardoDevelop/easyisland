@@ -1642,6 +1642,13 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             }
             Ok(cut(&out.join("\n")))
         }
+        "preview_extract" => {
+            let tb = tab_for(&s("tab"))?;
+            if tb.kind == "file" && !tb.browser {
+                return Err(t("È un file, non una pagina web: usa preview_read.").into());
+            }
+            extract(app, tb.id, args).await
+        }
         "preview_find" => {
             let tb = tab_for(&s("tab"))?;
             let q = s("query");
@@ -1862,6 +1869,60 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
     }
 }
 
+/// At most this many answers of the page's own requests are read, the last ones.
+const EXTRACT_BODIES: usize = 6;
+const EXTRACT_BODY_MAX: usize = 1_000_000;
+
+/// preview_extract: the products of the page (or of `url` on the same site), as compact JSON.
+pub(crate) async fn extract(app: &AppHandle, id: u32, args: &Value) -> Result<String, String> {
+    let url = args.get("url").and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    // The JSON the page itself received (a search's results), unless another page is read.
+    let mut bodies = Vec::new();
+    if url.is_empty() && args.get("network").and_then(Value::as_bool).unwrap_or(true) {
+        let ids: Vec<String> = state().net.get(&id).map(|l| l.iter().rev().filter(|r| is_data(r) && r.status < 400 && r.mime.contains("json")).take(EXTRACT_BODIES).map(|r| r.id.clone()).collect()).unwrap_or_default();
+        for rid in ids {
+            if let Ok(b) = response_body(app, id, &rid).await {
+                if b.len() <= EXTRACT_BODY_MAX {
+                    bodies.push(b);
+                }
+            }
+        }
+    }
+    let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(20).clamp(1, 100);
+    let mut opts = json!({ "limit": limit, "bodies": bodies, "json": args.get("json").and_then(Value::as_bool).unwrap_or(false) });
+    if !url.is_empty() {
+        opts["url"] = json!(url);
+    }
+    for key in ["fields", "selectors"] {
+        if let Some(v) = args.get(key).filter(|v| v.is_object()) {
+            opts[key] = v.clone();
+        }
+    }
+    if let Some(v) = args.get("items").and_then(Value::as_str).filter(|v| !v.trim().is_empty()) {
+        opts["items"] = json!(v);
+    }
+    let v = eval_async(app, id, &format!("({EXTRACT})({opts})")).await?;
+    match v.get("error").and_then(Value::as_str) {
+        Some("cross") => return Err(t("url deve essere dello stesso sito della scheda (apri prima quel sito).").into()),
+        Some("status") => return Err(tf("Il sito ha risposto {s}.", &[("s", &v.get("status").map(Value::to_string).unwrap_or_default())])),
+        Some(e) => return Err(e.to_string()),
+        None => {}
+    }
+    let count = v.get("count").and_then(Value::as_u64).unwrap_or(0);
+    if count == 0 {
+        return Ok(t("Nessun prodotto riconosciuto. Prova preview_network con data_only e body (la ricerca del sito può rispondere in JSON), url con json true, oppure preview_find e poi selectors.").into());
+    }
+    let sources = v.get("sources").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")).unwrap_or_default();
+    let items = v.get("items").cloned().unwrap_or(Value::Null);
+    let head = tf("{n} prodotti da {url} (fonti: {src}); prezzi come li dà il sito, controlla se IVA inclusa.", &[
+        ("n", &count.to_string()),
+        ("url", &v.get("url").and_then(Value::as_str).unwrap_or_default()),
+        ("src", &sources),
+    ]);
+    Ok(cut(&format!("{head}
+{items}")))
+}
+
 /// A request that brought data, not the page's own furniture: JSON, XML,
 /// text answers of fetch/XHR.
 fn is_data(r: &Request) -> bool {
@@ -2062,6 +2123,190 @@ const FIND_ALL: &str = r#"(q) => {
     }
   }
   return out;
+}"#;
+
+/// preview_extract: products read from the page without knowing the site, in
+/// order: schema.org Product (JSON-LD, microdata), meta product:/og:, the
+/// page's dataLayer, the JSON answers it received (`bodies`), or the user's
+/// selectors from a portal's recipe. With `url` (same site only, GET, with the
+/// session) another page or the site's own search answer, as JSON with `json`.
+/// The same product from two sources is merged.
+const EXTRACT: &str = r#"async (o) => {
+  const clip = (t, n) => { t = (t == null ? "" : String(t)).replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  const num = (v) => {
+    if (v == null || v === "") return null;
+    if (typeof v === "number") return v;
+    let s = String(v).replace(/[^\d.,-]/g, "");
+    if (!s) return null;
+    const c = s.lastIndexOf(","), d = s.lastIndexOf(".");
+    if (c > d) s = s.replace(/\./g, "").replace(",", "."); else s = s.replace(/,/g, "");
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
+  let base = location.href;
+  const abs = (u) => { try { return u ? new URL(String(u), base).href : ""; } catch (e) { return ""; } };
+  const items = [];
+  const sources = [];
+  // The same product from two sources (same name, or same code) becomes one,
+  // the first source's values winning.
+  const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const add = (p, src) => {
+    if (!p || !(p.name || p.sku)) return;
+    for (const k of Object.keys(p)) if (p[k] == null || p[k] === "" || (Array.isArray(p[k]) && !p[k].length)) delete p[k];
+    const same = items.find((i) => (p.name && norm(i.name) === norm(p.name)) || (p.sku && i.sku && norm(i.sku) === norm(p.sku)));
+    if (same) { for (const k of Object.keys(p)) if (same[k] == null) same[k] = p[k]; }
+    else items.push(p);
+    if (!sources.includes(src)) sources.push(src);
+  };
+  const avail = (v) => clip(String(v || "").replace(/^https?:\/\/schema\.org\//, ""), 40);
+  const first = (v) => [].concat(v == null ? [] : v)[0];
+  // schema.org Product in JSON-LD (also inside @graph, ItemList, variants).
+  const ldProduct = (x) => {
+    let off = first(x.offers) || {};
+    if (off.offers) off = first(off.offers) || off;
+    const spec = first(off.priceSpecification) || {};
+    return {
+      name: clip(x.name, 200), sku: clip(x.sku || x.productID, 60), mpn: clip(x.mpn, 60),
+      gtin: clip(x.gtin13 || x.gtin || x.gtin12 || x.gtin14 || x.gtin8, 20),
+      brand: clip(x.brand && typeof x.brand === "object" ? x.brand.name : x.brand, 60),
+      price: num(off.price != null ? off.price : off.lowPrice != null ? off.lowPrice : spec.price),
+      currency: off.priceCurrency || spec.priceCurrency || "",
+      vat_included: spec.valueAddedTaxIncluded,
+      availability: avail(off.availability), url: abs(x.url || off.url),
+      images: [].concat(x.image || []).map((i) => abs(typeof i === "object" ? i.url || i.contentUrl : i)).filter(Boolean).slice(0, 5),
+      description: clip(x.description, 300),
+    };
+  };
+  const fromLd = (doc) => {
+    for (const s of doc.querySelectorAll('script[type="application/ld+json"]')) {
+      let j; try { j = JSON.parse(s.textContent); } catch (e) { continue; }
+      const walk = (x, d) => {
+        if (!x || typeof x !== "object" || d > 6) return;
+        if (Array.isArray(x)) { x.forEach((e) => walk(e, d + 1)); return; }
+        const t = [].concat(x["@type"] || []);
+        if (t.includes("Product") || t.includes("IndividualProduct")) add(ldProduct(x), "json-ld");
+        for (const k of ["@graph", "itemListElement", "item", "mainEntity", "hasVariant"]) if (x[k]) walk(x[k], d + 1);
+      };
+      walk(j, 0);
+    }
+  };
+  const fromMicro = (doc) => {
+    for (const el of doc.querySelectorAll('[itemtype*="schema.org/Product"]')) {
+      const prop = (n) => { const e = el.querySelector('[itemprop="' + n + '"]'); return e ? e.getAttribute("content") || e.getAttribute("src") || e.getAttribute("href") || e.textContent : ""; };
+      add({ name: clip(prop("name"), 200), sku: clip(prop("sku"), 60), mpn: clip(prop("mpn"), 60), gtin: clip(prop("gtin13") || prop("gtin"), 20), brand: clip(prop("brand"), 60), price: num(prop("price")), currency: prop("priceCurrency"), availability: avail(prop("availability")), url: abs(prop("url")), images: [abs(prop("image"))].filter(Boolean), description: clip(prop("description"), 300) }, "microdata");
+    }
+  };
+  const fromMeta = (doc) => {
+    const m = (p) => { const e = doc.querySelector('meta[property="' + p + '"],meta[name="' + p + '"]'); return e ? e.getAttribute("content") || "" : ""; };
+    const price = m("product:price:amount") || m("og:price:amount");
+    if (price || m("og:type") === "product") add({ name: clip(m("og:title"), 200), price: num(price), currency: m("product:price:currency") || m("og:price:currency"), availability: avail(m("product:availability")), url: abs(m("og:url")), images: [abs(m("og:image"))].filter(Boolean), description: clip(m("og:description"), 300) }, "meta");
+  };
+  // Lists of things that look like products in any JSON (an API's answer, a dataLayer).
+  const NAME = ["name", "title", "item_name", "product_name", "productName", "nome", "label", "description", "descrizione"];
+  const PRICE = ["price_amount", "price", "prezzo", "unitPrice", "unit_price", "netPrice", "net_price", "priceNet", "finalPrice", "final_price", "salePrice", "sale_price", "priceValue", "prezzo_netto", "amount"];
+  const SKU = ["sku", "reference", "code", "codice", "item_id", "productNumber", "ordernumber", "orderNumber", "partNumber", "part_number", "mpn", "id_product", "productId"];
+  const IMG = ["image", "images", "img", "imageUrl", "image_url", "thumbnail", "thumb", "picture", "cover", "media"];
+  const URLK = ["url", "link", "href", "product_url", "productUrl", "canonical_url", "permalink"];
+  const scalar = (v) => v != null && v !== "" && typeof v !== "object";
+  const pick = (x, keys) => {
+    for (const k of keys) if (scalar(x[k])) return x[k];
+    for (const k of keys) { const v = x[k]; if (v && typeof v === "object" && !Array.isArray(v)) for (const kk of ["amount", "value", "gross", "net", "price", "formatted"]) if (scalar(v[kk])) return v[kk]; }
+    return null;
+  };
+  const deepImage = (v, d) => {
+    if (d > 4 || v == null) return "";
+    if (typeof v === "string") return /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(v) || /^https?:\/\/.*\/(img|image|media)/i.test(v) ? v : "";
+    if (Array.isArray(v)) { for (const e of v) { const r = deepImage(e, d + 1); if (r) return r; } return ""; }
+    if (typeof v === "object") { for (const k of ["large", "url", "src", "href", "medium", "original", ...Object.keys(v)]) { const r = deepImage(v[k], d + 1); if (r) return r; } }
+    return "";
+  };
+  const looksLike = (x) => x && typeof x === "object" && !Array.isArray(x) && pick(x, NAME) != null && (pick(x, PRICE) != null || pick(x, SKU) != null);
+  const get = (x, path) => String(path || "").split(".").filter(Boolean).reduce((a, k) => (a == null ? a : a[k]), x);
+  const mapJson = (x) => {
+    if (o.fields) {
+      const f = o.fields, p = {};
+      for (const k of Object.keys(f)) {
+        const v = get(x, f[k]);
+        p[k] = k === "price" ? num(v) : k === "images" ? [].concat(v || []).map((i) => abs(deepImage(i, 0) || i)).filter(Boolean).slice(0, 5) : k === "url" ? abs(v) : clip(v && typeof v === "object" ? JSON.stringify(v) : v, 300);
+      }
+      return p;
+    }
+    const img = IMG.map((k) => deepImage(x[k], 0)).find(Boolean) || "";
+    return {
+      name: clip(pick(x, NAME), 200), sku: clip(pick(x, SKU), 60),
+      brand: clip(x.brand && typeof x.brand === "object" ? x.brand.name : x.brand || x.item_brand || x.manufacturer, 60),
+      price: num(pick(x, PRICE)), currency: clip(x.currency || x.priceCurrency || "", 5),
+      availability: clip(scalar(x.availability) ? x.availability : x.availability_message || x.stock || x.disponibilita || (scalar(x.quantity) ? "qty " + x.quantity : ""), 40),
+      url: abs(pick(x, URLK)), images: img ? [abs(img)] : [],
+    };
+  };
+  const fromJson = (j, src) => {
+    if (o.items) { [].concat(get(j, o.items) || []).forEach((x) => add(mapJson(x), src)); return; }
+    let best = null;
+    const walk = (x, d) => {
+      if (d > 8 || !x || typeof x !== "object") return;
+      if (Array.isArray(x)) {
+        const hits = x.filter(looksLike);
+        if (hits.length && (!best || hits.length > best.length)) best = hits;
+        x.slice(0, 60).forEach((e) => walk(e, d + 1));
+        return;
+      }
+      if (!best && looksLike(x)) best = [x];
+      for (const k of Object.keys(x)) walk(x[k], d + 1);
+    };
+    walk(j, 0);
+    (best || []).forEach((x) => add(mapJson(x), src));
+  };
+  const fromDataLayer = () => {
+    const dl = Array.isArray(window.dataLayer) ? window.dataLayer : [];
+    for (const e of dl.slice(-80)) {
+      if (!e || typeof e !== "object") continue;
+      const x = Array.isArray(e) ? e : e.length !== undefined ? Array.from(e) : e;
+      const ec = Array.isArray(x) ? x[2] : x.ecommerce;
+      if (ec && typeof ec === "object") fromJson(ec, "dataLayer");
+    }
+  };
+  // The user's own selectors, from a portal's recipe: "a.title", "img@src".
+  const fromSelectors = (doc) => {
+    const s = o.selectors;
+    const val = (root, sel) => {
+      if (!sel) return "";
+      const at = String(sel).lastIndexOf("@");
+      const css = at >= 0 ? String(sel).slice(0, at) : String(sel);
+      const attr = at >= 0 ? String(sel).slice(at + 1) : "";
+      const e = css ? root.querySelector(css) : root;
+      if (!e) return "";
+      return attr ? e.getAttribute(attr) || "" : e.textContent;
+    };
+    for (const it of Array.from(doc.querySelectorAll(s.item || "body")).slice(0, 200)) {
+      const p = {};
+      for (const k of Object.keys(s)) {
+        if (k === "item") continue;
+        const v = val(it, s[k]);
+        p[k] = k === "price" ? num(v) : k === "images" || k === "image" ? [abs(v)].filter(Boolean) : k === "url" ? abs(v) : clip(v, 300);
+      }
+      if (p.image) { p.images = p.image; delete p.image; }
+      add(p, "selettori");
+    }
+  };
+  const html = (doc) => { if (o.selectors) fromSelectors(doc); fromLd(doc); fromMicro(doc); fromMeta(doc); };
+  if (o.url) {
+    const u = new URL(o.url, location.href);
+    if (u.origin !== location.origin) return { error: "cross" };
+    const r = await fetch(u.href, { credentials: "include", headers: o.json ? { "Accept": "application/json, text/javascript, */*; q=0.01", "X-Requested-With": "XMLHttpRequest" } : {} });
+    const text = await r.text();
+    base = u.href;
+    if (!r.ok) return { error: "status", status: r.status };
+    let j = null;
+    try { j = JSON.parse(text); } catch (e) {}
+    if (j != null) fromJson(j, "json");
+    else html(new DOMParser().parseFromString(text, "text/html"));
+  } else {
+    html(document);
+    fromDataLayer();
+    for (const b of o.bodies || []) { let j = null; try { j = JSON.parse(b); } catch (e) {} if (j != null) fromJson(j, "rete"); }
+  }
+  return { url: base, sources, count: items.length, items: items.slice(0, o.limit || 20) };
 }"#;
 
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.
