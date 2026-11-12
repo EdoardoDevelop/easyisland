@@ -15,6 +15,7 @@ import { isPopped } from "../island/popout";
 import { TypeLine, foldSteps, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
+import { contextTips, helpGroups, pageKind, tipsKey, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -409,7 +410,11 @@ export function buildPrompt(
   const terms = new Map<string, ChatTerm>();
   /** Output of a terminal that arrived before its id came back from terminal_open. */
   const early = new Map<number, string>();
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, previewBtn, desktopBtn, exportBtn, popBtn);
+  // «Cosa so fare»: the panel of what the chat can do (also /aiuto).
+  const helpBtn = h("button", { class: "history-btn", text: "?" }) as HTMLButtonElement;
+  tip(helpBtn, t("Cosa so fare: esempi da mettere nel campo (anche /aiuto)"));
+  helpBtn.addEventListener("click", () => toggleHelp());
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, helpBtn, previewBtn, desktopBtn, exportBtn, popBtn);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -485,6 +490,12 @@ export function buildPrompt(
   slashMenu.style.display = "none";
   let slashItems: Slash[] = [];
   let slashSel = 0;
+  // What can be done with what is on screen (chat-tips.ts): chips that write the request in the field.
+  const tipsRow = h("div", { class: "chat-tips" });
+  tipsRow.style.display = "none";
+  // «Cosa so fare» (chat-tips.ts helpGroups): the abilities by group, examples for the field.
+  const helpPanel = h("div", { class: "slash-menu chat-help" });
+  helpPanel.style.display = "none";
   // A short line over the field: «Modifica…», «Salvato in memoria», an error.
   const hintRow = h("div", { class: "chat-hint" });
   hintRow.style.display = "none";
@@ -573,7 +584,7 @@ export function buildPrompt(
       recent.parentElement?.classList.toggle("has-recent", shown);
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, bar));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, bar));
   const el = h(
     "div",
     { class: "view" },
@@ -705,6 +716,92 @@ export function buildPrompt(
     updateCalc();
     updateSlash();
   }
+
+  /** A tip or an example in the field, its first {{…}} selected; never sent. */
+  function useTip(tip: Tip) {
+    setInput(tip.prompt);
+    input.focus();
+    if (!selectPlaceholder(input, 0)) input.setSelectionRange(input.value.length, input.value.length);
+    tipsRow.style.display = "none";
+    helpPanel.style.display = "none";
+    onHeightChange();
+  }
+
+  /** The tips for what is on screen: read again at most every 3 s, only with an empty field. */
+  let tipsAt = 0;
+  let tipsBusy = false;
+  let tipsShown = "";
+  let tipsClosed = "";
+  function refreshTips(force = false) {
+    const quiet = input.value.trim() !== "" || State.chat.sending || slashItems.length > 0 || helpPanel.style.display !== "none" || State.settings.chatTips === false;
+    if (quiet) {
+      if (tipsRow.style.display !== "none") {
+        tipsRow.style.display = "none";
+        onHeightChange();
+      }
+      return;
+    }
+    if (tipsBusy || (!force && Date.now() - tipsAt < 3000)) return;
+    tipsBusy = true;
+    tipsAt = Date.now();
+    void (async () => {
+      const page = await pageKind();
+      const key = tipsKey(page);
+      const list = key === tipsClosed ? [] : await contextTips(page);
+      const shownKey = key + list.map((x) => x.label).join("|");
+      const show = list.length > 0 && input.value.trim() === "";
+      if (shownKey !== tipsShown) {
+        tipsShown = shownKey;
+        const close = h("button", { class: "chat-tip close", text: "✕", title: t("Nascondi i suggerimenti finché non cambia la pagina") });
+        close.addEventListener("click", () => {
+          tipsClosed = key;
+          tipsRow.style.display = "none";
+          onHeightChange();
+        });
+        tipsRow.replaceChildren(
+          h("span", { class: "chat-tips-label", text: t("Puoi chiedere:") }),
+          ...list.map((x) => {
+            const b = h("button", { class: "chat-tip", text: x.label, title: x.prompt });
+            b.addEventListener("click", () => useTip(x));
+            return b;
+          }),
+          close);
+      }
+      if ((tipsRow.style.display !== "none") !== show) {
+        tipsRow.style.display = show ? "" : "none";
+        onHeightChange();
+      }
+    })().finally(() => { tipsBusy = false; });
+  }
+
+  /** «Cosa so fare»: open or closed. */
+  function toggleHelp(open = helpPanel.style.display === "none") {
+    if (!open) {
+      helpPanel.style.display = "none";
+      onHeightChange();
+      return;
+    }
+    clear(helpPanel);
+    helpPanel.append(h("div", { class: "engine-note", text: t("Cosa so fare: un clic mette l'esempio nel campo, poi completa le parti {{…}} (Tab passa alla successiva) e invia.") }));
+    for (const g of helpGroups()) {
+      helpPanel.append(h("div", { class: "chat-help-title", text: g.title }));
+      for (const x of g.items) {
+        const row = h("button", { class: "slash-item" }, h("b", { text: x.label }), h("span", { text: x.prompt }));
+        row.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          useTip(x);
+        });
+        helpPanel.append(row);
+      }
+    }
+    helpPanel.append(h("div", { class: "engine-note", text: t("Scrivi «/» per i comandi, come /portali e /impara-portale. La guida completa: «Guida» in fondo alle Impostazioni.") }));
+    helpPanel.style.display = "";
+    tipsRow.style.display = "none";
+    onHeightChange();
+  }
+  document.addEventListener("mousedown", (e) => {
+    if (helpPanel.style.display !== "none" && !helpPanel.contains(e.target as Node) && e.target !== helpBtn) toggleHelp(false);
+  });
 
   async function submit(override?: string, target?: ChatSessionState) {
     const raw = override ?? input.value;
@@ -1525,6 +1622,8 @@ export function buildPrompt(
     }
     const list: Slash[] = [
       { name: "nuova", hint: t("Nuova chat"), run: () => startOver() },
+      // Second, so that «/» alone shows it.
+      { name: "aiuto", hint: t("Cosa so fare: esempi da mettere nel campo"), run: () => toggleHelp(true) },
       { name: "cronologia", hint: t("Le conversazioni di prima"), run: () => void toggleHistory() },
       { name: "cerca", hint: t("Cerca nelle conversazioni di prima"), arg: true, run: (a) => void toggleHistory(a) },
       { name: "ricorda", hint: t("Salva una nota nella memoria della chat"), arg: true, run: (a) => void remember(a) },
@@ -1540,6 +1639,9 @@ export function buildPrompt(
       } },
       { name: "motore", hint: t("Cambia motore per questa chat"), run: () => void toggleEngineMenu() },
       { name: "oggi", hint: t("Il punto della mia giornata di oggi"), run: () => void day(false) },
+      // The suppliers' portals (portals.rs): the list here, a search by the engine.
+      { name: "portali", hint: t("I portali dei fornitori insegnati; con delle parole li cerca in tutti"), arg: true, run: (a) => void portalsCommand(a) },
+      { name: "impara-portale", hint: t("Insegna alla chat a cercare sul portale aperto nell'Anteprima"), run: () => useTip({ label: "", prompt: t("Impara a cercare su questo portale: fai una ricerca di prova con {{un codice che ha}} e mostrami cosa trovi") }) },
       { name: "domani", hint: t("Il punto della mia giornata di domani"), run: () => void day(true) },
     ];
     const taken = new Set(list.map((c) => c.name));
@@ -1590,6 +1692,22 @@ export function buildPrompt(
       list.push({ name, hint: `${a.icon} ${t("Azione rapida: {n}", { n: a.name })}`, run: () => actions.runAction(a) });
     }
     return list;
+  }
+
+  /** /portali: without words the list (no engine); with words, a search in all of them. */
+  async function portalsCommand(words: string) {
+    if (words) {
+      const c = State.chat;
+      const text = t("Cerca {q} in tutti i portali e confronta prezzi e disponibilità", { q: words });
+      if (c.sending) c.queue.push(text);
+      else void submit(text, c);
+      State.notify();
+      return;
+    }
+    const list = (await Bridge.portalsList()) ?? [];
+    flash(list.length
+      ? t("Portali: {l}. «/portali codice» li cerca tutti.", { l: list.map((p) => p.name).join(", ") })
+      : t("Nessun portale insegnato: apri un portale nell'Anteprima e scrivi /impara-portale."), true);
   }
 
   /** The command typed in the field, if it is one: run it (true) or leave it to the engine. */
@@ -2523,6 +2641,7 @@ export function buildPrompt(
     saveDraft(input.value);
     slashSel = 0;
     updateSlash();
+    refreshTips(true);
     onHeightChange();
   });
   input.addEventListener("paste", (e) => {
@@ -2847,6 +2966,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       const blank = !State.chatHistory.length && !sending && !req && !asked;
       empty.show(blank ? emptyArt(State.settings.chatEmptyArt) : null);
       showRecent(blank);
+      refreshTips();
       const elsewhere = State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid && State.pendingApproval.chatSid !== State.chatSid
         ? State.chats.find((c) => c.sid === State.pendingApproval?.chatSid) : undefined;
       const otherText = elsewhere

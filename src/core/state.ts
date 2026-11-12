@@ -855,6 +855,8 @@ export interface Settings {
   chatPreview?: boolean;
   /** The picture of an empty chat (src/views/chat-empty.ts): ezzy (default), isola, onde, stelle, aurora, rete, nessuna. */
   chatEmptyArt?: string;
+  /** Tips over the field for what is on screen (chat-tips.ts); off only when false. */
+  chatTips?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */
   previewDocked?: boolean;
   /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */

@@ -2954,6 +2954,11 @@ function appearanceSections(): HTMLElement[] {
           ], settings.chatEmptyArt ?? "ezzy", (v) => { settings.chatEmptyArt = v; commit(); }),
           h("span", { class: "hint note", text: t("un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni") }),
         ),
+        h("div", { class: "row" },
+          h("label", { text: t("Suggerimenti") }),
+          toggle(settings.chatTips !== false, (v) => { settings.chatTips = v; commit(); }),
+          h("span", { class: "hint note", text: t("sopra il campo, cosa puoi chiedere per ciò che hai davanti (una pagina con prodotti nell'Anteprima, un login, i portali, i PDF nel Vassoio); un clic scrive la richiesta senza mandarla. Senza IA, nessun costo. «?» e /aiuto mostrano tutto quello che la chat sa fare") }),
+        ),
       ),
     ],
   };

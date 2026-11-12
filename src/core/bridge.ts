@@ -660,6 +660,8 @@ export const Bridge = {
   previewHide: () => call<void>("preview_hide"),
   previewPane: (x: number, y: number, w: number, h: number) => call<void>("preview_pane", { x, y, w, h }),
   previewState: () => call<import("../preview/types").PreviewState>("preview_state"),
+  /** What the Anteprima's active tab shows, for the chat's tips (preview.rs page_kind). */
+  previewPageKind: () => call<import("../views/chat-tips").PageKind>("preview_page_kind"),
   previewSelect: (id: number) => call<void>("preview_select", { id }),
   previewClose: (id: number) => call<void>("preview_close", { id }),
   previewLayout: (x: number, y: number, w: number, h: number, covered: boolean) => call<void>("preview_layout", { x, y, w, h, covered }),

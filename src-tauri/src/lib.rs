@@ -3901,6 +3901,12 @@ fn preview_state(app: AppHandle) -> preview::Snapshot {
     preview::snapshot(&app)
 }
 
+/// The chat's tips: what the active tab of the Anteprima shows (chat-tips.ts).
+#[tauri::command]
+async fn preview_page_kind(app: AppHandle) -> serde_json::Value {
+    preview::page_kind(&app).await
+}
+
 /// Where the island draws the Anteprima's panel (island.ts); 0 wide = hidden.
 #[tauri::command]
 async fn preview_pane(app: AppHandle, x: f64, y: f64, w: f64, h: f64) {
@@ -4877,6 +4883,7 @@ pub fn run() {
             preview_hide,
             preview_pane,
             preview_state,
+            preview_page_kind,
             preview_select,
             preview_close,
             preview_layout,

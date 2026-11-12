@@ -1985,6 +1985,37 @@ pub(crate) async fn load_behind(app: &AppHandle, key: &str, url: &str, secs: u64
     Ok(id)
 }
 
+/// What the active tab shows, for the chat's tips (chat-tips.ts), without an
+/// engine: a page with products, a login, another page, or a file.
+pub async fn page_kind(app: &AppHandle) -> Value {
+    let (tab, open) = {
+        let s = state();
+        (s.tabs.iter().find(|tb| tb.id == s.active).cloned(), !s.tabs.is_empty())
+    };
+    let Some(tb) = tab else { return json!({ "kind": "none", "open": open }) };
+    let ext = if tb.kind == "file" { ext_of(Path::new(&tb.target)) } else { String::new() };
+    if tb.kind == "file" {
+        return json!({ "kind": "file", "ext": ext, "path": tb.target, "title": tb.title });
+    }
+    let kind = match eval(app, tb.id, PAGE_KIND).await {
+        Ok(raw) => serde_json::from_str::<String>(&raw).unwrap_or_else(|_| "page".into()),
+        Err(_) => "page".into(),
+    };
+    json!({ "kind": kind, "url": tb.target, "host": host_of(&tb.target).unwrap_or_default(), "title": tb.title, "local": host_of(&tb.target).is_some_and(|h| h == "localhost" || h == "127.0.0.1") })
+}
+
+/// "products": schema.org Product, product meta, or several prices beside
+/// cart buttons; "login": a password field in view; else "page".
+const PAGE_KIND: &str = r#"(() => {
+  const ld = Array.from(document.querySelectorAll('script[type="application/ld+json"]')).some((s) => /"@type"\s*:\s*(\[[^\]]*)?"Product"/.test(s.textContent || ""));
+  const meta = !!document.querySelector('[itemtype*="schema.org/Product"], meta[property="product:price:amount"], meta[property="og:type"][content="product"]');
+  const prices = (document.body ? document.body.innerText : "").match(/\d[\d.]*,\d{2}\s?€|€\s?\d[\d.,]*/g) || [];
+  const carts = Array.from(document.querySelectorAll("button, a, input[type=submit]")).filter((b) => /carrello|add to cart|acquista|buy/i.test(b.innerText || b.value || "")).length;
+  if (ld || meta || (prices.length >= 3 && carts >= 1)) return "products";
+  if (Array.from(document.querySelectorAll("input[type=password]")).some((e) => e.offsetParent)) return "login";
+  return "page";
+})()"#;
+
 /// The page asks for a password: a login form is in front of the data.
 pub(crate) async fn asks_login(app: &AppHandle, id: u32) -> bool {
     eval(app, id, "!!Array.from(document.querySelectorAll('input[type=password]')).find((e) => e.offsetParent)").await.is_ok_and(|r| r.trim() == "true")

@@ -1066,6 +1066,7 @@ input[type="range"]::-webkit-slider-thumb {
 /* A wide island: the conversation and the field in a readable column in the middle. */
 .chat-layout .chat-log { padding-inline: max(0px, calc((100% - 780px) / 2)); }
 .chat-layout .chat-bar,
+.chat-layout .chat-tips,
 .chat-layout .chat-hint,
 .chat-layout .calc-row { width: 100%; max-width: 780px; margin-inline: auto; box-sizing: border-box; }
 .chat-layout.narrow.side-open .chat-side {
@@ -1632,6 +1633,41 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .slash-item b { font-weight: 600; color: var(--ink); }
 .slash-item.on, .slash-item:hover { background: rgba(129, 140, 248, 0.2); }
+
+/* What can be asked about what is on screen (chat-tips.ts): chips over the field. */
+.chat-tips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+}
+.chat-tips-label {
+  font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--dim-2);
+}
+.chat-tip {
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.28);
+  font: 400 calc(11px + var(--fs-up, 0px)) var(--font);
+  color: #c7d2fe;
+  cursor: pointer;
+}
+.chat-tip:hover { background: rgba(129, 140, 248, 0.26); }
+.chat-tip.close { background: transparent; box-shadow: none; color: var(--dim-2); padding: 2px 5px; }
+/* «Cosa so fare»: the menu over the field, taller, with group titles. */
+.slash-menu.chat-help { max-height: 75%; }
+.chat-help .slash-item b { flex: 0 0 150px; }
+.chat-help .slash-item span { flex: 1 1 auto; min-width: 0; }
+.chat-help-title {
+  padding: 7px 8px 2px;
+  font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  letter-spacing: 0.02em;
+  color: var(--dim-2);
+}
 
 /* A line over the field: editing a question, a note saved, an error. */
 .chat-hint {

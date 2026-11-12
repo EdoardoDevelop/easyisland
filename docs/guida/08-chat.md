@@ -49,12 +49,20 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 - **Clic**: un file che l'Anteprima sa mostrare (testo, codice, Markdown, PDF, immagini, HTML…) si apre **nell'Anteprima** accanto alla chat; gli altri, e con <kbd>Ctrl</kbd>+clic, nel loro programma. Una **cartella** 📁 si apre in Esplora file.
 - **Clic destro**: **Apri** (nel suo programma), **Anteprima**, **Scarica** (una copia nella cartella Download, che si apre con il file selezionato), **Apri percorso** (Esplora file con il file selezionato), **Copia percorso**.
 
+## Suggerimenti e «Cosa so fare»
+Sopra il campo compare **Puoi chiedere:** con qualche suggerimento per ciò che hai davanti: una pagina con prodotti nell'Anteprima («Leggi i prodotti», «Impara questo portale»), un modulo di accesso («Entra con Devolutions»), un portale già insegnato, due o più PDF nel Vassoio. Un clic scrive la richiesta nel campo **senza mandarla**, con la parte da completare già selezionata; **✕** li nasconde finché non cambia la pagina. Li sceglie EasyIsland con regole fisse, senza IA: non costano niente. Si spengono in **Impostazioni → Aspetto → Chat → Suggerimenti**.
+
+Il pulsante **?** in alto (o `/aiuto`) apre **Cosa so fare**: quello che la chat sa fare, a gruppi, con un esempio da mettere nel campo per ognuno.
+
 ## Comandi con /
 Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>). Con Claude Code il menu ha anche i suoi comandi, come in Claude Desktop (segnati ✳): `/context`, `/review`, `/model`, `/init`, i tuoi comandi di `.claude/commands`, le skill e i plugin.
 
 | Comando | Cosa fa |
 |---|---|
 | `/nuova` | Nuova conversazione |
+| `/aiuto` | **Cosa so fare**: esempi per gruppo da mettere nel campo (anche il pulsante **?** in alto) |
+| `/portali`, `/portali …` | I [portali dei fornitori](10-anteprima.md#portali-dei-fornitori-e-preventivi) insegnati; con delle parole li cerca tutti |
+| `/impara-portale` | Insegna alla chat a cercare sul portale aperto nell'Anteprima |
 | `/cronologia`, `/cerca` | Conversazioni passate, anche per parole |
 | `/ricorda …` | Salva una nota in memoria senza passare dal modello |
 | `/memoria` | Apre la memoria |

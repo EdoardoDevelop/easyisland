@@ -272,6 +272,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 - `/?scene=daily&evening&ai&scheme=light`
 - `/?scene=meteo&activeIntegrations=integration_weather&sky=snow&night`
 - `/?scene=chat&terminal&auto&lang=en`
+- `/?scene=chat&tips=products` (suggerimenti sopra il campo: `products`, `login`, `page`, `pdf`, `portal`; svuota il campo per vederli)
 - `/?anchorV=bottom&anchorH=left&iconSize=32&hoverStyle=bar`
 - `/settings.html?page=aspetto&tab=barra&lang=en`
 - `/?scene=fuzz&seed=3&steps=3000`
