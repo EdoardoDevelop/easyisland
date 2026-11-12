@@ -4970,5 +4970,7 @@
   "Il file ricevuto supera i 200 MB.": "The file received is over 200 MB.",
   "HTTP {s}: un file ({kind}) in {path}": "HTTP {s}: a file ({kind}) in {path}",
   "Questo tipo di file non si mostra qui.": "This kind of file isn't shown here.",
-  "Il file supera i 200 MB: aprilo con il suo programma.": "The file is over 200 MB: open it with its own program."
+  "Il file supera i 200 MB: aprilo con il suo programma.": "The file is over 200 MB: open it with its own program.",
+  "Sotto-agenti": "Sub-agents",
+  "Claude può affidare pezzi del lavoro a sotto-agenti in parallelo; ognuno riparte da capo e consuma molti token in più": "Claude can hand parts of the work to sub-agents in parallel; each one starts from scratch and uses many more tokens"
 }

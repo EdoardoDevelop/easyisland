@@ -60,6 +60,17 @@ const TOOLS: &str = "WebSearch,WebFetch,Read";
 const TERMINAL_TOOLS: &str =
     "Read,Write,Edit,Glob,Grep,Bash,PowerShell,Skill,ToolSearch,WebFetch,WebSearch,NotebookEdit,TodoWrite,ExitPlanMode,TaskStop,Monitor";
 
+/// «Sotto-agenti» on in the chat (`Chat::agents`): Agent added to `--tools`.
+fn with_agents(a: &mut [String]) {
+    if let Some(i) = a.iter().position(|x| x == "--tools") {
+        if let Some(v) = a.get_mut(i + 1) {
+            if !v.split(',').any(|t| t == "Agent") {
+                v.push_str(",Agent");
+            }
+        }
+    }
+}
+
 /// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
 /// tools that change nothing (or nothing outside EasyIsland), pre-allowed:
 /// the read-only flag of hook/src/tool_list.rs, the one list. `show_card`
@@ -1737,6 +1748,10 @@ async fn send_mode(
         if chat.fast() {
             with_fast(&mut a);
         }
+        // «Sotto-agenti» turned on in the chat: the Agent tool too.
+        if terminal.is_some() && chat.agents() {
+            with_agents(&mut a);
+        }
         // Piano, Accetta modifiche (the chat's mode, as Claude Desktop offers them): Claude Code's own modes.
         if let (Some(_), false, Some(mode)) = (terminal, auto, chat.mode()) {
             if let Some(i) = a.iter().position(|x| x == "--permission-mode") {
@@ -2386,12 +2401,22 @@ mod tests {
         assert_eq!(super::source_of(Path::new("C:/Users/x/AppData/Roaming/Claude/claude-code/2.1.286/claude.exe")), "desktop");
     }
 
-    use super::{args, parse_output, step_line, terminal_args, tool_prefix, version_key, Connectors, Progress};
+    use super::{args, parse_output, step_line, terminal_args, tool_prefix, with_agents, version_key, Connectors, Progress};
     use crate::settings::McpChoice;
     use std::path::Path;
 
     fn none() -> Connectors {
         Connectors { enabled: Vec::new(), disabled: Vec::new(), agent: false }
+    }
+
+    #[test]
+    fn sub_agents_only_when_turned_on() {
+        let mut a = terminal_args(Path::new("C:/x"), "", None, None, &none(), false);
+        let tools = |a: &[String]| a[a.iter().position(|x| x == "--tools").unwrap() + 1].clone();
+        assert!(!tools(&a).split(',').any(|t| t == "Agent"));
+        with_agents(&mut a);
+        with_agents(&mut a);
+        assert_eq!(tools(&a).split(',').filter(|t| *t == "Agent").count(), 1);
     }
 
     #[test]

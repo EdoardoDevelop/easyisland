@@ -190,9 +190,20 @@ pub struct Chat {
     /// fill): no tools, no Modalità terminale, no memory or instructions in
     /// front. Measured 12 Nov 2026: with them each call cost ~40k tokens, ~5k without.
     plain: std::sync::atomic::AtomicBool,
+    /// «Sotto-agenti» in the chat's engine menu: Claude Code's Agent tool in
+    /// Modalità terminale (TERMINAL_TOOLS leaves it out).
+    agents: std::sync::atomic::AtomicBool,
 }
 
 impl Chat {
+    pub(crate) fn set_agents(&self, on: bool) {
+        self.agents.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn agents(&self) -> bool {
+        self.agents.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// See `plain`: a chat for one text-only turn.
     pub(crate) fn plain() -> Self {
         let chat = Self::default();

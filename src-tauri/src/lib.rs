@@ -1330,10 +1330,12 @@ async fn chat_send(
     mode: Option<String>,
     model: Option<String>,
     fast: Option<bool>,
+    agents: Option<bool>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
     chat.set_folder(folder);
     chat.set_fast(fast == Some(true));
+    chat.set_agents(agents == Some(true));
     // Piano, Accetta modifiche: Claude Code's permission mode for this conversation.
     chat.set_mode(mode);
     // The effort picked in the chat, else the last one picked (Impostazioni keeps it).

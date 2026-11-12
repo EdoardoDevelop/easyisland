@@ -773,7 +773,7 @@ export function buildPrompt(
           return { text: r.text, log: null, context: null };
         })
         : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
-          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast);
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
       if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
@@ -1330,6 +1330,7 @@ export function buildPrompt(
       c.mode = "";
       c.model = null;
       c.fast = false;
+      c.agents = false;
       c.team = false;
       c.desktop = false;
       c.assistant = null;
@@ -1703,6 +1704,14 @@ export function buildPrompt(
         text: `${State.chat.fast ? "✓ " : ""}${t("Fast mode")}`,
         onclick: () => { State.chat.fast = !State.chat.fast; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
       }));
+      // Sub-agents (Claude Code's Agent tool): off unless turned on here, they start each from zero tokens.
+      if (State.settings.chatTerminal === true) {
+        engineMenu.append(h("button", {
+          class: `engine-item${State.chat.agents ? " on" : ""}`, title: t("Claude può affidare pezzi del lavoro a sotto-agenti in parallelo; ognuno riparte da capo e consuma molti token in più"),
+          text: `${State.chat.agents ? "✓ " : ""}${t("Sotto-agenti")}`,
+          onclick: () => { State.chat.agents = !State.chat.agents; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+        }));
+      }
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
     engineMenu.style.display = "";
@@ -2186,6 +2195,7 @@ export function buildPrompt(
       c.mode = "";
       c.model = null;
       c.fast = false;
+      c.agents = false;
       c.team = false;
       c.desktop = false;
       c.at = Date.now();
