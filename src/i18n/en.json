@@ -5004,5 +5004,12 @@
   "Richiesta non trovata: usa l'id (#…) di una riga di preview_network.": "Request not found: use the id (#…) of a preview_network line.",
   "Il contenuto di questa richiesta non c'è più: ricarica la pagina o rifai l'azione.": "This request's content is gone: reload the page or do the action again.",
   "La risposta è un file binario, non testo.": "The answer is a binary file, not text.",
-  "Cerca nella pagina": "Searches the page"
+  "Cerca nella pagina": "Searches the page",
+  "Manca steps: un elenco di passi { tool, … }.": "steps is missing: a list of steps { tool, … }.",
+  "Al massimo {n} passi per volta.": "At most {n} steps at a time.",
+  "Passo {n}: strumento non ammesso qui: «{t}».": "Step {n}: tool not allowed here: “{t}”.",
+  "ERRORE:": "ERROR:",
+  "Fermo al passo {n} di {tot}.": "Stopped at step {n} of {tot}.",
+  "Pronto.": "Ready.",
+  "Fa più passi nella pagina": "Takes several steps on the page"
 }

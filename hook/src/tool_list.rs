@@ -890,6 +890,15 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "preview_steps",
+            "Più passi nell'Anteprima in una chiamata sola, uno dopo l'altro, fermandosi al primo errore: steps è un elenco di { tool, …argomenti } con tool fra preview_open, preview_find, preview_wait, preview_scroll, preview_act, preview_click, preview_type, preview_read, preview_snapshot, preview_network, preview_console, preview_extract (al massimo 15; tab vale per tutti). Dei passi in mezzo torna una riga (intero chi legge: find, read, snapshot, network, console, extract), dell'ultimo tutto. Esempio: apri la ricerca, scrivi, Invio, aspetta i risultati, estrai. Molti meno giri e token. L'utente conferma una volta per tutti i passi.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "steps": { "type": "array", "items": { "type": "object" } }
+            }, "required": ["steps"] }),
+            false,
+        ),
+        (
             "preview_find",
             "Cerca nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) gli elementi con tutte le parole di query nel nome o nel testo (un pulsante, un campo, un prezzo, un codice): al massimo 25 righe con il riferimento [ref=…] per preview_click e preview_act e il titolo sotto cui stanno. Molto meno caro di preview_snapshot su una pagina grande.",
             json!({ "type": "object", "properties": {
@@ -906,7 +915,8 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "text": { "type": "string" },
                 "text_gone": { "type": "string" },
                 "selector": { "type": "string" },
-                "timeout": { "type": "integer" }
+                "timeout": { "type": "integer" },
+                "quiet": { "type": "boolean" }
             } }),
             true,
         ),

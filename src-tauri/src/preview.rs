@@ -53,6 +53,14 @@ const MAX_TEXT: u64 = 2 * 1024 * 1024;
 const MAX_IMAGE: u64 = 15 * 1024 * 1024;
 /// What preview_read gives the chat, at most (characters).
 const MAX_READ: usize = 30_000;
+/// preview_steps: at most this many in one call, of these tools.
+const MAX_STEPS: usize = 15;
+const STEP_TOOLS: &[&str] = &[
+    "preview_open", "preview_find", "preview_wait", "preview_scroll", "preview_act", "preview_click", "preview_type",
+    "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract",
+];
+/// Steps whose whole answer is kept even in the middle: what they read is the point.
+const READS: &[&str] = &["preview_find", "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract"];
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
@@ -1595,6 +1603,45 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 ("s", &if v.scheme.is_empty() { t("della pagina").to_string() } else { v.scheme.clone() }),
             ]))
         }
+        "preview_steps" => {
+            let steps = args.get("steps").and_then(Value::as_array).cloned().unwrap_or_default();
+            if steps.is_empty() {
+                return Err(t("Manca steps: un elenco di passi { tool, … }.").into());
+            }
+            if steps.len() > MAX_STEPS {
+                return Err(tf("Al massimo {n} passi per volta.", &[("n", &MAX_STEPS.to_string())]));
+            }
+            let mut out = Vec::new();
+            let last = steps.len() - 1;
+            for (i, step) in steps.iter().enumerate() {
+                let tool_name = step.get("tool").and_then(Value::as_str).unwrap_or_default().trim().to_string();
+                if !STEP_TOOLS.contains(&tool_name.as_str()) {
+                    return Err(tf("Passo {n}: strumento non ammesso qui: «{t}».", &[("n", &(i + 1).to_string()), ("t", &tool_name)]));
+                }
+                let mut a = step.clone();
+                if let Some(obj) = a.as_object_mut() {
+                    obj.remove("tool");
+                    // The batch's tab, unless a step names its own.
+                    if !obj.contains_key("tab") && !s("tab").is_empty() {
+                        obj.insert("tab".into(), json!(s("tab")));
+                    }
+                    // Only the last step shows the page; the others say what they did.
+                    if i < last && !obj.contains_key("quiet") {
+                        obj.insert("quiet".into(), json!(true));
+                    }
+                }
+                match Box::pin(tool(app, &tool_name, &a)).await {
+                    Ok(text) if i == last || READS.contains(&tool_name.as_str()) => out.push(format!("{}. {tool_name}:\n{text}", i + 1)),
+                    Ok(text) => out.push(format!("{}. {tool_name}: {}", i + 1, text.lines().next().unwrap_or_default())),
+                    Err(e) => {
+                        out.push(format!("{}. {tool_name}: {} {e}", i + 1, t("ERRORE:")));
+                        out.push(tf("Fermo al passo {n} di {tot}.", &[("n", &(i + 1).to_string()), ("tot", &steps.len().to_string())]));
+                        break;
+                    }
+                }
+            }
+            Ok(cut(&out.join("\n")))
+        }
         "preview_find" => {
             let tb = tab_for(&s("tab"))?;
             let q = s("query");
@@ -1634,6 +1681,9 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     return Err(tf("Non è successo entro {s} secondi.", &[("s", &secs.to_string())]));
                 }
                 tokio::time::sleep(Duration::from_millis(300)).await;
+            }
+            if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
+                return Ok(t("Pronto.").into());
             }
             page_snapshot(app, tb.id).await
         }

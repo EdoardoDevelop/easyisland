@@ -102,6 +102,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "preview_type" => t("Scrive nella pagina"),
         "preview_scroll" => t("Scorre la pagina"),
         "preview_find" => t("Cerca nella pagina"),
+        "preview_steps" => t("Fa più passi nella pagina"),
         "preview_act" => t("Usa mouse e tastiera nella pagina"),
         _ => return None,
     })

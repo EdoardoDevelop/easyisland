@@ -137,6 +137,18 @@ pub fn chat_read(payload: &Value) -> bool {
     !places.is_empty() && places.iter().all(|p| !crate::opencode::secret_place(p))
 }
 
+/// preview_steps whose steps all only read (open, find, wait, scroll, read…):
+/// no card, as each of them alone would have none.
+pub fn steps_only_read(payload: &Value) -> bool {
+    if tool_of(payload) != Some("preview_steps") {
+        return false;
+    }
+    let read_only = crate::claude_cli::agent_read_only();
+    payload.pointer("/tool_input/steps").and_then(Value::as_array).is_some_and(|steps| {
+        !steps.is_empty() && steps.iter().all(|s| s.get("tool").and_then(Value::as_str).is_some_and(|t| t != "preview_steps" && read_only.contains(&t)))
+    })
+}
+
 /// The tool «Sempre» would allow for good: a reversible tool asked by the
 /// chat (island, Telegram, a task). Else none, and the card has no «Sempre».
 pub fn offers_always(payload: &Value) -> Option<String> {
@@ -213,6 +225,10 @@ pub fn note_decision(payload: &Value, decision: Option<&str>) {
 /// A request of the chat (island, Telegram, a task) for a reversible tool the
 /// user allowed for good, or the running task may use: allowed with no click.
 pub fn allowed_now(app: &AppHandle, payload: &Value) -> bool {
+    if steps_only_read(payload) {
+        crate::log::line("permessi: preview_steps consentito senza chiedere (solo lettura)".to_string());
+        return true;
+    }
     if chat_read(payload) {
         let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
         crate::log::line(format!("permessi: {tool} consentito senza chiedere (solo lettura)"));
@@ -356,6 +372,16 @@ pub async fn undo(app: &AppHandle, id: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn steps_that_only_read_need_no_card() {
+        let p = |steps: Value| json!({ "tool_name": "mcp__easyisland__preview_steps", "tool_input": { "steps": steps } });
+        assert!(steps_only_read(&p(json!([{ "tool": "preview_open", "target": "x" }, { "tool": "preview_find", "query": "a" }]))));
+        assert!(!steps_only_read(&p(json!([{ "tool": "preview_open" }, { "tool": "preview_act", "action": "click" }]))));
+        assert!(!steps_only_read(&p(json!([]))));
+        assert!(!steps_only_read(&p(json!([{ "tool": "preview_steps" }]))));
+        assert!(!steps_only_read(&json!({ "tool_name": "mcp__easyisland__preview_find", "tool_input": {} })));
+    }
 
     #[test]
     fn chat_reads_pass_but_not_where_keys_live() {
