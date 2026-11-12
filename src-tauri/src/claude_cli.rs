@@ -6,7 +6,7 @@
 //     (`disableAllHooks`); EASYISLAND_INTERNAL makes easyisland-hook.exe ignore the
 //     user's own EasyIsland hooks either way, so the chat never shows up as a
 //     Claude Code work session;
-//   * only WebSearch, WebFetch and Read among the built-in tools;
+//   * only WebSearch, WebFetch, Read and ToolSearch among the built-in tools;
 //   * no connectors by default (`--strict-mcp-config`, `dontAsk`). When the user
 //     picked some MCP servers, Claude Code loads its own user-scope config (no
 //     copy of it, so no copy of any secret in it), the other servers are
@@ -49,7 +49,11 @@ const STREAM_EVERY: Duration = Duration::from_millis(120);
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-const TOOLS: &str = "WebSearch,WebFetch,Read";
+/// ToolSearch: Claude Code then loads the MCP tools (easyisland's ~100,
+/// connectors) only when a question needs them. Without it every definition was
+/// re-read at every step (measured 12 Nov 2026 on 2.1.318 and 2.1.322: «ok»
+/// 34.8k → 9.9k tokens; a list_status question still works, one step more).
+const TOOLS: &str = "WebSearch,WebFetch,Read,ToolSearch";
 
 /// Modalità terminale: Claude Code's built-in tools a chat uses (files,
 /// commands, web, skills, plan). Left out: Agent, Workflow, ScheduleWakeup,
@@ -107,7 +111,8 @@ const SYSTEM_PROMPT: &str = "You are the user's personal assistant in the chat o
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
 Every step re-reads the whole conversation: call independent tools together in the same step, and use queries, titles and notes \
-of memory_search, memory_page and memory_note for several at once. \
+of memory_search, memory_page and memory_note for several at once; load all the deferred tools you will need with one ToolSearch \
+(select:name1,name2,...). \
 Respond in Italian unless the user writes in another language. Be thorough and complete: use as much detail as the task requires. \
 Markdown is rendered: use lists, tables and code blocks when they help.";
 
@@ -2540,7 +2545,7 @@ mod tests {
         assert!(!a.contains(&"--strict-mcp-config".to_string()));
         assert_eq!(at("--permission-mode"), "default");
         // Only the no-confirm server is pre-allowed; the other waits for the island.
-        assert_eq!(at("--allowedTools"), "WebSearch,WebFetch,Read,mcp__docs_read");
+        assert_eq!(at("--allowedTools"), "WebSearch,WebFetch,Read,ToolSearch,mcp__docs_read");
         assert_eq!(at("--disallowedTools"), "mcp__altro");
         assert_eq!(tool_prefix("claude.ai Gmail"), "mcp__claude_ai_Gmail");
     }

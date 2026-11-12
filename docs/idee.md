@@ -22,6 +22,22 @@ Fatti l'11/11 (`docs/integrazioni.md` → File in risposta, Lettore, Script): fi
 - Fatto l'11/11: `select` con `optionsFrom` e tendine dipendenti (`docs/integrazioni.md` → Scelte da una fonte). Resta: lo stesso per le colonne delle tabelle.
 - Campo `file` in uscita: file del Vassoio in `multipart/form-data` o base64 (clonazione voce, trascrizione).
 
+## Integrazioni personali, impostazioni proprie (12/11/2026, chiesto da Edoardo, non urgente)
+Oggi in Impostazioni → Integrazioni → Create da te ci sono solo le chiavi (`secrets`, Gestione credenziali); nessun valore non segreto per integrazione. Proposta:
+- `settings` nella definizione, campi come `fields` (id, label, kind: text, number, select, checkbox, cartella, help, default), mostrati accanto alle chiavi.
+- Valori come `{{setting:id}}` in url, headers, body, folder, filename, template e `default` dei campi; negli script `EASYISLAND_SETTING_<ID>` (come `EASYISLAND_SECRET_<NOME>`).
+- Salvati in un file dell'integrazione (non segreti: nei backup e nelle versioni); le chiavi restano separate.
+- MCP: lettura e modifica con conferma, descritti in `custom_create`.
+- Usi: cartella degli audio, motore e voce predefiniti di «TTSpeak»; intestazione o firma di un documento.
+
+## Compiti a orario, seguiti (12/11/2026, chiesto da Edoardo, non urgente)
+Già oggi (`tasks.rs` → `due`): un `at:` passato parte al primo avvio; `daily`/`weekdays` saltati partono una volta se EasyIsland si apre più tardi lo stesso giorno; un giorno intero perso non si recupera (giusto: una volta sola); `weekly` solo nel suo giorno, quindi se salta si perde. «Elimina» c'è solo in Impostazioni → Flussi. Manca:
+- `weekly` recuperato all'avvio nei giorni dopo (una volta, fino al giorno successivo previsto).
+- «Partito in ritardo: era previsto per …» nel registro del compito, in Flussi e come avviso nell'isola.
+- Per compito: «se salta l'orario: esegui appena possibile / salta» e un limite facoltativo «non oltre N ore di ritardo».
+- Compiti una volta sola «Fatto»: archivio o pulizia automatica dopo N giorni, a scelta in Impostazioni.
+- MCP `task_update` (titolo, obiettivo, orario di un compito non partito) e `task_cancel`; con la regola «mai eliminare» annullare = pausa/archivio, eliminare resta un clic in Flussi.
+
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).

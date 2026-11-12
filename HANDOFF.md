@@ -52,6 +52,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 12/11 — Chat semplice: strumenti caricati a richiesta
+Edoardo: «il problema è anche con una richiesta sola». Misurato su fisso e portatile con «ok»: la chat fuori dalla Modalità terminale partiva da 34,8k token a passo (le definizioni dei ~100 strumenti di EasyIsland), la terminale da 21,7k. `ToolSearch` aggiunto a `TOOLS` (`claude_cli.rs`): 9,9k a passo, `list_status` provato. Da misurare dal vivo sul portatile. `docs/chat.md` → Connettori MCP.
+Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (blocchi «esito»/«errore» di `result_block`), che riempivano i 6.000 caratteri e tagliavano il «FATTO:» finale (#349, #351, #352). `agentchat::clean_reply` ora pubblica solo il testo dopo l'ultimo passo (`docs/integrazioni.md` → Agent Chat).
+
 ### 12/11 — Chat: meno passi
 Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
 
@@ -63,6 +67,3 @@ Edoardo: «anche con 3 domande consuma troppo». Misurato sul portatile (7 giorn
 
 ### 11/11 — Sito: home nuova, animata, e schermate aggiornate
 Richiesta di Edoardo («moderno, con animazioni ed effetto wow»), approvata su anteprima. `site/index.html` e `site/it/index.html` rifatte con `site/home.css` + `site/home.js`: la barra in alto è un'isola con il logo (gli occhi seguono il mouse) che chiede un permesso, annuncia un compito finito o una chiamata 3CX secondo la sezione in vista; vetrina a schede per compiti e memoria, griglia delle integrazioni, personaggi. Solo scura. Tutte le schermate di `site/media/` e `site/media/en/` rigenerate dal programma attuale (più `search-ovunque` e `zammad`); `screenshots/` (README.it) rigenerata allo stesso modo. Guida: stessa tavolozza e caratteri via `site/site.css`. Dettagli in `docs/sviluppo.md`.
-
-### 11/11 — Integrazioni personali: tendine da una fonte, body JSON
-Richiesta di Edoardo per «TTSpeak» (dal PC lavoro): una `select` con `optionsFrom { source, value, label, match, list }` prende le scelte da una `source` della stessa integrazione, con ricerca; `match` + `list` fanno la tendina dipendente (voci del motore scelto, svuotata quando cambia), `fill` copia percorsi dell'elemento (`src/views/custom-options.ts`). Fonte letta all'apertura, 5 minuti in memoria, a mano se non risponde. Body JSON: escape completo tra virgolette, numeri senza virgolette fuori (`"0,9"` → `0.9`), in TS e in `custom_call`. Risposte JSON fino a 2 MB. Poi: voce svuotata anche scrivendo il motore a mano, fino a 500 scelte, fonte delle sole scelte fuori da «Dati», `fill` con modello, fonte salvata per id; scena `custom&opzioni` provata a vista.

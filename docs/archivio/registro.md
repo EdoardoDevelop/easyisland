@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11/11 — Integrazioni personali: tendine da una fonte, body JSON
+Richiesta di Edoardo per «TTSpeak» (dal PC lavoro): una `select` con `optionsFrom { source, value, label, match, list }` prende le scelte da una `source` della stessa integrazione, con ricerca; `match` + `list` fanno la tendina dipendente (voci del motore scelto, svuotata quando cambia), `fill` copia percorsi dell'elemento (`src/views/custom-options.ts`). Fonte letta all'apertura, 5 minuti in memoria, a mano se non risponde. Body JSON: escape completo tra virgolette, numeri senza virgolette fuori (`"0,9"` → `0.9`), in TS e in `custom_call`. Risposte JSON fino a 2 MB. Poi: voce svuotata anche scrivendo il motore a mano, fino a 500 scelte, fonte delle sole scelte fuori da «Dati», `fill` con modello, fonte salvata per id; scena `custom&opzioni` provata a vista.
+
 ### 11/11 — Integrazioni personali: file dai servizi, lettore, chiavi negli script
 Dal racconto di «Messaggi vocali TTS» (Agent Chat): l'azione `http` riconosce una risposta file (mp3, immagini, PDF) e la tiene in `%TEMP%\EasyIsland\risposte`; `folder`/`filename`/`tray` la salvano (`custom::keep`), altrimenti la card la mostra con «Salva». Lettore `src/views/file-viewer.ts` (immagini, audio, video, PDF, testo, Word) anche nel campo `file`, che sceglie pure dal PC. Script con le chiavi come `EASYISLAND_SECRET_<NOME>`; esempio di `EASYISLAND_SCHEDA` in `custom_create`. «Non chiedere più» per gli script resta in `docs/idee.md`.
 
