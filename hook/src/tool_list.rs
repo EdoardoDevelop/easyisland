@@ -1042,6 +1042,16 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "preview_save_images",
+            "Scarica nel Vassoio di EasyIsland le foto ai loro indirizzi urls (http/https, da preview_extract o portal_search; al massimo 20), con names facoltativi (il codice del prodotto): per metterle in un preventivo (document_create) o mandarle. Con tab usa la pagina di quella scheda per i siti che danno le foto solo con l'accesso. Torna i percorsi. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "urls": { "type": "array", "items": { "type": "string" } },
+                "names": { "type": "array", "items": { "type": "string" } }
+            }, "required": ["urls"] }),
+            false,
+        ),
+        (
             "preview_login",
             "Entra in un sito nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) con la voce entry (nome o id) di Devolutions Cloud: EasyIsland scrive utente e password nel modulo di accesso e lo invia (submit false per non inviarlo); la password va solo nella pagina, mai a te. Solo se la voce è di quel sito (o non ha indirizzo). Anche per i login in due pagine. Per i portali con login della ricetta (portal_list dice quale voce). L'utente conferma ogni volta.",
             json!({ "type": "object", "properties": {

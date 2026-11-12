@@ -5064,5 +5064,14 @@
   "Scritto l'utente di «{n}»: la pagina della password non è arrivata, guarda la scheda.": "Typed the user of “{n}”: the password page did not come, look at the tab.",
   "Credenziali di «{n}» inserite su {h}, ma la pagina chiede ancora la password: forse sono sbagliate o serve un secondo fattore. Guarda la scheda.": "Credentials of “{n}” entered on {h}, but the page still asks for the password: maybe they are wrong or a second factor is needed. Look at the tab.",
   "Accesso fatto su {h} con «{n}».": "Signed in on {h} with “{n}”.",
-  "Entra nel sito con Devolutions": "Signs in to the site with Devolutions"
+  "Entra nel sito con Devolutions": "Signs in to the site with Devolutions",
+  "Manca urls: gli indirizzi delle foto (da preview_extract).": "urls is missing: the photos' addresses (from preview_extract).",
+  "Al massimo {n} foto per volta.": "At most {n} photos at a time.",
+  "Foto nel Vassoio:": "Photos in the Tray:",
+  "Solo indirizzi http e https.": "Only http and https addresses.",
+  "Il sito non dà la foto (serve l'accesso?): apri la sua pagina nell'Anteprima e riprova.": "The site does not give the photo (is a login needed?): open its page in the Preview and try again.",
+  "Foto non leggibile.": "Photo not readable.",
+  "Non è un'immagine ({k}).": "It is not an image ({k}).",
+  "La foto supera 15 MB.": "The photo is over 15 MB.",
+  "Scarica le foto nel Vassoio": "Downloads the photos into the Tray"
 }

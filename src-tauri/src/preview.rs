@@ -1703,6 +1703,30 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 }
             }
         }
+        "preview_save_images" => {
+            let urls: Vec<String> = args.get("urls").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+            if urls.is_empty() {
+                return Err(t("Manca urls: gli indirizzi delle foto (da preview_extract).").into());
+            }
+            if urls.len() > MAX_IMAGES {
+                return Err(tf("Al massimo {n} foto per volta.", &[("n", &MAX_IMAGES.to_string())]));
+            }
+            let names: Vec<String> = args.get("names").and_then(Value::as_array).map(|a| a.iter().map(|v| v.as_str().unwrap_or_default().to_string()).collect()).unwrap_or_default();
+            // The tab's page as referer and, for its own site, its session.
+            let tab = tab_for(&s("tab")).ok().filter(|tb| tb.browser);
+            let mut out = Vec::new();
+            for (i, url) in urls.iter().enumerate() {
+                let name = names.get(i).cloned().unwrap_or_default();
+                match save_image(app, tab.as_ref(), url, &name).await {
+                    Ok(file) => {
+                        crate::moments::emit(app, json!({ "kind": "tray", "name": file.name, "path": file.path, "size": file.size }));
+                        out.push(format!("- {} ({} KB): {}", file.name, file.size / 1024, file.path));
+                    }
+                    Err(e) => out.push(format!("- {url}: {} {e}", t("ERRORE:"))),
+                }
+            }
+            Ok(format!("{}\n{}", t("Foto nel Vassoio:"), out.join("\n")))
+        }
         "preview_find" => {
             let tb = tab_for(&s("tab"))?;
             let q = s("query");
@@ -2411,6 +2435,80 @@ const EXTRACT: &str = r#"async (o) => {
   return { url: base, sources, count: items.length, items: items.slice(0, o.limit || 20) };
 }"#;
 
+/// preview_save_images: at most this many at once, this big each.
+const MAX_IMAGES: usize = 20;
+const MAX_IMAGE_BYTES: usize = 15 * 1024 * 1024;
+
+/// A picture from the web into the Vassoio: downloaded (with the tab's page as
+/// referer), or through the page itself when its site wants the session.
+async fn save_image(app: &AppHandle, tab: Option<&Tab>, url: &str, name: &str) -> Result<crate::files::DroppedFile, String> {
+    let parsed = tauri::Url::parse(url).map_err(|_| t("Indirizzo non valido.").to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(t("Solo indirizzi http e https.").into());
+    }
+    let referer = tab.map(|tb| tb.target.clone()).unwrap_or_default();
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build().map_err(|e| e.to_string())?;
+    let mut req = client.get(url).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EasyIsland").header("Accept", "image/*");
+    if !referer.is_empty() {
+        req = req.header("Referer", &referer);
+    }
+    let direct = match req.send().await {
+        Ok(r) if r.status().is_success() => {
+            let kind = r.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or_default().to_ascii_lowercase();
+            let bytes = r.bytes().await.map_err(|e| e.without_url().to_string())?;
+            Some((kind, bytes.to_vec()))
+        }
+        _ => None,
+    };
+    // Refused (a login, a referer check): the page of the same site fetches it with its session.
+    let (kind, bytes) = match direct {
+        Some(x) => x,
+        None => {
+            let tb = tab.filter(|tb| host_of(&tb.target) == host_of(url)).ok_or_else(|| t("Il sito non dà la foto (serve l'accesso?): apri la sua pagina nell'Anteprima e riprova.").to_string())?;
+            let script = format!("(async (u) => {{ const r = await fetch(u, {{ credentials: 'include' }}); if (!r.ok) return {{ error: r.status }}; const b = new Uint8Array(await r.arrayBuffer()); let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); return {{ type: r.headers.get('content-type') || '', data: btoa(s) }}; }})({})", json!(url));
+            let v = eval_async(app, tb.id, &script).await?;
+            if v.get("error").is_some() {
+                return Err(t("Il sito non dà la foto (serve l'accesso?): apri la sua pagina nell'Anteprima e riprova.").into());
+            }
+            let data = v.get("data").and_then(Value::as_str).unwrap_or_default();
+            let bytes = crate::backup::base64_decode(data).ok_or_else(|| t("Foto non leggibile.").to_string())?;
+            (v.get("type").and_then(Value::as_str).unwrap_or_default().to_ascii_lowercase(), bytes)
+        }
+    };
+    if !kind.starts_with("image/") {
+        return Err(tf("Non è un'immagine ({k}).", &[("k", &kind)]));
+    }
+    if bytes.len() > MAX_IMAGE_BYTES {
+        return Err(t("La foto supera 15 MB.").into());
+    }
+    let ext = match kind.split(';').next().unwrap_or_default().trim() {
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        "image/avif" => "avif",
+        "image/svg+xml" => "svg",
+        _ => "img",
+    };
+    let file_name = image_name(name, url, ext);
+    let dir = std::env::temp_dir().join("EasyIsland").join("foto");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(&file_name);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    let p = path.to_string_lossy().to_string();
+    let file = tauri::async_runtime::spawn_blocking(move || crate::files::ingest(&p)).await.map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&path);
+    file
+}
+
+/// "U7-Pro" (or the address's last part) as a file name, with its extension.
+fn image_name(name: &str, url: &str, ext: &str) -> String {
+    let from_url = url.split(['?', '#']).next().unwrap_or_default().rsplit('/').next().unwrap_or_default();
+    let base = if name.trim().is_empty() { from_url.rsplit_once('.').map_or(from_url, |(b, _)| b) } else { name.trim() };
+    let clean: String = base.chars().map(|c| if c.is_alphanumeric() || matches!(c, '-' | '_' | ' ' | '.') { c } else { '_' }).collect::<String>().trim_matches(['.', ' ']).chars().take(80).collect();
+    format!("{}.{ext}", if clean.is_empty() { "foto" } else { &clean })
+}
+
 /// "www.shop.it" and "b2b.shop.it" are the same site; "shop.it.evil.com" is not.
 fn same_site(a: &str, b: &str) -> bool {
     let base = |h: &str| {
@@ -2567,6 +2665,14 @@ mod tests {
         assert!(target_of(&json!({}), "").is_none());
         assert_eq!(xy_of(&a, ""), Some((10.0, 20.5)));
         assert_eq!(xy_of(&a, "to_"), None);
+    }
+
+    #[test]
+    fn picture_names() {
+        assert_eq!(image_name("U7-Pro", "https://x.it/a/18317-large.jpg", "jpg"), "U7-Pro.jpg");
+        assert_eq!(image_name("", "https://x.it/a/18317-large.jpg?v=2", "jpg"), "18317-large.jpg");
+        assert_eq!(image_name("a/b:c", "https://x.it/", "png"), "a_b_c.png");
+        assert_eq!(image_name("", "https://x.it/", "png"), "foto.png");
     }
 
     #[test]
