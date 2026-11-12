@@ -25,6 +25,22 @@ export interface WorkListing {
   more: boolean;
 }
 
+/** A supplier's portal taught to EasyIsland (portals.rs `Portal`). */
+export interface PortalRecipe {
+  id: string;
+  name: string;
+  site: string;
+  searchUrl: string;
+  json: boolean;
+  login: boolean;
+  dvcEntry: string;
+  vatIncluded: boolean | null;
+  notes: string;
+  lastOk: string;
+  lastError: string;
+  uses: number;
+}
+
 export interface TelegramInfo {
   token: boolean;
   running: boolean;
@@ -724,6 +740,11 @@ export const Bridge = {
   /** What the chat learnt by use (recipes.rs): how many, and forgetting them. */
   recipesCount: () => call<number>("recipes_count"),
   recipesForget: () => call<void>("recipes_forget"),
+  /** Suppliers' portals the user taught (portals.rs): list, delete, export and import as JSON. */
+  portalsList: () => call<PortalRecipe[]>("portals_list"),
+  portalsDelete: (id: string) => call<void>("portals_delete", { id }),
+  portalsExport: () => call<string>("portals_export"),
+  portalsImport: (text: string) => call<number>("portals_import", { text }),
   /** Telegram (telegram.rs): the bot, the linked chat, the last error. */
   telegramInfo: () => call<TelegramInfo>("telegram_info"),
   telegramLinkCode: () => callOrThrow<string>("telegram_link_code"),

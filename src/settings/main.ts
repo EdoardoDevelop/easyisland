@@ -475,6 +475,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
     recipesRow(),
+    portalsRow(),
     connectorsBlock(),
   );
 
@@ -1905,6 +1906,60 @@ function recipesRow(): HTMLElement {
   });
   void Bridge.recipesCount().then(show);
   return h("div", { class: "row" }, h("label", { text: t("Ricette") }), line, forget);
+}
+
+/** Chat → "Portali": the suppliers' portals taught in the chat (portals.rs), never in the code. */
+function portalsRow(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0" });
+  const note = h("span", { class: "hint note" });
+  const paint = async () => {
+    const all = (await Bridge.portalsList()) ?? [];
+    clear(list);
+    if (!all.length) {
+      list.append(h("span", { class: "hint note", text: t("Nessuno. Si insegnano nella chat: «impara a cercare su questo portale», con il portale aperto nell'Anteprima. Poi «cerca U7-Pro nei portali» li usa tutti, senza leggere le pagine.") }));
+    }
+    for (const p of all) {
+      const how = [p.json ? t("ricerca in JSON") : t("dati della pagina"), p.login ? (p.dvcEntry ? t("con accesso (Devolutions: {e})", { e: p.dvcEntry }) : t("con accesso")) : "", p.vatIncluded === true ? t("IVA inclusa") : p.vatIncluded === false ? t("IVA esclusa") : ""].filter(Boolean).join(" · ");
+      const state = p.lastError ? t("ultimo errore {e}", { e: p.lastError }) : p.lastOk ? t("funziona ({d})", { d: p.lastOk }) : t("mai usato");
+      const del = h("button", { class: "danger", text: t("Elimina") }) as HTMLButtonElement;
+      del.addEventListener("click", async () => {
+        if (!del.classList.contains("confirm")) {
+          del.classList.add("confirm");
+          del.textContent = t("Sicuro? Elimina");
+          return;
+        }
+        try { await Bridge.portalsDelete(p.id); } catch (e) { console.warn(e); }
+        await paint();
+      });
+      list.append(h("div", { class: "row", style: "gap:8px;align-items:center" },
+        h("span", { style: "flex:1 1 auto;min-width:0" },
+          h("b", { text: p.name }), " ",
+          h("span", { class: "hint", text: `${p.site} · ${how} · ${state}` }),
+          p.notes ? h("div", { class: "hint", text: p.notes }) : ""),
+        del));
+    }
+  };
+  const exp = h("button", { text: t("Esporta") }) as HTMLButtonElement;
+  exp.title = t("Copia le ricette negli appunti, per un altro EasyIsland (niente password)");
+  exp.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText((await Bridge.portalsExport()) ?? "[]");
+      note.textContent = t("Copiate negli appunti.");
+    } catch { note.textContent = t("Non riuscito"); }
+  });
+  const imp = h("button", { text: t("Importa") }) as HTMLButtonElement;
+  imp.title = t("Aggiunge le ricette copiate da un altro EasyIsland (dagli appunti)");
+  imp.addEventListener("click", async () => {
+    try {
+      const n = await Bridge.portalsImport(await navigator.clipboard.readText());
+      note.textContent = t("{n} portali importati.", { n: n ?? 0 });
+    } catch (e) { note.textContent = String(e); }
+    await paint();
+  });
+  void paint();
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row", style: "align-items:flex-start" }, h("label", { text: t("Portali") }), list),
+    h("div", { class: "row" }, h("label", { text: "" }), exp, imp, note));
 }
 
 /** Notion → "Mappa per la chat": what is kept, "Sincronizza" and how often by itself. */

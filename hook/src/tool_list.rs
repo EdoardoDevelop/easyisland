@@ -1042,6 +1042,40 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "portal_list",
+            "I portali dei fornitori che l'utente ha insegnato a EasyIsland (ricette nei suoi dati): nome, id, sito, come si cerca, se serve l'accesso e con quale voce di Devolutions, IVA inclusa o no, note dell'utente, se l'ultima ricerca ha funzionato.",
+            none.clone(),
+            true,
+        ),
+        (
+            "portal_search",
+            "Cerca query (un codice o delle parole) nei portali insegnati (portals: id o nomi separati da virgola; vuoto = tutti), ognuno in una sua scheda dell'Anteprima dietro quella dell'utente, senza usare il motore per leggere: per ogni portale data e ora, IVA, note e i prodotti come JSON compatto (nome, codici, prezzo, disponibilità, link, foto). limit per portale (8). Se un portale chiede l'accesso o non trova più niente lo dice. Per confronti e preventivi: i totali li calcola document_create.",
+            json!({ "type": "object", "properties": {
+                "query": { "type": "string" },
+                "portals": { "type": "string" },
+                "limit": { "type": "integer" }
+            }, "required": ["query"] }),
+            true,
+        ),
+        (
+            "portal_save",
+            "Insegna (o corregge) un portale di un fornitore, dopo averlo studiato con l'utente nell'Anteprima: name; search_url, l'indirizzo della ricerca con {q} al posto delle parole; json true se la ricerca risponde in JSON (con items e fields se serve); altrimenti selectors { item, name, price, sku, url, image, availability } per le pagine senza dati strutturati; login se i prezzi si vedono solo dopo l'accesso, dvc_entry la voce di Devolutions Cloud con le credenziali (solo il nome); vat_included se i prezzi sono IVA inclusa; notes ciò che l'utente ha spiegato («il prezzo netto è il secondo»). test_query obbligatorio: la ricetta si salva solo se quella ricerca trova prodotti. Mai nel codice di EasyIsland: resta nei dati dell'utente. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "name": { "type": "string" },
+                "search_url": { "type": "string" },
+                "json": { "type": "boolean" },
+                "items": { "type": "string" },
+                "fields": { "type": "object" },
+                "selectors": { "type": "object" },
+                "login": { "type": "boolean" },
+                "dvc_entry": { "type": "string" },
+                "vat_included": { "type": "boolean" },
+                "notes": { "type": "string" },
+                "test_query": { "type": "string" }
+            }, "required": ["name", "search_url", "test_query"] }),
+            false,
+        ),
+        (
             "switch_profile",
             "Attiva un profilo di EasyIsland per id (vedi list_profiles).",
             json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),

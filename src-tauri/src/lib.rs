@@ -61,6 +61,7 @@ mod notion;
 mod notion_map;
 mod notion_tools;
 mod recipes;
+mod portals;
 mod todo;
 mod second;
 mod notion_page;
@@ -917,6 +918,27 @@ fn recipes_count() -> usize {
 #[tauri::command]
 fn recipes_forget() {
     recipes::forget();
+}
+
+/// Impostazioni → Chat → «Portali»: the suppliers' portals the user taught (portals.rs).
+#[tauri::command]
+fn portals_list() -> Vec<portals::Portal> {
+    portals::list()
+}
+
+#[tauri::command]
+fn portals_delete(id: String) -> Result<(), String> {
+    portals::delete(&id)
+}
+
+#[tauri::command]
+fn portals_export() -> String {
+    portals::export()
+}
+
+#[tauri::command]
+fn portals_import(text: String) -> Result<usize, String> {
+    portals::import(&text)
 }
 
 /// «Sincronizza»: the structure of Notion read again, for the chat.
@@ -4704,6 +4726,10 @@ pub fn run() {
             notion_map_status,
             recipes_count,
             recipes_forget,
+            portals_list,
+            portals_delete,
+            portals_export,
+            portals_import,
             notion_map_sync,
             chat_reset,
             chat_history_list,

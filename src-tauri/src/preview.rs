@@ -1869,12 +1869,60 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
     }
 }
 
+/// Tabs opened for a key (a portal of portals.rs), reused while they live.
+static KEYED_TABS: Mutex<Vec<(String, u32)>> = Mutex::new(Vec::new());
+
+/// `url` loaded in a tab of its own for `key`, behind the tab the user is
+/// looking at, and waited for (at most `secs`): the tab's id.
+pub(crate) async fn load_behind(app: &AppHandle, key: &str, url: &str, secs: u64) -> Result<u32, String> {
+    let known = KEYED_TABS.lock().unwrap().iter().find(|(k, _)| k == key).map(|(_, id)| *id);
+    let known = known.filter(|id| state().tabs.iter().any(|tb| tb.id == *id && tb.browser));
+    let id = match known {
+        Some(id) => {
+            navigate_web(app, id, url);
+            id
+        }
+        None => {
+            let before = state().active;
+            let id = open(app, url, Place::NewTab, false)?;
+            if before != 0 && before != id {
+                select(app, before);
+            }
+            let mut tabs = KEYED_TABS.lock().unwrap();
+            tabs.retain(|(k, _)| k != key);
+            tabs.push((key.to_string(), id));
+            id
+        }
+    };
+    // The old page may still say «complete» for a moment.
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let until = std::time::Instant::now() + Duration::from_secs(secs);
+    while std::time::Instant::now() < until {
+        let loading = state().tabs.iter().find(|tb| tb.id == id).is_some_and(|tb| tb.loading);
+        if !loading && eval(app, id, "document.readyState").await.is_ok_and(|r| r.contains("complete")) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(400)).await;
+    }
+    Ok(id)
+}
+
+/// The page asks for a password: a login form is in front of the data.
+pub(crate) async fn asks_login(app: &AppHandle, id: u32) -> bool {
+    eval(app, id, "!!Array.from(document.querySelectorAll('input[type=password]')).find((e) => e.offsetParent)").await.is_ok_and(|r| r.trim() == "true")
+}
+
 /// At most this many answers of the page's own requests are read, the last ones.
 const EXTRACT_BODIES: usize = 6;
 const EXTRACT_BODY_MAX: usize = 1_000_000;
 
 /// preview_extract: the products of the page (or of `url` on the same site), as compact JSON.
 pub(crate) async fn extract(app: &AppHandle, id: u32, args: &Value) -> Result<String, String> {
+    extract_found(app, id, args).await.map(|(text, _)| text)
+}
+
+/// The same, with how many products were found.
+pub(crate) async fn extract_found(app: &AppHandle, id: u32, args: &Value) -> Result<(String, u64), String> {
     let url = args.get("url").and_then(Value::as_str).unwrap_or_default().trim().to_string();
     // The JSON the page itself received (a search's results), unless another page is read.
     let mut bodies = Vec::new();
@@ -1910,7 +1958,7 @@ pub(crate) async fn extract(app: &AppHandle, id: u32, args: &Value) -> Result<St
     }
     let count = v.get("count").and_then(Value::as_u64).unwrap_or(0);
     if count == 0 {
-        return Ok(t("Nessun prodotto riconosciuto. Prova preview_network con data_only e body (la ricerca del sito può rispondere in JSON), url con json true, oppure preview_find e poi selectors.").into());
+        return Ok((t("Nessun prodotto riconosciuto. Prova preview_network con data_only e body (la ricerca del sito può rispondere in JSON), url con json true, oppure preview_find e poi selectors.").into(), 0));
     }
     let sources = v.get("sources").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")).unwrap_or_default();
     let items = v.get("items").cloned().unwrap_or(Value::Null);
@@ -1919,8 +1967,8 @@ pub(crate) async fn extract(app: &AppHandle, id: u32, args: &Value) -> Result<St
         ("url", &v.get("url").and_then(Value::as_str).unwrap_or_default()),
         ("src", &sources),
     ]);
-    Ok(cut(&format!("{head}
-{items}")))
+    Ok((cut(&format!("{head}
+{items}")), count))
 }
 
 /// A request that brought data, not the page's own furniture: JSON, XML,
