@@ -481,7 +481,10 @@ pub fn related(question: &str, fresh: bool) -> Option<String> {
     if found.is_empty() {
         return None;
     }
-    found.sort_by(|a, b| b.0.cmp(&a.0));
+    // Equal matches: the newest note first (12 Nov 2026, «i campi file non hanno
+    // un filtro» from the morning came before the note saying they now have one).
+    let day = |l: &str| l.trim_start_matches("- ").get(..10).filter(|d| d.as_bytes().get(4) == Some(&b'-')).unwrap_or("").to_string();
+    found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| day(&b.1).cmp(&day(&a.1))));
     let mut body = String::new();
     for (_, l) in found.into_iter().take(MAX_LINES) {
         let l = short(&l, 260);
@@ -493,7 +496,7 @@ pub fn related(question: &str, fresh: bool) -> Option<String> {
         body.push('\n');
     }
     Some(tf(
-        "[Dalla memoria, trovato da EasyIsland per questa domanda (se serve altro, memory_search):\n{body}]\n\n",
+        "[Dalla memoria, trovato da EasyIsland per questa domanda (se serve altro, memory_search; se due note si contraddicono vale la più recente):\n{body}]\n\n",
         &[("body", &body)],
     ))
 }
