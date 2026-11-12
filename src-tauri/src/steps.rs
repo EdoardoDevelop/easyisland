@@ -102,6 +102,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "preview_type" => t("Scrive nella pagina"),
         "preview_scroll" => t("Scorre la pagina"),
         "preview_find" => t("Cerca nella pagina"),
+        "preview_login" => t("Entra nel sito con Devolutions"),
         "portal_list" => t("Guarda i portali dei fornitori"),
         "portal_save" => t("Impara un portale"),
         "portal_search" => t("Cerca nei portali dei fornitori"),

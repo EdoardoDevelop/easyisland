@@ -1042,6 +1042,16 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "preview_login",
+            "Entra in un sito nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) con la voce entry (nome o id) di Devolutions Cloud: EasyIsland scrive utente e password nel modulo di accesso e lo invia (submit false per non inviarlo); la password va solo nella pagina, mai a te. Solo se la voce è di quel sito (o non ha indirizzo). Anche per i login in due pagine. Per i portali con login della ricetta (portal_list dice quale voce). L'utente conferma ogni volta.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "entry": { "type": "string" },
+                "submit": { "type": "boolean" }
+            }, "required": ["entry"] }),
+            false,
+        ),
+        (
             "portal_list",
             "I portali dei fornitori che l'utente ha insegnato a EasyIsland (ricette nei suoi dati): nome, id, sito, come si cerca, se serve l'accesso e con quale voce di Devolutions, IVA inclusa o no, note dell'utente, se l'ultima ricerca ha funzionato.",
             none.clone(),

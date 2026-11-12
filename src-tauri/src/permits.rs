@@ -109,7 +109,8 @@ pub fn only_reversible(list: &[String]) -> Vec<String> {
 pub fn delicate_tool(tool: &str) -> bool {
     // A remote PC (a command there, a connection opened to it), the password vault written,
     // or a quick action changed: a script in it is code that runs here.
-    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") {
+    // A password from the vault typed into a web page asks every time too.
+    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") {
         return true;
     }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear", "wipe",
@@ -510,7 +511,7 @@ mod tests {
 
     #[test]
     fn delicate_for_both_automatiche() {
-        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages"] {
+        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login"] {
             assert!(delicate_tool(t), "{t}");
         }
         for t in ["mcp__easyisland__todo_add", "mcp__notion__notion-create-pages", "easyisland_list_status", "mcp__easyisland__notion_update_row"] {

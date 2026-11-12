@@ -1664,6 +1664,45 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             }
             extract(app, tb.id, args).await
         }
+        "preview_login" => {
+            let tb = tab_for(&s("tab"))?;
+            let host = host_of(&tb.target).ok_or_else(|| t("La scheda non è una pagina web.").to_string())?;
+            let login = crate::dvc::web_login(&s("entry")).await?;
+            // The entry's own site, or no address in it: never a login on another site.
+            if let Some(entry_host) = as_url(login.url.trim()).and_then(|u| host_of(&u)) {
+                if !same_site(&entry_host, &host) {
+                    return Err(tf("La voce «{n}» è per {a}, la pagina è {b}: accesso non fatto.", &[("n", &login.name), ("a", &entry_host), ("b", &host)]));
+                }
+            }
+            let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(true);
+            let mut filled = String::new();
+            // Some sites ask the user first and the password on a second page.
+            for _ in 0..2 {
+                let script = format!("({LOGIN})({}, {}, {submit})", json!(login.user), json!(login.password));
+                let raw = eval(app, tb.id, &script).await.unwrap_or_default();
+                filled = serde_json::from_str::<Value>(&raw).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
+                settle(app, tb.id).await;
+                if filled != "user" {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(800)).await;
+            }
+            let name = login.name.clone();
+            drop(login);
+            crate::log::line(format!("anteprima: accesso con la voce «{name}» su {host} ({filled})"));
+            match filled.as_str() {
+                "none" | "" => Err(t("Nella pagina non c'è un modulo di accesso: apri la pagina di login del portale.").into()),
+                "user" => Ok(tf("Scritto l'utente di «{n}»: la pagina della password non è arrivata, guarda la scheda.", &[("n", &name)])),
+                _ => {
+                    let still = asks_login(app, tb.id).await;
+                    Ok(if still {
+                        tf("Credenziali di «{n}» inserite su {h}, ma la pagina chiede ancora la password: forse sono sbagliate o serve un secondo fattore. Guarda la scheda.", &[("n", &name), ("h", &host)])
+                    } else {
+                        tf("Accesso fatto su {h} con «{n}».", &[("n", &name), ("h", &host)])
+                    })
+                }
+            }
+        }
         "preview_find" => {
             let tb = tab_for(&s("tab"))?;
             let q = s("query");
@@ -2372,6 +2411,45 @@ const EXTRACT: &str = r#"async (o) => {
   return { url: base, sources, count: items.length, items: items.slice(0, o.limit || 20) };
 }"#;
 
+/// "www.shop.it" and "b2b.shop.it" are the same site; "shop.it.evil.com" is not.
+fn same_site(a: &str, b: &str) -> bool {
+    let base = |h: &str| {
+        let parts: Vec<&str> = h.trim_start_matches("www.").split('.').collect();
+        let n = parts.len();
+        if n >= 2 { format!("{}.{}", parts[n - 2], parts[n - 1]) } else { h.to_string() }
+    };
+    a == b || base(a) == base(b)
+}
+
+/// preview_login: the user and password in the page's login form, as typed
+/// ("input" and "change" events), then sent. "both", "user" (a page that asks
+/// the password later), "pass" or "none".
+const LOGIN: &str = r#"(user, pass, submit) => {
+  const shown = (e) => e && e.offsetParent !== null && !e.disabled && !e.readOnly;
+  const set = (el, v) => {
+    el.focus();
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const d = Object.getOwnPropertyDescriptor(proto, "value");
+    if (d && d.set) d.set.call(el, v); else el.value = v;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const pw = Array.from(document.querySelectorAll("input[type=password]")).find(shown);
+  const scope = (pw && (pw.form || pw.closest("form,div"))) || document;
+  const users = Array.from(scope.querySelectorAll("input")).filter((e) => shown(e) && /^(text|email|tel|)$/.test((e.getAttribute("type") || "").toLowerCase()));
+  const byName = users.find((e) => /user|mail|login|account|utente|codice/i.test([e.name, e.id, e.autocomplete, e.placeholder, e.getAttribute("aria-label")].join(" ")));
+  const u = byName || (pw ? users.filter((e) => e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() : users[0]);
+  if (!pw && !u) return "none";
+  if (u && user) set(u, user);
+  if (pw) set(pw, pass);
+  if (submit) {
+    const f = (pw || u).form;
+    const btn = f ? Array.from(f.querySelectorAll("button, input[type=submit]")).find((b) => shown(b) && (b.type === "submit" || /accedi|entra|login|log in|sign in|avanti|continua|next/i.test(b.innerText || b.value || ""))) : null;
+    if (btn) btn.click(); else if (f && f.requestSubmit) f.requestSubmit(); else (pw || u).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  }
+  return pw ? (u ? "both" : "pass") : "user";
+}"#;
+
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.
 const WAIT: &str = r#"(q) => {
   const body = document.body ? document.body.innerText : "";
@@ -2489,6 +2567,14 @@ mod tests {
         assert!(target_of(&json!({}), "").is_none());
         assert_eq!(xy_of(&a, ""), Some((10.0, 20.5)));
         assert_eq!(xy_of(&a, "to_"), None);
+    }
+
+    #[test]
+    fn logins_only_on_their_site() {
+        assert!(same_site("www.shop.it", "shop.it"));
+        assert!(same_site("b2b.shop.it", "www.shop.it"));
+        assert!(!same_site("shop.it.evil.com", "shop.it"));
+        assert!(!same_site("altro.it", "shop.it"));
     }
 
     #[test]

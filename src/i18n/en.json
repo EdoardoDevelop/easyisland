@@ -5054,5 +5054,15 @@
   "Guarda i portali dei fornitori": "Looks at the suppliers' portals",
   "Impara un portale": "Learns a portal",
   "Cerca nei portali dei fornitori": "Searches the suppliers' portals",
-  "clic, tasti e scrittura su {site} in questa conversazione (mai acquisti e ordini)": "clicks, keys and typing on {site} in this conversation (never purchases or orders)"
+  "clic, tasti e scrittura su {site} in questa conversazione (mai acquisti e ordini)": "clicks, keys and typing on {site} in this conversation (never purchases or orders)",
+  "Manca entry: la voce di Devolutions Cloud (nome o id).": "entry is missing: the Devolutions Cloud entry (name or id).",
+  "Nessuna voce «{n}» in Devolutions Cloud (premi Sincronizza se è nuova).": "No entry “{n}” in Devolutions Cloud (press Sync if it is new).",
+  "Più voci si chiamano «{n}»: usa l'id. {list}": "Several entries are called “{n}”: use the id. {list}",
+  "La scheda non è una pagina web.": "The tab is not a web page.",
+  "La voce «{n}» è per {a}, la pagina è {b}: accesso non fatto.": "The entry “{n}” is for {a}, the page is {b}: not signed in.",
+  "Nella pagina non c'è un modulo di accesso: apri la pagina di login del portale.": "There is no login form on the page: open the portal's login page.",
+  "Scritto l'utente di «{n}»: la pagina della password non è arrivata, guarda la scheda.": "Typed the user of “{n}”: the password page did not come, look at the tab.",
+  "Credenziali di «{n}» inserite su {h}, ma la pagina chiede ancora la password: forse sono sbagliate o serve un secondo fattore. Guarda la scheda.": "Credentials of “{n}” entered on {h}, but the page still asks for the password: maybe they are wrong or a second factor is needed. Look at the tab.",
+  "Accesso fatto su {h} con «{n}».": "Signed in on {h} with “{n}”.",
+  "Entra nel sito con Devolutions": "Signs in to the site with Devolutions"
 }
