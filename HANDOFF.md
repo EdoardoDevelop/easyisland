@@ -52,6 +52,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 12/11 — Chat: meno passi
+Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
+
 ### 12/11 — Campo file con «accept»
 Richiesta di Edoardo per TTSpeak (il campo «Audio creato» mostrava ogni file): `accept` sul campo `file` delle integrazioni personali, gruppi (audio, immagini, video, pdf, word, excel, testo) o estensioni (`mp3,wav`); Vassoio filtrato e finestra di Windows con il solo filtro, un file. Misurato prima: la richiesta in chat dopo il taglio dei token partiva da 29k (prima 34–45k), ~260k in tutto. `docs/integrazioni.md`, guida 24. Da provare dal vivo la finestra.
 
@@ -63,6 +66,3 @@ Richiesta di Edoardo per «TTSpeak» (dal PC lavoro): una `select` con `optionsF
 
 ### 11/11 — Integrazioni personali: file dai servizi, lettore, chiavi negli script
 Dal racconto di «Messaggi vocali TTS» (Agent Chat): l'azione `http` riconosce una risposta file (mp3, immagini, PDF) e la tiene in `%TEMP%\EasyIsland\risposte`; `folder`/`filename`/`tray` la salvano (`custom::keep`), altrimenti la card la mostra con «Salva». Lettore `src/views/file-viewer.ts` (immagini, audio, video, PDF, testo, Word) anche nel campo `file`, che sceglie pure dal PC. Script con le chiavi come `EASYISLAND_SECRET_<NOME>`; esempio di `EASYISLAND_SCHEDA` in `custom_create`. «Non chiedere più» per gli script resta in `docs/idee.md`.
-
-### 11/11 — Integrazioni personali, i sei seguiti dal PC di lavoro
-Segnalati in Agent Chat dal Claude del portatile (DDT, «Clienti», «Registro lavori e vendite»): tendina dei `link` sovrapposta al modulo (sopra o sotto, verso sinistra se serve, scorre da sola); «Anteprima» nella card e `custom_preview` senza salvare né usare numeri (`next_counters`, pagina composta dall'isola con `custom-preview`/`custom_preview_done`); `custom_update` a pezzi (`patched`) e `new_id` (`rename_id`, impostazioni con `renamed_task`); `templateFrom` e `integrazioni\_comune` per logo e modello condivisi; descrizione di `custom_create` sul valore dei `link`. Tre test nuovi in `custom.rs`. `docs/integrazioni.md`, guida 24.

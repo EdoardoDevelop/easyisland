@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11/11 — Integrazioni personali, i sei seguiti dal PC di lavoro
+Segnalati in Agent Chat dal Claude del portatile (DDT, «Clienti», «Registro lavori e vendite»): tendina dei `link` sovrapposta al modulo (sopra o sotto, verso sinistra se serve, scorre da sola); «Anteprima» nella card e `custom_preview` senza salvare né usare numeri (`next_counters`, pagina composta dall'isola con `custom-preview`/`custom_preview_done`); `custom_update` a pezzi (`patched`) e `new_id` (`rename_id`, impostazioni con `renamed_task`); `templateFrom` e `integrazioni\_comune` per logo e modello condivisi; descrizione di `custom_create` sul valore dei `link`. Tre test nuovi in `custom.rs`. `docs/integrazioni.md`, guida 24.
+
 ### 11/11 — Importare abilità da file e cartelle (ramo `claude/abilita-import`, 1.0.43)
 Spunto di Edoardo: The Agency (`msitarzewski/agency-agents`, agenti in Markdown). Impostazioni → Flussi → Abilità: «Importa file…», «Importa cartella…», «Da Claude Code»; `skillimport.rs` riconosce agenti, `SKILL.md` e Markdown, toglie i campi altrui, salta README e guide; elenco con ricerca, filtro per cartella, «esiste già», «troppo lunga»; «Adatta con un motore» (`skill_adapt`, un `chat_turn` Helper per abilità) con revisione prima di salvare. Su The Agency: 284 trovate, 45 saltate, 64 oltre 20.000 caratteri. Scartato prima ZapFast (WhatsApp non ufficiale: rischio di ban del numero). Nella stessa versione il lavoro rimasto del 10/11: trascinamento nei gruppi del menu con linea e spostamento al rilascio, striscia del gruppo nella Panoramica, `fgwin::poll` per il titolo della finestra.
 

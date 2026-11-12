@@ -234,7 +234,7 @@ impl Page {
     }
 
     /// One line on the page for a link to it: the summary, else its first line.
-    fn gist(&self) -> String {
+    pub(crate) fn gist(&self) -> String {
         let line = if self.summary.is_empty() { self.body.lines().find(|l| !l.trim().is_empty()).unwrap_or_default().trim() } else { self.summary.as_str() };
         line.chars().take(200).collect()
     }

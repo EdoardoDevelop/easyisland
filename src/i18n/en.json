@@ -4975,5 +4975,6 @@
   "Claude può affidare pezzi del lavoro a sotto-agenti in parallelo; ognuno riparte da capo e consuma molti token in più": "Claude can hand parts of the work to sub-agents in parallel; each one starts from scratch and uses many more tokens",
   "Campo «{l}»: accept non valido ({v}). Usa audio, immagini, video, pdf, word, excel, testo o estensioni come mp3,wav.": "Field «{l}»: invalid accept ({v}). Use audio, immagini, video, pdf, word, excel, testo or extensions like mp3,wav.",
   "Qui va un file {list}.": "This needs a file of type {list}.",
-  "Scegli un file": "Pick a file"
+  "Scegli un file": "Pick a file",
+  "[Dalla memoria, trovato da EasyIsland per questa domanda (se serve altro, memory_search):\n{body}]\n\n": "[From the memory, found by EasyIsland for this question (for more, memory_search):\n{body}]\n\n"
 }

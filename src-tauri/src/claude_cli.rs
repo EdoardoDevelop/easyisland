@@ -106,6 +106,8 @@ pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
 const SYSTEM_PROMPT: &str = "You are the user's personal assistant in the chat of the EasyIsland desktop app. \
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
+Every step re-reads the whole conversation: call independent tools together in the same step, and use queries, titles and notes \
+of memory_search, memory_page and memory_note for several at once. \
 Respond in Italian unless the user writes in another language. Be thorough and complete: use as much detail as the task requires. \
 Markdown is rendered: use lists, tables and code blocks when they help.";
 
@@ -121,6 +123,10 @@ Sub-agents and commands may run in parallel and in the background: the chat list
 the user can keep writing to you meanwhile, and what you write when they end appears in the chat by itself with a notice. \
 So when background work ends, write the finished result the user asked for (not only how much is done), \
 and never promise to warn the user in some other way. \
+Every step (each round of tool calls) re-reads the whole conversation, so make few steps and do more in each: \
+call independent tools together in the same step; load all the deferred tools you will need with one ToolSearch \
+(select:name1,name2,...); use queries, titles and notes of memory_search, memory_page and memory_note for several at once; \
+save memory notes together at the end of the work, not one per step; read only the part of a long file you need. \
 When an EasyIsland tool does the job, use it instead of a command or of Read: document_read for Word and PDF files and whole folders of them, \
 list_status, memory_*, notion_*, todo_*, preview_* and the others: they give the result already clean, faster and with fewer tokens. \
 To look at files and folders use Read, Glob and Grep, not commands: they need no click, a command does. \
@@ -371,6 +377,10 @@ the user confirms or refuses it with a click, and a refusal is final for that re
 fn permission_hook(matcher: &str) -> String {
     let exe = crate::settings::hook_exe_path().to_string_lossy().replace('\\', "/");
     serde_json::json!({
+        // Claude Code's own skills for programmers (code-review, loop, dataviz, init…):
+        // their list was ~2k tokens re-read at every step. The user's skills and
+        // the claude.ai ones (docx, pdf, xlsx) stay. 12 Nov 2026.
+        "disableBundledSkills": true,
         "hooks": {
             "PermissionRequest": [{
                 "matcher": matcher,

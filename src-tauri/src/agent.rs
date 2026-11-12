@@ -118,7 +118,51 @@ pub(crate) async fn move_to_work_folder(app: &AppHandle, args: &Value) -> Result
     Ok((format!("Fatto: {}", path.display()), rel, copy))
 }
 
+/// Several at once (12 Nov 2026): `queries` of memory_search, `titles` of
+/// memory_page, `notes` of memory_note. In a week on the laptop 52 searches and
+/// 52 pages came one after the other, each a step that re-reads the whole chat.
+/// Each item → (label, the arguments of one ordinary call).
+fn batch_of(tool: &str, args: &Value) -> Option<Vec<(String, Value)>> {
+    let (list, one) = match tool {
+        "memory_search" => ("queries", "query"),
+        "memory_page" => ("titles", "title"),
+        "memory_note" => ("notes", "text"),
+        _ => return None,
+    };
+    let many = args.get(list)?.as_array()?;
+    let mut items: Vec<String> = Vec::new();
+    let first = arg(args, one).trim();
+    if !first.is_empty() {
+        items.push(first.to_string());
+    }
+    for v in many.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).take(10) {
+        if !items.iter().any(|x| x == v) {
+            items.push(v.to_string());
+        }
+    }
+    if items.is_empty() {
+        return None;
+    }
+    Some(items.into_iter().map(|item| {
+        let mut a = args.clone();
+        if let Some(o) = a.as_object_mut() {
+            o.remove(list);
+            o.insert(one.into(), Value::String(item.clone()));
+        }
+        (item, a)
+    }).collect())
+}
+
 async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String> {
+    if let Some(items) = batch_of(tool, args) {
+        let mut out = Vec::new();
+        for (label, one) in items {
+            let r = Box::pin(run(app, tool, &one)).await;
+            let short: String = label.chars().take(80).collect();
+            out.push(format!("## {short}\n{}", r.unwrap_or_else(|e| e)));
+        }
+        return Ok(out.join("\n\n"));
+    }
     // The memory window's living network sees what is read and written.
     match tool {
         "memory_search" => crate::brain::activity(app, "read", arg(args, "query")),
@@ -591,5 +635,23 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         }
 
         _ => Err(format!("Strumento sconosciuto: {tool}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::batch_of;
+    use serde_json::json;
+
+    #[test]
+    fn several_searches_pages_and_notes_in_one_call() {
+        let s = batch_of("memory_search", &json!({ "query": "TTS", "queries": ["openrouter", "TTS", " "], "month": "2026-11" })).unwrap();
+        assert_eq!(s.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>(), ["TTS", "openrouter"]);
+        assert_eq!(s[1].1, json!({ "query": "openrouter", "month": "2026-11" }));
+        let p = batch_of("memory_page", &json!({ "titles": ["Imec", "Talenti"], "brief": true })).unwrap();
+        assert_eq!(p[1].1, json!({ "title": "Talenti", "brief": true }));
+        assert_eq!(batch_of("memory_note", &json!({ "notes": ["a", "b"] })).unwrap().len(), 2);
+        assert!(batch_of("memory_search", &json!({ "query": "solo" })).is_none());
+        assert!(batch_of("custom_get", &json!({ "queries": ["x"] })).is_none());
     }
 }

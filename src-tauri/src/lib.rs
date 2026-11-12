@@ -1661,6 +1661,13 @@ pub(crate) async fn chat_turn(
         Some(h) => format!("{h}{query}"),
         None => query,
     };
+    // What the memory knows about this question, looked up here with no model
+    // (memory::related): often one memory_search step less, at every question.
+    let related = if remember && memory_tools && learns { memory::related(&asked, fresh) } else { None };
+    let query = match &related {
+        Some(r) => format!("{r}{query}"),
+        None => query,
+    };
     let query = match &preamble {
         Some(p) => format!("{p}{query}"),
         None => query,

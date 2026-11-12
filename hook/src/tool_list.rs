@@ -321,27 +321,30 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "memory_search",
-            "Cerca nella memoria della chat: le note salvate e il diario delle domande passate (una riga per domanda, con data, motore, domanda e inizio della risposta), dalle più recenti. query: parole da trovare (tutte); month: \"AAAA-MM\" per un mese solo. Usalo quando l'utente si riferisce a qualcosa di una volta precedente.",
+            "Cerca nella memoria della chat: le note salvate e il diario delle domande passate (una riga per domanda, con data, motore, domanda e inizio della risposta), dalle più recenti. query: parole da trovare (tutte); queries: più ricerche in una sola chiamata (nomi diversi, sinonimi, il cliente e il progetto): usale invece di chiamare più volte; month: \"AAAA-MM\" per un mese solo. Usalo quando l'utente si riferisce a qualcosa di una volta precedente.",
             json!({ "type": "object", "properties": {
                 "query": { "type": "string" },
+                "queries": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
                 "month": { "type": "string" }
-            }, "required": ["query"] }),
+            } }),
             true,
         ),
         (
             "memory_note",
-            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota. shared: true = nella memoria dell'altro PC dell'utente (quella condivisa, per esempio del lavoro), solo quando l'inizio della conversazione dice che c'è.",
+            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota; notes: più note in una sola chiamata (raccoglile e salvale insieme alla fine del lavoro, non una per passo). shared: true = nella memoria dell'altro PC dell'utente (quella condivisa, per esempio del lavoro), solo quando l'inizio della conversazione dice che c'è.",
             json!({ "type": "object", "properties": {
                 "text": { "type": "string" },
+                "notes": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
                 "shared": { "type": "boolean" }
-            }, "required": ["text"] }),
+            } }),
             true,
         ),
         (
             "memory_page",
-            "Una pagina della memoria (le pagine su persone, clienti, progetti e concetti, collegate tra loro con [[Titolo]]), con la sua versione e le pagine che la citano. title: il titolo; vuoto = l'elenco delle pagine e dei file che aspettano in da-leggere. brief: true = solo la scheda (riassunto, collegamenti, chi la cita, lunghezza del testo): usala per prima, apri il testo intero solo se non basta o per riscriverla.",
+            "Una pagina della memoria (le pagine su persone, clienti, progetti e concetti, collegate tra loro con [[Titolo]]), con la sua versione e le pagine che la citano. title: il titolo; vuoto = l'elenco delle pagine e dei file che aspettano in da-leggere. brief: true = solo la scheda (riassunto, collegamenti, chi la cita, lunghezza del testo): usala per prima, apri il testo intero solo se non basta o per riscriverla. titles: più pagine in una sola chiamata (stesso brief per tutte): usale invece di aprirle una alla volta.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
+                "titles": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
                 "brief": { "type": "boolean" }
             } }),
             true,
