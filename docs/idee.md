@@ -38,6 +38,27 @@ Già oggi (`tasks.rs` → `due`): un `at:` passato parte al primo avvio; `daily`
 - Compiti una volta sola «Fatto»: archivio o pulizia automatica dopo N giorni, a scelta in Impostazioni.
 - MCP `task_update` (titolo, obiettivo, orario di un compito non partito) e `task_cancel`; con la regola «mai eliminare» annullare = pausa/archivio, eliminare resta un clic in Flussi.
 
+## Controllo del browser, seguiti (12/11/2026, chiesto da Edoardo)
+Uso principale: cercare prodotti nei portali dei fornitori (spesso con accesso), leggere caratteristiche, prezzi e foto, farne un preventivo. Oggi: Anteprima con `preview_open/snapshot/read/screenshot/console/network/resize/wait`, `preview_click`/`preview_type` con Consenti/Nega (`docs/chat.md` → Anteprima); preventivi con `document_create` (totali calcolati da EasyIsland) e Raccolta del Vassoio.
+- **Pari a Claude Desktop:**
+  - tasti (Invio, Tab, Esc, frecce, scorciatoie), passaggio del mouse, scorrimento e «porta in vista», doppio clic, clic destro, trascinamento, clic su un punto (canvas, mappe);
+  - più passi in una chiamata (apri, clicca, scrivi, aspetta, leggi): meno giri, meno token;
+  - consenso per sito e conversazione invece che per clic (come «Sempre» di Claude Code, 8/11): eccezione alla regola del clic, serve l'ok di Edoardo; mai per acquisti, ordini, carrello, invio di moduli con effetti reali;
+  - tendine, caselle e date con un comando; cerca un elemento per testo; schermata di una zona o ridotta;
+  - schede in secondo piano, scegli o chiudi da strumento; tema scuro (`setEmulatedMedia` c'è già); corpo delle risposte di rete, JavaScript solo per leggere;
+  - caricare un file del Vassoio in un modulo, download nel Vassoio.
+- **Per i preventivi dai fornitori:**
+  - accesso ai portali con le credenziali di Devolutions inserite nei campi senza passare dal motore (conferma come `dvc_show`); sessioni che restano nel profilo dell'Anteprima;
+  - `preview_extract`: dati strutturati dalla pagina (codice, descrizione, caratteristiche, prezzo netto/listino, IVA, disponibilità, foto, link) invece dell'albero intero, anche da liste di risultati. Ordine, dal meno caro: JSON-LD `Product`/`Offer`, microdata e meta `og:`; risposte JSON delle API del portale viste in rete (corpo letto nella pagina, con la sessione); ricetta del portale (selettori salvati, eseguita senza motore); testo principale o albero limitato a una zona; schermata solo per controllo visivo. Le foto si prendono dall'indirizzo, il motore non le guarda;
+  - Nessun portale nel codice né nel repo: l'utente addestra EasyIsland. Prova del 12/11 su tre portali reali: i casi tipici sono scheda JSON-LD `Product` completa, ricerca che risponde in JSON con l'intestazione giusta, suggerimenti di ricerca con i prodotti nel `dataLayer` (prezzo vero solo dopo l'accesso), catalogo in un'app dietro SSO. `preview_extract` deve riconoscerli da solo, senza sapere di quale sito si tratta.
+  - **Addestramento («Insegna un portale»):** l'utente fa una ricerca nell'Anteprima con la chat che guarda (o glielo spiega a parole); EasyIsland prova i metodi in ordine, mostra cosa ha trovato (tabella con codice, prezzo, foto) e l'utente corregge («il prezzo giusto è quello netto», «la disponibilità è in quel riquadro»). Salva una **ricetta** nei dati dell'utente (`%APPDATA%`, come le abilità; mai nel repo): indirizzo di ricerca con `{codice}`/`{testo}`, metodo, campi e dove si trovano, se serve l'accesso e con quale voce di Devolutions (solo il riferimento), IVA inclusa o no. Visibile e modificabile in Impostazioni, esportabile verso un altro EasyIsland. Se una ricetta smette di funzionare (sito cambiato), lo dice e propone di riaddestrarla.
+  - Con le ricette, una ricerca su un portale non usa il motore: lo usa solo per scegliere i prodotti e comporre il preventivo.
+  - stessa ricerca su più portali in schede parallele, tabella di confronto con fonte, data e ora del prezzo;
+  - foto del prodotto scaricate nel Vassoio e messe nel documento;
+  - preventivo da modello Word o da un'integrazione personale (righe con link alla fonte, ricarico, IVA), totali sempre di EasyIsland;
+- **Più di Claude Desktop:** sequenze registrate che diventano azioni rapide o abilità ripetute senza motore; Compiti e Battito che controllano un portale (prezzo, disponibilità, ordine) e avvisano solo se cambia; dalla pagina a schede, Notion e memoria; dal telefono (Telegram, Agent Chat) sull'EasyIsland giusto; con ogni motore.
+- **Dopo:** il browser vero dell'utente con l'estensione (sezione «Estensione per Chrome ed Edge»).
+
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).
