@@ -4996,5 +4996,13 @@
   "Non è una tendina <select>: aprila con un clic e scegli la voce.": "It is not a <select> drop-down: open it with a click and pick the item.",
   "Nella tendina non c'è «{v}».": "“{v}” is not in the drop-down.",
   "Scorre la pagina": "Scrolls the page",
-  "Usa mouse e tastiera nella pagina": "Uses mouse and keyboard on the page"
+  "Usa mouse e tastiera nella pagina": "Uses mouse and keyboard on the page",
+  "Manca tab: il numero della scheda (target vuoto le elenca).": "tab is missing: the tab's number (an empty target lists them).",
+  " Rimpicciolita a {s}: per preview_act dividi x e y dell'immagine per {s}.": " Scaled to {s}: for preview_act divide the image's x and y by {s}.",
+  "Manca query: il testo da cercare nella pagina.": "query is missing: the text to look for on the page.",
+  "Nella pagina non c'è «{q}».": "“{q}” is not on the page.",
+  "Richiesta non trovata: usa l'id (#…) di una riga di preview_network.": "Request not found: use the id (#…) of a preview_network line.",
+  "Il contenuto di questa richiesta non c'è più: ricarica la pagina o rifai l'azione.": "This request's content is gone: reload the page or do the action again.",
+  "La risposta è un file binario, non testo.": "The answer is a binary file, not text.",
+  "Cerca nella pagina": "Searches the page"
 }

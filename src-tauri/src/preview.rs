@@ -168,6 +168,8 @@ struct Request {
     kind: String,
     status: u16,
     failed: String,
+    /// The answer's type (application/json, text/html…).
+    mime: String,
 }
 
 impl Request {
@@ -843,8 +845,9 @@ fn devtools_and_console(w: &Webview, id: u32) {
         }
         cdp(&core, "Runtime.enable", &json!({}), |_| {});
         cdp(&core, "Log.enable", &json!({}), |_| {});
-        // Only the headers' events: no bodies are kept (preview_network).
-        cdp(&core, "Network.enable", &json!({ "maxTotalBufferSize": 0, "maxResourceBufferSize": 0 }), |_| {});
+        // Bodies kept a while in WebView2's own buffer (20 MB, 5 MB each) for
+        // preview_network's `body` and preview_extract; never on disk.
+        cdp(&core, "Network.enable", &json!({ "maxTotalBufferSize": 20_000_000, "maxResourceBufferSize": 5_000_000 }), |_| {});
         for event in ["Runtime.consoleAPICalled", "Runtime.exceptionThrown", "Log.entryAdded", "Network.requestWillBeSent", "Network.responseReceived", "Network.loadingFailed"] {
             let Ok(receiver) = core.GetDevToolsProtocolEventReceiver(&HSTRING::from(event)) else { continue };
             let handler = DevToolsProtocolEventReceivedEventHandler::create(Box::new(move |_, args| {
@@ -891,6 +894,7 @@ fn net_event(id: u32, event: &str, json: &str) {
         "Network.responseReceived" => {
             if let Some(r) = list.iter_mut().find(|r| r.id == rid) {
                 r.status = v.get("response").and_then(|x| x.get("status")).and_then(Value::as_u64).unwrap_or(0).min(999) as u16;
+                r.mime = v.pointer("/response/mimeType").and_then(Value::as_str).unwrap_or_default().chars().take(80).collect();
             }
         }
         _ => {
@@ -1460,6 +1464,18 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     nav(app, tb.id, target.trim())?;
                     return Ok(t("Fatto.").into());
                 }
+                "show" | "close" => {
+                    if s("tab").trim().is_empty() {
+                        return Err(t("Manca tab: il numero della scheda (target vuoto le elenca).").into());
+                    }
+                    let tb = tab_for(&s("tab"))?;
+                    if target.trim() == "close" {
+                        close_tab(app, tb.id);
+                    } else {
+                        select(app, tb.id);
+                    }
+                    return Ok(t("Fatto.").into());
+                }
                 "" => {
                     let snap = snapshot(app);
                     if snap.tabs.is_empty() {
@@ -1469,8 +1485,14 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 }
                 _ => {}
             }
-            let place = if args.get("new_tab").and_then(Value::as_bool).unwrap_or(false) { Place::NewTab } else { Place::Active };
+            let background = args.get("background").and_then(Value::as_bool).unwrap_or(false);
+            let place = if background || args.get("new_tab").and_then(Value::as_bool).unwrap_or(false) { Place::NewTab } else { Place::Active };
+            let before = state().active;
             let id = open(app, &target, place, false)?;
+            // Behind the tab the user is looking at: it loads, the chat reads it.
+            if background && before != 0 && before != id {
+                select(app, before);
+            }
             let tb = tab_for(&id.to_string())?;
             Ok(tf("Aperto nell'anteprima, scheda {id}: {what}", &[("id", &id.to_string()), ("what", &tb.target)]))
         }
@@ -1510,10 +1532,32 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_screenshot" => {
             let tb = tab_for(&s("tab"))?;
-            let png = screenshot_of(app, tb.id).await?;
+            let scale = args.get("scale").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 1.0);
+            let png = if tb.browser && app.get_webview(&web_label(tb.id)).is_some() {
+                // In CSS pixels (× scale): what preview_act's x, y mean. A zone: one element.
+                let zone = match target_of(args, "") {
+                    Some(target) => {
+                        let script = format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + scrollX, r.top + scrollY, r.width, r.height]; }}, false, false)");
+                        let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                        if let Some(e) = v.get("error").and_then(Value::as_str) {
+                            return Err(e.to_string());
+                        }
+                        v.get("out").cloned()
+                    }
+                    None => serde_json::from_str::<Value>(&eval(app, tb.id, "[scrollX, scrollY, innerWidth, innerHeight]").await?).ok(),
+                };
+                let n = |i: usize| zone.as_ref().and_then(|z| z.get(i)).and_then(Value::as_f64).unwrap_or(0.0);
+                let (w, h) = (n(2).max(1.0).min(4000.0), n(3).max(1.0).min(4000.0));
+                let v = cdp_on(app, tb.id, "Page.captureScreenshot", json!({ "format": "png", "clip": { "x": n(0), "y": n(1), "width": w, "height": h, "scale": scale } })).await?;
+                let data = v.get("data").and_then(Value::as_str).ok_or_else(|| t("Schermata non riuscita.").to_string())?;
+                crate::backup::base64_decode(data).ok_or_else(|| t("Schermata non riuscita.").to_string())?
+            } else {
+                screenshot_of(app, tb.id).await?
+            };
             let path = std::env::temp_dir().join(format!("easyisland-anteprima-{}.png", crate::memory::stamp().replace([':', ' '], "-")));
             std::fs::write(&path, png).map_err(|e| e.to_string())?;
-            Ok(tf("Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]))
+            let note = if tb.browser && (scale - 1.0).abs() > f64::EPSILON { tf(" Rimpicciolita a {s}: per preview_act dividi x e y dell'immagine per {s}.", &[("s", &format!("{scale}"))]) } else { String::new() };
+            Ok(tf("Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]) + &note)
         }
         "preview_console" => {
             let tb = tab_for(&s("tab"))?;
@@ -1551,6 +1595,21 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 ("s", &if v.scheme.is_empty() { t("della pagina").to_string() } else { v.scheme.clone() }),
             ]))
         }
+        "preview_find" => {
+            let tb = tab_for(&s("tab"))?;
+            let q = s("query");
+            if q.trim().is_empty() {
+                return Err(t("Manca query: il testo da cercare nella pagina.").into());
+            }
+            let raw = eval(app, tb.id, &format!("({FIND_ALL})({})", json!(q))).await?;
+            let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+            let lines: Vec<&str> = v.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            if lines.is_empty() {
+                return Ok(tf("Nella pagina non c'è «{q}».", &[("q", &q)]));
+            }
+            Ok(lines.join("
+"))
+        }
         "preview_snapshot" => {
             let tb = tab_for(&s("tab"))?;
             if tb.kind == "file" && !tb.browser {
@@ -1580,16 +1639,26 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_network" => {
             let tb = tab_for(&s("tab"))?;
+            // One answer's content, by the id of its line.
+            let body_of = s("body");
+            if !body_of.is_empty() {
+                return response_body(app, tb.id, body_of.trim_start_matches('#')).await.map(|b| cut(&b));
+            }
             let only_failed = args.get("failed_only").and_then(Value::as_bool).unwrap_or(false);
+            let only_data = args.get("data_only").and_then(Value::as_bool).unwrap_or(false);
+            let filter = s("filter").to_lowercase();
             let lines: Vec<String> = state()
                 .net
                 .get(&tb.id)
                 .map(|l| {
                     l.iter()
                         .filter(|r| !only_failed || r.bad())
+                        .filter(|r| !only_data || is_data(r))
+                        .filter(|r| filter.is_empty() || r.url.to_lowercase().contains(&filter))
                         .map(|r| {
                             let how = if !r.failed.is_empty() { r.failed.clone() } else if r.status == 0 { "…".into() } else { r.status.to_string() };
-                            format!("{} {how} {} ({})", r.method, r.url, r.kind)
+                            let mime = if r.mime.is_empty() { String::new() } else { format!(", {}", r.mime) };
+                            format!("#{} {} {how} {} ({}{mime})", r.id, r.method, r.url, r.kind)
                         })
                         .collect()
                 })
@@ -1743,6 +1812,29 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
     }
 }
 
+/// A request that brought data, not the page's own furniture: JSON, XML,
+/// text answers of fetch/XHR.
+fn is_data(r: &Request) -> bool {
+    let m = r.mime.to_ascii_lowercase();
+    (r.kind == "XHR" || r.kind == "Fetch" || m.contains("json")) && !m.starts_with("image/") && !m.contains("javascript") && !m.contains("css")
+}
+
+/// The content of an answer the tab received (still in WebView2's buffer).
+async fn response_body(app: &AppHandle, id: u32, request: &str) -> Result<String, String> {
+    let known = state().net.get(&id).is_some_and(|l| l.iter().any(|r| r.id == request));
+    if !known {
+        return Err(t("Richiesta non trovata: usa l'id (#…) di una riga di preview_network.").into());
+    }
+    let v = cdp_on(app, id, "Network.getResponseBody", json!({ "requestId": request })).await
+        .map_err(|_| t("Il contenuto di questa richiesta non c'è più: ricarica la pagina o rifai l'azione.").to_string())?;
+    let body = v.get("body").and_then(Value::as_str).unwrap_or_default();
+    if v.get("base64Encoded").and_then(Value::as_bool).unwrap_or(false) {
+        return Err(t("La risposta è un file binario, non testo.").into());
+    }
+    // As it came: compact JSON costs the fewest tokens.
+    Ok(body.to_string())
+}
+
 /// After an action: the page as it is now, so the chat sees what it did;
 /// with `quiet` only the line (the next call reads what it needs).
 async fn after(app: &AppHandle, id: u32, done: String, args: &Value) -> Result<String, String> {
@@ -1879,6 +1971,47 @@ const SNAPSHOT: &str = r#"() => {
   if (root) walk(root, 0);
   if (lines.length >= MAX) lines.push("… (pagina lunga: tagliata)");
   return { title: document.title, url: location.href, modal: modals.length > 0, tree: lines.join("\n") };
+}"#;
+
+/// preview_find: the elements whose name or text has the words, as lines like
+/// preview_snapshot's (same refs), at most 25, each with the heading it is under.
+const FIND_ALL: &str = r#"(q) => {
+  if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
+  const R = window.__eiRefs;
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const clip = (t, n) => { t = (t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  const want = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = (el) => { const s = getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0; };
+  const nameOf = (el) => clip(el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.innerText || el.value || el.getAttribute("placeholder") || el.getAttribute("title") || el.getAttribute("alt") || "", 100);
+  const has = (t) => { t = t.toLowerCase(); return want.every((w) => t.includes(w)); };
+  const roleOf = (el) => el.getAttribute("role") || ({ A: "link", BUTTON: "button", INPUT: "textbox", TEXTAREA: "textbox", SELECT: "combobox", IMG: "img", H1: "heading", H2: "heading", H3: "heading", H4: "heading", H5: "heading", H6: "heading" }[el.tagName] || "text");
+  const under = (el) => { let e = el; while (e && e !== document.body) { let p = e.previousElementSibling; while (p) { if (/^H[1-6]$/.test(p.tagName)) return clip(p.innerText, 50); p = p.previousElementSibling; } e = e.parentElement; } return ""; };
+  const controls = Array.from(document.querySelectorAll("a[href], button, input:not([type=hidden]), textarea, select, img[alt], h1, h2, h3, h4, h5, h6, [role], label, summary"));
+  const out = [];
+  const seen = new Set();
+  for (const el of controls) {
+    if (out.length >= 25) break;
+    if (!shown(el)) continue;
+    const name = nameOf(el);
+    if (!name || !has(name + " " + (el.getAttribute("name") || ""))) continue;
+    seen.add(el);
+    const h = under(el);
+    out.push("- " + roleOf(el) + " " + JSON.stringify(name) + " [ref=" + refOf(el) + "]" + (el.href ? " -> " + clip(el.href, 120) : "") + (h ? "  (sotto «" + h + "»)" : ""));
+  }
+  // Plain text too (a price, a code), as its smallest block.
+  if (out.length < 25) {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode()) && out.length < 25) {
+      const el = n.parentElement;
+      if (!el || seen.has(el) || ["SCRIPT", "STYLE", "NOSCRIPT"].includes(el.tagName) || !has(n.textContent) || !shown(el)) continue;
+      const block = el.closest("li, tr, article, p, div, td, dd, span") || el;
+      if (seen.has(block)) continue;
+      seen.add(block);
+      out.push("- text " + JSON.stringify(clip(block.innerText, 160)) + " [ref=" + refOf(block) + "]");
+    }
+  }
+  return out;
 }"#;
 
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.

@@ -868,10 +868,11 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_open",
-            "Apre nella finestra Anteprima di EasyIsland, accanto alla chat, un indirizzo web (anche \"localhost:5173\") o un file (percorso assoluto o relativo alla cartella della chat): Markdown, codice, immagini, CSV, HTML e PDF. Senza new_tab la scheda web attiva va al nuovo indirizzo. target \"back\", \"forward\" o \"reload\" agisce sulla scheda (tab: il suo numero; vuoto = quella attiva); target vuoto elenca le schede. Un file modificato si ridisegna da solo.",
+            "Apre nella finestra Anteprima di EasyIsland, accanto alla chat, un indirizzo web (anche \"localhost:5173\") o un file (percorso assoluto o relativo alla cartella della chat): Markdown, codice, immagini, CSV, HTML e PDF. Senza new_tab la scheda web attiva va al nuovo indirizzo. background: in una scheda nuova dietro quella che l'utente guarda (si legge lo stesso). target \"back\", \"forward\" o \"reload\" agisce sulla scheda (tab: il suo numero; vuoto = quella attiva), \"show\" la mette davanti, \"close\" la chiude; target vuoto elenca le schede. Un file modificato si ridisegna da solo.",
             json!({ "type": "object", "properties": {
                 "target": { "type": "string" },
                 "new_tab": { "type": "boolean" },
+                "background": { "type": "boolean" },
                 "tab": { "type": "string" }
             } }),
             true,
@@ -889,6 +890,15 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "preview_find",
+            "Cerca nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) gli elementi con tutte le parole di query nel nome o nel testo (un pulsante, un campo, un prezzo, un codice): al massimo 25 righe con il riferimento [ref=…] per preview_click e preview_act e il titolo sotto cui stanno. Molto meno caro di preview_snapshot su una pagina grande.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "query": { "type": "string" }
+            }, "required": ["query"] }),
+            true,
+        ),
+        (
             "preview_wait",
             "Aspetta (timeout: secondi, al massimo 30, di solito 10) che nella pagina dell'Anteprima compaia text, sparisca text_gone o ci sia selector (CSS), poi torna la pagina come preview_snapshot. Da usare dopo un'azione che carica qualcosa.",
             json!({ "type": "object", "properties": {
@@ -902,17 +912,26 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_network",
-            "Le richieste di rete della pagina nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), le ultime 300 dall'ultimo caricamento: metodo, stato (o l'errore), indirizzo, tipo. failed_only: solo quelle fallite o con stato 400 e oltre.",
+            "Le richieste di rete della pagina nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), le ultime 300 dall'ultimo caricamento: #id, metodo, stato (o l'errore), indirizzo, tipo. failed_only: solo quelle fallite o con stato 400 e oltre; data_only: solo quelle che portano dati (JSON delle ricerche e dei cataloghi); filter: una parte dell'indirizzo. body con un #id: il contenuto di quella risposta, spesso i dati già puliti (meno caro di leggere la pagina).",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
-                "failed_only": { "type": "boolean" }
+                "failed_only": { "type": "boolean" },
+                "data_only": { "type": "boolean" },
+                "filter": { "type": "string" },
+                "body": { "type": "string" }
             } }),
             true,
         ),
         (
             "preview_screenshot",
-            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine.",
-            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine. Solo per controllare l'aspetto: per leggere usa preview_find, preview_read o preview_extract. Con ref, selector o text_match fotografa solo quell'elemento; scale (0.1–1) la rimpicciolisce e costa meno. I pixel dell'immagine (a scale 1) sono gli x, y di preview_act.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "scale": { "type": "number" }
+            } }),
             true,
         ),
         (
