@@ -98,6 +98,65 @@ pub struct Field {
     /// (searched as you type); `fill` then copies paths of the item picked.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options_from: Option<OptionsFrom>,
+    /// file: what can be picked (12 Nov 2026, TTSpeak's «solo audio»): groups
+    /// of `ACCEPT_GROUPS` and/or extensions, "audio" or "mp3,wav". Empty = any file.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub accept: String,
+}
+
+/// `accept` of a file field: a group name → its extensions.
+const ACCEPT_GROUPS: &[(&str, &[&str])] = &[
+    ("audio", &["mp3", "wav", "m4a", "aac", "ogg", "oga", "opus", "flac", "wma"]),
+    ("immagini", &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic", "svg"]),
+    ("video", &["mp4", "mov", "mkv", "webm", "avi", "wmv", "m4v"]),
+    ("pdf", &["pdf"]),
+    ("word", &["docx", "doc", "odt", "rtf"]),
+    ("excel", &["xlsx", "xls", "ods", "csv"]),
+    ("testo", &["txt", "md", "csv", "json", "xml", "log"]),
+];
+
+/// `accept` as written ("Audio", ".mp3; *.WAV", "audio/*", "image") → "audio,mp3,wav";
+/// Err with the word that is neither a group nor an extension.
+fn accept_clean(accept: &str) -> Result<String, String> {
+    let mut out: Vec<String> = Vec::new();
+    for word in accept.split([',', ';', ' ']).map(str::trim).filter(|w| !w.is_empty()) {
+        let w = word.to_lowercase();
+        let w = w.trim_start_matches("*.").trim_start_matches('.').trim_end_matches("/*");
+        let w = match w {
+            "image" | "images" | "immagine" | "foto" => "immagini",
+            "text" | "testi" => "testo",
+            "suoni" | "audios" => "audio",
+            other => other,
+        };
+        let group = ACCEPT_GROUPS.iter().any(|(g, _)| *g == w);
+        if !group && (w.is_empty() || w.len() > 10 || !w.chars().all(|c| c.is_ascii_alphanumeric())) {
+            return Err(word.to_string());
+        }
+        if !out.iter().any(|x| x == w) {
+            out.push(w.to_string());
+        }
+    }
+    if out.len() > 30 {
+        return Err(accept.chars().take(40).collect());
+    }
+    Ok(out.join(","))
+}
+
+/// The extensions an `accept` lets through (groups expanded), lower case, no dot; empty = any.
+pub fn accept_extensions(accept: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for w in accept_clean(accept).unwrap_or_default().split(',').filter(|w| !w.is_empty()) {
+        let exts: Vec<&str> = match ACCEPT_GROUPS.iter().find(|(g, _)| *g == w) {
+            Some((_, list)) => list.to_vec(),
+            None => vec![w],
+        };
+        for e in exts {
+            if !out.iter().any(|x| x == e) {
+                out.push(e.to_string());
+            }
+        }
+    }
+    out
 }
 
 /// A select's choices from a source (11 Nov 2026, for models and voices of a
@@ -293,6 +352,16 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         }
         if f.kind != "select" {
             f.options_from = None;
+        }
+        if f.kind != "file" {
+            f.accept.clear();
+        } else {
+            f.accept = accept_clean(&f.accept).map_err(|bad| {
+                tf(
+                    "Campo «{l}»: accept non valido ({v}). Usa audio, immagini, video, pdf, word, excel, testo o estensioni come mp3,wav.",
+                    &[("l", &f.label), ("v", &bad)],
+                )
+            })?;
         }
         if matches!(f.kind.as_str(), "select" | "multiselect") && f.options.is_empty() && f.options_from.is_none() {
             return Err(tf("Campo «{l}»: options con le scelte (o optionsFrom con una fonte).", &[("l", &f.label)]));
@@ -1787,6 +1856,28 @@ pub fn tool_add_record(app: &AppHandle, args: &Value) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_field_accepts_groups_and_extensions() {
+        assert_eq!(accept_clean("Audio").unwrap(), "audio");
+        assert_eq!(accept_clean(".MP3; *.wav  mp3").unwrap(), "mp3,wav");
+        assert_eq!(accept_clean("image/*, pdf").unwrap(), "immagini,pdf");
+        assert_eq!(accept_clean("mp3,../x").unwrap_err(), "../x");
+        let exts = accept_extensions("audio,pdf");
+        assert!(exts.contains(&"wav".to_string()) && exts.contains(&"pdf".to_string()) && !exts.contains(&"png".to_string()));
+        assert!(accept_extensions("").is_empty());
+        let c: Custom = serde_json::from_value(json!({
+            "name": "Voci", "fields": [
+                { "id": "audio", "label": "Audio creato", "kind": "file", "accept": "Audio" },
+                { "id": "nota", "label": "Nota", "kind": "text", "accept": "audio" }
+            ]
+        })).unwrap();
+        let n = normalize(c.clone()).unwrap();
+        assert_eq!((n.fields[0].accept.as_str(), n.fields[1].accept.as_str()), ("audio", ""));
+        let mut bad = c;
+        bad.fields[0].accept = "audio; mp3!".into();
+        assert!(normalize(bad).unwrap_err().contains("accept"));
+    }
 
     fn quote() -> Custom {
         serde_json::from_value(json!({

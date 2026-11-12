@@ -661,7 +661,8 @@ export const Bridge = {
   /** Paths dropped on the chat: files into the Vassoio, folders as they are. */
   chatAttach: (paths: string[]) => callOrThrow<ChatAttachment[]>("chat_attach", { paths }),
   /** 📎: Windows' dialog for several files, or several folders. */
-  chatPick: (folders: boolean) => callOrThrow<ChatAttachment[]>("chat_pick", { folders }),
+  chatPick: (folders: boolean, accept: string | null = null) => callOrThrow<ChatAttachment[]>("chat_pick", { folders, accept }),
+  customAcceptExtensions: (accept: string) => call<string[]>("custom_accept_extensions", { accept }),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
   chatToDesktop: (sid: string) => callOrThrow<void>("chat_to_desktop", { sid }),
   chatDesktopPull: (sid: string, done: boolean) => call<{ role: "user" | "assistant"; content: string }[]>("chat_desktop_pull", { sid, done }),

@@ -748,9 +748,11 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           if (current) el.append(h("option", { value: current, text: shown("file", current) }));
           el.value = current;
           {
-            // A file of the Vassoio (dropped, pasted, captured).
-            void Bridge.inboxList().then((files) => {
-              el.append(...(files ?? []).filter((x) => x.path !== current).map((x) => h("option", { value: x.path, text: x.name })));
+            // A file of the Vassoio (dropped, pasted, captured); with `accept` only those.
+            void Promise.all([Bridge.inboxList(), f.accept ? Bridge.customAcceptExtensions(f.accept) : Promise.resolve([] as string[])]).then(([files, exts]) => {
+              const fits = (path: string) => !exts?.length || exts.includes(path.split(".").pop()?.toLowerCase() ?? "");
+              const pick = [...el.options].find((o) => o.value === "\u0000pick") ?? null;
+              for (const x of (files ?? []).filter((x) => x.path !== current && fits(x.path))) el.insertBefore(h("option", { value: x.path, text: x.name }), pick);
             });
           }
           el.append(h("option", { value: "\u0000pick", text: t("Scegli dal PC…") }));
@@ -758,10 +760,11 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
             if (el.value === "\u0000pick") {
               el.value = current;
               try {
-                const got = await Bridge.chatPick(false);
+                const got = await Bridge.chatPick(false, f.accept || null);
                 if (got?.[0]?.path) d.values[f.id] = got[0].path;
               } catch (e) {
-                console.warn(e);
+                // «Qui va un file audio.»: a file of another kind, written by hand in the dialog.
+                d.note = { text: String(e).replace(/^Error:\s*/, ""), ok: false };
               }
               paint();
               return;

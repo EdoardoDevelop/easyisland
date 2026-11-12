@@ -4972,5 +4972,8 @@
   "Questo tipo di file non si mostra qui.": "This kind of file isn't shown here.",
   "Il file supera i 200 MB: aprilo con il suo programma.": "The file is over 200 MB: open it with its own program.",
   "Sotto-agenti": "Sub-agents",
-  "Claude può affidare pezzi del lavoro a sotto-agenti in parallelo; ognuno riparte da capo e consuma molti token in più": "Claude can hand parts of the work to sub-agents in parallel; each one starts from scratch and uses many more tokens"
+  "Claude può affidare pezzi del lavoro a sotto-agenti in parallelo; ognuno riparte da capo e consuma molti token in più": "Claude can hand parts of the work to sub-agents in parallel; each one starts from scratch and uses many more tokens",
+  "Campo «{l}»: accept non valido ({v}). Usa audio, immagini, video, pdf, word, excel, testo o estensioni come mp3,wav.": "Field «{l}»: invalid accept ({v}). Use audio, immagini, video, pdf, word, excel, testo or extensions like mp3,wav.",
+  "Qui va un file {list}.": "This needs a file of type {list}.",
+  "Scegli un file": "Pick a file"
 }

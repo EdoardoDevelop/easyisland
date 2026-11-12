@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11/11 — Importare abilità da file e cartelle (ramo `claude/abilita-import`, 1.0.43)
+Spunto di Edoardo: The Agency (`msitarzewski/agency-agents`, agenti in Markdown). Impostazioni → Flussi → Abilità: «Importa file…», «Importa cartella…», «Da Claude Code»; `skillimport.rs` riconosce agenti, `SKILL.md` e Markdown, toglie i campi altrui, salta README e guide; elenco con ricerca, filtro per cartella, «esiste già», «troppo lunga»; «Adatta con un motore» (`skill_adapt`, un `chat_turn` Helper per abilità) con revisione prima di salvare. Su The Agency: 284 trovate, 45 saltate, 64 oltre 20.000 caratteri. Scartato prima ZapFast (WhatsApp non ufficiale: rischio di ban del numero). Nella stessa versione il lavoro rimasto del 10/11: trascinamento nei gruppi del menu con linea e spostamento al rilascio, striscia del gruppo nella Panoramica, `fgwin::poll` per il titolo della finestra.
+
 ### 10/11 — Gruppi nel menu dell'isola (ramo `claude/menu-gruppi`)
 Richiesta di Edoardo per il portatile di lavoro, pieno di integrazioni documentali: trascinando un'integrazione del menu sopra un'altra nasce un gruppo, come sul telefono (nome scritto sul posto, aggiungi trascinando sul gruppo, togli trascinando fuori, clic destro Rinomina/Colore/Sciogli, anche in Impostazioni). `src/core/menu-groups.ts`, `src/views/rail-drag.ts`, `settings.menuGroups` per profilo. Eccezione annotata in `docs/decisioni.md`. `docs/integrazioni.md` → Gruppi del menu, guida 18.
 

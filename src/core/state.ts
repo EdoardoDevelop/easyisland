@@ -2043,6 +2043,8 @@ export interface CustomField extends CustomLink {
   format?: string;
   /** select: the choices from a source of the same integration (custom-options.ts). */
   optionsFrom?: CustomOptionsFrom;
+  /** file: what can be picked, "audio" or "mp3,wav" (custom.rs accept_extensions). */
+  accept?: string;
 }
 export interface CustomOptionsFrom {
   source: string;

@@ -2590,13 +2590,26 @@ async fn chat_attach(paths: Vec<String>) -> Result<Vec<files::ChatAttachment>, S
 
 /// 📎 in the chat: Windows' dialog for files or folders, several at once.
 #[tauri::command]
-async fn chat_pick(folders: bool) -> Result<Vec<files::ChatAttachment>, String> {
+async fn chat_pick(folders: bool, accept: Option<String>) -> Result<Vec<files::ChatAttachment>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let picked = workdir::pick_paths(folders)?;
+        // A `file` field with `accept` (custom.rs): only those files, one.
+        let exts = custom::accept_extensions(accept.as_deref().unwrap_or(""));
+        let picked = if exts.is_empty() {
+            workdir::pick_paths(folders)?
+        } else {
+            let label = accept.as_deref().unwrap_or("").replace(',', ", ");
+            workdir::pick_file_of(i18n::t("Scegli un file"), &label, &exts)?
+        };
         files::attach(&picked)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// A `file` field's `accept` as extensions, to show only those files of the Vassoio.
+#[tauri::command]
+fn custom_accept_extensions(accept: String) -> Vec<String> {
+    custom::accept_extensions(&accept)
 }
 
 #[tauri::command]
@@ -4725,6 +4738,7 @@ pub fn run() {
             chat_paste,
             chat_attach,
             chat_pick,
+            custom_accept_extensions,
             webview_memory_low,
             chat_fork,
             chat_persona,
