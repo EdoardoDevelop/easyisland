@@ -39,7 +39,7 @@ Già oggi (`tasks.rs` → `due`): un `at:` passato parte al primo avvio; `daily`
 - MCP `task_update` (titolo, obiettivo, orario di un compito non partito) e `task_cancel`; con la regola «mai eliminare» annullare = pausa/archivio, eliminare resta un clic in Flussi.
 
 ## Controllo del browser, seguiti (12/11/2026, chiesto da Edoardo)
-Uso principale: cercare prodotti nei portali dei fornitori (spesso con accesso), leggere caratteristiche, prezzi e foto, farne un preventivo. Oggi: Anteprima con `preview_open/snapshot/read/screenshot/console/network/resize/wait`, `preview_click`/`preview_type` con Consenti/Nega (`docs/chat.md` → Anteprima); preventivi con `document_create` (totali calcolati da EasyIsland) e Raccolta del Vassoio.
+Fatto il 12/11 sul ramo `claude/browser` (`docs/chat.md` → Anteprima e Portali dei fornitori): tasti, mouse, scorrimento, tendine, trascinamento, `preview_steps`, «Sempre» per sito, mai acquisti, `preview_find`, schermate leggere, schede dietro, corpi di rete, `preview_extract`, ricette dei portali, `preview_login` con Devolutions, foto nel Vassoio, costo + ricarico nei preventivi. Restano: caricare un file del Vassoio in un modulo, download dalla pagina nel Vassoio, JavaScript di sola lettura, sequenze registrate come azioni rapide senza motore, Compiti che controllano un portale e avvisano se cambia, catalogo dietro SSO da provare con l'accesso. Il piano di partenza qui sotto.
 - **Pari a Claude Desktop:**
   - tasti (Invio, Tab, Esc, frecce, scorciatoie), passaggio del mouse, scorrimento e «porta in vista», doppio clic, clic destro, trascinamento, clic su un punto (canvas, mappe);
   - più passi in una chiamata (apri, clicca, scrivi, aspetta, leggi): meno giri, meno token;

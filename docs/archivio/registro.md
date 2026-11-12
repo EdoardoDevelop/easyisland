@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11/11 — Sito: home nuova, animata, e schermate aggiornate
+Richiesta di Edoardo («moderno, con animazioni ed effetto wow»), approvata su anteprima. `site/index.html` e `site/it/index.html` rifatte con `site/home.css` + `site/home.js`: la barra in alto è un'isola con il logo (gli occhi seguono il mouse) che chiede un permesso, annuncia un compito finito o una chiamata 3CX secondo la sezione in vista; vetrina a schede per compiti e memoria, griglia delle integrazioni, personaggi. Solo scura. Tutte le schermate di `site/media/` e `site/media/en/` rigenerate dal programma attuale (più `search-ovunque` e `zammad`); `screenshots/` (README.it) rigenerata allo stesso modo. Guida: stessa tavolozza e caratteri via `site/site.css`. Dettagli in `docs/sviluppo.md`.
+
 ### 11/11 — Integrazioni personali: tendine da una fonte, body JSON
 Richiesta di Edoardo per «TTSpeak» (dal PC lavoro): una `select` con `optionsFrom { source, value, label, match, list }` prende le scelte da una `source` della stessa integrazione, con ricerca; `match` + `list` fanno la tendina dipendente (voci del motore scelto, svuotata quando cambia), `fill` copia percorsi dell'elemento (`src/views/custom-options.ts`). Fonte letta all'apertura, 5 minuti in memoria, a mano se non risponde. Body JSON: escape completo tra virgolette, numeri senza virgolette fuori (`"0,9"` → `0.9`), in TS e in `custom_call`. Risposte JSON fino a 2 MB. Poi: voce svuotata anche scrivendo il motore a mano, fino a 500 scelte, fonte delle sole scelte fuori da «Dati», `fill` con modello, fonte salvata per id; scena `custom&opzioni` provata a vista.
 
