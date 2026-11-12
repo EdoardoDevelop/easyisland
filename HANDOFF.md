@@ -52,6 +52,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 12/11 — Chat: meno token a ogni passo
+Edoardo: «anche con 3 domande consuma troppo». Misurato sul portatile (7 giorni, 50 M token riletti): ogni passo partiva da 35–45k token. Modalità terminale con `--tools` ristretto (`TERMINAL_TOOLS`: niente sotto-agenti, Workflow, Cron…, −8k token a passo); aiutanti di solo testo con `Chat::plain` (adatta abilità, modulo da testo, memoria, notizie: da ~40k a pochi k). Restano: elenco skill di Claude Code (~4k, non escludibile senza togliere anche le sue), conversazioni lunghe, istruzione «memorizza tutto» (245 chiamate di memoria in una settimana). `docs/chat.md`.
+
 ### 11/11 — Integrazioni personali: tendine da una fonte, body JSON
 Richiesta di Edoardo per «TTSpeak» (dal PC lavoro): una `select` con `optionsFrom { source, value, label, match, list }` prende le scelte da una `source` della stessa integrazione, con ricerca; `match` + `list` fanno la tendina dipendente (voci del motore scelto, svuotata quando cambia), `fill` copia percorsi dell'elemento (`src/views/custom-options.ts`). Fonte letta all'apertura, 5 minuti in memoria, a mano se non risponde. Body JSON: escape completo tra virgolette, numeri senza virgolette fuori (`"0,9"` → `0.9`), in TS e in `custom_call`. Risposte JSON fino a 2 MB. Poi: voce svuotata anche scrivendo il motore a mano, fino a 500 scelte, fonte delle sole scelte fuori da «Dati», `fill` con modello, fonte salvata per id; scena `custom&opzioni` provata a vista.
 
@@ -63,6 +66,3 @@ Segnalati in Agent Chat dal Claude del portatile (DDT, «Clienti», «Registro l
 
 ### 11/11 — Importare abilità da file e cartelle (ramo `claude/abilita-import`, 1.0.43)
 Spunto di Edoardo: The Agency (`msitarzewski/agency-agents`, agenti in Markdown). Impostazioni → Flussi → Abilità: «Importa file…», «Importa cartella…», «Da Claude Code»; `skillimport.rs` riconosce agenti, `SKILL.md` e Markdown, toglie i campi altrui, salta README e guide; elenco con ricerca, filtro per cartella, «esiste già», «troppo lunga»; «Adatta con un motore» (`skill_adapt`, un `chat_turn` Helper per abilità) con revisione prima di salvare. Su The Agency: 284 trovate, 45 saltate, 64 oltre 20.000 caratteri. Scartato prima ZapFast (WhatsApp non ufficiale: rischio di ban del numero). Nella stessa versione il lavoro rimasto del 10/11: trascinamento nei gruppi del menu con linea e spostamento al rilascio, striscia del gruppo nella Panoramica, `fgwin::poll` per il titolo della finestra.
-
-### 10/11 — Gruppi nel menu dell'isola (ramo `claude/menu-gruppi`)
-Richiesta di Edoardo per il portatile di lavoro, pieno di integrazioni documentali: trascinando un'integrazione del menu sopra un'altra nasce un gruppo, come sul telefono (nome scritto sul posto, aggiungi trascinando sul gruppo, togli trascinando fuori, clic destro Rinomina/Colore/Sciogli, anche in Impostazioni). `src/core/menu-groups.ts`, `src/views/rail-drag.ts`, `settings.menuGroups` per profilo. Eccezione annotata in `docs/decisioni.md`. `docs/integrazioni.md` → Gruppi del menu, guida 18.

@@ -825,7 +825,7 @@ async fn auto_topics(app: &AppHandle) -> Result<usize, String> {
         stamp_done();
         return Ok(0);
     }
-    let chat = crate::claude::Chat::default();
+    let chat = crate::claude::Chat::plain();
     let reply = crate::chat_turn(app, &chat, judge_prompt(&cands), None, Some(engine.clone()), None, false, crate::Channel::Helper, &|_| {}).await;
     if engine == "opencode" {
         crate::opencode::forget(chat.cli_session());

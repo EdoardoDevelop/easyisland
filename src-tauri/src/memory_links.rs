@@ -122,7 +122,7 @@ async fn judge_with(app: &AppHandle, engine: &str, source: &str) -> Result<Strin
     let mut kept = 0;
     let mut failed = None;
     for batch in todo.chunks(BATCH).take(MAX_TURNS) {
-        let chat = Chat::default();
+        let chat = Chat::plain();
         let reply = crate::chat_turn(app, &chat, prompt(batch), None, Some(engine.to_string()), None, false, crate::Channel::Helper, &|_| {}).await;
         if engine == "opencode" {
             crate::opencode::forget(chat.cli_session());

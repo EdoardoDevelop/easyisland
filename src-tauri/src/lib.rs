@@ -1579,6 +1579,8 @@ pub(crate) async fn chat_turn(
     // Prompts of ours, not the user's questions: nothing to learn from them.
     let learns = !matches!(channel, Channel::Helper | Channel::Revision) && !compact;
     let read_only = chat.read_only();
+    // A text-only helper (Chat::plain): no tools, no terminal, nothing in front.
+    let plain = chat.is_plain();
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
@@ -1592,11 +1594,12 @@ pub(crate) async fn chat_turn(
             (None, _) => {}
         }
         let url = s.engine_urls.get(&e).cloned();
-        let terminal = s.chat_terminal.then(|| own.clone().unwrap_or_else(|| chat_folder(&s.chat_folder)));
-        (e, model, cli_model, s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
+        let terminal = (s.chat_terminal && !plain).then(|| own.clone().unwrap_or_else(|| chat_folder(&s.chat_folder)));
+        let mcp = if plain { Default::default() } else { s.mcp_servers.clone() };
+        (e, model, cli_model, mcp, s.agent_tools && !plain, other, url, terminal)
     };
     // The work folder, when one is chosen (workdir.rs): the engines may read it.
-    let work = workdir::root(app);
+    let work = if plain { None } else { workdir::root(app) };
     // A different model is a different conversation too: start over (an
     // opencode conversation left behind is deleted from opencode's history).
     // So is turning "Modalità terminale" on or off.
@@ -1609,7 +1612,7 @@ pub(crate) async fn chat_turn(
     }
     // A new conversation with an engine that has tools: the map of Notion
     // (notion_map.rs) in front, so it does not search for the structure.
-    let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
+    let has_tools = !plain && (terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str())));
     let fresh = chat.is_empty() && chat.cli_session().is_none();
     if compact && fresh && !chat.has_preamble() {
         return Ok(ChatReply { text: t("Niente da compattare: la conversazione è appena cominciata.").into() });
@@ -1631,7 +1634,7 @@ pub(crate) async fn chat_turn(
             }
             text.push_str(p.trim());
         }
-        (s.chat_history, text)
+        (s.chat_history && !plain, if plain { String::new() } else { text })
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
@@ -4412,7 +4415,7 @@ fn skills_import(picks: Vec<skillimport::Pick>) -> skillimport::Report {
 /// «Adatta con …»: one skill rewritten by an engine, shown before it is saved.
 #[tauri::command]
 async fn skill_adapt(app: AppHandle, name: String, description: String, body: String, engine: String) -> Result<skillimport::Pick, String> {
-    let chat = claude::Chat::default();
+    let chat = claude::Chat::plain();
     let engine = Some(engine).filter(|e| !e.trim().is_empty());
     let opencode = engine.as_deref() == Some("opencode");
     let reply = chat_turn(&app, &chat, skillimport::adapt_prompt(&name, &description, &body), None, engine, None, false, Channel::Helper, &|_| {}).await;

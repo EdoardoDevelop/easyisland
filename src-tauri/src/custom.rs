@@ -929,7 +929,7 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
         "Compila i campi del modulo «{name}» con le informazioni del testo qui sotto. Rispondi solo con un oggetto JSON {{ id_campo: valore }}: numeri e importi come numeri, date AAAA-MM-GG, caselle true/false, scelte esattamente tra le options, una tabella come elenco di oggetti con gli id delle colonne. Lascia fuori i campi che il testo non dice; non inventare.\n\nCampi: {schema}\n\nTesto:\n{text}",
         &[("name", &c.name), ("schema", &serde_json::to_string(&schema).unwrap_or_default()), ("text", &text.chars().take(12_000).collect::<String>())],
     );
-    let chat = crate::claude::Chat::default();
+    let chat = crate::claude::Chat::plain();
     let reply = crate::chat_turn(app, &chat, prompt, None, None, None, false, crate::Channel::Helper, &|_| {}).await?;
     crate::opencode::forget(chat.cli_session());
     let raw = reply.text;

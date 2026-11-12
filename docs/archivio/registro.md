@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 10/11 — Gruppi nel menu dell'isola (ramo `claude/menu-gruppi`)
+Richiesta di Edoardo per il portatile di lavoro, pieno di integrazioni documentali: trascinando un'integrazione del menu sopra un'altra nasce un gruppo, come sul telefono (nome scritto sul posto, aggiungi trascinando sul gruppo, togli trascinando fuori, clic destro Rinomina/Colore/Sciogli, anche in Impostazioni). `src/core/menu-groups.ts`, `src/views/rail-drag.ts`, `settings.menuGroups` per profilo. Eccezione annotata in `docs/decisioni.md`. `docs/integrazioni.md` → Gruppi del menu, guida 18.
+
 ### 10/11 — Integrazioni personali: cosa cambia prima di `custom_update`, campo collegato con ricerca (ramo `claude/campi-collegati`)
 Domanda di Edoardo sul «DDT Easytech» da trasformare in rapportino: la chat riscrive tutta la descrizione e la card non diceva cosa cambiava. Ora `custom::annotate` mette nella card campi tolti (con quante schede salvate li hanno), tipi, prefisso del numeratore, colonne, campi nuovi, modello molto più corto, azioni e script; prima di scrivere una copia datata in `integrazioni\versioni\`. Poi il `link` generico (campo o colonna): ricerca mentre si scrive in tutte le schede della sorgente, `fill` compila gli altri campi, `remember` aggiunge alla sorgente i nomi nuovi al salvataggio (`src/views/custom-link.ts`, scena `custom&collegato`). Test `an_update_says_what_the_saved_records_lose`, `a_link_fills_other_fields_and_columns`. `docs/integrazioni.md`, guida 24.
 

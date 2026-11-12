@@ -51,6 +51,15 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const TOOLS: &str = "WebSearch,WebFetch,Read";
 
+/// Modalità terminale: Claude Code's built-in tools a chat uses (files,
+/// commands, web, skills, plan). Left out: Agent, Workflow, ScheduleWakeup,
+/// ReportFindings, ListAgents, ShareOnboardingGuide, Cron…, worktrees: their
+/// definitions alone were ~10k tokens re-read at every step (measured 12 Nov
+/// 2026 on Claude Code 2.1.318: 31k → 23k for «ok»), and a sub-agent starts
+/// its own context from zero. MCP tools (easyisland, connectors) are not affected.
+const TERMINAL_TOOLS: &str =
+    "Read,Write,Edit,Glob,Grep,Bash,PowerShell,Skill,ToolSearch,WebFetch,WebSearch,NotebookEdit,TodoWrite,ExitPlanMode,TaskStop,Monitor";
+
 /// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
 /// tools that change nothing (or nothing outside EasyIsland), pre-allowed:
 /// the read-only flag of hook/src/tool_list.rs, the one list. `show_card`
@@ -508,6 +517,8 @@ fn terminal_args(
         dir.join("chat-prompt.txt").to_string_lossy().into_owned(),
         "--permission-mode".into(),
         if auto { "auto".into() } else { "default".into() },
+        "--tools".into(),
+        TERMINAL_TOOLS.into(),
     ];
     let mut allowed: Vec<String> = connectors.enabled.iter().filter(|c| !c.confirm).map(|c| tool_prefix(&c.name)).collect();
     if connectors.agent {
@@ -2384,7 +2395,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_mode_has_every_tool_and_the_users_servers() {
+    fn terminal_mode_has_the_chat_tools_and_the_users_servers() {
         let c = Connectors {
             enabled: vec![McpChoice { name: "docs".into(), confirm: false }],
             disabled: vec!["altro".into()],
@@ -2392,7 +2403,10 @@ mod tests {
         };
         let a = terminal_args(Path::new("C:/x"), "opus", Some("abc"), None, &c, false);
         let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
-        assert!(!a.contains(&"--tools".to_string()));
+        // The chat's built-in tools only: no sub-agents, workflows, schedules.
+        let tools = at("--tools");
+        assert!(tools.contains("PowerShell") && tools.contains("Edit") && tools.contains("Skill") && tools.contains("ToolSearch"));
+        assert!(!tools.split(',').any(|t| matches!(t, "Agent" | "Workflow" | "ScheduleWakeup")));
         assert!(!a.contains(&"--strict-mcp-config".to_string()));
         assert!(!a.contains(&"--disallowedTools".to_string()));
         assert_eq!(at("--permission-mode"), "default");
