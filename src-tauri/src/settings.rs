@@ -1005,7 +1005,7 @@ pub struct Settings {
     /// Its working folder; "" = the user's home.
     #[serde(default)]
     pub chat_folder: String,
-    /// «Multi agent» (team.rs): the engines that work with the conversation's.
+    /// «Multi motore» (team.rs): the engines that work with the conversation's.
     #[serde(default)]
     pub chat_team: Vec<String>,
     /// Another engine checks the work before the answer.

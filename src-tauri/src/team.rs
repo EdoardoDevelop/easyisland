@@ -1,4 +1,4 @@
-// «Multi agent» in the island's chat: the engines picked in Impostazioni → Chat
+// «Multi motore» in the island's chat: the engines picked in Impostazioni → Chat
 // work with the conversation's engine, which leads and is the only one that
 // speaks to the user. docs/chat.md → Multi agent; why it works this way in
 // docs/decisioni.md.
@@ -400,7 +400,7 @@ async fn reviewed(app: &AppHandle, turn: &Turn, checker: &(String, String), engi
     answer
 }
 
-/// A turn of the island's chat with «Multi agent» on.
+/// A turn of the island's chat with «Multi motore» on.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run(app: &AppHandle, chat: Arc<Chat>, sid: &str, query: String, context: Option<ChatContext>, engine: Option<String>, auto: bool, on_text: &(dyn Fn(&str) + Sync)) -> Result<ChatReply, String> {
     let (lead, terminal, agent, check) = {

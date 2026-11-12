@@ -372,7 +372,7 @@ export function buildPrompt(
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
-  const teamBtn = h("button", { class: "auto-btn team-btn" }, svg(ICONS.team, 12), h("span", { text: t("Multi agent") })) as HTMLButtonElement;
+  const teamBtn = h("button", { class: "auto-btn team-btn" }, svg(ICONS.team, 12), h("span", { text: t("Multi motore") })) as HTMLButtonElement;
   // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
   tip(remoteBtn, t("Accesso remoto"));
@@ -2426,7 +2426,7 @@ export function buildPrompt(
   }
   const lineShows = () => State.mode === "expanded" || isPopped("chat");
   const typeLine = new TypeLine(lineShows, toBottom);
-  // «Multi agent»: a line per engine at work, under the reply.
+  // «Multi motore»: a line per engine at work, under the reply.
   const teamEl = h("div", { class: "team-rows" });
   const teamLines = new Map<number, { el: HTMLElement; line: TypeLine }>();
   function drawTeam(rows: TeamRow[]) {
@@ -2730,8 +2730,8 @@ export function buildPrompt(
       teamBtn.style.display = team ? "" : "none";
       teamBtn.classList.toggle("on", team && State.chat.team);
       tip(teamBtn, State.chat.team
-        ? t("Multi agent acceso: questo motore guida, gli altri scelti in Impostazioni aiutano e controllano. Clic per spegnerlo")
-        : t("Multi agent: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo"));
+        ? t("Multi motore acceso: questo motore guida, gli altri scelti in Impostazioni aiutano e controllano. Clic per spegnerlo")
+        : t("Multi motore: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo"));
       previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
       const away = isPopped("chat");
       if (away !== popShown) {

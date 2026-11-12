@@ -1451,7 +1451,7 @@ pub(crate) enum Channel {
     /// A turn of Agent Chat (agentchat.rs): like a helper, plus «Permessi in
     /// Agent Chat» (reads without asking, `agentchatPermissions`).
     AgentChat,
-    /// The lead of «Multi agent» going over its answer (team.rs): the island's
+    /// The lead of «Multi motore» going over its answer (team.rs): the island's
     /// conversation, but what it is told is not what the user asked.
     Revision,
 }

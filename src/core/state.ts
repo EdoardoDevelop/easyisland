@@ -427,7 +427,7 @@ export interface AskQuestion {
  * closes nothing. The State fields of the chat (chatHistory, chatAuto…) are
  * those of the one on screen.
  */
-/** An engine at work in a «Multi agent» turn (team.rs). */
+/** An engine at work in a «Multi motore» turn (team.rs). */
 export interface TeamRow {
   id: number;
   engine: string;
@@ -458,7 +458,7 @@ export interface ChatSessionState {
   fast: boolean;
   /** Claude Code's sub-agents (Agent tool) in Modalità terminale: off unless turned on. */
   agents: boolean;
-  /** «Multi agent» on, for this conversation. */
+  /** «Multi motore» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];
   /** Work left in the background: listed under the conversation, with «Ferma». */
@@ -845,7 +845,7 @@ export interface Settings {
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
   chatFolder?: string;
-  /** «Multi agent» (team.rs): the engines that work with the conversation's. */
+  /** «Multi motore» (team.rs): the engines that work with the conversation's. */
   chatTeam?: string[];
   /** Another engine checks the work before the answer. */
   chatTeamCheck?: boolean;

@@ -486,7 +486,7 @@ fn args(
     a
 }
 
-/// A helper of «Multi agent» (team.rs): `dontAsk` refuses what is not listed,
+/// A helper of «Multi motore» (team.rs): `dontAsk` refuses what is not listed,
 /// with no card for the user; on the list only what reads.
 fn read_only(a: &mut Vec<String>) {
     const READS: &str = "Read,Grep,Glob,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*)";

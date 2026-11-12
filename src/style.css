@@ -1422,7 +1422,7 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75);
 }
 
-/* «Multi agent» (team.rs): the button, and a line per engine at work under the reply. */
+/* «Multi motore» (team.rs): the button, and a line per engine at work under the reply. */
 .team-btn.on { color: #06202e; background: var(--win-accent, #4cc2ff); }
 .team-rows { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
 .team-rows:empty { display: none; }

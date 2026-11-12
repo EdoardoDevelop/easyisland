@@ -16,7 +16,7 @@ const icons: [string, (size: number) => SVGSVGElement, string][] = [
   ["Detta", (n) => svg(ICONS.mic, n, { stroke: 1.8 }), ""],
   ["Ferma", (n) => svg(ICONS.stop, n), ""],
   ["Automatica", (n) => svg(ICONS.bolt, n), ""],
-  ["Multi agent", (n) => svg(ICONS.team, n), ""],
+  ["Multi motore", (n) => svg(ICONS.team, n), ""],
   ["Conversazioni", (n) => svg(ICONS.sidebar, n, { stroke: 1.8 }), ""],
   ["Anteprima", (n) => svg(ICONS.preview, n, { stroke: 1.8 }), ""],
   ["In finestra", (n) => svg(ICONS.popOut, n, { stroke: 1.8 }), ""],
