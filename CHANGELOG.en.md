@@ -2,6 +2,18 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.44** — **The chat uses far fewer tokens**, with answers just as good. In Terminal mode it gets only the tools it
+needs and none of Claude Code's skills for programmers; before each question **EasyIsland looks into the memory itself**
+and puts what helps in front of it; memory searches, pages and notes are done **several at once**; an integration's
+description comes **compact** (the HTML template only when needed). On the test laptop a request went from about 260,000
+to 150,000 tokens. Past 100,000 tokens of context the chat says so and the **context meter**, amber, compacts the
+conversation with a click. Service calls (adapting a skill, filling a form from a text, tidying the memory) start with no
+context. Claude Code's **sub-agents** are off by default, to turn on in the engine menu; the **«Multi agent»** button is now
+**«Multi-engine»**. In custom integrations the **file field** can accept only some types (`accept`: audio, images, video,
+pdf, word, excel, text or extensions like mp3,wav), in the Windows dialog too; **drop-downs** can take their choices from a
+source of the integration (also depending on each other), and a service answering with a **file** (audio, picture, PDF)
+lets you hear or see it in the record and save it.
+
 **1.0.43** — **Importing skills** from files and folders, in **Settings → Flows → Skills**: **Import files…**,
 **Import folder…** (subfolders included) and **From Claude Code**. Agents written for other AI tools work too, such as the
 **The Agency** collection, and Claude Code's skills: EasyIsland recognises them, skips READMEs and guides and shows the

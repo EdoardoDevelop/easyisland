@@ -2,6 +2,18 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.44** — **La chat consuma molto meno**, senza rispondere peggio. In Modalità terminale riceve solo gli strumenti che
+le servono e non le skill per programmatori di Claude Code; prima di ogni domanda **EasyIsland cerca da sola nella memoria**
+e le mette davanti ciò che serve; ricerche, pagine e note di memoria si fanno **più in una volta**; la descrizione di
+un'integrazione arriva **compatta** (il modello HTML solo quando serve). Sul portatile di prova una richiesta è passata da
+circa 260.000 a 150.000 token. Oltre 100.000 token di contesto la chat lo dice e l'**indicatore del contesto**, ambra,
+compatta la conversazione con un clic. Le chiamate di servizio (adattare un'abilità, compilare un modulo da un testo,
+riordinare la memoria) partono senza contesto. **Sotto-agenti** di Claude Code spenti di serie, da accendere nel menu del
+motore; il pulsante **«Multi agent»** si chiama **«Multi motore»**. Nelle integrazioni personali il **campo file** può
+accettare solo certi tipi (`accept`: audio, immagini, video, pdf, word, excel, testo o estensioni come mp3,wav), anche nella
+finestra di Windows; le **tendine** possono prendere le scelte da una fonte dell'integrazione (anche dipendenti tra loro), e
+un servizio che risponde con un **file** (audio, immagine, PDF) lo fa ascoltare o vedere nella scheda e salvare.
+
 **1.0.43** — **Importare abilità** da file e cartelle, in **Impostazioni → Flussi → Abilità**: **Importa file…**,
 **Importa cartella…** (anche le sottocartelle) e **Da Claude Code**. Vanno bene gli agenti scritti per altri strumenti AI,
 come la raccolta **The Agency**, e le skill di Claude Code: EasyIsland li riconosce, salta README e guide e mostra l'**elenco**
