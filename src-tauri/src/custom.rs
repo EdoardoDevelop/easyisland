@@ -94,6 +94,86 @@ pub struct Field {
     pub summary: bool,
     /// computed: money (default), number, percent, text, date, yesno.
     pub format: String,
+    /// select: the choices read from a source of the same integration
+    /// (searched as you type); `fill` then copies paths of the item picked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options_from: Option<OptionsFrom>,
+    /// file: what can be picked (12 Nov 2026, TTSpeak's «solo audio»): groups
+    /// of `ACCEPT_GROUPS` and/or extensions, "audio" or "mp3,wav". Empty = any file.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub accept: String,
+}
+
+/// `accept` of a file field: a group name → its extensions.
+const ACCEPT_GROUPS: &[(&str, &[&str])] = &[
+    ("audio", &["mp3", "wav", "m4a", "aac", "ogg", "oga", "opus", "flac", "wma"]),
+    ("immagini", &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic", "svg"]),
+    ("video", &["mp4", "mov", "mkv", "webm", "avi", "wmv", "m4v"]),
+    ("pdf", &["pdf"]),
+    ("word", &["docx", "doc", "odt", "rtf"]),
+    ("excel", &["xlsx", "xls", "ods", "csv"]),
+    ("testo", &["txt", "md", "csv", "json", "xml", "log"]),
+];
+
+/// `accept` as written ("Audio", ".mp3; *.WAV", "audio/*", "image") → "audio,mp3,wav";
+/// Err with the word that is neither a group nor an extension.
+fn accept_clean(accept: &str) -> Result<String, String> {
+    let mut out: Vec<String> = Vec::new();
+    for word in accept.split([',', ';', ' ']).map(str::trim).filter(|w| !w.is_empty()) {
+        let w = word.to_lowercase();
+        let w = w.trim_start_matches("*.").trim_start_matches('.').trim_end_matches("/*");
+        let w = match w {
+            "image" | "images" | "immagine" | "foto" => "immagini",
+            "text" | "testi" => "testo",
+            "suoni" | "audios" => "audio",
+            other => other,
+        };
+        let group = ACCEPT_GROUPS.iter().any(|(g, _)| *g == w);
+        if !group && (w.is_empty() || w.len() > 10 || !w.chars().all(|c| c.is_ascii_alphanumeric())) {
+            return Err(word.to_string());
+        }
+        if !out.iter().any(|x| x == w) {
+            out.push(w.to_string());
+        }
+    }
+    if out.len() > 30 {
+        return Err(accept.chars().take(40).collect());
+    }
+    Ok(out.join(","))
+}
+
+/// The extensions an `accept` lets through (groups expanded), lower case, no dot; empty = any.
+pub fn accept_extensions(accept: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for w in accept_clean(accept).unwrap_or_default().split(',').filter(|w| !w.is_empty()) {
+        let exts: Vec<&str> = match ACCEPT_GROUPS.iter().find(|(g, _)| *g == w) {
+            Some((_, list)) => list.to_vec(),
+            None => vec![w],
+        };
+        for e in exts {
+            if !out.iter().any(|x| x == e) {
+                out.push(e.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// A select's choices from a source (11 Nov 2026, for models and voices of a
+/// service that change): its items, or a list inside the item that matches.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct OptionsFrom {
+    /// The id of one of `sources`.
+    pub source: String,
+    /// Paths in each choice: what is saved and what is shown ("" = the choice itself, or "id").
+    pub value: String,
+    pub label: String,
+    /// Only the item whose paths equal these ({{campi}} allowed): { "id": "{{modello}}" }.
+    #[serde(rename = "match")]
+    pub matching: std::collections::BTreeMap<String, String>,
+    /// A list inside that item whose elements are the choices ("supported_voices").
+    pub list: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -112,9 +192,15 @@ pub struct Action {
     /// document: "html" (printable, the default), "pdf" or "md".
     pub format: String,
     /// document: a folder for a copy, besides the Vassoio (%VARIABILI% allowed).
+    /// http: where a file the service answers with is kept (then only there,
+    /// unless `tray`).
     pub folder: String,
     /// document: the file's name, with {{campi}}, as it reads ("{{numero}} {{cliente}}").
+    /// http: the same for a file the service answers with (the extension
+    /// comes from its type); with folder or filename the file is kept.
     pub filename: String,
+    /// http: a file kept in `folder` goes into the Vassoio too.
+    pub tray: bool,
     /// script: the commands, as they are ({{campi}} are not filled in: the
     /// record's data is in the JSON file named by EASYISLAND_SCHEDA).
     pub script: String,
@@ -264,8 +350,34 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         if !FIELD_KINDS.contains(&f.kind.as_str()) {
             return Err(tf("Campo «{l}»: kind deve essere uno di {k}.", &[("l", &f.label), ("k", &FIELD_KINDS.join(", "))]));
         }
-        if matches!(f.kind.as_str(), "select" | "multiselect") && f.options.is_empty() {
-            return Err(tf("Campo «{l}»: options con le scelte.", &[("l", &f.label)]));
+        if f.kind != "select" {
+            f.options_from = None;
+        }
+        if f.kind != "file" {
+            f.accept.clear();
+        } else {
+            f.accept = accept_clean(&f.accept).map_err(|bad| {
+                tf(
+                    "Campo «{l}»: accept non valido ({v}). Usa audio, immagini, video, pdf, word, excel, testo o estensioni come mp3,wav.",
+                    &[("l", &f.label), ("v", &bad)],
+                )
+            })?;
+        }
+        if matches!(f.kind.as_str(), "select" | "multiselect") && f.options.is_empty() && f.options_from.is_none() {
+            return Err(tf("Campo «{l}»: options con le scelte (o optionsFrom con una fonte).", &[("l", &f.label)]));
+        }
+        if let Some(o) = &mut f.options_from {
+            o.source = o.source.trim().to_string();
+            // By its id; written as its label's key, saved with the id (the card looks by id).
+            let Some(s) = c.sources.iter().find(|s| s.id == o.source || key_of(&s.label) == o.source) else {
+                return Err(tf("Campo «{l}»: optionsFrom.source, l'id di una delle sources di questa integrazione.", &[("l", &f.label)]));
+            };
+            if !s.id.trim().is_empty() {
+                o.source = s.id.trim().to_string();
+            }
+            if o.matching.len() > 5 || o.list.len() > 200 || o.value.len() > 200 || o.label.len() > 200 {
+                return Err(tf("Campo «{l}»: optionsFrom troppo lungo (match al massimo 5 voci).", &[("l", &f.label)]));
+            }
         }
         if f.kind == "rows" {
             if f.columns.is_empty() {
@@ -318,7 +430,8 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
     }
     // The fields a link fills: the form's others, never a table, a computed value or a counter.
     let targets: Vec<(String, String)> = c.fields.iter().map(|x| (x.id.clone(), x.kind.clone())).collect();
-    for f in c.fields.iter_mut().filter(|x| x.kind == "link") {
+    // A select from a source fills them too, with paths of the item picked ("pricing.prompt").
+    for f in c.fields.iter_mut().filter(|x| x.kind == "link" || x.options_from.is_some()) {
         f.fill = check_fill(&f.label, &f.id, std::mem::take(&mut f.fill), &targets)?;
     }
     if c.template.len() > MAX_TEMPLATE {
@@ -885,7 +998,7 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
         "Compila i campi del modulo «{name}» con le informazioni del testo qui sotto. Rispondi solo con un oggetto JSON {{ id_campo: valore }}: numeri e importi come numeri, date AAAA-MM-GG, caselle true/false, scelte esattamente tra le options, una tabella come elenco di oggetti con gli id delle colonne. Lascia fuori i campi che il testo non dice; non inventare.\n\nCampi: {schema}\n\nTesto:\n{text}",
         &[("name", &c.name), ("schema", &serde_json::to_string(&schema).unwrap_or_default()), ("text", &text.chars().take(12_000).collect::<String>())],
     );
-    let chat = crate::claude::Chat::default();
+    let chat = crate::claude::Chat::plain();
     let reply = crate::chat_turn(app, &chat, prompt, None, None, None, false, crate::Channel::Helper, &|_| {}).await?;
     crate::opencode::forget(chat.cli_session());
     let raw = reply.text;
@@ -903,11 +1016,139 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
 pub struct Reply {
     pub status: u16,
     pub ok: bool,
-    /// The answer read as JSON when it is, else as text (cut at 200 KB).
+    /// The answer read as JSON when it is, else as text (cut at 2 MB); for a
+    /// file, { file, type, size } (so {{risposta.file}} and store work).
     pub data: Value,
+    /// A file the service answered with (audio, picture, PDF…), in a temp folder.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
 }
 
-const MAX_ANSWER: usize = 200 * 1024;
+/// 2 MB: a list of a service's models with their voices (optionsFrom) is long, and cut it is no longer JSON.
+const MAX_ANSWER: usize = 2 * 1024 * 1024;
+/// A file answered by a service: at most this (a long audio or a short video).
+const MAX_FILE: usize = 200 * 1024 * 1024;
+
+/// Files answered by the services, until kept or a day old: %TEMP%\EasyIsland\risposte.
+fn answers_dir() -> PathBuf {
+    std::env::temp_dir().join("EasyIsland").join("risposte")
+}
+
+/// The extension of a file by its Content-Type; None for text and JSON (read as data).
+fn file_ext(content_type: &str, bytes: &[u8]) -> Option<&'static str> {
+    let ct = content_type.split(';').next().unwrap_or_default().trim().to_ascii_lowercase();
+    let text = ct.starts_with("text/") || ct.contains("json") || ct.contains("xml") || ct.contains("javascript") || ct == "application/x-www-form-urlencoded";
+    if text {
+        return None;
+    }
+    let ext = match ct.as_str() {
+        "audio/mpeg" | "audio/mp3" => "mp3",
+        "audio/wav" | "audio/x-wav" | "audio/wave" | "audio/vnd.wave" => "wav",
+        "audio/ogg" => "ogg",
+        "audio/opus" => "opus",
+        "audio/aac" => "aac",
+        "audio/flac" | "audio/x-flac" => "flac",
+        "audio/webm" => "weba",
+        "audio/mp4" | "audio/x-m4a" | "audio/m4a" => "m4a",
+        "video/mp4" => "mp4",
+        "video/webm" => "webm",
+        "video/quicktime" => "mov",
+        "image/png" => "png",
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "image/bmp" => "bmp",
+        "application/pdf" => "pdf",
+        "application/zip" => "zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
+        // Without a type: text stays text, anything else is a file.
+        "" if std::str::from_utf8(bytes.get(..bytes.len().min(4096)).unwrap_or_default()).is_ok() => return None,
+        _ => "bin",
+    };
+    Some(ext)
+}
+
+/// A file answered by a service, in answers_dir (the ones older than a day go).
+fn answer_file(bytes: &[u8], ext: &str) -> Result<PathBuf, String> {
+    let dir = answers_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    if let Ok(list) = std::fs::read_dir(&dir) {
+        for e in list.flatten() {
+            let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age.as_secs() > 24 * 3600);
+            if old {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+    let stamp = crate::msgraph::random(4).iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let path = dir.join(format!("risposta-{stamp}.{ext}"));
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+/// A file answered by a service kept: in `folder` (never over another file)
+/// and, with `tray` or without a folder, in the Vassoio. Only files of
+/// answers_dir. The path of the copy to show.
+pub fn keep(path: &str, filename: &str, folder: &str, tray: bool) -> Result<String, String> {
+    let src = PathBuf::from(path);
+    let inside = src.parent().is_some_and(|p| p == answers_dir()) && src.is_file();
+    if !inside {
+        return Err(t("Non è un file ricevuto da un servizio.").into());
+    }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_string();
+    let base = base_of("risposta", filename, &ext);
+    let mut shown = String::new();
+    if !folder.trim().is_empty() {
+        let target = PathBuf::from(expand_env(folder.trim()));
+        std::fs::create_dir_all(&target).map_err(|e| tf("Cartella non raggiungibile: {e}", &[("e", &e.to_string())]))?;
+        let out = free_path(&target, &base, &ext);
+        std::fs::copy(&src, &out).map_err(|e| tf("File non salvato nella cartella: {e}", &[("e", &e.to_string())]))?;
+        shown = out.display().to_string();
+    }
+    if folder.trim().is_empty() || tray {
+        // Into the Vassoio with its own name (ingest keeps the name).
+        let named = src.with_file_name(format!("{base}.{ext}"));
+        let from = if named.exists() {
+            src.clone()
+        } else {
+            std::fs::copy(&src, &named).map_err(|e| e.to_string())?;
+            named
+        };
+        let file = crate::files::ingest(&from.to_string_lossy());
+        if from != src {
+            let _ = std::fs::remove_file(&from);
+        }
+        let file = file?;
+        if shown.is_empty() {
+            shown = file.path;
+        }
+    }
+    Ok(shown)
+}
+
+/// The keys of an integration for one of its own scripts, as
+/// EASYISLAND_SECRET_<NOME> variables: only when `script` is the text of a
+/// script action of its approved description; never shown or logged.
+pub fn script_secrets(id: &str, script: &str) -> Vec<(String, String)> {
+    let Some(c) = get(id) else { return Vec::new() };
+    if !c.actions.iter().any(|a| a.kind == "script" && a.script == script) {
+        return Vec::new();
+    }
+    c.secrets
+        .iter()
+        .filter_map(|name| {
+            let value = crate::secrets::get(&format!("custom:{id}:{name}"))?;
+            Some((secret_var(name), value))
+        })
+        .collect()
+}
+
+/// "api key" → EASYISLAND_SECRET_API_KEY.
+pub fn secret_var(name: &str) -> String {
+    let var: String = name.trim().chars().map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_uppercase() } else { '_' }).collect();
+    format!("EASYISLAND_SECRET_{var}")
+}
 
 /// {{secret:nome}} → the key kept for this integration; an error naming the missing one.
 fn with_secrets(id: &str, text: &str) -> Result<String, String> {
@@ -941,7 +1182,8 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
     }
     let url = with_secrets(&c.id, url)?;
     let method = reqwest::Method::from_bytes(method_of(method)?.as_bytes()).map_err(|e| e.to_string())?;
-    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
+    // 60 s: a voice or a picture made by the service takes a while.
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(60)).build().map_err(|e| e.to_string())?;
     let mut req = client.request(method, &url).header("User-Agent", "EasyIsland");
     for (k, v) in headers {
         let v = v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string());
@@ -957,11 +1199,21 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
     }
     let resp = req.send().await.map_err(|e| tf("Il servizio non risponde: {e}", &[("e", &e.without_url().to_string())]))?;
     let status = resp.status();
+    let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
     let bytes = resp.bytes().await.map_err(|e| e.without_url().to_string())?;
+    if let Some(ext) = file_ext(&content_type, &bytes) {
+        if bytes.len() > MAX_FILE {
+            return Err(t("Il file ricevuto supera i 200 MB.").into());
+        }
+        let path = answer_file(&bytes, ext)?.display().to_string();
+        let mime = content_type.split(';').next().unwrap_or_default().trim().to_string();
+        let data = json!({ "file": path, "type": mime, "size": bytes.len() });
+        return Ok(Reply { status: status.as_u16(), ok: status.is_success(), data, file: Some(path) });
+    }
     let cut = bytes.get(..bytes.len().min(MAX_ANSWER)).unwrap_or_default();
     let text = String::from_utf8_lossy(cut).to_string();
     let data = serde_json::from_str::<Value>(&text).unwrap_or(Value::String(text));
-    Ok(Reply { status: status.as_u16(), ok: status.is_success(), data })
+    Ok(Reply { status: status.as_u16(), ok: status.is_success(), data, file: None })
 }
 
 /// A source read now.
@@ -1176,8 +1428,29 @@ fn patched(old: &Custom, args: &Value) -> Result<Custom, String> {
     Ok(c)
 }
 
+/// A text custom_get shortened ("(38412 caratteri: custom_get con part …)").
+fn shortened(text: &str) -> bool {
+    let t = text.trim();
+    t.starts_with('(') && t.ends_with(')') && t.len() < 160 && t.contains("custom_get") && t.contains("part")
+}
+
+/// The template and scripts custom_get showed as their length, sent back as
+/// they were: the old texts stay (never "(38412 caratteri…)" in their place).
+fn keep_shortened(old: &Custom, c: &mut Custom) {
+    if shortened(&c.template) {
+        c.template = old.template.clone();
+    }
+    for (i, a) in c.actions.iter_mut().enumerate() {
+        if shortened(&a.script) {
+            let same = old.actions.iter().find(|o| o.label == a.label).or_else(|| old.actions.get(i));
+            a.script = same.map(|o| o.script.clone()).unwrap_or_default();
+        }
+    }
+}
+
 pub fn tool_update(app: &AppHandle, args: &Value) -> Result<String, String> {
-    let (old, c) = updated(args)?;
+    let (old, mut c) = updated(args)?;
+    keep_shortened(&old, &mut c);
     let new = normalize(c.clone())?;
     check_links(&new)?;
     let new_id = args.get("new_id").and_then(Value::as_str).map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty() && *s != old.id);
@@ -1465,9 +1738,32 @@ pub fn tool_list() -> String {
     all.iter().map(|c| format!("- {} ({}): {} · {} campi · {} schede", c.name, c.id, c.description, c.fields.len(), records(&c.id).len())).collect::<Vec<_>>().join("\n")
 }
 
-pub fn tool_get(id: &str) -> Result<String, String> {
+/// custom_get. Compact (12 Nov 2026): JSON on one line, and the template and
+/// long scripts as their length, read with `part` "template" or "all" when
+/// they are what changes. On the laptop a custom_get was up to 44k characters,
+/// then in every step of the chat after it.
+pub fn tool_get(id: &str, part: &str) -> Result<String, String> {
+    const LONG: usize = 600;
     let c = get(id).ok_or(t("Integrazione non trovata."))?;
-    serde_json::to_string_pretty(&c).map_err(|e| e.to_string())
+    match part.trim() {
+        "template" => return Ok(if c.template.trim().is_empty() { t("Nessun template.").into() } else { c.template.clone() }),
+        "all" => return serde_json::to_string(&c).map_err(|e| e.to_string()),
+        _ => {}
+    }
+    let mut v = serde_json::to_value(&c).map_err(|e| e.to_string())?;
+    let n = c.template.chars().count();
+    if n > LONG {
+        v["template"] = json!(tf("({n} caratteri: custom_get con part \"template\" per leggerlo)", &[("n", &n.to_string())]));
+    }
+    if let Some(actions) = v.get_mut("actions").and_then(Value::as_array_mut) {
+        for a in actions {
+            let n = a.get("script").and_then(Value::as_str).map_or(0, |s| s.chars().count());
+            if n > LONG {
+                a["script"] = json!(tf("({n} caratteri: custom_get con part \"all\" per leggerlo)", &[("n", &n.to_string())]));
+            }
+        }
+    }
+    serde_json::to_string(&v).map_err(|e| e.to_string())
 }
 
 pub fn tool_records(id: &str, query: &str, limit: usize) -> Result<String, String> {
@@ -1478,13 +1774,13 @@ pub fn tool_records(id: &str, query: &str, limit: usize) -> Result<String, Strin
         .take(limit.clamp(1, 200))
         .map(|r| json!({ "id": r.id, "updated": r.updated, "values": r.values }))
         .collect();
-    serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())
+    serde_json::to_string(&rows).map_err(|e| e.to_string())
 }
 
 /// custom_fetch: what a source of an integration says now (its approved address).
 pub async fn tool_fetch(id: &str, source: &str) -> Result<String, String> {
     let r = fetch(id, source).await?;
-    let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
+    let text = serde_json::to_string(&r.data).unwrap_or_default();
     let cut: String = text.chars().take(20_000).collect();
     Ok(format!("HTTP {}\n{cut}", r.status))
 }
@@ -1503,19 +1799,60 @@ fn fill_values(text: &str, values: &Map<String, Value>, encode: bool, json_body:
         };
         let key = after.get(..end).unwrap_or_default().trim();
         let whole = rest.get(start..start + 2 + end + 2).unwrap_or_default();
+        // In a JSON body: between quotes the text escaped, outside them a value
+        // ("speed": {{velocita}} with "0,9" → 0.9; other text → "quoted").
+        let quoted = json_body && in_json_string(&out);
         match values.get(key) {
             _ if key.starts_with("secret:") => out.push_str(whole),
             Some(Value::String(s)) if encode => out.push_str(&url_encode(s)),
-            Some(Value::String(s)) if json_body => out.push_str(&s.replace('\\', "\\\\").replace('"', "\\\"")),
+            Some(Value::String(s)) if quoted => out.push_str(&json_inner(s)),
+            Some(Value::String(s)) if json_body => out.push_str(&json_bare(s)),
+            Some(v) if quoted => out.push_str(&json_inner(&v.to_string())),
             Some(Value::String(s)) => out.push_str(s),
             Some(v) if encode => out.push_str(&url_encode(&v.to_string())),
             Some(v) => out.push_str(&v.to_string()),
-            None => out.push_str(if json_body { "null" } else { "" }),
+            None => out.push_str(if json_body && !quoted { "null" } else { "" }),
         }
         rest = after.get(end + 2..).unwrap_or_default();
     }
     out.push_str(rest);
     out
+}
+
+/// Whether the end of a JSON text being written is inside a string (odd unescaped quotes).
+fn in_json_string(text: &str) -> bool {
+    let mut inside = false;
+    let mut escaped = false;
+    for ch in text.chars() {
+        match ch {
+            _ if escaped => escaped = false,
+            '\\' if inside => escaped = true,
+            '"' => inside = !inside,
+            _ => {}
+        }
+    }
+    inside
+}
+
+/// A text escaped for inside a JSON string: quotes, backslashes, new lines, controls.
+fn json_inner(s: &str) -> String {
+    let q = serde_json::to_string(s).unwrap_or_default();
+    q.get(1..q.len().saturating_sub(1)).unwrap_or_default().to_string()
+}
+
+/// A text outside quotes in a JSON body: a number when it reads as one ("0,9"
+/// → 0.9), true/false/null as they are, anything else as a JSON string.
+fn json_bare(s: &str) -> String {
+    let t = s.trim();
+    if matches!(t, "true" | "false" | "null") {
+        return t.to_string();
+    }
+    let n = if t.contains(',') && !t.contains('.') { t.replace(',', ".") } else { t.to_string() };
+    if serde_json::from_str::<serde_json::Number>(&n).is_ok() {
+        n
+    } else {
+        serde_json::to_string(s).unwrap_or_default()
+    }
 }
 
 fn url_encode(s: &str) -> String {
@@ -1539,7 +1876,16 @@ pub async fn tool_call(args: &Value) -> Result<String, String> {
         headers.insert(k.clone(), json!(fill_values(v.as_str().unwrap_or_default(), &values, false, false)));
     }
     let r = http(&c.id, &a.method, &fill_values(&a.url, &values, true, false), &headers, &fill_values(&a.body, &values, false, true)).await?;
-    let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
+    if let Some(file) = &r.file {
+        let kept = if r.ok && (!a.folder.trim().is_empty() || !a.filename.trim().is_empty()) {
+            keep(file, &fill_values(&a.filename, &values, false, false), &a.folder, a.tray)?
+        } else {
+            file.clone()
+        };
+        let kind = r.data.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
+        return Ok(tf("HTTP {s}: un file ({kind}) in {path}", &[("s", &r.status.to_string()), ("kind", &kind), ("path", &kept)]));
+    }
+    let text = serde_json::to_string(&r.data).unwrap_or_default();
     Ok(format!("HTTP {}\n{}", r.status, text.chars().take(20_000).collect::<String>()))
 }
 
@@ -1554,6 +1900,42 @@ pub fn tool_add_record(app: &AppHandle, args: &Value) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_shortened_template_sent_back_keeps_the_real_one() {
+        let old: Custom = serde_json::from_value(json!({
+            "name": "Prova", "fields": [{ "id": "a", "label": "A", "kind": "text" }],
+            "template": "<html>vero</html>", "actions": [{ "label": "Esegui", "kind": "script", "script": "Write-Host vero" }]
+        })).unwrap();
+        let mut c = old.clone();
+        c.template = "(38412 caratteri: custom_get con part \"template\" per leggerlo)".into();
+        c.actions[0].script = "(900 caratteri: custom_get con part \"all\" per leggerlo)".into();
+        keep_shortened(&old, &mut c);
+        assert_eq!((c.template.as_str(), c.actions[0].script.as_str()), ("<html>vero</html>", "Write-Host vero"));
+        assert!(!shortened("(nota)") && shortened("(12 caratteri: custom_get con part \"all\" per leggerlo)"));
+    }
+
+    #[test]
+    fn a_file_field_accepts_groups_and_extensions() {
+        assert_eq!(accept_clean("Audio").unwrap(), "audio");
+        assert_eq!(accept_clean(".MP3; *.wav  mp3").unwrap(), "mp3,wav");
+        assert_eq!(accept_clean("image/*, pdf").unwrap(), "immagini,pdf");
+        assert_eq!(accept_clean("mp3,../x").unwrap_err(), "../x");
+        let exts = accept_extensions("audio,pdf");
+        assert!(exts.contains(&"wav".to_string()) && exts.contains(&"pdf".to_string()) && !exts.contains(&"png".to_string()));
+        assert!(accept_extensions("").is_empty());
+        let c: Custom = serde_json::from_value(json!({
+            "name": "Voci", "fields": [
+                { "id": "audio", "label": "Audio creato", "kind": "file", "accept": "Audio" },
+                { "id": "nota", "label": "Nota", "kind": "text", "accept": "audio" }
+            ]
+        })).unwrap();
+        let n = normalize(c.clone()).unwrap();
+        assert_eq!((n.fields[0].accept.as_str(), n.fields[1].accept.as_str()), ("audio", ""));
+        let mut bad = c;
+        bad.fields[0].accept = "audio; mp3!".into();
+        assert!(normalize(bad).unwrap_err().contains("accept"));
+    }
 
     fn quote() -> Custom {
         serde_json::from_value(json!({
@@ -1689,6 +2071,27 @@ mod tests {
     }
 
     #[test]
+    fn a_file_answer_is_told_from_text_by_its_type() {
+        assert_eq!(file_ext("audio/mpeg", b"ID3"), Some("mp3"));
+        assert_eq!(file_ext("image/png; charset=binary", b""), Some("png"));
+        assert_eq!(file_ext("application/octet-stream", b""), Some("bin"));
+        assert_eq!(file_ext("application/json; charset=utf-8", b"{}"), None);
+        assert_eq!(file_ext("text/plain", b"ciao"), None);
+        assert_eq!(file_ext("", b"{\"a\":1}"), None, "no type and text: data");
+        assert_eq!(file_ext("", &[0xff, 0xfb, 0x90, 0x00]), Some("bin"), "no type and not text: a file");
+    }
+
+    #[test]
+    fn only_answered_files_are_kept_and_keys_get_plain_names() {
+        let outside = std::env::temp_dir().join("easyisland-test-keep.mp3");
+        std::fs::write(&outside, b"x").unwrap();
+        assert!(keep(&outside.to_string_lossy(), "", "", false).is_err());
+        let _ = std::fs::remove_file(&outside);
+        assert_eq!(secret_var("api key"), "EASYISLAND_SECRET_API_KEY");
+        assert_eq!(secret_var("openrouter"), "EASYISLAND_SECRET_OPENROUTER");
+    }
+
+    #[test]
     fn a_borrowed_template_is_not_replaced_by_the_default_one() {
         let base = Custom { id: "registro".into(), name: "Registro".into(), fields: vec![Field { id: "a".into(), label: "A".into(), kind: "text".into(), ..Default::default() }], ..Default::default() };
         let mut c = base.clone();
@@ -1798,6 +2201,39 @@ mod tests {
         assert_eq!(fill_values("https://x.it/s?q={{q}}&n={{n}}", &v, true, false), "https://x.it/s?q=a%20b%2Fc&n=3");
         assert_eq!(fill_values(r#"{"nome":"{{nome}}","n":{{n}},"x":{{manca}}}"#, &v, false, true), r#"{"nome":"Ro\"ssi","n":3,"x":null}"#);
         assert_eq!(fill_values("Bearer {{secret:token}}", &v, false, false), "Bearer {{secret:token}}");
+    }
+
+    #[test]
+    fn a_json_body_gets_numbers_bare_and_text_escaped() {
+        let v: Map<String, Value> = serde_json::from_value(json!({ "vel": "0,9", "testo": "a \"b\"\nc", "voce": "alloy", "n": 2 })).unwrap();
+        let body = fill_values(r#"{"input":"{{testo}}","speed":{{vel}},"voice":{{voce}},"n":"{{n}}"}"#, &v, false, true);
+        assert_eq!(body, r#"{"input":"a \"b\"\nc","speed":0.9,"voice":"alloy","n":"2"}"#);
+        assert!(serde_json::from_str::<Value>(&body).is_ok());
+        assert_eq!(json_bare("007"), "\"007\"");
+        assert_eq!(json_bare("1.5"), "1.5");
+    }
+
+    #[test]
+    fn a_select_takes_its_choices_from_a_source_of_its_own() {
+        let mut c: Custom = serde_json::from_value(json!({
+            "name": "TTS",
+            "sources": [{ "id": "motori", "url": "https://openrouter.ai/api/v1/models", "items": "data" }],
+            "fields": [
+                { "id": "modello", "label": "Motore", "kind": "select", "optionsFrom": { "source": "motori", "value": "id", "label": "name" }, "fill": { "prezzo": "pricing.prompt" } },
+                { "id": "voce", "label": "Voce", "kind": "select", "optionsFrom": { "source": "motori", "match": { "id": "{{modello}}" }, "list": "supported_voices" } },
+                { "id": "prezzo", "label": "Prezzo", "kind": "text" }
+            ]
+        })).unwrap();
+        let n = normalize(c.clone()).unwrap();
+        assert_eq!(n.fields[1].options_from.as_ref().unwrap().matching.get("id").map(String::as_str), Some("{{modello}}"));
+        assert_eq!(n.fields[0].fill.get("prezzo").map(String::as_str), Some("pricing.prompt"));
+        // Written as the source's label: saved with its id, the one the card looks for.
+        let mut by_label = c.clone();
+        by_label.sources[0].label = "Motori TTS".into();
+        by_label.fields[0].options_from.as_mut().unwrap().source = "motori_tts".into();
+        assert_eq!(normalize(by_label).unwrap().fields[0].options_from.as_ref().unwrap().source, "motori");
+        c.fields[0].options_from.as_mut().unwrap().source = "altro".into();
+        assert!(normalize(c).unwrap_err().contains("optionsFrom"));
     }
 
     #[test]

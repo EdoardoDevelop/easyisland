@@ -183,7 +183,7 @@ export async function runScene(island: Island, scene: string) {
     case "chat": {
       await wait(300);
       // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over,
-      // =corsa steps and reasoning arriving faster than the line can write them, =squadra «Multi agent» at work, =squadra-fine its answer.
+      // =corsa steps and reasoning arriving faster than the line can write them, =squadra «Multi motore» at work, =squadra-fine its answer.
       const pensa = new URLSearchParams(location.search).get("pensa");
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
@@ -1320,10 +1320,64 @@ export async function runScene(island: Island, scene: string) {
           return rec({ ...values, ...(id === "preventivi" ? { numero: "PREV-2026-001" } : {}) }, saved.length);
         };
       }
+      // &media: a service that answers with an audio file (an http action, its player and
+      // «Salva»), and a file field with a picture (file-viewer.ts). Bytes made here.
+      if (new URLSearchParams(location.search).has("media")) {
+        State.customs.push({
+          id: "voce", name: "Messaggi vocali", icon: "🔊", color: "#F472B6", description: "Testo in voce", enabled: true, titleField: "testo",
+          fields: [field({ id: "testo", label: "Testo", kind: "textarea", default: "Buongiorno, la chiamo per l'appuntamento di domani." }),
+            field({ id: "foto", label: "Immagine", kind: "file", default: "C:\\Users\\Me\\Pictures\\logo.png" })],
+          template: "", secrets: ["openrouter"],
+          actions: [{ label: "Genera la voce", kind: "http", method: "POST", url: "https://openrouter.ai/api/v1/audio", prompt: "", quick: "", database: "", format: "", filename: "{{testo}}" }],
+        });
+        const wav = () => {
+          const rate = 8000, n = rate;
+          const b = new DataView(new ArrayBuffer(44 + n));
+          const s = (o: number, t: string) => [...t].forEach((ch, i) => b.setUint8(o + i, ch.charCodeAt(0)));
+          s(0, "RIFF"); b.setUint32(4, 36 + n, true); s(8, "WAVEfmt "); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+          b.setUint32(24, rate, true); b.setUint32(28, rate, true); b.setUint16(32, 1, true); b.setUint16(34, 8, true); s(36, "data"); b.setUint32(40, n, true);
+          for (let i = 0; i < n; i++) b.setUint8(44 + i, 128 + Math.round(60 * Math.sin((i / rate) * 2 * Math.PI * 440)));
+          return b.buffer;
+        };
+        const png = async () => {
+          const cv = document.createElement("canvas");
+          cv.width = 320; cv.height = 160;
+          const g = cv.getContext("2d")!;
+          g.fillStyle = "#F472B6"; g.fillRect(0, 0, 320, 160);
+          g.fillStyle = "#fff"; g.font = "bold 32px sans-serif"; g.fillText("Logo", 110, 92);
+          const blob = await new Promise<Blob>((done) => cv.toBlob((x) => done(x!), "image/png"));
+          return blob.arrayBuffer();
+        };
+        Bridge.fileBytes = async (path: string) => (path.endsWith(".png") ? png() : wav());
+        Bridge.customHttp = async () => ({ status: 200, ok: true, file: "C:\\Temp\\EasyIsland\\risposte\\risposta-1a2b.wav", data: { file: "C:\\Temp\\EasyIsland\\risposte\\risposta-1a2b.wav", type: "audio/wav", size: 8044 } });
+        Bridge.customKeep = async (_path: string, filename: string) => `C:\\Users\\Me\\WORK\\Audio TTS\\${filename.slice(0, 40) || "risposta"}.wav`;
+      }
+      // &opzioni: «Motore» and «Voce» chosen from a source of the integration itself
+      // (optionsFrom, custom-options.ts), the voice depending on the model, the price filled.
+      if (new URLSearchParams(location.search).has("opzioni")) {
+        State.customs.push({
+          id: "ttspeak", name: "TTSpeak", icon: "🗣️", color: "#38BDF8", description: "Testo in voce", enabled: true, titleField: "testo",
+          fields: [field({ id: "modello", label: "Motore", kind: "select", optionsFrom: { source: "motori", value: "id", label: "name" }, fill: { prezzo: "pricing.prompt", nota: "{{name}} ({{id}})" } }),
+            field({ id: "voce", label: "Voce", kind: "select", optionsFrom: { source: "motori", match: { id: "{{modello}}" }, list: "supported_voices" } }),
+            field({ id: "prezzo", label: "Prezzo per token" }), field({ id: "nota", label: "Motore scelto" }),
+            field({ id: "testo", label: "Testo", kind: "textarea" })],
+          template: "", actions: [],
+          sources: [{ id: "motori", label: "Motori", url: "https://openrouter.ai/api/v1/models?output_modalities=speech", every: 0, items: "data" }],
+        });
+        const voices = Array.from({ length: 97 }, (_, i) => `voce-${String(i + 1).padStart(2, "0")}`);
+        const data = { data: [
+          { id: "openai/gpt-4o-mini-tts", name: "GPT-4o mini TTS", pricing: { prompt: "0.0000006" }, supported_voices: ["alloy", "echo", "fable", "nova", "shimmer"] },
+          { id: "google/gemini-2.5-flash-tts", name: "Gemini 2.5 Flash TTS", pricing: { prompt: "0.0000005" }, supported_voices: [{ id: "Kore", name: "Kore" }, { id: "Puck", name: "Puck" }] },
+          { id: "esempio/molte-voci", name: "Molte voci", pricing: { prompt: "0.000001" }, supported_voices: voices },
+        ] };
+        const before = Bridge.customFetch;
+        Bridge.customFetch = async (id: string, source: string) => (id === "ttspeak" ? { status: 200, ok: true, data } : before(id, source));
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
-      State.setFocus(new URLSearchParams(location.search).has("dati") ? "custom:server" : "custom:preventivi");
+      const q = new URLSearchParams(location.search);
+      State.setFocus(q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

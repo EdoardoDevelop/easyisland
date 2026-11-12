@@ -186,9 +186,35 @@ pub struct Chat {
     pub(crate) stop: tokio::sync::Notify,
     /// Reads only, and asks nobody (team.rs): what is not allowed is refused.
     read_only: std::sync::atomic::AtomicBool,
+    /// A helper that only turns a text into another (skill to adapt, JSON to
+    /// fill): no tools, no Modalità terminale, no memory or instructions in
+    /// front. Measured 12 Nov 2026: with them each call cost ~40k tokens, ~5k without.
+    plain: std::sync::atomic::AtomicBool,
+    /// «Sotto-agenti» in the chat's engine menu: Claude Code's Agent tool in
+    /// Modalità terminale (TERMINAL_TOOLS leaves it out).
+    agents: std::sync::atomic::AtomicBool,
 }
 
 impl Chat {
+    pub(crate) fn set_agents(&self, on: bool) {
+        self.agents.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn agents(&self) -> bool {
+        self.agents.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// See `plain`: a chat for one text-only turn.
+    pub(crate) fn plain() -> Self {
+        let chat = Self::default();
+        chat.plain.store(true, std::sync::atomic::Ordering::Relaxed);
+        chat
+    }
+
+    pub(crate) fn is_plain(&self) -> bool {
+        self.plain.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub(crate) fn set_read_only(&self, on: bool) {
         self.read_only.store(on, std::sync::atomic::Ordering::Relaxed);
     }

@@ -230,13 +230,16 @@ pub async fn run_script(run_id: &str, shell: &str, script: &str) -> Result<Scrip
 
 /// A script of an integration: what the record holds goes into a JSON file the
 /// script finds in EASYISLAND_SCHEDA, gone when it ends. Never into the script's
-/// text: a field could otherwise run commands.
-pub async fn run_script_with(run_id: &str, shell: &str, script: &str, data: &serde_json::Value) -> Result<ScriptResult, String> {
+/// text: a field could otherwise run commands. `secrets`: the integration's
+/// keys as EASYISLAND_SECRET_<NOME> (custom::script_secrets), only in the
+/// script's environment.
+pub async fn run_script_with(run_id: &str, shell: &str, script: &str, data: &serde_json::Value, secrets: &[(String, String)]) -> Result<ScriptResult, String> {
     let name: String = run_id.chars().filter(char::is_ascii_alphanumeric).take(40).collect();
     let file = std::env::temp_dir().join(format!("easyisland-scheda-{name}.json"));
     let bytes = serde_json::to_vec_pretty(data).map_err(|e| e.to_string())?;
     std::fs::write(&file, bytes).map_err(|e| e.to_string())?;
-    let env = [("EASYISLAND_SCHEDA", file.to_string_lossy().into_owned())];
+    let mut env = vec![("EASYISLAND_SCHEDA", file.to_string_lossy().into_owned())];
+    env.extend(secrets.iter().map(|(k, v)| (k.as_str(), v.clone())));
     let out = run_script_env(run_id, shell, script, &env).await;
     let _ = std::fs::remove_file(&file);
     out
@@ -628,7 +631,7 @@ mod quick_tests {
         let evil = format!("\"; New-Item '{}' ; $(New-Item '{}') #", mark.display(), mark.display());
         let data = json!({ "integrazione": "ddt", "scheda": "1", "valori": { "cliente": evil } });
         let script = "$d = Get-Content -Raw -Encoding UTF8 $env:EASYISLAND_SCHEDA | ConvertFrom-Json; Write-Output $d.integrazione; Write-Output $d.valori.cliente.Length";
-        let out = tauri::async_runtime::block_on(run_script_with("provascheda", "powershell", script, &data)).unwrap();
+        let out = tauri::async_runtime::block_on(run_script_with("provascheda", "powershell", script, &data, &[])).unwrap();
         assert_eq!(out.code, Some(0), "{}", out.output);
         let lines: Vec<&str> = out.output.lines().collect();
         assert_eq!(lines.first().copied(), Some("ddt"));

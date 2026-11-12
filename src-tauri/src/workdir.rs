@@ -314,17 +314,49 @@ pub fn pick_paths(folders: bool) -> Result<Vec<String>, String> {
 
 /// The same dialog with its own title (Abilità → «Importa…»).
 pub fn pick_paths_titled(folders: bool, title: &str) -> Result<Vec<String>, String> {
+    pick(folders, title, None)
+}
+
+/// One file of these extensions (a `file` field with `accept`, custom.rs): the
+/// dialog lists only them, under `label`; a path typed by hand is checked again.
+pub fn pick_file_of(title: &str, label: &str, exts: &[String]) -> Result<Vec<String>, String> {
+    let picked = pick(false, title, Some((label, exts)))?;
+    let ok = |p: &String| {
+        let ext = Path::new(p).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+        exts.iter().any(|e| *e == ext)
+    };
+    if !picked.is_empty() && !picked.iter().any(ok) {
+        return Err(tf("Qui va un file {list}.", &[("list", &label)]));
+    }
+    Ok(picked.into_iter().filter(ok).take(1).collect())
+}
+
+fn pick(folders: bool, title: &str, filter: Option<(&str, &[String])>) -> Result<Vec<String>, String> {
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
+    use windows::Win32::UI::Shell::Common::COMDLG_FILTERSPEC;
     use windows::Win32::UI::Shell::{FileOpenDialog, IFileOpenDialog, FOS_ALLOWMULTISELECT, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, SIGDN_FILESYSPATH};
+    // The filter's texts, alive until the dialog closes.
+    let spec: Option<(Vec<u16>, Vec<u16>)> = filter.filter(|(_, e)| !e.is_empty()).map(|(label, exts)| {
+        let pattern = exts.iter().map(|e| format!("*.{e}")).collect::<Vec<_>>().join(";");
+        (format!("{label} ({})", exts.iter().map(|e| format!("*.{e}")).collect::<Vec<_>>().join(", ")).encode_utf16().chain([0]).collect(), pattern.encode_utf16().chain([0]).collect())
+    });
     unsafe {
         let init = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let result = (|| -> windows::core::Result<Vec<String>> {
             let dialog: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
-            let mut options = dialog.GetOptions()? | FOS_FORCEFILESYSTEM | FOS_ALLOWMULTISELECT;
+            let mut options = dialog.GetOptions()? | FOS_FORCEFILESYSTEM;
+            if spec.is_none() {
+                options |= FOS_ALLOWMULTISELECT;
+            }
             if folders {
                 options |= FOS_PICKFOLDERS;
             }
             dialog.SetOptions(options)?;
+            if let Some((name, pattern)) = &spec {
+                let types = [COMDLG_FILTERSPEC { pszName: windows::core::PCWSTR(name.as_ptr()), pszSpec: windows::core::PCWSTR(pattern.as_ptr()) }];
+                dialog.SetFileTypes(&types)?;
+                dialog.SetFileTypeIndex(1)?;
+            }
             let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
             dialog.SetTitle(windows::core::PCWSTR(title.as_ptr()))?;
             if dialog.Show(None).is_err() {

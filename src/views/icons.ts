@@ -103,7 +103,7 @@ export const ICONS = {
   // mic / mic.slash — mute on a call of "Questo PC" (drawn with a stroke)
   // a paper plane — sends the chat's message
   plane: "M3.4 20.4 21 12 3.4 3.6v6.6L15 12 3.4 13.8v6.6z",
-  // two people — «Multi agent» in the chat
+  // two people — «Multi motore» in the chat
   team: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 19.5C2.5 16.2 5.4 14 9 14s6.5 2.2 6.5 5.5h-13zM17.1 19.5c0-2-.8-3.7-2.2-5 .6-.1 1.1-.2 1.7-.2 3 0 5.9 1.9 5.9 5.2h-5.4z",
   // The classic paper clip: Windows' 📎 emoji has eyes.
   clip: "M20.5 11.2l-8.6 8.6a5.6 5.6 0 0 1-7.9-7.9l8.6-8.6a3.7 3.7 0 0 1 5.3 5.3l-8.6 8.6a1.9 1.9 0 0 1-2.7-2.7l7.9-7.9",

@@ -22,6 +22,11 @@ const PROTOCOL: &str = "2025-06-18";
 
 use crate::tool_list::tools;
 
+/// The tools the chat uses most (12 Nov 2026, the laptop over 10 days: of 124
+/// ToolSearch steps, 94 loaded these three). Their schemas cost ~1k tokens a
+/// step; each ToolSearch saved is a step of the whole context (30k and more).
+const ALWAYS_LOADED: &[&str] = &["memory_search", "memory_page", "memory_note"];
+
 /// Started by EasyIsland's own chat (Claude Code there runs with
 /// EASYISLAND_INTERNAL): the chat is already in the island, a card would
 /// cover it, so `show_card` is only for Claude Code elsewhere.
@@ -133,12 +138,18 @@ pub fn handle(msg: &Value) -> Option<Value> {
             let list: Vec<Value> = offered()
                 .into_iter()
                 .map(|(name, description, schema, read_only)| {
-                    json!({
+                    let mut tool = json!({
                         "name": name,
                         "description": description,
                         "inputSchema": schema,
                         "annotations": { "readOnlyHint": read_only }
-                    })
+                    });
+                    // Claude Code (2.1.285+) defers MCP tools behind ToolSearch: one
+                    // more step, the whole chat re-read. These load at once.
+                    if ALWAYS_LOADED.contains(&name) {
+                        tool["_meta"] = json!({ "anthropic/alwaysLoad": true });
+                    }
+                    tool
                 })
                 .collect();
             result(id, json!({ "tools": list }))

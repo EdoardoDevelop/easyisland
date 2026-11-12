@@ -649,8 +649,8 @@ function terminalRow(): HTMLElement {
   const folderRow = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
     h("div", { class: "row" }, h("label", { text: t("Cartella di lavoro") }), folder, pickBtn, bad),
     h("span", { class: "hint note", text: t("La chat (con gli strumenti di EasyIsland) e Telegram la consultano e ci spostano i file; la trovi anche in «File e schermo». Con la modalità terminale è la cartella in cui la chat lavora; vuota = la tua cartella utente.") }));
-  // «Multi agent» (team.rs): which engines work with the conversation's.
-  const team = h("div", { class: "row", style: "flex-wrap:wrap;gap:10px" }, h("label", { text: t("Multi agent") }));
+  // «Multi motore» (team.rs): which engines work with the conversation's.
+  const team = h("div", { class: "row", style: "flex-wrap:wrap;gap:10px" }, h("label", { text: t("Multi motore") }));
   void Bridge.enginesReady().then((list) => {
     const all = list ?? CHAT_ENGINES.map((e): [string, string, boolean] => [e.id, e.name, true]);
     for (const [id, name, ok] of all) {
@@ -668,7 +668,7 @@ function terminalRow(): HTMLElement {
   });
   const teamBox = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
     team,
-    h("span", { class: "hint note", text: t("i motori che lavorano insieme quando accendi «Multi agent» in una conversazione: il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro. Ne bastano due, meglio di due marche diverse.") }),
+    h("span", { class: "hint note", text: t("i motori che lavorano insieme quando accendi «Multi motore» in una conversazione: il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro. Ne bastano due, meglio di due marche diverse.") }),
     h("div", { class: "row" },
       h("label", { text: t("Controllo finale") }),
       toggle(settings.chatTeamCheck !== false, (v) => { settings.chatTeamCheck = v; void save(); }),

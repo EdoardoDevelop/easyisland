@@ -407,7 +407,12 @@ async fn action_run_script(
 ) -> Result<actions::ScriptResult, String> {
     log::line(format!("action script ({shell}) run {run_id}"));
     match data {
-        Some(data) => actions::run_script_with(&run_id, &shell, &script, &data).await,
+        Some(data) => {
+            // A script of an integration's own description gets its keys.
+            let id = data.get("integrazione").and_then(serde_json::Value::as_str).unwrap_or_default();
+            let secrets = custom::script_secrets(id, &script);
+            actions::run_script_with(&run_id, &shell, &script, &data, &secrets).await
+        }
         None => actions::run_script(&run_id, &shell, &script).await,
     }
 }
@@ -1325,10 +1330,12 @@ async fn chat_send(
     mode: Option<String>,
     model: Option<String>,
     fast: Option<bool>,
+    agents: Option<bool>,
 ) -> Result<IslandReply, String> {
     let chat = chats.get(&sid)?;
     chat.set_folder(folder);
     chat.set_fast(fast == Some(true));
+    chat.set_agents(agents == Some(true));
     // Piano, Accetta modifiche: Claude Code's permission mode for this conversation.
     chat.set_mode(mode);
     // The effort picked in the chat, else the last one picked (Impostazioni keeps it).
@@ -1444,7 +1451,7 @@ pub(crate) enum Channel {
     /// A turn of Agent Chat (agentchat.rs): like a helper, plus «Permessi in
     /// Agent Chat» (reads without asking, `agentchatPermissions`).
     AgentChat,
-    /// The lead of «Multi agent» going over its answer (team.rs): the island's
+    /// The lead of «Multi motore» going over its answer (team.rs): the island's
     /// conversation, but what it is told is not what the user asked.
     Revision,
 }
@@ -1574,6 +1581,8 @@ pub(crate) async fn chat_turn(
     // Prompts of ours, not the user's questions: nothing to learn from them.
     let learns = !matches!(channel, Channel::Helper | Channel::Revision) && !compact;
     let read_only = chat.read_only();
+    // A text-only helper (Chat::plain): no tools, no terminal, nothing in front.
+    let plain = chat.is_plain();
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
@@ -1587,11 +1596,12 @@ pub(crate) async fn chat_turn(
             (None, _) => {}
         }
         let url = s.engine_urls.get(&e).cloned();
-        let terminal = s.chat_terminal.then(|| own.clone().unwrap_or_else(|| chat_folder(&s.chat_folder)));
-        (e, model, cli_model, s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
+        let terminal = (s.chat_terminal && !plain).then(|| own.clone().unwrap_or_else(|| chat_folder(&s.chat_folder)));
+        let mcp = if plain { Default::default() } else { s.mcp_servers.clone() };
+        (e, model, cli_model, mcp, s.agent_tools && !plain, other, url, terminal)
     };
     // The work folder, when one is chosen (workdir.rs): the engines may read it.
-    let work = workdir::root(app);
+    let work = if plain { None } else { workdir::root(app) };
     // A different model is a different conversation too: start over (an
     // opencode conversation left behind is deleted from opencode's history).
     // So is turning "Modalità terminale" on or off.
@@ -1604,7 +1614,7 @@ pub(crate) async fn chat_turn(
     }
     // A new conversation with an engine that has tools: the map of Notion
     // (notion_map.rs) in front, so it does not search for the structure.
-    let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
+    let has_tools = !plain && (terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str())));
     let fresh = chat.is_empty() && chat.cli_session().is_none();
     if compact && fresh && !chat.has_preamble() {
         return Ok(ChatReply { text: t("Niente da compattare: la conversazione è appena cominciata.").into() });
@@ -1626,7 +1636,7 @@ pub(crate) async fn chat_turn(
             }
             text.push_str(p.trim());
         }
-        (s.chat_history, text)
+        (s.chat_history && !plain, if plain { String::new() } else { text })
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
@@ -1649,6 +1659,13 @@ pub(crate) async fn chat_turn(
     let recipe_hint = if learns && agent && (has_tools || engine == "api") { recipes::hint(&asked) } else { None };
     let query = match &recipe_hint {
         Some(h) => format!("{h}{query}"),
+        None => query,
+    };
+    // What the memory knows about this question, looked up here with no model
+    // (memory::related): often one memory_search step less, at every question.
+    let related = if remember && memory_tools && learns { memory::related(&asked, fresh) } else { None };
+    let query = match &related {
+        Some(r) => format!("{r}{query}"),
         None => query,
     };
     let query = match &preamble {
@@ -2580,13 +2597,26 @@ async fn chat_attach(paths: Vec<String>) -> Result<Vec<files::ChatAttachment>, S
 
 /// 📎 in the chat: Windows' dialog for files or folders, several at once.
 #[tauri::command]
-async fn chat_pick(folders: bool) -> Result<Vec<files::ChatAttachment>, String> {
+async fn chat_pick(folders: bool, accept: Option<String>) -> Result<Vec<files::ChatAttachment>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let picked = workdir::pick_paths(folders)?;
+        // A `file` field with `accept` (custom.rs): only those files, one.
+        let exts = custom::accept_extensions(accept.as_deref().unwrap_or(""));
+        let picked = if exts.is_empty() {
+            workdir::pick_paths(folders)?
+        } else {
+            let label = accept.as_deref().unwrap_or("").replace(',', ", ");
+            workdir::pick_file_of(i18n::t("Scegli un file"), &label, &exts)?
+        };
         files::attach(&picked)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// A `file` field's `accept` as extensions, to show only those files of the Vassoio.
+#[tauri::command]
+fn custom_accept_extensions(accept: String) -> Vec<String> {
+    custom::accept_extensions(&accept)
 }
 
 #[tauri::command]
@@ -4316,6 +4346,24 @@ async fn custom_fetch(id: String, source: String) -> Result<custom::Reply, Strin
     custom::fetch(&id, &source).await
 }
 
+/// A file answered by a service kept (folder and/or Vassoio): the path of the copy.
+#[tauri::command]
+async fn custom_keep(path: String, filename: String, folder: String, tray: bool) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || custom::keep(&path, &filename, &folder, tray)).await.map_err(|e| e.to_string())?
+}
+
+/// The viewer of a file in a card: its bytes (pictures, audio, video, PDF).
+#[tauri::command]
+async fn file_bytes(path: String) -> Result<tauri::ipc::Response, String> {
+    tauri::async_runtime::spawn_blocking(move || files::viewer_bytes(&path)).await.map_err(|e| e.to_string())?.map(tauri::ipc::Response::new)
+}
+
+/// The viewer of a file in a card: its text (text files, Word).
+#[tauri::command]
+async fn file_text(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || files::viewer_text(&path)).await.map_err(|e| e.to_string())?
+}
+
 /// «Compila con l'IA»: the fields read from a pasted text.
 #[tauri::command]
 async fn custom_fill(app: AppHandle, id: String, text: String) -> Result<serde_json::Map<String, serde_json::Value>, String> {
@@ -4389,7 +4437,7 @@ fn skills_import(picks: Vec<skillimport::Pick>) -> skillimport::Report {
 /// «Adatta con …»: one skill rewritten by an engine, shown before it is saved.
 #[tauri::command]
 async fn skill_adapt(app: AppHandle, name: String, description: String, body: String, engine: String) -> Result<skillimport::Pick, String> {
-    let chat = claude::Chat::default();
+    let chat = claude::Chat::plain();
     let engine = Some(engine).filter(|e| !e.trim().is_empty());
     let opencode = engine.as_deref() == Some("opencode");
     let reply = chat_turn(&app, &chat, skillimport::adapt_prompt(&name, &description, &body), None, engine, None, false, Channel::Helper, &|_| {}).await;
@@ -4587,6 +4635,9 @@ pub fn run() {
             custom_fill,
             custom_http,
             custom_fetch,
+            custom_keep,
+            file_bytes,
+            file_text,
             custom_to_notion,
             skill_save,
             skill_delete,
@@ -4694,6 +4745,7 @@ pub fn run() {
             chat_paste,
             chat_attach,
             chat_pick,
+            custom_accept_extensions,
             webview_memory_low,
             chat_fork,
             chat_persona,

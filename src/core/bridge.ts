@@ -343,8 +343,8 @@ export const Bridge = {
   chatFolders: () => callOrThrow<string[]>("chat_folders"),
   chatBranch: (folder: string) => call<string>("chat_branch", { folder }),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
-  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "", model: string | null = null, fast = false) =>
-    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast }),
+  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "", model: string | null = null, fast = false, agents = false) =>
+    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
@@ -592,7 +592,12 @@ export const Bridge = {
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
   /** An integration's call to a service (keys put in by Rust) and a source read now. */
   customHttp: (id: string, method: string, url: string, headers: Record<string, string>, body: string) =>
-    callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_http", { id, method, url, headers, body }),
+    callOrThrow<{ status: number; ok: boolean; data: unknown; file?: string }>("custom_http", { id, method, url, headers, body }),
+  /** A file answered by a service kept in `folder` and/or the Vassoio: the path of the copy. */
+  customKeep: (path: string, filename: string, folder: string, tray: boolean) => callOrThrow<string>("custom_keep", { path, filename, folder, tray }),
+  /** The viewer of a file in a card (file-viewer.ts): bytes of pictures, audio, video, PDF; text of text and Word. */
+  fileBytes: (path: string) => callOrThrow<ArrayBuffer>("file_bytes", { path }),
+  fileText: (path: string) => callOrThrow<string>("file_text", { path }),
   customFetch: (id: string, source: string) => callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_fetch", { id, source }),
   /** «Compila con l'IA»: the fields read from a pasted text. */
   customFill: (id: string, text: string) => callOrThrow<Record<string, unknown>>("custom_fill", { id, text }),
@@ -656,7 +661,8 @@ export const Bridge = {
   /** Paths dropped on the chat: files into the Vassoio, folders as they are. */
   chatAttach: (paths: string[]) => callOrThrow<ChatAttachment[]>("chat_attach", { paths }),
   /** 📎: Windows' dialog for several files, or several folders. */
-  chatPick: (folders: boolean) => callOrThrow<ChatAttachment[]>("chat_pick", { folders }),
+  chatPick: (folders: boolean, accept: string | null = null) => callOrThrow<ChatAttachment[]>("chat_pick", { folders, accept }),
+  customAcceptExtensions: (accept: string) => call<string[]>("custom_accept_extensions", { accept }),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
   chatToDesktop: (sid: string) => callOrThrow<void>("chat_to_desktop", { sid }),
   chatDesktopPull: (sid: string, done: boolean) => call<{ role: "user" | "assistant"; content: string }[]>("chat_desktop_pull", { sid, done }),

@@ -51,6 +51,26 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const TOOLS: &str = "WebSearch,WebFetch,Read";
 
+/// Modalità terminale: Claude Code's built-in tools a chat uses (files,
+/// commands, web, skills, plan). Left out: Agent, Workflow, ScheduleWakeup,
+/// ReportFindings, ListAgents, ShareOnboardingGuide, Cron…, worktrees: their
+/// definitions alone were ~10k tokens re-read at every step (measured 12 Nov
+/// 2026 on Claude Code 2.1.318: 31k → 23k for «ok»), and a sub-agent starts
+/// its own context from zero. MCP tools (easyisland, connectors) are not affected.
+const TERMINAL_TOOLS: &str =
+    "Read,Write,Edit,Glob,Grep,Bash,PowerShell,Skill,ToolSearch,WebFetch,WebSearch,NotebookEdit,TodoWrite,ExitPlanMode,TaskStop,Monitor";
+
+/// «Sotto-agenti» on in the chat (`Chat::agents`): Agent added to `--tools`.
+fn with_agents(a: &mut [String]) {
+    if let Some(i) = a.iter().position(|x| x == "--tools") {
+        if let Some(v) = a.get_mut(i + 1) {
+            if !v.split(',').any(|t| t == "Agent") {
+                v.push_str(",Agent");
+            }
+        }
+    }
+}
+
 /// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
 /// tools that change nothing (or nothing outside EasyIsland), pre-allowed:
 /// the read-only flag of hook/src/tool_list.rs, the one list. `show_card`
@@ -86,6 +106,8 @@ pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
 const SYSTEM_PROMPT: &str = "You are the user's personal assistant in the chat of the EasyIsland desktop app. \
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
+Every step re-reads the whole conversation: call independent tools together in the same step, and use queries, titles and notes \
+of memory_search, memory_page and memory_note for several at once. \
 Respond in Italian unless the user writes in another language. Be thorough and complete: use as much detail as the task requires. \
 Markdown is rendered: use lists, tables and code blocks when they help.";
 
@@ -101,6 +123,10 @@ Sub-agents and commands may run in parallel and in the background: the chat list
 the user can keep writing to you meanwhile, and what you write when they end appears in the chat by itself with a notice. \
 So when background work ends, write the finished result the user asked for (not only how much is done), \
 and never promise to warn the user in some other way. \
+Every step (each round of tool calls) re-reads the whole conversation, so make few steps and do more in each: \
+call independent tools together in the same step; load all the deferred tools you will need with one ToolSearch \
+(select:name1,name2,...); use queries, titles and notes of memory_search, memory_page and memory_note for several at once; \
+save memory notes together at the end of the work, not one per step; read only the part of a long file you need. \
 When an EasyIsland tool does the job, use it instead of a command or of Read: document_read for Word and PDF files and whole folders of them, \
 list_status, memory_*, notion_*, todo_*, preview_* and the others: they give the result already clean, faster and with fewer tokens. \
 To look at files and folders use Read, Glob and Grep, not commands: they need no click, a command does. \
@@ -351,6 +377,10 @@ the user confirms or refuses it with a click, and a refusal is final for that re
 fn permission_hook(matcher: &str) -> String {
     let exe = crate::settings::hook_exe_path().to_string_lossy().replace('\\', "/");
     serde_json::json!({
+        // Claude Code's own skills for programmers (code-review, loop, dataviz, init…):
+        // their list was ~2k tokens re-read at every step. The user's skills and
+        // the claude.ai ones (docx, pdf, xlsx) stay. 12 Nov 2026.
+        "disableBundledSkills": true,
         "hooks": {
             "PermissionRequest": [{
                 "matcher": matcher,
@@ -466,7 +496,7 @@ fn args(
     a
 }
 
-/// A helper of «Multi agent» (team.rs): `dontAsk` refuses what is not listed,
+/// A helper of «Multi motore» (team.rs): `dontAsk` refuses what is not listed,
 /// with no card for the user; on the list only what reads.
 fn read_only(a: &mut Vec<String>) {
     const READS: &str = "Read,Grep,Glob,WebSearch,WebFetch,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*)";
@@ -508,6 +538,8 @@ fn terminal_args(
         dir.join("chat-prompt.txt").to_string_lossy().into_owned(),
         "--permission-mode".into(),
         if auto { "auto".into() } else { "default".into() },
+        "--tools".into(),
+        TERMINAL_TOOLS.into(),
     ];
     let mut allowed: Vec<String> = connectors.enabled.iter().filter(|c| !c.confirm).map(|c| tool_prefix(&c.name)).collect();
     if connectors.agent {
@@ -1726,6 +1758,10 @@ async fn send_mode(
         if chat.fast() {
             with_fast(&mut a);
         }
+        // «Sotto-agenti» turned on in the chat: the Agent tool too.
+        if terminal.is_some() && chat.agents() {
+            with_agents(&mut a);
+        }
         // Piano, Accetta modifiche (the chat's mode, as Claude Desktop offers them): Claude Code's own modes.
         if let (Some(_), false, Some(mode)) = (terminal, auto, chat.mode()) {
             if let Some(i) = a.iter().position(|x| x == "--permission-mode") {
@@ -2375,7 +2411,7 @@ mod tests {
         assert_eq!(super::source_of(Path::new("C:/Users/x/AppData/Roaming/Claude/claude-code/2.1.286/claude.exe")), "desktop");
     }
 
-    use super::{args, parse_output, step_line, terminal_args, tool_prefix, version_key, Connectors, Progress};
+    use super::{args, parse_output, step_line, terminal_args, tool_prefix, with_agents, version_key, Connectors, Progress};
     use crate::settings::McpChoice;
     use std::path::Path;
 
@@ -2384,7 +2420,17 @@ mod tests {
     }
 
     #[test]
-    fn terminal_mode_has_every_tool_and_the_users_servers() {
+    fn sub_agents_only_when_turned_on() {
+        let mut a = terminal_args(Path::new("C:/x"), "", None, None, &none(), false);
+        let tools = |a: &[String]| a[a.iter().position(|x| x == "--tools").unwrap() + 1].clone();
+        assert!(!tools(&a).split(',').any(|t| t == "Agent"));
+        with_agents(&mut a);
+        with_agents(&mut a);
+        assert_eq!(tools(&a).split(',').filter(|t| *t == "Agent").count(), 1);
+    }
+
+    #[test]
+    fn terminal_mode_has_the_chat_tools_and_the_users_servers() {
         let c = Connectors {
             enabled: vec![McpChoice { name: "docs".into(), confirm: false }],
             disabled: vec!["altro".into()],
@@ -2392,7 +2438,10 @@ mod tests {
         };
         let a = terminal_args(Path::new("C:/x"), "opus", Some("abc"), None, &c, false);
         let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
-        assert!(!a.contains(&"--tools".to_string()));
+        // The chat's built-in tools only: no sub-agents, workflows, schedules.
+        let tools = at("--tools");
+        assert!(tools.contains("PowerShell") && tools.contains("Edit") && tools.contains("Skill") && tools.contains("ToolSearch"));
+        assert!(!tools.split(',').any(|t| matches!(t, "Agent" | "Workflow" | "ScheduleWakeup")));
         assert!(!a.contains(&"--strict-mcp-config".to_string()));
         assert!(!a.contains(&"--disallowedTools".to_string()));
         assert_eq!(at("--permission-mode"), "default");

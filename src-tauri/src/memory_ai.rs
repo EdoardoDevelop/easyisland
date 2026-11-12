@@ -134,7 +134,7 @@ async fn pass(app: &AppHandle, engine: &str) -> Result<String, String> {
     if notes.is_empty() && pages.is_empty() {
         return Err(t("La memoria è ancora vuota: non c'è niente da collegare.").into());
     }
-    let chat = Chat::default();
+    let chat = Chat::plain();
     let reply = crate::chat_turn(app, &chat, prompt(&notes, &pages), None, Some(engine.to_string()), None, false, crate::Channel::Helper, &|_| {}).await;
     if engine == "opencode" {
         crate::opencode::forget(chat.cli_session());

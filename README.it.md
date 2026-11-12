@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.44** — **la chat consuma molto meno**: meno strumenti e passi, memoria cercata da EasyIsland, avviso sul contesto pesante; campi file che accettano solo certi tipi.
 - **1.0.43** — **importare abilità** da file e cartelle (The Agency, agenti e skill di Claude Code), con l'elenco da cui scegliere e un motore che le adatta.
 - **1.0.42** — **gruppi nel menu** come le cartelle del telefono, con colore; **campo collegato** che cerca e compila.
 - **1.0.41** — **animazioni** a ogni clic, cambio di schermata e apertura, con tre effetti a scelta: **Lancio**, **Sipario**, **Particelle**.
-- **1.0.40** — **Claude Code fuori da EasyIsland** senza le sessioni avviate da EasyIsland stesso.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

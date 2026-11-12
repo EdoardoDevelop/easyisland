@@ -19,8 +19,9 @@ When the chat **changes** an integration, the card says **what changes**: fields
 
 ## What it can have
 ### Fields
-Text, long text, number, **amount**, date, checkbox, choice and multiple choice, email, phone, link, **file** (from the Tray), **table of rows** (with computed columns too), **computed** (a formula), automatic **numbering** (e.g. `N-2026-0001`), **link** to another integration.
+Text, long text, number, **amount**, date, checkbox, choice and multiple choice, email, phone, link, **file** (from the Tray or the PC, and you see it in the record: pictures, PDF, text and Word, audio and video with the player; ask the chat for «audio files only» or «only mp3 and wav» and the Tray and the Windows dialog show only those), **table of rows** (with computed columns too), **computed** (a formula), automatic **numbering** (e.g. `N-2026-0001`), **link** to another integration.
 - **Link with search**: type part of any value (name, town, VAT number…) and the other integration's records that contain it appear over the form (the field takes the name of the record picked); pick one with the mouse or the arrows and <kbd>Enter</kbd>, and **the other fields fill themselves** (e.g. picking the client from "Clients" fills address and VAT number; picking a service from "Price list" gives the row its description and price). It works for any list: clients, suppliers, articles, services, vehicles. It works as a table column too. With **remember**, a new name typed by hand is added to the other integration when you save the record, together with the filled data. Just ask the chat: "when I pick the client fill address and VAT number, and remember new clients".
+- **Choices from a service**: a choice can fill itself with the data of a service linked to the integration, for example the models and voices of a text-to-speech service, always up to date. Type to search the choices; a second choice can depend on the first (the voices of the chosen model) and empties when you change the first. Picking one fills other fields (e.g. the price). If the service does not answer, the saved value stays and you can type it by hand.
 - **Shown only if**: a field visible only when a formula is true (e.g. "IBAN" only if payment = Bank transfer).
 - **Total in the list**: summed or counted in the records list.
 
@@ -54,10 +55,10 @@ The template can also be **real HTML** with your own design: it just has to star
 | **Fill with AI** | Paste a mail or a text and the AI fills the fields |
 | **Link** | Opens an address with the fields |
 | **Quick action** | Runs one of your actions; a script receives the record's data |
-| **Script** | Runs PowerShell or Command Prompt commands: it shows them and waits for your click every time. The record's data is in the JSON file named by the `EASYISLAND_SCHEDA` variable: in PowerShell read it with `Get-Content -Raw -Encoding UTF8`, or accented letters get garbled |
+| **Script** | Runs PowerShell or Command Prompt commands: it shows them and waits for your click every time. The record's data is in the JSON file named by the `EASYISLAND_SCHEDA` variable: in PowerShell read it with `Get-Content -Raw -Encoding UTF8`, or accented letters get garbled The integration's keys arrive as `EASYISLAND_SECRET_NAME` variables, without writing them in the commands |
 | **Notion** | Adds the record to a database |
 | **Export CSV** | All records, for Excel |
-| **Call a service** | GET/POST/PUT/PATCH/DELETE to one of your services' API, with the fields in the body; the response can fill fields and show in a message |
+| **Call a service** | GET/POST/PUT/PATCH/DELETE to one of your services' API, with the fields in the body; the response can fill fields and show in a message. If the service answers with a **file** (a voice in mp3, a picture, a PDF) you hear or see it in the record and save it; with a folder and a name chosen it saves by itself, never over another file |
 | **Task** | Starts a [task](14-tasks.md) with the fields in the goal |
 | **Notice** | A notice in the island |
 | **Sequence** | Several actions in a row (e.g. save, then call the service, then make the document) |

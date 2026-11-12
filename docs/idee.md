@@ -15,6 +15,13 @@ Fatto l'11/11 nella 1.0.43 (`docs/chat.md` → Abilità → Importa), partendo d
 ## Integrazioni personali, seguiti (11/11/2026, dal PC lavoro: DDT, «Clienti», «Registro lavori e vendite»)
 Fatte l'11/11 tutte e sei (`docs/integrazioni.md` → Integrazioni personali): tendina dei `link` sovrapposta, «Anteprima» e `custom_preview` senza salvare, `custom_update` a pezzi, `templateFrom` e `integrazioni\_comune`, `new_id`, descrizione di `custom_create`. Resta: un modo per mettere un'immagine in `_comune` senza Esplora file (oggi la copia l'utente o la chat in Modalità terminale).
 
+## Integrazioni personali, audio e script (11/11/2026, dal PC lavoro: «Messaggi vocali TTS» con OpenRouter)
+Fatti l'11/11 (`docs/integrazioni.md` → File in risposta, Lettore, Script): file ricevuti da `http` salvati senza script (`folder`, `filename`, `tray`), lettore nella scheda (immagini, audio, video, PDF, testo, Word) anche per il campo `file`, chiavi negli script come `EASYISLAND_SECRET_<NOME>`, esempio di `EASYISLAND_SCHEDA` nella descrizione di `custom_create`. La TTS si può rifare con un'azione `http`. Restano:
+- «Non chiedere più» per uno `script` approvato (legato all'hash): contro la regola del clic a ogni pressione, serve l'ok di Edoardo; con `http` che salva i file la TTS non ne ha più bisogno.
+- Ritorno dallo script: file `EASYISLAND_RISULTATO` (JSON `{ valori, messaggio }`) che compila campi e mostra un avviso nell'isola.
+- Fatto l'11/11: `select` con `optionsFrom` e tendine dipendenti (`docs/integrazioni.md` → Scelte da una fonte). Resta: lo stesso per le colonne delle tabelle.
+- Campo `file` in uscita: file del Vassoio in `multipart/form-data` o base64 (clonazione voce, trascrizione).
+
 ## Agente personale (dal 23/10/2026)
 Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
 - Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).

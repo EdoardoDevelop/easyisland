@@ -404,3 +404,47 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
+
+// ---------------------------------------------------------------- viewer
+
+/// What the viewer of a card shows inline: pictures, audio, video, PDF.
+const VIEW_BYTES: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "bmp", "mp3", "wav", "ogg", "opus", "oga", "aac", "flac", "m4a", "weba", "mp4", "webm", "mov", "m4v", "ogv",
+    "pdf",
+];
+/// …and as text.
+const VIEW_TEXT: &[&str] = &["txt", "md", "csv", "json", "log", "xml", "html", "htm", "ini", "yaml", "yml"];
+const VIEW_MAX: u64 = 200 * 1024 * 1024;
+const VIEW_TEXT_MAX: usize = 200 * 1024;
+
+fn ext_of(path: &Path) -> String {
+    path.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase()
+}
+
+/// The bytes of a file for the viewer: only the kinds it shows, at most 200 MB.
+pub fn viewer_bytes(path: &str) -> Result<Vec<u8>, String> {
+    let p = Path::new(path);
+    if !VIEW_BYTES.contains(&ext_of(p).as_str()) {
+        return Err(t("Questo tipo di file non si mostra qui.").into());
+    }
+    let meta = std::fs::metadata(p).map_err(|e| tf("File non leggibile: {e}", &[("e", &e)]))?;
+    if meta.len() > VIEW_MAX {
+        return Err(t("Il file supera i 200 MB: aprilo con il suo programma.").into());
+    }
+    std::fs::read(p).map_err(|e| tf("File non leggibile: {e}", &[("e", &e)]))
+}
+
+/// The text of a file for the viewer: text files as they are, Word as text.
+pub fn viewer_text(path: &str) -> Result<String, String> {
+    let p = Path::new(path);
+    let ext = ext_of(p);
+    let text = if matches!(ext.as_str(), "docx" | "dotx" | "docm" | "dotm") {
+        crate::docx::text_of_file(p).unwrap_or_else(|| Err(t("Questo tipo di file non si mostra qui.").into()))?
+    } else if VIEW_TEXT.contains(&ext.as_str()) {
+        let bytes = std::fs::read(p).map_err(|e| tf("File non leggibile: {e}", &[("e", &e)]))?;
+        String::from_utf8_lossy(bytes.get(..bytes.len().min(VIEW_TEXT_MAX)).unwrap_or_default()).into_owned()
+    } else {
+        return Err(t("Questo tipo di file non si mostra qui.").into());
+    };
+    Ok(text.chars().take(VIEW_TEXT_MAX).collect())
+}

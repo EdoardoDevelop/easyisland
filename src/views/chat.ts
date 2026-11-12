@@ -24,6 +24,9 @@ let externalSend: ((query: string) => void) | null = null;
 
 /** The browser preview has no backend: a scene fills the history list here (dev/scenes.ts). */
 let historyDemo: ChatSummary[] = [];
+
+/** Tokens of context past which the chat suggests compacting (12 Nov 2026: on the laptop 2/3 of a week's tokens were steps over this). */
+const HEAVY_CONTEXT = 100_000;
 export function setHistoryDemo(list: ChatSummary[]) {
   historyDemo = list;
 }
@@ -372,7 +375,7 @@ export function buildPrompt(
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
-  const teamBtn = h("button", { class: "auto-btn team-btn" }, svg(ICONS.team, 12), h("span", { text: t("Multi agent") })) as HTMLButtonElement;
+  const teamBtn = h("button", { class: "auto-btn team-btn" }, svg(ICONS.team, 12), h("span", { text: t("Multi motore") })) as HTMLButtonElement;
   // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
   tip(remoteBtn, t("Accesso remoto"));
@@ -467,6 +470,14 @@ export function buildPrompt(
   // Two rows: the text on the whole width, under it what goes with the message.
   const contextPct = h("span", { class: "ctx-pct" });
   const contextMeter = h("span", { class: "ctx-meter" }, h("span", { class: "ctx-ring" }), contextPct);
+  // A heavy conversation: a click compacts it (as «/compatta»).
+  contextMeter.addEventListener("click", () => {
+    const c = State.chat;
+    if ((c.context?.[0] ?? 0) < HEAVY_CONTEXT) return;
+    flash("");
+    if (c.sending) c.queue.push("/compatta");
+    else void submit("/compatta", c);
+  });
   const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, prBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
   const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
   // "/" in the field: the commands, over the field.
@@ -773,13 +784,18 @@ export function buildPrompt(
           return { text: r.text, log: null, context: null };
         })
         : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
-          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast);
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
       if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
       const note = (reply as { note?: string | null }).note;
       if (note && c === State.chat) flash(note);
       c.context = reply.context ?? null;
+      // Past HEAVY_CONTEXT every step re-reads it all: said once, the meter stays amber and compacts on a click.
+      if ((c.context?.[0] ?? 0) >= HEAVY_CONTEXT && !c.heavyWarned && c === State.chat) {
+        c.heavyWarned = true;
+        flash(t("La conversazione pesa {n} token e ogni passo li rilegge tutti: clic sull'indicatore del contesto (o /compatta) per riassumerla, o «Nuovo» se cambi argomento.", { n: Math.round((c.context?.[0] ?? 0) / 1000) + "k" }), true);
+      }
       c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
@@ -1330,6 +1346,8 @@ export function buildPrompt(
       c.mode = "";
       c.model = null;
       c.fast = false;
+      c.agents = false;
+      c.heavyWarned = false;
       c.team = false;
       c.desktop = false;
       c.assistant = null;
@@ -1703,6 +1721,14 @@ export function buildPrompt(
         text: `${State.chat.fast ? "✓ " : ""}${t("Fast mode")}`,
         onclick: () => { State.chat.fast = !State.chat.fast; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
       }));
+      // Sub-agents (Claude Code's Agent tool): off unless turned on here, they start each from zero tokens.
+      if (State.settings.chatTerminal === true) {
+        engineMenu.append(h("button", {
+          class: `engine-item${State.chat.agents ? " on" : ""}`, title: t("Claude può affidare pezzi del lavoro a sotto-agenti in parallelo; ognuno riparte da capo e consuma molti token in più"),
+          text: `${State.chat.agents ? "✓ " : ""}${t("Sotto-agenti")}`,
+          onclick: () => { State.chat.agents = !State.chat.agents; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+        }));
+      }
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
     engineMenu.style.display = "";
@@ -2186,6 +2212,8 @@ export function buildPrompt(
       c.mode = "";
       c.model = null;
       c.fast = false;
+      c.agents = false;
+      c.heavyWarned = false;
       c.team = false;
       c.desktop = false;
       c.at = Date.now();
@@ -2416,7 +2444,7 @@ export function buildPrompt(
   }
   const lineShows = () => State.mode === "expanded" || isPopped("chat");
   const typeLine = new TypeLine(lineShows, toBottom);
-  // «Multi agent»: a line per engine at work, under the reply.
+  // «Multi motore»: a line per engine at work, under the reply.
   const teamEl = h("div", { class: "team-rows" });
   const teamLines = new Map<number, { el: HTMLElement; line: TypeLine }>();
   function drawTeam(rows: TeamRow[]) {
@@ -2629,13 +2657,17 @@ export function buildPrompt(
       const [ctxUsed, ctxSize] = State.chat.context ?? [0, 0];
       const ctxShare = ctxSize ? Math.min(100, Math.round(ctxUsed / ctxSize * 100)) : 0;
       contextMeter.style.display = ctxUsed ? "" : "none";
-      contextMeter.classList.toggle("full", ctxShare >= 80);
+      const heavy = ctxUsed >= HEAVY_CONTEXT;
+      contextMeter.classList.toggle("full", ctxShare >= 80 || heavy);
+      contextMeter.classList.toggle("heavy", heavy);
       contextMeter.classList.toggle("sized", ctxSize > 0);
       contextMeter.style.setProperty("--p", `${ctxShare}%`);
       contextPct.textContent = ctxSize ? `${ctxShare}%` : `${Math.round(ctxUsed / 1000)}k`;
       contextMeter.title = ctxSize
         ? t("Contesto: {used} di {size} token", { used: ctxUsed.toLocaleString(locale()), size: ctxSize.toLocaleString(locale()) })
         : t("Contesto: {used} token", { used: ctxUsed.toLocaleString(locale()) });
+      if (heavy) contextMeter.title += `
+${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.")}`;
       const folderLabel = ownFolder ? folderName(ownFolder) : t("Progetto…");
       const folderKey = `${folderLabel}|${branch}`;
       if (folderBtn.dataset.label !== folderKey) {
@@ -2720,8 +2752,8 @@ export function buildPrompt(
       teamBtn.style.display = team ? "" : "none";
       teamBtn.classList.toggle("on", team && State.chat.team);
       tip(teamBtn, State.chat.team
-        ? t("Multi agent acceso: questo motore guida, gli altri scelti in Impostazioni aiutano e controllano. Clic per spegnerlo")
-        : t("Multi agent: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo"));
+        ? t("Multi motore acceso: questo motore guida, gli altri scelti in Impostazioni aiutano e controllano. Clic per spegnerlo")
+        : t("Multi motore: in questa conversazione il motore guida e affida pezzi agli altri motori scelti in Impostazioni; un altro motore controlla il lavoro. Costa di più e richiede più tempo"));
       previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
       const away = isPopped("chat");
       if (away !== popShown) {

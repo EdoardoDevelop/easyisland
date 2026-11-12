@@ -403,3 +403,125 @@ mod tests {
         assert_eq!(n.len(), 2);
     }
 }
+
+/// Words that say nothing about the subject of a question.
+const STOP: &[&str] = &[
+    "nell", "dell", "dall", "sull", "quell", "dovrebbe", "dovrei", "anche", "ancora", "allora", "adesso", "altro", "altra", "altri", "avere", "come", "cosa", "così", "credo", "della", "delle", "dello", "degli", "dalla",
+    "dalle", "dentro", "devi", "deve", "dimmi", "dove", "dopo", "essere", "fammi", "fare", "fatto", "funziona", "grazie", "invece", "lavoro", "mentre",
+    "nella", "nelle", "nello", "negli", "ogni", "oggi", "perché", "perche", "però", "poter", "posso", "possiamo", "potresti", "prima", "proprio", "puoi",
+    "quale", "quali", "quando", "quanto", "quella", "quelle", "quello", "questa", "queste", "questo", "quindi", "sarebbe", "sempre", "senza", "solo",
+    "sono", "stato", "sulla", "sulle", "tutte", "tutti", "tutto", "vedere", "voglio", "vorrei", "with", "what", "that", "this", "have", "from", "would",
+];
+
+/// The words of a question worth looking for: 4+ letters, not in `STOP`.
+fn subject_words(question: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for w in question.split(|c: char| !c.is_alphanumeric()).map(str::to_lowercase) {
+        if w.chars().count() >= 4 && !STOP.contains(&w.as_str()) && !out.contains(&w) {
+            out.push(w);
+        }
+    }
+    out.truncate(12);
+    out
+}
+
+/// What the memory knows about a question, looked up here before it goes to
+/// the engine, with no model and no tokens of a step (12 Nov 2026: in 10 days
+/// on the laptop 109 memory_search, most of them the first step of a turn).
+/// Pages named in the question (title or alias) with their gist, then notes,
+/// archived notes and page lines with two or more of its words. `fresh`: the
+/// newest notes are already in front of the conversation (`preface`).
+pub fn related(question: &str, fresh: bool) -> Option<String> {
+    const MAX_LINES: usize = 8;
+    const MAX_CHARS: usize = 1_500;
+    let low = question.to_lowercase();
+    let words = subject_words(question);
+    let mut found: Vec<(usize, String)> = Vec::new();
+    let pages = crate::brain::pages();
+    // The question as plain words, so a name is found as words, not inside one.
+    let plain = format!(" {} ", low.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "));
+    for p in &pages {
+        let named = std::iter::once(&p.title).chain(p.aliases.iter()).any(|n| {
+            let n = n.trim().to_lowercase().split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ");
+            n.chars().count() >= 3 && plain.contains(&format!(" {n} "))
+        });
+        if named {
+            found.push((100, format!("[[{}]] {}", p.title, p.gist())));
+        }
+    }
+    if !words.is_empty() {
+        let score = |line: &str| {
+            let l = line.to_lowercase();
+            words.iter().filter(|w| l.contains(w.as_str())).count()
+        };
+        let mut lines: Vec<String> = Vec::new();
+        if !fresh {
+            lines.extend(notes_of(&read_main()));
+        }
+        lines.extend(notes_of(&std::fs::read_to_string(dir().join("archivio.md")).unwrap_or_default()));
+        for p in &pages {
+            for l in p.body.lines().map(str::trim).filter(|l| l.len() > 3) {
+                lines.push(format!("[[{}]] {}", p.title, l.trim_start_matches("- ")));
+            }
+        }
+        // What a line says besides its links and marks: a line of names only says nothing.
+        let said = |l: &str| l.replace("[[", "").replace("]]", "").replace("**", "").trim_start_matches("- ").chars().filter(|c| c.is_alphanumeric()).count();
+        for l in lines {
+            let s = score(&l);
+            if s < 2 || said(&l) < 40 {
+                continue;
+            }
+            // The same note copied into a page ("[[X]] nota: - 2026-…"): once.
+            let core: String = l.rsplit("- ").next().unwrap_or(&l).chars().take(80).collect();
+            if !found.iter().any(|(_, f)| f.contains(&core)) {
+                found.push((s, l));
+            }
+        }
+    }
+    if found.is_empty() {
+        return None;
+    }
+    // Equal matches: the newest note first (12 Nov 2026, «i campi file non hanno
+    // un filtro» from the morning came before the note saying they now have one).
+    let day = |l: &str| l.trim_start_matches("- ").get(..10).filter(|d| d.as_bytes().get(4) == Some(&b'-')).unwrap_or("").to_string();
+    found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| day(&b.1).cmp(&day(&a.1))));
+    let mut body = String::new();
+    for (_, l) in found.into_iter().take(MAX_LINES) {
+        let l = short(&l, 260);
+        if body.len() + l.len() + 3 > MAX_CHARS {
+            break;
+        }
+        body.push_str("- ");
+        body.push_str(l.trim_start_matches("- "));
+        body.push('\n');
+    }
+    Some(tf(
+        "[Dalla memoria, trovato da EasyIsland per questa domanda (se serve altro, memory_search; se due note si contraddicono vale la più recente):\n{body}]\n\n",
+        &[("body", &body)],
+    ))
+}
+
+#[cfg(test)]
+mod related_tests {
+    use super::subject_words;
+
+    #[test]
+    fn the_subject_of_a_question() {
+        assert_eq!(
+            subject_words("nell'integrazioni ttspeak la selezione audio creato mi deve far vedere solo i file audio"),
+            ["integrazioni", "ttspeak", "selezione", "audio", "creato", "file"]
+        );
+        assert!(subject_words("come si fa?").is_empty());
+    }
+}
+
+#[cfg(test)]
+mod related_live {
+    /// `EI_Q="…" cargo test related_live -- --ignored --nocapture`: what this PC's memory adds to a question.
+    #[test]
+    #[ignore]
+    fn related_live() {
+        let q = std::env::var("EI_Q").unwrap_or_else(|_| "come configuro il backup del NAS di un cliente?".into());
+        println!("{}", super::related(&q, false).unwrap_or_else(|| "(niente)".into()));
+    }
+}

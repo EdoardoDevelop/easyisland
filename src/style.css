@@ -1422,7 +1422,7 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75);
 }
 
-/* «Multi agent» (team.rs): the button, and a line per engine at work under the reply. */
+/* «Multi motore» (team.rs): the button, and a line per engine at work under the reply. */
 .team-btn.on { color: #06202e; background: var(--win-accent, #4cc2ff); }
 .team-rows { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
 .team-rows:empty { display: none; }
@@ -2112,6 +2112,8 @@ input[type="range"]::-webkit-slider-thumb {
 .ctx-ring { display: none; width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(currentColor var(--p, 0%), rgba(255, 255, 255, 0.14) 0); -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 62%); mask: radial-gradient(closest-side, transparent 60%, #000 62%); }
 .ctx-meter.sized .ctx-ring { display: block; }
 .ctx-meter.full { color: #f5a524; }
+.ctx-meter.heavy { cursor: pointer; }
+.ctx-meter.heavy:hover { color: #ffc24d; }
 .chat-bar .engine-menu { top: auto; right: auto; bottom: 100%; left: 0; margin-bottom: 4px; }
 /* In the narrow island the row never wraps: the modes keep only their icon. */
 @container (max-width: 580px) {
@@ -6682,6 +6684,22 @@ html[data-scheme="light"] .custom-pick-list { border-color: rgba(0, 0, 0, 0.1); 
 .custom-item-sub { font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .custom-item.warn { box-shadow: inset 0 0 0 1px rgba(245, 165, 36, 0.45); background: rgba(245, 165, 36, 0.08); }
 .custom-raw { margin: 0; padding: 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.25); font: 400 11px var(--mono); color: var(--dim); white-space: pre-wrap; user-select: text; max-height: 220px; overflow: auto; }
+
+/* Lettore di file nella scheda (src/views/file-viewer.ts): campo file e file ricevuto da un'azione http */
+.custom-file { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.file-view { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; background: rgba(255, 255, 255, 0.03); }
+.file-view-title { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim); }
+.file-view-body { display: flex; justify-content: center; min-width: 0; border-radius: 6px; overflow: hidden; }
+.file-view-body.image, .file-view-body.video, .file-view-body.pdf { background: rgba(0, 0, 0, 0.25); }
+.file-view-body img { display: block; max-width: 100%; max-height: 260px; object-fit: contain; }
+.file-view-body video { display: block; width: 100%; max-height: 260px; }
+.file-view-body audio { width: 100%; height: 36px; color-scheme: dark; }
+.file-view-body iframe { width: 100%; height: 320px; border: 0; background: #fff; }
+.file-view-body.text { justify-content: stretch; }
+.file-view-text { flex: 1 1 auto; min-width: 0; margin: 0; padding: 8px; background: rgba(0, 0, 0, 0.25); font: 400 11px var(--mono); color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: 220px; overflow: auto; }
+.file-view-empty { padding: 10px; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); text-align: center; }
+.file-view-bar { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.file-view-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
 
 /* ── La Raccolta (src/views/collect.ts) ──────────────────────────────────── */
 .col-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }

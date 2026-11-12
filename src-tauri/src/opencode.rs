@@ -101,7 +101,7 @@ pub struct Options {
     /// Agent Chat with «Letture libere» (`reads_ok`): reading anywhere but the
     /// secret places, and read-only commands, answered "once" without the island.
     pub reads: bool,
-    /// A helper of «Multi agent» (team.rs): what is not a reading is refused, with no card.
+    /// A helper of «Multi motore» (team.rs): what is not a reading is refused, with no card.
     pub read_only: bool,
 }
 
@@ -1228,7 +1228,7 @@ mod tests {
         }
     }
 
-    /// A helper of «Multi agent» cannot write nor run, reads, and asks nobody:
+    /// A helper of «Multi motore» cannot write nor run, reads, and asks nobody:
     /// `cargo test --lib opencode::tests::live_read_only -- --ignored --nocapture`.
     #[test]
     #[ignore]

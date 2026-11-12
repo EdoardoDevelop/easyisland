@@ -427,7 +427,7 @@ export interface AskQuestion {
  * closes nothing. The State fields of the chat (chatHistory, chatAuto…) are
  * those of the one on screen.
  */
-/** An engine at work in a «Multi agent» turn (team.rs). */
+/** An engine at work in a «Multi motore» turn (team.rs). */
 export interface TeamRow {
   id: number;
   engine: string;
@@ -456,7 +456,11 @@ export interface ChatSessionState {
   model: string | null;
   /** Claude Code's fast mode for this conversation. */
   fast: boolean;
-  /** «Multi agent» on, for this conversation. */
+  /** Claude Code's sub-agents (Agent tool) in Modalità terminale: off unless turned on. */
+  agents: boolean;
+  /** The «context is heavy» line was shown in this conversation (chat.ts HEAVY_CONTEXT). */
+  heavyWarned?: boolean;
+  /** «Multi motore» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];
   /** Work left in the background: listed under the conversation, with «Ferma». */
@@ -498,7 +502,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: false, mode: "", model: null, fast: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, auto: false, mode: "", model: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
@@ -843,7 +847,7 @@ export interface Settings {
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
   chatFolder?: string;
-  /** «Multi agent» (team.rs): the engines that work with the conversation's. */
+  /** «Multi motore» (team.rs): the engines that work with the conversation's. */
   chatTeam?: string[];
   /** Another engine checks the work before the answer. */
   chatTeamCheck?: boolean;
@@ -2039,6 +2043,19 @@ export interface CustomField extends CustomLink {
   summary?: boolean;
   /** computed: money (default), number, percent, text, date, yesno. */
   format?: string;
+  /** select: the choices from a source of the same integration (custom-options.ts). */
+  optionsFrom?: CustomOptionsFrom;
+  /** file: what can be picked, "audio" or "mp3,wav" (custom.rs accept_extensions). */
+  accept?: string;
+}
+export interface CustomOptionsFrom {
+  source: string;
+  value?: string;
+  label?: string;
+  /** Only the item whose paths equal these, with {{campi}}: { id: "{{modello}}" }. */
+  match?: Record<string, string>;
+  /** A list inside that item whose elements are the choices. */
+  list?: string;
 }
 export interface CustomAction {
   label: string;
@@ -2059,8 +2076,10 @@ export interface CustomAction {
   shell?: string;
   /** document: a folder for a copy, besides the Vassoio. */
   folder?: string;
-  /** document: the file's name, with {{campi}}. */
+  /** document: the file's name, with {{campi}}. http: the same for a file answered by the service. */
   filename?: string;
+  /** http: a file kept in `folder` goes into the Vassoio too. */
+  tray?: boolean;
 }
 /** Data read from a service (custom.rs Source). */
 export interface CustomSource {
