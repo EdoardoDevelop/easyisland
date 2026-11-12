@@ -173,6 +173,10 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
         return None;
     }
     let session = payload.get("session_id").and_then(Value::as_str).filter(|s| !s.is_empty())?;
+    // Clicks and keys in the preview: the site, never the tool (Edoardo, 12 Nov 2026).
+    if tool_of(payload).is_some_and(|t| SITE_TOOLS.contains(&t)) {
+        return site_key(payload, crate::preview::site_of, crate::preview::as_url).map(|h| (session.to_string(), format!("site:{h}")));
+    }
     let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
     let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
     let what = match tool {
@@ -191,6 +195,47 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
         other => other.to_string(),
     };
     Some((session.to_string(), what))
+}
+
+/// The preview's tools that click, press or type: «Sempre» on them allows that
+/// site for the conversation (as Claude Desktop does), never the tool everywhere.
+/// Buying, ordering and paying are refused by the preview itself (preview.rs FIND).
+pub const SITE_TOOLS: &[&str] = &["preview_click", "preview_type", "preview_act", "preview_steps"];
+
+/// The one site a preview request acts on: its tab's; for preview_steps, None
+/// when a step opens another site or acts on another tab (no «Sempre» then).
+fn site_key(payload: &Value, site_of: impl Fn(&str) -> Option<String>, as_url: impl Fn(&str) -> Option<String>) -> Option<String> {
+    let input = payload.get("tool_input")?;
+    let tab = input.get("tab").and_then(Value::as_str).unwrap_or_default();
+    let host = site_of(tab)?;
+    if tool_of(payload) == Some("preview_steps") {
+        for step in input.get("steps").and_then(Value::as_array)? {
+            if step.get("tab").and_then(Value::as_str).is_some_and(|t| t != tab) {
+                return None;
+            }
+            if step.get("tool").and_then(Value::as_str) == Some("preview_open") {
+                let target = step.get("target").and_then(Value::as_str).unwrap_or_default().trim();
+                let same = match target {
+                    "" | "reload" => true,
+                    "back" | "forward" | "show" | "close" => false,
+                    t => as_url(t).and_then(|u| crate::preview::host_of(&u)).is_some_and(|h| h == host),
+                };
+                if !same {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(host)
+}
+
+/// The site «Sempre» would allow, on the card's request (easyisland_site, hooks.ts).
+pub fn annotate_site(payload: &mut Value) {
+    if let Some((_, key)) = session_key(payload).filter(|(_, k)| k.starts_with("site:")) {
+        if let Some(o) = payload.as_object_mut() {
+            o.insert("easyisland_site".into(), Value::String(key.trim_start_matches("site:").to_string()));
+        }
+    }
 }
 
 /// Sessions whose plan (ExitPlanMode) was approved on its card, for the chat to leave «Piano».
@@ -372,6 +417,22 @@ pub async fn undo(app: &AppHandle, id: &str) -> Result<(), String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn sempre_on_a_click_is_for_the_site() {
+        let site = |_: &str| Some("shop.esempio.it".to_string());
+        let url = |t: &str| crate::preview::as_url(t);
+        let p = |tool: &str, input: Value| json!({ "tool_name": format!("mcp__easyisland__{tool}"), "tool_input": input, "session_id": "s1", "easyisland_chat": true });
+        assert_eq!(site_key(&p("preview_act", json!({ "action": "click" })), site, url).as_deref(), Some("shop.esempio.it"));
+        let same = p("preview_steps", json!({ "steps": [{ "tool": "preview_open", "target": "https://shop.esempio.it/cerca?q=a" }, { "tool": "preview_act", "action": "key", "keys": "Enter" }] }));
+        assert!(site_key(&same, site, url).is_some());
+        let other = p("preview_steps", json!({ "steps": [{ "tool": "preview_open", "target": "https://altro.it/" }, { "tool": "preview_click", "ref": "e1" }] }));
+        assert!(site_key(&other, site, url).is_none());
+        let back = p("preview_steps", json!({ "steps": [{ "tool": "preview_open", "target": "back" }] }));
+        assert!(site_key(&back, site, url).is_none());
+        assert!(site_key(&p("preview_click", json!({})), |_: &str| None, url).is_none());
+        assert!(SITE_TOOLS.iter().all(|t| !reversible(t)));
+    }
 
     #[test]
     fn steps_that_only_read_need_no_card() {

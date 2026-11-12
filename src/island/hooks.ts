@@ -39,6 +39,8 @@ interface HookPayload {
   easyisland_chat?: boolean;
   /** The chat engine asking (opencode.rs sends "opencode"); absent = Claude Code. */
   easyisland_engine?: string;
+  /** A click in EasyIsland's preview: the site «Sempre» would allow for the conversation (permits.rs). */
+  easyisland_site?: string;
   /** PermissionRequest: the rules Claude Code offers to remember ("Sempre"). */
   permission_suggestions?: unknown;
   /** Added by the relay (hook/src/diff.rs) to Edit / MultiEdit / Write. */
@@ -459,6 +461,8 @@ function showChatPermission(island: Island, payload: HookPayload, at: number) {
     source: "chat",
     always: permit
       ? t("«{what}» senza chiedere più (si toglie in Impostazioni → Chat)", { what: toolWords(permit) })
+      : payload.easyisland_site
+        ? t("clic, tasti e scrittura su {site} in questa conversazione (mai acquisti e ordini)", { site: payload.easyisland_site })
       : opencode
         ? alwaysLabel(payload.permission_suggestions) ?? undefined
         : terminal ? alwaysLabel(payload.permission_suggestions) ?? sessionAlways(raw, input) ?? undefined : undefined,

@@ -245,6 +245,8 @@ pub async fn request_decision_id(app: &AppHandle, id: &str, mut payload: Value) 
     }
     // A change to a personal integration: the card says what it changes (custom.rs).
     crate::custom::annotate(&mut payload);
+    // A click in the preview: «Sempre» is for its site (permits.rs).
+    crate::permits::annotate_site(&mut payload);
     // A permission asked during a task's turn: the island and Telegram, first answer wins (tasks.rs).
     let asked = payload.clone();
     let decision = if crate::tasks::in_turn() && payload.get("easyisland_chat").and_then(Value::as_bool) == Some(true) {

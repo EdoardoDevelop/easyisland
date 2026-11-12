@@ -240,7 +240,7 @@ pub fn close_window(app: &AppHandle) {
 // ── What a target is ─────────────────────────────────────────────────────────
 
 /// An address the browser can open: http(s), or "localhost:3000" and the like.
-fn as_url(target: &str) -> Option<String> {
+pub(crate) fn as_url(target: &str) -> Option<String> {
     let t = target.trim();
     let low = t.to_lowercase();
     if low.starts_with("http://") || low.starts_with("https://") {
@@ -1453,6 +1453,21 @@ fn tab_for(arg: &str) -> Result<Tab, String> {
     let s = state();
     let id: u32 = arg.trim().parse().unwrap_or(s.active);
     s.tabs.iter().find(|tb| tb.id == id).cloned().ok_or_else(|| t("Nessuna scheda aperta nell'anteprima: aprine una con preview_open.").to_string())
+}
+
+/// The host of the web page in a tab ("" or a number; empty = the active one),
+/// lower case: what «Sempre» on a click allows (permits.rs).
+pub(crate) fn site_of(tab_arg: &str) -> Option<String> {
+    let tb = tab_for(tab_arg).ok()?;
+    host_of(&tb.target)
+}
+
+pub(crate) fn host_of(url: &str) -> Option<String> {
+    let u = tauri::Url::parse(url).ok()?;
+    if !matches!(u.scheme(), "http" | "https") {
+        return None;
+    }
+    u.host_str().map(|h| h.to_ascii_lowercase())
 }
 
 fn tab_line(tb: &Tab, active: u32) -> String {
