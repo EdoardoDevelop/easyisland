@@ -9,7 +9,7 @@
 // the native drop-down list does not work reliably in the island's window.
 
 import { h, clear } from "./dom";
-import { Bridge, type NetAdapter } from "../core/bridge";
+import { Bridge, type NetAdapter, type NetVlan } from "../core/bridge";
 import { t } from "../core/i18n";
 
 const GREEN = "#22C55E";
@@ -79,6 +79,8 @@ interface Form {
   dnsAuto: boolean;
   dns1: string;
   dns2: string;
+  /** The VLAN ID field as typed. */
+  vlan: string;
 }
 
 let panel: HTMLElement | null = null;
@@ -94,13 +96,15 @@ export function netConfigCard(close: () => void): HTMLElement {
   }
   closeFn = close;
   let adapters: NetAdapter[] = [];
-  const form: Form = { index: 0, dhcp: true, ip: "", mask: "", gateway: "", dnsAuto: true, dns1: "", dns2: "" };
+  const form: Form = { index: 0, dhcp: true, ip: "", mask: "", gateway: "", dnsAuto: true, dns1: "", dns2: "", vlan: "" };
+  /** The chosen adapter's VLAN ID (null: its driver has none, or not read yet). */
+  let vlanNow: NetVlan | null = null;
 
   const choices = h("div", { class: "nc-adapters" });
   const now = h("div", { class: "nc-now" });
-  const field = (key: "ip" | "mask" | "gateway" | "dns1" | "dns2", placeholder: string) => {
+  const field = (key: "ip" | "mask" | "gateway" | "dns1" | "dns2" | "vlan", placeholder: string) => {
     const el = h("input", { class: "nc-input", placeholder, spellcheck: "false",
-      oninput: () => { form[key] = el.value; } }) as HTMLInputElement;
+      oninput: () => { form[key] = el.value; if (key === "vlan") drawVlanNote(); } }) as HTMLInputElement;
     return el;
   };
   const ip = field("ip", "192.168.1.50");
@@ -108,6 +112,26 @@ export function netConfigCard(close: () => void): HTMLElement {
   const gateway = field("gateway", "192.168.1.1");
   const dns1 = field("dns1", "8.8.8.8");
   const dns2 = field("dns2", "1.1.1.1");
+  // VLAN ID: only for an adapter whose driver has it.
+  const vlan = field("vlan", "0");
+  vlan.classList.add("nc-vlan");
+  const vlanNote = h("span", { class: "nc-note nc-vlan-note" });
+  const vlanRow = h("div", { class: "nc-row" }, h("span", { class: "nc-label", text: t("VLAN ID") }), vlan, vlanNote);
+  vlanRow.style.display = "none";
+  /** The VLAN typed, if it changes anything: a number, or NaN when it is not one. */
+  const vlanWanted = (): number | null => {
+    if (!vlanNow) return null;
+    const s = form.vlan.trim();
+    const n = s === "" ? 0 : /^\d{1,4}$/.test(s) ? Number(s) : NaN;
+    return n === vlanNow.value ? null : n;
+  };
+  function drawVlanNote() {
+    const want = vlanWanted();
+    vlanNote.style.color = want != null ? "#F5A524" : "";
+    vlanNote.textContent = !vlanNow ? ""
+      : want == null ? (vlanNow.value ? t("ora {n}", { n: vlanNow.value }) : t("0 = nessuna VLAN"))
+      : t("La scheda si riavvia: la rete cade per qualche secondo. Se lo switch non prevede questa VLAN il PC resta senza rete: rimetti {n}.", { n: vlanNow.value });
+  }
 
   const seg = (labels: [string, string], on: () => boolean, set: (first: boolean) => void) => {
     const a = h("button", { text: labels[0], onclick: () => { set(true); draw(); } });
@@ -136,6 +160,21 @@ export function netConfigCard(close: () => void): HTMLElement {
     dnsSeg.el.firstElementChild?.toggleAttribute("disabled", !form.dhcp);
     ip.value = form.ip; mask.value = form.mask; gateway.value = form.gateway;
     dns1.value = form.dns1; dns2.value = form.dns2;
+    vlan.value = form.vlan;
+    vlanRow.style.display = vlanNow ? "" : "none";
+    drawVlanNote();
+  }
+
+  /** The chosen adapter's VLAN ID, read apart (PowerShell, about a second). */
+  async function loadVlan(index: number) {
+    vlanNow = null;
+    form.vlan = "";
+    draw();
+    const v = await Bridge.networkVlan(index).catch(() => null);
+    if (form.index !== index) return;
+    vlanNow = v ?? null;
+    form.vlan = vlanNow ? String(vlanNow.value) : "";
+    draw();
   }
 
   function pick(index: number) {
@@ -158,6 +197,7 @@ export function netConfigCard(close: () => void): HTMLElement {
     status.textContent = "";
     drawChoices();
     draw();
+    void loadVlan(a.index);
   }
 
   /** One button per adapter; the chosen one lit. */
@@ -186,6 +226,12 @@ export function netConfigCard(close: () => void): HTMLElement {
   }
 
   async function submit() {
+    const want = vlanWanted();
+    if (want != null && (Number.isNaN(want) || want < (vlanNow?.min ?? 0) || want > (vlanNow?.max ?? 4094))) {
+      status.style.color = RED;
+      status.textContent = t("VLAN ID non valida: da {a} a {b}", { a: vlanNow?.min ?? 0, b: vlanNow?.max ?? 4094 });
+      return;
+    }
     apply.disabled = true;
     status.style.color = "";
     status.textContent = t("Windows chiede la conferma da amministratore…");
@@ -193,6 +239,7 @@ export function netConfigCard(close: () => void): HTMLElement {
       await Bridge.networkApply({
         index: form.index, dhcp: form.dhcp, ip: form.ip, mask: form.mask, gateway: form.gateway,
         dnsAuto: form.dnsAuto, dns: [form.dns1, form.dns2],
+        ...(want != null && vlanNow ? { vlan: want, vlanKeyword: vlanNow.keyword } : {}),
       });
       status.style.color = GREEN;
       status.textContent = t("Impostazioni applicate ✓");
@@ -216,6 +263,7 @@ export function netConfigCard(close: () => void): HTMLElement {
     addrGrid,
     h("div", { class: "nc-row" }, label("DNS"), dnsSeg.el),
     dnsGrid,
+    vlanRow,
     h("div", { class: "nc-row nc-foot" }, apply, status),
     h("div", { class: "nc-hint", text: t("Serve il permesso di amministratore: Windows lo chiede a ogni modifica.") }));
   panel.addEventListener("focusin", (e) => { lastFocus = e.target instanceof HTMLInputElement ? e.target : null; });

@@ -9,6 +9,14 @@
 // program could swap before the elevated run) and their output is read back
 // from a log in the app's folder, for the error shown in the card.
 //
+// The VLAN ID (13 Nov 2026) is not a network setting in Windows but an
+// option of the adapter's driver, named differently by each maker (`VlanID`,
+// `RegVlanid`…) and missing on many USB and Wi-Fi adapters: it is read per
+// adapter (`network_vlan`, the advanced property whose keyword ends in
+// "vlan id") and the form shows it only where it exists. Changing it resets
+// the adapter (a few seconds without network); it goes last, after netsh,
+// with `Set-NetAdapterAdvancedProperty` in the same elevated run.
+//
 // The ping opens a new console (the user's default terminal) with
 // `ping -t`: the target is the main adapter's gateway, 8.8.8.8 or what the
 // user typed, checked to be an address or a host name.
@@ -94,6 +102,71 @@ pub struct NetConfig {
     pub gateway: String,
     pub dns_auto: bool,
     pub dns: Vec<String>,
+    /// A new VLAN ID (0 = none), with the driver's keyword from `network_vlan`; None = unchanged.
+    pub vlan: Option<u32>,
+    pub vlan_keyword: String,
+}
+
+/// An adapter's VLAN ID as its driver exposes it.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NetVlan {
+    /// The driver's advanced property (`VlanID`, `RegVlanid`…).
+    pub keyword: String,
+    pub value: u32,
+    pub min: u32,
+    pub max: u32,
+}
+
+/// A keyword of the VLAN ID property: a plain word ending in "vlan id"
+/// (never `*PriorityVlanTag`, the 802.1Q switch). Also what keeps the elevated command safe.
+fn vlan_keyword(k: &str) -> bool {
+    let low = k.to_ascii_lowercase();
+    !k.is_empty()
+        && k.len() <= 40
+        && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '*' || c == '_')
+        && (low.ends_with("vlanid") || low.ends_with("vlan_id"))
+}
+
+/// What `Get-NetAdapterAdvancedProperty | ConvertTo-Json` says about the VLAN ID; None without one.
+fn parse_vlan(json: &str) -> Option<NetVlan> {
+    let v: serde_json::Value = serde_json::from_str(json.trim()).ok()?;
+    let v = if let Some(a) = v.as_array() { a.first()?.clone() } else { v };
+    let keyword = v.get("RegistryKeyword")?.as_str()?.to_string();
+    if !vlan_keyword(&keyword) {
+        return None;
+    }
+    let num = |x: Option<&serde_json::Value>| -> Option<u32> {
+        match x? {
+            serde_json::Value::Array(a) => a.first().and_then(|y| y.as_str().map(str::to_string).or_else(|| y.as_u64().map(|n| n.to_string()))),
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
+            _ => None,
+        }?
+        .trim()
+        .parse()
+        .ok()
+    };
+    Some(NetVlan {
+        keyword,
+        value: num(v.get("RegistryValue")).unwrap_or(0),
+        min: num(v.get("NumericParameterMinValue")).unwrap_or(0),
+        max: num(v.get("NumericParameterMaxValue")).filter(|m| *m > 0).unwrap_or(4094).min(4094),
+    })
+}
+
+/// Island → the adapter's VLAN ID, when its driver has one (~1 s: PowerShell).
+#[tauri::command]
+pub async fn network_vlan(index: u32) -> Option<NetVlan> {
+    if index == 0 {
+        return None;
+    }
+    let script = format!(
+        "Get-NetAdapter -InterfaceIndex {index} -ErrorAction Stop | Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | \
+         Where-Object {{ $_.RegistryKeyword -match '(?i)vlan_?id$' }} | Select-Object -First 1 RegistryKeyword, RegistryValue, NumericParameterMinValue, NumericParameterMaxValue | ConvertTo-Json -Compress"
+    );
+    let out = crate::zip::powershell(&script, &[], std::time::Duration::from_secs(20)).await.ok()?;
+    parse_vlan(&out)
 }
 
 fn ipv4(s: &str, what: &str) -> Result<Ipv4Addr, String> {
@@ -170,6 +243,19 @@ pub fn commands(cfg: &NetConfig) -> Result<Vec<String>, String> {
             out.push(format!("netsh interface ipv4 add dnsservers {name} address={d} index={} validate=no", i + 1));
         }
     }
+    // Last: the adapter restarts with it.
+    if let Some(id) = cfg.vlan {
+        if !vlan_keyword(&cfg.vlan_keyword) {
+            return Err(t("Questa scheda non ha la VLAN ID").into());
+        }
+        if id > 4094 {
+            return Err(tf("VLAN ID non valida: «{v}» (da 0 a 4094)", &[("v", &id)]));
+        }
+        out.push(format!(
+            "powershell -NoProfile -NonInteractive -Command \"Get-NetAdapter -InterfaceIndex {} -ErrorAction Stop | Set-NetAdapterAdvancedProperty -RegistryKeyword '{}' -RegistryValue '{id}' -ErrorAction Stop\"",
+            cfg.index, cfg.vlan_keyword
+        ));
+    }
     Ok(out)
 }
 
@@ -238,8 +324,19 @@ pub(crate) fn run_elevated(lines: &[String], log: &std::path::Path, what: &str) 
     }
     // netsh writes in the console's code page: accents may come out wrong.
     let out = std::fs::read(log).map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
-    let reason = out.lines().map(str::trim).filter(|l| !l.is_empty()).last().unwrap_or("").to_string();
+    let reason = failure_reason(&out);
     Err(if reason.is_empty() { tf("{w} è uscito con il codice {c}", &[("w", &what), ("c", &code)]) } else { reason })
+}
+
+/// The line that says why: PowerShell's "Cmdlet : message" (its last lines are
+/// only where it happened), else the last line, as netsh ends with its error.
+fn failure_reason(out: &str) -> String {
+    let lines: Vec<&str> = out.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    let ps = lines.iter().find_map(|l| {
+        let (head, msg) = l.split_once(" : ")?;
+        (head.contains('-') && !head.contains(' ') && !l.starts_with('+')).then(|| msg.trim().to_string())
+    });
+    ps.unwrap_or_else(|| lines.last().map(|l| l.to_string()).unwrap_or_default())
 }
 
 #[cfg(not(windows))]
@@ -320,6 +417,7 @@ mod tests {
             gateway: gw.into(),
             dns_auto,
             dns: dns.iter().map(|s| s.to_string()).collect(),
+            ..Default::default()
         }
     }
 
@@ -368,6 +466,59 @@ mod tests {
         assert!(commands(&cfg(true, "", "", "", false, &[])).is_err());
         assert!(commands(&cfg(true, "", "", "", false, &["8.8.8.8;x"])).is_err());
         assert!(commands(&NetConfig { index: 0, dhcp: true, dns_auto: true, ..Default::default() }).is_err());
+    }
+
+    #[test]
+    fn says_why_it_failed() {
+        let ps = "uno
+Set-NetAdapterAdvancedProperty : Accesso negato. 
+In riga:1 car:54
++ ... | Set-NetAdapterAdvancedProperty
+    + FullyQualifiedErrorId : Windows System Error 5,Set-NetAdapterAdvancedProperty
+";
+        assert_eq!(failure_reason(ps), "Accesso negato.");
+        assert_eq!(failure_reason("Ok.
+
+Il parametro non è corretto.
+"), "Il parametro non è corretto.");
+        assert_eq!(failure_reason(""), "");
+    }
+
+    #[test]
+    fn vlan_as_the_driver_says_it() {
+        let one = r#"{"RegistryKeyword":"RegVlanid","RegistryValue":["0"],"NumericParameterMinValue":"0","NumericParameterMaxValue":"4094"}"#;
+        assert_eq!(parse_vlan(one), Some(NetVlan { keyword: "RegVlanid".into(), value: 0, min: 0, max: 4094 }));
+        let intel = r#"[{"RegistryKeyword":"VlanID","RegistryValue":["12"],"NumericParameterMinValue":0,"NumericParameterMaxValue":4095}]"#;
+        assert_eq!(parse_vlan(intel), Some(NetVlan { keyword: "VlanID".into(), value: 12, min: 0, max: 4094 }));
+        assert_eq!(parse_vlan(r#"{"RegistryKeyword":"*PriorityVlanTag","RegistryValue":["3"]}"#), None);
+        assert_eq!(parse_vlan(""), None);
+    }
+
+    #[test]
+    fn vlan_goes_last_and_only_with_its_keyword() {
+        let mut c = cfg(true, "", "", "", true, &[]);
+        c.vlan = Some(20);
+        c.vlan_keyword = "RegVlanid".into();
+        let out = commands(&c).unwrap();
+        assert_eq!(out.len(), 3);
+        assert!(out[2].contains("-InterfaceIndex 12 ") && out[2].contains("-RegistryKeyword 'RegVlanid' -RegistryValue '20'"));
+        c.vlan_keyword = "x' ; Remove-Item".into();
+        assert!(commands(&c).is_err());
+        c.vlan_keyword = "*PriorityVlanTag".into();
+        assert!(commands(&c).is_err());
+        c.vlan_keyword = "VlanID".into();
+        c.vlan = Some(4095);
+        assert!(commands(&c).is_err());
+    }
+
+    /// This PC's adapters and their VLAN ID, read for real: `cargo test vlan_live -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn vlan_live() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        for a in probes::adapters().iter().filter(|a| a.configurable) {
+            println!("{} ({}): {:?}", a.name, a.index, rt.block_on(network_vlan(a.index)));
+        }
     }
 
     #[test]

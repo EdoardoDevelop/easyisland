@@ -45,7 +45,7 @@
 |---|---|
 | **PC status** | System disk space (orange under 10 %, red under 5 %), memory, battery, uptime, restart required. **Copy PC info**: name, user, Windows, model, serial number, IP and MAC ready for a ticket |
 | **Security** | Antivirus, signature age, last scan, firewall, threats found |
-| **Network** | Wi-Fi or cable, local and public IP, gateway, DNS, every adapter, VPNs, latency; alert if the internet doesn't answer. **Continuous ping** to the gateway or an address. **Change network…**: DHCP or manual IP and DNS per adapter (with Windows' administrator confirmation) |
+| **Network** | Wi-Fi or cable, local and public IP, gateway, DNS, every adapter, VPNs, latency; alert if the internet doesn't answer. **Continuous ping** to the gateway or an address. **Change network…**: DHCP or manual IP and DNS per adapter, and the **VLAN ID** on the adapters that have it (0 = none; the adapter restarts and the network drops for a few seconds), with Windows' administrator confirmation |
 | **Weather** | The current sky animated, humidity, wind, sunrise and sunset, 12 hours and 7 days, rain alert. Open-Meteo, free and keyless |
 | **Clipboard** | History of texts and images, in memory only (see [Files and screen](17-files-and-screen.md#clipboard)) |
 | **Media** | What's playing in any app (Spotify, browser…), with cover and controls |

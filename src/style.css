@@ -2899,6 +2899,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .nc-input:focus { border-color: rgba(255, 255, 255, 0.28); }
 .nc-ping-input { width: 120px; }
+.nc-vlan { width: 64px; flex: 0 0 auto; }
+.nc-vlan-note { flex: 1 1 auto; }
 .nc-note { font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); flex: 1 1 100%; }
 .nc-card { gap: 6px; padding-bottom: 8px; }
 .nc-back { margin-left: auto; }

@@ -45,7 +45,7 @@
 |---|---|
 | **Stato del PC** | Spazio sul disco di sistema (arancione sotto il 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto. **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC pronti per un ticket |
 | **Sicurezza** | Antivirus, età delle firme, ultima scansione, firewall, minacce rilevate |
-| **Rete** | Wi-Fi o cavo, IP locale e pubblico, gateway, DNS, tutte le schede, VPN, latenza; avviso se internet non risponde. **Ping continuo** verso gateway o un indirizzo. **Modifica rete…**: DHCP o IP manuale e DNS per scheda (con la conferma di amministratore di Windows) |
+| **Rete** | Wi-Fi o cavo, IP locale e pubblico, gateway, DNS, tutte le schede, VPN, latenza; avviso se internet non risponde. **Ping continuo** verso gateway o un indirizzo. **Modifica rete…**: DHCP o IP manuale e DNS per scheda, e la **VLAN ID** sulle schede che la prevedono (0 = nessuna; la scheda si riavvia e la rete cade per qualche secondo), con la conferma di amministratore di Windows |
 | **Meteo** | Il cielo di adesso animato, umidità, vento, alba e tramonto, 12 ore e 7 giorni, avviso pioggia. Open-Meteo, gratis e senza chiave |
 | **Appunti** | Cronologia di testi e immagini, solo in memoria (vedi [File e schermo](17-file-e-schermo.md#appunti)) |
 | **Media** | Cosa è in riproduzione in qualsiasi app (Spotify, browser…), con copertina e comandi |

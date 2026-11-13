@@ -630,7 +630,9 @@ export async function runScene(island: Island, scene: string) {
           { index: 27, name: "Wi-Fi", up: false, wireless: true, virtualHost: false, dhcp: true, dnsAuto: true, main: false,
             addresses: [], gateway: "", dns: [] },
         ],
-        networkApply: async () => { await wait(600); },
+        networkApply: async (c: unknown) => { (window as unknown as { applied: unknown }).applied = c; await wait(600); },
+        // Ethernet has the driver's VLAN ID (as a Realtek names it), the others none.
+        networkVlan: async (index: number) => (index === 4 ? { keyword: "RegVlanid", value: 0, min: 0, max: 4094 } : null),
         networkPing: async (target: string) => (target === "gateway" ? "192.168.1.1" : target),
       });
       await wait(300);

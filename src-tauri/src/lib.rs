@@ -4743,6 +4743,7 @@ pub fn run() {
             copy_pc_info,
             netconfig::network_adapters,
             netconfig::network_apply,
+            netconfig::network_vlan,
             netconfig::network_ping,
             presence_state,
             notify_test,

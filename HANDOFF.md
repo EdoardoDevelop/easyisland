@@ -5,6 +5,7 @@ _11 novembre 2026. **1.0.43** in `main` (tag `v1.0.43`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **VLAN ID in Modifica rete…** (13/11, ramo `claude/domande`): `docs/integrazioni.md` → Rete. Da provare l'applicazione vera da amministratore su una scheda con VLAN (e il ritorno a 0).
 - [ ] **Domande con le scelte nella chat** (13/11, ramo `claude/domande`): `docs/chat.md` → Domande e piano. Provate con un processo vero di Claude Code (driver) e nell'anteprima; da provare nell'app: domanda dall'isola, «Altro…», «Non ora», Ferma con la card aperta, Piano con «Procedi», un permesso normale non risposto (deve restare negato).
 - [ ] **Browser e portali dei fornitori** (12/11, in `main` dalla 1.0.45): `docs/chat.md` → Anteprima e Portali dei fornitori. Provati solo con test e con gli script sulle pagine vere (estrazione, blocco del carrello, modulo di accesso); da provare nell'app (`docs/prove-dal-vivo.md`). Seguiti in `docs/idee.md`.
 - [ ] **Importa abilità** (1.0.43, `docs/chat.md` → Abilità → Importa): provato su The Agency vera con `live_scan` e nell'anteprima; da provare nell'app con «Da Claude Code», una cartella vera e «Adatta con un motore» con i vari motori (risposta nel formato giusto, durata). Seguiti in `docs/idee.md`.
@@ -54,6 +55,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 13/11 — VLAN ID in «Modifica rete…» (ramo `claude/domande`)
+Edoardo: poter cambiare anche la VLAN. Campo VLAN ID per le schede il cui driver la prevede (`netconfig.rs` `network_vlan`), applicata per ultima con la stessa conferma di Windows; avviso della breve disconnessione. Lettura provata qui (Ethernet `RegVlanid`), comando provato con `-WhatIf`; da provare l'applicazione vera. `docs/integrazioni.md` → Rete.
+
 ### 13/11 — Domande con le scelte nella chat (ramo `claude/domande`)
 Edoardo: la card delle domande come Claude Desktop. Claude Code in `-p` offre `AskUserQuestion`/`ExitPlanMode` solo con `--permission-prompt-tool stdio`: ora i processi tenuti lo usano e EasyIsland risponde sul canale di controllo con la card nella conversazione (domande e piano). Provato con un processo vero via driver e nell'anteprima (`?scene=domanda`); da provare nell'app, anche Piano e Telegram. `docs/chat.md` → Domande e piano.
 
@@ -65,7 +69,3 @@ Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata de
 
 ### 12/11 — Browser dell'Anteprima e portali dei fornitori (ramo `claude/browser`)
 Edoardo: cercare prodotti nei portali dei fornitori e farne preventivi, «i siti non devono finire nel codice». Mouse e tastiera veri, `preview_steps`, «Sempre» per sito, mai carrello e ordini, `preview_find`/`preview_extract` (prodotti senza conoscere il sito), ricette in `portals.rs` (dati dell'utente), `preview_login` con Devolutions, foto nel Vassoio, costo + ricarico nei preventivi. Poi suggerimenti sopra il campo per ciò che è nell'Anteprima (regole, senza IA), «?»/`/aiuto` «Cosa so fare», `/portali`, `/impara-portale`. «Automatica» della chat accesa di serie, spenta si chiama «Manuale». `docs/chat.md` → Anteprima, Portali dei fornitori, Suggerimenti.
-
-### 12/11 — Chat semplice: strumenti caricati a richiesta
-Edoardo: «il problema è anche con una richiesta sola». Misurato su fisso e portatile con «ok»: la chat fuori dalla Modalità terminale partiva da 34,8k token a passo (le definizioni dei ~100 strumenti di EasyIsland), la terminale da 21,7k. `ToolSearch` aggiunto a `TOOLS` (`claude_cli.rs`): 9,9k a passo, `list_status` provato. Da misurare dal vivo sul portatile. `docs/chat.md` → Connettori MCP.
-Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (blocchi «esito»/«errore» di `result_block`), che riempivano i 6.000 caratteri e tagliavano il «FATTO:» finale (#349, #351, #352). `agentchat::clean_reply` ora pubblica solo il testo dopo l'ultimo passo (`docs/integrazioni.md` → Agent Chat).

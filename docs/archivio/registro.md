@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 12/11 — Chat semplice: strumenti caricati a richiesta
+Edoardo: «il problema è anche con una richiesta sola». Misurato su fisso e portatile con «ok»: la chat fuori dalla Modalità terminale partiva da 34,8k token a passo (le definizioni dei ~100 strumenti di EasyIsland), la terminale da 21,7k. `ToolSearch` aggiunto a `TOOLS` (`claude_cli.rs`): 9,9k a passo, `list_status` provato. Da misurare dal vivo sul portatile. `docs/chat.md` → Connettori MCP.
+Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (blocchi «esito»/«errore» di `result_block`), che riempivano i 6.000 caratteri e tagliavano il «FATTO:» finale (#349, #351, #352). `agentchat::clean_reply` ora pubblica solo il testo dopo l'ultimo passo (`docs/integrazioni.md` → Agent Chat).
+
 ### 12/11 — Chat: meno passi
 Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
 

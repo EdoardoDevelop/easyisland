@@ -135,6 +135,17 @@ export interface NetConfigInput {
   gateway: string;
   dnsAuto: boolean;
   dns: string[];
+  /** A new VLAN ID (0 = none) with the driver's keyword; absent = unchanged. */
+  vlan?: number;
+  vlanKeyword?: string;
+}
+
+/** An adapter's VLAN ID as its driver exposes it (netconfig.rs network_vlan). */
+export interface NetVlan {
+  keyword: string;
+  value: number;
+  min: number;
+  max: number;
 }
 
 export interface BootInfo {
@@ -253,6 +264,8 @@ export const Bridge = {
   networkAdapters: () => call<NetAdapter[]>("network_adapters"),
   /** Rete: applies an adapter's settings as administrator (Windows asks). */
   networkApply: (config: NetConfigInput) => callOrThrow<void>("network_apply", { config }),
+  /** Rete: the adapter's VLAN ID, or null when its driver has none. */
+  networkVlan: (index: number) => call<NetVlan>("network_vlan", { index }),
   /** Rete: a continuous ping in a new terminal; "gateway" = the main adapter's. */
   networkPing: (target: string) => callOrThrow<string>("network_ping", { target }),
   /** "Davanti al cliente" right now: why, or null. */
