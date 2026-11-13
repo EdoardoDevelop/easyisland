@@ -180,20 +180,35 @@ pub fn delete(id: &str) -> Result<(), String> {
     std::fs::remove_file(dir().join(format!("{id}.md"))).map_err(|e| e.to_string())
 }
 
-/// The few lines in front of a new conversation: what skills there are.
-pub fn index() -> Option<String> {
+/// The skills in front of a new conversation (13 Nov 2026): only those that fit
+/// the question (words of its subject in the name or description, or the name
+/// in it); otherwise one line saying how many there are and skill_list.
+pub fn index(question: &str) -> Option<String> {
     let all = list();
     if all.is_empty() {
         return None;
     }
+    let low = question.to_lowercase();
+    let words = crate::memory::subject_words(question);
+    let fits = |s: &Skill| {
+        let name = s.name.to_lowercase();
+        if name.chars().count() >= 4 && low.contains(&name) {
+            return true;
+        }
+        let text = format!("{name} {}", s.description.to_lowercase());
+        words.iter().filter(|w| text.contains(w.as_str())).count() >= 2.max(words.len().div_ceil(4))
+    };
     let mut lines = String::new();
-    for s in &all {
+    for s in all.iter().filter(|s| fits(s)) {
         let engine = if s.engine.is_empty() { String::new() } else { format!(" ({})", tf("motore preferito: {e}", &[("e", &s.engine)])) };
         let line = format!("- {}: {}{}\n", s.name, s.description, engine);
         if lines.len() + line.len() > MAX_INDEX {
             break;
         }
         lines.push_str(&line);
+    }
+    if lines.is_empty() {
+        return Some(tf("[L'utente ha {n} abilità (procedure scritte da lui): se una richiesta sembra una di queste, skill_list le elenca e skill_read ne legge una.]\n\n", &[("n", &all.len())]));
     }
     Some(tf(
         "[Abilità dell'utente: procedure scritte da lui. Quando una richiesta corrisponde a una di queste, leggila con skill_read e seguila.\n{lines}]\n\n",

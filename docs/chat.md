@@ -57,7 +57,7 @@ Tutto in `src/views/chat.ts`.
 
 ## Memoria della chat (`memory.rs`)
 - `%APPDATA%\EasyIsland\memoria`, file leggibili; Impostazioni → Chat → Memoria li conta e apre.
-- **`MEMORIA.md`:** note sempre ricordate, una per riga con data; davanti alla prima domanda di ogni conversazione (max 4.000 caratteri, recenti prima). Oltre 60 le vecchie vanno in `archivio.md` (cercabile).
+- **`MEMORIA.md`:** note, una per riga con data. Davanti alla prima domanda solo le **regole** (`memory::general`: «sempre», «mai», «non deve», «preferisce»…, non Agent Chat, non «da migliorare/da fare»; max 1.500 caratteri, recenti prima); le altre arrivano con la domanda che le riguarda (`related`, 13/11: sul portatile le 20 note più recenti, 4.400 caratteri, erano dettagli di portali e di TTSpeak in ogni conversazione). Oltre 60 le vecchie vanno in `archivio.md` (cercabile).
 - **`diario/AAAA-MM.md`:** una riga per domanda con risposta (ora, motore, domanda e inizio risposta a 160 caratteri), scritta dall'app, zero token.
 - **Strumenti** (solo nella chat): `memory_search` (note, archivio, diario; tutte le parole, max 20 righe) e `memory_note`, senza Consenti/Nega. Il preambolo chiede di salvare preferenze e fatti stabili, mai password o chiavi. `/ricorda …` salva senza modello.
 - **Note doppie** (`says_nothing_new`, 8/11): `memory_note` non salva una nota che una vecchia dice già con altre parole: ogni numero e percorso della nuova è nella vecchia e al più una parola nuova, non un nome. Numero, percorso o nome nuovo = aggiornamento, salvato. `memory_forget` su una nota della memoria collegata dice che va tolta dall'altro PC.
@@ -286,7 +286,7 @@ Obiettivo che l'agente porta avanti a turni finché lo chiude, chiede, o finisco
 
 ## Abilità (`skills.rs`)
 - `%APPDATA%\EasyIsland\abilita\<id>.md` (`slug`); intestazione facoltativa tra `---`: `nome`, `descrizione`, `motore`, `strumenti`; poi Markdown. Max 200 da 20.000 caratteri.
-- Davanti a una conversazione nuova, solo con strumenti di EasyIsland, l'elenco nomi e descrizioni (`skills::index`, max 3.000 caratteri); il motore legge con `skill_read`. `strumenti` e `motore` sono indicazioni, non blocchi.
+- Davanti a una conversazione nuova, solo con strumenti di EasyIsland, le abilità che c'entrano con la domanda (`skills::index(domanda)`: nome nella domanda, o parole del soggetto nella descrizione, almeno 2 e un quarto di quelle della domanda; max 3.000 caratteri); se nessuna, una riga con quante sono e `skill_list` (13/11: sul portatile 3.000 caratteri di abilità di sicurezza a ogni conversazione). Il motore legge con `skill_read`. `strumenti` e `motore` sono indicazioni, non blocchi.
 - `skill_list`, `skill_read` (lettura), `skill_save` (Consenti/Nega). Eliminare solo dalle Impostazioni.
 - Ogni abilità è `/id` in chat e su Telegram (anche `_` per `-`; `skill_prompt`: istruzioni + parole dopo il comando), riletta max ogni 5 s.
 - Impostazioni → Flussi → Abilità: elenco, nuova, modifica, elimina (secondo clic), «Apri la cartella».

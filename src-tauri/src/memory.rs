@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use crate::i18n::{t, tf};
 
 /// What goes in front of a new conversation, at most.
-const MAX_INJECT: usize = 4_000;
+const MAX_INJECT: usize = 1_500;
 /// Notes kept in MEMORIA.md before the oldest move to archivio.md.
 const MAX_LINES: usize = 60;
 /// One line of the timeline: the question and the answer, cut.
@@ -71,10 +71,27 @@ pub(crate) fn read_main() -> String {
     std::fs::read_to_string(main_file()).unwrap_or_default()
 }
 
-/// The text in front of a new conversation: the notes, newest first, cut.
-/// `tools`: the engine has memory_search and memory_note.
+/// A note that holds whatever the question (a rule, a preference: «sempre»,
+/// «mai», «non deve»…), not a fact about one customer or one site.
+pub(crate) fn general(note: &str) -> bool {
+    let l = note.to_lowercase();
+    // Agent Chat's notes, the to-dos and «not always» are not rules.
+    if ["(agent chat)", "da migliorare", "da fare", "non è sempre", "non sempre"].iter().any(|w| l.contains(w)) {
+        return false;
+    }
+    const RULE: &[&str] = &[
+        "sempre", " mai ", "non deve", "non devono", "non va ", "non vanno", "nessuna va", "nessun riferimento",
+        "preferisce", "vuole che", "non vuole", "tiene le sue", "always", "never", "prefers",
+    ];
+    RULE.iter().any(|w| l.contains(w))
+}
+
+/// The text in front of a new conversation (13 Nov 2026, Edoardo: «cose non
+/// utili ad ogni conversazione»): only the general notes, newest first, up to
+/// MAX_INJECT; the others come with each question from `related`, when they
+/// fit it. `tools`: the engine has memory_search and memory_note.
 pub fn preface(tools: bool, learns: bool) -> Option<String> {
-    let notes = notes_of(&read_main());
+    let notes: Vec<String> = notes_of(&read_main()).into_iter().filter(|n| general(n)).collect();
     if notes.is_empty() && !tools {
         return None;
     }
@@ -380,9 +397,15 @@ mod tests {
         assert_eq!(note("il cliente rossi paga a 60 giorni").unwrap(), t("Era già in memoria."));
         assert!(note("   ").is_err());
         diary("subscription", "Come si rinnova il certificato di Bianchi?", "Con certbot renew", false);
+        // A fact about one customer stays out of the front; a rule goes in.
         let p = preface(true, false).unwrap();
-        assert!(p.contains("Rossi paga a 60 giorni"));
+        assert!(!p.contains("Rossi paga a 60 giorni"));
         assert!(p.contains("memory_search"));
+        note("I preventivi vanno sempre con la grafica standard").unwrap();
+        assert!(preface(true, false).unwrap().contains("grafica standard"));
+        note("Il cliente Bianchi ha il NAS Synology in sala server, backup alle 3").unwrap();
+        assert!(!preface(true, false).unwrap().contains("Synology"));
+        assert!(related("Che NAS ha il cliente Bianchi?", true).unwrap().contains("Synology"));
         assert!(search("certificato bianchi", "").unwrap().contains("certbot"));
         assert!(search("rossi", "").unwrap().contains("60 giorni"));
         assert_eq!(search("nessuno qui", "").unwrap(), t("Niente in memoria su questo."));
@@ -417,7 +440,7 @@ const STOP: &[&str] = &[
 ];
 
 /// The words of a question worth looking for: 4+ letters, not in `STOP`.
-fn subject_words(question: &str) -> Vec<String> {
+pub(crate) fn subject_words(question: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for w in question.split(|c: char| !c.is_alphanumeric()).map(str::to_lowercase) {
         if w.chars().count() >= 4 && !STOP.contains(&w.as_str()) && !out.contains(&w) {
@@ -433,7 +456,7 @@ fn subject_words(question: &str) -> Vec<String> {
 /// on the laptop 109 memory_search, most of them the first step of a turn).
 /// Pages named in the question (title or alias) with their gist, then notes,
 /// archived notes and page lines with two or more of its words. `fresh`: the
-/// newest notes are already in front of the conversation (`preface`).
+/// general notes are already in front of the conversation (`preface`).
 pub fn related(question: &str, fresh: bool) -> Option<String> {
     const MAX_LINES: usize = 8;
     const MAX_CHARS: usize = 1_500;
@@ -458,9 +481,7 @@ pub fn related(question: &str, fresh: bool) -> Option<String> {
             words.iter().filter(|w| l.contains(w.as_str())).count()
         };
         let mut lines: Vec<String> = Vec::new();
-        if !fresh {
-            lines.extend(notes_of(&read_main()));
-        }
+        lines.extend(notes_of(&read_main()).into_iter().filter(|n| !(fresh && general(n))));
         lines.extend(notes_of(&std::fs::read_to_string(dir().join("archivio.md")).unwrap_or_default()));
         for p in &pages {
             for l in p.body.lines().map(str::trim).filter(|l| l.len() > 3) {
@@ -469,9 +490,12 @@ pub fn related(question: &str, fresh: bool) -> Option<String> {
         }
         // What a line says besides its links and marks: a line of names only says nothing.
         let said = |l: &str| l.replace("[[", "").replace("]]", "").replace("**", "").trim_start_matches("- ").chars().filter(|c| c.is_alphanumeric()).count();
+        // Two words, and a quarter of the question's for a long one: «switch» and
+        // «ubiquiti» alone brought a customer's whole network to a quote (13 Nov 2026).
+        let needed = 2.max(words.len().div_ceil(4));
         for l in lines {
             let s = score(&l);
-            if s < 2 || said(&l) < 40 {
+            if s < needed || said(&l) < 40 {
                 continue;
             }
             // The same note copied into a page ("[[X]] nota: - 2026-…"): once.
@@ -515,6 +539,16 @@ mod related_tests {
             ["integrazioni", "ttspeak", "selezione", "audio", "creato", "file"]
         );
         assert!(subject_words("come si fa?").is_empty());
+    }
+
+    #[test]
+    fn general_notes_are_rules() {
+        use super::general;
+        assert!(general("- 2026-11-13: Preventivi/offerte Easytech: usare sempre la grafica standard"));
+        assert!(general("- 2026-11-11: Nella stampa del Registro non deve esserci nessun riferimento alla segreteria"));
+        assert!(general("- 2026-11-10: Edoardo tiene le sue password personali di lavoro in KeePassXC"));
+        assert!(!general("- 2026-11-13: Wisp.store è un portale PrestaShop: i prodotti si cercano in JSON"));
+        assert!(!general("- 2026-11-12: (Agent Chat) L'installer è sempre nel Vassoio"));
     }
 }
 

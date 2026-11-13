@@ -5,7 +5,7 @@
 La memoria di EasyIsland è fatta di **file Markdown** in `%APPDATA%\EasyIsland\memoria`, che puoi leggere e correggere con qualsiasi editor. Vale per **tutti i motori**. Si spegne insieme alla cronologia (Impostazioni → Chat → Cronologia).
 
 ## Le note: MEMORIA.md
-Le cose da ricordare sempre, una per riga con la data: preferenze, clienti, persone, come si fa una cosa. Vanno davanti alla prima domanda di ogni conversazione (al massimo 4.000 caratteri, le più recenti prima), quindi costano pochi token.
+Le cose da ricordare sempre, una per riga con la data: preferenze, clienti, persone, come si fa una cosa. Le regole (quelle con «sempre», «mai», «non deve», «preferisce»…) vanno davanti a ogni conversazione; le altre note arrivano solo quando la domanda le riguarda, quindi costano pochi token.
 - La chat le salva **da sola** quando dici qualcosa che vale anche per le prossime volte.
 - Tu le salvi con `/ricorda …` in chat, o dal campo **Ricorda…** della finestra Memoria.
 - Oltre 60 note, le più vecchie passano in `archivio.md`, che resta cercabile.

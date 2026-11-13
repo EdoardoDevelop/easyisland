@@ -1716,7 +1716,7 @@ pub(crate) async fn chat_turn(
         (m, c) => m.or(c),
     };
     // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
-    let skills = if fresh && memory_tools { skills::index() } else { None };
+    let skills = if fresh && memory_tools { skills::index(&query) } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();

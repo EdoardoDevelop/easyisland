@@ -5,7 +5,7 @@
 EasyIsland's memory is made of **Markdown files** in `%APPDATA%\EasyIsland\memoria`, which you can read and fix with any editor. It works with **every engine**. It turns off together with the history (Settings → Chat → History). Folder and file names on disk are in Italian (`memoria`, `diario`, `pagine`, `da-leggere`, `fonti`, `archivio`).
 
 ## Notes: MEMORIA.md
-Things to always remember, one per line with the date: preferences, clients, people, how something is done. They go in front of the first question of every conversation (4,000 characters at most, newest first), so they cost few tokens.
+Things to always remember, one per line with the date: preferences, clients, people, how something is done. Rules (those with «always», «never», «must not», «prefers»…) go in front of every conversation; the other notes come only when the question is about them, so they cost few tokens.
 - The chat saves them **by itself** when you say something that also holds for next time.
 - You save them with `/ricorda …` in the chat, or from the **Remember…** field of the Memory window.
 - Past 60 notes the oldest move to `archivio.md`, which stays searchable.

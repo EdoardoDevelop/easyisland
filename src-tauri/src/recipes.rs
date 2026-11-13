@@ -237,7 +237,9 @@ fn signature(step: &str) -> String {
 fn score(q: &[String], r: &Recipe) -> usize {
     let common = q.iter().filter(|w| r.words.contains(w)).count();
     let enough = common >= 2 || (common == 1 && q.len() <= 2);
-    if enough && common * 10 >= q.len() * 4 { common } else { 0 }
+    // Both ways: a recipe from a very long question (Agent Chat's whole
+    // prompt) shares a few words with almost anything (13 Nov 2026).
+    if enough && common * 10 >= q.len() * 4 && common * 10 >= r.words.len().min(40) * 3 { common } else { 0 }
 }
 
 /// The recipes that fit this question, as a few lines to put in front of it.
