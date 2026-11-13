@@ -5,6 +5,7 @@ _11 novembre 2026. **1.0.43** in `main` (tag `v1.0.43`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Domande con le scelte nella chat** (13/11, ramo `claude/domande`): `docs/chat.md` → Domande e piano. Provate con un processo vero di Claude Code (driver) e nell'anteprima; da provare nell'app: domanda dall'isola, «Altro…», «Non ora», Ferma con la card aperta, Piano con «Procedi», un permesso normale non risposto (deve restare negato).
 - [ ] **Browser e portali dei fornitori** (12/11, in `main` dalla 1.0.45): `docs/chat.md` → Anteprima e Portali dei fornitori. Provati solo con test e con gli script sulle pagine vere (estrazione, blocco del carrello, modulo di accesso); da provare nell'app (`docs/prove-dal-vivo.md`). Seguiti in `docs/idee.md`.
 - [ ] **Importa abilità** (1.0.43, `docs/chat.md` → Abilità → Importa): provato su The Agency vera con `live_scan` e nell'anteprima; da provare nell'app con «Da Claude Code», una cartella vera e «Adatta con un motore» con i vari motori (risposta nel formato giusto, durata). Seguiti in `docs/idee.md`.
 - [ ] **Terminale vero nella chat** (9/11): fatto con ConPTY e xterm.js (`docs/chat.md` → Terminale); da provare dal vivo (editor, Ctrl+C, finestra staccata). Restano più schede e scelta della shell (`docs/idee.md`).
@@ -53,6 +54,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 13/11 — Domande con le scelte nella chat (ramo `claude/domande`)
+Edoardo: la card delle domande come Claude Desktop. Claude Code in `-p` offre `AskUserQuestion`/`ExitPlanMode` solo con `--permission-prompt-tool stdio`: ora i processi tenuti lo usano e EasyIsland risponde sul canale di controllo con la card nella conversazione (domande e piano). Provato con un processo vero via driver e nell'anteprima (`?scene=domanda`); da provare nell'app, anche Piano e Telegram. `docs/chat.md` → Domande e piano.
+
 ### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
 Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
 
@@ -65,7 +69,3 @@ Edoardo: cercare prodotti nei portali dei fornitori e farne preventivi, «i siti
 ### 12/11 — Chat semplice: strumenti caricati a richiesta
 Edoardo: «il problema è anche con una richiesta sola». Misurato su fisso e portatile con «ok»: la chat fuori dalla Modalità terminale partiva da 34,8k token a passo (le definizioni dei ~100 strumenti di EasyIsland), la terminale da 21,7k. `ToolSearch` aggiunto a `TOOLS` (`claude_cli.rs`): 9,9k a passo, `list_status` provato. Da misurare dal vivo sul portatile. `docs/chat.md` → Connettori MCP.
 Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (blocchi «esito»/«errore» di `result_block`), che riempivano i 6.000 caratteri e tagliavano il «FATTO:» finale (#349, #351, #352). `agentchat::clean_reply` ora pubblica solo il testo dopo l'ultimo passo (`docs/integrazioni.md` → Agent Chat).
-
-### 12/11 — Chat: meno passi
-Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
-

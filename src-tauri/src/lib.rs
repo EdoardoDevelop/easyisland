@@ -5131,6 +5131,7 @@ pub fn run() {
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
             preview::init(&handle);
+            claude_cli::init(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // "Chiudi finestra" from the taskbar (the island as an app) must not

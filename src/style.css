@@ -1814,6 +1814,50 @@ input[type="range"]::-webkit-slider-thumb {
   justify-content: flex-end;
 }
 
+/* Claude Code's question (AskUserQuestion): cyan, the options one under the other. */
+.chat-ask.is-question {
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.06);
+}
+.chat-ask.is-question .chat-ask-title { color: var(--cyan); }
+.chat-ask-q {
+  font: 600 calc(13px + var(--fs-up, 0px))/1.4 var(--font);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-ask-options {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.chat-ask-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  cursor: default;
+}
+.chat-ask-opt:hover { background: rgba(255, 255, 255, 0.12); }
+.chat-ask-opt.on { border-color: rgba(34, 211, 238, 0.7); background: rgba(34, 211, 238, 0.16); }
+.chat-ask-opt-label { font: 500 calc(12.5px + var(--fs-up, 0px))/1.35 var(--font); }
+.chat-ask-opt-desc { font: 400 calc(11px + var(--fs-up, 0px))/1.35 var(--font); color: var(--ink-2); }
+/* The plan (ExitPlanMode) to read before «Procedi». */
+.chat-ask-plan {
+  font: 400 calc(12px + var(--fs-up, 0px))/1.45 var(--font);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
 .chat-row.user {
   justify-content: flex-end;
   padding-left: 32px;

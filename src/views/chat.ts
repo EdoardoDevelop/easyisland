@@ -6,7 +6,7 @@ import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type AskQuestion, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -337,6 +337,7 @@ export function buildPrompt(
   actions: {
     runAction(a: QuickAction): void;
     decide(d: "allow" | "deny" | "always"): void;
+    answerQuestions(answers: Record<string, string>): void;
     popOut(key: string): void;
     dockBack(key: string): void;
   },
@@ -437,10 +438,97 @@ export function buildPrompt(
   const askRisk = h("div", { class: "risk-hint" });
   const askAlways = h("div", { class: "chat-ask-always" });
   const askRow = h("div", { class: "chat-ask-row" });
-  const askEl = h("div", { class: "chat-ask" },
-    h("div", { class: "chat-ask-title", text: t("La chat chiede il permesso") }), askWhat, askRisk, askAlways, askRow);
+  const askTitle = h("div", { class: "chat-ask-title" });
+  // Claude Code's questions (AskUserQuestion): the question, its options, «Altro…».
+  const askQ = h("div", { class: "chat-ask-q" });
+  const askOpts = h("div", { class: "chat-ask-options" });
+  // Its plan (ExitPlanMode), to read before «Procedi».
+  const askPlan = h("div", { class: "chat-ask-plan" });
+  const askEl = h("div", { class: "chat-ask" }, askTitle, askQ, askOpts, askPlan, askWhat, askRisk, askAlways, askRow);
   let askKey = "";
+  // Which question of the request is on screen, and the answers so far.
+  let qFor = "";
+  let qIndex = 0;
+  let qAnswers: Record<string, string> = {};
+  function showOnly(...shown: HTMLElement[]) {
+    for (const el of [askQ, askOpts, askPlan, askWhat, askRisk, askAlways]) el.style.display = shown.includes(el) ? "" : "none";
+  }
+  /** One question at a time, as Claude Desktop shows them: a click answers, several with «Avanti». */
+  function fillQuestion(req: NonNullable<typeof State.pendingApproval>, all: AskQuestion[]) {
+    if (qFor !== req.requestId) {
+      qFor = req.requestId;
+      qIndex = 0;
+      qAnswers = {};
+    }
+    const q = all[qIndex];
+    if (!q) return;
+    askEl.classList.add("is-question");
+    showOnly(askQ, askOpts);
+    askTitle.textContent = all.length > 1
+      ? t("La chat ha {n} domande · {i} di {n}", { n: all.length, i: qIndex + 1 })
+      : t("La chat ha una domanda");
+    askQ.textContent = q.question;
+    const last = qIndex + 1 >= all.length;
+    const next = (value: string) => {
+      qAnswers[q.question] = value;
+      if (!last) {
+        qIndex += 1;
+        fillQuestion(req, all);
+        toBottom();
+        return;
+      }
+      actions.answerQuestions(qAnswers);
+    };
+    const picked = new Set<string>();
+    const go = h("button", { class: "btn primary", text: last ? t("Invia") : t("Avanti") }) as HTMLButtonElement;
+    go.disabled = true;
+    go.addEventListener("click", () => {
+      if (picked.size) next(q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
+    });
+    askOpts.replaceChildren(...q.options.map((o) => {
+      const b = h("button", { class: "chat-ask-opt" },
+        h("span", { class: "chat-ask-opt-label", text: o.label }),
+        o.description ? h("span", { class: "chat-ask-opt-desc", text: o.description }) : "") as HTMLButtonElement;
+      b.addEventListener("click", () => {
+        if (!q.multiSelect) return next(o.label);
+        if (picked.has(o.label)) picked.delete(o.label);
+        else picked.add(o.label);
+        b.classList.toggle("on", picked.has(o.label));
+        go.disabled = picked.size === 0;
+      });
+      return b;
+    }));
+    // Anything the options cannot say: written here, sent as the answer.
+    const other = h("input", { class: "ask-other", type: "text", placeholder: t("Altro… scrivi la risposta e premi Invio") }) as HTMLInputElement;
+    other.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const text = other.value.trim();
+      if (text) next(text);
+    });
+    askOpts.append(other);
+    const skip = h("button", { class: "btn secondary", title: t("Claude continua senza queste scelte e, se serve, chiede nel testo") },
+      h("span", { text: t("Non ora") }));
+    skip.addEventListener("click", () => actions.decide("deny"));
+    askRow.replaceChildren(skip);
+    if (q.multiSelect) askRow.append(go);
+  }
   function fillAsk(req: NonNullable<typeof State.pendingApproval>) {
+    const all = req.questions ?? [];
+    if (all.length) return fillQuestion(req, all);
+    askEl.classList.remove("is-question");
+    askTitle.textContent = req.plan ? t("Il piano è pronto") : t("La chat chiede il permesso");
+    askPlan.textContent = req.plan ?? "";
+    showOnly(...(req.plan ? [askPlan] : [askWhat]), askRisk, askAlways);
+    if (req.plan) {
+      const keep = h("button", { class: "btn secondary", onclick: () => actions.decide("deny") }, h("span", { text: t("Continua a pianificare") }));
+      const go = h("button", { class: "btn primary", onclick: () => actions.decide("allow") }, h("span", { text: t("Procedi") }));
+      askRisk.style.display = "none";
+      askAlways.style.display = "none";
+      askRow.replaceChildren(keep, go);
+      return;
+    }
     askWhat.textContent = req.command || req.tool || "…";
     const risks = req.risks ?? [];
     askRisk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");

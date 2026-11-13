@@ -253,7 +253,14 @@ html[data-chat-look="cards"] .chat-card .chat-ask {
   border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
   background: color-mix(in srgb, var(--amber) 6%, transparent);
 }
+html[data-chat-look="cards"] .chat-card .chat-ask.is-question {
+  border-color: color-mix(in srgb, var(--cyan) 35%, transparent);
+  background: color-mix(in srgb, var(--cyan) 5%, transparent);
+}
 html[data-chat-look="cards"] .chat-card .chat-ask-title { font-size: var(--cc-t-ui); }
+html[data-chat-look="cards"] .chat-card .chat-ask-q { font-size: var(--cc-t-body, inherit); }
+html[data-chat-look="cards"] .chat-card .chat-ask-opt { border-radius: var(--cc-r-ctl); }
+html[data-chat-look="cards"] .chat-card .chat-ask-opt-desc { font-size: var(--cc-t-small); color: var(--cc-dim); }
 html[data-chat-look="cards"] .chat-card .chat-ask-what { font-size: var(--cc-t-small); color: var(--cc-reply); }
 html[data-chat-look="cards"] .chat-card .chat-ask-always { font-size: var(--cc-t-small); color: var(--cc-dim); }
 html[data-chat-look="cards"] .chat-card .chat-ask-row { gap: var(--cc-s2); }

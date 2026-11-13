@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 12/11 — Chat: meno passi
+Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
+
 ### 12/11 — Campo file con «accept»
 Richiesta di Edoardo per TTSpeak (il campo «Audio creato» mostrava ogni file): `accept` sul campo `file` delle integrazioni personali, gruppi (audio, immagini, video, pdf, word, excel, testo) o estensioni (`mp3,wav`); Vassoio filtrato e finestra di Windows con il solo filtro, un file. Misurato prima: la richiesta in chat dopo il taglio dei token partiva da 29k (prima 34–45k), ~260k in tutto. `docs/integrazioni.md`, guida 24. Da provare dal vivo la finestra.
 

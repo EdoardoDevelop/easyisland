@@ -5180,5 +5180,11 @@
   "Controlla il PC": "Checks the PC",
   "(non disponibile)": "(not available)",
   "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. EasyIsland ha già raccolto qui sotto lo stato delle integrazioni (appuntamenti e posta di Outlook, ticket, meteo, PC) e le attività di To Do: usali così, senza rileggerli con gli strumenti. Solo se c'è Notion guarda con notion_query le attività con scadenza {when} e quelle scadute non ancora fatte. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se una parte non è disponibile saltala senza dirlo a lungo. Non cambiare niente.\n\nSTATO:\n{status}\n\nTO DO:\n{todo}": "Give me a short, friendly rundown of my day ({when}). EasyIsland has already gathered below the state of the integrations (Outlook appointments and mail, tickets, weather, PC) and the To Do tasks: use them as they are, without reading them again with the tools. Only if Notion is there, look with notion_query for the tasks due {when} and the overdue ones not done yet. First what there is to do, with the time if any, then the rest in a few lines. If a part is not available, skip it without dwelling on it. Do not change anything.\n\nSTATE:\n{status}\n\nTO DO:\n{todo}",
-  "[Strumenti di EasyIsland che probabilmente servono: {names}. Se ti servono e non li hai già, caricali tutti insieme con una sola ToolSearch «select:{select}».]\n\n": "[EasyIsland tools this probably needs: {names}. If you need them and do not have them yet, load them all together with one ToolSearch \"select:{select}\".]\n\n"
+  "[Strumenti di EasyIsland che probabilmente servono: {names}. Se ti servono e non li hai già, caricali tutti insieme con una sola ToolSearch «select:{select}».]\n\n": "[EasyIsland tools this probably needs: {names}. If you need them and do not have them yet, load them all together with one ToolSearch \"select:{select}\".]\n\n",
+  "La chat ha {n} domande · {i} di {n}": "The chat has {n} questions · {i} of {n}",
+  "La chat ha una domanda": "The chat has a question",
+  "Claude continua senza queste scelte e, se serve, chiede nel testo": "Claude goes on without these options and, if needed, asks in the text",
+  "Il piano è pronto": "The plan is ready",
+  "Continua a pianificare": "Keep planning",
+  "Procedi": "Go ahead"
 }

@@ -1183,6 +1183,45 @@ export async function runScene(island: Island, scene: string) {
       });
       break;
     }
+    case "domanda": {
+      // Claude Code in the chat asks with options (AskUserQuestion, claude_cli.rs on_control);
+      // `&piano`: its plan (ExitPlanMode) instead; `&multi`: two questions, the second with several picks.
+      await wait(300);
+      const q = new URLSearchParams(location.search);
+      const plan = q.has("piano");
+      const questions = [{
+        question: "Per il preventivo della Farmacia Rossi quale listino uso?",
+        header: "Listino",
+        multiSelect: false,
+        options: [
+          { label: "Listino 2026", description: "Prezzi aggiornati a ottobre, ricarico 30 %" },
+          { label: "Listino cliente", description: "Gli sconti concordati con la farmacia l'anno scorso" },
+          { label: "Prezzi del portale", description: "Cerco ora i prezzi del fornitore" },
+        ],
+      }];
+      if (q.has("multi")) {
+        questions.push({
+          question: "Cosa metto nel preventivo?",
+          header: "Righe",
+          multiSelect: true,
+          options: [
+            { label: "Switch 8 porte", description: "" },
+            { label: "Installazione", description: "3 ore" },
+            { label: "Assistenza annuale", description: "" },
+          ],
+        });
+      }
+      handleHook(island, {
+        hook_event_name: "PermissionRequest",
+        easyisland_chat: true,
+        request_id: "ask-chat-1",
+        tool_name: plan ? "ExitPlanMode" : "AskUserQuestion",
+        tool_input: plan
+          ? { plan: "1. Leggo il listino 2026 e i prezzi del portale\n2. Creo il preventivo dal modello «Preventivo Easytech»\n3. Ne faccio il PDF e lo metto nel Vassoio" }
+          : { questions },
+      });
+      break;
+    }
     case "pdf": {
       // The chat asks to merge PDFs (pdfpages.rs): Consenti / Nega.
       await wait(300);

@@ -237,6 +237,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`); `media` («Messaggi vocali»: campo file con un'immagine e «Genera la voce» che risponde con un audio, salvato con `filename`); `opzioni` («TTSpeak»: Motore e Voce da una fonte finta con `optionsFrom`, 97 voci in «Molte voci», prezzo e nota compilati) |
 | `documento` | la chat chiede di creare un documento Word (card Consenti/Nega di `document_create`) | — |
 | `pdf` | la chat chiede di unire dei PDF (card Consenti/Nega di `pdf_merge`) | — |
+| `domanda` | Claude Code nella chat fa una domanda con le scelte (`AskUserQuestion`) | `multi` (due domande, la seconda a più scelte); `piano` (il piano da approvare, `ExitPlanMode`) |
 | `chat&background` | lavori lasciati in background da Claude Code sotto la conversazione, con ✕ e «Ferma tutto» | — |
 | `compiti` | i Compiti | `ask`, `proposte` (correzioni con caselle e Commenta) |
 | `moment` | una proposta al momento giusto | `moment=download\|recording\|call\|ticket\|…` |
