@@ -74,9 +74,9 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.46** — **EasyIsland does the work instead of the AI**: light resume of heavy conversations, memory written after the answer, a PC checked in one step; steps and tokens under each answer.
 - **1.0.45** — **the Preview's browser works for you**: products and prices from any page, suppliers' portals taught to the chat, quotes with cost and markup; one card per engine.
 - **1.0.44** — **the chat uses far fewer tokens**: fewer tools and steps, memory looked up by EasyIsland, a warning on heavy context; file fields that accept only some types.
-- **1.0.43** — **import skills** from files and folders (The Agency, Claude Code's agents and skills), with a list to pick from and an engine that adapts them.
 - **1.0.42** — **menu groups** like a phone's folders, with a colour; a **link field** that searches and fills.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).

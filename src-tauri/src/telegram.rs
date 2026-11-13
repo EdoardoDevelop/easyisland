@@ -531,6 +531,28 @@ pub(crate) fn day_prompt(tomorrow: bool) -> String {
     )
 }
 
+/// The day with its data already gathered by EasyIsland (13 Nov 2026): the
+/// state of the integrations and the To Do tasks go in the question, so the
+/// engine only writes (before: three or four tool steps, each re-reading the
+/// conversation). None when the question is not one of `day_prompt`'s.
+pub(crate) async fn day_ready(app: &AppHandle, question: &str) -> Option<String> {
+    let tomorrow = if question == day_prompt(false) { false } else if question == day_prompt(true) { true } else { return None };
+    let when = if tomorrow { t("domani") } else { t("oggi") };
+    let part = |v: Value| {
+        let ok = v.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let text = v.get("text").and_then(Value::as_str).unwrap_or_default().to_string();
+        let text = if ok { text } else { t("(non disponibile)").to_string() };
+        let n = text.chars().count();
+        if n > 7_000 { format!("{}…", text.chars().take(7_000).collect::<String>()) } else { text }
+    };
+    let status = part(crate::agent::call(app, "list_status", &serde_json::json!({})).await);
+    let todo = part(crate::agent::call(app, "todo_list", &serde_json::json!({})).await);
+    Some(tf(
+        "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. EasyIsland ha già raccolto qui sotto lo stato delle integrazioni (appuntamenti e posta di Outlook, ticket, meteo, PC) e le attività di To Do: usali così, senza rileggerli con gli strumenti. Solo se c'è Notion guarda con notion_query le attività con scadenza {when} e quelle scadute non ancora fatte. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se una parte non è disponibile saltala senza dirlo a lungo. Non cambiare niente.\n\nSTATO:\n{status}\n\nTO DO:\n{todo}",
+        &[("when", &when), ("status", &status), ("todo", &todo)],
+    ))
+}
+
 async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
     // "/motore@NomeBot argomento"
     let (name, arg) = cmd.split_once(char::is_whitespace).unwrap_or((cmd, ""));

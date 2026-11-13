@@ -24,6 +24,7 @@
 - **Steps open up**: under each step of Claude Code, **▸ Output** shows what it gave back (a command's output, the text read, an error in red); sub-agents' steps show under their name («↳ Reads the PDFs · …»).
 - **Writing while it works**: with Claude Code a message written while it answers reaches it at once, between two steps, and it takes it into the same answer («↪ …» under the question), as in Claude Desktop. With the other engines it is queued as before.
 - **Multi-engine**: in Settings → Chat pick the engines that work together, then turn the button on in the conversation. The chat's engine leads and answers you, the others do pieces of the work and you see a line for each. Before you see it, the answer is checked by another engine and fixed if needed: only one arrives, already reviewed, with **✓ Checked** underneath. Meanwhile you see the steps, not the draft. Two are enough, better from two different makers. It costs more and can take twice as long: turn it on for real work. Actions ask Allow/Deny as always.
+- **What it cost**: with Claude Code, next to the buttons there is "4 steps · 61k read". Each step re-reads the conversation: more steps, more usage. Hover it to see the tools used. **⤓** means EasyIsland resumed the conversation light (see below).
 - **⇄ Second opinion**: another engine rereads the last question and answer and points out mistakes, gaps or risks (or "looks good"). Its review also reaches the main engine, which can correct itself.
 
 ## Attaching

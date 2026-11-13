@@ -51,6 +51,15 @@ Può leggere anche **una cartella intera** di Word e PDF («analizza le offerte 
 
 **Unire e dividere PDF:** «unisci questi tre PDF», «metti prima il preventivo, poi le pagine 1-2 delle condizioni», «estrai le pagine 3-5», «dividi il PDF in un file per pagina» o «in 1-2 e 3-fine». Anche un Word fra i file da unire: diventa PDF con Word. Gli originali non cambiano; i file nuovi vanno nel Vassoio e nella cartella di lavoro. I campi compilabili e i segnalibri non vengono copiati; i PDF protetti non si possono unire (aprili e stampali con «Microsoft Print to PDF», poi unisci quella copia).
 
+## Consumare meno
+EasyIsland fa da sola il lavoro che non serve far fare all'IA, così con l'abbonamento arrivi meno ai limiti:
+- **Ripresa leggera**: quando una conversazione con Claude Code è diventata pesante (oltre 60.000 token di contesto) o è ferma da più di 45 minuti, la domanda dopo riparte in una sessione nuova con le sole domande e risposte. Claude non rilegge a ogni passo tutto il lavoro fatto; se gli serve un dettaglio (un file, l'uscita di un comando) lo rilegge. Si spegne in **Impostazioni → Chat**.
+- **Memoria dopo la risposta**: la chat non spende passi per ricordare. Finita la risposta, EasyIsland manda la domanda e la risposta a un modello leggero (Haiku con l'abbonamento, o il **Motore per la memoria**) e annota ciò che vale per le prossime volte. Se vuoi che ricordi qualcosa di preciso, diglielo. Si spegne in **Impostazioni → Chat → Memoria dopo la risposta**.
+- **Strumenti in anticipo**: dalle parole della domanda (preventivo, PC lento, password, pagina web…) EasyIsland dice a Claude quali strumenti caricare, tutti in una volta.
+- **Controllo di un PC in un passo** (`pc_check`): rete, Wi-Fi, lentezza, programmi all'avvio, errori delle ultime 24 ore, stampa, dominio, su questo PC o su un altro della rete con WinRM. Solo lettura. Chiedi per esempio «controlla perché il PC 192.168.0.240 è lento»: Claude parte dal rapporto invece di provare un comando alla volta.
+- **Anteprima**: dopo un clic Claude riceve solo ciò che è cambiato nella pagina, non la pagina intera.
+- **Il punto della giornata**: stato delle integrazioni e attività di To Do li raccoglie EasyIsland; il motore scrive soltanto.
+
 ## Ricette: impara con l'uso
 Dopo una risposta riuscita, EasyIsland ricorda **quali strumenti** sono serviti per quel tipo di domanda. Alla domanda simile la chat va dritta agli strumenti giusti: più veloce e con meno token. In **Impostazioni → Chat → Ricette** vedi quante sono e le dimentichi con un clic.
 

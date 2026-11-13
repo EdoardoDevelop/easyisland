@@ -28,6 +28,8 @@ const MAX_CONVERSATIONS: usize = 100;
 const MAX_TITLE_CHARS: usize = 80;
 /// The previous conversation handed to Claude Code or opencode: its last part.
 const MAX_PREAMBLE_CHARS: usize = 24_000;
+/// «Ripresa leggera»: about 5,000 tokens at most.
+const LIGHT_PREAMBLE_CHARS: usize = 16_000;
 
 /// One line of the conversation, as the chat shows it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -674,6 +676,48 @@ pub fn clear() {
 }
 
 /// The conversation so far, for an engine that cannot resume it on its own.
+/// «Ripresa leggera» (lib.rs `light_restart`): the conversation so far as text
+/// for a new session. Questions and final answers only (the steps and their
+/// outputs, most of the weight, stay out); the last exchanges whole, the older
+/// ones shortened. None without a history entry.
+pub fn light_preamble(chat: &Chat) -> Option<String> {
+    let id = chat.log_id()?;
+    let lines = with_store(|s| s.list.iter().find(|c| c.id == id).map(|c| c.lines.clone()))?;
+    if lines.len() < 2 {
+        return None;
+    }
+    let recent = lines.len().saturating_sub(6);
+    let mut text = String::new();
+    for (i, l) in lines.iter().enumerate() {
+        let content = if l.role == "user" { l.content.trim().to_string() } else { crate::agentchat::clean_reply(&l.content).unwrap_or_else(|| l.content.trim().to_string()) };
+        let max = match (i >= recent, l.role == "user") {
+            (true, true) => 3_000,
+            (true, false) => 4_000,
+            (false, true) => 500,
+            (false, false) => 700,
+        };
+        let n = content.chars().count();
+        let content = if n > max { format!("{}…", content.chars().take(max).collect::<String>()) } else { content };
+        let who = if l.role == "user" { t("Utente") } else { t("Assistente") };
+        text.push_str(&format!("{who}: {content}\n\n"));
+    }
+    let count = text.chars().count();
+    if count > LIGHT_PREAMBLE_CHARS {
+        text = format!("…{}", text.chars().skip(count - LIGHT_PREAMBLE_CHARS).collect::<String>());
+    }
+    // The answers' uuids belonged to the old session: «Modifica» and «Dirama» go from the text now.
+    with_store(|s| {
+        if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
+            c.marks.clear();
+            s.save();
+        }
+    });
+    Some(tf(
+        "[EasyIsland ha ripreso questa conversazione in una sessione nuova, per non rileggere a ogni passo tutto il lavoro fatto. Ecco domande e risposte finora (senza i passi intermedi: se ti serve un dettaglio, come il contenuto di un file o l'uscita di un comando, rileggilo):\n\n{text}]\n\nNuova domanda: ",
+        &[("text", &text)],
+    ))
+}
+
 fn preamble(lines: &[Line]) -> String {
     let mut text = String::new();
     for l in lines {

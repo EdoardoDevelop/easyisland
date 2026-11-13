@@ -6,7 +6,7 @@ import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -155,6 +155,20 @@ function saveDraft(text: string) {
   } catch {
     /* storage off: the draft just does not survive */
   }
+}
+
+/** "5 passi · 120k letti" under an answer of Claude Code; the tools and the light start on hover. */
+function usageMark(u: TurnUsage): HTMLElement {
+  const k = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
+  const tools = u.tools.map(([n, c]) => (c > 1 ? `${n} ×${c}` : n)).join(", ");
+  const lines = [
+    t("{s} passi: ogni passo rilegge la conversazione", { s: u.steps }),
+    t("Token letti {r}, scritti {o}; contesto più grande {p}", { r: k(u.read), o: k(u.out), p: k(u.peak) }),
+  ];
+  if (tools) lines.push(t("Strumenti: {t}", { t: tools }));
+  if (u.light) lines.push(t("Ripresa leggera: la conversazione pesava {n} token, EasyIsland l'ha ripresa in una sessione nuova con domande e risposte", { n: k(u.light) }));
+  const text = `${u.light ? "⤓ " : ""}${t("{s} passi · {r} letti", { s: u.steps, r: k(u.read) })}`;
+  return h("span", { class: "msg-usage", title: lines.join("\n"), text });
 }
 
 function bubble(message: ChatMessage, live = false): HTMLElement {
@@ -902,11 +916,14 @@ export function buildPrompt(
       if (note && c === State.chat) flash(note);
       c.context = reply.context ?? null;
       // Past HEAVY_CONTEXT every step re-reads it all: said once, the meter stays amber and compacts on a click.
-      if ((c.context?.[0] ?? 0) >= HEAVY_CONTEXT && !c.heavyWarned && c === State.chat) {
+      // With «Ripresa leggera» (Claude Code) EasyIsland lightens it by itself at the next question.
+      const lightens = engine === "subscription" && State.settings.chatLight !== false;
+      if ((c.context?.[0] ?? 0) >= HEAVY_CONTEXT && !c.heavyWarned && !lightens && c === State.chat) {
         c.heavyWarned = true;
         flash(t("La conversazione pesa {n} token e ogni passo li rilegge tutti: clic sull'indicatore del contesto (o /compatta) per riassumerla, o «Nuovo» se cambi argomento.", { n: Math.round((c.context?.[0] ?? 0) / 1000) + "k" }), true);
       }
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
+      const usage = (reply as { usage?: TurnUsage | null }).usage ?? undefined;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1341,6 +1358,7 @@ export function buildPrompt(
     if (own && m.role === "assistant" && !last) {
       bar.append(h("button", { class: "msg-act", title: t("Una conversazione nuova che parte da qui; questa resta nella cronologia"), text: `⑂ ${t("Dirama da qui")}`, onclick: () => void fork(index) }));
     }
+    if (m.role === "assistant" && m.usage) bar.append(usageMark(m.usage));
     row.classList.add("with-actions");
     row.append(bar);
     return row;

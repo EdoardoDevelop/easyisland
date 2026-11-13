@@ -2,6 +2,15 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.46** — **EasyIsland fa il lavoro al posto dell'IA**, così con l'abbonamento arrivi meno ai limiti. Con Claude Code
+una conversazione diventata pesante (oltre 60.000 token) o ferma da 45 minuti **riparte leggera**: solo domande e risposte,
+senza rileggere a ogni passo tutto il lavoro fatto. La **memoria la scrive EasyIsland dopo la risposta** con un modello
+leggero, e la chat non spende passi per ricordare. Dalle parole della domanda EasyIsland dice in anticipo **quali strumenti
+caricare**. Nuovo **controllo del PC in un passo** (`pc_check`: rete, Wi-Fi, lentezza, avvio, errori, stampa, dominio), anche
+su un altro PC con WinRM, solo in lettura. Dopo un clic l'**Anteprima** manda solo ciò che è cambiato nella pagina; il **punto
+della giornata** arriva con stato e To Do già raccolti. Sotto ogni risposta **quanti passi e token** è costata. Ripresa
+leggera e memoria dopo la risposta si spengono in Impostazioni → Chat.
+
 **1.0.45** — **Il browser dell'Anteprima lavora per te**: clic, tasti, mouse e scorrimento veri, più passi in una sola
 chiamata, ricerca degli elementi per testo, **prodotti e prezzi letti da qualsiasi pagina** senza schermate, foto dei prodotti
 nel Vassoio. **Portali dei fornitori**: insegni alla chat come cercare su un portale e poi lei cerca da sola, anche su tutti

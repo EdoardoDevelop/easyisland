@@ -193,6 +193,31 @@ pub struct Chat {
     /// «Sotto-agenti» in the chat's engine menu: Claude Code's Agent tool in
     /// Modalità terminale (TERMINAL_TOOLS leaves it out).
     agents: std::sync::atomic::AtomicBool,
+    /// Tokens in the context after the last turn and when it ended: past
+    /// `LIGHT_TOKENS`, or left alone long, the next turn starts light (lib.rs `light_restart`).
+    last_turn: Mutex<Option<(u64, std::time::Instant)>>,
+    /// What the last turn cost (claude_cli::finish), taken by the island once.
+    usage: Mutex<Option<TurnUsage>>,
+    /// This turn started light, from a context of this many tokens.
+    light_from: Mutex<Option<u64>>,
+}
+
+/// What one turn of Claude Code cost: shown under the answer and kept in
+/// `consumo-chat.jsonl` (measured to find where the tokens go, 13 Nov 2026).
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TurnUsage {
+    /// Calls to the model (each one reads the whole context again).
+    pub steps: u64,
+    /// Tokens read in all, cache included.
+    pub read: u64,
+    pub out: u64,
+    /// The largest context of the turn.
+    pub peak: u64,
+    /// The tools called, with how many times.
+    pub tools: Vec<(String, u32)>,
+    /// The turn started light (a new session with the conversation as text), from this context.
+    pub light: Option<u64>,
 }
 
 impl Chat {
@@ -263,6 +288,7 @@ impl Chat {
         *self.resume_fallback.lock().unwrap() = None;
         *self.resume_at.lock().unwrap() = None;
         *self.desktop.lock().unwrap() = None;
+        *self.last_turn.lock().unwrap() = None;
     }
 
     pub(crate) fn set_resume_at(&self, uuid: Option<String>) {
@@ -378,6 +404,32 @@ impl Chat {
 
     pub(crate) fn set_context(&self, used: u64, size: u64) {
         *self.context.lock().unwrap() = Some((used, size));
+        *self.last_turn.lock().unwrap() = Some((used, std::time::Instant::now()));
+    }
+
+    /// The context left by the last turn and how long ago it ended.
+    pub(crate) fn last_turn(&self) -> Option<(u64, std::time::Duration)> {
+        self.last_turn.lock().unwrap().map(|(used, at)| (used, at.elapsed()))
+    }
+
+    pub(crate) fn set_usage(&self, usage: Option<TurnUsage>) {
+        *self.usage.lock().unwrap() = usage;
+    }
+
+    pub(crate) fn take_usage(&self) -> Option<TurnUsage> {
+        self.usage.lock().unwrap().take()
+    }
+
+    pub(crate) fn set_light_from(&self, used: Option<u64>) {
+        *self.light_from.lock().unwrap() = used;
+    }
+
+    pub(crate) fn take_light_from(&self) -> Option<u64> {
+        self.light_from.lock().unwrap().take()
+    }
+
+    pub(crate) fn has_resume_at(&self) -> bool {
+        self.resume_at.lock().unwrap().is_some()
     }
 
     /// Once per turn: a turn on another engine leaves none, and the island hides the meter.

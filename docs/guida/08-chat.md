@@ -24,6 +24,7 @@
 - **I passi si aprono**: sotto ogni passo di Claude Code, **▸ Esito** mostra cosa ha dato (l'uscita di un comando, il testo letto, un errore in rosso); i passi dei sotto-agenti compaiono sotto il loro nome («↳ Legge i PDF · …»).
 - **Scrivere mentre lavora**: con Claude Code un messaggio scritto mentre risponde gli arriva subito, fra un passo e l'altro, e ne tiene conto nella stessa risposta (sotto la domanda compare «↪ …»), come in Claude Desktop. Con gli altri motori va in coda come prima.
 - **Multi motore**: in Impostazioni → Chat scegli i motori che lavorano insieme, poi accendi il pulsante nella conversazione. Il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro e vedi una riga per ognuno. Prima che tu la veda, la risposta viene controllata da un altro motore e corretta se serve: ne arriva una sola, già rivista, e sotto trovi **✓ Controllato**. Intanto vedi i passi, non la bozza. Ne bastano due, meglio di due marche diverse. Costa di più e può metterci il doppio: accendilo per i lavori veri. Le azioni chiedono Consenti/Nega come sempre.
+- **Quanto è costata**: con Claude Code, accanto ai pulsanti c'è «4 passi · 61k letti». Ogni passo rilegge la conversazione: più passi, più consumo. Passandoci sopra vedi gli strumenti usati. **⤓** vuol dire che EasyIsland ha ripreso la conversazione in leggero (vedi sotto).
 - **⇄ Seconda opinione**: un altro motore rilegge l'ultima domanda e la risposta e segnala errori, mancanze o rischi (oppure «va bene»). Il suo parere arriva anche al motore principale, che può correggersi.
 
 ## Allegare

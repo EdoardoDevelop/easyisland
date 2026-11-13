@@ -88,7 +88,7 @@ pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, whic
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action) and make or change them when asked (quick_action_create, quick_action_update, quick_action_delete), \
 read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
 browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), read Word and PDF documents, one or a whole folder of them a page of files at a time (document_read: faster and cheaper than extracting the text with other programs), write new Word documents, also from the user's own templates, with the lines of a quote whose totals and VAT EasyIsland computes (document_templates, document_template_add, document_create), turn them into PDF with Word (document_pdf), merge, extract and split PDF pages into new files (pdf_merge, pdf_split), \
-read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), show files and web pages in EasyIsland's preview window next to the chat — the user's local dev server, a page you built, a file you changed — and check them: open a tab (preview_open: a URL, localhost:port or a file path; back, forward, reload), see the page as a tree of headings, texts and controls with refs (preview_snapshot), find the elements with some words and their refs (preview_find: much cheaper on a big page), read the products of a page or of a site's search as compact JSON with code, price, availability, link and photos, without knowing the site (preview_extract: the cheapest way to compare products and prices for a quote), read its text (preview_read), wait for something to appear (preview_wait), read the requests and the content of their answers, often the clean data of a search (preview_network with data_only, then body), take a screenshot (preview_screenshot, then read the PNG), read the console errors (preview_console), try it at phone or tablet size or in dark mode (preview_resize), and click or type in it by ref (preview_click, preview_type, which the user confirms), scroll it or hover (preview_scroll), and use a real mouse and keyboard: keys like Enter or Escape, typing that triggers suggestions, drop-downs, checkboxes, double and right clicks, drags (preview_act, confirmed); never buy, order or fill a cart; chain several of these in one call (preview_steps: far fewer steps and tokens); search the suppliers' portals the user taught for products and prices, each in its own tab, without reading pages (portal_search, portal_list), download product photos into the Vassoio by their addresses, for a quote (preview_save_images), sign in to a site in the preview with a Devolutions Cloud entry, the password going straight into the page and never to you (preview_login, confirmed), and teach a new portal with the user: open it, search, see what preview_extract or preview_network give, then save its recipe (portal_save, tested); after changing a web page, open or reload it in the preview and check it before saying it works, keep the chat's memory (memory_search to look into notes, linked pages and past conversations, memory_note to remember something for next time, memory_page and memory_page_write for the pages about people, customers, projects and concepts, linked with [[Title]]), build the user's own integrations — forms with fields, tables and formulas, dashboards of data read from their services, calls to their APIs with keys they keep in Windows, documents and actions — when they ask for one (custom_create, custom_update, custom_get, custom_records, custom_add_record), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
+read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), look a PC over in one call, this one or another of the network through WinRM, read only: network, Wi-Fi, slowness, startup, errors in the logs, printing, domain (pc_check: use it first when a PC is slow, offline, freezes or does not print, instead of many commands one at a time), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), show files and web pages in EasyIsland's preview window next to the chat — the user's local dev server, a page you built, a file you changed — and check them: open a tab (preview_open: a URL, localhost:port or a file path; back, forward, reload), see the page as a tree of headings, texts and controls with refs (preview_snapshot), find the elements with some words and their refs (preview_find: much cheaper on a big page), read the products of a page or of a site's search as compact JSON with code, price, availability, link and photos, without knowing the site (preview_extract: the cheapest way to compare products and prices for a quote), read its text (preview_read), wait for something to appear (preview_wait), read the requests and the content of their answers, often the clean data of a search (preview_network with data_only, then body), take a screenshot (preview_screenshot, then read the PNG), read the console errors (preview_console), try it at phone or tablet size or in dark mode (preview_resize), and click or type in it by ref (preview_click, preview_type, which the user confirms), scroll it or hover (preview_scroll), and use a real mouse and keyboard: keys like Enter or Escape, typing that triggers suggestions, drop-downs, checkboxes, double and right clicks, drags (preview_act, confirmed); never buy, order or fill a cart; chain several of these in one call (preview_steps: far fewer steps and tokens); search the suppliers' portals the user taught for products and prices, each in its own tab, without reading pages (portal_search, portal_list), download product photos into the Vassoio by their addresses, for a quote (preview_save_images), sign in to a site in the preview with a Devolutions Cloud entry, the password going straight into the page and never to you (preview_login, confirmed), and teach a new portal with the user: open it, search, see what preview_extract or preview_network give, then save its recipe (portal_save, tested); after changing a web page, open or reload it in the preview and check it before saying it works, keep the chat's memory (memory_search to look into notes, linked pages and past conversations, memory_note to remember something for next time, memory_page and memory_page_write for the pages about people, customers, projects and concepts, linked with [[Title]]), build the user's own integrations — forms with fields, tables and formulas, dashboards of data read from their services, calls to their APIs with keys they keep in Windows, documents and actions — when they ask for one (custom_create, custom_update, custom_get, custom_records, custom_add_record), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
 (\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
 You cannot run arbitrary commands: only the user's quick actions. \
@@ -601,6 +601,9 @@ struct Progress {
     /// The sub-agents started in this turn: their call's id and description,
     /// so their own steps show under them (as Claude Desktop shows them).
     agents: Vec<(String, String)>,
+    /// The tools called in this turn and how many times (TurnUsage), and the largest context.
+    tools: Vec<(String, u32)>,
+    peak: u64,
 }
 
 impl Progress {
@@ -641,12 +644,22 @@ impl Progress {
             Some("assistant") => {
                 if let Some(used) = context_used(&v) {
                     self.context = used;
+                    self.peak = self.peak.max(used);
                 }
             }
             _ => return false,
         }
         let mut changed = false;
         for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if block.get("type").and_then(Value::as_str) == Some("tool_use") {
+                let name = block.get("name").and_then(Value::as_str).unwrap_or_default();
+                // easyisland's own without their long prefix.
+                let name = name.rsplit("__").next().unwrap_or(name).to_string();
+                match self.tools.iter_mut().find(|(n, _)| *n == name) {
+                    Some(t) => t.1 += 1,
+                    None => self.tools.push((name, 1)),
+                }
+            }
             if block.get("type").and_then(Value::as_str) == Some("thinking") {
                 let t = block.get("thinking").and_then(Value::as_str).unwrap_or_default().trim();
                 if !t.is_empty() {
@@ -988,6 +1001,9 @@ async fn read_lines(
                 if result && progress.context > 0 {
                     on_context(progress.context, context_size(&line));
                 }
+                if result && chat != 0 {
+                    turn_tools(chat, std::mem::take(&mut progress.tools), std::mem::take(&mut progress.peak));
+                }
                 // The pieces of a block are not what the turn ended on.
                 if !line.trim_start().starts_with("{\"type\":\"stream_event\"") {
                     last = line;
@@ -1013,6 +1029,62 @@ fn compacted_result(line: &str, pre: u64, post: u64) -> String {
     };
     v["result"] = Value::String(text);
     v.to_string()
+}
+
+/// The tools and the largest context of each conversation's last turn (`Progress`), for `finish`.
+static TURN_TOOLS: std::sync::Mutex<Vec<(usize, Vec<(String, u32)>, u64)>> = std::sync::Mutex::new(Vec::new());
+
+fn turn_tools(chat: usize, tools: Vec<(String, u32)>, peak: u64) {
+    let mut all = TURN_TOOLS.lock().unwrap();
+    all.retain(|(c, _, _)| *c != chat);
+    all.push((chat, tools, peak));
+}
+
+fn take_turn_tools(chat: usize) -> (Vec<(String, u32)>, u64) {
+    let mut all = TURN_TOOLS.lock().unwrap();
+    match all.iter().position(|(c, _, _)| *c == chat) {
+        Some(i) => {
+            let (_, t, p) = all.remove(i);
+            (t, p)
+        }
+        None => (Vec::new(), 0),
+    }
+}
+
+/// The turn's cost from its `result` line (its `usage` adds up every step) and `Progress`.
+fn turn_usage(chat: &Chat, result: &str) -> Option<crate::claude::TurnUsage> {
+    let v: Value = serde_json::from_str(result.lines().rev().map(str::trim).find(|l| l.starts_with('{'))?).ok()?;
+    let u = v.get("usage")?;
+    let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+    let (mut tools, peak) = take_turn_tools(chat as *const Chat as usize);
+    tools.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    Some(crate::claude::TurnUsage {
+        steps: v.get("num_turns").and_then(Value::as_u64).unwrap_or(0),
+        read: n("input_tokens") + n("cache_read_input_tokens") + n("cache_creation_input_tokens"),
+        out: n("output_tokens"),
+        peak,
+        tools,
+        light: chat.take_light_from(),
+    })
+}
+
+/// One line per turn in `consumo-chat.jsonl` (%LOCALAPPDATA%\EasyIsland): where
+/// the tokens went, to measure what EasyIsland can take off the engine. Past
+/// 2 MB the older half goes.
+fn keep_usage(u: &crate::claude::TurnUsage) {
+    let path = crate::settings::local_dir().join("consumo-chat.jsonl");
+    if std::fs::metadata(&path).is_ok_and(|m| m.len() > 2_000_000) {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            let lines: Vec<&str> = text.lines().collect();
+            let keep = lines.get(lines.len() / 2..).unwrap_or_default().join("\n");
+            let _ = std::fs::write(&path, format!("{keep}\n"));
+        }
+    }
+    let line = serde_json::json!({ "at": crate::memory::stamp(), "usage": u }).to_string();
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        use std::io::Write as _;
+        let _ = writeln!(f, "{line}");
+    }
 }
 
 /// What a model call read: the new tokens and those from the cache.
@@ -1326,6 +1398,12 @@ impl Drop for Steering {
             all.remove(i);
         }
     }
+}
+
+/// The conversation's process still has work in the background (`follow`).
+pub(crate) fn has_background(chat: &Chat) -> bool {
+    let id = chat as *const Chat as usize;
+    FOLLOWING.lock().unwrap().iter().any(|f| f.chat == id)
 }
 
 /// A message for the turn in progress of `chat`; false when no turn of
@@ -1895,6 +1973,11 @@ async fn send_mode(
 /// The end of a turn of `send_mode`: its result as the chat's reply.
 fn finish(chat: &Chat, stdout: String, shown: String, stderr: String, success: bool) -> Result<ChatReply, String> {
     log_usage(&stdout);
+    let usage = turn_usage(chat, &stdout);
+    if let Some(u) = &usage {
+        keep_usage(u);
+    }
+    chat.set_usage(usage);
     let Some(outcome) = parse_output(&stdout) else {
         let detail: String = stderr.trim().chars().take(300).collect();
         // A broken session id would fail every later turn the same way.

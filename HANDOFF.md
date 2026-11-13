@@ -53,6 +53,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
+Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
+
 ### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
 Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori. Poi pulsante ⧉/◨ nell'Anteprima per isola o finestra (`preview_dock`), da provare nell'app.
 
@@ -65,7 +68,4 @@ Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (b
 
 ### 12/11 — Chat: meno passi
 Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
-
-### 12/11 — Campo file con «accept»
-Richiesta di Edoardo per TTSpeak (il campo «Audio creato» mostrava ogni file): `accept` sul campo `file` delle integrazioni personali, gruppi (audio, immagini, video, pdf, word, excel, testo) o estensioni (`mp3,wav`); Vassoio filtrato e finestra di Windows con il solo filtro, un file. Misurato prima: la richiesta in chat dopo il taglio dei token partiva da 29k (prima 34–45k), ~260k in tutto. `docs/integrazioni.md`, guida 24. Da provare dal vivo la finestra.
 

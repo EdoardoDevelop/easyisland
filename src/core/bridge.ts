@@ -360,7 +360,7 @@ export const Bridge = {
   chatBranch: (folder: string) => call<string>("chat_branch", { folder }),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
   chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "", model: string | null = null, fast = false, agents = false) =>
-    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
+    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null; usage?: import("./state").TurnUsage | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */

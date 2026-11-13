@@ -2,6 +2,15 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.46** — **EasyIsland does the work instead of the AI**, so with the subscription you reach the limits less often.
+With Claude Code a conversation grown heavy (over 60,000 tokens) or idle for 45 minutes **resumes light**: only questions
+and answers, without re-reading all the work done at every step. **The memory is written by EasyIsland after the answer**
+with a light model, and the chat spends no steps on remembering. From the words of the question EasyIsland says in advance
+**which tools to load**. New **PC check in one step** (`pc_check`: network, Wi-Fi, slowness, startup, errors, printing,
+domain), also on another PC through WinRM, read only. After a click the **Preview** sends only what changed in the page; the
+**day's rundown** comes with state and To Do already gathered. Under each answer, **how many steps and tokens** it cost. Light
+resume and memory after the answer can be turned off in Settings → Chat.
+
 **1.0.45** — **The Preview's browser works for you**: real clicks, keys, mouse and scrolling, several steps in one
 call, elements found by their text, **products and prices read from any page** without screenshots, product photos in the
 Tray. **Suppliers' portals**: you teach the chat how to search a portal and then it searches by itself, even all of them at

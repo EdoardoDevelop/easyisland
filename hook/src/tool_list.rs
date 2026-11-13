@@ -311,6 +311,15 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "pc_check",
+            "Controlla un PC in una volta sola, solo leggendo: questo PC o un altro della rete con WinRM e l'account Windows dell'utente. Dà sempre nome, sistema, acceso da, CPU, RAM e dischi; poi le aree scelte: rete (IP, gateway, DNS, ping, proxy, firewall), wifi (segnale, canale, velocità, reti vicine), lentezza (processi, disco, paging), avvio (programmi all'avvio, servizi automatici fermi), eventi (errori di sistema e applicazioni nelle ultime 24 ore, raggruppati), stampa (spooler, stampanti, coda), dominio (dominio, controller, canale sicuro, ora); tutto = rete, lentezza ed eventi. Usalo per primo quando c'è da capire perché un PC è lento, non va in rete, si blocca o non stampa, invece di tanti comandi uno alla volta; poi approfondisci solo ciò che il rapporto indica. host: nome o IP (vuoto = questo PC).",
+            json!({ "type": "object", "properties": {
+                "host": { "type": "string" },
+                "areas": { "type": "array", "items": { "type": "string", "enum": ["rete", "wifi", "lentezza", "avvio", "eventi", "stampa", "dominio", "tutto"] } }
+            } }),
+            true,
+        ),
+        (
             "remote_run",
             "Esegue un comando sul PC remoto collegato alla chat e ne restituisce l'uscita: PowerShell se è Windows, sh se è Linux (remote_status lo dice). Ogni chiamata è una sessione nuova: cartella e variabili non restano, quindi metti tutto in un comando. Preferisci comandi che leggono; prima di cambiare o cancellare qualcosa dillo all'utente. command: il comando; timeout: secondi (predefinito 120, massimo 300).",
             json!({ "type": "object", "properties": {
