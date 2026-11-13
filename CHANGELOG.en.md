@@ -2,6 +2,16 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.45** — **The Preview's browser works for you**: real clicks, keys, mouse and scrolling, several steps in one
+call, elements found by their text, **products and prices read from any page** without screenshots, product photos in the
+Tray. **Suppliers' portals**: you teach the chat how to search a portal and then it searches by itself, even all of them at
+once (`/portali`, `/impara-portale`, Settings → Chat → Portals). Sign-in to sites with **Devolutions** credentials the
+chat never sees; "Always" on a click holds for that site; **never** clicks on cart, purchase, order or payment. **Quotes**
+with cost + markup and VAT taken out, computed by EasyIsland. Over the chat field, **tips** for what is in front of you and
+the **?** button "What I can do". In Terminal mode the chat starts in **Automatic** (off it is called **Manual**). **One
+card per engine** in Settings → Chat: status, how it is paid, what it can do, model. A button in the Preview puts it **in the
+island or in a window**. Agent Chat posts only the final answer.
+
 **1.0.44** — **The chat uses far fewer tokens**, with answers just as good. In Terminal mode it gets only the tools it
 needs and none of Claude Code's skills for programmers; before each question **EasyIsland looks into the memory itself**
 and puts what helps in front of it; memory searches, pages and notes are done **several at once**; an integration's

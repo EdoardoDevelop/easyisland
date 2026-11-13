@@ -5,7 +5,7 @@ _11 novembre 2026. **1.0.43** in `main` (tag `v1.0.43`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
-- [ ] **Browser e portali dei fornitori** (12/11, ramo `claude/browser`, non unito): `docs/chat.md` → Anteprima e Portali dei fornitori. Provati solo con test e con gli script sulle pagine vere (estrazione, blocco del carrello, modulo di accesso); da provare nell'app (`docs/prove-dal-vivo.md`), poi unire. Seguiti in `docs/idee.md`.
+- [ ] **Browser e portali dei fornitori** (12/11, in `main` dalla 1.0.45): `docs/chat.md` → Anteprima e Portali dei fornitori. Provati solo con test e con gli script sulle pagine vere (estrazione, blocco del carrello, modulo di accesso); da provare nell'app (`docs/prove-dal-vivo.md`). Seguiti in `docs/idee.md`.
 - [ ] **Importa abilità** (1.0.43, `docs/chat.md` → Abilità → Importa): provato su The Agency vera con `live_scan` e nell'anteprima; da provare nell'app con «Da Claude Code», una cartella vera e «Adatta con un motore» con i vari motori (risposta nel formato giusto, durata). Seguiti in `docs/idee.md`.
 - [ ] **Terminale vero nella chat** (9/11): fatto con ConPTY e xterm.js (`docs/chat.md` → Terminale); da provare dal vivo (editor, Ctrl+C, finestra staccata). Restano più schede e scelta della shell (`docs/idee.md`).
 - [ ] **Riduci animazioni** (`docs/architettura.md` → Accessibilità): personaggi, apertura dell'isola, Ezzy, luccichio e transizioni CSS non lo rispettano ancora; scelto di rimandarlo il 9/11.
@@ -53,7 +53,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 13/11 — Card per motore (ramo `claude/motori`, da `claude/browser`)
+### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
 Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori. Poi pulsante ⧉/◨ nell'Anteprima per isola o finestra (`preview_dock`), da provare nell'app.
 
 ### 12/11 — Browser dell'Anteprima e portali dei fornitori (ramo `claude/browser`)

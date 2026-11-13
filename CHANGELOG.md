@@ -2,6 +2,17 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.45** — **Il browser dell'Anteprima lavora per te**: clic, tasti, mouse e scorrimento veri, più passi in una sola
+chiamata, ricerca degli elementi per testo, **prodotti e prezzi letti da qualsiasi pagina** senza schermate, foto dei prodotti
+nel Vassoio. **Portali dei fornitori**: insegni alla chat come cercare su un portale e poi lei cerca da sola, anche su tutti
+insieme (`/portali`, `/impara-portale`, Impostazioni → Chat → Portali). Accesso ai siti con le credenziali di
+**Devolutions** senza che la chat le veda; «Sempre» su un clic vale per quel sito; **mai** clic su carrello, acquisti, ordini
+o pagamenti. Nei **preventivi** costo + ricarico e IVA scorporata, calcolati da EasyIsland. Sopra il campo della chat
+**suggerimenti** per ciò che hai davanti e il pulsante **?** «Cosa so fare». In Modalità terminale la chat parte in
+**Automatica** (spenta si chiama **Manuale**). **Una card per ogni motore** in Impostazioni → Chat: stato, come si paga,
+cosa sa fare, modello. Un pulsante nell'Anteprima la mette **nell'isola o in una finestra**. Agent Chat pubblica solo la
+risposta finale.
+
 **1.0.44** — **La chat consuma molto meno**, senza rispondere peggio. In Modalità terminale riceve solo gli strumenti che
 le servono e non le skill per programmatori di Claude Code; prima di ogni domanda **EasyIsland cerca da sola nella memoria**
 e le mette davanti ciò che serve; ricerche, pagine e note di memoria si fanno **più in una volta**; la descrizione di
