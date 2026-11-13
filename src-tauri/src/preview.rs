@@ -1747,7 +1747,9 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             if tb.kind == "file" && !tb.browser {
                 return Err(t("È un file, non una pagina web: usa preview_read.").into());
             }
-            page_snapshot(app, tb.id).await
+            let snap = page_snapshot(app, tb.id).await?;
+            seen(tb.id, &snap);
+            Ok(snap)
         }
         "preview_wait" => {
             let tb = tab_for(&s("tab"))?;
@@ -1770,7 +1772,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
                 return Ok(t("Pronto.").into());
             }
-            page_snapshot(app, tb.id).await
+            page_view(app, tb.id).await
         }
         "preview_network" => {
             let tb = tab_for(&s("tab"))?;
@@ -2110,10 +2112,67 @@ async fn after(app: &AppHandle, id: u32, done: String, args: &Value) -> Result<S
     if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
         return Ok(done);
     }
-    match page_snapshot(app, id).await {
+    match page_view(app, id).await {
         Ok(snap) => Ok(format!("{done}\n\n{snap}")),
         Err(_) => Ok(done),
     }
+}
+
+/// The last page each tab showed the chat (`page_view`).
+static SEEN: Mutex<Vec<(u32, String)>> = Mutex::new(Vec::new());
+
+/// Keeps `snap` as what the chat last saw of the tab; back: what it saw before.
+fn seen(id: u32, snap: &str) -> Option<String> {
+    let mut all = SEEN.lock().unwrap();
+    let before = all.iter().position(|(i, _)| *i == id).map(|p| all.remove(p).1);
+    all.push((id, snap.to_string()));
+    if all.len() > 20 {
+        all.remove(0);
+    }
+    before
+}
+
+/// After a click, typing or a wait (13 Nov 2026: on the laptop these answers
+/// were 9–25k characters each, the whole page every time): the page whole when
+/// it is another one, else only the lines that changed.
+async fn page_view(app: &AppHandle, id: u32) -> Result<String, String> {
+    let snap = page_snapshot(app, id).await?;
+    Ok(match seen(id, &snap) {
+        Some(before) => changes(&before, &snap).unwrap_or(snap),
+        None => snap,
+    })
+}
+
+/// The new lines of `now` against `before`, with its title and address; None
+/// when it is another page (title or address changed) or most of it changed.
+fn changes(before: &str, now: &str) -> Option<String> {
+    let head = |s: &str| s.lines().take(2).map(str::to_string).collect::<Vec<_>>();
+    if head(before) != head(now) {
+        return None;
+    }
+    let mut old: HashMap<&str, usize> = HashMap::new();
+    for l in before.lines().skip(2) {
+        *old.entry(l.trim_end()).or_default() += 1;
+    }
+    let lines: Vec<&str> = now.lines().skip(2).filter(|l| !l.trim().is_empty()).collect();
+    let mut fresh = Vec::new();
+    for l in &lines {
+        match old.get_mut(l.trim_end()) {
+            Some(n) if *n > 0 => *n -= 1,
+            _ => fresh.push(*l),
+        }
+    }
+    if fresh.is_empty() {
+        return Some(t("La pagina non è cambiata.").to_string());
+    }
+    if fresh.len() * 2 > lines.len() || fresh.len() > 80 {
+        return None;
+    }
+    Some(format!(
+        "{}\n{}",
+        tf("Cambiato nella pagina ({n} righe nuove; il resto è come prima, preview_snapshot per vederla tutta):", &[("n", &fresh.len().to_string())]),
+        fresh.join("\n")
+    ))
 }
 
 /// The page as the chat reads it: roles, names and a ref for each control.
@@ -2634,6 +2693,16 @@ fn cut(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn after_a_click_only_what_changed() {
+        let a = "Titolo\nhttps://x\n\nriga 1\nriga 2\nriga 3\nriga 4";
+        assert_eq!(changes(a, a).as_deref(), Some(t("La pagina non è cambiata.")));
+        let b = format!("{a}\nriga nuova");
+        assert!(changes(a, &b).unwrap().ends_with("riga nuova"));
+        let other = a.replace("https://x", "https://y");
+        assert!(changes(a, &other).is_none());
+    }
 
     #[test]
     fn addresses_and_files() {

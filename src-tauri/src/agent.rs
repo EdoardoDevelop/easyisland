@@ -185,6 +185,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "notion_update_row" => crate::notion_tools::update_row(arg(args, "page"), args.get("properties").unwrap_or(&Value::Null)).await,
         "notion_delete_row" => crate::notion_tools::delete_row(arg(args, "page"), args.get("confirmed").and_then(Value::as_bool) == Some(true)).await,
         "remote_status" => crate::remote::status(),
+        "pc_check" => crate::pccheck::run(args).await,
         "remote_run" => crate::remote::run(arg(args, "command"), args.get("timeout").and_then(Value::as_u64)).await,
         "memory_search" => crate::memshare::search(app, arg(args, "query"), arg(args, "month")).await,
         "memory_note" if args.get("shared").and_then(Value::as_bool) == Some(true) => crate::memshare::note(app, arg(args, "text")).await,

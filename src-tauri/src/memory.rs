@@ -73,7 +73,7 @@ pub(crate) fn read_main() -> String {
 
 /// The text in front of a new conversation: the notes, newest first, cut.
 /// `tools`: the engine has memory_search and memory_note.
-pub fn preface(tools: bool) -> Option<String> {
+pub fn preface(tools: bool, learns: bool) -> Option<String> {
     let notes = notes_of(&read_main());
     if notes.is_empty() && !tools {
         return None;
@@ -86,7 +86,10 @@ pub fn preface(tools: bool) -> Option<String> {
         body.push_str(n);
         body.push('\n');
     }
-    let how = if tools {
+    let how = if tools && learns {
+        // memory_learn.rs keeps the memory after the answer: no steps for it here.
+        t("Se serve qualcosa di una conversazione passata o di un argomento (persone, clienti, progetti), cercalo con memory_search (note, pagine collegate e diario delle domande); memory_page con brief dà la scheda di una pagina (riassunto e collegamenti), senza brief il testo intero: aprilo solo se la scheda non basta o per riscriverla; memory_path dice come sono collegate due pagine. Non serve salvare in memoria: dopo ogni risposta EasyIsland annota da sola ciò che vale per le prossime volte. Usa memory_note o memory_page_write solo se l'utente ti chiede di ricordare o di scrivere qualcosa.")
+    } else if tools {
         t("Se serve qualcosa di una conversazione passata o di un argomento (persone, clienti, progetti), cercalo con memory_search (note, pagine collegate e diario delle domande); memory_page con brief dà la scheda di una pagina (riassunto e collegamenti), senza brief il testo intero: aprilo solo se la scheda non basta o per riscriverla; memory_path dice come sono collegate due pagine. Quando l'utente dice qualcosa che vale per le prossime volte (una preferenza, un cliente, come si fa una cosa), salvalo con memory_note in una riga, senza chiedere e senza dirlo a lungo.")
     } else {
         ""
@@ -372,12 +375,12 @@ mod tests {
         let temp = std::env::temp_dir().join(format!("easyisland-memory-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp);
         std::env::set_var("APPDATA", &temp);
-        assert!(preface(false).is_none());
+        assert!(preface(false, false).is_none());
         assert_eq!(note("Il cliente Rossi paga a 60 giorni").unwrap(), t("Salvato in memoria."));
         assert_eq!(note("il cliente rossi paga a 60 giorni").unwrap(), t("Era già in memoria."));
         assert!(note("   ").is_err());
         diary("subscription", "Come si rinnova il certificato di Bianchi?", "Con certbot renew", false);
-        let p = preface(true).unwrap();
+        let p = preface(true, false).unwrap();
         assert!(p.contains("Rossi paga a 60 giorni"));
         assert!(p.contains("memory_search"));
         assert!(search("certificato bianchi", "").unwrap().contains("certbot"));

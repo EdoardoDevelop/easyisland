@@ -187,7 +187,7 @@ export async function runScene(island: Island, scene: string) {
       const pensa = new URLSearchParams(location.search).get("pensa");
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
-        if (pensa === "fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", content: "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`\n\n> ⚙ Cerca nella memoria · `NAS Rossi`\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB." });
+        if (pensa === "fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", usage: { steps: 4, read: 61200, out: 900, peak: 16800, tools: [["Read", 1], ["Bash", 1], ["memory_search", 1]], light: 74000 }, content: "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`\n\n> ⚙ Cerca nella memoria · `NAS Rossi`\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB." });
         State.chat.sending = pensa !== "fine";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";

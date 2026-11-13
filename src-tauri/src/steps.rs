@@ -44,6 +44,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "notion_delete_row" => t("Mette una riga di Notion nel cestino"),
         "remote_status" => t("Controlla il PC remoto"),
         "remote_run" => t("Esegue un comando sul PC remoto"),
+        "pc_check" => t("Controlla il PC"),
         "memory_search" => t("Cerca nella memoria"),
         "memory_note" => t("Si annota qualcosa nella memoria"),
         "memory_page" => t("Legge una pagina della memoria"),

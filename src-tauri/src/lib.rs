@@ -13,6 +13,9 @@ mod preview;
 mod pdf;
 mod antigravity;
 mod agent;
+mod memory_learn;
+mod toolhint;
+mod pccheck;
 mod agent_settings;
 mod automations;
 mod flows;
@@ -1406,7 +1409,7 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, usage: chat.take_usage() })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1421,6 +1424,8 @@ struct IslandReply {
     mode: String,
     /// Something the chat says once under the answer (fast mode refused).
     note: Option<String>,
+    /// What the turn cost (Claude Code), shown small under the answer.
+    usage: Option<claude::TurnUsage>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1575,6 +1580,35 @@ const PARTIAL_EVERY: std::time::Duration = std::time::Duration::from_secs(8);
 /// its own mark in the history). `on_text` gets the text so far; `model`
 /// replaces the engine's model for this conversation only (Telegram's /modello).
 #[allow(clippy::too_many_arguments)]
+/// Past this many tokens left in Claude Code's context, the next turn starts light.
+const LIGHT_TOKENS: u64 = 60_000;
+/// Left alone this long with at least `LIGHT_IDLE_TOKENS`, too: its cache is
+/// gone and the next step would read it all again at full price.
+const LIGHT_IDLE: std::time::Duration = std::time::Duration::from_secs(45 * 60);
+const LIGHT_IDLE_TOKENS: u64 = 30_000;
+
+/// «Ripresa leggera» (13 Nov 2026, measured on the laptop: 84k tokens read at
+/// every step on average, up to 244k in conversations of 30 questions, where
+/// most of it is the steps' own outputs). A Claude Code conversation past
+/// `LIGHT_TOKENS`, or left alone long, goes on in a new session with its
+/// questions and answers as text (chat_log::light_preamble), so each step
+/// reads a few thousand tokens of it instead of everything. Not while work
+/// runs in the background or a turn goes back to an earlier answer.
+fn light_restart(chat: &Chat) {
+    let Some((used, idle)) = chat.last_turn() else { return };
+    let due = used >= LIGHT_TOKENS || (idle >= LIGHT_IDLE && used >= LIGHT_IDLE_TOKENS);
+    if !due || chat.cli_session().is_none() || chat.has_resume_at() || chat.has_preamble() || claude_cli::has_background(chat) {
+        return;
+    }
+    let Some(text) = chat_log::light_preamble(chat) else { return };
+    log::line(format!("chat: ripresa leggera da {} token{}", used, if used < LIGHT_TOKENS { " (ferma da tempo)" } else { "" }));
+    claude_cli::drop_live(chat);
+    chat.set_cli_session(None);
+    chat.set_resume_fallback(None);
+    chat.put_back_preamble(text);
+    chat.set_light_from(Some(used));
+}
+
 pub(crate) async fn chat_turn(
     app: &AppHandle,
     chat: &Chat,
@@ -1634,6 +1668,11 @@ pub(crate) async fn chat_turn(
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
+    // «Ripresa leggera»: before `fresh`, so the new session gets the
+    // instructions, the memory and the skills in front like any other.
+    if !plain && !is_compact(&query) && matches!(channel, Channel::Island | Channel::Telegram) && engine == "subscription" && shared.settings.lock().unwrap().chat_light {
+        light_restart(chat);
+    }
     // A new conversation with an engine that has tools: the map of Notion
     // (notion_map.rs) in front, so it does not search for the structure.
     let has_tools = !plain && (terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str())));
@@ -1661,7 +1700,7 @@ pub(crate) async fn chat_turn(
         (s.chat_history && !plain, if plain { String::new() } else { text })
     };
     let memory_tools = agent && (has_tools || engine == "api");
-    let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
+    let memory = if remember && fresh { memory::preface(memory_tools, memory_learn::active(app)) } else { None };
     // The other PC's memory (memshare.rs): said once, searched by memory_search.
     let memory = match (memory, if remember && fresh && memory_tools { memshare::preface(&app) } else { None }) {
         (Some(m), Some(o)) => Some(format!("{m}{o}")),
@@ -1677,9 +1716,18 @@ pub(crate) async fn chat_turn(
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
+    // /oggi, /domani, «Fammi il punto della giornata»: the data gathered here, not by the engine.
+    let query = telegram::day_ready(app, &query).await.unwrap_or(query);
     // Recipes (recipes.rs): how a similar question was answered, right before it.
     let recipe_hint = if learns && agent && (has_tools || engine == "api") { recipes::hint(&asked) } else { None };
     let query = match &recipe_hint {
+        Some(h) => format!("{h}{query}"),
+        None => query,
+    };
+    // Strumenti in anticipo (toolhint.rs): Claude Code keeps EasyIsland's tools
+    // behind ToolSearch; the ones this question needs, loaded in one search.
+    let tools_hint = if learns && agent && has_tools && engine == "subscription" { toolhint::hint(&asked) } else { None };
+    let query = match &tools_hint {
         Some(h) => format!("{h}{query}"),
         None => query,
     };
@@ -1831,6 +1879,9 @@ pub(crate) async fn chat_turn(
             chat_log::record(chat, &engine, &asked, &r.text, prefix);
             if !compact {
                 memory::diary(&engine, &asked, &r.text, telegram);
+                if remember && memory_tools && learns {
+                    memory_learn::after(app, &asked, &r.text);
+                }
             }
         }
         Ok(_) => {}

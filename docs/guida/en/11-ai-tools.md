@@ -51,6 +51,15 @@ It can also read **a whole folder** of Word files and PDFs ("analyse the quotes 
 
 **Merging and splitting PDFs:** "merge these three PDFs", "first the quote, then pages 1-2 of the terms", "extract pages 3-5", "split the PDF into one file per page" or "into 1-2 and 3-end". A Word file among the ones to merge becomes PDF with Word. The originals don't change; the new files go in the Tray and the work folder. Fillable fields and bookmarks are not copied; protected PDFs cannot be merged (open them and print them with "Microsoft Print to PDF", then merge that copy).
 
+## Using less
+EasyIsland does by itself the work there is no need for the AI to do, so with the subscription you reach the limits less often:
+- **Light resume**: when a conversation with Claude Code has grown heavy (over 60,000 tokens of context) or has been idle for more than 45 minutes, the next question starts a new session with only the questions and answers. Claude does not re-read all the work done at every step; if it needs a detail (a file, a command's output) it reads it again. Turn it off in **Settings → Chat**.
+- **Memory after the answer**: the chat spends no steps on remembering. Once the answer is done, EasyIsland sends the question and the answer to a light model (Haiku with the subscription, or the **Memory engine**) and notes what is worth keeping for next time. If you want it to remember something specific, tell it. Turn it off in **Settings → Chat → Memory after the answer**.
+- **Tools in advance**: from the words of the question (quote, slow PC, password, web page…) EasyIsland tells Claude which tools to load, all at once.
+- **A PC checked in one step** (`pc_check`): network, Wi-Fi, slowness, startup programs, errors of the last 24 hours, printing, domain, on this PC or on another one of the network through WinRM. Read only. Ask for example "check why PC 192.168.0.240 is slow": Claude starts from the report instead of trying one command at a time.
+- **Preview**: after a click Claude gets only what changed in the page, not the whole page.
+- **The day's rundown**: the state of the integrations and the To Do tasks are gathered by EasyIsland; the engine only writes.
+
 ## Recipes: it learns by use
 After a successful answer, EasyIsland remembers **which tools** were needed for that kind of question. On a similar question the chat goes straight to the right tools: faster and with fewer tokens. In **Settings → Chat → Recipes** you see how many there are and forget them with one click.
 

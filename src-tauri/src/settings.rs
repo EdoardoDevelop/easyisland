@@ -1022,6 +1022,15 @@ pub struct Settings {
     /// Tips over the field for what is on screen (src/views/chat-tips.ts).
     #[serde(default = "default_true")]
     pub chat_tips: bool,
+    /// «Ripresa leggera» (13 Nov 2026): a Claude Code conversation grown heavy,
+    /// or left alone long, goes on in a new session with its questions and
+    /// answers as text instead of re-reading every step (lib.rs `light_restart`).
+    #[serde(default = "default_true")]
+    pub chat_light: bool,
+    /// The memory written by EasyIsland after the answer, with a light model,
+    /// instead of memory_note steps in the middle of the work (memory_learn.rs).
+    #[serde(default = "default_true")]
+    pub chat_learn: bool,
     /// The preview as a panel on the right of the open island (resizable by
     /// its edge) instead of a window of its own.
     #[serde(default)]
@@ -1323,6 +1332,8 @@ impl Default for Settings {
             chat_preview: true,
             chat_empty_art: default_chat_empty_art(),
             chat_tips: true,
+            chat_light: true,
+            chat_learn: true,
             preview_docked: false,
             preview_width: 0.0,
             chat_instructions: String::new(),

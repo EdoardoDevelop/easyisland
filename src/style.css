@@ -1581,6 +1581,15 @@ input[type="range"]::-webkit-slider-thumb {
   background: transparent;
 }
 .msg-act:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+/* What the turn cost (Claude Code): small, after the actions. */
+.msg-usage {
+  align-self: center;
+  margin-left: 6px;
+  font: 500 calc(10px + var(--fs-up, 0px)) var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  cursor: default;
+}
 .clip-mark { flex: 0 0 auto; vertical-align: -2px; }
 :not(.mic-btn) > .clip-mark { margin-right: 4px; }
 .bubble-file { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: #a5b4fc; margin-bottom: 2px; }

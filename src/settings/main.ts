@@ -673,6 +673,9 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       cliBlock,
       apiBlock,
       other.el),
+    h("div", { class: "row" }, h("label", { text: t("Ripresa leggera") }),
+      toggle(settings.chatLight !== false, (v) => { settings.chatLight = v; void save(); }),
+      h("span", { class: "hint note", text: t("con Claude Code: quando una conversazione supera 60.000 token di contesto, o resta ferma più di 45 minuti, EasyIsland la riprende in una sessione nuova con le sole domande e risposte. Ogni passo rilegge poche migliaia di token invece di tutto il lavoro fatto. Sotto ogni risposta vedi i passi e i token letti") })),
     h("h2", {}, h("span", { text: t("Comandi e file (modalità terminale)") })),
     terminalRow(),
     h("h2", {}, h("span", { text: t("Istruzioni e memoria") })),
@@ -1974,6 +1977,9 @@ function memoryRow(): HTMLElement {
   });
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
+    h("div", { class: "row" }, h("label", { text: t("Memoria dopo la risposta") }),
+      toggle(settings.chatLearn !== false, (v) => { settings.chatLearn = v; void save(); }),
+      h("span", { class: "hint note", text: t("EasyIsland manda la domanda e la risposta, senza il resto della conversazione, a un modello leggero (Haiku con l'abbonamento, o il Motore per la memoria qui sotto) e annota ciò che vale per le prossime volte. La chat non spende passi per ricordare: scrive in memoria solo se glielo chiedi") })),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
       h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }

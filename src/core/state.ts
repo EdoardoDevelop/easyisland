@@ -518,6 +518,19 @@ export interface ChatMessage {
   reviewer?: string;
   /** A file added to this question (pasted or dropped during the conversation). */
   file?: string;
+  /** What the turn cost (Claude Code): shown small under the answer. */
+  usage?: TurnUsage;
+}
+
+/** One turn of Claude Code, as claude_cli::finish measures it (claude.rs TurnUsage). */
+export interface TurnUsage {
+  steps: number;
+  read: number;
+  out: number;
+  peak: number;
+  tools: [string, number][];
+  /** The turn started light, from a context of this many tokens. */
+  light?: number | null;
 }
 
 export type PromptContext =
@@ -857,6 +870,10 @@ export interface Settings {
   chatEmptyArt?: string;
   /** Tips over the field for what is on screen (chat-tips.ts); off only when false. */
   chatTips?: boolean;
+  /** «Ripresa leggera» (lib.rs light_restart); off only when false. */
+  chatLight?: boolean;
+  /** The memory written by EasyIsland after the answer (memory_learn.rs); off only when false. */
+  chatLearn?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */
   previewDocked?: boolean;
   /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */
