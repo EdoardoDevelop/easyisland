@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 12/11 — Chat: meno token a ogni passo
+Edoardo: «anche con 3 domande consuma troppo». Misurato sul portatile (7 giorni, 50 M token riletti): ogni passo partiva da 35–45k token. Modalità terminale con `--tools` ristretto (`TERMINAL_TOOLS`: niente Workflow, Cron…, sotto-agenti solo con «Sotto-agenti» nel menu del motore; −8k token a passo); aiutanti di solo testo con `Chat::plain` (adatta abilità, modulo da testo, memoria, notizie: da ~40k a pochi k). Restano: elenco skill di Claude Code (~4k, non escludibile senza togliere anche le sue), conversazioni lunghe, istruzione «memorizza tutto» (245 chiamate di memoria in una settimana). Le 29 abilità importate l'11/11 pesano ~450 token a conversazione: non sono loro. «Multi agent» rinominato «Multi motore» (EN «Multi-engine»): lavorano più motori, non i sotto-agenti di Claude Code. `docs/chat.md`.
+
 ### 11/11 — Sito: home nuova, animata, e schermate aggiornate
 Richiesta di Edoardo («moderno, con animazioni ed effetto wow»), approvata su anteprima. `site/index.html` e `site/it/index.html` rifatte con `site/home.css` + `site/home.js`: la barra in alto è un'isola con il logo (gli occhi seguono il mouse) che chiede un permesso, annuncia un compito finito o una chiamata 3CX secondo la sezione in vista; vetrina a schede per compiti e memoria, griglia delle integrazioni, personaggi. Solo scura. Tutte le schermate di `site/media/` e `site/media/en/` rigenerate dal programma attuale (più `search-ovunque` e `zammad`); `screenshots/` (README.it) rigenerata allo stesso modo. Guida: stessa tavolozza e caratteri via `site/site.css`. Dettagli in `docs/sviluppo.md`.
 

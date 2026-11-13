@@ -53,6 +53,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 13/11 — Card per motore (ramo `claude/motori`, da `claude/browser`)
+Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori.
+
 ### 12/11 — Browser dell'Anteprima e portali dei fornitori (ramo `claude/browser`)
 Edoardo: cercare prodotti nei portali dei fornitori e farne preventivi, «i siti non devono finire nel codice». Mouse e tastiera veri, `preview_steps`, «Sempre» per sito, mai carrello e ordini, `preview_find`/`preview_extract` (prodotti senza conoscere il sito), ricette in `portals.rs` (dati dell'utente), `preview_login` con Devolutions, foto nel Vassoio, costo + ricarico nei preventivi. Poi suggerimenti sopra il campo per ciò che è nell'Anteprima (regole, senza IA), «?»/`/aiuto` «Cosa so fare», `/portali`, `/impara-portale`. «Automatica» della chat accesa di serie, spenta si chiama «Manuale». `docs/chat.md` → Anteprima, Portali dei fornitori, Suggerimenti.
 
@@ -66,5 +69,3 @@ Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era
 ### 12/11 — Campo file con «accept»
 Richiesta di Edoardo per TTSpeak (il campo «Audio creato» mostrava ogni file): `accept` sul campo `file` delle integrazioni personali, gruppi (audio, immagini, video, pdf, word, excel, testo) o estensioni (`mp3,wav`); Vassoio filtrato e finestra di Windows con il solo filtro, un file. Misurato prima: la richiesta in chat dopo il taglio dei token partiva da 29k (prima 34–45k), ~260k in tutto. `docs/integrazioni.md`, guida 24. Da provare dal vivo la finestra.
 
-### 12/11 — Chat: meno token a ogni passo
-Edoardo: «anche con 3 domande consuma troppo». Misurato sul portatile (7 giorni, 50 M token riletti): ogni passo partiva da 35–45k token. Modalità terminale con `--tools` ristretto (`TERMINAL_TOOLS`: niente Workflow, Cron…, sotto-agenti solo con «Sotto-agenti» nel menu del motore; −8k token a passo); aiutanti di solo testo con `Chat::plain` (adatta abilità, modulo da testo, memoria, notizie: da ~40k a pochi k). Restano: elenco skill di Claude Code (~4k, non escludibile senza togliere anche le sue), conversazioni lunghe, istruzione «memorizza tutto» (245 chiamate di memoria in una settimana). Le 29 abilità importate l'11/11 pesano ~450 token a conversazione: non sono loro. «Multi agent» rinominato «Multi motore» (EN «Multi-engine»): lavorano più motori, non i sotto-agenti di Claude Code. `docs/chat.md`.
