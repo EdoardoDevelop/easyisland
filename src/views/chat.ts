@@ -545,6 +545,26 @@ export function buildPrompt(
     }
     askRow.append(b(t("Consenti"), "primary", "allow"));
   }
+  /** Antigravity's plan (a turn in «Piano»): «Procedi» leaves the mode and asks it to carry it out. */
+  function fillAgyPlan(c: ChatSessionState) {
+    askEl.classList.remove("is-question");
+    askTitle.textContent = t("Il piano è pronto");
+    askPlan.textContent = c.plan ?? "";
+    showOnly(askPlan);
+    const keep = h("button", { class: "btn secondary", onclick: () => {
+      c.plan = null;
+      Sound.play("blip");
+      State.notify();
+      input.focus();
+    } }, h("span", { text: t("Continua a pianificare") }));
+    const go = h("button", { class: "btn primary", onclick: () => {
+      c.plan = null;
+      c.mode = "";
+      Sound.play("blip");
+      void submit(t("Procedi con il piano."), c);
+    } }, h("span", { text: t("Procedi") }));
+    askRow.replaceChildren(keep, go);
+  }
   // Scrolled up to read: new text does not pull the view down; ↓ goes back.
   let stick = true;
   const jumpBtn = h("button", { class: "chat-jump", title: t("Vai in fondo") }, svg(ICONS.lineDown, 13, { stroke: 1.8 })) as HTMLButtonElement;
@@ -996,12 +1016,14 @@ export function buildPrompt(
           return { text: r.text, log: null, context: null };
         })
         : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
-          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : engine === "antigravity" ? c.agyModel : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
       if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
       const note = (reply as { note?: string | null }).note;
       if (note && c === State.chat) flash(note);
+      // Antigravity in «Piano»: its plan waits on a card for «Procedi».
+      c.plan = (reply as { plan?: string | null }).plan ?? null;
       c.context = reply.context ?? null;
       // Past HEAVY_CONTEXT every step re-reads it all: said once, the meter stays amber and compacts on a click.
       // With «Ripresa leggera» (Claude Code) EasyIsland lightens it by itself at the next question.
@@ -1968,7 +1990,40 @@ export function buildPrompt(
       }
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
+    // Antigravity: the same choices, with its own models (`agy models`).
+    if (State.chatEngine === "antigravity") {
+      const now = effortOf(State.chat);
+      engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
+      for (const [id, label, hint] of efforts()) {
+        engineMenu.append(h("button", {
+          class: `engine-item${id === now ? " on" : ""}`, title: hint, text: id ? label : t("Predefinito del modello"),
+          onclick: () => pickEffort(id),
+        }));
+      }
+      const model = State.chat.agyModel ?? "";
+      engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Antigravity") }));
+      const pick = (id: string, label: string) => h("button", {
+        class: `engine-item${id === model ? " on" : ""}`, text: label,
+        onclick: () => { State.chat.agyModel = id || null; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+      });
+      engineMenu.append(pick("", t("Quello delle Impostazioni")));
+      const list = h("div", { class: "engine-models" });
+      engineMenu.append(list);
+      agyModels ??= Promise.resolve(Bridge.chatModels("antigravity", null)).then((l) => (l ?? []).map((m) => m.id)).catch(() => { agyModels = null; return []; });
+      void agyModels.then((ids) => {
+        list.replaceChildren(...(ids.length ? ids.map((id) => pick(id, id)) : [h("div", { class: "engine-note", text: t("Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.") })]));
+      });
+      engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.") }));
+    }
     engineMenu.style.display = "";
+  }
+
+  /** Antigravity's models, read once per run (`agy models` takes a few seconds). */
+  let agyModels: Promise<string[]> | null = null;
+
+  /** Engines with Claude Code's modes and effort: Claude Code and Antigravity. */
+  function hasModes(engine: string): boolean {
+    return engine === "subscription" || engine === "antigravity";
   }
 
   function efforts(): [string, string, string][] {
@@ -2502,7 +2557,7 @@ export function buildPrompt(
   autoBtn.addEventListener("click", () => {
     // Claude Code: Consenti / Nega → Accetta modifiche → Piano → Automatica (its own modes, as Claude Desktop offers them).
     const c = State.chat;
-    if (engineOf(c) === "subscription") {
+    if (hasModes(engineOf(c))) {
       const order = ["", "acceptEdits", "plan", "auto"];
       const now = c.auto ? "auto" : c.mode;
       const next = order[(order.indexOf(now) + 1) % order.length];
@@ -2961,7 +3016,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         onHeightChange();
       }
 
-      const effort = State.chatEngine === "subscription" ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
+      const effort = hasModes(State.chatEngine) ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
@@ -3002,16 +3057,21 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       previewBtn.classList.toggle("on", State.previewOpen);
       tip(previewBtn, State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat"));
       autoBtn.classList.toggle("on", auto);
-      const claudeMode = terminal && !auto && engineOf(State.chat) === "subscription" ? State.chat.mode : "";
+      const claudeMode = terminal && !auto && hasModes(engineOf(State.chat)) ? State.chat.mode : "";
       autoBtn.classList.toggle("mode", !!claudeMode);
       const modeLabel = auto ? t("Automatica") : claudeMode === "plan" ? t("Piano") : claudeMode === "acceptEdits" ? t("Accetta modifiche") : t("Manuale");
       const labelEl = autoBtn.querySelector("span");
       if (labelEl && labelEl.textContent !== modeLabel) labelEl.textContent = modeLabel;
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
+      const agy = State.chatEngine === "antigravity";
       tip(autoBtn, claudeMode === "plan"
-        ? t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
+        ? (agy ? t("Piano: Antigravity legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
+          : t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica"))
         : claudeMode === "acceptEdits"
         ? t("Accetta modifiche: le modifiche ai file vanno senza chiedere, i comandi chiedono ancora. Clic: Piano")
+        : agy
+        ? (auto ? t("Automatica: Antigravity decide da solo quali comandi eseguire, come nella sua modalità Turbo. Clic per tornare a Consenti / Nega")
+          : t("Manuale: ogni comando chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica"))
         : State.chatEngine === "subscription"
         ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
           : t("Manuale: ogni comando e modifica chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica"))
@@ -3072,6 +3132,16 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         if (askKey !== key) {
           askKey = key;
           fillAsk(req);
+        }
+        if (log.lastChild !== askEl) {
+          log.append(askEl);
+          toBottom();
+        }
+      } else if (State.chat.plan && !sending && State.chat.mode === "plan") {
+        const key = `plan|${State.chat.sid}|${State.chat.plan.length}`;
+        if (askKey !== key) {
+          askKey = key;
+          fillAgyPlan(State.chat);
         }
         if (log.lastChild !== askEl) {
           log.append(askEl);

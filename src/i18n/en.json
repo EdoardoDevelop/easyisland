@@ -5193,5 +5193,14 @@
   "La scheda si riavvia: la rete cade per qualche secondo. Se lo switch non prevede questa VLAN il PC resta senza rete: rimetti {n}.": "The adapter restarts: the network drops for a few seconds. If the switch does not carry this VLAN the PC stays offline: put back {n}.",
   "VLAN ID non valida: da {a} a {b}": "Invalid VLAN ID: from {a} to {b}",
   "Questa scheda non ha la VLAN ID": "This adapter has no VLAN ID",
-  "VLAN ID non valida: «{v}» (da 0 a 4094)": "Invalid VLAN ID: \"{v}\" (from 0 to 4094)"
+  "VLAN ID non valida: «{v}» (da 0 a 4094)": "Invalid VLAN ID: \"{v}\" (from 0 to 4094)",
+  "Procedi con il piano.": "Go ahead with the plan.",
+  "Impegno di Antigravity": "Antigravity's effort",
+  "Predefinito del modello": "Model default",
+  "Modello di Antigravity": "Antigravity's model",
+  "Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.": "Model list unavailable: check that agy is installed and signed in.",
+  "Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.": "For this conversation: Antigravity goes on with the same conversation using the chosen model.",
+  "Piano: Antigravity legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica": "Plan: Antigravity reads and prepares a plan without changing anything; you approve it from the card and then it works. Click: Automatic",
+  "Automatica: Antigravity decide da solo quali comandi eseguire, come nella sua modalità Turbo. Clic per tornare a Consenti / Nega": "Automatic: Antigravity decides by itself which commands to run, as in its Turbo mode. Click to go back to Allow / Deny",
+  "Manuale: ogni comando chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica": "Manual: every command asks Allow / Deny. Click: Accept edits, then Plan, then Automatic"
 }

@@ -1409,7 +1409,7 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, usage: chat.take_usage() })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage() })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1424,6 +1424,8 @@ struct IslandReply {
     mode: String,
     /// Something the chat says once under the answer (fast mode refused).
     note: Option<String>,
+    /// Antigravity's plan from a turn in «Piano», for the card with «Procedi».
+    plan: Option<String>,
     /// What the turn cost (Claude Code), shown small under the answer.
     usage: Option<claude::TurnUsage>,
 }
@@ -1663,7 +1665,8 @@ pub(crate) async fn chat_turn(
     // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
     // Claude Code keeps its session when the model changes (as in Claude Desktop): not a new conversation.
-    let key_model = if engine == "subscription" { other_model.as_str() } else { picked.as_deref().unwrap_or(&other_model) };
+    // So does Antigravity (`--conversation` with another `--model`, tried with agy 1.5.8).
+    let key_model = if engine == "subscription" || engine == "antigravity" { other_model.as_str() } else { picked.as_deref().unwrap_or(&other_model) };
     chat.use_engine(&in_folder(chat_key(&engine, key_model, terminal.is_some()), own.as_deref().filter(|_| terminal.is_some())));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
@@ -1846,7 +1849,7 @@ pub(crate) async fn chat_turn(
         // Antigravity always works with its own tools: in the terminal mode's folder, else the work folder.
         (_, "antigravity") => {
             let dir = terminal.clone().or_else(|| work.clone());
-            antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram).await
+            antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram, auto).await
         }
         (Some(folder), _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
         (None, "api") => {
@@ -2010,7 +2013,7 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "antigravity" {
-        antigravity::send(&chat, &other_model, query, context, None, &|_| {}, false).await
+        antigravity::send(&chat, &other_model, query, context, None, &|_| {}, false, false).await
     } else if engine == "opencode" {
         let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default(), &|_| {}).await;
         opencode::forget(chat.cli_session());

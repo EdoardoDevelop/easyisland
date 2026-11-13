@@ -77,7 +77,7 @@ pub(crate) async fn run(
                 let o = crate::opencode::Options { telegram, ..Default::default() };
                 crate::opencode::send(app, &chat, &other, query, None, &o, on_text).await
             }
-            "antigravity" => crate::antigravity::send(&chat, &other, query, None, None, on_text, telegram).await,
+            "antigravity" => crate::antigravity::send(&chat, &other, query, None, None, on_text, telegram, false).await,
             e if crate::openai::ENGINES.contains(&e) => crate::openai::send(&chat, e, &other, url.as_deref(), query, None, on_text).await,
             _ => Err(crate::i18n::t("Motore della chat sconosciuto.").into()),
         }

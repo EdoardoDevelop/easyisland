@@ -175,7 +175,8 @@ fn gemini(map: &mut Map<String, Value>) {
 /// without asking), so the island shows them and lets them go.
 const ANTIGRAVITY_ASKS: &[&str] = &["ask_permission"];
 /// In EasyIsland's own chat with Antigravity (`EASYISLAND_AGY_CHAT`,
-/// antigravity.rs) the island is the only place to answer: commands and MCP tools ask too.
+/// antigravity.rs) the island is the only place to answer: commands and MCP
+/// tools ask too, except in «Automatica» (`EASYISLAND_AGY_AUTO`).
 const ANTIGRAVITY_CHAT_ASKS: &[&str] = &["run_command", "call_mcp_tool", "ask_permission"];
 
 /// Antigravity → Claude Code's events, fields and tool names.
@@ -220,7 +221,7 @@ fn antigravity(map: &mut Map<String, Value>) {
         map.insert("tool_input".into(), input);
     }
     match event.as_str() {
-        "PreToolUse" if antigravity_asks(&tool, std::env::var_os("EASYISLAND_AGY_CHAT").is_some()) => set_event(map, "PermissionRequest"),
+        "PreToolUse" if antigravity_asks(&tool, std::env::var_os("EASYISLAND_AGY_CHAT").is_some() && std::env::var_os("EASYISLAND_AGY_AUTO").is_none()) => set_event(map, "PermissionRequest"),
         "PostToolUse" => {
             if let Some(err) = map.get("error").and_then(Value::as_str).filter(|e| !e.is_empty()).map(String::from) {
                 map.insert("tool_response".into(), json!({ "stderr": err }));

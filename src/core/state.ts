@@ -454,6 +454,10 @@ export interface ChatSessionState {
   mode: string;
   /** Claude Code's model for this conversation ("opus", "sonnet"…; null = Impostazioni). */
   model: string | null;
+  /** Antigravity's model for this conversation (an `agy models` slug; null = Impostazioni). */
+  agyModel: string | null;
+  /** Antigravity's plan from the last turn in «Piano», waiting for «Procedi» (antigravity.rs take_plan). */
+  plan: string | null;
   /** Claude Code's fast mode for this conversation. */
   fast: boolean;
   /** Claude Code's sub-agents (Agent tool) in Modalità terminale: off unless turned on. */
@@ -502,7 +506,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: true, mode: "", model: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, auto: true, mode: "", model: null, agyModel: null, plan: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };

@@ -6,6 +6,13 @@
 //! with `EASYISLAND_AGY_CHAT`), which are needed for that — without them
 //! Antigravity's headless mode simply skips what it would have asked.
 //! Installing and signing in are the user's (Impostazioni → Chat).
+//!
+//! As with Claude Code (13 Nov 2026): the chat's model goes as `--model` (the
+//! conversation goes on with it), its effort as `--effort`, its mode as
+//! `--mode` (accept-edits, plan; «Automatica» = auto, and then the relay does
+//! not ask for commands: `EASYISLAND_AGY_AUTO`). In «Piano» Antigravity
+//! writes `implementation_plan.md` in its brain folder and stops: the plan
+//! is kept here (`take_plan`) for the chat's card with «Procedi».
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -23,6 +30,45 @@ const TURN_LIMIT: std::time::Duration = std::time::Duration::from_secs(30 * 60);
 const STREAM_EVERY: std::time::Duration = std::time::Duration::from_millis(120);
 /// A prompt rides on the command line: text attached to it is cut here.
 const MAX_CONTEXT: usize = 20_000;
+
+/// The plan a turn in «Piano» wrote, per chat, until the island takes it.
+static PLANS: std::sync::Mutex<Vec<(usize, String)>> = std::sync::Mutex::new(Vec::new());
+
+/// The plan of the chat's last turn in «Piano», once.
+pub fn take_plan(chat: &Chat) -> Option<String> {
+    let key = chat as *const Chat as usize;
+    let mut plans = PLANS.lock().unwrap();
+    let i = plans.iter().position(|(k, _)| *k == key)?;
+    Some(plans.remove(i).1)
+}
+
+/// The chat's mode for `--mode`: Claude Code's names to Antigravity's.
+fn agy_mode(mode: Option<&str>, auto: bool) -> Option<&'static str> {
+    if auto {
+        return Some("auto");
+    }
+    match mode? {
+        "acceptEdits" => Some("accept-edits"),
+        "plan" => Some("plan"),
+        _ => None,
+    }
+}
+
+/// `implementation_plan.md` of the conversation, when this turn wrote it.
+fn plan_written(conversation: &str, since: std::time::SystemTime) -> Option<String> {
+    if conversation.is_empty() || !conversation.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+        return None;
+    }
+    let path = PathBuf::from(std::env::var_os("USERPROFILE")?)
+        .join(".gemini").join("antigravity-cli").join("brain").join(conversation).join("implementation_plan.md");
+    let meta = std::fs::metadata(&path).ok()?;
+    if meta.modified().ok()? < since || meta.len() > 200_000 {
+        return None;
+    }
+    let text = std::fs::read_to_string(&path).ok()?;
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_string())
+}
 
 /// `agy.exe`: where its installer puts it (`%LOCALAPPDATA%\agy\bin`), else on the PATH.
 pub fn find_exe() -> Option<PathBuf> {
@@ -166,6 +212,7 @@ pub async fn send(
     folder: Option<&Path>,
     on_text: &(dyn Fn(&str) + Sync),
     telegram: bool,
+    auto: bool,
 ) -> Result<ChatReply, String> {
     let exe = find_exe().ok_or_else(|| t("Per la chat con Antigravity serve la sua CLI (agy) installata su questo PC e con il login fatto: Impostazioni → Chat e motori AI spiega come.").to_string())?;
     let session = chat.cli_session();
@@ -198,11 +245,23 @@ pub async fn send(
     if let Some(id) = &session {
         cmd.arg("--conversation").arg(id);
     }
+    let mode = agy_mode(chat.mode().as_deref(), auto);
+    if let Some(m) = mode {
+        cmd.arg("--mode").arg(m);
+    }
+    if let Some(e) = chat.effort().filter(|e| !e.is_empty()) {
+        cmd.arg("--effort").arg(e);
+    }
+    let started = std::time::SystemTime::now();
     // The prompt attached to the flag, last: `-p <text>` would take a text
     // starting with "-" for an option, and agy stops at the first argument.
     cmd.arg(format!("--print={prompt}"));
     // Its hooks know this turn is the chat's: permissions as the chat's, no session.
     cmd.env("EASYISLAND_AGY_CHAT", "1");
+    // «Automatica»: Antigravity decides, the relay does not ask for each command.
+    if mode == Some("auto") {
+        cmd.env("EASYISLAND_AGY_AUTO", "1");
+    }
     if telegram {
         cmd.env("EASYISLAND_CHANNEL", "telegram");
     }
@@ -260,6 +319,14 @@ pub async fn send(
         return Err(if why.is_empty() { t("Antigravity ha restituito un errore.").to_string() } else { format!("Antigravity: {why}") });
     }
     if let Some(id) = result.get("conversation_id").and_then(Value::as_str).map(String::from).or(progress.conversation) {
+        if mode == Some("plan") {
+            if let Some(plan) = plan_written(&id, started) {
+                let key = chat as *const Chat as usize;
+                let mut plans = PLANS.lock().unwrap();
+                plans.retain(|(k, _)| *k != key);
+                plans.push((key, plan));
+            }
+        }
         chat.set_cli_session(Some(id));
     }
     let mut final_text = result.get("response").and_then(Value::as_str).unwrap_or("").to_string();
@@ -309,6 +376,16 @@ mod tests {
         assert_eq!(p.answer, "ciao");
         assert_eq!(p.result.as_ref().unwrap()["status"], "SUCCESS");
         assert_eq!(p.conversation.as_deref(), Some("c2"));
+    }
+
+    #[test]
+    fn the_chats_mode_in_antigravitys_words() {
+        assert_eq!(agy_mode(None, false), None);
+        assert_eq!(agy_mode(Some("acceptEdits"), false), Some("accept-edits"));
+        assert_eq!(agy_mode(Some("plan"), false), Some("plan"));
+        assert_eq!(agy_mode(Some("plan"), true), Some("auto"));
+        assert_eq!(agy_mode(Some("bypassPermissions"), false), None);
+        assert_eq!(plan_written("../x", std::time::SystemTime::UNIX_EPOCH), None);
     }
 
     #[test]

@@ -55,8 +55,8 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 13/11 — Antigravity non aspetta più l'isola (ramo `claude/domande`)
-Edoardo: con Antigravity in Turbo l'isola chiedeva Consenti/Nega su ogni comando e Antigravity aspettava fino a 2 minuti. Ora l'isola trattiene solo `ask_permission` (fuori dalla chat di EasyIsland); la sessione senza progetto si chiama «Antigravity», non «config». `docs/agenti.md` → Antigravity. Da provare con Antigravity vero.
+### 13/11 — Antigravity come Claude: modello, impegno, modalità; niente attesa (ramo `claude/domande`)
+Edoardo: in Turbo l'isola chiedeva Consenti/Nega su ogni comando e Antigravity aspettava fino a 2 minuti: ora l'isola trattiene solo `ask_permission` (fuori dalla chat), e senza progetto la sessione si chiama «Antigravity». Nella chat Antigravity ha modello, impegno, Manuale/Accetta modifiche/Piano/Automatica e la card del piano con «Procedi». `docs/agenti.md`, `docs/chat.md`. Da provare con agy vero nell'app (Piano, Automatica).
 
 ### 13/11 — VLAN ID in «Modifica rete…» (ramo `claude/domande`)
 Edoardo: poter cambiare anche la VLAN. Campo VLAN ID per le schede il cui driver la prevede (`netconfig.rs` `network_vlan`), applicata per ultima con la stessa conferma di Windows; avviso della breve disconnessione. Lettura provata qui (Ethernet `RegVlanid`), comando provato con `-WhatIf`; da provare l'applicazione vera. `docs/integrazioni.md` → Rete.

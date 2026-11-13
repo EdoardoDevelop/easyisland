@@ -1187,10 +1187,20 @@ export async function runScene(island: Island, scene: string) {
     }
     case "domanda": {
       // Claude Code in the chat asks with options (AskUserQuestion, claude_cli.rs on_control);
-      // `&piano`: its plan (ExitPlanMode) instead; `&multi`: two questions, the second with several picks.
+      // `&piano`: its plan (ExitPlanMode) instead; `&multi`: two questions, the second with several picks;
+      // `&agy`: Antigravity's plan card (with `&chatEngine=antigravity`).
       await wait(300);
       const q = new URLSearchParams(location.search);
       const plan = q.has("piano");
+      // `&agy`: Antigravity's plan after a turn in «Piano» (antigravity.rs take_plan), no request.
+      if (q.has("agy")) {
+        State.chat.mode = "plan";
+        State.chat.plan = "# Piano\n1. Leggo il listino 2026\n2. Creo il preventivo dal modello\n3. Ne faccio il PDF";
+        State.chatHistory = [{ id: 1, role: "user", content: "Prepara il preventivo per la Farmacia Rossi" }, { id: 2, role: "assistant", engine: "antigravity", content: "Ho preparato il piano: appena lo approvi, procedo." }];
+        State.isPinned = true;
+        island.alert("prompt");
+        break;
+      }
       const questions = [{
         question: "Per il preventivo della Farmacia Rossi quale listino uso?",
         header: "Listino",
