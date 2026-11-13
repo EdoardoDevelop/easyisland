@@ -29,10 +29,12 @@
 //!
 //! * **Antigravity** (Google, `agy` and its IDE) — hooks in
 //!   `~/.gemini/config/hooks.json` (hooks.rs), camelCase payloads with the
-//!   event only on the command line. Its tools become Claude Code's; a
-//!   command, an MCP tool or `ask_permission` becomes a PermissionRequest the
-//!   island answers (`antigravity_output`: `auto_approve` / `deny`; with no
-//!   answer `allow`, i.e. Antigravity's own policy decides, as if we were not here).
+//!   event only on the command line. Its tools become Claude Code's. Only
+//!   `ask_permission` (Antigravity itself asking) becomes a PermissionRequest
+//!   the island answers (`antigravity_output`: `auto_approve` / `deny`; with no
+//!   answer `allow`, i.e. Antigravity's own policy decides). Commands and MCP
+//!   tools are shown, never held: in Turbo or automatic mode Antigravity does
+//!   not ask, and waiting for the island only slowed it down (13 Nov 2026).
 //!
 //! Any other tool can send a payload with `easyisland_agent: {"id", "name", "color"}`
 //! and gets its pill too; `sanitize` keeps that field harmless.
@@ -168,9 +170,13 @@ fn gemini(map: &mut Map<String, Value>) {
     }
 }
 
-/// Antigravity's tools that ask the island first (its default policy asks
-/// for them too): commands, MCP tools, and its own permission request.
-const ANTIGRAVITY_ASKS: &[&str] = &["run_command", "call_mcp_tool", "ask_permission"];
+/// Antigravity's tools that ask the island first: only its own permission
+/// request. Commands and MCP tools follow Antigravity's mode (Turbo runs them
+/// without asking), so the island shows them and lets them go.
+const ANTIGRAVITY_ASKS: &[&str] = &["ask_permission"];
+/// In EasyIsland's own chat with Antigravity (`EASYISLAND_AGY_CHAT`,
+/// antigravity.rs) the island is the only place to answer: commands and MCP tools ask too.
+const ANTIGRAVITY_CHAT_ASKS: &[&str] = &["run_command", "call_mcp_tool", "ask_permission"];
 
 /// Antigravity → Claude Code's events, fields and tool names.
 fn antigravity(map: &mut Map<String, Value>) {
@@ -214,7 +220,7 @@ fn antigravity(map: &mut Map<String, Value>) {
         map.insert("tool_input".into(), input);
     }
     match event.as_str() {
-        "PreToolUse" if ANTIGRAVITY_ASKS.contains(&tool.as_str()) => set_event(map, "PermissionRequest"),
+        "PreToolUse" if antigravity_asks(&tool, std::env::var_os("EASYISLAND_AGY_CHAT").is_some()) => set_event(map, "PermissionRequest"),
         "PostToolUse" => {
             if let Some(err) = map.get("error").and_then(Value::as_str).filter(|e| !e.is_empty()).map(String::from) {
                 map.insert("tool_response".into(), json!({ "stderr": err }));
@@ -227,6 +233,10 @@ fn antigravity(map: &mut Map<String, Value>) {
         }
         _ => {}
     }
+}
+
+fn antigravity_asks(tool: &str, own_chat: bool) -> bool {
+    if own_chat { ANTIGRAVITY_CHAT_ASKS } else { ANTIGRAVITY_ASKS }.contains(&tool)
 }
 
 /// What Antigravity reads back on stdout, whatever happened: it validates the
@@ -708,7 +718,7 @@ mod tests {
             "toolCall": { "name": "run_command", "args": { "CommandLine": "npm test", "Cwd": "c:/src/app" } } })
             .as_object().unwrap().clone();
         normalize(Some("antigravity"), &mut m);
-        assert_eq!(m["hook_event_name"], "PermissionRequest");
+        assert_eq!(m["hook_event_name"], "PreToolUse");
         assert_eq!(m["tool_name"], "Bash");
         assert_eq!(m["tool_input"]["command"], "npm test");
         assert_eq!(m["session_id"], "c1");
@@ -722,6 +732,11 @@ mod tests {
         let mut stop = json!({ "hook_event_name": "Stop", "terminationReason": "error", "fullyIdle": true }).as_object().unwrap().clone();
         normalize(Some("antigravity"), &mut stop);
         assert_eq!(stop["hook_event_name"], "StopFailure");
+        let mut ask = json!({ "hook_event_name": "PreToolUse", "toolCall": { "name": "ask_permission", "args": {} } }).as_object().unwrap().clone();
+        normalize(Some("antigravity"), &mut ask);
+        assert_eq!(ask["hook_event_name"], "PermissionRequest");
+        assert!(!ask.contains_key("cwd"));
+        assert!(antigravity_asks("run_command", true) && !antigravity_asks("run_command", false));
         assert_eq!(antigravity_output("PermissionRequest", Some("allow")), r#"{"decision":"auto_approve"}"#);
         assert_eq!(antigravity_output("PermissionRequest", Some("deny")), r#"{"decision":"deny","reason":"Negato da EasyIsland"}"#);
         assert_eq!(antigravity_output("PermissionRequest", None), r#"{"decision":"allow"}"#);

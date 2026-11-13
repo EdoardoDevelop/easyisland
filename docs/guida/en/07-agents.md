@@ -32,7 +32,7 @@ The agent calls a small program, `easyisland-hook.exe`, at every event (start, t
 | **Codex** | Sessions and permissions with Allow / Deny. After installing, open `/hooks` in Codex and approve EasyIsland's hooks |
 | **opencode 2** | Turn on **Connect opencode**: EasyIsland follows its background service without installing anything. Permissions with Allow / Deny / Always, also answerable in opencode |
 | **opencode 1.x** | A plugin written by EasyIsland; restart opencode after installing |
-| **Antigravity** (Google) | Sessions of the `agy` CLI, the IDE and the app, with steps and diffs; commands and MCP tools with Allow / Deny. If you don't answer, Antigravity decides |
+| **Antigravity** (Google) | Sessions of the `agy` CLI, the IDE and the app, with steps and diffs; commands follow Antigravity's mode (in Turbo they run at once); Allow / Deny only when Antigravity itself asks |
 | **Gemini CLI** | Sessions and steps. Gemini doesn't accept permission answers from outside: the island tells you and takes you back to the terminal |
 | **Cursor** and **GitHub Copilot** | Observation only (sessions and steps), never permissions |
 | **Tasks** | EasyIsland's own tasks, as sessions of the "Tasks" agent (see [Tasks](14-tasks.md)) |

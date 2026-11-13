@@ -949,7 +949,8 @@ function handle(island: Island, payload: HookPayload) {
   }
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
-  const projectName = aliasProjectName(raw || "Session");
+  // No folder (an Antigravity conversation outside a project): the agent's name.
+  const projectName = aliasProjectName(raw || payload.easyisland_agent?.name || "Session");
   const host = sessionHost(payload);
   const focused = State.focusId === tid;
 

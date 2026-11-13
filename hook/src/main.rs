@@ -516,7 +516,10 @@ fn read_event() -> Option<Event> {
         .and_then(|v| v.as_str())
         .map(str::is_empty)
         .unwrap_or(true);
-    if cwd_missing {
+    // Antigravity starts the hook in ~/.gemini/config: with no workspace the
+    // island would call the session "config", so it gets the agent's name.
+    let agy = map.get("easyisland_agent").and_then(|a| a.get("id")).and_then(|v| v.as_str()) == Some("antigravity");
+    if cwd_missing && !agy {
         if let Ok(cwd) = std::env::current_dir() {
             map.insert(
                 "cwd".into(),
