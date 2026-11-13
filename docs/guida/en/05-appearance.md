@@ -98,6 +98,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 ## Chat
 | Option | What it does |
 |---|---|
+| **Tips** | Over the field, what you can ask about what is in front of you; a click writes the request without sending it ([Chat](08-chat.md#tips-and-what-i-can-do)) |
 | **Empty chat → Drawing** | What a new conversation shows before the first message: Ezzy floating (default), a turning island, a sea of dots, a starry sky, an aurora, a network of dots or nothing |
 
 ## Characters

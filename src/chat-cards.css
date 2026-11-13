@@ -363,6 +363,8 @@ html[data-chat-look="cards"][data-scheme="light"] .chat-card .chat-term { backgr
 /* The lines over the field (queue, background work, hints) keep clear of it. */
 html[data-chat-look="cards"] .chat-card .chat-queue,
 html[data-chat-look="cards"] .chat-card .chat-hint { position: relative; z-index: 3; }
+/* The tips stand clear of the field, which rises over the conversation. */
+html[data-chat-look="cards"] .chat-card .chat-tips { position: relative; z-index: 4; margin-bottom: var(--cc-s5); }
 
 /* The Anteprima beside the chat: a card too, the page inside it with room around (island.ts paneInset). */
 html[data-chat-look="cards"] #preview-pane {

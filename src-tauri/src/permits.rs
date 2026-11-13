@@ -109,7 +109,8 @@ pub fn only_reversible(list: &[String]) -> Vec<String> {
 pub fn delicate_tool(tool: &str) -> bool {
     // A remote PC (a command there, a connection opened to it), the password vault written,
     // or a quick action changed: a script in it is code that runs here.
-    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") {
+    // A password from the vault typed into a web page asks every time too.
+    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") {
         return true;
     }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear", "wipe",
@@ -137,6 +138,18 @@ pub fn chat_read(payload: &Value) -> bool {
     !places.is_empty() && places.iter().all(|p| !crate::opencode::secret_place(p))
 }
 
+/// preview_steps whose steps all only read (open, find, wait, scroll, read…):
+/// no card, as each of them alone would have none.
+pub fn steps_only_read(payload: &Value) -> bool {
+    if tool_of(payload) != Some("preview_steps") {
+        return false;
+    }
+    let read_only = crate::claude_cli::agent_read_only();
+    payload.pointer("/tool_input/steps").and_then(Value::as_array).is_some_and(|steps| {
+        !steps.is_empty() && steps.iter().all(|s| s.get("tool").and_then(Value::as_str).is_some_and(|t| t != "preview_steps" && read_only.contains(&t)))
+    })
+}
+
 /// The tool «Sempre» would allow for good: a reversible tool asked by the
 /// chat (island, Telegram, a task). Else none, and the card has no «Sempre».
 pub fn offers_always(payload: &Value) -> Option<String> {
@@ -161,6 +174,10 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
         return None;
     }
     let session = payload.get("session_id").and_then(Value::as_str).filter(|s| !s.is_empty())?;
+    // Clicks and keys in the preview: the site, never the tool (Edoardo, 12 Nov 2026).
+    if tool_of(payload).is_some_and(|t| SITE_TOOLS.contains(&t)) {
+        return site_key(payload, crate::preview::site_of, crate::preview::as_url).map(|h| (session.to_string(), format!("site:{h}")));
+    }
     let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
     let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
     let what = match tool {
@@ -179,6 +196,47 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
         other => other.to_string(),
     };
     Some((session.to_string(), what))
+}
+
+/// The preview's tools that click, press or type: «Sempre» on them allows that
+/// site for the conversation (as Claude Desktop does), never the tool everywhere.
+/// Buying, ordering and paying are refused by the preview itself (preview.rs FIND).
+pub const SITE_TOOLS: &[&str] = &["preview_click", "preview_type", "preview_act", "preview_steps"];
+
+/// The one site a preview request acts on: its tab's; for preview_steps, None
+/// when a step opens another site or acts on another tab (no «Sempre» then).
+fn site_key(payload: &Value, site_of: impl Fn(&str) -> Option<String>, as_url: impl Fn(&str) -> Option<String>) -> Option<String> {
+    let input = payload.get("tool_input")?;
+    let tab = input.get("tab").and_then(Value::as_str).unwrap_or_default();
+    let host = site_of(tab)?;
+    if tool_of(payload) == Some("preview_steps") {
+        for step in input.get("steps").and_then(Value::as_array)? {
+            if step.get("tab").and_then(Value::as_str).is_some_and(|t| t != tab) {
+                return None;
+            }
+            if step.get("tool").and_then(Value::as_str) == Some("preview_open") {
+                let target = step.get("target").and_then(Value::as_str).unwrap_or_default().trim();
+                let same = match target {
+                    "" | "reload" => true,
+                    "back" | "forward" | "show" | "close" => false,
+                    t => as_url(t).and_then(|u| crate::preview::host_of(&u)).is_some_and(|h| h == host),
+                };
+                if !same {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(host)
+}
+
+/// The site «Sempre» would allow, on the card's request (easyisland_site, hooks.ts).
+pub fn annotate_site(payload: &mut Value) {
+    if let Some((_, key)) = session_key(payload).filter(|(_, k)| k.starts_with("site:")) {
+        if let Some(o) = payload.as_object_mut() {
+            o.insert("easyisland_site".into(), Value::String(key.trim_start_matches("site:").to_string()));
+        }
+    }
 }
 
 /// Sessions whose plan (ExitPlanMode) was approved on its card, for the chat to leave «Piano».
@@ -213,6 +271,10 @@ pub fn note_decision(payload: &Value, decision: Option<&str>) {
 /// A request of the chat (island, Telegram, a task) for a reversible tool the
 /// user allowed for good, or the running task may use: allowed with no click.
 pub fn allowed_now(app: &AppHandle, payload: &Value) -> bool {
+    if steps_only_read(payload) {
+        crate::log::line("permessi: preview_steps consentito senza chiedere (solo lettura)".to_string());
+        return true;
+    }
     if chat_read(payload) {
         let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
         crate::log::line(format!("permessi: {tool} consentito senza chiedere (solo lettura)"));
@@ -358,6 +420,32 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn sempre_on_a_click_is_for_the_site() {
+        let site = |_: &str| Some("shop.esempio.it".to_string());
+        let url = |t: &str| crate::preview::as_url(t);
+        let p = |tool: &str, input: Value| json!({ "tool_name": format!("mcp__easyisland__{tool}"), "tool_input": input, "session_id": "s1", "easyisland_chat": true });
+        assert_eq!(site_key(&p("preview_act", json!({ "action": "click" })), site, url).as_deref(), Some("shop.esempio.it"));
+        let same = p("preview_steps", json!({ "steps": [{ "tool": "preview_open", "target": "https://shop.esempio.it/cerca?q=a" }, { "tool": "preview_act", "action": "key", "keys": "Enter" }] }));
+        assert!(site_key(&same, site, url).is_some());
+        let other = p("preview_steps", json!({ "steps": [{ "tool": "preview_open", "target": "https://altro.it/" }, { "tool": "preview_click", "ref": "e1" }] }));
+        assert!(site_key(&other, site, url).is_none());
+        let back = p("preview_steps", json!({ "steps": [{ "tool": "preview_open", "target": "back" }] }));
+        assert!(site_key(&back, site, url).is_none());
+        assert!(site_key(&p("preview_click", json!({})), |_: &str| None, url).is_none());
+        assert!(SITE_TOOLS.iter().all(|t| !reversible(t)));
+    }
+
+    #[test]
+    fn steps_that_only_read_need_no_card() {
+        let p = |steps: Value| json!({ "tool_name": "mcp__easyisland__preview_steps", "tool_input": { "steps": steps } });
+        assert!(steps_only_read(&p(json!([{ "tool": "preview_open", "target": "x" }, { "tool": "preview_find", "query": "a" }]))));
+        assert!(!steps_only_read(&p(json!([{ "tool": "preview_open" }, { "tool": "preview_act", "action": "click" }]))));
+        assert!(!steps_only_read(&p(json!([]))));
+        assert!(!steps_only_read(&p(json!([{ "tool": "preview_steps" }]))));
+        assert!(!steps_only_read(&json!({ "tool_name": "mcp__easyisland__preview_find", "tool_input": {} })));
+    }
+
+    #[test]
     fn chat_reads_pass_but_not_where_keys_live() {
         let ask = |tool: &str, input: Value, chat: bool| chat_read(&json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": chat }));
         assert!(ask("Read", json!({ "file_path": "C:\\Users\\E\\AppData\\Local\\Temp\\out.txt" }), true));
@@ -423,7 +511,7 @@ mod tests {
 
     #[test]
     fn delicate_for_both_automatiche() {
-        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages"] {
+        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login"] {
             assert!(delicate_tool(t), "{t}");
         }
         for t in ["mcp__easyisland__todo_add", "mcp__notion__notion-create-pages", "easyisland_list_status", "mcp__easyisland__notion_update_row"] {

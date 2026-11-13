@@ -98,6 +98,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
 ## Chat
 | Opzione | Cosa fa |
 |---|---|
+| **Suggerimenti** | Sopra il campo, cosa puoi chiedere per ciò che hai davanti; un clic scrive la richiesta senza mandarla ([Chat](08-chat.md#suggerimenti-e-cosa-so-fare)) |
 | **Chat vuota → Disegno** | Cosa si vede in una conversazione nuova prima del primo messaggio: Ezzy che galleggia (di serie), un'isola che gira, un mare di puntini, un cielo stellato, un'aurora, una rete di punti o niente |
 
 ## Personaggi

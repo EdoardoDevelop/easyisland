@@ -46,6 +46,18 @@ const plusBtn = h("button", { class: "pv-plus", text: "+", title: t("Nuova sched
 const hideBtn = h("button", { class: "pv-plus pv-hide", text: "✕", title: t("Chiudi l'Anteprima") }) as HTMLButtonElement;
 hideBtn.style.display = "none";
 hideBtn.addEventListener("click", () => void Bridge.previewHide());
+// In the island or in its own window, from here (saved as Impostazioni → Chat → Anteprima).
+const dockBtn = h("button", { class: "pv-plus pv-dock" }) as HTMLButtonElement;
+dockBtn.addEventListener("click", () => {
+  dockBtn.disabled = true;
+  void Bridge.previewDock(!state.docked).finally(() => (dockBtn.disabled = false));
+});
+function paintDock(docked: boolean | undefined) {
+  hideBtn.style.display = docked ? "" : "none";
+  dockBtn.textContent = docked ? "⧉" : "◨";
+  dockBtn.title = docked ? t("Metti l'Anteprima in una finestra") : t("Metti l'Anteprima nell'isola, accanto alla chat");
+}
+paintDock(false);
 const backBtn = iconBtn("←", t("Indietro (Alt+←)"));
 const fwdBtn = iconBtn("→", t("Avanti (Alt+→)"));
 const reloadBtn = iconBtn("↻", t("Ricarica (Ctrl+R)"));
@@ -68,7 +80,7 @@ stage.append(content, overlay);
 const consoleBox = h("div", { class: "pv-console" });
 const menu = h("div", { class: "pv-menu" });
 
-root.append(h("div", { class: "pv-head" }, tabsBox, plusBtn, hideBtn), bar, stage, consoleBox, menu);
+root.append(h("div", { class: "pv-head" }, tabsBox, plusBtn, dockBtn, hideBtn), bar, stage, consoleBox, menu);
 
 function iconBtn(text: string, title: string): HTMLButtonElement {
   return h("button", { class: "pv-btn pv-icon", text, title }) as HTMLButtonElement;
@@ -514,7 +526,7 @@ window.addEventListener("resize", () => report());
 async function refresh(): Promise<void> {
   const s = await Bridge.previewState();
   if (s) state = s;
-  hideBtn.style.display = state.docked ? "" : "none";
+  paintDock(state.docked);
   const tab = active();
   if (tab?.browser && consoleOpen) consoleLines = (await Bridge.previewConsole(tab.id)) ?? [];
   draw();
@@ -665,7 +677,7 @@ document.addEventListener("keydown", (e) => {
 void onEvent<PreviewState>("preview-tabs", (s) => {
   const before = state.active;
   state = s;
-  hideBtn.style.display = s.docked ? "" : "none";
+  paintDock(s.docked);
   // Tabs that closed take their files with them.
   for (const path of [...files.keys()]) if (!s.tabs.some((tb) => tb.target === path)) files.delete(path);
   if (before !== s.active && consoleOpen) {

@@ -2,7 +2,7 @@
 > sezione: Intelligenza artificiale
 > in breve: Quale motore scegliere, come configurarlo e cosa sa fare ognuno.
 
-Il motore **predefinito** si sceglie in **Impostazioni → Chat e motori AI**. Dal nome del modello in alto a destra nella chat ne scegli un altro solo per quella conversazione: il menu mostra solo i motori pronti.
+In **Impostazioni → Chat e motori AI** ogni motore ha la sua **card**: se è pronto o cosa manca (chiave, modello, login), come si paga, cosa sa fare e il modello scelto. Un clic su una card apre sotto chiave, modello e opzioni di quel motore; **Usa come predefinito** lo rende il motore della chat (la card ha l'etichetta verde **Predefinito**). Dal nome del modello in alto a destra nella chat ne scegli un altro solo per quella conversazione: il menu mostra solo i motori pronti.
 
 ## Confronto
 | Motore | Costo | Strumenti di EasyIsland | Note |

@@ -1456,9 +1456,43 @@ fn is_assignment(text: &str) -> bool {
     text.contains("📋 Incarico #")
 }
 
-/// The engine's answer without the lines of its tools; None for NIENTE or nothing.
+/// The engine's final text, after its last step: the words in between («Cerco
+/// il repository…») and the steps' outputs (claude_cli::result_block, «```esito»
+/// / «```errore») stay in the island's chat. When nothing follows the last step,
+/// the text before it. None for NIENTE or nothing.
 pub(crate) fn clean_reply(text: &str) -> Option<String> {
-    let clean = text.lines().filter(|l| !l.trim_start().starts_with("> ⚙")).collect::<Vec<_>>().join("\n");
+    let mut kept: Vec<&str> = Vec::new();
+    let mut in_result = false;
+    // A step was seen: the next words start the text over.
+    let mut step = false;
+    for l in text.lines() {
+        let s = l.trim_start();
+        if in_result {
+            in_result = s != "```";
+            continue;
+        }
+        if s == "```esito" || s == "```errore" {
+            in_result = true;
+            step = true;
+            continue;
+        }
+        if ["> ⚙", "> 💭", "> ✗"].iter().any(|m| s.starts_with(m)) {
+            step = true;
+            continue;
+        }
+        if s.is_empty() {
+            if kept.last().is_some_and(|p| !p.trim().is_empty()) {
+                kept.push(l);
+            }
+            continue;
+        }
+        if step {
+            kept.clear();
+            step = false;
+        }
+        kept.push(l);
+    }
+    let clean = kept.join("\n");
     let clean = clean.trim();
     let bare = clean.trim_matches(|c: char| !c.is_alphanumeric()).to_uppercase();
     // «NIENTE — ho già detto…»: still nothing to say.
@@ -2938,6 +2972,12 @@ ALLEGA: C:\Users\x\Vassoio\modello.docx
     #[test]
     fn replies_and_settings_are_cleaned() {
         assert_eq!(clean_reply("> ⚙ memory_search\nFATTO: ok"), Some("FATTO: ok".into()));
+        let steps = "Cerco.\n\n\n> ⚙ Grep\n\n```esito\nsrc\\a.rs:1: x\n```\n\n```errore\nno\n```\n\nFATTO: segnato.";
+        assert_eq!(clean_reply(steps), Some("FATTO: segnato.".into()));
+        // Two paragraphs after the last step stay; a step at the very end keeps the text before it.
+        assert_eq!(clean_reply("> ⚙ Read\nUno.\n\n\nDue."), Some("Uno.\n\nDue.".into()));
+        assert_eq!(clean_reply("FATTO: ok\n\n> ⚙ show_notice"), Some("FATTO: ok".into()));
+        assert_eq!(clean_reply("Cerco.\n\n> ⚙ Grep\n\nNIENTE"), None);
         assert_eq!(clean_reply(" NIENTE. "), None);
         assert_eq!(clean_reply(""), None);
         assert_eq!(rooms_of(" general, dev ,,"), vec!["general", "dev"]);

@@ -734,7 +734,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "document_create",
-            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*; un'immagine PNG, JPEG o GIF su una riga da sola: ![didascalia](percorso, nome di un file del Vassoio o della cartella di lavoro), larga al massimo quanto la pagina, ![didascalia|5cm](…) per la larghezza), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]: la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
+            "Crea un documento Word nuovo (.docx): da un modello dell'utente (template: il nome, vedi document_templates; intestazione, piè di pagina, logo e stili restano) o vuoto. title: il titolo (nel documento vuoto è in cima; nei modelli va in {titolo}); values: { segnaposto: testo } (es. { \"cliente\": \"Farmacia Rossi\" }); body: il testo in Markdown semplice (# titoli, elenchi con -, tabelle con |, **grassetto**, *corsivo*; un'immagine PNG, JPEG o GIF su una riga da sola: ![didascalia](percorso, nome di un file del Vassoio o della cartella di lavoro), larga al massimo quanto la pagina, ![didascalia|5cm](…) per la larghezza), va in {corpo} o in fondo; rows: le righe di un preventivo o di una fattura [{ descrizione, quantita, prezzo (unitario senza IVA), iva (percentuale, 22 se manca) }]; da un listino o un portale dai invece costo (il prezzo del fornitore) e ricarico (percentuale) e il prezzo lo calcola EasyIsland; ivato true se prezzo o costo hanno già l'IVA dentro (EasyIsland la scorpora): la tabella con imponibile, IVA e totale la calcola EasyIsland e va in {righe} o in fondo, e {imponibile}, {iva}, {totale} si compilano da soli: non calcolarli tu. {data} è oggi se non lo dai; {numero}, se il modello lo ha e non lo dai, è il progressivo dell'anno di quel modello (\"3/2026\"). filename: il nome del file senza estensione (predefinito il titolo); folder: dove salvare una copia (percorso completo, %VARIABILI% ammesse; predefinita la cartella di lavoro); pdf: true per avere anche il PDF fatto da Word (solo se Word è installato). Il file va sempre nel Vassoio, non sovrascrive mai niente. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "template": { "type": "string" },
                 "title": { "type": "string" },
@@ -744,8 +744,11 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                     "descrizione": { "type": "string" },
                     "quantita": { "type": "number" },
                     "prezzo": { "type": "number" },
+                    "costo": { "type": "number" },
+                    "ricarico": { "type": "number" },
+                    "ivato": { "type": "boolean" },
                     "iva": { "type": "number" }
-                }, "required": ["descrizione", "prezzo"] } },
+                }, "required": ["descrizione"] } },
                 "filename": { "type": "string" },
                 "folder": { "type": "string" },
                 "pdf": { "type": "boolean" }
@@ -868,10 +871,11 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_open",
-            "Apre nella finestra Anteprima di EasyIsland, accanto alla chat, un indirizzo web (anche \"localhost:5173\") o un file (percorso assoluto o relativo alla cartella della chat): Markdown, codice, immagini, CSV, HTML e PDF. Senza new_tab la scheda web attiva va al nuovo indirizzo. target \"back\", \"forward\" o \"reload\" agisce sulla scheda (tab: il suo numero; vuoto = quella attiva); target vuoto elenca le schede. Un file modificato si ridisegna da solo.",
+            "Apre nella finestra Anteprima di EasyIsland, accanto alla chat, un indirizzo web (anche \"localhost:5173\") o un file (percorso assoluto o relativo alla cartella della chat): Markdown, codice, immagini, CSV, HTML e PDF. Senza new_tab la scheda web attiva va al nuovo indirizzo. background: in una scheda nuova dietro quella che l'utente guarda (si legge lo stesso). target \"back\", \"forward\" o \"reload\" agisce sulla scheda (tab: il suo numero; vuoto = quella attiva), \"show\" la mette davanti, \"close\" la chiude; target vuoto elenca le schede. Un file modificato si ridisegna da solo.",
             json!({ "type": "object", "properties": {
                 "target": { "type": "string" },
                 "new_tab": { "type": "boolean" },
+                "background": { "type": "boolean" },
                 "tab": { "type": "string" }
             } }),
             true,
@@ -889,6 +893,39 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "preview_steps",
+            "Più passi nell'Anteprima in una chiamata sola, uno dopo l'altro, fermandosi al primo errore: steps è un elenco di { tool, …argomenti } con tool fra preview_open, preview_find, preview_wait, preview_scroll, preview_act, preview_click, preview_type, preview_read, preview_snapshot, preview_network, preview_console, preview_extract (al massimo 15; tab vale per tutti). Dei passi in mezzo torna una riga (intero chi legge: find, read, snapshot, network, console, extract), dell'ultimo tutto. Esempio: apri la ricerca, scrivi, Invio, aspetta i risultati, estrai. Molti meno giri e token. L'utente conferma una volta per tutti i passi.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "steps": { "type": "array", "items": { "type": "object" } }
+            }, "required": ["steps"] }),
+            false,
+        ),
+        (
+            "preview_extract",
+            "I prodotti della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come JSON compatto: nome, codice (sku, mpn, EAN), marca, prezzo e valuta, disponibilità, link, foto, descrizione breve. Li riconosce da solo, senza sapere che sito è: dati schema.org, meta, dataLayer, risposte JSON ricevute dalla pagina. url: un'altra pagina dello stesso sito (con l'accesso dell'utente), con json true per le ricerche che rispondono in JSON (spesso «…?s=codice»). Per siti senza dati strutturati: selectors { item, name, price, sku, url, image, availability } (CSS, «img@src» per un attributo); per un JSON: items (percorso della lista) e fields { nome: percorso }. limit (20). Il modo meno caro di leggere prodotti e prezzi; le foto si prendono dagli indirizzi, senza guardarle.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "url": { "type": "string" },
+                "json": { "type": "boolean" },
+                "limit": { "type": "integer" },
+                "selectors": { "type": "object" },
+                "items": { "type": "string" },
+                "fields": { "type": "object" },
+                "network": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "preview_find",
+            "Cerca nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) gli elementi con tutte le parole di query nel nome o nel testo (un pulsante, un campo, un prezzo, un codice): al massimo 25 righe con il riferimento [ref=…] per preview_click e preview_act e il titolo sotto cui stanno. Molto meno caro di preview_snapshot su una pagina grande.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "query": { "type": "string" }
+            }, "required": ["query"] }),
+            true,
+        ),
+        (
             "preview_wait",
             "Aspetta (timeout: secondi, al massimo 30, di solito 10) che nella pagina dell'Anteprima compaia text, sparisca text_gone o ci sia selector (CSS), poi torna la pagina come preview_snapshot. Da usare dopo un'azione che carica qualcosa.",
             json!({ "type": "object", "properties": {
@@ -896,23 +933,33 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "text": { "type": "string" },
                 "text_gone": { "type": "string" },
                 "selector": { "type": "string" },
-                "timeout": { "type": "integer" }
+                "timeout": { "type": "integer" },
+                "quiet": { "type": "boolean" }
             } }),
             true,
         ),
         (
             "preview_network",
-            "Le richieste di rete della pagina nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), le ultime 300 dall'ultimo caricamento: metodo, stato (o l'errore), indirizzo, tipo. failed_only: solo quelle fallite o con stato 400 e oltre.",
+            "Le richieste di rete della pagina nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), le ultime 300 dall'ultimo caricamento: #id, metodo, stato (o l'errore), indirizzo, tipo. failed_only: solo quelle fallite o con stato 400 e oltre; data_only: solo quelle che portano dati (JSON delle ricerche e dei cataloghi); filter: una parte dell'indirizzo. body con un #id: il contenuto di quella risposta, spesso i dati già puliti (meno caro di leggere la pagina).",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
-                "failed_only": { "type": "boolean" }
+                "failed_only": { "type": "boolean" },
+                "data_only": { "type": "boolean" },
+                "filter": { "type": "string" },
+                "body": { "type": "string" }
             } }),
             true,
         ),
         (
             "preview_screenshot",
-            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine.",
-            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine. Solo per controllare l'aspetto: per leggere usa preview_find, preview_read o preview_extract. Con ref, selector o text_match fotografa solo quell'elemento; scale (0.1–1) la rimpicciolisce e costa meno. I pixel dell'immagine (a scale 1) sono gli x, y di preview_act.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "scale": { "type": "number" }
+            } }),
             true,
         ),
         (
@@ -958,6 +1005,97 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "text": { "type": "string" },
                 "submit": { "type": "boolean" }
             }, "required": ["text"] }),
+            false,
+        ),
+        (
+            "preview_scroll",
+            "Scorre la pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la rotella del mouse: action down (predefinita) o up, amount in schermate (1); con ref, selector o text_match scorre dentro quell'elemento. action to porta in vista l'elemento, hover ci passa sopra il mouse (menu che si aprono così). Per le liste che caricano altro scorrendo. Torna la pagina dopo, o solo l'esito con quiet.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "action": { "type": "string", "enum": ["down", "up", "to", "hover"] },
+                "amount": { "type": "number" },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "quiet": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "preview_act",
+            "Un'azione con mouse o tastiera veri nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva), sull'elemento ref (da preview_snapshot), selector o text_match, oppure sul punto x, y (pixel della schermata di preview_screenshot). action: click, double_click, right_click; key con keys («Enter», «Tab», «Escape», «ArrowDown», «Control+a»; più tasti separati da spazi), dopo aver messo il fuoco sull'elemento se c'è; type_keys scrive text come da tastiera (per le ricerche che suggeriscono mentre scrivi); select sceglie value (testo o valore) in una tendina <select>; check e uncheck per caselle e interruttori; drag trascina fino a to_ref, to_selector, to_text_match o to_x, to_y. Acquisti, ordini, carrello e pagamenti non si cliccano mai; password e dati di pagamento non si scrivono. Torna la pagina dopo, o solo l'esito con quiet. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "action": { "type": "string", "enum": ["click", "double_click", "right_click", "key", "type_keys", "select", "check", "uncheck", "drag"] },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "keys": { "type": "string" },
+                "text": { "type": "string" },
+                "value": { "type": "string" },
+                "to_ref": { "type": "string" },
+                "to_selector": { "type": "string" },
+                "to_text_match": { "type": "string" },
+                "to_x": { "type": "number" },
+                "to_y": { "type": "number" },
+                "quiet": { "type": "boolean" }
+            }, "required": ["action"] }),
+            false,
+        ),
+        (
+            "preview_save_images",
+            "Scarica nel Vassoio di EasyIsland le foto ai loro indirizzi urls (http/https, da preview_extract o portal_search; al massimo 20), con names facoltativi (il codice del prodotto): per metterle in un preventivo (document_create) o mandarle. Con tab usa la pagina di quella scheda per i siti che danno le foto solo con l'accesso. Torna i percorsi. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "urls": { "type": "array", "items": { "type": "string" } },
+                "names": { "type": "array", "items": { "type": "string" } }
+            }, "required": ["urls"] }),
+            false,
+        ),
+        (
+            "preview_login",
+            "Entra in un sito nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva) con la voce entry (nome o id) di Devolutions Cloud: EasyIsland scrive utente e password nel modulo di accesso e lo invia (submit false per non inviarlo); la password va solo nella pagina, mai a te. Solo se la voce è di quel sito (o non ha indirizzo). Anche per i login in due pagine. Per i portali con login della ricetta (portal_list dice quale voce). L'utente conferma ogni volta.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "entry": { "type": "string" },
+                "submit": { "type": "boolean" }
+            }, "required": ["entry"] }),
+            false,
+        ),
+        (
+            "portal_list",
+            "I portali dei fornitori che l'utente ha insegnato a EasyIsland (ricette nei suoi dati): nome, id, sito, come si cerca, se serve l'accesso e con quale voce di Devolutions, IVA inclusa o no, note dell'utente, se l'ultima ricerca ha funzionato.",
+            none.clone(),
+            true,
+        ),
+        (
+            "portal_search",
+            "Cerca query (un codice o delle parole) nei portali insegnati (portals: id o nomi separati da virgola; vuoto = tutti), ognuno in una sua scheda dell'Anteprima dietro quella dell'utente, senza usare il motore per leggere: per ogni portale data e ora, IVA, note e i prodotti come JSON compatto (nome, codici, prezzo, disponibilità, link, foto). limit per portale (8). Se un portale chiede l'accesso o non trova più niente lo dice. Per confronti e preventivi: i totali li calcola document_create.",
+            json!({ "type": "object", "properties": {
+                "query": { "type": "string" },
+                "portals": { "type": "string" },
+                "limit": { "type": "integer" }
+            }, "required": ["query"] }),
+            true,
+        ),
+        (
+            "portal_save",
+            "Insegna (o corregge) un portale di un fornitore, dopo averlo studiato con l'utente nell'Anteprima: name; search_url, l'indirizzo della ricerca con {q} al posto delle parole; json true se la ricerca risponde in JSON (con items e fields se serve); altrimenti selectors { item, name, price, sku, url, image, availability } per le pagine senza dati strutturati; login se i prezzi si vedono solo dopo l'accesso, dvc_entry la voce di Devolutions Cloud con le credenziali (solo il nome); vat_included se i prezzi sono IVA inclusa; notes ciò che l'utente ha spiegato («il prezzo netto è il secondo»). test_query obbligatorio: la ricetta si salva solo se quella ricerca trova prodotti. Mai nel codice di EasyIsland: resta nei dati dell'utente. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "name": { "type": "string" },
+                "search_url": { "type": "string" },
+                "json": { "type": "boolean" },
+                "items": { "type": "string" },
+                "fields": { "type": "object" },
+                "selectors": { "type": "object" },
+                "login": { "type": "boolean" },
+                "dvc_entry": { "type": "string" },
+                "vat_included": { "type": "boolean" },
+                "notes": { "type": "string" },
+                "test_query": { "type": "string" }
+            }, "required": ["name", "search_url", "test_query"] }),
             false,
         ),
         (

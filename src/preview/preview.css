@@ -180,8 +180,12 @@ button {
   cursor: pointer;
 }
 
-.pv-hide {
+.pv-dock {
   margin-left: auto;
+  font-size: 15px;
+}
+
+.pv-hide {
   font-size: 13px;
 }
 

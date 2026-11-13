@@ -2,7 +2,7 @@
 > section: Artificial intelligence
 > summary: Which engine to choose, how to set it up and what each one can do.
 
-The **default** engine is chosen in **Settings → Chat and AI engines**. From the model name at the top right of the chat you pick another one just for that conversation: the menu shows only the engines that are ready.
+In **Settings → Chat and AI engines** every engine has its own **card**: whether it is ready or what is missing (key, model, sign-in), how it is paid, what it can do and the chosen model. A click on a card opens that engine's key, model and options below; **Use as default** makes it the chat's engine (the card gets the green **Default** label). From the model name at the top right of the chat you pick another one just for that conversation: the menu shows only the engines that are ready.
 
 ## Comparison
 | Engine | Cost | EasyIsland's tools | Notes |

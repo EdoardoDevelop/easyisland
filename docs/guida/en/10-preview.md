@@ -17,6 +17,8 @@ The **Preview** is a window with tabs, like a small browser, next to the chat. I
 In **Settings → Chat → Preview** you choose how to have it:
 - **In the island, on the right**: a panel inside the open island, to the right of the chat. Drag the edge between chat and Preview to give more room to one or the other, without the island changing size (double click: starting width); it hides when the island closes and comes back when you reopen it. It is there only with the chat: switching to another tab of the island hides it. The **✕** at the top right closes it, and so does the chat's Preview button, which opens and closes it.
 - **Separate window**: a normal window you move wherever you like, even to another screen.
+
+To switch between the island and a window you don't need the Settings: the button at the top right of the Preview, next to **+**, does it: **⧉** puts it in a window, **◨** puts it back in the island beside the chat. The tabs stay open and the choice holds for the next times too.
 - **Off**: links and files go back to the browser and their programs.
 
 ## Files
@@ -46,7 +48,16 @@ With EasyIsland's tools on, the chat can open a page or a file in the Preview, r
 
 The chat sees the page the way screen readers read it: headings, texts, buttons and fields, each with its own reference. So it clicks exactly the right element, even when two buttons have the same text, it can wait for a page to finish loading and it sees the failed network requests. When the Preview is open, the chat knows by itself what is in it: you do not need to tell it.
 
-It can also **click** and **type** in a page's fields, but every time it asks **Allow / Deny** in the island. It never types passwords or payment details.
+It can also **click**, **type**, press keys (Enter, Esc, arrows), scroll, hover over menus, pick in drop-downs and drag, as you would. Every time it asks **Allow / Deny** in the island; with **Always** it no longer asks **on that site**, until the end of the conversation. It never types passwords or payment details and **never clicks** “Add to cart”, “Buy”, “Order” or “Pay”, not even with Always: those are yours.
+
+To save tokens, the chat reads only what it needs: it looks for the words it wants in the page, reads the products already in the page (name, code, price, photos) or the data the site receives, and takes several steps at once (“open, type, Enter, wait, read”). It uses screenshots only to check how things look.
+
+## Suppliers' portals and quotes
+You can teach the chat your suppliers' portals: open the portal in the Preview and ask “learn to search this portal”. The chat runs a test search, shows you what it found (code, price, photos) and you correct it (“the right price is the net one”, “prices include VAT”). The **recipe** stays in your data, not in the program: you see it in **Settings → Chat → Portals**, where you can delete it or export it for another EasyIsland.
+
+Then just say “search U7-Pro in the portals”: each portal opens in a tab behind the one you are looking at and the products come in a table with date and time, without the chat reading the pages. If a portal asks for a login, the chat can sign in with the **Devolutions Cloud** entry written in the recipe: user and password go straight into the page, the chat does not see them, and it always asks first. If a portal changes and finds nothing any more, the chat tells you and you teach it again.
+
+Product photos go to the **Tray** and the quote is made from your Word template: give the supplier's cost and the markup, and EasyIsland works out prices, VAT (also taken out of prices that include it) and totals.
 
 ## Shortcuts
 | Keys | What it does |

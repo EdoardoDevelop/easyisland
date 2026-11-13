@@ -49,12 +49,20 @@ The files and folders the chat names in its replies become **links**: full paths
 - **Click**: a file the Preview can show (text, code, Markdown, PDF, images, HTML…) opens **in the Preview** beside the chat; the others, and with <kbd>Ctrl</kbd>+click, in their program. A **folder** 📁 opens in File Explorer.
 - **Right-click**: **Open** (in its program), **Preview**, **Download** (a copy in the Downloads folder, which opens with the file selected), **Open location** (File Explorer with the file selected), **Copy path**.
 
+## Tips and “What I can do”
+Over the field **You can ask:** shows a few tips for what is in front of you: a page with products in the Preview (“Read the products”, “Learn this portal”), a login form (“Sign in with Devolutions”), a portal already taught, two or more PDFs in the Tray. A click writes the request in the field **without sending it**, with the part to fill in already selected; **✕** hides them until the page changes. EasyIsland picks them with fixed rules, no AI: they cost nothing. Turn them off in **Settings → Appearance → Chat → Tips**.
+
+The **?** button at the top (or `/aiuto`) opens **What I can do**: what the chat can do, by group, with an example to put in the field for each.
+
 ## / commands
 Type `/` and pick from the menu (arrows, <kbd>Tab</kbd> or <kbd>Enter</kbd>). With Claude Code the menu also has its own commands, as in Claude Desktop (marked ✳): `/context`, `/review`, `/model`, `/init`, your commands in `.claude/commands`, skills and plugins.
 
 | Command | What it does |
 |---|---|
 | `/nuova` | New conversation |
+| `/aiuto` | **What I can do**: examples by group to put in the field (also the **?** button at the top) |
+| `/portali`, `/portali …` | The [suppliers' portals](10-preview.md#suppliers-portals-and-quotes) taught; with some words it searches them all |
+| `/impara-portale` | Teaches the chat to search the portal open in the Preview |
 | `/cronologia`, `/cerca` | Past conversations, also by words |
 | `/ricorda …` | Saves a note to memory without going through the model |
 | `/memoria` | Opens the memory |

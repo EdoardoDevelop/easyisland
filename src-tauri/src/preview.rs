@@ -53,6 +53,14 @@ const MAX_TEXT: u64 = 2 * 1024 * 1024;
 const MAX_IMAGE: u64 = 15 * 1024 * 1024;
 /// What preview_read gives the chat, at most (characters).
 const MAX_READ: usize = 30_000;
+/// preview_steps: at most this many in one call, of these tools.
+const MAX_STEPS: usize = 15;
+const STEP_TOOLS: &[&str] = &[
+    "preview_open", "preview_find", "preview_wait", "preview_scroll", "preview_act", "preview_click", "preview_type",
+    "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract",
+];
+/// Steps whose whole answer is kept even in the middle: what they read is the point.
+const READS: &[&str] = &["preview_find", "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract"];
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
@@ -168,6 +176,8 @@ struct Request {
     kind: String,
     status: u16,
     failed: String,
+    /// The answer's type (application/json, text/html…).
+    mime: String,
 }
 
 impl Request {
@@ -230,7 +240,7 @@ pub fn close_window(app: &AppHandle) {
 // ── What a target is ─────────────────────────────────────────────────────────
 
 /// An address the browser can open: http(s), or "localhost:3000" and the like.
-fn as_url(target: &str) -> Option<String> {
+pub(crate) fn as_url(target: &str) -> Option<String> {
     let t = target.trim();
     let low = t.to_lowercase();
     if low.starts_with("http://") || low.starts_with("https://") {
@@ -843,8 +853,9 @@ fn devtools_and_console(w: &Webview, id: u32) {
         }
         cdp(&core, "Runtime.enable", &json!({}), |_| {});
         cdp(&core, "Log.enable", &json!({}), |_| {});
-        // Only the headers' events: no bodies are kept (preview_network).
-        cdp(&core, "Network.enable", &json!({ "maxTotalBufferSize": 0, "maxResourceBufferSize": 0 }), |_| {});
+        // Bodies kept a while in WebView2's own buffer (20 MB, 5 MB each) for
+        // preview_network's `body` and preview_extract; never on disk.
+        cdp(&core, "Network.enable", &json!({ "maxTotalBufferSize": 20_000_000, "maxResourceBufferSize": 5_000_000 }), |_| {});
         for event in ["Runtime.consoleAPICalled", "Runtime.exceptionThrown", "Log.entryAdded", "Network.requestWillBeSent", "Network.responseReceived", "Network.loadingFailed"] {
             let Ok(receiver) = core.GetDevToolsProtocolEventReceiver(&HSTRING::from(event)) else { continue };
             let handler = DevToolsProtocolEventReceivedEventHandler::create(Box::new(move |_, args| {
@@ -891,6 +902,7 @@ fn net_event(id: u32, event: &str, json: &str) {
         "Network.responseReceived" => {
             if let Some(r) = list.iter_mut().find(|r| r.id == rid) {
                 r.status = v.get("response").and_then(|x| x.get("status")).and_then(Value::as_u64).unwrap_or(0).min(999) as u16;
+                r.mime = v.pointer("/response/mimeType").and_then(Value::as_str).unwrap_or_default().chars().take(80).collect();
             }
         }
         _ => {
@@ -1103,6 +1115,147 @@ async fn eval(app: &AppHandle, id: u32, script: &str) -> Result<String, String> 
     tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())
 }
 
+/// One DevTools protocol call on the tab's page, waited for: its answer.
+async fn cdp_on(app: &AppHandle, id: u32, method: &'static str, params: Value) -> Result<Value, String> {
+    let w = app.get_webview(&web_label(id)).ok_or_else(|| t("Questa scheda non ha una pagina web aperta.").to_string())?;
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<String, String>>();
+    with_core(&w, move |core| {
+        cdp(&core, method, &params, move |r| {
+            let _ = tx.send(r);
+        });
+    })?;
+    let json = tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())??;
+    Ok(serde_json::from_str(&json).unwrap_or(Value::Null))
+}
+
+/// A script that may wait (fetch, a promise) on the tab's page: its value.
+/// eval_with_callback does not wait for promises.
+async fn eval_async(app: &AppHandle, id: u32, script: &str) -> Result<Value, String> {
+    let v = cdp_on(app, id, "Runtime.evaluate", json!({ "expression": script, "awaitPromise": true, "returnByValue": true, "timeout": 14000 })).await?;
+    if let Some(e) = v.get("exceptionDetails") {
+        let text = e.pointer("/exception/description").or_else(|| e.get("text")).and_then(Value::as_str).unwrap_or("Errore");
+        return Err(text.lines().next().unwrap_or_default().to_string());
+    }
+    Ok(v.pointer("/result/value").cloned().unwrap_or(Value::Null))
+}
+
+// ── Real input (preview_act, preview_scroll): mouse and keyboard as a person ──
+
+/// CDP's modifier bits: Alt 1, Ctrl 2, Meta 4, Shift 8.
+fn modifier_bit(name: &str) -> Option<u32> {
+    match name.to_ascii_lowercase().as_str() {
+        "alt" => Some(1),
+        "ctrl" | "control" => Some(2),
+        "meta" | "cmd" | "win" => Some(4),
+        "shift" => Some(8),
+        _ => None,
+    }
+}
+
+/// A key by name: (key, code, Windows virtual key, text it types).
+fn key_of(name: &str) -> Option<(String, String, u32, String)> {
+    let k = |key: &str, code: &str, vk: u32, text: &str| Some((key.to_string(), code.to_string(), vk, text.to_string()));
+    match name.to_ascii_lowercase().as_str() {
+        "enter" | "return" | "invio" => k("Enter", "Enter", 13, "\r"),
+        "tab" => k("Tab", "Tab", 9, ""),
+        "escape" | "esc" => k("Escape", "Escape", 27, ""),
+        "backspace" => k("Backspace", "Backspace", 8, ""),
+        "delete" | "del" | "canc" => k("Delete", "Delete", 46, ""),
+        "space" | "spazio" => k(" ", "Space", 32, " "),
+        "arrowup" | "up" | "su" => k("ArrowUp", "ArrowUp", 38, ""),
+        "arrowdown" | "down" | "giu" | "giù" => k("ArrowDown", "ArrowDown", 40, ""),
+        "arrowleft" | "left" | "sinistra" => k("ArrowLeft", "ArrowLeft", 37, ""),
+        "arrowright" | "right" | "destra" => k("ArrowRight", "ArrowRight", 39, ""),
+        "home" => k("Home", "Home", 36, ""),
+        "end" => k("End", "End", 35, ""),
+        "pageup" => k("PageUp", "PageUp", 33, ""),
+        "pagedown" => k("PageDown", "PageDown", 34, ""),
+        other => {
+            if let Some(n) = other.strip_prefix('f').and_then(|n| n.parse::<u32>().ok()).filter(|n| (1..=12).contains(n)) {
+                let name = format!("F{n}");
+                return Some((name.clone(), name, 111 + n, String::new()));
+            }
+            let mut chars = name.chars();
+            let c = chars.next()?;
+            if chars.next().is_some() {
+                return None;
+            }
+            let up = c.to_ascii_uppercase();
+            let (code, vk) = if up.is_ascii_alphabetic() {
+                (format!("Key{up}"), up as u32)
+            } else if c.is_ascii_digit() {
+                (format!("Digit{c}"), c as u32)
+            } else {
+                (String::new(), 0)
+            };
+            Some((c.to_string(), code, vk, c.to_string()))
+        }
+    }
+}
+
+/// "Control+a" → (modifiers, key); None for an unknown key.
+fn parse_combo(combo: &str) -> Option<(u32, (String, String, u32, String))> {
+    let parts: Vec<&str> = combo.split('+').map(str::trim).filter(|p| !p.is_empty()).collect();
+    let (last, mods) = parts.split_last()?;
+    let mut bits = 0;
+    for m in mods {
+        bits |= modifier_bit(m)?;
+    }
+    let mut key = key_of(last)?;
+    // With Ctrl or Alt a letter is a shortcut, not text.
+    if bits & 3 != 0 {
+        key.3.clear();
+    }
+    Some((bits, key))
+}
+
+async fn press(app: &AppHandle, id: u32, combo: &str) -> Result<(), String> {
+    let (mods, (key, code, vk, text)) = parse_combo(combo).ok_or_else(|| tf("Tasto sconosciuto: {k}", &[("k", &combo)]))?;
+    let mut down = json!({ "type": if text.is_empty() { "rawKeyDown" } else { "keyDown" }, "modifiers": mods, "key": key, "code": code, "windowsVirtualKeyCode": vk, "nativeVirtualKeyCode": vk });
+    if !text.is_empty() {
+        down["text"] = json!(text);
+        down["unmodifiedText"] = json!(text);
+    }
+    cdp_on(app, id, "Input.dispatchKeyEvent", down).await?;
+    cdp_on(app, id, "Input.dispatchKeyEvent", json!({ "type": "keyUp", "modifiers": mods, "key": key, "code": code, "windowsVirtualKeyCode": vk, "nativeVirtualKeyCode": vk })).await?;
+    Ok(())
+}
+
+async fn mouse(app: &AppHandle, id: u32, kind: &'static str, x: f64, y: f64, button: &str, clicks: u32) -> Result<(), String> {
+    cdp_on(app, id, "Input.dispatchMouseEvent", json!({ "type": kind, "x": x, "y": y, "button": button, "clickCount": clicks, "buttons": if kind == "mousePressed" { 1 } else { 0 } })).await?;
+    Ok(())
+}
+
+/// Where an element is on the screen (its centre, in CSS pixels of the
+/// viewport, after bringing it into view), found like preview_click finds it.
+async fn point_of(app: &AppHandle, id: u32, target: &Value, guard: bool) -> Result<(f64, f64, String), String> {
+    let script = format!(
+        "({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }}, false, {guard})"
+    );
+    let raw = eval(app, id, &script).await?;
+    let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+    if let Some(e) = v.get("error").and_then(Value::as_str) {
+        return Err(e.to_string());
+    }
+    let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina.").to_string())?;
+    let n = |i: usize| p.get(i).and_then(Value::as_f64).unwrap_or(0.0);
+    Ok((n(0), n(1), v.get("what").and_then(Value::as_str).unwrap_or_default().to_string()))
+}
+
+/// The element named by ref, selector or text_match in the arguments (prefix
+/// "to_" for a drag's end); None when none is given.
+fn target_of(args: &Value, prefix: &str) -> Option<Value> {
+    let s = |k: &str| args.get(format!("{prefix}{k}")).and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    let (r, sel, text) = (s("ref"), s("selector"), s("text_match"));
+    (!(r.is_empty() && sel.is_empty() && text.is_empty())).then(|| json!({ "ref": r, "selector": sel, "text": text }))
+}
+
+/// A point given as x, y (CSS pixels of the viewport, as in preview_screenshot).
+fn xy_of(args: &Value, prefix: &str) -> Option<(f64, f64)> {
+    let n = |k: &str| args.get(format!("{prefix}{k}")).and_then(Value::as_f64);
+    Some((n("x")?, n("y")?))
+}
+
 // ── Files ────────────────────────────────────────────────────────────────────
 
 #[derive(Serialize, Default)]
@@ -1302,6 +1455,21 @@ fn tab_for(arg: &str) -> Result<Tab, String> {
     s.tabs.iter().find(|tb| tb.id == id).cloned().ok_or_else(|| t("Nessuna scheda aperta nell'anteprima: aprine una con preview_open.").to_string())
 }
 
+/// The host of the web page in a tab ("" or a number; empty = the active one),
+/// lower case: what «Sempre» on a click allows (permits.rs).
+pub(crate) fn site_of(tab_arg: &str) -> Option<String> {
+    let tb = tab_for(tab_arg).ok()?;
+    host_of(&tb.target)
+}
+
+pub(crate) fn host_of(url: &str) -> Option<String> {
+    let u = tauri::Url::parse(url).ok()?;
+    if !matches!(u.scheme(), "http" | "https") {
+        return None;
+    }
+    u.host_str().map(|h| h.to_ascii_lowercase())
+}
+
 fn tab_line(tb: &Tab, active: u32) -> String {
     let mark = if tb.id == active { "*" } else { " " };
     let errors = if tb.errors > 0 { format!(" · {} {}", tb.errors, t("errori")) } else { String::new() };
@@ -1319,6 +1487,18 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     nav(app, tb.id, target.trim())?;
                     return Ok(t("Fatto.").into());
                 }
+                "show" | "close" => {
+                    if s("tab").trim().is_empty() {
+                        return Err(t("Manca tab: il numero della scheda (target vuoto le elenca).").into());
+                    }
+                    let tb = tab_for(&s("tab"))?;
+                    if target.trim() == "close" {
+                        close_tab(app, tb.id);
+                    } else {
+                        select(app, tb.id);
+                    }
+                    return Ok(t("Fatto.").into());
+                }
                 "" => {
                     let snap = snapshot(app);
                     if snap.tabs.is_empty() {
@@ -1328,8 +1508,14 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 }
                 _ => {}
             }
-            let place = if args.get("new_tab").and_then(Value::as_bool).unwrap_or(false) { Place::NewTab } else { Place::Active };
+            let background = args.get("background").and_then(Value::as_bool).unwrap_or(false);
+            let place = if background || args.get("new_tab").and_then(Value::as_bool).unwrap_or(false) { Place::NewTab } else { Place::Active };
+            let before = state().active;
             let id = open(app, &target, place, false)?;
+            // Behind the tab the user is looking at: it loads, the chat reads it.
+            if background && before != 0 && before != id {
+                select(app, before);
+            }
             let tb = tab_for(&id.to_string())?;
             Ok(tf("Aperto nell'anteprima, scheda {id}: {what}", &[("id", &id.to_string()), ("what", &tb.target)]))
         }
@@ -1369,10 +1555,32 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_screenshot" => {
             let tb = tab_for(&s("tab"))?;
-            let png = screenshot_of(app, tb.id).await?;
+            let scale = args.get("scale").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 1.0);
+            let png = if tb.browser && app.get_webview(&web_label(tb.id)).is_some() {
+                // In CSS pixels (× scale): what preview_act's x, y mean. A zone: one element.
+                let zone = match target_of(args, "") {
+                    Some(target) => {
+                        let script = format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + scrollX, r.top + scrollY, r.width, r.height]; }}, false, false)");
+                        let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                        if let Some(e) = v.get("error").and_then(Value::as_str) {
+                            return Err(e.to_string());
+                        }
+                        v.get("out").cloned()
+                    }
+                    None => serde_json::from_str::<Value>(&eval(app, tb.id, "[scrollX, scrollY, innerWidth, innerHeight]").await?).ok(),
+                };
+                let n = |i: usize| zone.as_ref().and_then(|z| z.get(i)).and_then(Value::as_f64).unwrap_or(0.0);
+                let (w, h) = (n(2).max(1.0).min(4000.0), n(3).max(1.0).min(4000.0));
+                let v = cdp_on(app, tb.id, "Page.captureScreenshot", json!({ "format": "png", "clip": { "x": n(0), "y": n(1), "width": w, "height": h, "scale": scale } })).await?;
+                let data = v.get("data").and_then(Value::as_str).ok_or_else(|| t("Schermata non riuscita.").to_string())?;
+                crate::backup::base64_decode(data).ok_or_else(|| t("Schermata non riuscita.").to_string())?
+            } else {
+                screenshot_of(app, tb.id).await?
+            };
             let path = std::env::temp_dir().join(format!("easyisland-anteprima-{}.png", crate::memory::stamp().replace([':', ' '], "-")));
             std::fs::write(&path, png).map_err(|e| e.to_string())?;
-            Ok(tf("Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]))
+            let note = if tb.browser && (scale - 1.0).abs() > f64::EPSILON { tf(" Rimpicciolita a {s}: per preview_act dividi x e y dell'immagine per {s}.", &[("s", &format!("{scale}"))]) } else { String::new() };
+            Ok(tf("Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]) + &note)
         }
         "preview_console" => {
             let tb = tab_for(&s("tab"))?;
@@ -1410,6 +1618,130 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 ("s", &if v.scheme.is_empty() { t("della pagina").to_string() } else { v.scheme.clone() }),
             ]))
         }
+        "preview_steps" => {
+            let steps = args.get("steps").and_then(Value::as_array).cloned().unwrap_or_default();
+            if steps.is_empty() {
+                return Err(t("Manca steps: un elenco di passi { tool, … }.").into());
+            }
+            if steps.len() > MAX_STEPS {
+                return Err(tf("Al massimo {n} passi per volta.", &[("n", &MAX_STEPS.to_string())]));
+            }
+            let mut out = Vec::new();
+            let last = steps.len() - 1;
+            for (i, step) in steps.iter().enumerate() {
+                let tool_name = step.get("tool").and_then(Value::as_str).unwrap_or_default().trim().to_string();
+                if !STEP_TOOLS.contains(&tool_name.as_str()) {
+                    return Err(tf("Passo {n}: strumento non ammesso qui: «{t}».", &[("n", &(i + 1).to_string()), ("t", &tool_name)]));
+                }
+                let mut a = step.clone();
+                if let Some(obj) = a.as_object_mut() {
+                    obj.remove("tool");
+                    // The batch's tab, unless a step names its own.
+                    if !obj.contains_key("tab") && !s("tab").is_empty() {
+                        obj.insert("tab".into(), json!(s("tab")));
+                    }
+                    // Only the last step shows the page; the others say what they did.
+                    if i < last && !obj.contains_key("quiet") {
+                        obj.insert("quiet".into(), json!(true));
+                    }
+                }
+                match Box::pin(tool(app, &tool_name, &a)).await {
+                    Ok(text) if i == last || READS.contains(&tool_name.as_str()) => out.push(format!("{}. {tool_name}:\n{text}", i + 1)),
+                    Ok(text) => out.push(format!("{}. {tool_name}: {}", i + 1, text.lines().next().unwrap_or_default())),
+                    Err(e) => {
+                        out.push(format!("{}. {tool_name}: {} {e}", i + 1, t("ERRORE:")));
+                        out.push(tf("Fermo al passo {n} di {tot}.", &[("n", &(i + 1).to_string()), ("tot", &steps.len().to_string())]));
+                        break;
+                    }
+                }
+            }
+            Ok(cut(&out.join("\n")))
+        }
+        "preview_extract" => {
+            let tb = tab_for(&s("tab"))?;
+            if tb.kind == "file" && !tb.browser {
+                return Err(t("È un file, non una pagina web: usa preview_read.").into());
+            }
+            extract(app, tb.id, args).await
+        }
+        "preview_login" => {
+            let tb = tab_for(&s("tab"))?;
+            let host = host_of(&tb.target).ok_or_else(|| t("La scheda non è una pagina web.").to_string())?;
+            let login = crate::dvc::web_login(&s("entry")).await?;
+            // The entry's own site, or no address in it: never a login on another site.
+            if let Some(entry_host) = as_url(login.url.trim()).and_then(|u| host_of(&u)) {
+                if !same_site(&entry_host, &host) {
+                    return Err(tf("La voce «{n}» è per {a}, la pagina è {b}: accesso non fatto.", &[("n", &login.name), ("a", &entry_host), ("b", &host)]));
+                }
+            }
+            let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(true);
+            let mut filled = String::new();
+            // Some sites ask the user first and the password on a second page.
+            for _ in 0..2 {
+                let script = format!("({LOGIN})({}, {}, {submit})", json!(login.user), json!(login.password));
+                let raw = eval(app, tb.id, &script).await.unwrap_or_default();
+                filled = serde_json::from_str::<Value>(&raw).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
+                settle(app, tb.id).await;
+                if filled != "user" {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(800)).await;
+            }
+            let name = login.name.clone();
+            drop(login);
+            crate::log::line(format!("anteprima: accesso con la voce «{name}» su {host} ({filled})"));
+            match filled.as_str() {
+                "none" | "" => Err(t("Nella pagina non c'è un modulo di accesso: apri la pagina di login del portale.").into()),
+                "user" => Ok(tf("Scritto l'utente di «{n}»: la pagina della password non è arrivata, guarda la scheda.", &[("n", &name)])),
+                _ => {
+                    let still = asks_login(app, tb.id).await;
+                    Ok(if still {
+                        tf("Credenziali di «{n}» inserite su {h}, ma la pagina chiede ancora la password: forse sono sbagliate o serve un secondo fattore. Guarda la scheda.", &[("n", &name), ("h", &host)])
+                    } else {
+                        tf("Accesso fatto su {h} con «{n}».", &[("n", &name), ("h", &host)])
+                    })
+                }
+            }
+        }
+        "preview_save_images" => {
+            let urls: Vec<String> = args.get("urls").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+            if urls.is_empty() {
+                return Err(t("Manca urls: gli indirizzi delle foto (da preview_extract).").into());
+            }
+            if urls.len() > MAX_IMAGES {
+                return Err(tf("Al massimo {n} foto per volta.", &[("n", &MAX_IMAGES.to_string())]));
+            }
+            let names: Vec<String> = args.get("names").and_then(Value::as_array).map(|a| a.iter().map(|v| v.as_str().unwrap_or_default().to_string()).collect()).unwrap_or_default();
+            // The tab's page as referer and, for its own site, its session.
+            let tab = tab_for(&s("tab")).ok().filter(|tb| tb.browser);
+            let mut out = Vec::new();
+            for (i, url) in urls.iter().enumerate() {
+                let name = names.get(i).cloned().unwrap_or_default();
+                match save_image(app, tab.as_ref(), url, &name).await {
+                    Ok(file) => {
+                        crate::moments::emit(app, json!({ "kind": "tray", "name": file.name, "path": file.path, "size": file.size }));
+                        out.push(format!("- {} ({} KB): {}", file.name, file.size / 1024, file.path));
+                    }
+                    Err(e) => out.push(format!("- {url}: {} {e}", t("ERRORE:"))),
+                }
+            }
+            Ok(format!("{}\n{}", t("Foto nel Vassoio:"), out.join("\n")))
+        }
+        "preview_find" => {
+            let tb = tab_for(&s("tab"))?;
+            let q = s("query");
+            if q.trim().is_empty() {
+                return Err(t("Manca query: il testo da cercare nella pagina.").into());
+            }
+            let raw = eval(app, tb.id, &format!("({FIND_ALL})({})", json!(q))).await?;
+            let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+            let lines: Vec<&str> = v.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            if lines.is_empty() {
+                return Ok(tf("Nella pagina non c'è «{q}».", &[("q", &q)]));
+            }
+            Ok(lines.join("
+"))
+        }
         "preview_snapshot" => {
             let tb = tab_for(&s("tab"))?;
             if tb.kind == "file" && !tb.browser {
@@ -1435,20 +1767,33 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 }
                 tokio::time::sleep(Duration::from_millis(300)).await;
             }
+            if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
+                return Ok(t("Pronto.").into());
+            }
             page_snapshot(app, tb.id).await
         }
         "preview_network" => {
             let tb = tab_for(&s("tab"))?;
+            // One answer's content, by the id of its line.
+            let body_of = s("body");
+            if !body_of.is_empty() {
+                return response_body(app, tb.id, body_of.trim_start_matches('#')).await.map(|b| cut(&b));
+            }
             let only_failed = args.get("failed_only").and_then(Value::as_bool).unwrap_or(false);
+            let only_data = args.get("data_only").and_then(Value::as_bool).unwrap_or(false);
+            let filter = s("filter").to_lowercase();
             let lines: Vec<String> = state()
                 .net
                 .get(&tb.id)
                 .map(|l| {
                     l.iter()
                         .filter(|r| !only_failed || r.bad())
+                        .filter(|r| !only_data || is_data(r))
+                        .filter(|r| filter.is_empty() || r.url.to_lowercase().contains(&filter))
                         .map(|r| {
                             let how = if !r.failed.is_empty() { r.failed.clone() } else if r.status == 0 { "…".into() } else { r.status.to_string() };
-                            format!("{} {how} {} ({})", r.method, r.url, r.kind)
+                            let mime = if r.mime.is_empty() { String::new() } else { format!(", {}", r.mime) };
+                            format!("#{} {} {how} {} ({}{mime})", r.id, r.method, r.url, r.kind)
                         })
                         .collect()
                 })
@@ -1462,12 +1807,12 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let tb = tab_for(&s("tab"))?;
             let target = json!({ "ref": s("ref"), "selector": s("selector"), "text": s("text_match") });
             let script = if name == "preview_click" {
-                format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }})")
+                format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
             } else {
                 let value = json!(s("text"));
                 let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(false);
                 format!(
-                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true)"
+                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
                 )
             };
             let raw = eval(app, tb.id, &script).await?;
@@ -1476,14 +1821,298 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 return Err(e.to_string());
             }
             let done = tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]);
-            // The page as it is now, so the chat sees what the action did.
-            settle(app, tb.id).await;
-            match page_snapshot(app, tb.id).await {
-                Ok(snap) => Ok(format!("{done}\n\n{snap}")),
-                Err(_) => Ok(done),
-            }
+            after(app, tb.id, done, args).await
+        }
+        "preview_scroll" => {
+            let tb = tab_for(&s("tab"))?;
+            let action = s("action");
+            let done = match action.as_str() {
+                "to" | "hover" => {
+                    let target = target_of(args, "").ok_or_else(|| t("Manca l'elemento: ref, selector o text_match.").to_string())?;
+                    let (x, y, what) = point_of(app, tb.id, &target, false).await?;
+                    if action == "hover" {
+                        mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    }
+                    tf("Fatto su «{what}».", &[("what", &what)])
+                }
+                "" | "down" | "up" => {
+                    let amount = args.get("amount").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 20.0);
+                    let size: Value = serde_json::from_str(&eval(app, tb.id, "[innerWidth, innerHeight]").await?).unwrap_or(Value::Null);
+                    let (w, h) = (size.get(0).and_then(Value::as_f64).unwrap_or(800.0), size.get(1).and_then(Value::as_f64).unwrap_or(600.0));
+                    // On an element (a list that scrolls by itself) or in the middle of the page.
+                    let (x, y) = match target_of(args, "") {
+                        Some(target) => point_of(app, tb.id, &target, false).await.map(|(x, y, _)| (x, y))?,
+                        None => (w / 2.0, h / 2.0),
+                    };
+                    let dy = h * 0.8 * amount * if action == "up" { -1.0 } else { 1.0 };
+                    cdp_on(app, tb.id, "Input.dispatchMouseEvent", json!({ "type": "mouseWheel", "x": x, "y": y, "deltaX": 0, "deltaY": dy })).await?;
+                    t("Pagina scorsa.").to_string()
+                }
+                other => return Err(tf("Azione sconosciuta: {a}", &[("a", &other)])),
+            };
+            after(app, tb.id, done, args).await
+        }
+        "preview_act" => {
+            let tb = tab_for(&s("tab"))?;
+            let action = s("action");
+            let tid = tb.id;
+            let at = |prefix: &str| -> Option<Value> { target_of(args, prefix) };
+            // The element (or x, y) the action is on, as a point; guarded unless it only looks.
+            let point = |prefix: &'static str, guard: bool| {
+                let target = at(prefix);
+                let xy = xy_of(args, prefix);
+                async move {
+                    match (target, xy) {
+                        (Some(target), _) => point_of(app, tid, &target, guard).await,
+                        (None, Some((x, y))) => Ok((x, y, format!("{x:.0}, {y:.0}"))),
+                        (None, None) => Err(t("Manca l'elemento: ref, selector, text_match oppure x e y.").to_string()),
+                    }
+                }
+            };
+            let done = match action.as_str() {
+                "click" | "double_click" | "right_click" => {
+                    let (x, y, what) = point("", true).await?;
+                    let button = if action == "right_click" { "right" } else { "left" };
+                    mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    for n in 1..=if action == "double_click" { 2 } else { 1 } {
+                        mouse(app, tb.id, "mousePressed", x, y, button, n).await?;
+                        mouse(app, tb.id, "mouseReleased", x, y, button, n).await?;
+                    }
+                    tf("Fatto su «{what}».", &[("what", &what)])
+                }
+                "drag" => {
+                    let (x, y, what) = point("", true).await?;
+                    let (x2, y2, to) = point("to_", true).await?;
+                    mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    mouse(app, tb.id, "mousePressed", x, y, "left", 1).await?;
+                    for i in 1..=8 {
+                        let f = i as f64 / 8.0;
+                        cdp_on(app, tb.id, "Input.dispatchMouseEvent", json!({ "type": "mouseMoved", "x": x + (x2 - x) * f, "y": y + (y2 - y) * f, "button": "left", "buttons": 1 })).await?;
+                    }
+                    mouse(app, tb.id, "mouseReleased", x2, y2, "left", 1).await?;
+                    tf("Trascinato «{a}» su «{b}».", &[("a", &what), ("b", &to)])
+                }
+                "key" => {
+                    let keys = s("keys");
+                    if keys.is_empty() {
+                        return Err(t("Manca keys, per esempio «Enter» o «Control+a».").into());
+                    }
+                    // On an element: focused first (and guarded: Invio on «Acquista» is a click).
+                    if let Some(target) = at("") {
+                        let script = format!("({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
+                        let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                        if let Some(e) = v.get("error").and_then(Value::as_str) {
+                            return Err(e.to_string());
+                        }
+                    }
+                    for combo in keys.split_whitespace() {
+                        press(app, tb.id, combo).await?;
+                    }
+                    tf("Premuto {k}.", &[("k", &keys)])
+                }
+                "type_keys" => {
+                    // As typed on the keyboard: for search boxes that suggest while you write.
+                    let target = at("").ok_or_else(|| t("Manca il campo: ref, selector o text_match.").to_string())?;
+                    let script = format!("({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
+                    let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                    if let Some(e) = v.get("error").and_then(Value::as_str) {
+                        return Err(e.to_string());
+                    }
+                    cdp_on(app, tb.id, "Input.insertText", json!({ "text": s("text") })).await?;
+                    tf("Scritto in «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())])
+                }
+                "select" | "check" | "uncheck" => {
+                    let target = at("").ok_or_else(|| t("Manca l'elemento: ref, selector o text_match.").to_string())?;
+                    let want = json!(s("value"));
+                    let body = match action.as_str() {
+                        "select" => format!("if (el.tagName !== 'SELECT') return 'not-select'; const w = String({want}).trim().toLowerCase(); const o = Array.from(el.options).find((o) => o.value.toLowerCase() === w || o.text.trim().toLowerCase() === w) || Array.from(el.options).find((o) => o.text.toLowerCase().includes(w)); if (!o) return 'no-option'; el.value = o.value; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); return o.text;"),
+                        _ => format!("const on = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true'; if (on !== {}) el.click(); return 'ok';", action == "check"),
+                    };
+                    let script = format!("({FIND})({target}, (el) => {{ {body} }}, false, true)");
+                    let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
+                    if let Some(e) = v.get("error").and_then(Value::as_str) {
+                        return Err(e.to_string());
+                    }
+                    match v.get("out").and_then(Value::as_str).unwrap_or_default() {
+                        "not-select" => return Err(t("Non è una tendina <select>: aprila con un clic e scegli la voce.").into()),
+                        "no-option" => return Err(tf("Nella tendina non c'è «{v}».", &[("v", &s("value"))])),
+                        _ => tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]),
+                    }
+                }
+                other => return Err(tf("Azione sconosciuta: {a}", &[("a", &other)])),
+            };
+            after(app, tb.id, done, args).await
         }
         _ => Err(format!("unknown tool {name}")),
+    }
+}
+
+/// Tabs opened for a key (a portal of portals.rs), reused while they live.
+static KEYED_TABS: Mutex<Vec<(String, u32)>> = Mutex::new(Vec::new());
+
+/// `url` loaded in a tab of its own for `key`, behind the tab the user is
+/// looking at, and waited for (at most `secs`): the tab's id.
+pub(crate) async fn load_behind(app: &AppHandle, key: &str, url: &str, secs: u64) -> Result<u32, String> {
+    let known = KEYED_TABS.lock().unwrap().iter().find(|(k, _)| k == key).map(|(_, id)| *id);
+    let known = known.filter(|id| state().tabs.iter().any(|tb| tb.id == *id && tb.browser));
+    let id = match known {
+        Some(id) => {
+            navigate_web(app, id, url);
+            id
+        }
+        None => {
+            let before = state().active;
+            let id = open(app, url, Place::NewTab, false)?;
+            if before != 0 && before != id {
+                select(app, before);
+            }
+            let mut tabs = KEYED_TABS.lock().unwrap();
+            tabs.retain(|(k, _)| k != key);
+            tabs.push((key.to_string(), id));
+            id
+        }
+    };
+    // The old page may still say «complete» for a moment.
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let until = std::time::Instant::now() + Duration::from_secs(secs);
+    while std::time::Instant::now() < until {
+        let loading = state().tabs.iter().find(|tb| tb.id == id).is_some_and(|tb| tb.loading);
+        if !loading && eval(app, id, "document.readyState").await.is_ok_and(|r| r.contains("complete")) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(400)).await;
+    }
+    Ok(id)
+}
+
+/// What the active tab shows, for the chat's tips (chat-tips.ts), without an
+/// engine: a page with products, a login, another page, or a file.
+pub async fn page_kind(app: &AppHandle) -> Value {
+    let (tab, open) = {
+        let s = state();
+        (s.tabs.iter().find(|tb| tb.id == s.active).cloned(), !s.tabs.is_empty())
+    };
+    let Some(tb) = tab else { return json!({ "kind": "none", "open": open }) };
+    let ext = if tb.kind == "file" { ext_of(Path::new(&tb.target)) } else { String::new() };
+    if tb.kind == "file" {
+        return json!({ "kind": "file", "ext": ext, "path": tb.target, "title": tb.title });
+    }
+    let kind = match eval(app, tb.id, PAGE_KIND).await {
+        Ok(raw) => serde_json::from_str::<String>(&raw).unwrap_or_else(|_| "page".into()),
+        Err(_) => "page".into(),
+    };
+    json!({ "kind": kind, "url": tb.target, "host": host_of(&tb.target).unwrap_or_default(), "title": tb.title, "local": host_of(&tb.target).is_some_and(|h| h == "localhost" || h == "127.0.0.1") })
+}
+
+/// "products": schema.org Product, product meta, or several prices beside
+/// cart buttons; "login": a password field in view; else "page".
+const PAGE_KIND: &str = r#"(() => {
+  const ld = Array.from(document.querySelectorAll('script[type="application/ld+json"]')).some((s) => /"@type"\s*:\s*(\[[^\]]*)?"Product"/.test(s.textContent || ""));
+  const meta = !!document.querySelector('[itemtype*="schema.org/Product"], meta[property="product:price:amount"], meta[property="og:type"][content="product"]');
+  const prices = (document.body ? document.body.innerText : "").match(/\d[\d.]*,\d{2}\s?€|€\s?\d[\d.,]*/g) || [];
+  const carts = Array.from(document.querySelectorAll("button, a, input[type=submit]")).filter((b) => /carrello|add to cart|acquista|buy/i.test(b.innerText || b.value || "")).length;
+  if (ld || meta || (prices.length >= 3 && carts >= 1)) return "products";
+  if (Array.from(document.querySelectorAll("input[type=password]")).some((e) => e.offsetParent)) return "login";
+  return "page";
+})()"#;
+
+/// The page asks for a password: a login form is in front of the data.
+pub(crate) async fn asks_login(app: &AppHandle, id: u32) -> bool {
+    eval(app, id, "!!Array.from(document.querySelectorAll('input[type=password]')).find((e) => e.offsetParent)").await.is_ok_and(|r| r.trim() == "true")
+}
+
+/// At most this many answers of the page's own requests are read, the last ones.
+const EXTRACT_BODIES: usize = 6;
+const EXTRACT_BODY_MAX: usize = 1_000_000;
+
+/// preview_extract: the products of the page (or of `url` on the same site), as compact JSON.
+pub(crate) async fn extract(app: &AppHandle, id: u32, args: &Value) -> Result<String, String> {
+    extract_found(app, id, args).await.map(|(text, _)| text)
+}
+
+/// The same, with how many products were found.
+pub(crate) async fn extract_found(app: &AppHandle, id: u32, args: &Value) -> Result<(String, u64), String> {
+    let url = args.get("url").and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    // The JSON the page itself received (a search's results), unless another page is read.
+    let mut bodies = Vec::new();
+    if url.is_empty() && args.get("network").and_then(Value::as_bool).unwrap_or(true) {
+        let ids: Vec<String> = state().net.get(&id).map(|l| l.iter().rev().filter(|r| is_data(r) && r.status < 400 && r.mime.contains("json")).take(EXTRACT_BODIES).map(|r| r.id.clone()).collect()).unwrap_or_default();
+        for rid in ids {
+            if let Ok(b) = response_body(app, id, &rid).await {
+                if b.len() <= EXTRACT_BODY_MAX {
+                    bodies.push(b);
+                }
+            }
+        }
+    }
+    let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(20).clamp(1, 100);
+    let mut opts = json!({ "limit": limit, "bodies": bodies, "json": args.get("json").and_then(Value::as_bool).unwrap_or(false) });
+    if !url.is_empty() {
+        opts["url"] = json!(url);
+    }
+    for key in ["fields", "selectors"] {
+        if let Some(v) = args.get(key).filter(|v| v.is_object()) {
+            opts[key] = v.clone();
+        }
+    }
+    if let Some(v) = args.get("items").and_then(Value::as_str).filter(|v| !v.trim().is_empty()) {
+        opts["items"] = json!(v);
+    }
+    let v = eval_async(app, id, &format!("({EXTRACT})({opts})")).await?;
+    match v.get("error").and_then(Value::as_str) {
+        Some("cross") => return Err(t("url deve essere dello stesso sito della scheda (apri prima quel sito).").into()),
+        Some("status") => return Err(tf("Il sito ha risposto {s}.", &[("s", &v.get("status").map(Value::to_string).unwrap_or_default())])),
+        Some(e) => return Err(e.to_string()),
+        None => {}
+    }
+    let count = v.get("count").and_then(Value::as_u64).unwrap_or(0);
+    if count == 0 {
+        return Ok((t("Nessun prodotto riconosciuto. Prova preview_network con data_only e body (la ricerca del sito può rispondere in JSON), url con json true, oppure preview_find e poi selectors.").into(), 0));
+    }
+    let sources = v.get("sources").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")).unwrap_or_default();
+    let items = v.get("items").cloned().unwrap_or(Value::Null);
+    let head = tf("{n} prodotti da {url} (fonti: {src}); prezzi come li dà il sito, controlla se IVA inclusa.", &[
+        ("n", &count.to_string()),
+        ("url", &v.get("url").and_then(Value::as_str).unwrap_or_default()),
+        ("src", &sources),
+    ]);
+    Ok((cut(&format!("{head}
+{items}")), count))
+}
+
+/// A request that brought data, not the page's own furniture: JSON, XML,
+/// text answers of fetch/XHR.
+fn is_data(r: &Request) -> bool {
+    let m = r.mime.to_ascii_lowercase();
+    (r.kind == "XHR" || r.kind == "Fetch" || m.contains("json")) && !m.starts_with("image/") && !m.contains("javascript") && !m.contains("css")
+}
+
+/// The content of an answer the tab received (still in WebView2's buffer).
+async fn response_body(app: &AppHandle, id: u32, request: &str) -> Result<String, String> {
+    let known = state().net.get(&id).is_some_and(|l| l.iter().any(|r| r.id == request));
+    if !known {
+        return Err(t("Richiesta non trovata: usa l'id (#…) di una riga di preview_network.").into());
+    }
+    let v = cdp_on(app, id, "Network.getResponseBody", json!({ "requestId": request })).await
+        .map_err(|_| t("Il contenuto di questa richiesta non c'è più: ricarica la pagina o rifai l'azione.").to_string())?;
+    let body = v.get("body").and_then(Value::as_str).unwrap_or_default();
+    if v.get("base64Encoded").and_then(Value::as_bool).unwrap_or(false) {
+        return Err(t("La risposta è un file binario, non testo.").into());
+    }
+    // As it came: compact JSON costs the fewest tokens.
+    Ok(body.to_string())
+}
+
+/// After an action: the page as it is now, so the chat sees what it did;
+/// with `quiet` only the line (the next call reads what it needs).
+async fn after(app: &AppHandle, id: u32, done: String, args: &Value) -> Result<String, String> {
+    settle(app, id).await;
+    if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
+        return Ok(done);
+    }
+    match page_snapshot(app, id).await {
+        Ok(snap) => Ok(format!("{done}\n\n{snap}")),
+        Err(_) => Ok(done),
     }
 }
 
@@ -1612,6 +2241,344 @@ const SNAPSHOT: &str = r#"() => {
   return { title: document.title, url: location.href, modal: modals.length > 0, tree: lines.join("\n") };
 }"#;
 
+/// preview_find: the elements whose name or text has the words, as lines like
+/// preview_snapshot's (same refs), at most 25, each with the heading it is under.
+const FIND_ALL: &str = r#"(q) => {
+  if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
+  const R = window.__eiRefs;
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const clip = (t, n) => { t = (t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  const want = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = (el) => { const s = getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0; };
+  const nameOf = (el) => clip(el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.innerText || el.value || el.getAttribute("placeholder") || el.getAttribute("title") || el.getAttribute("alt") || "", 100);
+  const has = (t) => { t = t.toLowerCase(); return want.every((w) => t.includes(w)); };
+  const roleOf = (el) => el.getAttribute("role") || ({ A: "link", BUTTON: "button", INPUT: "textbox", TEXTAREA: "textbox", SELECT: "combobox", IMG: "img", H1: "heading", H2: "heading", H3: "heading", H4: "heading", H5: "heading", H6: "heading" }[el.tagName] || "text");
+  const under = (el) => { let e = el; while (e && e !== document.body) { let p = e.previousElementSibling; while (p) { if (/^H[1-6]$/.test(p.tagName)) return clip(p.innerText, 50); p = p.previousElementSibling; } e = e.parentElement; } return ""; };
+  const controls = Array.from(document.querySelectorAll("a[href], button, input:not([type=hidden]), textarea, select, img[alt], h1, h2, h3, h4, h5, h6, [role], label, summary"));
+  const out = [];
+  const seen = new Set();
+  for (const el of controls) {
+    if (out.length >= 25) break;
+    if (!shown(el)) continue;
+    const name = nameOf(el);
+    if (!name || !has(name + " " + (el.getAttribute("name") || ""))) continue;
+    seen.add(el);
+    const h = under(el);
+    out.push("- " + roleOf(el) + " " + JSON.stringify(name) + " [ref=" + refOf(el) + "]" + (el.href ? " -> " + clip(el.href, 120) : "") + (h ? "  (sotto «" + h + "»)" : ""));
+  }
+  // Plain text too (a price, a code), as its smallest block.
+  if (out.length < 25) {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode()) && out.length < 25) {
+      const el = n.parentElement;
+      if (!el || seen.has(el) || ["SCRIPT", "STYLE", "NOSCRIPT"].includes(el.tagName) || !has(n.textContent) || !shown(el)) continue;
+      const block = el.closest("li, tr, article, p, div, td, dd, span") || el;
+      if (seen.has(block)) continue;
+      seen.add(block);
+      out.push("- text " + JSON.stringify(clip(block.innerText, 160)) + " [ref=" + refOf(block) + "]");
+    }
+  }
+  return out;
+}"#;
+
+/// preview_extract: products read from the page without knowing the site, in
+/// order: schema.org Product (JSON-LD, microdata), meta product:/og:, the
+/// page's dataLayer, the JSON answers it received (`bodies`), or the user's
+/// selectors from a portal's recipe. With `url` (same site only, GET, with the
+/// session) another page or the site's own search answer, as JSON with `json`.
+/// The same product from two sources is merged.
+const EXTRACT: &str = r#"async (o) => {
+  const clip = (t, n) => { t = (t == null ? "" : String(t)).replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  const num = (v) => {
+    if (v == null || v === "") return null;
+    if (typeof v === "number") return v;
+    let s = String(v).replace(/[^\d.,-]/g, "");
+    if (!s) return null;
+    const c = s.lastIndexOf(","), d = s.lastIndexOf(".");
+    if (c > d) s = s.replace(/\./g, "").replace(",", "."); else s = s.replace(/,/g, "");
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
+  let base = location.href;
+  const abs = (u) => { try { return u ? new URL(String(u), base).href : ""; } catch (e) { return ""; } };
+  const items = [];
+  const sources = [];
+  // The same product from two sources (same name, or same code) becomes one,
+  // the first source's values winning.
+  const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const add = (p, src) => {
+    if (!p || !(p.name || p.sku)) return;
+    for (const k of Object.keys(p)) if (p[k] == null || p[k] === "" || (Array.isArray(p[k]) && !p[k].length)) delete p[k];
+    const same = items.find((i) => (p.name && norm(i.name) === norm(p.name)) || (p.sku && i.sku && norm(i.sku) === norm(p.sku)));
+    if (same) { for (const k of Object.keys(p)) if (same[k] == null) same[k] = p[k]; }
+    else items.push(p);
+    if (!sources.includes(src)) sources.push(src);
+  };
+  const avail = (v) => clip(String(v || "").replace(/^https?:\/\/schema\.org\//, ""), 40);
+  const first = (v) => [].concat(v == null ? [] : v)[0];
+  // schema.org Product in JSON-LD (also inside @graph, ItemList, variants).
+  const ldProduct = (x) => {
+    let off = first(x.offers) || {};
+    if (off.offers) off = first(off.offers) || off;
+    const spec = first(off.priceSpecification) || {};
+    return {
+      name: clip(x.name, 200), sku: clip(x.sku || x.productID, 60), mpn: clip(x.mpn, 60),
+      gtin: clip(x.gtin13 || x.gtin || x.gtin12 || x.gtin14 || x.gtin8, 20),
+      brand: clip(x.brand && typeof x.brand === "object" ? x.brand.name : x.brand, 60),
+      price: num(off.price != null ? off.price : off.lowPrice != null ? off.lowPrice : spec.price),
+      currency: off.priceCurrency || spec.priceCurrency || "",
+      vat_included: spec.valueAddedTaxIncluded,
+      availability: avail(off.availability), url: abs(x.url || off.url),
+      images: [].concat(x.image || []).map((i) => abs(typeof i === "object" ? i.url || i.contentUrl : i)).filter(Boolean).slice(0, 5),
+      description: clip(x.description, 300),
+    };
+  };
+  const fromLd = (doc) => {
+    for (const s of doc.querySelectorAll('script[type="application/ld+json"]')) {
+      let j; try { j = JSON.parse(s.textContent); } catch (e) { continue; }
+      const walk = (x, d) => {
+        if (!x || typeof x !== "object" || d > 6) return;
+        if (Array.isArray(x)) { x.forEach((e) => walk(e, d + 1)); return; }
+        const t = [].concat(x["@type"] || []);
+        if (t.includes("Product") || t.includes("IndividualProduct")) add(ldProduct(x), "json-ld");
+        for (const k of ["@graph", "itemListElement", "item", "mainEntity", "hasVariant"]) if (x[k]) walk(x[k], d + 1);
+      };
+      walk(j, 0);
+    }
+  };
+  const fromMicro = (doc) => {
+    for (const el of doc.querySelectorAll('[itemtype*="schema.org/Product"]')) {
+      const prop = (n) => { const e = el.querySelector('[itemprop="' + n + '"]'); return e ? e.getAttribute("content") || e.getAttribute("src") || e.getAttribute("href") || e.textContent : ""; };
+      add({ name: clip(prop("name"), 200), sku: clip(prop("sku"), 60), mpn: clip(prop("mpn"), 60), gtin: clip(prop("gtin13") || prop("gtin"), 20), brand: clip(prop("brand"), 60), price: num(prop("price")), currency: prop("priceCurrency"), availability: avail(prop("availability")), url: abs(prop("url")), images: [abs(prop("image"))].filter(Boolean), description: clip(prop("description"), 300) }, "microdata");
+    }
+  };
+  const fromMeta = (doc) => {
+    const m = (p) => { const e = doc.querySelector('meta[property="' + p + '"],meta[name="' + p + '"]'); return e ? e.getAttribute("content") || "" : ""; };
+    const price = m("product:price:amount") || m("og:price:amount");
+    if (price || m("og:type") === "product") add({ name: clip(m("og:title"), 200), price: num(price), currency: m("product:price:currency") || m("og:price:currency"), availability: avail(m("product:availability")), url: abs(m("og:url")), images: [abs(m("og:image"))].filter(Boolean), description: clip(m("og:description"), 300) }, "meta");
+  };
+  // Lists of things that look like products in any JSON (an API's answer, a dataLayer).
+  const NAME = ["name", "title", "item_name", "product_name", "productName", "nome", "label", "description", "descrizione"];
+  const PRICE = ["price_amount", "price", "prezzo", "unitPrice", "unit_price", "netPrice", "net_price", "priceNet", "finalPrice", "final_price", "salePrice", "sale_price", "priceValue", "prezzo_netto", "amount"];
+  const SKU = ["sku", "reference", "code", "codice", "item_id", "productNumber", "ordernumber", "orderNumber", "partNumber", "part_number", "mpn", "id_product", "productId"];
+  const IMG = ["image", "images", "img", "imageUrl", "image_url", "thumbnail", "thumb", "picture", "cover", "media"];
+  const URLK = ["url", "link", "href", "product_url", "productUrl", "canonical_url", "permalink"];
+  const scalar = (v) => v != null && v !== "" && typeof v !== "object";
+  const pick = (x, keys) => {
+    for (const k of keys) if (scalar(x[k])) return x[k];
+    for (const k of keys) { const v = x[k]; if (v && typeof v === "object" && !Array.isArray(v)) for (const kk of ["amount", "value", "gross", "net", "price", "formatted"]) if (scalar(v[kk])) return v[kk]; }
+    return null;
+  };
+  const deepImage = (v, d) => {
+    if (d > 4 || v == null) return "";
+    if (typeof v === "string") return /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(v) || /^https?:\/\/.*\/(img|image|media)/i.test(v) ? v : "";
+    if (Array.isArray(v)) { for (const e of v) { const r = deepImage(e, d + 1); if (r) return r; } return ""; }
+    if (typeof v === "object") { for (const k of ["large", "url", "src", "href", "medium", "original", ...Object.keys(v)]) { const r = deepImage(v[k], d + 1); if (r) return r; } }
+    return "";
+  };
+  const looksLike = (x) => x && typeof x === "object" && !Array.isArray(x) && pick(x, NAME) != null && (pick(x, PRICE) != null || pick(x, SKU) != null);
+  const get = (x, path) => String(path || "").split(".").filter(Boolean).reduce((a, k) => (a == null ? a : a[k]), x);
+  const mapJson = (x) => {
+    if (o.fields) {
+      const f = o.fields, p = {};
+      for (const k of Object.keys(f)) {
+        const v = get(x, f[k]);
+        p[k] = k === "price" ? num(v) : k === "images" ? [].concat(v || []).map((i) => abs(deepImage(i, 0) || i)).filter(Boolean).slice(0, 5) : k === "url" ? abs(v) : clip(v && typeof v === "object" ? JSON.stringify(v) : v, 300);
+      }
+      return p;
+    }
+    const img = IMG.map((k) => deepImage(x[k], 0)).find(Boolean) || "";
+    return {
+      name: clip(pick(x, NAME), 200), sku: clip(pick(x, SKU), 60),
+      brand: clip(x.brand && typeof x.brand === "object" ? x.brand.name : x.brand || x.item_brand || x.manufacturer, 60),
+      price: num(pick(x, PRICE)), currency: clip(x.currency || x.priceCurrency || "", 5),
+      availability: clip(scalar(x.availability) ? x.availability : x.availability_message || x.stock || x.disponibilita || (scalar(x.quantity) ? "qty " + x.quantity : ""), 40),
+      url: abs(pick(x, URLK)), images: img ? [abs(img)] : [],
+    };
+  };
+  const fromJson = (j, src) => {
+    if (o.items) { [].concat(get(j, o.items) || []).forEach((x) => add(mapJson(x), src)); return; }
+    let best = null;
+    const walk = (x, d) => {
+      if (d > 8 || !x || typeof x !== "object") return;
+      if (Array.isArray(x)) {
+        const hits = x.filter(looksLike);
+        if (hits.length && (!best || hits.length > best.length)) best = hits;
+        x.slice(0, 60).forEach((e) => walk(e, d + 1));
+        return;
+      }
+      if (!best && looksLike(x)) best = [x];
+      for (const k of Object.keys(x)) walk(x[k], d + 1);
+    };
+    walk(j, 0);
+    (best || []).forEach((x) => add(mapJson(x), src));
+  };
+  const fromDataLayer = () => {
+    const dl = Array.isArray(window.dataLayer) ? window.dataLayer : [];
+    for (const e of dl.slice(-80)) {
+      if (!e || typeof e !== "object") continue;
+      const x = Array.isArray(e) ? e : e.length !== undefined ? Array.from(e) : e;
+      const ec = Array.isArray(x) ? x[2] : x.ecommerce;
+      if (ec && typeof ec === "object") fromJson(ec, "dataLayer");
+    }
+  };
+  // The user's own selectors, from a portal's recipe: "a.title", "img@src".
+  const fromSelectors = (doc) => {
+    const s = o.selectors;
+    const val = (root, sel) => {
+      if (!sel) return "";
+      const at = String(sel).lastIndexOf("@");
+      const css = at >= 0 ? String(sel).slice(0, at) : String(sel);
+      const attr = at >= 0 ? String(sel).slice(at + 1) : "";
+      const e = css ? root.querySelector(css) : root;
+      if (!e) return "";
+      return attr ? e.getAttribute(attr) || "" : e.textContent;
+    };
+    for (const it of Array.from(doc.querySelectorAll(s.item || "body")).slice(0, 200)) {
+      const p = {};
+      for (const k of Object.keys(s)) {
+        if (k === "item") continue;
+        const v = val(it, s[k]);
+        p[k] = k === "price" ? num(v) : k === "images" || k === "image" ? [abs(v)].filter(Boolean) : k === "url" ? abs(v) : clip(v, 300);
+      }
+      if (p.image) { p.images = p.image; delete p.image; }
+      add(p, "selettori");
+    }
+  };
+  const html = (doc) => { if (o.selectors) fromSelectors(doc); fromLd(doc); fromMicro(doc); fromMeta(doc); };
+  if (o.url) {
+    const u = new URL(o.url, location.href);
+    if (u.origin !== location.origin) return { error: "cross" };
+    const r = await fetch(u.href, { credentials: "include", headers: o.json ? { "Accept": "application/json, text/javascript, */*; q=0.01", "X-Requested-With": "XMLHttpRequest" } : {} });
+    const text = await r.text();
+    base = u.href;
+    if (!r.ok) return { error: "status", status: r.status };
+    let j = null;
+    try { j = JSON.parse(text); } catch (e) {}
+    if (j != null) fromJson(j, "json");
+    else html(new DOMParser().parseFromString(text, "text/html"));
+  } else {
+    html(document);
+    fromDataLayer();
+    for (const b of o.bodies || []) { let j = null; try { j = JSON.parse(b); } catch (e) {} if (j != null) fromJson(j, "rete"); }
+  }
+  return { url: base, sources, count: items.length, items: items.slice(0, o.limit || 20) };
+}"#;
+
+/// preview_save_images: at most this many at once, this big each.
+const MAX_IMAGES: usize = 20;
+const MAX_IMAGE_BYTES: usize = 15 * 1024 * 1024;
+
+/// A picture from the web into the Vassoio: downloaded (with the tab's page as
+/// referer), or through the page itself when its site wants the session.
+async fn save_image(app: &AppHandle, tab: Option<&Tab>, url: &str, name: &str) -> Result<crate::files::DroppedFile, String> {
+    let parsed = tauri::Url::parse(url).map_err(|_| t("Indirizzo non valido.").to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(t("Solo indirizzi http e https.").into());
+    }
+    let referer = tab.map(|tb| tb.target.clone()).unwrap_or_default();
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build().map_err(|e| e.to_string())?;
+    let mut req = client.get(url).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EasyIsland").header("Accept", "image/*");
+    if !referer.is_empty() {
+        req = req.header("Referer", &referer);
+    }
+    let direct = match req.send().await {
+        Ok(r) if r.status().is_success() => {
+            let kind = r.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or_default().to_ascii_lowercase();
+            let bytes = r.bytes().await.map_err(|e| e.without_url().to_string())?;
+            Some((kind, bytes.to_vec()))
+        }
+        _ => None,
+    };
+    // Refused (a login, a referer check): the page of the same site fetches it with its session.
+    let (kind, bytes) = match direct {
+        Some(x) => x,
+        None => {
+            let tb = tab.filter(|tb| host_of(&tb.target) == host_of(url)).ok_or_else(|| t("Il sito non dà la foto (serve l'accesso?): apri la sua pagina nell'Anteprima e riprova.").to_string())?;
+            let script = format!("(async (u) => {{ const r = await fetch(u, {{ credentials: 'include' }}); if (!r.ok) return {{ error: r.status }}; const b = new Uint8Array(await r.arrayBuffer()); let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768)); return {{ type: r.headers.get('content-type') || '', data: btoa(s) }}; }})({})", json!(url));
+            let v = eval_async(app, tb.id, &script).await?;
+            if v.get("error").is_some() {
+                return Err(t("Il sito non dà la foto (serve l'accesso?): apri la sua pagina nell'Anteprima e riprova.").into());
+            }
+            let data = v.get("data").and_then(Value::as_str).unwrap_or_default();
+            let bytes = crate::backup::base64_decode(data).ok_or_else(|| t("Foto non leggibile.").to_string())?;
+            (v.get("type").and_then(Value::as_str).unwrap_or_default().to_ascii_lowercase(), bytes)
+        }
+    };
+    if !kind.starts_with("image/") {
+        return Err(tf("Non è un'immagine ({k}).", &[("k", &kind)]));
+    }
+    if bytes.len() > MAX_IMAGE_BYTES {
+        return Err(t("La foto supera 15 MB.").into());
+    }
+    let ext = match kind.split(';').next().unwrap_or_default().trim() {
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        "image/avif" => "avif",
+        "image/svg+xml" => "svg",
+        _ => "img",
+    };
+    let file_name = image_name(name, url, ext);
+    let dir = std::env::temp_dir().join("EasyIsland").join("foto");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(&file_name);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    let p = path.to_string_lossy().to_string();
+    let file = tauri::async_runtime::spawn_blocking(move || crate::files::ingest(&p)).await.map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&path);
+    file
+}
+
+/// "U7-Pro" (or the address's last part) as a file name, with its extension.
+fn image_name(name: &str, url: &str, ext: &str) -> String {
+    let from_url = url.split(['?', '#']).next().unwrap_or_default().rsplit('/').next().unwrap_or_default();
+    let base = if name.trim().is_empty() { from_url.rsplit_once('.').map_or(from_url, |(b, _)| b) } else { name.trim() };
+    let clean: String = base.chars().map(|c| if c.is_alphanumeric() || matches!(c, '-' | '_' | ' ' | '.') { c } else { '_' }).collect::<String>().trim_matches(['.', ' ']).chars().take(80).collect();
+    format!("{}.{ext}", if clean.is_empty() { "foto" } else { &clean })
+}
+
+/// "www.shop.it" and "b2b.shop.it" are the same site; "shop.it.evil.com" is not.
+fn same_site(a: &str, b: &str) -> bool {
+    let base = |h: &str| {
+        let parts: Vec<&str> = h.trim_start_matches("www.").split('.').collect();
+        let n = parts.len();
+        if n >= 2 { format!("{}.{}", parts[n - 2], parts[n - 1]) } else { h.to_string() }
+    };
+    a == b || base(a) == base(b)
+}
+
+/// preview_login: the user and password in the page's login form, as typed
+/// ("input" and "change" events), then sent. "both", "user" (a page that asks
+/// the password later), "pass" or "none".
+const LOGIN: &str = r#"(user, pass, submit) => {
+  const shown = (e) => e && e.offsetParent !== null && !e.disabled && !e.readOnly;
+  const set = (el, v) => {
+    el.focus();
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const d = Object.getOwnPropertyDescriptor(proto, "value");
+    if (d && d.set) d.set.call(el, v); else el.value = v;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const pw = Array.from(document.querySelectorAll("input[type=password]")).find(shown);
+  const scope = (pw && (pw.form || pw.closest("form,div"))) || document;
+  const users = Array.from(scope.querySelectorAll("input")).filter((e) => shown(e) && /^(text|email|tel|)$/.test((e.getAttribute("type") || "").toLowerCase()));
+  const byName = users.find((e) => /user|mail|login|account|utente|codice/i.test([e.name, e.id, e.autocomplete, e.placeholder, e.getAttribute("aria-label")].join(" ")));
+  const u = byName || (pw ? users.filter((e) => e.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING).pop() : users[0]);
+  if (!pw && !u) return "none";
+  if (u && user) set(u, user);
+  if (pw) set(pw, pass);
+  if (submit) {
+    const f = (pw || u).form;
+    const btn = f ? Array.from(f.querySelectorAll("button, input[type=submit]")).find((b) => shown(b) && (b.type === "submit" || /accedi|entra|login|log in|sign in|avanti|continua|next/i.test(b.innerText || b.value || ""))) : null;
+    if (btn) btn.click(); else if (f && f.requestSubmit) f.requestSubmit(); else (pw || u).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  }
+  return pw ? (u ? "both" : "pass") : "user";
+}"#;
+
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.
 const WAIT: &str = r#"(q) => {
   const body = document.body ? document.body.innerText : "";
@@ -1623,8 +2590,10 @@ const WAIT: &str = r#"(q) => {
 
 /// Finds the element of preview_click / preview_type: a ref of preview_snapshot,
 /// a CSS selector, or the visible text (or label, placeholder, value) of a
-/// button, link or field. Typing never goes in a password or payment field.
-const FIND: &str = r#"(q, act, typing) => {
+/// button, link or field. Typing never goes in a password or payment field;
+/// with `guard` (a click, a key on it) nothing that buys, orders or fills a
+/// cart: those the user does.
+const FIND: &str = r#"(q, act, typing, guard) => {
   let el = null;
   if (q.ref) {
     const w = window.__eiRefs && window.__eiRefs.byRef.get(q.ref);
@@ -1642,8 +2611,15 @@ const FIND: &str = r#"(q, act, typing) => {
   if (!el) return { error: "Elemento non trovato nella pagina." };
   if (typing && (el.type === "password" || /cc-|card|cvc|iban/i.test(el.getAttribute("autocomplete") || "") || /card|cvc|cvv|iban/i.test(el.name || ""))) return { error: "Password e dati di pagamento li scrive l'utente." };
   const what = ((el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.tagName) + "").trim().slice(0, 60);
-  act(el);
-  return { what };
+  if (guard) {
+    const words = [el.innerText, el.value, el.getAttribute("aria-label"), el.getAttribute("title"), el.getAttribute("name"), el.id, el.className && el.className.baseVal === undefined ? el.className : ""].filter(Boolean).join(" ");
+    const buy = /aggiungi al carrello|al carrello|metti nel carrello|acquista|compra ora|compra subito|procedi all.ordine|procedi al pagamento|conferma (l.)?ordine|invia (l.)?ordine|completa (l.)?ordine|effettua (l.)?ordine|paga ora|pagamento|checkout|add to (cart|basket)|buy now|place (the )?order|pay now|add-?to-?cart|addtocart/i;
+    const form = el.form || el.closest("form");
+    const where = [el.getAttribute("href") || "", el.getAttribute("formaction") || "", form && (el.type === "submit" || el.tagName === "BUTTON") ? form.getAttribute("action") || "" : ""].join(" ");
+    if (buy.test(words) || /checkout|\/cart\b|carrello|add-?to-?cart|addtocart|basket/i.test(where)) return { error: "Acquisti, ordini e carrello li fa l'utente: EasyIsland non li clicca." };
+  }
+  const out = act(el);
+  return { what, out };
 }"#;
 
 fn cut(text: &str) -> String {
@@ -1695,6 +2671,47 @@ mod tests {
         let phone = View { preset: "mobile".into(), width: 375, height: 812, scheme: String::new(), zoom: "fit".into() };
         let (_, _, w, _, z) = frame(r, &phone, 1.0);
         assert!((w / z - 375.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn keys_and_shortcuts() {
+        let (m, k) = parse_combo("Enter").unwrap();
+        assert_eq!((m, k.0.as_str(), k.2, k.3.as_str()), (0, "Enter", 13, "\r"));
+        let (m, k) = parse_combo("Control+a").unwrap();
+        assert_eq!((m, k.1.as_str(), k.2, k.3.as_str()), (2, "KeyA", 65, ""));
+        let (m, k) = parse_combo("shift+Tab").unwrap();
+        assert_eq!((m, k.0.as_str()), (8, "Tab"));
+        assert_eq!(parse_combo("F5").unwrap().1 .2, 116);
+        assert_eq!(parse_combo("x").unwrap().1 .3, "x");
+        assert!(parse_combo("Hyper+a").is_none());
+        assert!(parse_combo("Invioo").is_none());
+        assert!(parse_combo("").is_none());
+    }
+
+    #[test]
+    fn targets_from_the_arguments() {
+        let a = json!({ "ref": "e3", "to_selector": "#b", "x": 10, "y": 20.5 });
+        assert_eq!(target_of(&a, "").unwrap()["ref"], "e3");
+        assert_eq!(target_of(&a, "to_").unwrap()["selector"], "#b");
+        assert!(target_of(&json!({}), "").is_none());
+        assert_eq!(xy_of(&a, ""), Some((10.0, 20.5)));
+        assert_eq!(xy_of(&a, "to_"), None);
+    }
+
+    #[test]
+    fn picture_names() {
+        assert_eq!(image_name("U7-Pro", "https://x.it/a/18317-large.jpg", "jpg"), "U7-Pro.jpg");
+        assert_eq!(image_name("", "https://x.it/a/18317-large.jpg?v=2", "jpg"), "18317-large.jpg");
+        assert_eq!(image_name("a/b:c", "https://x.it/", "png"), "a_b_c.png");
+        assert_eq!(image_name("", "https://x.it/", "png"), "foto.png");
+    }
+
+    #[test]
+    fn logins_only_on_their_site() {
+        assert!(same_site("www.shop.it", "shop.it"));
+        assert!(same_site("b2b.shop.it", "www.shop.it"));
+        assert!(!same_site("shop.it.evil.com", "shop.it"));
+        assert!(!same_site("altro.it", "shop.it"));
     }
 
     #[test]

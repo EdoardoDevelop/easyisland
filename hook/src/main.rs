@@ -484,8 +484,16 @@ fn read_event() -> Option<Event> {
     let tool_input = map.get("tool_input").cloned();
     // What "Sempre" sends back: Claude Code's own proposal, untruncated, or
     // the session rule (Claude Code only: other agents read decisions their way).
-    let suggestions = map.get("permission_suggestions").cloned();
-    let fallback = if event == "PermissionRequest" && !map.contains_key("easyisland_agent") {
+    // EasyIsland's clicks in its preview: «Sempre» is kept by the island for the
+    // site (permits.rs SITE_TOOLS); Claude Code gets a plain allow, never a rule
+    // that would allow the tool on every site.
+    let site_scoped = map.get("tool_name").and_then(|v| v.as_str()).is_some_and(|t| {
+        ["mcp__easyisland__preview_click", "mcp__easyisland__preview_type", "mcp__easyisland__preview_act", "mcp__easyisland__preview_steps"].contains(&t)
+    });
+    let suggestions = if site_scoped { None } else { map.get("permission_suggestions").cloned() };
+    let fallback = if site_scoped {
+        None
+    } else if event == "PermissionRequest" && !map.contains_key("easyisland_agent") {
         session_rule(map.get("tool_name").and_then(|v| v.as_str()).unwrap_or(""), tool_input.as_ref())
     } else {
         None

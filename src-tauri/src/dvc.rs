@@ -1019,6 +1019,45 @@ pub fn tool_folder_id(args: &Value) -> Result<String, String> {
     })
 }
 
+/// A login for a page of the preview (preview_login, asked by Edoardo on 12 Nov
+/// 2026 for the suppliers' portals): the entry by id or name, its address, user
+/// and password. The password goes straight into the page's field and nowhere
+/// else: never to an engine, on screen or in the log.
+pub(crate) struct WebLogin {
+    pub name: String,
+    pub url: String,
+    pub user: String,
+    pub password: String,
+}
+
+pub(crate) async fn web_login(entry: &str) -> Result<WebLogin, String> {
+    ready()?;
+    let want = entry.trim().trim_matches(['{', '}']).to_string();
+    if want.is_empty() {
+        return Err(t("Manca entry: la voce di Devolutions Cloud (nome o id).").into());
+    }
+    let item = with_index(|i| {
+        let all: Vec<&Item> = i.entries.iter().filter(|e| e.kind != "Group").collect();
+        if let Some(e) = all.iter().find(|e| e.id.eq_ignore_ascii_case(&want)) {
+            return Ok((*e).clone());
+        }
+        let named: Vec<&&Item> = all.iter().filter(|e| e.name.eq_ignore_ascii_case(&want)).collect();
+        match named.as_slice() {
+            [one] => Ok((**one).clone()),
+            [] => Err(tf("Nessuna voce «{n}» in Devolutions Cloud (premi Sincronizza se è nuova).", &[("n", &want)])),
+            many => Err(tf("Più voci si chiamano «{n}»: usa l'id. {list}", &[
+                ("n", &want),
+                ("list", &many.iter().take(8).map(|e| format!("{}\\{} ({})", e.folder, e.name, e.id)).collect::<Vec<_>>().join("; ")),
+            ])),
+        }
+    })?;
+    let d = details(&item.vault, &item.id).await?;
+    let s = |k: &str| d.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let url = [s("url"), s("host"), item.host.clone()].into_iter().find(|u| !u.trim().is_empty()).unwrap_or_default();
+    let (_, password) = password_of(&item.vault, &item.id, None).await?;
+    Ok(WebLogin { name: item.name, url, user: s("user"), password })
+}
+
 /// dvc_show (Show-DVCEntry): details, the password only as its length; a list's rows too.
 pub async fn tool_show(args: &Value) -> Result<String, String> {
     ready()?;

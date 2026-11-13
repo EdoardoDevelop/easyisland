@@ -467,9 +467,10 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(format!("Copiati {n} caratteri negli appunti."))
         }
 
-        "preview_open" | "preview_read" | "preview_snapshot" | "preview_wait" | "preview_network" | "preview_screenshot" | "preview_console" | "preview_resize" | "preview_click" | "preview_type" => {
+        "preview_open" | "preview_read" | "preview_snapshot" | "preview_wait" | "preview_network" | "preview_screenshot" | "preview_console" | "preview_resize" | "preview_click" | "preview_type" | "preview_scroll" | "preview_act" | "preview_find" | "preview_steps" | "preview_extract" | "preview_login" | "preview_save_images" => {
             crate::preview::tool(app, tool, args).await
         }
+        "portal_list" | "portal_save" | "portal_search" => crate::portals::tool(app, tool, args).await,
         "show_notice" => {
             let level = match arg(args, "level") {
                 "ok" | "warn" | "error" => arg(args, "level"),

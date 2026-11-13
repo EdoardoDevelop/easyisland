@@ -1020,9 +1020,24 @@ pub fn lines_of(v: Option<&Value>) -> Result<Vec<Line>, String> {
     for (i, r) in list.iter().enumerate() {
         let get = |keys: &[&str]| keys.iter().find_map(|k| r.get(*k));
         let description = get(&["descrizione", "description"]).and_then(Value::as_str).unwrap_or_default().trim().to_string();
-        let price = num(get(&["prezzo", "price"])).ok_or_else(|| format!("Riga {}: manca il prezzo.", i + 1))?;
         let quantity = num(get(&["quantita", "quantità", "quantity"])).unwrap_or(1.0);
         let vat = num(get(&["iva", "vat"])).unwrap_or(22.0);
+        // A supplier's price with VAT in it: EasyIsland takes it out (12 Nov 2026, quotes from portals).
+        let with_vat = get(&["ivato"]).and_then(Value::as_bool).unwrap_or(false);
+        let net = |x: f64| if with_vat { x / (1.0 + vat / 100.0) } else { x };
+        // The cost and the markup: the price is EasyIsland's sum, never the engine's.
+        let price = match num(get(&["prezzo", "price"])) {
+            Some(p) => net(p),
+            None => {
+                let cost = num(get(&["costo", "cost"])).ok_or_else(|| format!("Riga {}: manca il prezzo (o il costo).", i + 1))?;
+                let markup = num(get(&["ricarico", "markup"])).unwrap_or(0.0);
+                if !(-100.0..=1000.0).contains(&markup) {
+                    return Err(format!("Riga {}: ricarico non valido.", i + 1));
+                }
+                (net(cost) * (1.0 + markup / 100.0) * 100.0).round() / 100.0
+            }
+        };
+        let price = if with_vat { (price * 100.0).round() / 100.0 } else { price };
         if description.is_empty() {
             return Err(format!("Riga {}: manca la descrizione.", i + 1));
         }
@@ -1469,6 +1484,14 @@ mod tests {
         assert_eq!(money(t.total), "3.022,58 €");
         assert_eq!(money(5), "0,05 €");
         assert!(lines_of(Some(&serde_json::json!([{ "descrizione": "x" }]))).is_err());
+        // From a supplier: cost plus markup, and a price with VAT inside taken out.
+        let l = lines_of(Some(&serde_json::json!([
+            { "descrizione": "AP", "costo": 199.64, "ricarico": "20%", "ivato": true },
+            { "descrizione": "Cavo", "costo": "10,00", "ricarico": 30 },
+            { "descrizione": "Switch", "prezzo": 122, "ivato": true }
+        ]))).unwrap();
+        assert_eq!((l[0].price, l[1].price, l[2].price), (196.37, 13.0, 100.0));
+        assert!(lines_of(Some(&serde_json::json!([{ "descrizione": "x", "costo": 1, "ricarico": 5000 }]))).is_err());
     }
 
     #[test]

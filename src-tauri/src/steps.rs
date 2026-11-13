@@ -100,6 +100,16 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "preview_resize" => t("Cambia le misure dell'Anteprima"),
         "preview_click" => t("Clicca nella pagina"),
         "preview_type" => t("Scrive nella pagina"),
+        "preview_scroll" => t("Scorre la pagina"),
+        "preview_find" => t("Cerca nella pagina"),
+        "preview_save_images" => t("Scarica le foto nel Vassoio"),
+        "preview_login" => t("Entra nel sito con Devolutions"),
+        "portal_list" => t("Guarda i portali dei fornitori"),
+        "portal_save" => t("Impara un portale"),
+        "portal_search" => t("Cerca nei portali dei fornitori"),
+        "preview_extract" => t("Legge i prodotti della pagina"),
+        "preview_steps" => t("Fa più passi nella pagina"),
+        "preview_act" => t("Usa mouse e tastiera nella pagina"),
         _ => return None,
     })
 }

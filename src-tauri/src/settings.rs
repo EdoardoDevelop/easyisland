@@ -1019,6 +1019,9 @@ pub struct Settings {
     /// "isola", "onde", "stelle", "aurora", "rete", "nessuna".
     #[serde(default = "default_chat_empty_art")]
     pub chat_empty_art: String,
+    /// Tips over the field for what is on screen (src/views/chat-tips.ts).
+    #[serde(default = "default_true")]
+    pub chat_tips: bool,
     /// The preview as a panel on the right of the open island (resizable by
     /// its edge) instead of a window of its own.
     #[serde(default)]
@@ -1319,6 +1322,7 @@ impl Default for Settings {
             chat_folder: String::new(),
             chat_preview: true,
             chat_empty_art: default_chat_empty_art(),
+            chat_tips: true,
             preview_docked: false,
             preview_width: 0.0,
             chat_instructions: String::new(),

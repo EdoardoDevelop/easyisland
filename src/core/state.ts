@@ -502,7 +502,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: false, mode: "", model: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, auto: true, mode: "", model: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
@@ -855,6 +855,8 @@ export interface Settings {
   chatPreview?: boolean;
   /** The picture of an empty chat (src/views/chat-empty.ts): ezzy (default), isola, onde, stelle, aurora, rete, nessuna. */
   chatEmptyArt?: string;
+  /** Tips over the field for what is on screen (chat-tips.ts); off only when false. */
+  chatTips?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */
   previewDocked?: boolean;
   /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */

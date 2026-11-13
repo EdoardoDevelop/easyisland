@@ -755,6 +755,67 @@ button.icon {
   display: none;
 }
 
+/* ── Chat: one card per engine; the open one's settings below ── */
+.engine-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+button.engine-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  font: 400 12px var(--font);
+}
+
+button.engine-card:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+button.engine-card:active:not(:disabled) { transform: none; }
+button.engine-card.on { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.07); }
+button.engine-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.engine-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; }
+.engine-card-top b { font: 600 13px var(--font); min-width: 0; overflow-wrap: anywhere; }
+.engine-chip {
+  flex: 0 0 auto;
+  font: 600 10.5px var(--font);
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #0b0c0e;
+  background: var(--green);
+}
+.engine-card-state { display: flex; align-items: center; gap: 6px; color: var(--dim); }
+.engine-card.off .engine-card-state { color: #ff8d97; }
+.engine-card-pay { color: var(--dim); }
+.engine-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.engine-tag { font: 500 10.5px var(--font); padding: 2px 7px; border-radius: 999px; }
+.engine-tag.yes { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+.engine-tag.dim { color: var(--dim); border: 1px solid var(--hairline); }
+.engine-card-model {
+  font: 400 11.5px var(--mono);
+  color: var(--dim-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.engine-detail-head b { font: 600 13px var(--font); }
+
 /* ── Chat: the chosen engine's settings, and Claude Code's connectors ── */
 .engine-block {
   display: flex;

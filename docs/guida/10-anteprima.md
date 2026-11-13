@@ -19,6 +19,8 @@ In **Impostazioni → Chat → Anteprima** scegli come averla:
 - **Finestra separata**: una finestra normale, da spostare dove vuoi, anche su un altro schermo.
 - **Spenta**: link e file tornano ad aprirsi nel browser e nei loro programmi.
 
+Per passare dall'isola alla finestra e viceversa non serve aprire le Impostazioni: c'è il pulsante in alto a destra nell'Anteprima, accanto a **+**: **⧉** la mette in una finestra, **◨** la rimette nell'isola accanto alla chat. Le schede restano aperte e la scelta vale anche le volte dopo.
+
 ## I file
 | Tipo | Cosa vedi |
 |---|---|
@@ -46,7 +48,16 @@ Con gli strumenti di EasyIsland accesi, la chat può aprire una pagina o un file
 
 La chat vede la pagina come la leggono i programmi per non vedenti: titoli, testi, pulsanti e campi, ognuno con un suo riferimento. Così clicca proprio l'elemento giusto, anche quando due pulsanti hanno lo stesso testo, sa aspettare che una pagina finisca di caricare e vede le richieste di rete fallite. Quando l'Anteprima è aperta, la chat sa da sola cosa c'è dentro: non serve dirglielo.
 
-Può anche **cliccare** e **scrivere** nei campi di una pagina, ma ogni volta chiede **Consenti / Nega** nell'isola. Non scrive mai password né dati di pagamento.
+Può anche **cliccare**, **scrivere**, premere tasti (Invio, Esc, frecce), scorrere, passare col mouse sui menu, scegliere nelle tendine e trascinare, come faresti tu. Ogni volta chiede **Consenti / Nega** nell'isola; con **Sempre** non lo chiede più **su quel sito**, fino alla fine della conversazione. Non scrive mai password né dati di pagamento e **non clicca mai** «Aggiungi al carrello», «Acquista», «Ordina» o «Paga», nemmeno con Sempre: quelli li fai tu.
+
+Per risparmiare, la chat legge solo quello che serve: cerca nella pagina le parole che le interessano, legge i prodotti già pronti nella pagina (nome, codice, prezzo, foto) o i dati che il sito riceve, e fa più passi in una volta sola («apri, scrivi, Invio, aspetta, leggi»). Le schermate le usa solo per controllare l'aspetto.
+
+## Portali dei fornitori e preventivi
+Puoi insegnare alla chat i portali dei tuoi fornitori: apri il portale nell'Anteprima e chiedi «impara a cercare su questo portale». La chat fa una ricerca di prova, ti mostra cosa ha trovato (codice, prezzo, foto) e tu correggi («il prezzo giusto è il netto», «i prezzi sono IVA inclusa»). La **ricetta** resta nei tuoi dati, non nel programma: la vedi in **Impostazioni → Chat → Portali**, dove puoi eliminarla o esportarla per un altro EasyIsland.
+
+Poi basta «cerca U7-Pro nei portali»: ogni portale si apre in una scheda dietro quella che stai guardando e i prodotti arrivano in una tabella con data e ora, senza che la chat legga le pagine. Se un portale chiede l'accesso, la chat può entrare con la voce di **Devolutions Cloud** scritta nella ricetta: utente e password vanno direttamente nella pagina, la chat non li vede, e chiede sempre conferma. Se un portale cambia e non trova più niente, la chat te lo dice e lo si riaddestra.
+
+Le foto dei prodotti finiscono nel **Vassoio** e il preventivo si fa dal tuo modello Word: dai il costo del fornitore e il ricarico, e prezzi, IVA (anche scorporata dai prezzi IVA inclusa) e totali li calcola EasyIsland.
 
 ## Scorciatoie
 | Tasti | Cosa fa |

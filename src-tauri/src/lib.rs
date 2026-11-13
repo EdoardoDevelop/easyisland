@@ -61,6 +61,7 @@ mod notion;
 mod notion_map;
 mod notion_tools;
 mod recipes;
+mod portals;
 mod todo;
 mod second;
 mod notion_page;
@@ -917,6 +918,27 @@ fn recipes_count() -> usize {
 #[tauri::command]
 fn recipes_forget() {
     recipes::forget();
+}
+
+/// Impostazioni → Chat → «Portali»: the suppliers' portals the user taught (portals.rs).
+#[tauri::command]
+fn portals_list() -> Vec<portals::Portal> {
+    portals::list()
+}
+
+#[tauri::command]
+fn portals_delete(id: String) -> Result<(), String> {
+    portals::delete(&id)
+}
+
+#[tauri::command]
+fn portals_export() -> String {
+    portals::export()
+}
+
+#[tauri::command]
+fn portals_import(text: String) -> Result<usize, String> {
+    portals::import(&text)
 }
 
 /// «Sincronizza»: the structure of Notion read again, for the chat.
@@ -3879,6 +3901,12 @@ fn preview_state(app: AppHandle) -> preview::Snapshot {
     preview::snapshot(&app)
 }
 
+/// The chat's tips: what the active tab of the Anteprima shows (chat-tips.ts).
+#[tauri::command]
+async fn preview_page_kind(app: AppHandle) -> serde_json::Value {
+    preview::page_kind(&app).await
+}
+
 /// Where the island draws the Anteprima's panel (island.ts); 0 wide = hidden.
 #[tauri::command]
 async fn preview_pane(app: AppHandle, x: f64, y: f64, w: f64, h: f64) {
@@ -3888,6 +3916,18 @@ async fn preview_pane(app: AppHandle, x: f64, y: f64, w: f64, h: f64) {
 #[tauri::command]
 async fn preview_hide(app: AppHandle) {
     preview::close_window(&app);
+}
+
+/// The preview's own button: in the island or in a window, saved and made again there.
+#[tauri::command]
+async fn preview_dock(app: AppHandle, docked: bool) -> Result<(), String> {
+    agent::update_settings(&app, |s| {
+        s.preview_docked = docked;
+        s.chat_preview = true;
+    })?;
+    let settings = app.state::<Shared>().settings.lock().unwrap().clone();
+    preview::settings_changed(&app, &settings);
+    Ok(())
 }
 
 #[tauri::command]
@@ -4704,6 +4744,10 @@ pub fn run() {
             notion_map_status,
             recipes_count,
             recipes_forget,
+            portals_list,
+            portals_delete,
+            portals_export,
+            portals_import,
             notion_map_sync,
             chat_reset,
             chat_history_list,
@@ -4849,8 +4893,10 @@ pub fn run() {
             preview_open,
             preview_show,
             preview_hide,
+            preview_dock,
             preview_pane,
             preview_state,
+            preview_page_kind,
             preview_select,
             preview_close,
             preview_layout,

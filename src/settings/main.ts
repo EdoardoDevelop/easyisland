@@ -428,12 +428,22 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   let keyPresent = hasKey;
   let cliReady = false;
 
-  // ── Engine picker: names only; what the chosen one is, on the line below ──
-  const engine = h("select", {}) as HTMLSelectElement;
-  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
-  engine.value = settings.chatEngine;
+  // ── One card per engine; the open one's settings below the grid ──
+  // `shown` is the card open, not necessarily the default engine.
+  let shown: string = settings.chatEngine;
+  let cliFound = false;
   const engineHint = h("div", { class: "hint" });
-  const other = otherEngineBlock(() => paintDot());
+  const other = otherEngineBlock(() => refreshCards());
+  const cards = h("div", { class: "engine-cards" });
+  const detailName = h("b", {});
+  const makeDefault = h("button", { class: "primary", text: t("Usa come predefinito") }) as HTMLButtonElement;
+  const defaultNote = h("span", { class: "hint note", text: t("è il motore predefinito della chat") });
+  makeDefault.addEventListener("click", () => {
+    settings.chatEngine = shown as Settings["chatEngine"];
+    void save();
+    showEngine();
+  });
+  const detailHead = h("div", { class: "row engine-detail-head" }, detailName, makeDefault, defaultNote);
 
   // ── Subscription block ──
   const cliDot = statusDot(false);
@@ -468,6 +478,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       modelSelect(CLI_MODELS, settings.cliModel, (v) => {
         settings.cliModel = v;
         void save();
+        refreshCards();
       }),
     ),
     h("div", { class: "row" },
@@ -475,6 +486,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
     recipesRow(),
+    portalsRow(),
     connectorsBlock(),
   );
 
@@ -484,6 +496,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     const status = await Bridge.claudeCliStatus();
     recheck.disabled = false;
     cliReady = !!status?.found && !!status.loggedIn;
+    cliFound = !!status?.found;
     if (!status?.found) {
       cliState.textContent = t("Claude Code da riga di comando non è installato su questo PC.");
     } else if (!status.loggedIn && status.source === "vscode") {
@@ -496,7 +509,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     }
     cliDot.style.background = cliReady ? "#22c55e" : "#f4505e";
     howTo.style.display = cliReady ? "none" : "flex";
-    paintDot();
+    refreshCards();
   }
   recheck.addEventListener("click", () => void refreshCli());
 
@@ -518,7 +531,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       : t("Nessuna chiave: serve per usare questo motore.");
     field.placeholder = keyPresent ? "••••••••••••  (salvata)" : "sk-ant-...";
     clearBtn.style.display = keyPresent ? "" : "none";
-    paintDot();
+    refreshCards();
   }
 
   async function refreshKey() {
@@ -561,32 +574,88 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       modelSelect(MODELS, settings.model, (v) => {
         settings.model = v;
         void save();
+        refreshCards();
       }),
     ),
     feedback,
   );
 
-  function paintDot() {
-    const ready = settings.chatEngine === "api" ? keyPresent
-      : settings.chatEngine === "subscription" ? cliReady : other.ready();
-    dot.style.background = ready ? "#22c55e" : "#f4505e";
+  /** Which engines can answer (engines_ready), read again after a key, a model or Claude Code changes. */
+  let readyList: [string, string, boolean][] = [];
+  let cardsTimer = 0;
+  function refreshCards() {
+    window.clearTimeout(cardsTimer);
+    cardsTimer = window.setTimeout(async () => {
+      readyList = (await Bridge.enginesReady()) ?? readyList;
+      await paintCards();
+    }, 150);
+  }
+
+  /** "Pronto", or what is missing, for one engine. */
+  async function stateOf(id: string): Promise<[boolean, string]> {
+    const e = CHAT_ENGINES.find((x) => x.id === id);
+    if (id === "subscription") {
+      return cliReady ? [true, t("Pronto")] : [false, cliFound ? t("Manca il login") : t("Non installato")];
+    }
+    if (id === "api") return keyPresent ? [true, t("Pronto")] : [false, t("Manca la chiave")];
+    if (readyList.find(([i]) => i === id)?.[2]) return [true, t("Pronto")];
+    if (e?.key && !((await Bridge.secretPresent(e.key)) ?? false)) return [false, t("Manca la chiave")];
+    if (id === "antigravity") return [false, t("Non installato")];
+    if (!settings.engineModels?.[id]?.trim()) return [false, t("Manca il modello")];
+    return [false, t("Non installato")];
+  }
+
+  /** The model the engine uses, as the card shows it. */
+  function modelOf(id: string): string {
+    if (id === "subscription") return CLI_MODELS.find(([m]) => m === settings.cliModel)?.[1] ?? (settings.cliModel || t("predefinito"));
+    if (id === "api") return MODELS.find(([m]) => m === settings.model)?.[1] ?? settings.model;
+    const m = settings.engineModels?.[id]?.trim();
+    return m || (id === "antigravity" ? t("quello del tuo account") : t("nessun modello"));
+  }
+
+  async function paintCards() {
+    const states = await Promise.all(CHAT_ENGINES.map((e) => stateOf(e.id)));
+    clear(cards);
+    CHAT_ENGINES.forEach((e, i) => {
+      const [ok, label] = states[i];
+      const facts = ENGINE_FACTS[e.id];
+      const isDefault = e.id === settings.chatEngine;
+      const card = h("button", {
+        class: `engine-card${e.id === shown ? " on" : ""}${ok ? "" : " off"}`,
+        title: ENGINE_HINTS[e.id] ?? "",
+      },
+        h("div", { class: "engine-card-top" },
+          h("b", { text: e.name }),
+          isDefault ? h("span", { class: "engine-chip", text: t("Predefinito") }) : h("span", {})),
+        h("div", { class: "engine-card-state" }, statusDot(ok), h("span", { text: label })),
+        h("div", { class: "engine-card-pay", text: facts?.pay ?? "" }),
+        h("div", { class: "engine-tags" },
+          ...(facts?.tags ?? []).map(([text, kind]) => h("span", { class: `engine-tag ${kind}`, text }))),
+        h("div", { class: "engine-card-model", text: modelOf(e.id) }));
+      card.setAttribute("aria-pressed", String(e.id === shown));
+      card.addEventListener("click", () => {
+        shown = e.id;
+        showEngine();
+      });
+      cards.append(card);
+    });
+    const def = CHAT_ENGINES.findIndex((e) => e.id === settings.chatEngine);
+    dot.style.background = states[def]?.[0] ? "#22c55e" : "#f4505e";
   }
 
   function showEngine() {
-    const api = settings.chatEngine === "api";
-    const cli = settings.chatEngine === "subscription";
-    engineHint.textContent = ENGINE_HINTS[settings.chatEngine] ?? "";
+    const api = shown === "api";
+    const cli = shown === "subscription";
+    detailName.textContent = CHAT_ENGINES.find((e) => e.id === shown)?.name ?? shown;
+    const isDefault = shown === settings.chatEngine;
+    makeDefault.style.display = isDefault ? "none" : "";
+    defaultNote.style.display = isDefault ? "" : "none";
+    engineHint.textContent = ENGINE_HINTS[shown] ?? "";
     apiBlock.style.display = api ? "flex" : "none";
     cliBlock.style.display = cli ? "flex" : "none";
-    other.show(settings.chatEngine);
-    paintDot();
+    other.show(shown);
+    refreshCards();
   }
-
-  engine.addEventListener("change", () => {
-    settings.chatEngine = engine.value as Settings["chatEngine"];
-    void save();
-    showEngine();
-  });
 
   paintKey();
   showEngine();
@@ -595,13 +664,15 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, dot, h("span", { text: t("Motore e modello") })),
-    h("div", { class: "row" }, h("label", { text: t("Motore predefinito") }), engine,
-      h("span", { class: "hint note", text: t("nella chat, dal nome del motore in alto, ne scegli un altro solo per quella conversazione") })),
-    engineHint,
-    cliBlock,
-    apiBlock,
-    other.el,
+    h("h2", {}, dot, h("span", { text: t("Motori") })),
+    h("div", { class: "hint", text: t("Clic su un motore per chiave, modello e opzioni. Nella chat, dal nome del motore in alto, ne scegli un altro solo per quella conversazione.") }),
+    cards,
+    h("div", { class: "engine-detail" },
+      detailHead,
+      engineHint,
+      cliBlock,
+      apiBlock,
+      other.el),
     h("h2", {}, h("span", { text: t("Comandi e file (modalità terminale)") })),
     terminalRow(),
     h("h2", {}, h("span", { text: t("Istruzioni e memoria") })),
@@ -765,6 +836,22 @@ const ENGINE_HINTS: Record<string, string> = {
   gemini: t("Google AI Studio con la tua chiave. Solo chat: niente web né azioni sul PC."),
   ollama: t("Modelli locali con Ollama, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
   lmstudio: t("Modelli locali con LM Studio, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
+};
+
+/**
+ * What each engine's card says: how it is paid, and what it can do (as in
+ * docs/guida/09-motori.md). Tags: "yes" can, "dim" only in a way.
+ */
+const ENGINE_FACTS: Record<string, { pay: string; tags: [string, "yes" | "dim"][] }> = {
+  subscription: { pay: t("Abbonamento Pro o Max, nessun costo extra"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Connettori MCP"), "yes"]] },
+  api: { pay: t("A consumo"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"]] },
+  opencode: { pay: t("Gratis, locale o del tuo fornitore"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Comandi e file"), "yes"]] },
+  antigravity: { pay: t("Il tuo account Google"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Comandi e file"), "yes"]] },
+  openrouter: { pay: t("A consumo, alcuni modelli gratis"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
+  openai: { pay: t("A consumo"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
+  gemini: { pay: t("A consumo, con una parte gratis"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
+  ollama: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
+  lmstudio: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
 };
 
 /**
@@ -1907,6 +1994,60 @@ function recipesRow(): HTMLElement {
   return h("div", { class: "row" }, h("label", { text: t("Ricette") }), line, forget);
 }
 
+/** Chat → "Portali": the suppliers' portals taught in the chat (portals.rs), never in the code. */
+function portalsRow(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0" });
+  const note = h("span", { class: "hint note" });
+  const paint = async () => {
+    const all = (await Bridge.portalsList()) ?? [];
+    clear(list);
+    if (!all.length) {
+      list.append(h("span", { class: "hint note", text: t("Nessuno. Si insegnano nella chat: «impara a cercare su questo portale», con il portale aperto nell'Anteprima. Poi «cerca U7-Pro nei portali» li usa tutti, senza leggere le pagine.") }));
+    }
+    for (const p of all) {
+      const how = [p.json ? t("ricerca in JSON") : t("dati della pagina"), p.login ? (p.dvcEntry ? t("con accesso (Devolutions: {e})", { e: p.dvcEntry }) : t("con accesso")) : "", p.vatIncluded === true ? t("IVA inclusa") : p.vatIncluded === false ? t("IVA esclusa") : ""].filter(Boolean).join(" · ");
+      const state = p.lastError ? t("ultimo errore {e}", { e: p.lastError }) : p.lastOk ? t("funziona ({d})", { d: p.lastOk }) : t("mai usato");
+      const del = h("button", { class: "danger", text: t("Elimina") }) as HTMLButtonElement;
+      del.addEventListener("click", async () => {
+        if (!del.classList.contains("confirm")) {
+          del.classList.add("confirm");
+          del.textContent = t("Sicuro? Elimina");
+          return;
+        }
+        try { await Bridge.portalsDelete(p.id); } catch (e) { console.warn(e); }
+        await paint();
+      });
+      list.append(h("div", { class: "row", style: "gap:8px;align-items:center" },
+        h("span", { style: "flex:1 1 auto;min-width:0" },
+          h("b", { text: p.name }), " ",
+          h("span", { class: "hint", text: `${p.site} · ${how} · ${state}` }),
+          p.notes ? h("div", { class: "hint", text: p.notes }) : ""),
+        del));
+    }
+  };
+  const exp = h("button", { text: t("Esporta") }) as HTMLButtonElement;
+  exp.title = t("Copia le ricette negli appunti, per un altro EasyIsland (niente password)");
+  exp.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText((await Bridge.portalsExport()) ?? "[]");
+      note.textContent = t("Copiate negli appunti.");
+    } catch { note.textContent = t("Non riuscito"); }
+  });
+  const imp = h("button", { text: t("Importa") }) as HTMLButtonElement;
+  imp.title = t("Aggiunge le ricette copiate da un altro EasyIsland (dagli appunti)");
+  imp.addEventListener("click", async () => {
+    try {
+      const n = await Bridge.portalsImport(await navigator.clipboard.readText());
+      note.textContent = t("{n} portali importati.", { n: n ?? 0 });
+    } catch (e) { note.textContent = String(e); }
+    await paint();
+  });
+  void paint();
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row", style: "align-items:flex-start" }, h("label", { text: t("Portali") }), list),
+    h("div", { class: "row" }, h("label", { text: "" }), exp, imp, note));
+}
+
 /** Notion → "Mappa per la chat": what is kept, "Sincronizza" and how often by itself. */
 function notionMapRow(c: IntegrationConfig): HTMLElement {
   const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
@@ -2898,6 +3039,11 @@ function appearanceSections(): HTMLElement[] {
             ["nessuna", t("Niente")],
           ], settings.chatEmptyArt ?? "ezzy", (v) => { settings.chatEmptyArt = v; commit(); }),
           h("span", { class: "hint note", text: t("un disegno tenue e lento al posto del vuoto, finché non scrivi il primo messaggio; si ferma quando la chat non si vede e resta fermo se Windows riduce le animazioni") }),
+        ),
+        h("div", { class: "row" },
+          h("label", { text: t("Suggerimenti") }),
+          toggle(settings.chatTips !== false, (v) => { settings.chatTips = v; commit(); }),
+          h("span", { class: "hint note", text: t("sopra il campo, cosa puoi chiedere per ciò che hai davanti (una pagina con prodotti nell'Anteprima, un login, i portali, i PDF nel Vassoio); un clic scrive la richiesta senza mandarla. Senza IA, nessun costo. «?» e /aiuto mostrano tutto quello che la chat sa fare") }),
         ),
       ),
     ],
