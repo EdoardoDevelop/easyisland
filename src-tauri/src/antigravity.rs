@@ -329,6 +329,11 @@ pub async fn send(
         }
         chat.set_cli_session(Some(id));
     }
+    // Its tokens, for «Consumo» (engine_usage.rs): only the answers given here.
+    if let Some(u) = result.get("usage") {
+        let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+        crate::engine_usage::record("antigravity", model, n("input_tokens"), n("output_tokens") + n("thinking_tokens"), None, false);
+    }
     let mut final_text = result.get("response").and_then(Value::as_str).unwrap_or("").to_string();
     // What headless mode skipped because nobody could be asked (no hooks).
     let denied = result.get("denied_actions").and_then(Value::as_array).map(Vec::len).unwrap_or(0);

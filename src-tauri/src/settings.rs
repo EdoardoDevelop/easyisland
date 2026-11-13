@@ -47,6 +47,9 @@ pub struct IntegrationConfig {
     /// Consumo Claude: the plan's percentages in the open island's header too.
     #[serde(default = "default_true")]
     pub plan_in_header: bool,
+    /// Consumo: the engine the header shows (a click there moves to the next one).
+    #[serde(default)]
+    pub plan_engine: String,
     /// 3CX: "user" (the extension's own login) or "api" (an API client).
     #[serde(default = "user_mode")]
     pub threecx_mode: String,
@@ -314,6 +317,7 @@ impl Default for IntegrationConfig {
             weather_city: String::new(),
             weather_on_character: false,
             plan_in_header: true,
+            plan_engine: String::new(),
             threecx_mode: user_mode(),
             threecx_extension: String::new(),
             threecx_device: String::new(),

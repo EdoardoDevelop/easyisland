@@ -158,6 +158,13 @@ pub fn visible(text: &str) -> String {
 
 /// One `data:` line of the stream → the content it adds (reasoning ignored).
 /// None for `[DONE]`, keep-alives and anything that is not a content delta.
+/// The `usage` a streamed chunk carries (the last one, with `include_usage`).
+fn usage_of(line: &str) -> Option<Value> {
+    let data = line.trim().strip_prefix("data:")?.trim();
+    let v: Value = serde_json::from_str(data).ok()?;
+    v.get("usage").filter(|u| u.is_object()).cloned()
+}
+
 pub fn delta(line: &str) -> Option<String> {
     let data = line.trim().strip_prefix("data:")?.trim();
     if data.is_empty() || data == "[DONE]" {
@@ -233,9 +240,23 @@ pub async fn send(
     let mut messages = vec![json!({ "role": "system", "content": crate::i18n::prompt(SYSTEM_PROMPT) })];
 
     messages.extend(chat.snapshot());
-    let body = json!({ "model": model.trim(), "messages": messages, "stream": true });
+    let mut body = json!({ "model": model.trim(), "messages": messages, "stream": true });
+    // The tokens (and OpenRouter's cost) in the last chunk, for «Consumo»: only
+    // where the service is known to take it; the others are estimated.
+    if matches!(engine, "openrouter" | "openai") {
+        body["stream_options"] = json!({ "include_usage": true });
+    }
+    let sent: usize = messages.iter().map(|m| m.to_string().len()).sum();
 
-    let result = stream_turn(engine, &base, &body, on_text).await;
+    let result = stream_turn_usage(engine, &base, &body, on_text).await;
+    let result = result.map(|(text, usage)| {
+        let n = |k: &str| usage.as_ref().and_then(|u| u.get(k)).and_then(Value::as_u64);
+        match (n("prompt_tokens"), n("completion_tokens")) {
+            (Some(i), Some(o)) => crate::engine_usage::record(engine, model, i, o, usage.as_ref().and_then(|u| u.get("cost")).and_then(Value::as_f64), false),
+            _ => crate::engine_usage::record(engine, model, crate::engine_usage::estimate(sent), crate::engine_usage::estimate(text.len()), None, true),
+        }
+        text
+    });
     match result {
         Ok(text) if !text.trim().is_empty() => {
             chat.push(json!({ "role": "assistant", "content": text }));
@@ -254,7 +275,13 @@ pub async fn send(
 
 /// Sends the request and reads the reply as it streams; `on_text` gets the
 /// visible text so far, every STREAM_EVERY_MS at most.
+#[cfg(test)]
 async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&str) + Sync)) -> Result<String, String> {
+    stream_turn_usage(engine, base, body, on_text).await.map(|(text, _)| text)
+}
+
+/// The text, and the `usage` of the last chunk when the service sent one.
+async fn stream_turn_usage(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&str) + Sync)) -> Result<(String, Option<Value>), String> {
     let request = auth(engine, client()?.post(format!("{base}/chat/completions")).json(body))?;
     let mut response = request.send().await.map_err(|e| network_error(engine, base, e))?;
     let status = response.status();
@@ -264,6 +291,7 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
         return Err(format!("{name} {status}: {}", error_text(&text)));
     }
 
+    let mut usage: Option<Value> = None;
     let mut raw = String::new(); // everything the model wrote, <think> included
     let mut pending = Vec::<u8>::new(); // bytes of a line not finished yet
     let mut last_emit = std::time::Instant::now();
@@ -275,6 +303,9 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
             if let Some(err) = line.trim().strip_prefix("data:").and_then(|d| serde_json::from_str::<Value>(d.trim()).ok()).and_then(|v| v.get("error").cloned()) {
                 let msg = err.get("message").and_then(Value::as_str).unwrap_or(t("errore durante la risposta"));
                 return Err(msg.to_string());
+            }
+            if let Some(u) = usage_of(&line) {
+                usage = Some(u);
             }
             if let Some(d) = delta(&line) {
                 raw.push_str(&d);
@@ -289,7 +320,7 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
     if let Some(d) = delta(&String::from_utf8_lossy(&pending)) {
         raw.push_str(&d);
     }
-    Ok(visible(&raw).trim().to_string())
+    Ok((visible(&raw).trim().to_string(), usage))
 }
 
 /// Impostazioni → Chat → "Carica modelli": the model ids the engine offers.

@@ -782,6 +782,26 @@ html.browser-preview #root {
   background: #f4505e;
 }
 
+/* Which engine the header shows, when there are more (a click: the next one). */
+.plan-gauge .pg-engine {
+  font-weight: 600;
+  white-space: nowrap;
+  padding-bottom: 3px;
+}
+
+.plan-gauge .pg {
+  --c: #d97757;
+}
+
+.plan-gauge .pg::after {
+  background: linear-gradient(90deg, var(--c) var(--p), rgba(255, 255, 255, 0.12) var(--p));
+}
+
+/* A plain number (today's tokens): no bar. */
+.plan-gauge .pg.plain::after {
+  display: none;
+}
+
 /* Numbers that stopped coming (Claude Code's login expired): grey, bar included. */
 .plan-gauge .pg.stale {
   color: var(--dim-3);
@@ -2596,6 +2616,27 @@ input[type="range"]::-webkit-slider-thumb {
 .int-rows.tight {
   gap: 2px;
   padding-top: 4px;
+}
+
+/* Consumo: the engine's line, then its fields a little in. */
+.int-row.w-engine {
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.int-row.w-engine:first-child {
+  margin-top: 0;
+}
+
+.w-engine-name {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font: 600 calc(11px + var(--fs-up, 0px)) var(--font);
+}
+
+.int-row.w-field.w-sub {
+  padding-left: 11px;
 }
 
 /* Widget fields: label on the left, the value takes the rest and wraps. */

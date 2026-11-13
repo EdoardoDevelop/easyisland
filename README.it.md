@@ -603,7 +603,7 @@ anche dal menu dell'icona nell'area di notifica. Tiene solo i conteggi e il nome
 della cartella del progetto, mai comandi o contenuti. **Limiti del piano** (Pro e
 Max): la card Consumo mostra le percentuali delle 5 ore, della settimana e della
 settimana Opus, con un avviso dall'80 %, e le riporta in alto nell'isola (si tolgono
-in Impostazioni → Integrazioni → Consumo Claude). Le chiede ad Anthropic ogni 5 minuti
+in Impostazioni → Integrazioni → Consumo; un clic lì passa al motore successivo: opencode, Antigravity, OpenRouter con il credito). Le chiede ad Anthropic ogni 5 minuti
 con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`; l'accesso viene
 solo letto), anche se usi solo l'app desktop di Claude; arrivano anche dalla status
 line delle sessioni nel terminale o in VS Code.

@@ -1002,10 +1002,12 @@ export async function runScene(island: Island, scene: string) {
     }
     case "usage": {
       // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card;
-      // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header).
+      // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header);
+      // the other engines below; &motore=openrouter (opencode, antigravity): that one in the header.
       await wait(300);
       const now = Math.floor(Date.now() / 1000);
-      const stale = new URLSearchParams(location.search).has("stale");
+      const q0 = new URLSearchParams(location.search);
+      const stale = q0.has("stale");
       State.widgetStatus.integration_claude_usage = {
         id: "integration_claude_usage", level: "warn", at: now - 30,
         summary: "Piano: 5 ore 12% · settimana 83% (quasi al limite)",
@@ -1017,6 +1019,22 @@ export async function runScene(island: Island, scene: string) {
           { label: "Ultime 5 ore", value: "1,2 M token" },
         ],
       };
+      // The other engines (engine_usage.rs), as the card and the header's clicks show them.
+      const st = State.widgetStatus.integration_claude_usage;
+      st.engines = [
+        { id: "subscription", name: "Claude Code", color: "#D97757", level: "warn", summary: st.summary, fields: st.fields, at: st.plan!.at!,
+          gauge: [{ label: "5h", pct: 12, text: "12%" }, { label: "7g", pct: 83, text: "83%" }] },
+        { id: "opencode", name: "opencode", color: "#F5A524", level: "ok", summary: "Oggi 336 mila token · 7 giorni 405 mila", at: now,
+          fields: [{ label: "Oggi", value: "336 mila token" }, { label: "7 giorni", value: "405 mila token · 1 richiesta" }, { label: "Modelli", value: "freellmapi/auto 100%" }],
+          gauge: [{ label: "oggi", pct: null, text: "336 mila" }] },
+        { id: "antigravity", name: "Antigravity", color: "#4C8BF5", level: "ok", summary: "Oggi 45 mila token · 7 giorni 120 mila", at: now,
+          fields: [{ label: "Oggi", value: "45 mila token · 6 chiamate" }, { label: "Fonte", value: "solo le risposte date in EasyIsland" }],
+          gauge: [{ label: "oggi", pct: null, text: "45 mila" }] },
+        { id: "openrouter", name: "OpenRouter", color: "#8B8FF8", level: "ok", summary: "credito $3,53 · oggi $0,00", at: now,
+          fields: [{ label: "Credito", value: "$3,53 rimasti su $15,00" }, { label: "Questo mese", value: "$0,40" }],
+          gauge: [{ label: "credito", pct: 76, text: "$3,53" }] },
+      ];
+      if (q0.get("motore")) State.settings.integrationConfig.planEngine = q0.get("motore")!;
       State.setFocus("integration_claude_usage");
       State.isPinned = true;
       island.alert("overview");

@@ -904,6 +904,19 @@ export interface Settings {
   integrationConfig: IntegrationConfig;
 }
 
+/** One engine in «Consumo» (engine_usage.rs): its own numbers, and what the header shows. */
+export interface EngineUsage {
+  id: string;
+  name: string;
+  color: string;
+  level: "ok" | "warn" | "error";
+  summary: string;
+  fields: { label: string; value: string }[];
+  /** Percentages (pct) when the engine has a limit, else a plain number. */
+  gauge: { label: string; pct: number | null; text: string }[];
+  at: number;
+}
+
 export interface IntegrationConfig {
   /** Stato del PC: warn below this % of free space on the system disk. */
   systemWarn: number;
@@ -912,8 +925,10 @@ export interface IntegrationConfig {
   weatherCity: string;
   /** Meteo: the sky stays on the idle character, not only on the Meteo pill. */
   weatherOnCharacter: boolean;
-  /** Consumo Claude: the plan's percentages in the open island's header too. */
+  /** Consumo: the plan's percentages in the open island's header too. */
   planInHeader: boolean;
+  /** Consumo: the engine the header shows; a click there moves to the next one. */
+  planEngine?: string;
   /** 3CX: "user" (the extension's own login) or "api" (an API client). */
   threecxMode: "user" | "api";
   /** 3CX, API mode: the extension the API client monitors. */
@@ -1240,6 +1255,8 @@ export interface WidgetStatus {
   sky?: string;
   /** Consumo Claude: [used %, resets at (Unix s)] per window of the plan, and when they arrived (usage.rs PlanGauge). */
   plan?: { fiveHour?: [number, number]; sevenDay?: [number, number]; sevenDayOpus?: [number, number]; at?: number };
+  /** Consumo: one section per engine, Claude Code first (engine_usage.rs EngineUsage). */
+  engines?: EngineUsage[];
   /** Meteo: now, the next hours and days, for its card (src/views/weather.ts). */
   forecast?: unknown;
 }

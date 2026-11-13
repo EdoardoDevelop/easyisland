@@ -38,7 +38,7 @@
 | **Stripe** | Payments | Read-only key |
 | **Resend** | Sent emails | API key |
 | **n8n** | Workflow executions, errors | Address and API key |
-| **Claude usage** | Plan limits (5 hours, week, Opus) and Claude Code tokens | Claude Code signed in |
+| **Usage** | For each engine, apart: Claude Code (plan limits and tokens), opencode (tokens and cost), OpenRouter (credit, key limit, spending), Antigravity and the others (tokens of the answers given in EasyIsland). At the top of the island a click moves to the next engine | Claude Code signed in; for OpenRouter its key |
 
 ## This PC
 | Integration | What it shows |

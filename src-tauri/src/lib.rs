@@ -120,6 +120,7 @@ mod transcribe;
 mod tray;
 mod updates;
 mod usage;
+mod engine_usage;
 mod widgets;
 mod workdir;
 mod zip;

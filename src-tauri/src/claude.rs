@@ -643,6 +643,11 @@ pub async fn send_with(
             }
         };
 
+        // Its tokens, for «Consumo» (engine_usage.rs): every call of the turn.
+        if let Some(u) = response.get("usage") {
+            let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+            crate::engine_usage::record("api", model, n("input_tokens") + n("cache_creation_input_tokens"), n("output_tokens"), None, false);
+        }
         let stop = response.get("stop_reason").and_then(Value::as_str).unwrap_or("");
 
         // A policy decline comes back as HTTP 200 with stop_reason "refusal".

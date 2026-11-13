@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
+Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori. Poi pulsante ⧉/◨ nell'Anteprima per isola o finestra (`preview_dock`), da provare nell'app.
+
 ### 12/11 — Browser dell'Anteprima e portali dei fornitori (ramo `claude/browser`)
 Edoardo: cercare prodotti nei portali dei fornitori e farne preventivi, «i siti non devono finire nel codice». Mouse e tastiera veri, `preview_steps`, «Sempre» per sito, mai carrello e ordini, `preview_find`/`preview_extract` (prodotti senza conoscere il sito), ricette in `portals.rs` (dati dell'utente), `preview_login` con Devolutions, foto nel Vassoio, costo + ricarico nei preventivi. Poi suggerimenti sopra il campo per ciò che è nell'Anteprima (regole, senza IA), «?»/`/aiuto` «Cosa so fare», `/portali`, `/impara-portale`. «Automatica» della chat accesa di serie, spenta si chiama «Manuale». `docs/chat.md` → Anteprima, Portali dei fornitori, Suggerimenti.
 

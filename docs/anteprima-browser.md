@@ -224,7 +224,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `network` | la rete (con `activeIntegrations=integration_network`) | `form`: le impostazioni della scheda di rete aperte |
 | `notion` | Notion | `views`, `noinbox` |
 | `rdm` | RDM | `q=<ricerca>`, `nolist` |
-| `usage` | il consumo del piano | `stale`: numeri vecchi di 7 ore |
+| `usage` | il consumo per motore (Claude Code, opencode, Antigravity, OpenRouter) | `stale`: numeri di Claude vecchi di 7 ore; `motore=openrouter` (o `opencode`, `antigravity`): quello nell'intestazione |
 | `meteo` | il meteo | `sky=rain\|sun\|moon\|sun-cloud\|moon-cloud\|cloud\|fog\|snow\|storm`, `night`, `idle` |
 | `actions` | le azioni rapide | — |
 | `finished` | la card «ha finito» con «Continua» | va bene con `islandHeight=440` |

@@ -54,6 +54,6 @@ They keep only numbers and the project folder's name, never commands or contents
 ![The weekly recap](../media/recap.png)
 
 ## Claude plan limits
-With a Pro or Max plan, the **Claude usage** card shows the percentages of the **5 hours**, the **week** and the **Opus week**, with a warning from 80 %, and repeats them at the top of the island. It asks Anthropic every 5 minutes with the sign-in already done in Claude Code (the same data as `/usage`, read only) and also takes them from the sessions' status line. The card also shows tokens used, read from Claude Code's transcripts (numbers only, never the text).
+With a Pro or Max plan, the **Usage** card shows the percentages of the **5 hours**, the **week** and the **Opus week**, with a warning from 80 %, and repeats them at the top of the island. It asks Anthropic every 5 minutes with the sign-in already done in Claude Code (the same data as `/usage`, read only) and also takes them from the sessions' status line. The card also shows tokens used, read from Claude Code's transcripts (numbers only, never the text). The other engines have their own section in the same card: see Integrations.
 
 If Claude Code's sign-in expires, EasyIsland renews it by itself by opening Claude Code invisibly for an instant.

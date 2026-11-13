@@ -404,7 +404,9 @@ in time, Claude Code asks in the terminal as usual.
 
 **Weekly recap** on Mondays (hours at work, sessions, files and lines changed,
 commands, permissions: counts only, never commands or content) and **plan limits**
-(Pro and Max: 5 hours, week and Opus week, with an alert from 80 %).
+(Pro and Max: 5 hours, week and Opus week, with an alert from 80 %). The **Usage** card
+also has a section for each other engine (opencode, OpenRouter credit, Antigravity…);
+a click on the numbers at the top of the island moves to the next engine.
 
 **Codex, opencode, Antigravity and Gemini CLI** are installed from the same page with the same
 rules (diff, dated backup, confirmation). Codex, opencode and Antigravity permission requests

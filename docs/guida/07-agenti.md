@@ -54,6 +54,6 @@ Tengono solo numeri e il nome della cartella del progetto, mai comandi o contenu
 ![Il riepilogo settimanale](../media/recap.png)
 
 ## Limiti del piano Claude
-Con un piano Pro o Max, la card **Consumo Claude** mostra le percentuali delle **5 ore**, della **settimana** e della **settimana Opus**, con un avviso dall'80 %, e le riporta in alto nell'isola. Le chiede ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`, solo letto) e le prende anche dalla status line delle sessioni. La card mostra anche i token consumati, letti dalle trascrizioni di Claude Code (solo i numeri, mai il testo).
+Con un piano Pro o Max, la card **Consumo** mostra le percentuali delle **5 ore**, della **settimana** e della **settimana Opus**, con un avviso dall'80 %, e le riporta in alto nell'isola. Le chiede ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`, solo letto) e le prende anche dalla status line delle sessioni. La card mostra anche i token consumati, letti dalle trascrizioni di Claude Code (solo i numeri, mai il testo). Gli altri motori hanno la loro sezione nella stessa card: vedi Integrazioni.
 
 Se l'accesso di Claude Code scade, EasyIsland lo rinnova da solo aprendo Claude Code invisibile per un istante.

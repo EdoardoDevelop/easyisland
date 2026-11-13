@@ -38,7 +38,7 @@
 | **Stripe** | Pagamenti | Chiave in sola lettura |
 | **Resend** | Email inviate | Chiave API |
 | **n8n** | Esecuzioni dei flussi, errori | Indirizzo e chiave API |
-| **Consumo Claude** | Limiti del piano (5 ore, settimana, Opus) e token di Claude Code | Claude Code con l'accesso fatto |
+| **Consumo** | Per ogni motore, separato: Claude Code (limiti del piano e token), opencode (token e costo), OpenRouter (credito, limite della chiave, spesa), Antigravity e gli altri (token delle risposte date in EasyIsland). In alto nell'isola un clic passa al motore successivo | Claude Code con l'accesso fatto; per OpenRouter la sua chiave |
 
 ## Questo PC
 | Integrazione | Cosa mostra |

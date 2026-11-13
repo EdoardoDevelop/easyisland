@@ -78,7 +78,7 @@ fn probe_name(id: &str) -> &'static str {
         "integration_weather" => "Meteo",
         "integration_outlook" => "Outlook",
         "integration_zammad" => "Ticket Zammad",
-        "integration_claude_usage" => "Consumo Claude",
+        "integration_claude_usage" => "Consumo",
         _ => "Widget",
     }
 }

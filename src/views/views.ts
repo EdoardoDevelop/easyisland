@@ -9,7 +9,7 @@ import { h, svg, clear, dot, brandOrDot, markIcon, tip } from "./dom";
 import { ICONS } from "./icons";
 import { actionIcon, actionIconSvg } from "./action-icons";
 import { Ticker } from "./ticker";
-import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion, type EngineUsage } from "../core/state";
 import type { IslandViewName } from "../core/layout";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
@@ -162,34 +162,45 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 
 const USAGE_ID = "integration_claude_usage";
 
+/** Consumo's engines that have something for the header, in the card's order. */
+function gaugeEngines(): EngineUsage[] {
+  if (!State.settings.activeIntegrations.includes(USAGE_ID) || State.settings.integrationConfig.planInHeader === false) return [];
+  return (State.widgetStatus[USAGE_ID]?.engines ?? []).filter((e) => e.gauge.length);
+}
+
 /**
- * The plan's windows for the header (usage.rs PlanGauge), or null when the
- * card is off, has no plan yet, or the user keeps it in the card only.
+ * The header's gauge: the chosen engine of Consumo (usage.rs, engine_usage.rs),
+ * its plan's percentages or today's tokens; null when the card is off, has
+ * nothing yet, or the user keeps it in the card only.
  */
 function planGauge(): { key: string; parts: HTMLElement[]; title: string } | null {
-  if (!State.settings.activeIntegrations.includes(USAGE_ID) || State.settings.integrationConfig.planInHeader === false) return null;
-  const status = State.widgetStatus[USAGE_ID];
-  const plan = status?.plan;
-  if (!plan) return null;
+  const list = gaugeEngines();
+  if (!list.length) return null;
+  const e = list.find((x) => x.id === State.settings.integrationConfig.planEngine) ?? list[0];
   const now = Date.now() / 1000;
-  const windows: [string, [number, number] | undefined][] = [[t("5h"), plan.fiveHour], [t("7g"), plan.sevenDay]];
-  const shown = windows.flatMap(([label, w]) => {
-    if (!w) return [];
-    const pct = Math.round(w[1] <= now ? 0 : w[0]);
-    return [{ label, pct }];
-  });
-  if (!shown.length) return null;
-  // Past 15 minutes the numbers are old (as the card's "Piano aggiornato"): grey.
-  const stale = plan.at != null && now - plan.at >= 15 * 60;
+  // Claude Code past 15 minutes (as the card's "Piano aggiornato"): grey.
+  const stale = e.id === "subscription" && now - e.at >= 15 * 60;
   const level = (p: number) => (stale ? "stale" : p >= 100 ? "full" : p >= 80 ? "warn" : "");
-  const parts = shown.map(({ label, pct }) =>
-    h("span", { class: `pg ${level(pct)}`, style: `--p:${Math.min(100, pct)}%` },
-      h("b", { text: label }), h("span", { text: `${pct}%` })));
-  // The card's own lines ("Piano · 5 ore: 12% · si azzera tra 2 h 10"), as the tooltip;
-  // "Piano aggiornato" (how old, and why) first when the numbers are old.
-  const lines = (status.fields ?? []).filter((f) => f.label.startsWith(t("Piano"))).map((f) => `${f.label}: ${f.value}`);
+  const parts: HTMLElement[] = [];
+  // With more than one engine, whose numbers these are.
+  if (list.length > 1) parts.push(h("span", { class: "pg-engine", text: e.name, style: `color:${e.color}` }));
+  for (const g of e.gauge) {
+    const pct = g.pct == null ? null : Math.round(g.pct);
+    parts.push(h("span", { class: `pg ${pct == null ? "plain" : level(pct)}`, style: `--p:${Math.min(100, pct ?? 0)}%;--c:${e.color}` },
+      h("b", { text: g.label }), h("span", { text: g.text })));
+  }
+  // The engine's own lines as the tooltip; Claude's "Piano aggiornato" first when old.
+  const lines = e.id === "subscription"
+    ? e.fields.filter((f) => f.label.startsWith(t("Piano"))).map((f) => `${f.label}: ${f.value}`)
+    : [e.summary, ...e.fields.filter((f) => f.label !== t("Fonte")).map((f) => `${f.label}: ${f.value}`)];
   if (stale) lines.sort((a, b) => Number(b.startsWith(t("Piano aggiornato"))) - Number(a.startsWith(t("Piano aggiornato"))));
-  return { key: `${stale}|` + shown.map((s) => `${s.label}${s.pct}`).join("|") + lines.join("|"), parts, title: [t("Piano Claude"), ...lines].join("\n") };
+  const next = list[(list.indexOf(e) + 1) % list.length];
+  const hint = list.length > 1 ? t("Clic: {name}", { name: next.name }) : t("Clic: apri il consumo");
+  return {
+    key: `${stale}|${e.id}|${list.length}|` + e.gauge.map((g) => `${g.label}${g.pct}${g.text}`).join("|") + lines.join("|"),
+    parts,
+    title: [e.id === "subscription" ? t("Piano Claude") : e.name, ...lines, hint].join("\n"),
+  };
 }
 
 /**
@@ -260,9 +271,19 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
   const minBtn = h("button", { title: t("Riduci a icona"), style: "--c:#94A3B8", onclick: () => void Bridge.minimizeIsland() }, svg(ICONS.minimize, 14));
   const maxBtn = h("button", { title: t("Schermo intero"), style: "--c:#94A3B8", onclick: () => actions.toggleMaximized() }, svg(ICONS.maximize, 14));
   let maxShown: boolean | null = null;
-  // Claude's plan (Consumo Claude): "5h 12%  7g 83%", a click opens the card.
+  // Consumo in the header: "5h 12%  7g 83%" for Claude, today's tokens or the
+  // credit for the others; a click shows the next engine, with one only it opens the card.
   const planBtn = h("button", { class: "plan-gauge", onclick: () => {
     actions.blip();
+    const list = gaugeEngines();
+    if (list.length > 1) {
+      const cfg = State.settings.integrationConfig;
+      const i = list.findIndex((x) => x.id === cfg.planEngine);
+      cfg.planEngine = list[(Math.max(0, i) + 1) % list.length].id;
+      void Bridge.saveSettings(State.settings);
+      State.notify();
+      return;
+    }
     State.setFocus(USAGE_ID);
     actions.setView("overview");
   } });
