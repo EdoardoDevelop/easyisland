@@ -3918,6 +3918,18 @@ async fn preview_hide(app: AppHandle) {
     preview::close_window(&app);
 }
 
+/// The preview's own button: in the island or in a window, saved and made again there.
+#[tauri::command]
+async fn preview_dock(app: AppHandle, docked: bool) -> Result<(), String> {
+    agent::update_settings(&app, |s| {
+        s.preview_docked = docked;
+        s.chat_preview = true;
+    })?;
+    let settings = app.state::<Shared>().settings.lock().unwrap().clone();
+    preview::settings_changed(&app, &settings);
+    Ok(())
+}
+
 #[tauri::command]
 async fn preview_select(app: AppHandle, id: u32) {
     preview::select(&app, id);
@@ -4881,6 +4893,7 @@ pub fn run() {
             preview_open,
             preview_show,
             preview_hide,
+            preview_dock,
             preview_pane,
             preview_state,
             preview_page_kind,

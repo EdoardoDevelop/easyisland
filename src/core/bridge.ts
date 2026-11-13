@@ -658,6 +658,7 @@ export const Bridge = {
   previewOpen: (target: string, newTab = false) => callOrThrow<number>("preview_open", { target, newTab }),
   previewShow: () => call<void>("preview_show"),
   previewHide: () => call<void>("preview_hide"),
+  previewDock: (docked: boolean) => call<void>("preview_dock", { docked }),
   previewPane: (x: number, y: number, w: number, h: number) => call<void>("preview_pane", { x, y, w, h }),
   previewState: () => call<import("../preview/types").PreviewState>("preview_state"),
   /** What the Anteprima's active tab shows, for the chat's tips (preview.rs page_kind). */

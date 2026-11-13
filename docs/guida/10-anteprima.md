@@ -19,6 +19,8 @@ In **Impostazioni → Chat → Anteprima** scegli come averla:
 - **Finestra separata**: una finestra normale, da spostare dove vuoi, anche su un altro schermo.
 - **Spenta**: link e file tornano ad aprirsi nel browser e nei loro programmi.
 
+Per passare dall'isola alla finestra e viceversa non serve aprire le Impostazioni: c'è il pulsante in alto a destra nell'Anteprima, accanto a **+**: **⧉** la mette in una finestra, **◨** la rimette nell'isola accanto alla chat. Le schede restano aperte e la scelta vale anche le volte dopo.
+
 ## I file
 | Tipo | Cosa vedi |
 |---|---|
