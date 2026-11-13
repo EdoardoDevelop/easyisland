@@ -53,7 +53,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 13/11 — Meno token: EasyIsland fa il lavoro (ramo `claude/token`)
+### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
 Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
 
 ### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
