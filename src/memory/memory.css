@@ -382,6 +382,87 @@ svg {
   color: var(--ink);
 }
 
+.mem-view-pills {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: calc(var(--r-ctl) + 2px);
+  background: var(--control-active);
+  border: 1px solid var(--stroke);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mem-view-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.mem-view-pills button {
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--dim);
+  padding: 4px 9px;
+  min-height: 26px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+}
+
+.mem-view-pills button:hover {
+  color: var(--ink);
+  background: var(--control);
+}
+
+.mem-view-pills button.on {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--stroke);
+}
+
+.mem-view-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--stroke-strong);
+  flex: none;
+}
+
+.mem-zoom-dock {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--layer) 92%, transparent);
+  border: 1px solid var(--stroke);
+}
+
+.mem-zoom-dock button {
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--dim);
+  padding: 3px 8px;
+  min-height: 24px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mem-zoom-dock button:hover {
+  color: var(--ink);
+  background: var(--control-hover);
+}
+
 .mem-view-pick {
   font-weight: 600;
   min-width: 180px;

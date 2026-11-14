@@ -5,7 +5,7 @@
 
 import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
 import { t } from "../core/i18n";
-import { type View } from "./stage";
+import { animateIdle, type View } from "./stage";
 import { font, paintBackground, pal } from "./theme";
 
 interface Slice {
@@ -81,10 +81,12 @@ export class SunburstView implements View {
 
   private size = { w: 0, h: 0 };
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
     this.size = { w, h };
     paintBackground(ctx, w, h);
     const p = pal();
+    const idle = animateIdle();
+    const spin = idle ? Math.sin(time * 0.0005) * 0.04 : 0;
     const { cx, cy, R } = this.geometry(w, h);
     const sel = this.selected;
     const near = new Set<string>();
@@ -93,16 +95,16 @@ export class SunburstView implements View {
       const on = (!sel && !this.filter) || s.id === sel || near.has(s.id) || !!this.filter?.has(s.id);
       ctx.fillStyle = alpha(s.colour, on ? (s.r0 < 0.5 ? 0.85 : 0.6) : 0.15);
       ctx.beginPath();
-      ctx.arc(cx, cy, s.r1 * R, s.a0, s.a1);
-      ctx.arc(cx, cy, s.r0 * R, s.a1, s.a0, true);
+      ctx.arc(cx, cy, s.r1 * R, s.a0 + spin, s.a1 + spin);
+      ctx.arc(cx, cy, s.r0 * R, s.a1 + spin, s.a0 + spin, true);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = s.id === sel ? p.ring : p.bg;
-      ctx.lineWidth = s.id === sel ? 2 : 1;
+      ctx.lineWidth = s.id === sel ? 2 : 1.2;
       ctx.stroke();
       // The pages' names along their slice, when it is wide enough.
       if (s.r0 < 0.5 && (s.a1 - s.a0) * 0.46 * R > 30) {
-        const mid = (s.a0 + s.a1) / 2;
+        const mid = (s.a0 + s.a1) / 2 + spin;
         const r = 0.46 * R;
         ctx.save();
         ctx.translate(cx + Math.cos(mid) * r, cy + Math.sin(mid) * r);
@@ -134,7 +136,7 @@ export class SunburstView implements View {
     ctx.font = font(Math.max(12, R / 30));
     ctx.fillStyle = p.dim;
     ctx.fillText(t("note · {n} pagine", { n: this.pages }), cx, cy + R * 0.07);
-    return false;
+    return idle;
   }
 
   private at(x: number, y: number): Slice | null {

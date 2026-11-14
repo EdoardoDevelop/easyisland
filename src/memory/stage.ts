@@ -41,6 +41,12 @@ export interface View {
   setHover?(id: string | null): void;
 }
 
+/** Respects reduced-motion preference while enabling subtle ambient idle animations. */
+export function animateIdle(): boolean {
+  if (document.documentElement.dataset.motion === "reduced") return false;
+  return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
 export class Stage {
   readonly canvas = document.createElement("canvas");
   private ctx = this.canvas.getContext("2d")!;
@@ -162,6 +168,20 @@ export class Stage {
 
   get size() {
     return { w: this.w, h: this.h };
+  }
+
+  zoomBy(factor: number) {
+    if (!this.view || this.w < 2) return;
+    this.view.zoom(factor, this.w / 2, this.h / 2);
+    this.touched = true;
+    this.wake();
+  }
+
+  resetView() {
+    if (!this.view) return;
+    this.view.reset();
+    this.touched = false;
+    this.wake();
   }
 
   show(view: View) {
@@ -291,7 +311,7 @@ export class Camera {
  * The stage's background: the window's own surface. In dark mode a very faint
  * field of stars stays as a flourish (fixed per size, a little parallax).
  */
-export function starfield(ctx: CanvasRenderingContext2D, w: number, h: number, cam: Camera) {
+export function starfield(ctx: CanvasRenderingContext2D, w: number, h: number, cam: Camera, time = 0) {
   paintBackground(ctx, w, h);
   if (pal().light) return;
   let seed = 7;
@@ -300,8 +320,10 @@ export function starfield(ctx: CanvasRenderingContext2D, w: number, h: number, c
   for (let i = 0; i < 90; i++) {
     const x = (((rnd() * w * 1.4 + cam.tx * 0.08) % (w * 1.4)) + w * 1.4) % (w * 1.4) - w * 0.2;
     const y = (((rnd() * h * 1.4 + cam.ty * 0.08) % (h * 1.4)) + h * 1.4) % (h * 1.4) - h * 0.2;
-    const r = rnd() * 0.8 + 0.3;
-    ctx.globalAlpha = 0.04 + rnd() * 0.08;
+    const r = rnd() * 0.85 + 0.3;
+    const base = 0.04 + rnd() * 0.08;
+    const twinkle = time ? 0.65 + 0.35 * Math.sin(time * 0.0014 + i * 1.7) : 1;
+    ctx.globalAlpha = base * twinkle;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();

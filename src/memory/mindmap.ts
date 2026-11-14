@@ -3,8 +3,8 @@
 // middle with the branches flowing to their new places.
 
 import { KIND_COLOR, alpha, fit, type Model } from "./data";
-import { Camera, starfield, type View } from "./stage";
-import { Placer, label, type Rect } from "./labels";
+import { animateIdle, Camera, starfield, type View } from "./stage";
+import { Placer, type Rect } from "./labels";
 import { font, pal } from "./theme";
 
 interface Twig {
@@ -14,6 +14,8 @@ interface Twig {
   parent: string | null;
   /** The relation from the parent. */
   rel: string;
+  strength: number;
+  kids: number;
   hue: string;
   x: number;
   y: number;
@@ -74,8 +76,8 @@ export class MindMapView implements View {
     }
     const old = this.twigs;
     const root = m.byId.get(this.centre)!;
-    const tree = new Map<string, { parent: string | null; rel: string; depth: number; kids: string[] }>();
-    tree.set(root.id, { parent: null, rel: "", depth: 0, kids: [] });
+    const tree = new Map<string, { parent: string | null; rel: string; strength: number; depth: number; kids: string[] }>();
+    tree.set(root.id, { parent: null, rel: "", strength: 3, depth: 0, kids: [] });
     let level = [root.id];
     for (let depth = 1; depth <= MAX_DEPTH && level.length; depth++) {
       const next: string[] = [];
@@ -87,7 +89,7 @@ export class MindMapView implements View {
           .slice(0, depth === 1 ? MAX_CHILDREN + 4 : MAX_CHILDREN);
         for (const nb of nbs) {
           if (tree.has(nb.id)) continue;
-          tree.set(nb.id, { parent: id, rel: nb.label, depth, kids: [] });
+          tree.set(nb.id, { parent: id, rel: nb.label, strength: nb.strength, depth, kids: [] });
           tree.get(id)!.kids.push(nb.id);
           next.push(nb.id);
         }
@@ -114,7 +116,7 @@ export class MindMapView implements View {
       const prev = old.get(id);
       const parentTwig = node.parent ? twigs.get(node.parent) : null;
       twigs.set(id, {
-        id, label: n.label, depth: node.depth, parent: node.parent, rel: node.rel, hue,
+        id, label: n.label, depth: node.depth, parent: node.parent, rel: node.rel, strength: node.strength, kids: node.kids.length, hue,
         x, y,
         cx: prev?.cx ?? parentTwig?.cx ?? 0,
         cy: prev?.cy ?? parentTwig?.cy ?? 0,
@@ -140,11 +142,27 @@ export class MindMapView implements View {
       this.framed = true;
     }
     let moving = this.cam.step();
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
+    const idle = animateIdle();
+    const pulse = idle ? 0.5 + 0.5 * Math.sin(time * 0.0022) : 0.5;
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
+
+    // Soft radial aura behind the central hub.
+    const rootNode = this.centre ? this.model?.byId.get(this.centre) : null;
+    if (rootNode) {
+      const hubColor = KIND_COLOR[rootNode.kind];
+      const auraR = 230 + pulse * 18;
+      const g = ctx.createRadialGradient(0, 0, 10, 0, 0, auraR);
+      g.addColorStop(0, alpha(hubColor, p.light ? 0.14 : 0.22));
+      g.addColorStop(1, alpha(hubColor, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraR, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // Move towards the places.
     for (const t of this.twigs.values()) {
       const dx = t.x - t.cx;
@@ -189,13 +207,18 @@ export class MindMapView implements View {
       const c2x = (pt.cx + ex) / 2;
       const c2y = (pt.cy + ey) / 2;
       ctx.globalAlpha = dim(t.id);
-      ctx.strokeStyle = alpha(t.hue, p.light ? 0.85 : 0.7);
+      const grad = ctx.createLinearGradient(pt.cx, pt.cy, ex, ey);
+      grad.addColorStop(0, alpha(pt.hue, p.light ? 0.85 : 0.78));
+      grad.addColorStop(1, alpha(t.hue, p.light ? 0.85 : 0.78));
+      ctx.strokeStyle = grad;
       ctx.lineWidth = Math.max(1.2 / k, (6 - t.depth * 1.6));
       ctx.lineCap = "round";
+      if (t.strength < 3) ctx.setLineDash([6 / k, 5 / k]);
       ctx.beginPath();
       ctx.moveTo(pt.cx, pt.cy);
       ctx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
       ctx.stroke();
+      ctx.setLineDash([]);
       if (t.rel && g >= 1) rels.push({ text: t.rel, x: (pt.cx + t.cx) / 2, y: (pt.cy + t.cy) / 2, hue: t.hue });
     }
     ctx.globalAlpha = 1;
@@ -222,10 +245,11 @@ export class MindMapView implements View {
       ctx.font = font(size, t.depth <= 1 ? 600 : 500);
       const label = fit(ctx, t.label, t.depth === 0 ? 260 : 180);
       const tw = ctx.measureText(label).width;
-      const padX = t.depth === 0 ? 14 : 10;
+      const padX = t.depth === 0 ? 16 : 11;
       const dotW = t.depth > 0 ? 10 : 0;
-      const pw = tw + padX * 2 + dotW;
-      const ph = size + (t.depth === 0 ? 14 : 10);
+      const badgeW = t.depth > 0 && t.kids > 0 ? 24 : 0;
+      const pw = tw + padX * 2 + dotW + badgeW;
+      const ph = size + (t.depth === 0 ? 16 : 11);
       const r = { x0: s.x - pw / 2, y0: s.y - ph / 2, x1: s.x + pw / 2, y1: s.y + ph / 2 };
       if (!placer.claim({ x0: r.x0 - 2, y0: r.y0 - 2, x1: r.x1 + 2, y1: r.y1 + 2 }, score >= 1e9)) {
         dots.push(t);
@@ -234,26 +258,58 @@ export class MindMapView implements View {
       this.rects.set(t.id, r);
       pills.push(() => {
         ctx.globalAlpha = dim(t.id);
-        // Opaque: the branches end at its border instead of crossing the text.
-        roundRect(ctx, r.x0, r.y0, pw, ph, 6);
+        // Subtle card elevation shadow.
+        ctx.save();
+        ctx.shadowColor = p.light ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.45)";
+        ctx.shadowBlur = t.depth === 0 ? 16 : 8;
+        ctx.shadowOffsetY = 2;
+        roundRect(ctx, r.x0, r.y0, pw, ph, t.depth === 0 ? 9 : 7);
         ctx.fillStyle = p.card;
         ctx.fill();
-        ctx.fillStyle = t.depth === 0 ? alpha(KIND_COLOR[n.kind], p.light ? 0.18 : 0.28) : alpha(t.hue, p.light ? 0.1 : 0.12);
+        ctx.restore();
+
+        roundRect(ctx, r.x0, r.y0, pw, ph, t.depth === 0 ? 9 : 7);
+        ctx.fillStyle = t.depth === 0
+          ? alpha(KIND_COLOR[n.kind], (p.light ? 0.16 : 0.24) + pulse * 0.06)
+          : alpha(t.hue, t.id === this.hovered ? 0.22 : (p.light ? 0.08 : 0.11));
         ctx.fill();
-        ctx.strokeStyle = t.id === this.selected ? p.ring : alpha(t.depth === 0 ? KIND_COLOR[n.kind] : t.hue, t.depth <= 1 ? 0.9 : 0.55);
-        ctx.lineWidth = t.id === this.selected ? 2 : 1;
+        if (n.kind === "missing") ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = t.id === this.selected || t.id === this.hovered
+          ? p.ring
+          : alpha(t.depth === 0 ? KIND_COLOR[n.kind] : t.hue, t.depth <= 1 ? 0.9 : 0.55);
+        ctx.lineWidth = t.id === this.selected || t.depth === 0 ? 1.8 : 1;
         ctx.stroke();
-        // A dot of the node's kind.
-        if (t.depth > 0) {
+        ctx.setLineDash([]);
+
+        // Left accent bar for pages, kind dot for others.
+        if (t.depth > 0 && n.kind === "page") {
+          ctx.fillStyle = KIND_COLOR.page;
+          roundRect(ctx, r.x0 + 3, r.y0 + 5, 3, ph - 10, 1.5);
+          ctx.fill();
+        } else if (t.depth > 0) {
           ctx.fillStyle = KIND_COLOR[n.kind];
           ctx.beginPath();
           ctx.arc(r.x0 + padX + 2, s.y, 3, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.fillStyle = p.ink;
+        ctx.fillStyle = n.kind === "missing" ? p.dim : p.ink;
+        ctx.font = font(size, t.depth <= 1 ? 600 : 500);
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         ctx.fillText(label, r.x0 + padX + dotW, s.y + 0.5);
+
+        // +N children badge.
+        if (badgeW) {
+          const bx = r.x1 - 13;
+          ctx.fillStyle = alpha(t.hue, 0.22);
+          ctx.beginPath();
+          ctx.arc(bx, s.y, 8.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = t.hue;
+          ctx.font = font(10, 600);
+          ctx.textAlign = "center";
+          ctx.fillText(`+${t.kids}`, bx, s.y + 0.5);
+        }
       });
     }
     // Those left out: a dot where they are.
@@ -272,12 +328,28 @@ export class MindMapView implements View {
     }
     for (const draw of pills) draw();
     ctx.globalAlpha = 1;
-    // The relations along the branches, where there is room left.
+    // The relations along the branches as neat pill chips, where there is room left.
     for (const r of rels) {
       const s = this.cam.toScreen(r.x, r.y);
-      label(ctx, placer, r.text, s.x, s.y - 4, { size: 11.5, weight: 500, color: p.dim, baseline: "bottom", max: 140 });
+      ctx.font = font(10.5, 500);
+      const txt = fit(ctx, r.text, 120);
+      const rw = ctx.measureText(txt).width + 12;
+      const rh = 17;
+      const rx = s.x - rw / 2;
+      const ry = s.y - rh / 2;
+      if (!placer.claim({ x0: rx - 2, y0: ry - 2, x1: rx + rw + 2, y1: ry + rh + 2 })) continue;
+      roundRect(ctx, rx, ry, rw, rh, 8.5);
+      ctx.fillStyle = p.bg;
+      ctx.fill();
+      ctx.strokeStyle = alpha(r.hue, 0.45);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = p.dim;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(txt, s.x, s.y + 0.5);
     }
-    return moving;
+    return moving || idle;
   }
 
   private bounds() {

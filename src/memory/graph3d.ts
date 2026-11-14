@@ -4,7 +4,7 @@
 // zooms, double click shows everything. Frames only while something moves.
 
 import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
-import { Camera, starfield, type View } from "./stage";
+import { animateIdle, Camera, starfield, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { pal } from "./theme";
 
@@ -200,11 +200,20 @@ export class Graph3DView implements View {
       this.spin.yaw *= 0.94;
       this.spin.pitch *= 0.9;
       moving = true;
+    } else if (animateIdle() && !this.selected) {
+      this.yaw += 0.0014;
+      moving = true;
     }
     this.cam.tx = this.yaw * 300;
     this.cam.ty = this.pitch * 300;
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
+    // Subtle equatorial reference ring.
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2, Math.min(w, h) * 0.38, Math.min(w, h) * 0.11, -0.1, 0, Math.PI * 2);
+    ctx.stroke();
     this.project(w, h);
 
     const sel = this.selected;

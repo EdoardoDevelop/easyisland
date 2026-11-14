@@ -5,7 +5,7 @@
 import { KIND_COLOR, alpha, fit, shortDate, type MemEvent, type Model } from "./data";
 import { font, inkOf, paintBackground, pal } from "./theme";
 import { language, t } from "../core/i18n";
-import type { View } from "./stage";
+import { animateIdle, type View } from "./stage";
 
 const DAY = 86_400_000;
 const TOP = 46;
@@ -144,9 +144,10 @@ export class TimelineView implements View {
     this.drawWave(ctx, w, intro);
 
     // Today.
+    const idle = animateIdle();
     if (showNow) {
       ctx.strokeStyle = p.accent;
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = idle ? 0.65 + 0.25 * Math.sin(time * 0.003) : 0.8;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(nowX, TOP);
@@ -225,7 +226,7 @@ export class TimelineView implements View {
       ctx.textBaseline = "middle";
       ctx.fillText(lane.name(), 30, y);
     });
-    return moving;
+    return moving || idle;
   }
 
   private drawWave(ctx: CanvasRenderingContext2D, w: number, intro: number) {

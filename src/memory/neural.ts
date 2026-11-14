@@ -6,7 +6,7 @@
 // drawn; a click sends a pulse from the picked neuron too.
 
 import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
-import { Camera, starfield, type View } from "./stage";
+import { animateIdle, Camera, starfield, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { pal } from "./theme";
 
@@ -49,6 +49,7 @@ export class NeuralView implements View {
   private saidAt = 0;
   /** When the picked neuron's pulses ended: from then its neighbours stay lit. */
   private stayAt = 0;
+  private lastAmbient = 0;
 
   setModel(model: Model) {
     this.model = model;
@@ -121,7 +122,7 @@ export class NeuralView implements View {
     to.forEach((t, i) => this.pulses.push({ from, to: t, start: now + i * 60, dur: 600 + Math.random() * 300, colour: colour ?? t.colour, hops }));
   }
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
     this.size = { w, h };
     if (!this.framed && this.neurons.length) {
       this.cam.frame(box(this.neurons), w, h, true, 50);
@@ -129,7 +130,13 @@ export class NeuralView implements View {
     }
     let moving = this.cam.step();
     const now = performance.now();
-    starfield(ctx, w, h, this.cam);
+    const idle = animateIdle();
+    if (idle && this.axons.length && this.pulses.length < 2 && now - this.lastAmbient > 1600) {
+      this.lastAmbient = now;
+      const [a, b] = this.axons[Math.floor((now * 0.013) % this.axons.length)];
+      this.fire(a, [b], 1);
+    }
+    starfield(ctx, w, h, this.cam, time);
     const pl = pal();
     ctx.save();
     this.cam.apply(ctx);
@@ -250,7 +257,7 @@ export class NeuralView implements View {
       if (at.x < -100 || at.x > w + 100 || at.y < -30 || at.y > h + 30) continue;
       label(ctx, placer, x.n.label, at.x, at.y + x.r * k + 5, { size: 12, weight: score >= 1e9 ? 600 : 500, force: score >= 1e9, alpha: nearLit && score < 1e7 ? Math.max(0.3, stay) : 1, max: 170 });
     }
-    return moving;
+    return moving || idle;
   }
 
   hit(x: number, y: number): string | null {

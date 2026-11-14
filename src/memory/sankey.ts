@@ -5,7 +5,7 @@
 
 import { KIND_COLOR, alpha, fit, provenance, provenanceName, type Model, type Provenance } from "./data";
 import { t } from "../core/i18n";
-import { type View } from "./stage";
+import { animateIdle, type View } from "./stage";
 import { font, paintBackground, pal } from "./theme";
 
 const SOURCE_COLOUR: Record<Provenance, string> = {
@@ -118,15 +118,16 @@ export class SankeyView implements View {
     }
   }
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
     paintBackground(ctx, w, h);
     const p = pal();
+    const idle = animateIdle();
     if (!this.flows.length) {
       ctx.fillStyle = p.dim;
       ctx.font = font(13);
       ctx.textAlign = "center";
       ctx.fillText(t("Ancora nessuna nota collegata a una pagina"), w / 2, h / 2);
-      return false;
+      return idle;
     }
     const top = 36;
     const bottom = h - 36;
@@ -163,6 +164,19 @@ export class SankeyView implements View {
       ctx.bezierCurveTo(mid, f.b1, mid, f.a1, this.x0, f.a1);
       ctx.closePath();
       ctx.fill();
+      // Subtle flowing light particle along active ribbons.
+      if (idle && on) {
+        const u = ((time * 0.00028 + (f.a0 + f.b0) * 0.0017) % 1 + 1) % 1;
+        const q = 1 - u;
+        const ay = (f.a0 + f.a1) / 2;
+        const by = (f.b0 + f.b1) / 2;
+        const px = q * q * q * this.x0 + 3 * q * q * u * mid + 3 * q * u * u * mid + u * u * u * this.x1;
+        const py = q * q * q * ay + 3 * q * q * u * ay + 3 * q * u * u * by + u * u * u * by;
+        ctx.fillStyle = alpha("#ffffff", p.light ? 0.5 : 0.55);
+        ctx.beginPath();
+        ctx.arc(px, py, Math.min(3.5, Math.max(1.5, (f.a1 - f.a0) * 0.18)), 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     // The two columns, with their names and numbers.
     ctx.font = font(12, 600);
@@ -190,7 +204,7 @@ export class SankeyView implements View {
       after = y + 8;
       ctx.fillText(fit(ctx, `${s.label} · ${s.value}`, w - this.x1 - 26), this.x1 + 16, y);
     }
-    return false;
+    return idle;
   }
 
   private flowAt(x: number, y: number): Flow | null {
