@@ -6,7 +6,7 @@
 // drawn; a click sends a pulse from the picked neuron too.
 
 import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
-import { animateIdle, Camera, starfield, type View } from "./stage";
+import { Camera, starfield, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { inkOf, pal } from "./theme";
 
@@ -50,7 +50,6 @@ export class NeuralView implements View {
   private saidAt = 0;
   /** When the picked neuron's pulses ended: from then its neighbours stay lit. */
   private stayAt = 0;
-  private lastAmbient = 0;
 
   setModel(model: Model) {
     this.model = model;
@@ -125,7 +124,7 @@ export class NeuralView implements View {
     to.forEach((t, i) => this.pulses.push({ from, to: t, start: now + i * 60, dur: 600 + Math.random() * 300, colour: colour ?? t.colour, hops }));
   }
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
     this.size = { w, h };
     if (!this.framed && this.neurons.length) {
       this.cam.frame(box(this.neurons), w, h, true, 50);
@@ -133,13 +132,7 @@ export class NeuralView implements View {
     }
     let moving = this.cam.step();
     const now = performance.now();
-    const idle = animateIdle();
-    if (idle && this.axons.length && this.pulses.length < 5 && now - this.lastAmbient > 550) {
-      this.lastAmbient = now;
-      const [a, b] = this.axons[Math.floor((now * 0.037) % this.axons.length)];
-      this.fire(a, [b], 1);
-    }
-    starfield(ctx, w, h, this.cam, time);
+    starfield(ctx, w, h, this.cam);
     const pl = pal();
     ctx.save();
     this.cam.apply(ctx);
@@ -246,8 +239,7 @@ export class NeuralView implements View {
       const dim = (sel && !picked && !neighbour) || (this.filter && !this.filter.has(x.n.id));
       // The picked one and its neighbours keep a glow of their own once the pulses are gone.
       const keep = (picked ? 0.5 : neighbour ? 0.25 : 0) * stay;
-      const breath = idle && !dim ? 0.08 * (0.5 + 0.5 * Math.sin(time * 0.0025 + i * 0.9)) : 0;
-      const shine = Math.max(glow, keep, breath);
+      const shine = Math.max(glow, keep);
       const r = x.r * (1 + shine * 0.8);
       const halo = ctx.createRadialGradient(x.x, x.y, 0, x.x, x.y, r * (3 + shine * 4));
       halo.addColorStop(0, alpha(x.colour, (dim ? 0.12 : 0.55) + shine * 0.4));
@@ -303,7 +295,7 @@ export class NeuralView implements View {
         label(ctx, placer, lb.name, at.x, at.y, { size: 12, weight: 600, color: inkOf(lb.color), max: 210, baseline: "middle", pill: true, pillColor: lb.color });
       }
     }
-    return moving || idle;
+    return moving;
   }
 
   hit(x: number, y: number): string | null {
