@@ -1,7 +1,7 @@
 // The look of the island and the settings window:
-// - "monolith": Obsidian Monolith (Linear / Raycast precision grade)
-// - "titanium": Anodized Hardware (recessed panels, tactile keycaps, tabular telemetry)
-// - "editorial": Deep Glass Spotlight (executive studio layout)
+// - "monolith": Monolite, high contrast
+// - "titanium": Titanio, anodized hardware (recessed panels, tactile keycaps, tabular telemetry)
+// - "editorial": Vetro, deep glass
 // - "windows": Windows 11 (the default)
 // - "classic": the original black island
 // The page carries it as <html data-ui="…">.
@@ -24,7 +24,7 @@ export function windowsLook(): boolean {
   return document.documentElement.dataset.ui !== "classic";
 }
 
-/** True while one of the three Studio themes (Obsidian, Titanium, Spotlight) is active. */
+/** True while one of the three Studio themes (Monolite, Titanio, Vetro) is active. */
 export function studioLook(style?: string): boolean {
   const current = (style ? uiStyle(style) : (document.documentElement.dataset.ui as UiStyle | undefined)) ?? "windows";
   return STUDIO_STYLES.has(current);

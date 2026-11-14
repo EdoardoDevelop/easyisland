@@ -7,7 +7,7 @@ Le Impostazioni si aprono dall'icona nell'area di notifica, da `easyisland.exe -
 | Pagina | Cosa contiene |
 |---|---|
 | **Generale** | Lingua, avvio con Windows, profili e cambio automatico, aggiornamenti (versione, Controlla ora, controllo giornaliero), pausa |
-| **Aspetto** | Stile Windows 11 o Classico, personaggio, tema, posizione, schermo, dimensioni, vista compatta, risposte rapide, icona a riposo, tempi, suoni, campo di ricerca. Vedi [Posizione e aspetto](05-aspetto.md) |
+| **Aspetto** | Stile Windows 11, Classico, Monolite, Titanio o Vetro, personaggio, tema, posizione, schermo, dimensioni, vista compatta, risposte rapide, icona a riposo, tempi, suoni, campo di ricerca. Vedi [Posizione e aspetto](05-aspetto.md) |
 | **Notifiche** | Cosa apre l'isola e cosa suona, davanti al cliente, messaggi dagli script (comando pronto e **Prova**). Vedi [Profili e notifiche](06-profili.md) |
 | **Chat e motori AI** | Motore e modello predefiniti, chiavi, server locali, Istruzioni, Assistenti, **Memoria** (con **Mappa**), Ricette, Risposte dirette e Registro dei turni, Cronologia, Connettori, Può usare il PC, Modalità terminale, cartella di lavoro. Vedi [La chat](08-chat.md) e [Motori AI](09-motori.md) |
 | **Agenti di codice** | Installa / Disinstalla per Claude Code, Codex, opencode, Antigravity, Gemini CLI, Cursor, Copilot; Strumenti di EasyIsland in Claude Code; icona degli agenti; riepiloghi. Vedi [Agenti di codice](07-agenti.md) |

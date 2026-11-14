@@ -56,6 +56,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 14/11 — Stili Studio uniti in `claude/sviluppo` (ramo `refactor_ui_graphics`)
+Lavoro di Antigravity non salvato nel suo worktree: salvato sul ramo e unito. Tre stili nuovi in Aspetto → Stile: Monolite, Titanio, Vetro (nomi di altre app tolti). `docs/architettura.md` → Stili.
+
 ### 14/11 — Smistatore: registro dei turni, risposte dirette, dati letti prima (ramo `claude/smistatore`, da `claude/consumo`)
 Edoardo: niente LLM integrato che si allena da solo; tappe 1, 2 e 4 dello smistatore che impara con le Ricette (`router.rs`). Registro cifrato dei turni; domande che una ricetta risolve sempre con la stessa lettura risposte senza motore, «⚡ Chiedi al motore» le rimanda; altrimenti le letture fisse della ricetta fatte prima del motore. Test e anteprima (`?scene=chat&pensa=diretta`); da provare nell'app dopo qualche giorno di ricette. `docs/chat.md` → Smistatore.
 
@@ -67,6 +70,3 @@ Edoardo: «Consumo Claude» per tutti i motori, separati; clic sulle percentuali
 
 ### 13/11 — Antigravity come Claude: modello, impegno, modalità; niente attesa (ramo `claude/domande`)
 Edoardo: in Turbo l'isola chiedeva Consenti/Nega su ogni comando e Antigravity aspettava fino a 2 minuti: ora l'isola trattiene solo `ask_permission` (fuori dalla chat), e senza progetto la sessione si chiama «Antigravity». Nella chat Antigravity ha modello, impegno, Manuale/Accetta modifiche/Piano/Automatica e la card del piano con «Procedi». `docs/agenti.md`, `docs/chat.md`. Da provare con agy vero nell'app (Piano, Automatica).
-
-### 13/11 — VLAN ID in «Modifica rete…» (ramo `claude/domande`)
-Edoardo: poter cambiare anche la VLAN. Campo VLAN ID per le schede il cui driver la prevede (`netconfig.rs` `network_vlan`), applicata per ultima con la stessa conferma di Windows; avviso della breve disconnessione. Lettura provata qui (Ethernet `RegVlanid`), comando provato con `-WhatIf`; da provare l'applicazione vera. `docs/integrazioni.md` → Rete.

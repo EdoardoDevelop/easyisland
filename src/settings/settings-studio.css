@@ -1,7 +1,7 @@
 /* Studio themes for the settings window:
-   - html[data-ui="monolith"]  — Obsidian Monolith (Linear / Raycast)
+   - html[data-ui="monolith"]  — Monolite
    - html[data-ui="titanium"]  — Anodized Hardware (Precision Pro)
-   - html[data-ui="editorial"] — Deep Glass Spotlight (Studio) */
+   - html[data-ui="editorial"] — Vetro (Studio) */
 
 html[data-ui="monolith"],
 html[data-ui="titanium"],
@@ -10,7 +10,7 @@ html[data-ui="editorial"] {
   letter-spacing: -0.012em;
 }
 
-/* ── 1. Obsidian Monolith ───────────────────────────────────────────────── */
+/* ── 1. Monolite ───────────────────────────────────────────────── */
 
 html[data-ui="monolith"] {
   --accent: #ededef;
@@ -70,7 +70,7 @@ html[data-ui="titanium"] button:not(.nav-item):not(.switch):not(.int-row-head):n
     0 0 0 1px rgba(255, 255, 255, 0.09);
 }
 
-/* ── 3. Spotlight / Editorial ───────────────────────────────────────────── */
+/* ── 3. Vetro ───────────────────────────────────────────── */
 
 html[data-ui="editorial"] {
   --accent: #ffffff;

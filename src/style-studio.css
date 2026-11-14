@@ -1,7 +1,7 @@
 /* Studio themes for the island:
-   - html[data-ui="monolith"]  — Obsidian Monolith (Linear / Raycast precision grade)
+   - html[data-ui="monolith"]  — Monolite
    - html[data-ui="titanium"]  — Anodized Hardware (recessed panels, tactile keycaps, tabular telemetry)
-   - html[data-ui="editorial"] — Deep Glass Spotlight (executive studio layout) */
+   - html[data-ui="editorial"] — Vetro (executive studio layout) */
 
 /* ── Shared Studio Foundation (no toy-like mascot box, surgical typography) ── */
 
@@ -107,7 +107,7 @@ html[data-ui="editorial"] .strip-btn.red {
   box-shadow: inset 0 0 0 1px rgba(244, 80, 94, 0.32);
 }
 
-/* ── 1. Obsidian Monolith (Linear / Raycast) ────────────────────────────── */
+/* ── 1. Monolite ────────────────────────────── */
 
 html[data-ui="monolith"] {
   --accent: #ededef;
@@ -284,7 +284,7 @@ html[data-ui="titanium"] .summary-status {
   font-size: calc(11px + var(--fs-up, 0px));
 }
 
-/* ── 3. Spotlight / Editorial (Deep Glass Studio) ───────────────────────── */
+/* ── 3. Vetro (Deep Glass Studio) ───────────────────────── */
 
 html[data-ui="editorial"] {
   --accent: #ffffff;
