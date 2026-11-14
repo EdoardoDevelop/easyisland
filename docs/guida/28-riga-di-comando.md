@@ -17,6 +17,24 @@ Qualsiasi script, attività pianificata, flusso n8n o programma può mostrare un
 
 Esce con **0** se il messaggio è arrivato e con **2** se EasyIsland non è in esecuzione, quindi uno script non resta mai bloccato. Valgono le regole di notifica del profilo. In **Impostazioni → Notifiche** c'è il comando pronto da copiare e **Prova**.
 
+## Domande alla chat
+Uno script, un'attività pianificata o una sessione remota (WinRM, sempre con il tuo utente) può fare una domanda alla chat di EasyIsland e leggerne la risposta:
+
+```powershell
+& "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" chiedi "quale vm ha la farmacia Falchi?"
+& "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" chiedi "riassumi le novità di oggi" --motore gemini
+```
+
+La domanda fa la stessa strada di quelle scritte nell'isola: risposte dirette, memoria, ricette, motore. Sotto la risposta una riga dice com'è arrivata (senza motore o con quale motore, passi e token, note trovate per significato) e l'id della conversazione.
+
+| Opzione | Significato |
+|---|---|
+| `--motore` | `subscription`, `api`, `opencode`, `antigravity`, `openrouter`, `openai`, `gemini`, `ollama`, `lmstudio`; senza, quello predefinito della chat |
+| `--conversazione relay-…` | continua la stessa conversazione |
+| `--json` | la risposta completa, per gli script |
+
+La conversazione resta nella cronologia della chat con **Relay ·** davanti, così vedi cosa è stato chiesto. Se il motore vuole eseguire o modificare qualcosa, la card Consenti/Nega compare nell'isola e aspetta il tuo clic: dal comando non si approva niente. Funziona solo sul PC e con il tuo utente, nessuna porta in rete; da fuori c'è Agent Chat.
+
 ## Aprire le Impostazioni
 ```powershell
 & "$env:LOCALAPPDATA\EasyIsland\easyisland.exe" --settings

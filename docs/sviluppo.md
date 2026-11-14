@@ -28,6 +28,9 @@
 - Verifica: `\\localhost\C$\Users\Edoardo\AppData\Local\EasyIsland\` (data dell'exe, riga `started` in `easyisland.log`).
 - **Avvio dopo un aggiornamento:** i processi WebView2 vecchi possono tenere occupato `%LOCALAPPDATA%\it.edoardo.easyisland\EBWebView` (0x800700AA → panic → 0xc0000409, e WerFault bloccava l'istanza singola). `webview_profile.rs` aspetta, chiude gli avanzi e, se serve, usa `spare\EBWebView`; per questo la finestra dell'isola ha `"create": false` in `tauri.conf.json` e la crea il setup. I panic vanno nel log come `panic: …`.
 
+## Prove dal vivo sul portatile
+- Da qui con WinRM (192.168.1.197): `Invoke-Command -ComputerName 192.168.1.197 { & "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" chiedi "…" --json }`; poi log (`easyisland.log`) e cronologia (`chats.json`) del portatile. Con il motore predefinito (Claude in abbonamento) consuma il piano di Edoardo: poche domande al motore, le altre su strade senza motore o con `--motore` gratuito.
+
 ## Pubblicare una versione
 - Novità per intero in `CHANGELOG.md` e `CHANGELOG.en.md`, una riga in «Ultime versioni» dei due README (solo le ultime quattro) e in fondo alle due homepage. Aggiornare `CONTRIBUTING.en.md` e `docs/en/` se cambia ciò che descrivono.
 1. Stesso numero in `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json`, `package-lock.json`, `Cargo.lock`.

@@ -17,6 +17,24 @@ Any script, scheduled task, n8n flow or program can show a message on the island
 
 It exits with **0** if the message arrived and **2** if EasyIsland isn't running, so a script never hangs. The profile's notification rules apply. In **Settings → Notifications** there's the ready-to-copy command and **Try**.
 
+## Questions to the chat
+A script, a scheduled task or a remote session (WinRM, always as your own user) can ask EasyIsland's chat a question and read the answer:
+
+```powershell
+& "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" ask "which vm does the Falchi pharmacy have?"
+& "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" ask "sum up today's news" --engine gemini
+```
+
+The question goes the same way as those typed in the island: direct answers, memory, recipes, engine. Under the answer a line says how it came (with no engine or with which engine, steps and tokens, notes found by meaning) and the conversation's id.
+
+| Option | Meaning |
+|---|---|
+| `--engine` | `subscription`, `api`, `opencode`, `antigravity`, `openrouter`, `openai`, `gemini`, `ollama`, `lmstudio`; without it, the chat's default |
+| `--conversation relay-…` | goes on with the same conversation |
+| `--json` | the whole answer, for scripts |
+
+The conversation stays in the chat's history with **Relay ·** in front, so you see what was asked. If the engine wants to run or change something, the Allow/Deny card shows on the island and waits for your click: nothing is approved from the command. It works only on the PC and as your user, no network port; from outside there is Agent Chat.
+
 ## Opening Settings
 ```powershell
 & "$env:LOCALAPPDATA\EasyIsland\easyisland.exe" --settings

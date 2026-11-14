@@ -5333,5 +5333,7 @@
   "Dalla memoria:": "From the memory:",
   "Risposta di EasyIsland dalla memoria, senza motore. Per la risposta del motore riscrivi la domanda.": "EasyIsland's answer from the memory, with no engine. For the engine's answer write the question again.",
   "[Prima di questa domanda EasyIsland ha risposto da solo, dalla memoria, a «{q}» con:\n{a}]\n\n": "[Before this question EasyIsland answered «{q}» by itself, from the memory, with:\n{a}]\n\n",
-  "[Le righe qui sopra sono molto vicine alla domanda: se rispondono, rispondi con quelle senza cercare oltre nella memoria; memory_search o memory_page solo per ciò che manca.]\n\n": "[The lines above are very close to the question: if they answer it, answer with them without searching the memory further; memory_search or memory_page only for what is missing.]\n\n"
+  "[Le righe qui sopra sono molto vicine alla domanda: se rispondono, rispondi con quelle senza cercare oltre nella memoria; memory_search o memory_page solo per ciò che manca.]\n\n": "[The lines above are very close to the question: if they answer it, answer with them without searching the memory further; memory_search or memory_page only for what is missing.]\n\n",
+  "Manca la domanda.": "The question is missing.",
+  "Motore sconosciuto: {e}. Motori: {list}.": "Unknown engine: {e}. Engines: {list}."
 }

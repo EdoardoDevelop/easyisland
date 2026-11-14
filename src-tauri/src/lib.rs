@@ -1467,6 +1467,68 @@ async fn chat_send(
     Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat), meaning: memory_meaning::take_found() })
 }
 
+/// `easyisland-hook chiedi` (pipe.rs, 15 Nov 2026): a question to the island's
+/// chat from a script, a scheduled task or a WinRM session of this user. It is
+/// a turn as if typed in the island (smistatore, memory, recipes, engine), saved
+/// in the history with «Relay · » in front, so nothing happens out of sight;
+/// a permission still waits for the click on the island. `engine` empty = the
+/// default one; `conversation` = a relay conversation to go on with.
+pub(crate) async fn relay_ask(app: &AppHandle, question: &str, engine: Option<String>, conversation: Option<String>) -> serde_json::Value {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    let question = question.trim();
+    if question.is_empty() {
+        return serde_json::json!({ "ok": false, "error": t("Manca la domanda.") });
+    }
+    let engine = engine.map(|e| e.trim().to_lowercase()).filter(|e| !e.is_empty());
+    if let Some(e) = &engine {
+        if !relay_engines().contains(&e.as_str()) {
+            return serde_json::json!({ "ok": false, "error": tf("Motore sconosciuto: {e}. Motori: {list}.", &[("e", e), ("list", &relay_engines().join(", "))]) });
+        }
+    }
+    let sid = conversation
+        .filter(|c| c.starts_with("relay-"))
+        .unwrap_or_else(|| format!("relay-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+    let chats = app.state::<Chats>();
+    let chat = match chats.get(&sid) {
+        Ok(c) => c,
+        Err(e) => return serde_json::json!({ "ok": false, "error": e }),
+    };
+    if chat.effort().is_none() {
+        let fallback = app.state::<Shared>().settings.lock().unwrap().cli_effort.clone();
+        chat.set_effort(Some(fallback));
+    }
+    let started = std::time::Instant::now();
+    log::line(format!("relay: chiedi ({})", engine.as_deref().unwrap_or("motore predefinito")));
+    memory_meaning::turn_start();
+    let used = engine.clone().unwrap_or_else(|| app.state::<Shared>().settings.lock().unwrap().chat_engine.clone());
+    let reply = chat_turn(app, &chat, question.to_string(), None, engine, None, false, Channel::Island, &|_| {}).await;
+    let direct = router::was_direct(&chat);
+    let _ = router::take_command(&chat);
+    let usage = chat.take_usage();
+    let meaning: Vec<serde_json::Value> = memory_meaning::take_found().into_iter().map(|(l, s)| serde_json::json!({ "line": l, "score": s })).collect();
+    // The history shows where it came from.
+    chat_log::retitle_prefix(&chat, "Relay · ");
+    match reply {
+        Ok(r) => serde_json::json!({
+            "ok": true,
+            "text": r.text,
+            "direct": direct,
+            "engine": if direct { "easyisland".to_string() } else { used },
+            "conversation": sid,
+            "meaning": meaning,
+            "usage": usage,
+            "ms": started.elapsed().as_millis() as u64,
+        }),
+        Err(e) => serde_json::json!({ "ok": false, "error": e, "conversation": sid }),
+    }
+}
+
+/// The engines `chiedi --motore` takes (the chat's ids).
+fn relay_engines() -> &'static [&'static str] {
+    &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"]
+}
+
 /// A turn of the island's chat, with the conversation's id in the history
 /// (chat_log.rs): the sidebar knows which entry is this open conversation.
 #[derive(serde::Serialize)]
