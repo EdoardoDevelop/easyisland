@@ -40,7 +40,7 @@ import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state"
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
-import { applyUiStyle, islandHex, windowsLook } from "../core/uistyle";
+import { applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
 
@@ -2728,8 +2728,13 @@ ${note}` : text };
     if (this.away && State.mode !== "expanded") h = 0;
     this.islandEl.style.setProperty("--extra-h", `${extra}px`);
     this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
-    // Windows 11 look: close to a window's corner, open or closed (pill and badge stay round).
-    let r = windowsLook() ? 10 : State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
+    // Windows 11 and Studio looks: crisp architectural corner radius, open or closed (pill and badge stay round).
+    const style = uiStyle(State.settings.theme?.style);
+    let r = style === "monolith" ? 12
+      : style === "titanium" ? 10
+      : style === "editorial" ? 14
+      : windowsLook() ? 10
+      : State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
@@ -4084,6 +4089,9 @@ ${note}` : text };
   private botTarget(height: number, width: number) {
     // Centred on the views, not on the search bar under them.
     const compact = this.compactBox();
+    if (State.mode === "expanded" && this.railShown && studioLook(State.settings.theme?.style)) {
+      return { cx: 25, cy: 8 + 17, diameter: 18, opacity: 1 };
+    }
     const p = botPosition(
       State.mode, State.view, height, State.uploadProgress,
       compact, this.railShown ? railBotSize() : 0,

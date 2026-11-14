@@ -17,7 +17,7 @@ const COLOR_PROPS = /^(color|background(-color|-image)?|border(-(top|right|botto
 /** Files that get a light copy: the island's, the settings', the flows' and the Anteprima's own styles. */
 export function wantsLight(id) {
   const f = id.replace(/\\/g, "/").split("?")[0];
-  return /\/src\/(style|style-windows|settings\/settings|settings\/settings-windows|flows\/flows|preview\/preview)\.css$/.test(f);
+  return /\/src\/(style|style-windows|style-studio|settings\/settings|settings\/settings-windows|settings\/settings-studio|flows\/flows|preview\/preview)\.css$/.test(f);
 }
 
 // ── Colours ───────────────────────────────────────────────────────────────────

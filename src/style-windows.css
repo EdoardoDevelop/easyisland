@@ -1,9 +1,9 @@
 /* Windows 11 look of the island (theme.style = "windows", the default; src/core/uistyle.ts).
-   Every rule is scoped to html[data-ui="windows"], so "Classico" keeps style.css as it was.
+   Every rule is scoped to html:not([data-ui="classic"]), so "Classico" keeps style.css as it was.
    What stays from the classic look on purpose: the characters, the integrations' colours
    (dots, the faint logo in the Panoramica tiles, hover borders), the weather sky. */
 
-html[data-ui="windows"] {
+html:not([data-ui="classic"]) {
   --font: "Segoe UI Variable Text", "Segoe UI", system-ui, "Segoe UI Emoji", sans-serif;
   /* Windows' accent (read from the registry by system_accent), its default blue otherwise. */
   --accent: var(--win-accent, #4cc2ff);
@@ -28,59 +28,59 @@ html[data-ui="windows"] {
 }
 
 /* A thin border, as every Windows 11 surface has. */
-html[data-ui="windows"] #island:not(.bare) {
+html:not([data-ui="classic"]) #island:not(.bare) {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 /* Out of the fixed bar the island is one piece with the band: no border (Edoardo, 31 Oct 2026). */
-html[data-ui="windows"] #island.pop:not(.bare) { box-shadow: var(--pop-shadow); }
+html:not([data-ui="classic"]) #island.pop:not(.bare) { box-shadow: var(--pop-shadow); }
 
 /* ── Cards and buttons ──────────────────────────────────────────────────── */
 
-html[data-ui="windows"] .card {
+html:not([data-ui="classic"]) .card {
   border-radius: 8px;
   background: color-mix(in srgb, var(--layer) calc(var(--card-alpha, 0.25) * 100%), transparent);
   border-color: var(--stroke);
 }
 
-html[data-ui="windows"] .btn {
+html:not([data-ui="classic"]) .btn {
   border-radius: 4px;
   padding: 6px 12px;
   font-weight: 400;
 }
-html[data-ui="windows"] .btn:active { transform: none; opacity: 0.8; }
-html[data-ui="windows"] .btn.primary {
+html:not([data-ui="classic"]) .btn:active { transform: none; opacity: 0.8; }
+html:not([data-ui="classic"]) .btn.primary {
   background: var(--accent);
   color: var(--on-accent);
 }
-html[data-ui="windows"] .btn.primary:hover { filter: brightness(0.92); }
-html[data-ui="windows"] .btn.secondary {
+html:not([data-ui="classic"]) .btn.primary:hover { filter: brightness(0.92); }
+html:not([data-ui="classic"]) .btn.secondary {
   background: rgba(255, 255, 255, 0.06);
   box-shadow: inset 0 0 0 1px var(--stroke);
   color: var(--ink);
 }
-html[data-ui="windows"] .btn.secondary:hover { background: rgba(255, 255, 255, 0.09); }
+html:not([data-ui="classic"]) .btn.secondary:hover { background: rgba(255, 255, 255, 0.09); }
 
-html[data-ui="windows"] .icon-btn {
+html:not([data-ui="classic"]) .icon-btn {
   border-radius: 4px;
   color: var(--dim);
   background: rgba(255, 255, 255, 0.06);
 }
-html[data-ui="windows"] .icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+html:not([data-ui="classic"]) .icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
 
-html[data-ui="windows"] .strip-btn { border-radius: 4px; font-weight: 400; }
-html[data-ui="windows"] .strip-btn.plain { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
-html[data-ui="windows"] .strip-btn.light { background: var(--accent); color: var(--on-accent); }
+html:not([data-ui="classic"]) .strip-btn { border-radius: 4px; font-weight: 400; }
+html:not([data-ui="classic"]) .strip-btn.plain { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+html:not([data-ui="classic"]) .strip-btn.light { background: var(--accent); color: var(--on-accent); }
 
 /* ── Top bar: bubble, field, buttons ────────────────────────────────────── */
 
-html[data-ui="windows"] #header .say {
+html:not([data-ui="classic"]) #header .say {
   border-radius: 6px;
   background: var(--card);
   border-color: var(--stroke);
 }
-html[data-ui="windows"] #header .say-1 { font-weight: 500; }
+html:not([data-ui="classic"]) #header .say-1 { font-weight: 500; }
 
-html[data-ui="windows"] .search-bar {
+html:not([data-ui="classic"]) .search-bar {
   border-radius: 4px;
   border-color: var(--stroke);
   border-bottom-color: rgba(255, 255, 255, 0.3);
@@ -94,14 +94,14 @@ html[data-ui="windows"] .search-bar {
    chosen on a preview at this slow pace). In: the line lights up behind the first
    wave from the magnifier. Out (`.line-out`, search.ts): a wave runs back and puts
    the colour out. The loop stops by itself when the island shuts (hidden). */
-html[data-ui="windows"] .search-bar { position: relative; }
-html[data-ui="windows"] .search-bar:focus-within {
+html:not([data-ui="classic"]) .search-bar { position: relative; }
+html:not([data-ui="classic"]) .search-bar:focus-within {
   border-color: var(--stroke);
   border-bottom-color: rgba(255, 255, 255, 0.3);
   background: #1f1f1f;
 }
-html[data-ui="windows"] .search-bar::before,
-html[data-ui="windows"] .search-bar::after {
+html:not([data-ui="classic"]) .search-bar::before,
+html:not([data-ui="classic"]) .search-bar::after {
   content: "";
   position: absolute;
   left: -1px;
@@ -112,12 +112,12 @@ html[data-ui="windows"] .search-bar::after {
   pointer-events: none;
   opacity: 0;
 }
-html[data-ui="windows"] .search-bar::after { background: var(--accent); }
-html[data-ui="windows"] .search-bar:focus-within::after { opacity: 1; }
-html[data-anim="ricche"][data-ui="windows"] .search-bar:focus-within::after {
+html:not([data-ui="classic"]) .search-bar::after { background: var(--accent); }
+html:not([data-ui="classic"]) .search-bar:focus-within::after { opacity: 1; }
+html[data-anim="ricche"]:not([data-ui="classic"]) .search-bar:focus-within::after {
   animation: search-line-in 2.4s var(--ease-out, ease-out) both;
 }
-html[data-anim="ricche"][data-ui="windows"] .search-bar:focus-within::before {
+html[data-anim="ricche"]:not([data-ui="classic"]) .search-bar:focus-within::before {
   background:
     linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 50%, transparent) 0 0 / 30% 100% no-repeat,
     linear-gradient(90deg, transparent, rgba(194, 92, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat,
@@ -126,16 +126,16 @@ html[data-anim="ricche"][data-ui="windows"] .search-bar:focus-within::before {
   opacity: 1;
   animation: search-waves 7.8s linear infinite;
 }
-html[data-anim="ricche"][data-ui="windows"] .search-bar.line-out:not(:focus-within)::after {
+html[data-anim="ricche"]:not([data-ui="classic"]) .search-bar.line-out:not(:focus-within)::after {
   opacity: 1;
   animation: search-line-out 2.4s var(--ease-out, ease-out) both;
 }
-html[data-anim="ricche"][data-ui="windows"] .search-bar.line-out:not(:focus-within)::before {
+html[data-anim="ricche"]:not([data-ui="classic"]) .search-bar.line-out:not(:focus-within)::before {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat;
   filter: drop-shadow(0 0 4px #59c8ff);
   animation: search-wave-back 2.4s var(--ease-out, ease-out) both;
 }
-html[data-anim="sobrie"][data-ui="windows"] .search-bar:focus-within::after {
+html[data-anim="sobrie"]:not([data-ui="classic"]) .search-bar:focus-within::after {
   animation: search-line-fade 0.18s ease-out both;
 }
 @keyframes search-line-in {
@@ -159,46 +159,46 @@ html[data-anim="sobrie"][data-ui="windows"] .search-bar:focus-within::after {
   100% { opacity: 0; background-position: -20% 0; }
 }
 @keyframes search-line-fade { from { opacity: 0; } }
-html[data-ui="windows"] .search-results {
+html:not([data-ui="classic"]) .search-results {
   border-radius: 8px;
   background: #2c2c2c;
   border: 1px solid var(--stroke);
 }
 
 /* Plain glyphs, a soft square on hover; only Chiudi turns red. */
-html[data-ui="windows"] .header-actions button {
+html:not([data-ui="classic"]) .header-actions button {
   border-radius: 4px;
   color: var(--dim);
   background: transparent;
   opacity: 1;
 }
-html[data-ui="windows"] .header-actions button:hover,
-html[data-ui="windows"] .header-actions button.on {
+html:not([data-ui="classic"]) .header-actions button:hover,
+html:not([data-ui="classic"]) .header-actions button.on {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.07);
 }
-html[data-ui="windows"] .header-actions button.pinned { color: var(--accent); }
-html[data-ui="windows"] .header-actions button:last-child:hover { background: #c42b1c; color: #fff; }
+html:not([data-ui="classic"]) .header-actions button.pinned { color: var(--accent); }
+html:not([data-ui="classic"]) .header-actions button:last-child:hover { background: #c42b1c; color: #fff; }
 
 /* ── Menu on the left ───────────────────────────────────────────────────── */
 
-html[data-ui="windows"] #rail {
+html:not([data-ui="classic"]) #rail {
   border-radius: 8px;
   background: transparent;
 }
-html[data-ui="windows"] .rail-item {
+html:not([data-ui="classic"]) .rail-item {
   position: relative;
   border-radius: 4px;
   color: var(--ink-2);
   font-weight: 400;
 }
-html[data-ui="windows"] .rail-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
-html[data-ui="windows"] .rail-item.on {
+html:not([data-ui="classic"]) .rail-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
+html:not([data-ui="classic"]) .rail-item.on {
   background: rgba(255, 255, 255, 0.07);
   font-weight: 400;
 }
 /* The accent pill on the selected row, as in Windows' navigation. */
-html[data-ui="windows"] .rail-item.on::before {
+html:not([data-ui="classic"]) .rail-item.on::before {
   content: "";
   position: absolute;
   left: 0;
@@ -210,16 +210,16 @@ html[data-ui="windows"] .rail-item.on::before {
   background: var(--accent);
 }
 /* The sections' glyphs in one colour; logos and dots keep theirs. */
-html[data-ui="windows"] .rail-fixed .rail-icon { color: var(--dim); }
-html[data-ui="windows"] .rail-item.on .rail-icon { color: var(--ink); }
-html[data-ui="windows"] .rail-label-head {
+html:not([data-ui="classic"]) .rail-fixed .rail-icon { color: var(--dim); }
+html:not([data-ui="classic"]) .rail-item.on .rail-icon { color: var(--ink); }
+html:not([data-ui="classic"]) .rail-label-head {
   text-transform: none;
   letter-spacing: 0;
   font-size: calc(11px + var(--fs-up, 0px));
   font-weight: 500;
   color: var(--dim-3);
 }
-html[data-ui="windows"] .rail-meta.count {
+html:not([data-ui="classic"]) .rail-meta.count {
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
@@ -227,85 +227,85 @@ html[data-ui="windows"] .rail-meta.count {
 
 /* ── Panoramica ─────────────────────────────────────────────────────────── */
 
-html[data-ui="windows"] .today-title { font-size: calc(16px + var(--fs-up, 0px)); font-weight: 600; }
-html[data-ui="windows"] .today-date { color: var(--dim-2); }
-html[data-ui="windows"] .summary { gap: 6px; }
-html[data-ui="windows"] .summary-row {
+html:not([data-ui="classic"]) .today-title { font-size: calc(16px + var(--fs-up, 0px)); font-weight: 600; }
+html:not([data-ui="classic"]) .today-date { color: var(--dim-2); }
+html:not([data-ui="classic"]) .summary { gap: 6px; }
+html:not([data-ui="classic"]) .summary-row {
   border-radius: 6px;
   border-color: var(--stroke);
   background: var(--card-flat);
 }
-html[data-ui="windows"] .summary-row:hover { background: #323232; }
+html:not([data-ui="classic"]) .summary-row:hover { background: #323232; }
 /* The logo, larger and tinted, still faint in the corner: a little colour on grey. */
-html[data-ui="windows"] .summary-mark { opacity: 0.2; color: var(--c, var(--dim)); }
-html[data-ui="windows"] .summary-row:hover .summary-mark { opacity: 0.32; }
-html[data-ui="windows"] .summary-name { font-weight: 500; }
-html[data-ui="windows"] .summary-status { color: var(--dim-2); }
+html:not([data-ui="classic"]) .summary-mark { opacity: 0.2; color: var(--c, var(--dim)); }
+html:not([data-ui="classic"]) .summary-row:hover .summary-mark { opacity: 0.32; }
+html:not([data-ui="classic"]) .summary-name { font-weight: 500; }
+html:not([data-ui="classic"]) .summary-status { color: var(--dim-2); }
 
 /* ── Chat: the accent where the classic look has violet ─────────────────── */
 
-html[data-ui="windows"] .chat-bar {
+html:not([data-ui="classic"]) .chat-bar {
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 0 0 1px var(--stroke);
 }
-html[data-ui="windows"] .chat-bar:focus-within { box-shadow: inset 0 0 0 1px var(--stroke), inset 0 -2px 0 var(--accent); }
-html[data-ui="windows"] .send-btn {
+html:not([data-ui="classic"]) .chat-bar:focus-within { box-shadow: inset 0 0 0 1px var(--stroke), inset 0 -2px 0 var(--accent); }
+html:not([data-ui="classic"]) .send-btn {
   border-radius: 4px;
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: none;
 }
-html[data-ui="windows"] .send-btn.stop { background: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--ink); }
-html[data-ui="windows"] .send-btn.stop:hover { background: #c42b1c; color: #fff; }
-html[data-ui="windows"] .bubble { border-radius: 8px; background: rgba(255, 255, 255, 0.09); }
-html[data-ui="windows"] .reply { color: #d6d6d6; }
-html[data-ui="windows"] .engine-pick,
-html[data-ui="windows"] .engine-item.on,
-html[data-ui="windows"] .history-btn.on,
-html[data-ui="windows"] .second-btn:hover,
-html[data-ui="windows"] .md-copy {
+html:not([data-ui="classic"]) .send-btn.stop { background: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--ink); }
+html:not([data-ui="classic"]) .send-btn.stop:hover { background: #c42b1c; color: #fff; }
+html:not([data-ui="classic"]) .bubble { border-radius: 8px; background: rgba(255, 255, 255, 0.09); }
+html:not([data-ui="classic"]) .reply { color: #d6d6d6; }
+html:not([data-ui="classic"]) .engine-pick,
+html:not([data-ui="classic"]) .engine-item.on,
+html:not([data-ui="classic"]) .history-btn.on,
+html:not([data-ui="classic"]) .second-btn:hover,
+html:not([data-ui="classic"]) .md-copy {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
-html[data-ui="windows"] .engine-pick,
-html[data-ui="windows"] .md-copy { border-radius: 4px; }
-html[data-ui="windows"] .md-copy:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-html[data-ui="windows"] .second-head,
-html[data-ui="windows"] .clip-btn.on { color: var(--accent); }
-html[data-ui="windows"] .chip { border-radius: 4px; }
-html[data-ui="windows"] .reply.md.second {
+html:not([data-ui="classic"]) .engine-pick,
+html:not([data-ui="classic"]) .md-copy { border-radius: 4px; }
+html:not([data-ui="classic"]) .md-copy:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+html:not([data-ui="classic"]) .second-head,
+html:not([data-ui="classic"]) .clip-btn.on { color: var(--accent); }
+html:not([data-ui="classic"]) .chip { border-radius: 4px; }
+html:not([data-ui="classic"]) .reply.md.second {
   border-color: color-mix(in srgb, var(--accent) 24%, transparent);
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 /* ── Quick actions: each keeps its own colour, on Windows' square-ish button ── */
 
-html[data-ui="windows"] .qa { border-radius: 6px; font-weight: 400; }
-html[data-ui="windows"] .qa-chip { border-radius: 6px; }
+html:not([data-ui="classic"]) .qa { border-radius: 6px; font-weight: 400; }
+html:not([data-ui="classic"]) .qa-chip { border-radius: 6px; }
 
 /* Line glyphs of the integrations (LINE_ICONS) take the integration's colour, softened. */
-html[data-ui="windows"] svg.brand.line-mark { color: inherit; }
-html[data-ui="windows"] .rail-list .rail-icon { color: color-mix(in srgb, var(--c, #fff) 70%, #fff); }
-html[data-ui="windows"] .summary-mark:has(.line-mark) { opacity: 0.32; }
-html[data-ui="windows"] .summary-row:hover .summary-mark:has(.line-mark) { opacity: 0.45; }
+html:not([data-ui="classic"]) svg.brand.line-mark { color: inherit; }
+html:not([data-ui="classic"]) .rail-list .rail-icon { color: color-mix(in srgb, var(--c, #fff) 70%, #fff); }
+html:not([data-ui="classic"]) .summary-mark:has(.line-mark) { opacity: 0.32; }
+html:not([data-ui="classic"]) .summary-row:hover .summary-mark:has(.line-mark) { opacity: 0.45; }
 
 /* Windows writes labels as they are, never in capitals. */
-html[data-ui="windows"] .rw-label,
-html[data-ui="windows"] .files-head b,
-html[data-ui="windows"] .notion-section,
-html[data-ui="windows"] .rail-label-head,
-html[data-ui="windows"] .wx-chip-l,
-html[data-ui="windows"] .wx-label,
-html[data-ui="windows"] .notion-tile-k,
-html[data-ui="windows"] .np-menu-title {
+html:not([data-ui="classic"]) .rw-label,
+html:not([data-ui="classic"]) .files-head b,
+html:not([data-ui="classic"]) .notion-section,
+html:not([data-ui="classic"]) .rail-label-head,
+html:not([data-ui="classic"]) .wx-chip-l,
+html:not([data-ui="classic"]) .wx-label,
+html:not([data-ui="classic"]) .notion-tile-k,
+html:not([data-ui="classic"]) .np-menu-title {
   text-transform: none;
   letter-spacing: 0;
 }
 
 /* Integrazioni personali: Windows' fields and chips. */
-html[data-ui="windows"] .custom-input { border-radius: 4px; border-color: var(--stroke); border-bottom-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.05); }
-html[data-ui="windows"] .custom-input:focus { border-bottom: 2px solid var(--accent); background: #1f1f1f; }
-html[data-ui="windows"] .chip-btn { border-radius: 4px; }
-html[data-ui="windows"] .chip-btn.on { background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); }
-html[data-ui="windows"] .custom-record { border-radius: 4px; }
+html:not([data-ui="classic"]) .custom-input { border-radius: 4px; border-color: var(--stroke); border-bottom-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.05); }
+html:not([data-ui="classic"]) .custom-input:focus { border-bottom: 2px solid var(--accent); background: #1f1f1f; }
+html:not([data-ui="classic"]) .chip-btn { border-radius: 4px; }
+html:not([data-ui="classic"]) .chip-btn.on { background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); }
+html:not([data-ui="classic"]) .custom-record { border-radius: 4px; }

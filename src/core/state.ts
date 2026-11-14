@@ -1287,8 +1287,8 @@ export interface Theme {
   volumeEmotes: number;
   /** The island's colour behind the character while it is closed; off = the character alone. */
   compactBackground: boolean;
-  /** The look of the island and the settings: "windows" (Windows 11, the default) or "classic". */
-  style: "windows" | "classic";
+  /** The look of the island and the settings: "monolith", "titanium", "editorial", "windows" (the default) or "classic". */
+  style: "windows" | "classic" | "monolith" | "titanium" | "editorial";
   /** Light or dark: "dark" (the default), "light", or "auto" (follows Windows' app mode). */
   scheme: "dark" | "light" | "auto";
   /** What sits in the island: the character, the EasyIsland logo, the user's PNG or the weather (character/figure.ts). */

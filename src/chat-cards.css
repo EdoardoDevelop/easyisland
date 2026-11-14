@@ -43,7 +43,7 @@ html[data-chat-look="cards"] {
   --cc-user: rgba(255, 255, 255, 0.08);
   --cc-menu: #1f1f22;
 }
-html[data-chat-look="cards"][data-ui="windows"] { --cc-base: var(--layer); }
+html[data-chat-look="cards"]:not([data-ui="classic"]) { --cc-base: var(--layer); }
 html[data-chat-look="cards"][data-scheme="light"] {
   --cc-deep: #ffffff;
   --cc-line: rgba(0, 0, 0, 0.07);
@@ -164,7 +164,7 @@ html[data-chat-look="cards"] .chat-card .chat-head .history-btn {
 }
 html[data-chat-look="cards"] .chat-card .chat-head .history-btn:hover { background: var(--cc-hover); color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .history-btn.on,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .history-btn.on { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .history-btn.on { background: var(--cc-soft); color: var(--cc-ink); }
 
 /* One column, one rhythm: 24 between turns, 8 inside a turn. */
 html[data-chat-look="cards"] .chat-card .chat-log {
@@ -190,7 +190,7 @@ html[data-chat-look="cards"] .chat-card .chat-row.user .msg-actions {
   margin: 1px calc(-1 * var(--cc-s2)) 0 0;
 }
 html[data-chat-look="cards"] .chat-card .bubble,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .bubble {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .bubble {
   background: var(--cc-user);
   padding: var(--cc-s2) var(--cc-s3);
   border-radius: var(--cc-r-item);
@@ -199,7 +199,7 @@ html[data-chat-look="cards"][data-ui="windows"] .chat-card .bubble {
   color: var(--cc-ink);
 }
 html[data-chat-look="cards"] .chat-card .reply,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .reply {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .reply {
   font-size: var(--cc-t-body);
   color: var(--cc-ink); /* the answer weighs as much as the question */
   line-height: 1.6;
@@ -233,7 +233,7 @@ html[data-chat-look="cards"] .chat-card .msg-act {
 }
 html[data-chat-look="cards"] .chat-card .msg-act:hover { background: var(--cc-soft); color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .second-btn,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .second-btn {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .second-btn {
   height: 26px;
   padding: 0 10px;
   border: 1px solid var(--cc-line);
@@ -243,7 +243,7 @@ html[data-chat-look="cards"][data-ui="windows"] .chat-card .second-btn {
   background: transparent;
 }
 html[data-chat-look="cards"] .chat-card .second-btn:hover,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .second-btn:hover { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .second-btn:hover { background: var(--cc-soft); color: var(--cc-ink); }
 
 /* A permission the chat waits for: an inner card, amber only on its title. */
 html[data-chat-look="cards"] .chat-card .chat-ask {
@@ -261,7 +261,7 @@ html[data-chat-look="cards"] .chat-card .chat-other-ask { border-radius: var(--c
 
 /* ── The field: floating over the bottom of the conversation, on its shadow ── */
 html[data-chat-look="cards"] .chat-card .chat-bar,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .chat-bar {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .chat-bar {
   z-index: 3;
   margin-top: calc(-1 * var(--cc-s5));
   padding: var(--cc-s3) var(--cc-s3) var(--cc-s2);
@@ -273,7 +273,7 @@ html[data-chat-look="cards"][data-ui="windows"] .chat-card .chat-bar {
 }
 /* Focus: the edge a step lighter, no coloured ring (the accent is the send button's). */
 html[data-chat-look="cards"] .chat-card .chat-bar:focus-within,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .chat-bar:focus-within {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .chat-bar:focus-within {
   border-color: var(--cc-bar-focus);
   box-shadow: var(--cc-shadow);
 }
@@ -300,7 +300,7 @@ html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn
 html[data-chat-look="cards"] .chat-card .new-chat-btn svg { color: inherit; }
 html[data-chat-look="cards"] .chat-card .chat-tools .clip-btn.on { color: var(--cc-ink); background: var(--cc-hover); }
 html[data-chat-look="cards"] .chat-card .engine-pick,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-pick {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .engine-pick {
   height: 28px;
   padding: 0 10px;
   border-radius: var(--cc-r-ctl);
@@ -309,9 +309,9 @@ html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-pick {
   background: var(--cc-soft);
 }
 html[data-chat-look="cards"] .chat-card .engine-pick:hover,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-pick:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .engine-pick:hover { background: var(--cc-hover); color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .send-btn,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .send-btn {
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .send-btn {
   width: 30px;
   height: 30px;
   flex: 0 0 30px;
@@ -347,7 +347,7 @@ html[data-chat-look="cards"] .chat-card :is(.engine-item, .slash-item) {
 }
 html[data-chat-look="cards"] .chat-card :is(.engine-item, .slash-item):hover { background: var(--cc-soft); color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .engine-item.on,
-html[data-chat-look="cards"][data-ui="windows"] .chat-card .engine-item.on { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .engine-item.on { background: var(--cc-hover); color: var(--cc-ink); }
 
 /* The terminal: a card of its own, above the field. */
 html[data-chat-look="cards"] .chat-card .chat-term {

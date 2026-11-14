@@ -1,0 +1,363 @@
+/* Studio themes for the island:
+   - html[data-ui="monolith"]  — Obsidian Monolith (Linear / Raycast precision grade)
+   - html[data-ui="titanium"]  — Anodized Hardware (recessed panels, tactile keycaps, tabular telemetry)
+   - html[data-ui="editorial"] — Deep Glass Spotlight (executive studio layout) */
+
+/* ── Shared Studio Foundation (no toy-like mascot box, surgical typography) ── */
+
+html[data-ui="monolith"],
+html[data-ui="titanium"],
+html[data-ui="editorial"] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.012em;
+}
+
+/* Header becomes a unified command bar with a 1px bottom hairline;
+   the 18px optical character core sits at (25, 25) inside the left slot. */
+html[data-ui="monolith"] #header,
+html[data-ui="titanium"] #header,
+html[data-ui="editorial"] #header {
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 4px;
+}
+
+html[data-ui="monolith"] #header .say,
+html[data-ui="titanium"] #header .say,
+html[data-ui="editorial"] #header .say {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0 8px 0 30px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  flex: 0 1 auto;
+  max-width: 240px;
+}
+
+html[data-ui="monolith"] #header .say-1,
+html[data-ui="titanium"] #header .say-1,
+html[data-ui="editorial"] #header .say-1 {
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+html[data-ui="monolith"] #header .say-2::before,
+html[data-ui="titanium"] #header .say-2::before,
+html[data-ui="editorial"] #header .say-2::before {
+  content: "· ";
+  opacity: 0.55;
+}
+
+/* When the bubble is turned off in settings, keep room on the left for the optical core. */
+html[data-ui="monolith"] #header .say[style*="none"] + .header-field,
+html[data-ui="titanium"] #header .say[style*="none"] + .header-field,
+html[data-ui="editorial"] #header .say[style*="none"] + .header-field {
+  margin-left: 38px;
+}
+
+/* Panoramica tiles: replace the oversized cut-off corner watermark with a
+   discrete 18px technical mark in the top-right corner, freeing full text width. */
+html[data-ui="monolith"] .summary-mark,
+html[data-ui="titanium"] .summary-mark,
+html[data-ui="editorial"] .summary-mark {
+  top: 10px;
+  right: 10px;
+  bottom: auto;
+  width: 18px;
+  height: 18px;
+  opacity: 0.32;
+}
+
+html[data-ui="monolith"] .summary-mark > *,
+html[data-ui="titanium"] .summary-mark > *,
+html[data-ui="editorial"] .summary-mark > * {
+  width: 16px;
+  height: 16px;
+  font-size: 14px !important;
+  line-height: 16px;
+}
+
+html[data-ui="monolith"] .summary-top,
+html[data-ui="titanium"] .summary-top,
+html[data-ui="editorial"] .summary-top {
+  padding-right: 22px;
+}
+
+html[data-ui="monolith"] .summary-status,
+html[data-ui="titanium"] .summary-status,
+html[data-ui="editorial"] .summary-status {
+  padding-right: 0;
+}
+
+/* Closed-island strip: sober, high-contrast studio buttons instead of bright toy blocks. */
+html[data-ui="monolith"] .strip-btn.green,
+html[data-ui="titanium"] .strip-btn.green,
+html[data-ui="editorial"] .strip-btn.green {
+  background: var(--ink);
+  color: #090a0c;
+  font-weight: 500;
+}
+
+html[data-ui="monolith"] .strip-btn.red,
+html[data-ui="titanium"] .strip-btn.red,
+html[data-ui="editorial"] .strip-btn.red {
+  background: rgba(244, 80, 94, 0.16);
+  color: #fda4af;
+  box-shadow: inset 0 0 0 1px rgba(244, 80, 94, 0.32);
+}
+
+/* ── 1. Obsidian Monolith (Linear / Raycast) ────────────────────────────── */
+
+html[data-ui="monolith"] {
+  --accent: #ededef;
+  --on-accent: #090a0c;
+  --ink: #ededef;
+  --ink-2: #d0d4dc;
+  --dim: #a0a5b1;
+  --dim-2: #8a8f98;
+  --dim-3: #686e78;
+  --dim-4: #5e636e;
+  --dim-5: #464b55;
+  --layer: #0e1014;
+  --card: #12141a;
+  --card-flat: #0e1014;
+  --tab-on: rgba(255, 255, 255, 0.075);
+  --hairline: rgba(255, 255, 255, 0.065);
+  --stroke: rgba(255, 255, 255, 0.08);
+  --link: #ededef;
+}
+
+html[data-ui="monolith"] #island:not(.bare) {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+html[data-ui="monolith"] #island.railed #rail {
+  border-right: 1px solid var(--hairline);
+  border-radius: 0;
+  padding: 2px 8px 6px 2px;
+}
+
+html[data-ui="monolith"] .rail-item {
+  border-radius: 6px;
+  height: 28px;
+  flex: 0 0 28px;
+}
+
+html[data-ui="monolith"] .rail-item.on::before {
+  width: 2px;
+  height: 14px;
+  margin-top: -7px;
+  background: #ededef;
+}
+
+/* Zero "boxes inside boxes": the outer view card blends into the monolith,
+   and Panoramica becomes a flush 1px hairline matrix. */
+html[data-ui="monolith"] #island.railed .card {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+}
+
+html[data-ui="monolith"] .summary {
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+html[data-ui="monolith"] .summary-row {
+  border: 0;
+  border-radius: 0;
+  background: #0e1014;
+  min-height: 68px;
+  padding: 10px 12px;
+}
+
+html[data-ui="monolith"] .summary-row:hover {
+  background: #14171f;
+}
+
+html[data-ui="monolith"] .search-bar {
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--stroke);
+}
+
+html[data-ui="monolith"] .search-bar:focus-within {
+  background: #08090b;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html[data-ui="monolith"] .btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+html[data-ui="monolith"] .btn.primary {
+  background: #ededef;
+  color: #090a0c;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+/* ── 2. Anodized Hardware / Titanium (Precision Pro) ────────────────────── */
+
+html[data-ui="titanium"] {
+  --accent: #e2e8f0;
+  --on-accent: #090a0c;
+  --ink: #e4e5e9;
+  --ink-2: #d0d4dc;
+  --dim: #a2a7b2;
+  --dim-2: #8e939e;
+  --dim-3: #6e737e;
+  --dim-4: #5a5f69;
+  --dim-5: #454a54;
+  --layer: #16181d;
+  --card: #0c0d10;
+  --card-flat: #0c0d10;
+  --tab-on: rgba(255, 255, 255, 0.08);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --stroke: rgba(255, 255, 255, 0.075);
+  --link: #e2e8f0;
+}
+
+html[data-ui="titanium"] #island:not(.bare) {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+/* Recessed milled panels */
+html[data-ui="titanium"] .card,
+html[data-ui="titanium"] .search-bar,
+html[data-ui="titanium"] .chat-bar {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+html[data-ui="titanium"] .summary {
+  gap: 6px;
+}
+
+html[data-ui="titanium"] .summary-row {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  box-shadow: inset 0 1px 1.5px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 9px 11px;
+}
+
+html[data-ui="titanium"] .summary-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Physical engraved hardware keycaps */
+html[data-ui="titanium"] .btn,
+html[data-ui="titanium"] .icon-btn,
+html[data-ui="titanium"] .strip-btn.plain {
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+html[data-ui="titanium"] .btn.primary {
+  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%);
+  color: #090a0c;
+  font-weight: 600;
+}
+
+/* Technical monospace telemetry */
+html[data-ui="titanium"] #header .say-2,
+html[data-ui="titanium"] .today-date,
+html[data-ui="titanium"] .rail-meta.count,
+html[data-ui="titanium"] .summary-status {
+  font-family: var(--mono);
+  font-size: calc(11px + var(--fs-up, 0px));
+}
+
+/* ── 3. Spotlight / Editorial (Deep Glass Studio) ───────────────────────── */
+
+html[data-ui="editorial"] {
+  --accent: #ffffff;
+  --on-accent: #090a0f;
+  --ink: #f1f5f9;
+  --ink-2: #e2e8f0;
+  --dim: #cbd5e1;
+  --dim-2: #94a3b8;
+  --dim-3: #64748b;
+  --dim-4: #475569;
+  --dim-5: #334155;
+  --layer: #12151e;
+  --card: #161a25;
+  --card-flat: #141822;
+  --tab-on: rgba(255, 255, 255, 0.08);
+  --hairline: rgba(255, 255, 255, 0.075);
+  --stroke: rgba(255, 255, 255, 0.085);
+  --link: #e2e8f0;
+}
+
+html[data-ui="editorial"] #island:not(.bare) {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.085);
+}
+
+html[data-ui="editorial"] .rail-item {
+  border-radius: 8px;
+}
+
+html[data-ui="editorial"] .rail-item.on {
+  background: rgba(255, 255, 255, 0.085);
+}
+
+html[data-ui="editorial"] .rail-item.on::before {
+  display: none;
+}
+
+html[data-ui="editorial"] .card {
+  border-radius: 10px;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border-color: var(--stroke);
+}
+
+html[data-ui="editorial"] .today-title {
+  font-size: calc(17px + var(--fs-up, 0px));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+html[data-ui="editorial"] .summary {
+  gap: 8px;
+}
+
+html[data-ui="editorial"] .summary-row {
+  border-radius: 9px;
+  border-color: rgba(255, 255, 255, 0.075);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 10px 12px;
+}
+
+html[data-ui="editorial"] .summary-row:hover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html[data-ui="editorial"] .btn {
+  border-radius: 7px;
+  font-weight: 500;
+}
+
+html[data-ui="editorial"] .btn.primary {
+  background: #ffffff;
+  color: #090a0f;
+}
