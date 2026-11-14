@@ -704,6 +704,10 @@ export interface Settings {
   tasksEngine: string;
   /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
   memoryEngine: string;
+  /** «Ricerca per significato» (memory_meaning.rs): openai, gemini, ollama, lmstudio; "" = off. */
+  memoryMeaning?: string;
+  /** Its model; "" = the service's usual one. */
+  memoryMeaningModel?: string;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
   rememberNow?: boolean;
   /** Claude Code's own memory, read only (cc_memory.rs). */

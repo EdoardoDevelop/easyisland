@@ -55,6 +55,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 14/11 — Memoria più pulita e ricerca per significato (ramo `claude/consumo`)
+Edoardo: «fai tutti e 5». Dopo la risposta: REGOLA → note, [[Pagina]] → pagina, SUPERATA n → archivio, niente dettagli del momento né lavoro su EasyIsland; il riordino sposta in archivio le note copiate nella loro pagina; note su eventi con data passata in archivio; ricerca per significato facoltativa (`memory_meaning.rs`, provata con OpenRouter). Da provare nell'app sul portatile (memoria piena). `docs/chat.md` → Memoria.
+
 ### 13/11 — Consumo di tutti i motori (ramo `claude/consumo`, da `claude/domande`)
 Edoardo: «Consumo Claude» per tutti i motori, separati; clic sulle percentuali in alto = motore successivo. Fatto: integrazione «Consumo» con una sezione per motore (opencode dalle sue statistiche, OpenRouter credito e limite, Antigravity e gli altri dalle risposte in EasyIsland), intestazione a giro. Provato dal vivo opencode e OpenRouter (test ignorato `engine_sections_live`) e nell'anteprima; da provare nell'app. `docs/integrazioni.md` → Consumo. Poi, dai dati del portatile (126 passi, ~5 M token il 13/11, ~10.000 caratteri davanti a ogni conversazione): davanti solo le note-regola e le abilità che c'entrano, ricette confrontate nei due sensi, «trovato per la domanda» con più parole in comune. `docs/chat.md` → Memoria, Abilità.
 
@@ -66,6 +69,3 @@ Edoardo: poter cambiare anche la VLAN. Campo VLAN ID per le schede il cui driver
 
 ### 13/11 — Domande con le scelte nella chat (ramo `claude/domande`)
 Edoardo: la card delle domande come Claude Desktop. Claude Code in `-p` offre `AskUserQuestion`/`ExitPlanMode` solo con `--permission-prompt-tool stdio`: ora i processi tenuti lo usano e EasyIsland risponde sul canale di controllo con la card nella conversazione (domande e piano). Provato con un processo vero via driver e nell'anteprima (`?scene=domanda`); da provare nell'app, anche Piano e Telegram. `docs/chat.md` → Domande e piano.
-
-### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
-Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.

@@ -173,7 +173,6 @@ Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senz
 
 ## Memoria, seguiti
 - **Pulizia proposta:** `brain::check` segnala pagine doppie (alias, titoli, parole in comune) e relazioni ripetute con nomi diversi; il compito propone «unisci» con `task_ask` (la pagina unita va in archivio).
-- **Ricerca per significato:** embedding solo se la memoria diventa grande, con modello locale o servizio scelto in Impostazioni.
 
 ## Modello integrato (27/10, accantonato)
 Fatto nel branch `claude/modello-integrato` (non unito; passi in `docs/modello-integrato.md` del branch), manca la prova dal vivo. Per riprendere: aggiornare il branch con `claude/sviluppo`, verificare build di llama.cpp e hash dei modelli, provare.

@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
+Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
+
 ### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
 Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori. Poi pulsante ⧉/◨ nell'Anteprima per isola o finestra (`preview_dock`), da provare nell'app.
 

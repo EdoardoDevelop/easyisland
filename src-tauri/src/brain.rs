@@ -599,6 +599,28 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     Ok(reply)
 }
 
+/// One line added at the end of a page, which is created when missing
+/// (memory_learn.rs: a fact about a customer, a site, a project goes to its
+/// page, not to MEMORIA.md). False when the page already says it.
+pub fn add_line(title: &str, line: &str) -> Result<bool, String> {
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    let line = line.split_whitespace().collect::<Vec<_>>().join(" ");
+    if title.is_empty() || line.is_empty() {
+        return Err(t("Pagina o testo vuoti.").into());
+    }
+    match find(&title) {
+        None => tool_write(&title, &line, "", "").map(|_| true),
+        Some((page, text)) => {
+            let core = line.trim_start_matches("- ").to_lowercase();
+            if page.body.to_lowercase().contains(core.split_once(": ").map_or(core.as_str(), |(_, c)| c)) {
+                return Ok(false);
+            }
+            let body = format!("{}\n{line}", page.body.trim_end());
+            tool_write(&page.title, &body, &version(&text), "").map(|_| true)
+        }
+    }
+}
+
 pub struct InboxFile {
     pub name: String,
     pub path: PathBuf,

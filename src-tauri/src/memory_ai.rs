@@ -8,7 +8,9 @@
 // Any engine works, tools or not: EasyIsland sends the notes and pages and asks
 // for a JSON answer, then writes it itself. Only additions, written without
 // asking (the user's choice): new pages, lines appended to existing ones. It
-// never deletes or rewrites what is there, and never touches MEMORIA.md. The
+// never deletes or rewrites what is there. In MEMORIA.md it only moves to
+// archivio.md the notes of facts it has just copied into their topic page
+// (14 Nov 2026: facts in pages, rules in the notes; `memory::general` stays). The
 // one exception is the header's "riassunto:" line, which it keeps up to date
 // (it sums up the page, so the chat reads it for a linked page), and "alias:",
 // to which it only adds names.
@@ -187,12 +189,16 @@ fn apply(a: &Answer, notes: &[String]) -> String {
     let mut created = Vec::new();
     let mut grown = Vec::new();
     let mut relations = 0;
+    // Facts now in their page: out of MEMORIA.md (rules stay there).
+    let mut moved: Vec<String> = Vec::new();
     for p in a.pages.iter().take(12) {
         let title = clean_title(&p.title);
         if title.is_empty() {
             continue;
         }
-        let quoted: Vec<String> = p.notes.iter().filter_map(|n| notes.get(n.wrapping_sub(1))).map(|n| format!("- nota: {}", one_line(n, 160))).collect();
+        let sources: Vec<&String> = p.notes.iter().filter_map(|n| notes.get(n.wrapping_sub(1))).collect();
+        let facts = sources.iter().filter(|n| !crate::memory::general(n)).map(|n| (*n).clone());
+        let quoted: Vec<String> = sources.iter().map(|n| format!("- nota: {}", one_line(n, 160))).collect();
         match current(&title) {
             None => {
                 let mut body = one_line(&p.text, 600);
@@ -204,16 +210,20 @@ fn apply(a: &Answer, notes: &[String]) -> String {
                 }
                 if brain::tool_write(&title, &body, "", "").is_ok() {
                     created.push(title);
+                    moved.extend(facts);
                 }
             }
             Some((text, version)) => {
                 let new: Vec<&String> = quoted.iter().filter(|q| !text.contains(q.as_str())).collect();
                 if new.is_empty() {
+                    // Already quoted there by an earlier pass: the note can go.
+                    moved.extend(facts);
                     continue;
                 }
                 let body = format!("{}\n{}", body_of(&text), new.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n"));
                 if brain::tool_write(&title, &body, &version, "").is_ok() {
                     grown.push(title);
+                    moved.extend(facts);
                 }
             }
         }
@@ -267,7 +277,8 @@ fn apply(a: &Answer, notes: &[String]) -> String {
             summed += 1;
         }
     }
-    if created.is_empty() && grown.is_empty() && relations == 0 && summed == 0 {
+    let archived = crate::memory::archive(&moved).unwrap_or(0);
+    if created.is_empty() && grown.is_empty() && relations == 0 && summed == 0 && archived == 0 {
         return t("Niente di nuovo da collegare: la memoria è già in ordine.").into();
     }
     let mut parts = Vec::new();
@@ -282,6 +293,9 @@ fn apply(a: &Answer, notes: &[String]) -> String {
     }
     if summed > 0 {
         parts.push(tf("{n} riassunti", &[("n", &summed.to_string())]));
+    }
+    if archived > 0 {
+        parts.push(tf("{n} note spostate nelle loro pagine", &[("n", &archived.to_string())]));
     }
     tf("Memoria collegata — {what}.", &[("what", &parts.join("; "))])
 }

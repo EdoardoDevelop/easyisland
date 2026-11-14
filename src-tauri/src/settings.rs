@@ -739,6 +739,12 @@ pub struct Settings {
     /// «Motore per la memoria» (memory_ai.rs): the engine that ties the memory together; "" = none.
     #[serde(default)]
     pub memory_engine: String,
+    /// «Ricerca per significato» (memory_meaning.rs): openai, gemini, openrouter, ollama, lmstudio; "" = off.
+    #[serde(default)]
+    pub memory_meaning: String,
+    /// Its model; "" = the service's usual one.
+    #[serde(default)]
+    pub memory_meaning_model: String,
     /// «Ricorda questo» (brain.rs `remember`): what is captured is learnt at
     /// once by a task; off, by the evening digest.
     #[serde(default = "default_true")]
@@ -1245,6 +1251,8 @@ impl Default for Settings {
             chat_history: true,
             tasks_engine: String::new(),
             memory_engine: String::new(),
+            memory_meaning: String::new(),
+            memory_meaning_model: String::new(),
             remember_now: true,
             memory_claude_code: true,
             brain_tickets: true,

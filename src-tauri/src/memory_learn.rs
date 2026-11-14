@@ -9,6 +9,14 @@
 // uses memory_note only when the user asks it to remember something.
 //
 // One at a time, in the background: the answer is already on screen.
+//
+// What it answers (14 Nov 2026, from the laptop's memory: 60 notes, most of
+// them site details, ids and EasyIsland's own development):
+//   - «REGOLA: …»: a rule or preference that holds for every question → MEMORIA.md;
+//   - «[[Pagina]] …»: a fact about one customer, site, project → that page
+//     (brain::add_line), found when a question is about it;
+//   - «SUPERATA n»: note n (as numbered in the prompt) is corrected or
+//     repeated by this exchange → archivio.md.
 
 use crate::claude::Chat;
 use crate::i18n::tf;
@@ -52,7 +60,8 @@ pub fn after(app: &AppHandle, question: &str, answer: &str) {
     if answer.chars().count() < 40 {
         return;
     }
-    let prompt = prompt(&cut(question, MAX_QUESTION), &cut(&answer, MAX_ANSWER), &crate::memory::notes());
+    let titles: Vec<String> = crate::brain::pages().into_iter().map(|p| p.title).collect();
+    let prompt = prompt(&cut(question, MAX_QUESTION), &cut(&answer, MAX_ANSWER), &crate::memory::notes(), &titles);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let _one = ONE_AT_A_TIME.lock().await;
@@ -68,13 +77,32 @@ pub fn after(app: &AppHandle, question: &str, answer: &str) {
                 return;
             }
         };
-        let before = crate::memory::notes().len();
-        for note in notes_of(&text) {
-            let _ = crate::memory::note(&note);
+        let known = crate::memory::notes();
+        let mut kept = 0;
+        let mut gone = Vec::new();
+        for item in items_of(&text) {
+            match item {
+                Item::Rule(r) => {
+                    if crate::memory::note(&format!("regola: {r}")).is_ok_and(|m| m == crate::i18n::t("Salvato in memoria.")) {
+                        kept += 1;
+                    }
+                }
+                Item::Fact(page, fact) => {
+                    let day: String = crate::memory::stamp().chars().take(10).collect();
+                    if crate::brain::add_line(&page, &format!("- {day}: {fact}")).unwrap_or(false) {
+                        kept += 1;
+                    }
+                }
+                Item::Gone(n) => {
+                    if let Some(old) = numbered(&known).get(n.wrapping_sub(1)) {
+                        gone.push(old.clone());
+                    }
+                }
+            }
         }
-        let kept = crate::memory::notes().len().saturating_sub(before);
-        crate::log::line(format!("memoria dopo la risposta: {kept} note"));
-        if kept > 0 {
+        let archived = crate::memory::archive(&gone).unwrap_or(0);
+        crate::log::line(format!("memoria dopo la risposta: {kept} aggiunte, {archived} superate"));
+        if kept + archived > 0 {
             use tauri::Emitter;
             let _ = app.emit_to(crate::MEMORY_LABEL, "memory-refresh", ());
         }
@@ -90,34 +118,88 @@ fn cut(text: &str, max: usize) -> String {
     }
 }
 
-fn prompt(question: &str, answer: &str, notes: &[String]) -> String {
-    let skip = notes.len().saturating_sub(40);
-    let known: String = notes.iter().skip(skip).map(|n| format!("{}\n", n.trim())).collect();
-    tf(
-        "Sei la memoria di EasyIsland. Da questo scambio tra l'utente e il suo assistente tieni solo ciò che servirà le prossime volte: preferenze dell'utente, fatti che restano veri su clienti, persone, PC, reti, indirizzi e percorsi, come si fa una cosa che ha funzionato, decisioni prese. Non tenere: cose del momento, risposte generiche, ciò che sa chiunque, password, codici o chiavi.
+/// The notes the prompt shows, numbered from 1 (the newest 40).
+fn numbered(notes: &[String]) -> Vec<String> {
+    notes.iter().skip(notes.len().saturating_sub(40)).cloned().collect()
+}
 
-NOTE GIÀ IN MEMORIA (non ripeterle):
+fn prompt(question: &str, answer: &str, notes: &[String], pages: &[String]) -> String {
+    let known: String = numbered(notes).iter().enumerate().map(|(i, n)| format!("{}. {}\n", i + 1, n.trim().trim_start_matches("- "))).collect();
+    let titles = pages.iter().take(80).cloned().collect::<Vec<_>>().join(", ");
+    tf(
+        "Sei la memoria di EasyIsland. Da questo scambio tra l'utente e il suo assistente tieni solo ciò che servirà le prossime volte: preferenze e regole dell'utente, fatti che restano veri su clienti, persone, PC, reti, indirizzi e percorsi, come si fa una cosa che ha funzionato, decisioni prese.
+Non tenere: cose del momento o di oggi, stati temporanei («in attesa», «da confermare»), numeri di versione, identificativi interni (id di automazioni, hash, numeri di messaggio), il lavoro su EasyIsland stesso (sue funzioni, rami, installer, richieste di migliorie), risposte generiche, ciò che sa chiunque, password, codici o chiavi.
+
+NOTE GIÀ IN MEMORIA (numerate):
 {known}
+PAGINE ESISTENTI: {titles}
+
 DOMANDA DELL'UTENTE:
 {question}
 
 RISPOSTA DELL'ASSISTENTE:
 {answer}
 
-Rispondi con al massimo {max} righe che iniziano con \"- \", ognuna una nota completa da sola (chi o cosa, poi il fatto), in italiano, al massimo 200 caratteri; oppure solo NIENTE. Nient'altro.",
-        &[("known", &if known.is_empty() { "(nessuna)\n".to_string() } else { known }), ("question", &question), ("answer", &answer), ("max", &MAX_NOTES.to_string())],
+Rispondi con al massimo {max} righe, ognuna di uno di questi tipi:
+- REGOLA: una regola o preferenza che vale per qualsiasi domanda (come lavora l'utente, cosa vuole sempre o mai)
+- [[Titolo]] un fatto su un cliente, una persona, un sito, un progetto: il titolo è quello di una pagina esistente se c'è, altrimenti il nome giusto
+- SUPERATA n: la nota n è corretta o ripetuta da questo scambio (si archivia)
+Ogni riga completa da sola, in italiano, al massimo 200 caratteri; non ripetere le note già in memoria. Se non c'è niente, rispondi solo NIENTE. Nient'altro.",
+        &[
+            ("known", &if known.is_empty() { "(nessuna)\n".to_string() } else { known }),
+            ("titles", &if titles.is_empty() { "(nessuna)".to_string() } else { titles }),
+            ("question", &question),
+            ("answer", &answer),
+            ("max", &MAX_NOTES.to_string()),
+        ],
     )
 }
 
-/// The "- " lines of the answer, at most MAX_NOTES; none for NIENTE.
-fn notes_of(text: &str) -> Vec<String> {
-    text.lines()
-        .map(str::trim)
-        .filter_map(|l| l.strip_prefix("- ").or_else(|| l.strip_prefix("• ")))
-        .map(|l| l.trim().trim_matches('"').trim().to_string())
-        .filter(|l| l.chars().count() >= 10 && !l.eq_ignore_ascii_case("niente"))
-        .take(MAX_NOTES)
-        .collect()
+#[derive(Debug, PartialEq)]
+enum Item {
+    Rule(String),
+    Fact(String, String),
+    Gone(usize),
+}
+
+/// The lines of the answer, at most MAX_NOTES additions; none for NIENTE.
+/// A line without a type is a rule only if it reads as one, else it is dropped.
+fn items_of(text: &str) -> Vec<Item> {
+    let mut out = Vec::new();
+    let mut added = 0;
+    for l in text.lines().map(str::trim) {
+        let l = l.strip_prefix("- ").or_else(|| l.strip_prefix("• ")).unwrap_or(l).trim().trim_matches('"').trim();
+        if l.is_empty() || l.eq_ignore_ascii_case("niente") {
+            continue;
+        }
+        let upper = l.to_uppercase();
+        if let Some(rest) = upper.strip_prefix("SUPERATA") {
+            if let Ok(n) = rest.trim_start_matches([' ', ':']).split(|c: char| !c.is_ascii_digit()).next().unwrap_or("").parse() {
+                out.push(Item::Gone(n));
+            }
+            continue;
+        }
+        if added >= MAX_NOTES {
+            continue;
+        }
+        if let Some(rest) = l.strip_prefix("[[") {
+            if let Some((title, fact)) = rest.split_once("]]") {
+                let fact = fact.trim().trim_start_matches([':', '-', '–']).trim();
+                if !title.trim().is_empty() && fact.chars().count() >= 10 {
+                    out.push(Item::Fact(title.trim().to_string(), fact.to_string()));
+                    added += 1;
+                }
+            }
+            continue;
+        }
+        let rule = l.get(..7).filter(|p| p.eq_ignore_ascii_case("regola:")).map(|_| l.get(7..).unwrap_or("").trim());
+        let rule = rule.or_else(|| crate::memory::general(l).then_some(l));
+        if let Some(r) = rule.filter(|r| r.chars().count() >= 10) {
+            out.push(Item::Rule(r.to_string()));
+            added += 1;
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -125,20 +207,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn notes_from_the_answer() {
-        assert!(notes_of("NIENTE").is_empty());
-        assert_eq!(notes_of("- Talenti: dominio talenti.local\n- Rossi preferisce le offerte in PDF\ntesto\n- uno\n- Quarta nota abbastanza lunga\n- Quinta nota abbastanza lunga"), vec![
-            "Talenti: dominio talenti.local".to_string(),
-            "Rossi preferisce le offerte in PDF".to_string(),
-            "Quarta nota abbastanza lunga".to_string(),
+    fn items_from_the_answer() {
+        assert!(items_of("NIENTE").is_empty());
+        assert_eq!(items_of("- REGOLA: preventivi sempre in PDF con la grafica standard\n- [[Talenti]] dominio talenti.locale sui PC\n- SUPERATA 3\n- testo libero senza tipo\n- [[Rossi]]: corto"), vec![
+            Item::Rule("preventivi sempre in PDF con la grafica standard".into()),
+            Item::Fact("Talenti".into(), "dominio talenti.locale sui PC".into()),
+            Item::Gone(3),
         ]);
+        let many = "- REGOLA: prima regola lunga abbastanza\n- REGOLA: seconda regola lunga abbastanza\n- REGOLA: terza regola lunga abbastanza\n- REGOLA: quarta regola lunga abbastanza\n- SUPERATA: 7";
+        let got = items_of(many);
+        assert_eq!(got.len(), 4);
+        assert_eq!(got.last(), Some(&Item::Gone(7)));
     }
 
     #[test]
     fn the_prompt_has_the_exchange_and_the_notes() {
-        let p = prompt("Qual è il dominio di Talenti?", "talenti.local", &["- 2026-11-01: nota vecchia".to_string()]);
+        let p = prompt("Qual è il dominio di Talenti?", "talenti.local", &["- 2026-11-01: nota vecchia".to_string()], &["Talenti".to_string()]);
         assert!(p.contains("Qual è il dominio di Talenti?"));
-        assert!(p.contains("nota vecchia"));
+        assert!(p.contains("1. 2026-11-01: nota vecchia"));
+        assert!(p.contains("PAGINE ESISTENTI: Talenti"));
         assert!(p.contains("al massimo 3 righe"));
     }
 }

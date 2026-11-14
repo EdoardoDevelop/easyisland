@@ -14,6 +14,7 @@ mod pdf;
 mod antigravity;
 mod agent;
 mod memory_learn;
+mod memory_meaning;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -1737,7 +1738,9 @@ pub(crate) async fn chat_turn(
     };
     // What the memory knows about this question, looked up here with no model
     // (memory::related): often one memory_search step less, at every question.
-    let related = if remember && memory_tools && learns { memory::related(&asked, fresh) } else { None };
+    // «Ricerca per significato» (memory_meaning.rs), when a service is chosen: the closest lines join them.
+    let meaning = if remember && memory_tools && learns { memory_meaning::related(app, &asked).await } else { Vec::new() };
+    let related = if remember && memory_tools && learns { memory::related(&asked, fresh, &meaning) } else { None };
     let query = match &related {
         Some(r) => format!("{r}{query}"),
         None => query,

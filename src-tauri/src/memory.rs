@@ -83,7 +83,7 @@ pub(crate) fn general(note: &str) -> bool {
         "sempre", " mai ", "non deve", "non devono", "non va ", "non vanno", "nessuna va", "nessun riferimento",
         "preferisce", "vuole che", "non vuole", "tiene le sue", "always", "never", "prefers",
     ];
-    RULE.iter().any(|w| l.contains(w))
+    l.contains(": regola: ") || l.starts_with("regola: ") || RULE.iter().any(|w| l.contains(w))
 }
 
 /// The text in front of a new conversation (13 Nov 2026, Edoardo: «cose non
@@ -91,6 +91,9 @@ pub(crate) fn general(note: &str) -> bool {
 /// MAX_INJECT; the others come with each question from `related`, when they
 /// fit it. `tools`: the engine has memory_search and memory_note.
 pub fn preface(tools: bool, learns: bool) -> Option<String> {
+    if !cfg!(test) {
+        expire();
+    }
     let notes: Vec<String> = notes_of(&read_main()).into_iter().filter(|n| general(n)).collect();
     if notes.is_empty() && !tools {
         return None;
@@ -153,6 +156,108 @@ pub fn note(text: &str) -> Result<String, String> {
     let out = format!("{}{}\n", header(), notes.join("\n"));
     write_whole(&main_file(), &out)?;
     Ok(t("Salvato in memoria.").into())
+}
+
+/// Moves notes to archivio.md (memory_learn: a note the newer one corrects or
+/// repeats; memory_ai: a fact now in its page; `expire`: an event gone by).
+pub(crate) fn archive(lines: &[String]) -> Result<usize, String> {
+    if lines.is_empty() {
+        return Ok(0);
+    }
+    let notes = notes_of(&read_main());
+    let gone: Vec<&String> = notes.iter().filter(|n| lines.contains(n)).collect();
+    if gone.is_empty() {
+        return Ok(0);
+    }
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir().join("archivio.md")).map_err(|e| e.to_string())?;
+    for g in &gone {
+        let _ = writeln!(f, "{g}");
+    }
+    let kept: Vec<&str> = notes.iter().filter(|n| !lines.contains(n)).map(String::as_str).collect();
+    write_whole(&main_file(), &format!("{}{}\n", header(), kept.join("\n")))?;
+    Ok(gone.len())
+}
+
+/// The days (as day numbers) a note talks about: «18/11/2026», «18/11» (the
+/// note's year), «2026-11-18» in its text, not the date it was written.
+fn dates_in(note: &str) -> Vec<i64> {
+    let body = note.trim_start_matches("- ");
+    let (written, text) = match body.get(..10).filter(|d| d.as_bytes().get(4) == Some(&b'-')) {
+        Some(d) => (d, body.get(11..).unwrap_or_default()),
+        None => ("", body),
+    };
+    let year: i64 = written.get(..4).and_then(|y| y.parse().ok()).unwrap_or(0);
+    let mut out = Vec::new();
+    let chars: Vec<char> = text.chars().collect();
+    let num = |i: usize, n: usize| -> Option<i64> {
+        let s: String = chars.get(i..i + n)?.iter().collect();
+        s.chars().all(|c| c.is_ascii_digit()).then(|| s.parse().ok())?
+    };
+    let mut i = 0;
+    while i < chars.len() {
+        let before_ok = i == 0 || !chars[i - 1].is_ascii_digit();
+        if before_ok {
+            // 2026-11-18
+            if let (Some(y), Some('-'), Some(m), Some('-'), Some(d)) = (num(i, 4), chars.get(i + 4).copied(), num(i + 5, 2), chars.get(i + 7).copied(), num(i + 8, 2)) {
+                if let Some(n) = crate::brain::day_number(&format!("{y:04}-{m:02}-{d:02}")) {
+                    out.push(n);
+                }
+                i += 10;
+                continue;
+            }
+            // 18/11/2026 or 18/11
+            let d_len = if num(i, 2).is_some() { 2 } else if num(i, 1).is_some() { 1 } else { 0 };
+            if d_len > 0 && chars.get(i + d_len) == Some(&'/') {
+                let m_at = i + d_len + 1;
+                let m_len = if num(m_at, 2).is_some() { 2 } else if num(m_at, 1).is_some() { 1 } else { 0 };
+                if m_len > 0 {
+                    let (d, m) = (num(i, d_len).unwrap_or(0), num(m_at, m_len).unwrap_or(0));
+                    let y_at = m_at + m_len + 1;
+                    let (y, end) = match (chars.get(m_at + m_len), num(y_at, 4)) {
+                        (Some('/'), Some(y)) => (y, y_at + 4),
+                        _ => (year, m_at + m_len),
+                    };
+                    if (1..=31).contains(&d) && (1..=12).contains(&m) && y > 2000 {
+                        if let Some(n) = crate::brain::day_number(&format!("{y:04}-{m:02}-{d:02}")) {
+                            out.push(n);
+                        }
+                    }
+                    i = end;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    out
+}
+
+/// An event planned for a day («intervento previsto mercoledì 18/11»): once
+/// that day is past, the note goes to the archive, still found by memory_search.
+fn expired(note: &str, today: i64) -> bool {
+    const EVENT: &[&str] = &["previst", "intervento", "appuntamento", "scadenz", "entro ", "riunione", "consegna", "da fare", "promemoria", "incontro", "in attesa"];
+    let low = note.to_lowercase();
+    if !EVENT.iter().any(|w| low.contains(w)) || general(note) {
+        return false;
+    }
+    let written = note.trim_start_matches("- ").get(..10).and_then(crate::brain::day_number).unwrap_or(0);
+    let ahead: Vec<i64> = dates_in(note).into_iter().filter(|d| *d > written).collect();
+    !ahead.is_empty() && ahead.iter().all(|d| *d < today)
+}
+
+/// The notes about an event already gone by, to the archive (at most once a day, before a new conversation).
+pub fn expire() {
+    static LAST: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+    let Some(today) = crate::brain::day_number(&stamp().chars().take(10).collect::<String>()) else { return };
+    if LAST.swap(today, std::sync::atomic::Ordering::Relaxed) == today {
+        return;
+    }
+    let gone: Vec<String> = notes_of(&read_main()).into_iter().filter(|n| expired(n, today)).collect();
+    if let Ok(n) = archive(&gone) {
+        if n > 0 {
+            crate::log::line(format!("memoria: {n} note su eventi passati in archivio"));
+        }
+    }
 }
 
 /// The words of a note that carry meaning, lowercase.
@@ -405,7 +510,17 @@ mod tests {
         assert!(preface(true, false).unwrap().contains("grafica standard"));
         note("Il cliente Bianchi ha il NAS Synology in sala server, backup alle 3").unwrap();
         assert!(!preface(true, false).unwrap().contains("Synology"));
-        assert!(related("Che NAS ha il cliente Bianchi?", true).unwrap().contains("Synology"));
+        assert!(related("Che NAS ha il cliente Bianchi?", true, &[]).unwrap().contains("Synology"));
+        assert!(related("Dove salvo le copie?", true, &["- 2026-11-14: backup sul NAS di casa ogni notte alle 3".to_string()]).unwrap().contains("NAS di casa"));
+        // A fact goes to its page (memory_learn), once; a corrected note to the archive.
+        assert!(crate::brain::add_line("Studio Verdi", "- 2026-11-14: il server è un HP ProLiant ML30").unwrap());
+        assert!(!crate::brain::add_line("Studio Verdi", "- 2026-11-15: il server è un HP ProLiant ML30").unwrap());
+        assert!(crate::brain::add_line("studio verdi", "- 2026-11-15: stampante Kyocera al primo piano").unwrap());
+        let page = crate::brain::pages().into_iter().find(|p| p.title == "Studio Verdi").unwrap();
+        assert!(page.body.contains("ProLiant") && page.body.contains("Kyocera"));
+        let synology = notes_of(&read_main()).into_iter().find(|n| n.contains("Synology")).unwrap();
+        assert_eq!(archive(&[synology]).unwrap(), 1);
+        assert!(!read_main().contains("Synology"));
         assert!(search("certificato bianchi", "").unwrap().contains("certbot"));
         assert!(search("rossi", "").unwrap().contains("60 giorni"));
         assert_eq!(search("nessuno qui", "").unwrap(), t("Niente in memoria su questo."));
@@ -457,7 +572,7 @@ pub(crate) fn subject_words(question: &str) -> Vec<String> {
 /// Pages named in the question (title or alias) with their gist, then notes,
 /// archived notes and page lines with two or more of its words. `fresh`: the
 /// general notes are already in front of the conversation (`preface`).
-pub fn related(question: &str, fresh: bool) -> Option<String> {
+pub fn related(question: &str, fresh: bool, meaning: &[String]) -> Option<String> {
     const MAX_LINES: usize = 8;
     const MAX_CHARS: usize = 1_500;
     let low = question.to_lowercase();
@@ -505,6 +620,13 @@ pub fn related(question: &str, fresh: bool) -> Option<String> {
             }
         }
     }
+    // Close in meaning (memory_meaning.rs): in, after what has the words.
+    for l in meaning {
+        let core: String = l.rsplit("- ").next().unwrap_or(l).chars().take(80).collect();
+        if !found.iter().any(|(_, f)| f.contains(&core)) {
+            found.push((1, l.clone()));
+        }
+    }
     if found.is_empty() {
         return None;
     }
@@ -542,6 +664,20 @@ mod related_tests {
     }
 
     #[test]
+    fn events_gone_by() {
+        use super::{dates_in, expired};
+        let day = |d: &str| crate::brain::day_number(d).unwrap();
+        let n = "- 2026-11-12: Jacaroni: mercoledì 18/11/2026 intervento previsto: spostare il PC dello studio 5";
+        assert_eq!(dates_in(n), vec![day("2026-11-18")]);
+        assert!(!expired(n, day("2026-11-18")));
+        assert!(expired(n, day("2026-11-19")));
+        assert_eq!(dates_in("- 2026-11-12: consegna il 3/12 e poi 2026-12-20"), vec![day("2026-12-03"), day("2026-12-20")]);
+        // A fact with a past date only, or no event word: stays.
+        assert!(!expired("- 2026-11-11: Il 09/11/2026 è stato salvato il DDT ED-2026-003", day("2026-12-01")));
+        assert!(!expired("- 2026-11-12: Il PC ha IP 192.168.0.240 dal 20/11", day("2026-12-01")));
+    }
+
+    #[test]
     fn general_notes_are_rules() {
         use super::general;
         assert!(general("- 2026-11-13: Preventivi/offerte Easytech: usare sempre la grafica standard"));
@@ -549,6 +685,7 @@ mod related_tests {
         assert!(general("- 2026-11-10: Edoardo tiene le sue password personali di lavoro in KeePassXC"));
         assert!(!general("- 2026-11-13: Wisp.store è un portale PrestaShop: i prodotti si cercano in JSON"));
         assert!(!general("- 2026-11-12: (Agent Chat) L'installer è sempre nel Vassoio"));
+        assert!(general("- 2026-11-14: regola: i preventivi in PDF"));
     }
 }
 
@@ -559,6 +696,6 @@ mod related_live {
     #[ignore]
     fn related_live() {
         let q = std::env::var("EI_Q").unwrap_or_else(|_| "come configuro il backup del NAS di un cliente?".into());
-        println!("{}", super::related(&q, false).unwrap_or_else(|| "(niente)".into()));
+        println!("{}", super::related(&q, false, &[]).unwrap_or_else(|| "(niente)".into()));
     }
 }

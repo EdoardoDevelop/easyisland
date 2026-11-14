@@ -1975,11 +1975,36 @@ function memoryRow(): HTMLElement {
     settings.memoryEngine = engine.value;
     void save();
   });
+  // «Ricerca per significato» (memory_meaning.rs): off, or a service with /embeddings.
+  const meaning = h("select", {}) as HTMLSelectElement;
+  for (const [id, name] of [["", t("No (solo le parole in comune)")], ["openai", "OpenAI"], ["gemini", "Gemini"], ["openrouter", "OpenRouter"], ["ollama", "Ollama"], ["lmstudio", "LM Studio"]]) {
+    meaning.append(h("option", { value: id, text: name }));
+  }
+  meaning.value = settings.memoryMeaning ?? "";
+  const meaningModel = h("input", { type: "text", spellcheck: "false", style: "width:200px" }) as HTMLInputElement;
+  const MEANING_MODELS: Record<string, string> = { openai: "text-embedding-3-small", gemini: "gemini-embedding-001", openrouter: "openai/text-embedding-3-small", ollama: "nomic-embed-text", lmstudio: "text-embedding-nomic-embed-text-v1.5" };
+  const drawMeaning = () => {
+    meaningModel.style.display = meaning.value ? "" : "none";
+    meaningModel.placeholder = MEANING_MODELS[meaning.value] ?? "";
+  };
+  meaningModel.value = settings.memoryMeaningModel ?? "";
+  drawMeaning();
+  meaning.addEventListener("change", () => {
+    settings.memoryMeaning = meaning.value;
+    drawMeaning();
+    void save();
+  });
+  meaningModel.addEventListener("change", () => {
+    settings.memoryMeaningModel = meaningModel.value.trim();
+    void save();
+  });
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Memoria dopo la risposta") }),
       toggle(settings.chatLearn !== false, (v) => { settings.chatLearn = v; void save(); }),
       h("span", { class: "hint note", text: t("EasyIsland manda la domanda e la risposta, senza il resto della conversazione, a un modello leggero (Haiku con l'abbonamento, o il Motore per la memoria qui sotto) e annota ciò che vale per le prossime volte. La chat non spende passi per ricordare: scrive in memoria solo se glielo chiedi") })),
+    h("div", { class: "row" }, h("label", { text: t("Ricerca per significato") }), meaning, meaningModel,
+      h("span", { class: "hint note", text: t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («computer» trova una nota sul «PC»): ogni riga diventa una volta un vettore con il servizio scelto (chiave o indirizzo come per la chat) e prima di ogni domanda arrivano le più vicine. Serve con una memoria grande. Con OpenAI, Gemini o OpenRouter le righe della memoria escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)") })),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
       h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }

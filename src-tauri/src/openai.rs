@@ -194,7 +194,7 @@ fn client() -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
-fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
+pub(crate) fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
     let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     let Some(key_name) = p.key else { return Ok(request) };
     let key = secrets::get(key_name).ok_or_else(|| tf("Manca la chiave di {name}. Apri le impostazioni.", &[("name", &p.name)]))?;
