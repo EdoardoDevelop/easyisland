@@ -735,12 +735,25 @@ export function buildPrompt(
   recent.style.display = "none";
   let recentRead = 0;
   let recentBusy = false;
-  /** The recent conversations sit above the field and, when shown, the tips row. */
+  function placeMenuAboveComposer(panel: HTMLElement) {
+    const parent = panel.offsetParent as HTMLElement | null;
+    if (!parent || composer.offsetWidth <= 0) return;
+    panel.style.left = `${composer.offsetLeft}px`;
+    panel.style.right = "auto";
+    panel.style.width = `${composer.offsetWidth}px`;
+    panel.style.bottom = `${Math.max(58, parent.clientHeight - composer.offsetTop + 6)}px`;
+  }
+  /** The recent conversations sit above the composer and, when shown, the tips row. */
   function placeRecent() {
+    const body = recent.offsetParent as HTMLElement | null;
+    const base = body && composer.offsetWidth > 0 ? Math.max(0, body.clientHeight - composer.offsetTop) : composer.offsetHeight + 16;
     const tips = tipsRow.style.display !== "none" ? tipsRow.offsetHeight + 8 : 0;
-    recent.style.bottom = `${composer.offsetHeight + 32 + tips}px`;
+    recent.style.bottom = `${base + 14 + tips}px`;
+    if (slashMenu.style.display !== "none") placeMenuAboveComposer(slashMenu);
+    if (helpPanel.style.display !== "none") placeMenuAboveComposer(helpPanel);
   }
   function showRecent(on: boolean) {
+    recent.classList.toggle("under-menu", slashItems.length > 0 || helpPanel.style.display !== "none");
     if (!on || State.settings.chatHistory === false) {
       if (recent.style.display !== "none") recent.style.display = "none";
       recent.parentElement?.classList.remove("has-recent");
@@ -754,13 +767,23 @@ export function buildPrompt(
     void loadHistory("").then((list) => {
       recentRead = Date.now();
       const top = list.filter((c) => c.turns > 0 && c.id !== State.chat.logId).sort((a, b) => b.updated - a.updated).slice(0, 3);
-      recent.replaceChildren(...top.map((c) =>
-        h("button", { class: "chat-recent-item", title: c.title, onclick: () => void reopen(c.id) },
-          h("span", { class: "chat-recent-title", text: shortTitle(c.title) }),
-          h("span", { class: "chat-recent-when", text: when(c.updated) }))));
+      recent.replaceChildren(
+        ...(top.length
+          ? [
+              h("div", { class: "chat-recent-head", text: t("Riprendi") }),
+              ...top.map((c) =>
+                h("button", { class: "chat-recent-item", onclick: () => void reopen(c.id) },
+                  h("span", { class: "chat-recent-ico", "aria-hidden": "true" }, svg(ICONS.history, 13, { stroke: 1.9 })),
+                  h("span", { class: "chat-recent-title", text: shortTitle(c.title) }),
+                  h("span", { class: "chat-recent-when", text: when(c.updated) }),
+                  h("span", { class: "chat-recent-go", "aria-hidden": "true" }, svg(ICONS.chevronRight, 11, { stroke: 2 })))),
+            ]
+          : []),
+      );
       const shown = top.length > 0 && !State.chatHistory.length;
       recent.style.display = shown ? "" : "none";
       recent.parentElement?.classList.toggle("has-recent", shown);
+      if (shown) placeRecent();
     }).finally(() => { recentBusy = false; });
   }
   const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
@@ -959,6 +982,7 @@ export function buildPrompt(
   function toggleHelp(open = helpPanel.style.display === "none") {
     if (!open) {
       helpPanel.style.display = "none";
+      recent.classList.toggle("under-menu", slashItems.length > 0);
       onHeightChange();
       return;
     }
@@ -976,13 +1000,11 @@ export function buildPrompt(
       }
     }
     helpPanel.append(h("div", { class: "engine-note", text: t("Scrivi «/» per i comandi, come /portali e /impara-portale. La guida completa: «Guida» in fondo alle Impostazioni.") }));
-    // Over the field and as wide as it (it is narrower than the island when wide).
-    helpPanel.style.left = `${bar.offsetLeft}px`;
-    helpPanel.style.right = "auto";
-    helpPanel.style.width = `${bar.offsetWidth}px`;
-    helpPanel.style.bottom = `${(bar.offsetParent as HTMLElement | null)?.clientHeight ? (bar.offsetParent as HTMLElement).clientHeight - bar.offsetTop + 8 : bar.offsetHeight + 16}px`;
+    // Over the entire composer (context bar + field) and matching its width.
     helpPanel.style.display = "";
+    placeMenuAboveComposer(helpPanel);
     tipsRow.style.display = "none";
+    recent.classList.add("under-menu");
     placeRecent();
     onHeightChange();
   }
@@ -1972,10 +1994,13 @@ export function buildPrompt(
       slashMenu.append(row);
     });
     const show = slashItems.length > 0;
-    if ((slashMenu.style.display !== "none") !== show) {
+    const wasShown = slashMenu.style.display !== "none";
+    if (wasShown !== show) {
       slashMenu.style.display = show ? "" : "none";
       onHeightChange();
     }
+    if (show) placeMenuAboveComposer(slashMenu);
+    recent.classList.toggle("under-menu", show || helpPanel.style.display !== "none");
   }
 
   function pickSlash(i: number) {

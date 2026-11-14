@@ -446,32 +446,72 @@ html[data-chat-look="cards"] .chat-card .chat-empty {
   pointer-events: none;
 }
 /* Under the picture: the last three conversations, to pick up again. */
-html[data-chat-look="cards"] .chat-card .chat-body.has-recent .chat-empty { height: calc(100% - 48px - 112px - 120px); }
+html[data-chat-look="cards"] .chat-card .chat-body.has-recent .chat-empty { height: calc(100% - 48px - 112px - 150px); }
 html[data-chat-look="cards"] .chat-card .chat-recent {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
-  width: min(360px, calc(100% - 2 * var(--cc-s5)));
+  width: min(460px, calc(100% - 2 * var(--cc-s5)));
   display: flex;
   flex-direction: column;
-  gap: var(--cc-s1);
+  gap: 5px;
+  transition: opacity 0.14s ease;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent.under-menu {
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-head {
+  padding: 0 4px 2px;
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cc-faint);
 }
 html[data-chat-look="cards"] .chat-card .chat-recent-item {
   display: flex;
-  align-items: baseline;
-  gap: var(--cc-s3);
-  padding: 6px var(--cc-s3);
-  border: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 8px var(--cc-s3);
+  border: 1px solid var(--cc-line);
   border-radius: var(--cc-r-item);
-  background: var(--cc-soft);
+  background: color-mix(in srgb, var(--cc-soft) 80%, transparent);
   font: 400 var(--cc-t-ui) var(--font);
   color: var(--cc-reply);
   text-align: left;
   cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s, transform 0.14s;
 }
-html[data-chat-look="cards"] .chat-card .chat-recent-item:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover {
+  background: var(--cc-hover);
+  border-color: var(--cc-bar-focus);
+  color: var(--cc-ink);
+  transform: translateY(-1px);
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-ico {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  color: var(--cc-faint);
+  transition: color 0.14s;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover .chat-recent-ico { color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .chat-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html[data-chat-look="cards"] .chat-card .chat-recent-when { flex: none; font-size: var(--cc-t-small); color: var(--cc-faint); font-variant-numeric: tabular-nums; }
+html[data-chat-look="cards"] .chat-card .chat-recent-go {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  color: var(--cc-faint);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 0.14s, transform 0.14s, color 0.14s;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover .chat-recent-go {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--cc-ink);
+}
 /* «Vai in fondo»: a drawn arrow, centred. */
 html[data-chat-look="cards"] .chat-card .chat-jump { display: grid; place-items: center; }

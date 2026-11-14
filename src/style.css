@@ -1634,11 +1634,11 @@ input[type="range"]::-webkit-slider-thumb {
 /* "/" in the field: the commands, over it. */
 .slash-menu {
   position: absolute;
-  z-index: 3;
+  z-index: 5;
   left: max(16px, calc(84px * var(--bot-room, 1)));
   right: 16px;
   bottom: 58px;
-  max-height: 60%;
+  max-height: 55%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1698,6 +1698,52 @@ input[type="range"]::-webkit-slider-thumb {
   letter-spacing: 0.02em;
   color: var(--dim-2);
 }
+
+/* Recent conversations above the composer on an empty chat. */
+.chat-recent {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: min(460px, calc(100% - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: opacity 0.14s ease;
+}
+.chat-recent.under-menu { opacity: 0; pointer-events: none; }
+.chat-recent-head {
+  padding: 0 4px 2px;
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+}
+.chat-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  font: 400 calc(12px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s, transform 0.14s;
+}
+.chat-recent-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.chat-recent-ico, .chat-recent-go { flex: 0 0 auto; display: inline-grid; place-items: center; color: var(--dim-3); }
+.chat-recent-go { opacity: 0; transform: translateX(-3px); transition: opacity 0.14s, transform 0.14s; }
+.chat-recent-item:hover .chat-recent-go { opacity: 1; transform: translateX(0); color: var(--ink); }
+.chat-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-recent-when { flex: none; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-3); font-variant-numeric: tabular-nums; }
 
 /* A line over the field: editing a question, a note saved, an error. */
 .chat-hint {
