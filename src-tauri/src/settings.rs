@@ -1037,6 +1037,10 @@ pub struct Settings {
     /// answers as text instead of re-reading every step (lib.rs `light_restart`).
     #[serde(default = "default_true")]
     pub chat_light: bool,
+    /// «Risposte dirette» (14 Nov 2026): a question a recipe answers for sure
+    /// with one read gets it from EasyIsland, no engine (router.rs).
+    #[serde(default = "default_true")]
+    pub chat_direct: bool,
     /// The memory written by EasyIsland after the answer, with a light model,
     /// instead of memory_note steps in the middle of the work (memory_learn.rs).
     #[serde(default = "default_true")]
@@ -1345,6 +1349,7 @@ impl Default for Settings {
             chat_empty_art: default_chat_empty_art(),
             chat_tips: true,
             chat_light: true,
+            chat_direct: true,
             chat_learn: true,
             preview_docked: false,
             preview_width: 0.0,

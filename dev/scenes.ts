@@ -188,7 +188,11 @@ export async function runScene(island: Island, scene: string) {
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
         if (pensa === "fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", usage: { steps: 4, read: 61200, out: 900, peak: 16800, tools: [["Read", 1], ["Bash", 1], ["memory_search", 1]], light: 74000 }, content: "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`\n\n> ⚙ Cerca nella memoria · `NAS Rossi`\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB." });
-        State.chat.sending = pensa !== "fine";
+        // =diretta: answered by the smistatore with no engine (router.rs), «Chiedi al motore» under it.
+        if (pensa === "diretta") {
+          State.chatHistory = [{ id: 1, role: "user", content: "Stato del computer" }, { id: 2, role: "assistant", engine: "subscription", direct: true, content: "- **Stato del PC** · livello: ok · riassunto: CPU 12 %, RAM 41 %\n- **Rete** · livello: ok · riassunto: Online, 18 ms\n- **Meteo** · riassunto: 14 °C, sereno\n\n⚡ Risposta diretta di EasyIsland, senza motore: come per «come sta il computer». Per la risposta del motore riscrivi la domanda." }];
+        }
+        State.chat.sending = pensa !== "fine" && pensa !== "diretta";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
         if (pensa.startsWith("squadra")) {

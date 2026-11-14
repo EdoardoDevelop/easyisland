@@ -30,6 +30,13 @@ pub struct Recipe {
     pub steps: Vec<String>,
     pub uses: u32,
     pub at: i64,
+    /// Turns in a row that called exactly these steps, values too: from 2 the
+    /// smistatore (router.rs) may run it without an engine.
+    #[serde(default)]
+    pub same: u32,
+    /// The user asked the engine after a direct answer: never direct again.
+    #[serde(default)]
+    pub direct_off: bool,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -104,22 +111,34 @@ pub fn saw(tool: &str, args: &Value, ok: bool) {
 }
 
 /// The turn is over: when it went well and ran alone, what it did is kept.
-pub fn end(mark: Mark, question: &str, ok: bool) {
+/// Returns the tools it called, for the turn log (router.rs). `prepared`: the
+/// steps the smistatore read before the engine (router::prepare), which count
+/// as called: the engine no longer needs to, and the recipe must still learn
+/// that they stay the same.
+pub fn end(mark: Mark, question: &str, ok: bool, prepared: &[String]) -> Vec<String> {
     let calls: Vec<(String, Value)> = {
         let mut c = CALLS.lock().unwrap();
-        let mine = c.iter().filter(|(s, _, _)| *s > mark.seq).map(|(_, t, a)| (t.clone(), a.clone())).collect();
+        let mut mine: Vec<(String, Value)> = prepared.iter()
+            .filter_map(|s| {
+                let (tool, args) = s.split_once(' ').unwrap_or((s.as_str(), "{}"));
+                serde_json::from_str::<Value>(args).ok().map(|a| (tool.to_string(), a))
+            })
+            .collect();
+        mine.extend(c.iter().filter(|(s, _, _)| *s > mark.seq).map(|(_, t, a)| (t.clone(), a.clone())));
         if ACTIVE.fetch_sub(1, Ordering::SeqCst) == 1 {
             c.clear();
         }
         mine
     };
     let alone = mark.alone && STARTS.load(Ordering::SeqCst) == mark.starts;
+    let names: Vec<String> = if alone { calls.iter().map(|(t, _)| t.clone()).collect() } else { Vec::new() };
     if !ok || !alone {
-        return;
+        return names;
     }
     if let Some(steps) = steps_of(&calls) {
         learn(question, steps);
     }
+    names
 }
 
 /// Looking around (the map, a search, reading a page) is how a turn finds
@@ -208,11 +227,12 @@ fn learn(question: &str, steps: Vec<String>) {
                 r.words.drain(..extra);
             }
             r.question = short;
+            r.same = if r.steps == steps { r.same.max(1) + 1 } else { 1 };
             r.steps = steps;
             r.uses += 1;
             r.at = now();
         } else {
-            b.recipes.push(Recipe { question: short, words, steps, uses: 1, at: now() });
+            b.recipes.push(Recipe { question: short, words, steps, uses: 1, at: now(), same: 1, direct_off: false });
             if b.recipes.len() > MAX_RECIPES {
                 // The least used, then the oldest, goes.
                 if let Some(i) = b.recipes.iter().enumerate().min_by_key(|(_, r)| (r.uses, r.at)).map(|(i, _)| i) {
@@ -261,9 +281,63 @@ pub fn hint(question: &str) -> Option<String> {
     Some(s)
 }
 
+/// The recipe a question can be answered with, without an engine (router.rs):
+/// one step, the same values at least twice in a row, and every meaningful
+/// word of the question already seen with it (so «novembre» never gets
+/// October's rows).
+pub fn sure(question: &str) -> Option<Recipe> {
+    let q = stems(bare(question));
+    if q.is_empty() {
+        return None;
+    }
+    with_book(|b| {
+        b.recipes.iter()
+            .filter(|r| r.same >= 2 && !r.direct_off && r.steps.len() == 1 && q.iter().all(|w| r.words.contains(w)))
+            .max_by_key(|r| (r.uses, r.at))
+            .cloned()
+    })
+}
+
+/// The recipes that fit a question (as `hint`), the best first.
+pub fn fitting(question: &str) -> Vec<Recipe> {
+    let q = stems(bare(question));
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let mut found: Vec<(usize, Recipe)> = with_book(|b| b.recipes.iter().map(|r| (score(&q, r), r.clone())).filter(|(s, _)| *s > 0).collect());
+    found.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.uses.cmp(&a.1.uses)));
+    found.into_iter().take(2).map(|(_, r)| r).collect()
+}
+
+/// The user wanted the engine after a direct answer from this recipe.
+pub fn no_direct(steps: &[String]) {
+    with_book(|b| {
+        if let Some(r) = b.recipes.iter_mut().find(|r| r.steps == steps) {
+            r.direct_off = true;
+            save(b);
+        }
+    });
+}
+
+/// Same words for the turn log: did the user ask the same thing again?
+pub fn same_question(a: &str, b: &str) -> bool {
+    let (x, y) = (stems(bare(a)), stems(bare(b)));
+    !x.is_empty() && x.len() == y.len() && x.iter().all(|w| y.contains(w))
+}
+
+/// The question without what rides in front of it, for the turn log.
+pub fn bare_question(question: &str) -> String {
+    bare(question).to_string()
+}
+
 /// A hint as the chat would get it after a month question (claude_cli's live test).
+/// Tests that use the real book, one at a time.
+#[cfg(test)]
+static TEST_BOOK: Mutex<()> = Mutex::new(());
+
 #[cfg(test)]
 pub fn sample_hint() -> String {
+    let _one = TEST_BOOK.lock().unwrap_or_else(|e| e.into_inner());
     let before = with_book(|b| std::mem::take(&mut b.recipes));
     learn("Quanto ho speso a settembre?", vec![r#"notion_query {"database":"Movimenti","filter":{"and":[{"property":"Data","date":{"on_or_after":"2026-09-01"}},{"property":"Data","date":{"on_or_before":"2026-09-30"}}]},"limit":200}"#.into()]);
     let h = hint("Quanto ho speso a ottobre?").unwrap();
@@ -293,7 +367,7 @@ mod tests {
     use serde_json::json;
 
     fn recipe(q: &str, steps: &[&str]) -> Recipe {
-        Recipe { question: q.into(), words: stems(q), steps: steps.iter().map(|s| s.to_string()).collect(), uses: 1, at: 0 }
+        Recipe { question: q.into(), words: stems(q), steps: steps.iter().map(|s| s.to_string()).collect(), uses: 1, at: 0, same: 1, direct_off: false }
     }
 
     #[test]
@@ -337,18 +411,19 @@ mod tests {
 
     #[test]
     fn turns_learn_alone_and_only_when_they_went_well() {
+        let _one = TEST_BOOK.lock().unwrap_or_else(|e| e.into_inner());
         // Uses the real book: keep it apart.
         let before = with_book(|b| std::mem::take(&mut b.recipes));
         let m = begin();
         saw("notion_query", &json!({ "database": "Movimenti", "filter": { "x": 1 } }), true);
         saw("notion_add_row", &json!({}), false);
-        end(m, "[nota]\nQuanto ho speso in benzina questo mese", true);
+        end(m, "[nota]\nQuanto ho speso in benzina questo mese", true, &[]);
         let n1 = with_book(|b| b.recipes.len());
         let a = begin();
         let b2 = begin();
         saw("list_status", &json!({}), true);
-        end(b2, "che tempo fa a Roma oggi", true);
-        end(a, "che tempo fa a Milano oggi", true);
+        end(b2, "che tempo fa a Roma oggi", true, &[]);
+        end(a, "che tempo fa a Milano oggi", true, &[]);
         let n2 = with_book(|b| b.recipes.len());
         let hint = hint("quanto ho speso in benzina a settembre");
         with_book(|b| b.recipes = before);
@@ -357,5 +432,36 @@ mod tests {
         let hint = hint.expect("a hint");
         assert!(hint.contains("«Quanto ho speso in benzina questo mese» → notion_query"), "{hint}");
         assert!(!hint.contains("notion_add_row"));
+    }
+
+    #[test]
+    fn sure_only_after_the_same_steps_twice_and_known_words() {
+        let _one = TEST_BOOK.lock().unwrap_or_else(|e| e.into_inner());
+        let before = with_book(|b| std::mem::take(&mut b.recipes));
+        learn("stato del computer oggi", vec!["list_status {}".into()]);
+        let once = sure("stato del computer oggi").is_some();
+        learn("stato del computer", vec!["list_status {}".into()]);
+        let twice = sure("stato computer").map(|r| r.steps);
+        let new_word = sure("stato computer di Rossi").is_some();
+        learn("spese di ottobre", vec![r#"notion_query {"database":"Movimenti","m":10}"#.into()]);
+        learn("spese di settembre", vec![r#"notion_query {"database":"Movimenti","m":9}"#.into()]);
+        let changing = sure("spese di ottobre").is_some();
+        no_direct(&["list_status {}".to_string()]);
+        let refused = sure("stato del computer").is_some();
+        // A step read before the engine counts as called by it.
+        let m = begin();
+        end(m, "azioni rapide", true, &[r#"list_quick_actions {}"#.to_string()]);
+        let m = begin();
+        end(m, "azioni rapide", true, &[r#"list_quick_actions {}"#.to_string()]);
+        let prepared = sure("azioni rapide").map(|r| r.same);
+        with_book(|b| b.recipes = before);
+        assert!(!once, "one turn is not enough");
+        assert_eq!(twice, Some(vec!["list_status {}".to_string()]));
+        assert!(!new_word, "a word never seen with it");
+        assert!(!changing, "values that change need the engine");
+        assert!(!refused);
+        assert_eq!(prepared, Some(2));
+        assert!(same_question("[x]\n\nStato del computer?", "stato del computer"));
+        assert!(!same_question("stato del computer", "stato del computer di Rossi"));
     }
 }

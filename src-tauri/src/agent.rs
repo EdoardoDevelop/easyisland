@@ -39,6 +39,18 @@ pub async fn call(app: &AppHandle, tool: &str, args: &Value) -> Value {
     }
 }
 
+/// A read for the smistatore (router.rs): only its own list of tools, and not
+/// seen by the recipes (the engine did not call it).
+pub(crate) async fn read(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String> {
+    if !crate::router::READS.contains(&tool) {
+        return Err(format!("{tool}: non è una lettura"));
+    }
+    let start = std::time::Instant::now();
+    let out = run(app, tool, args).await;
+    crate::log::line(format!("smistatore {tool} {} ms{}", start.elapsed().as_millis(), if out.is_err() { ", errore" } else { "" }));
+    out
+}
+
 fn arg<'a>(args: &'a Value, key: &str) -> &'a str {
     args.get(key).and_then(Value::as_str).unwrap_or_default().trim()
 }

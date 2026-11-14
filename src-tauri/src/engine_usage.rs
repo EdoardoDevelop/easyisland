@@ -119,10 +119,17 @@ fn log_path() -> std::path::PathBuf {
 
 /// One model call of `engine` in EasyIsland: its tokens (and cost, when the
 /// service says). `estimated`: counted from the characters (chars / 4).
+/// Tokens recorded since EasyIsland started, read and written: the turn log
+/// (router.rs) takes the difference over a turn.
+pub static TOTAL_IN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static TOTAL_OUT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 pub fn record(engine: &str, model: &str, input: u64, output: u64, cost: Option<f64>, estimated: bool) {
     if input + output == 0 {
         return;
     }
+    TOTAL_IN.fetch_add(input, std::sync::atomic::Ordering::Relaxed);
+    TOTAL_OUT.fetch_add(output, std::sync::atomic::Ordering::Relaxed);
     let path = log_path();
     if std::fs::metadata(&path).is_ok_and(|m| m.len() > LOG_MAX) {
         if let Ok(text) = std::fs::read_to_string(&path) {

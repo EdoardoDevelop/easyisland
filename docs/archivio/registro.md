@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13/11 — Domande con le scelte nella chat (ramo `claude/domande`)
+Edoardo: la card delle domande come Claude Desktop. Claude Code in `-p` offre `AskUserQuestion`/`ExitPlanMode` solo con `--permission-prompt-tool stdio`: ora i processi tenuti lo usano e EasyIsland risponde sul canale di controllo con la card nella conversazione (domande e piano). Provato con un processo vero via driver e nell'anteprima (`?scene=domanda`); da provare nell'app, anche Piano e Telegram. `docs/chat.md` → Domande e piano.
+
 ### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
 Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
 

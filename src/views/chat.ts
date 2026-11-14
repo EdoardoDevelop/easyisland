@@ -1033,7 +1033,8 @@ export function buildPrompt(
         flash(t("La conversazione pesa {n} token e ogni passo li rilegge tutti: clic sull'indicatore del contesto (o /compatta) per riassumerla, o «Nuovo» se cambi argomento.", { n: Math.round((c.context?.[0] ?? 0) / 1000) + "k" }), true);
       }
       const usage = (reply as { usage?: TurnUsage | null }).usage ?? undefined;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage });
+      const direct = (reply as { direct?: boolean }).direct === true;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1462,7 +1463,10 @@ export function buildPrompt(
         bar.append(h("button", { class: "msg-act", title: t("Riporta i file cambiati da questa domanda in poi com'erano prima (come in Claude Desktop); la conversazione resta"), text: `⟲ ${t("File")}`, onclick: () => void restoreFiles(index) }));
       }
     }
-    if (own && last && m.role === "assistant" && !m.reviewer) {
+    if (own && last && m.role === "assistant" && m.direct) {
+      // The same question again goes to the engine, and that recipe stops answering by itself (router.rs).
+      bar.append(h("button", { class: "msg-act", title: t("EasyIsland ha risposto da solo con i dati delle domande simili: chiedi al motore, e per questo tipo di domanda risponderà sempre il motore"), text: `⚡ ${t("Chiedi al motore")}`, onclick: () => void regenerate() }));
+    } else if (own && last && m.role === "assistant" && !m.reviewer) {
       bar.append(h("button", { class: "msg-act", text: `↻ ${t("Rigenera")}`, onclick: () => void regenerate() }));
     }
     if (own && m.role === "assistant" && !last) {

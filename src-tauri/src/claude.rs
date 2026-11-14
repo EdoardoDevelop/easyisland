@@ -416,6 +416,10 @@ impl Chat {
         *self.usage.lock().unwrap() = usage;
     }
 
+    pub(crate) fn peek_usage(&self) -> Option<TurnUsage> {
+        self.usage.lock().unwrap().clone()
+    }
+
     pub(crate) fn take_usage(&self) -> Option<TurnUsage> {
         self.usage.lock().unwrap().take()
     }

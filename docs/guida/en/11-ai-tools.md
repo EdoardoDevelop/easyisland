@@ -63,6 +63,9 @@ EasyIsland does by itself the work there is no need for the AI to do, so with th
 ## Recipes: it learns by use
 After a successful answer, EasyIsland remembers **which tools** were needed for that kind of question. On a similar question the chat goes straight to the right tools: faster and with fewer tokens. In **Settings → Chat → Recipes** you see how many there are and forget them with one click.
 
+## Direct answers, with no engine
+When a question is always solved with the same read (the PC's status, your quick actions, a Notion table) and you have asked it at least twice, EasyIsland answers by itself: at once and with no tokens, with «⚡ Direct answer» under it. For the engine's answer press **⚡ Ask the engine** or write the question again: from then on that kind of question always goes to the engine. For other similar questions EasyIsland reads that data first and hands it to the engine, which takes one step less. In **Settings → Chat** you turn **Direct answers** off, and the **Turn log** shows how many direct answers it gave and how many tokens it saved.
+
 ## Terminal mode
 **Settings → Chat → Terminal mode**, together with the **working folder**: the chat works like Claude Code or opencode in a terminal.
 - **Claude Code** uses your tools, MCP servers, plugins, `CLAUDE.md`, skills, permission rules and hooks, in the chosen folder. Every permission question reaches the island.

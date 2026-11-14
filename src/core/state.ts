@@ -524,6 +524,8 @@ export interface ChatMessage {
   file?: string;
   /** What the turn cost (Claude Code): shown small under the answer. */
   usage?: TurnUsage;
+  /** Answered by EasyIsland with no engine (router.rs): «Chiedi al motore» under it. */
+  direct?: boolean;
 }
 
 /** One turn of Claude Code, as claude_cli::finish measures it (claude.rs TurnUsage). */
@@ -880,6 +882,8 @@ export interface Settings {
   chatTips?: boolean;
   /** «Ripresa leggera» (lib.rs light_restart); off only when false. */
   chatLight?: boolean;
+  /** «Risposte dirette» (router.rs): on unless false. */
+  chatDirect?: boolean;
   /** The memory written by EasyIsland after the answer (memory_learn.rs); off only when false. */
   chatLearn?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */

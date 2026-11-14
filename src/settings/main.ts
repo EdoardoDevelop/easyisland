@@ -486,6 +486,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
     recipesRow(),
+    routerRow(),
     portalsRow(),
     connectorsBlock(),
   );
@@ -2023,6 +2024,30 @@ function recipesRow(): HTMLElement {
   });
   void Bridge.recipesCount().then(show);
   return h("div", { class: "row" }, h("label", { text: t("Ricette") }), line, forget);
+}
+
+/** Chat → "Smistatore": direct answers and the turn log (router.rs). */
+function routerRow(): HTMLElement {
+  const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const forget = h("button", { text: t("Azzera") }) as HTMLButtonElement;
+  const show = (s: { turns: number; direct: number; prepared: number; saved: number } | null) => {
+    const n = s?.turns ?? 0;
+    const k = (x: number) => (x >= 1000 ? `${Math.round(x / 1000)}k` : String(x));
+    line.textContent = n
+      ? t("{n} turni registrati: {d} risposte dirette senza motore (circa {s} token risparmiati), {p} con i dati letti prima", { n, d: s?.direct ?? 0, s: k(s?.saved ?? 0), p: s?.prepared ?? 0 })
+      : t("Nessun turno registrato ancora");
+    forget.disabled = !n;
+  };
+  forget.addEventListener("click", async () => {
+    await Bridge.routerForget();
+    show(await Bridge.routerStats());
+  });
+  void Bridge.routerStats().then(show);
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row" }, h("label", { text: t("Risposte dirette") }),
+      toggle(settings.chatDirect !== false, (v) => { settings.chatDirect = v; void save(); }),
+      h("span", { class: "hint note", text: t("Alle domande che le ricette risolvono sempre con la stessa lettura (stato del PC, azioni rapide, una tabella di Notion) risponde EasyIsland da solo, subito e senza token. «Chiedi al motore» sotto la risposta, o la stessa domanda riscritta, passa al motore e per quel tipo di domanda non risponde più da solo. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che risparmia un passo") })),
+    h("div", { class: "row" }, h("label", { text: t("Registro dei turni") }), line, forget));
 }
 
 /** Chat → "Portali": the suppliers' portals taught in the chat (portals.rs), never in the code. */

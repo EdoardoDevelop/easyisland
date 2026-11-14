@@ -5,6 +5,7 @@ _11 novembre 2026. **1.0.43** in `main` (tag `v1.0.43`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Smistatore** (14/11, ramo `claude/smistatore`): `docs/chat.md` → Smistatore. Da provare nell'app: una domanda ripetuta (stato del PC, azioni rapide) che dopo due turni uguali risponde da sola, «Chiedi al motore», i numeri in Impostazioni → Chat. Tappa 3 in `docs/idee.md`.
 - [ ] **VLAN ID in Modifica rete…** (13/11, ramo `claude/domande`): `docs/integrazioni.md` → Rete. Da provare l'applicazione vera da amministratore su una scheda con VLAN (e il ritorno a 0).
 - [ ] **Domande con le scelte nella chat** (13/11, ramo `claude/domande`): `docs/chat.md` → Domande e piano. Provate con un processo vero di Claude Code (driver) e nell'anteprima; da provare nell'app: domanda dall'isola, «Altro…», «Non ora», Ferma con la card aperta, Piano con «Procedi», un permesso normale non risposto (deve restare negato).
 - [ ] **Browser e portali dei fornitori** (12/11, in `main` dalla 1.0.45): `docs/chat.md` → Anteprima e Portali dei fornitori. Provati solo con test e con gli script sulle pagine vere (estrazione, blocco del carrello, modulo di accesso); da provare nell'app (`docs/prove-dal-vivo.md`). Seguiti in `docs/idee.md`.
@@ -55,6 +56,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 14/11 — Smistatore: registro dei turni, risposte dirette, dati letti prima (ramo `claude/smistatore`, da `claude/consumo`)
+Edoardo: niente LLM integrato che si allena da solo; tappe 1, 2 e 4 dello smistatore che impara con le Ricette (`router.rs`). Registro cifrato dei turni; domande che una ricetta risolve sempre con la stessa lettura risposte senza motore, «⚡ Chiedi al motore» le rimanda; altrimenti le letture fisse della ricetta fatte prima del motore. Test e anteprima (`?scene=chat&pensa=diretta`); da provare nell'app dopo qualche giorno di ricette. `docs/chat.md` → Smistatore.
+
 ### 14/11 — Memoria più pulita e ricerca per significato (ramo `claude/consumo`)
 Edoardo: «fai tutti e 5». Dopo la risposta: REGOLA → note, [[Pagina]] → pagina, SUPERATA n → archivio, niente dettagli del momento né lavoro su EasyIsland; il riordino sposta in archivio le note copiate nella loro pagina; note su eventi con data passata in archivio; ricerca per significato facoltativa (`memory_meaning.rs`, provata con OpenRouter). Da provare nell'app sul portatile (memoria piena). Poi: Mappa concettuale, le pagine senza relazioni (create dal riordino del 14/11 alle 7) si agganciano alle pagine che nominano, tratteggiate; nomi di file riservati (`com1.md`…) rinominati; test con `USERPROFILE` serializzati (`ENV_LOCK`). `docs/chat.md` → Memoria.
 
@@ -66,6 +70,3 @@ Edoardo: in Turbo l'isola chiedeva Consenti/Nega su ogni comando e Antigravity a
 
 ### 13/11 — VLAN ID in «Modifica rete…» (ramo `claude/domande`)
 Edoardo: poter cambiare anche la VLAN. Campo VLAN ID per le schede il cui driver la prevede (`netconfig.rs` `network_vlan`), applicata per ultima con la stessa conferma di Windows; avviso della breve disconnessione. Lettura provata qui (Ethernet `RegVlanid`), comando provato con `-WhatIf`; da provare l'applicazione vera. `docs/integrazioni.md` → Rete.
-
-### 13/11 — Domande con le scelte nella chat (ramo `claude/domande`)
-Edoardo: la card delle domande come Claude Desktop. Claude Code in `-p` offre `AskUserQuestion`/`ExitPlanMode` solo con `--permission-prompt-tool stdio`: ora i processi tenuti lo usano e EasyIsland risponde sul canale di controllo con la card nella conversazione (domande e piano). Provato con un processo vero via driver e nell'anteprima (`?scene=domanda`); da provare nell'app, anche Piano e Telegram. `docs/chat.md` → Domande e piano.

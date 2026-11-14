@@ -203,3 +203,6 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 ## Pulizia del codice (solo quando si tocca quel file)
 - `mmss` duplicato in `src/views/integrations.ts` (secondi) e `src/views/threecx.ts` (ms); «Copiato ✓» ripetuto in più viste.
 - File lunghi: `src/settings/main.ts`, `src/island/island.ts`, `src/character/engine.ts`, `src-tauri/src/lib.rs`.
+
+## Smistatore: scelta del motore (14/11)
+Tappe 1, 2 e 4 fatte (`docs/chat.md` → Smistatore). Tappa 3: dal registro dei turni, un modello economico per le domande simili a quelle risolte bene con pochi passi e Claude per le altre; una riga in chat «risposto da …, perché simile a …», sempre cambiabile, e ogni cambio diventa un esempio. Prima servono settimane di registro.

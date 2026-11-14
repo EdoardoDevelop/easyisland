@@ -63,6 +63,9 @@ EasyIsland fa da sola il lavoro che non serve far fare all'IA, così con l'abbon
 ## Ricette: impara con l'uso
 Dopo una risposta riuscita, EasyIsland ricorda **quali strumenti** sono serviti per quel tipo di domanda. Alla domanda simile la chat va dritta agli strumenti giusti: più veloce e con meno token. In **Impostazioni → Chat → Ricette** vedi quante sono e le dimentichi con un clic.
 
+## Risposte dirette, senza motore
+Quando una domanda si risolve sempre con la stessa lettura (lo stato del PC, le tue azioni rapide, una tabella di Notion) e l'hai già fatta almeno due volte, EasyIsland risponde da solo: subito e senza token, con «⚡ Risposta diretta» sotto. Se vuoi la risposta del motore premi **⚡ Chiedi al motore** o riscrivi la domanda: da lì quel tipo di domanda va sempre al motore. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che fa un passo in meno. In **Impostazioni → Chat** spegni le **Risposte dirette** e nel **Registro dei turni** vedi quante risposte dirette ha dato e quanti token ha risparmiato.
+
 ## Modalità terminale
 **Impostazioni → Chat → Modalità terminale**, insieme alla **cartella di lavoro**: la chat lavora come Claude Code o opencode da terminale.
 - **Claude Code** usa i tuoi strumenti, server MCP, plugin, `CLAUDE.md`, skill, regole di permesso e hook, nella cartella scelta. Ogni domanda di permesso arriva all'isola.
