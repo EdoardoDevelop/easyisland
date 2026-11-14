@@ -68,6 +68,9 @@ Quando una domanda si risolve sempre con la stessa lettura (lo stato del PC, le 
 
 Le risposte dirette valgono anche quando cambia il periodo: se hai chiesto «spese di settembre» e «spese di ottobre», a «spese di novembre» EasyIsland risponde da solo con le date di novembre. Lo stesso per mese scorso, settimana, oggi, ieri e i numeri («ticket 1234»).
 
+## Risposte dalla memoria
+Con la **Ricerca per significato** accesa (Impostazioni → Chat → Memoria), a una domanda che cerca solo un dato già annotato («quale vm ha la farmacia Falchi?», «dove sono le password di Falchi?») EasyIsland risponde da solo con le righe della memoria, così come sono scritte, sotto **📒 Dalla memoria**. Lo fa solo quando la riga contiene tutto ciò che hai nominato; per «perché», «come», lo stato di adesso o qualcosa da fare risponde il motore. Se vuoi la risposta del motore premi **⚡ Chiedi al motore**.
+
 ## Comandi senza motore
 Gli ordini brevi non passano dal motore: «apri Teams» (se è una tua azione rapida), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland risponde subito con **▶ Esegui**: niente parte finché non premi. Se intendevi altro premi **⚡ Chiedi al motore**.
 

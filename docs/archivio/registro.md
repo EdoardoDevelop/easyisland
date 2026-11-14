@@ -5,6 +5,9 @@ Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente 
 ### 13/11 — Consumo di tutti i motori (ramo `claude/consumo`, da `claude/domande`)
 Edoardo: «Consumo Claude» per tutti i motori, separati; clic sulle percentuali in alto = motore successivo. Fatto: integrazione «Consumo» con una sezione per motore (opencode dalle sue statistiche, OpenRouter credito e limite, Antigravity e gli altri dalle risposte in EasyIsland), intestazione a giro. Provato dal vivo opencode e OpenRouter (test ignorato `engine_sections_live`) e nell'anteprima; da provare nell'app. `docs/integrazioni.md` → Consumo. Poi, dai dati del portatile (126 passi, ~5 M token il 13/11, ~10.000 caratteri davanti a ogni conversazione): davanti solo le note-regola e le abilità che c'entrano, ricette confrontate nei due sensi, «trovato per la domanda» con più parole in comune. `docs/chat.md` → Memoria, Abilità.
 
+### 14/11 — Stili Studio uniti in `claude/sviluppo` (ramo `refactor_ui_graphics`)
+Lavoro di Antigravity non salvato nel suo worktree: salvato sul ramo e unito. Tre stili nuovi in Aspetto → Stile: Monolite, Titanio, Vetro (nomi di altre app tolti). `docs/architettura.md` → Stili.
+
 ### 14/11 — Smistatore: registro dei turni, risposte dirette, dati letti prima (ramo `claude/smistatore`, da `claude/consumo`)
 Edoardo: niente LLM integrato che si allena da solo; tappe 1, 2 e 4 dello smistatore che impara con le Ricette (`router.rs`). Registro cifrato dei turni; domande che una ricetta risolve sempre con la stessa lettura risposte senza motore, «⚡ Chiedi al motore» le rimanda; altrimenti le letture fisse della ricetta fatte prima del motore. Test e anteprima (`?scene=chat&pensa=diretta`); da provare nell'app dopo qualche giorno di ricette. `docs/chat.md` → Smistatore.
 

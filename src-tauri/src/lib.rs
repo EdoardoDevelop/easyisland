@@ -16,6 +16,7 @@ mod agent;
 mod memory_learn;
 mod memory_meaning;
 mod meaning_local;
+mod memory_answer;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -1839,8 +1840,18 @@ pub(crate) async fn chat_turn(
     // What the memory knows about this question, looked up here with no model
     // (memory::related): often one memory_search step less, at every question.
     // «Ricerca per significato» (memory_meaning.rs), when a service is chosen: the closest lines join them.
-    let meaning = if remember && memory_tools && learns { memory_meaning::related(app, &asked).await } else { Vec::new() };
+    let (scored, meaning_engine) = if remember && memory_tools && learns { memory_meaning::related_scored(app, &asked).await } else { (Vec::new(), String::new()) };
+    let strong = scored.first().is_some_and(|(s, _)| *s >= memory_meaning::strong(&meaning_engine));
+    let meaning: Vec<String> = scored.into_iter().map(|(_, l)| l).collect();
     let related = if remember && memory_tools && learns { memory::related(&asked, fresh, &meaning) } else { None };
+    // Lines very close in meaning: the engine answers with them, a search only for what is missing
+    // (on the laptop Claude read the page and searched again for a line it had, 14 Nov 2026).
+    let related = match related {
+        Some(r) if strong => Some(format!("{r}{}", t("[Le righe qui sopra sono molto vicine alla domanda: se rispondono, rispondi con quelle senza cercare oltre nella memoria; memory_search o memory_page solo per ciò che manca.]
+
+"))),
+        r => r,
+    };
     let query = match &related {
         Some(r) => format!("{r}{query}"),
         None => query,

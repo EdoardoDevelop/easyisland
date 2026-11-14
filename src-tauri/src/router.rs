@@ -164,7 +164,7 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
     if let Some(c) = command {
         return offer(chat, asked, c);
     }
-    let Some((r, steps)) = crate::recipes::sure(asked) else { return Direct::None };
+    let Some((r, steps)) = crate::recipes::sure(asked) else { return from_memory(app, chat, asked).await };
     let Some(step) = steps.first() else { return Direct::None };
     let (tool, args) = split(step);
     if !READS.contains(&tool) {
@@ -195,6 +195,46 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
             tf("Risposta diretta di EasyIsland, senza motore: come per «{q}». Per la risposta del motore riscrivi la domanda.", &[("q", &r.question)])
         ),
         tool.to_string(),
+    )
+}
+
+/// «Risposte dalla memoria» (memory_answer.rs): a lookup the memory's lines
+/// answer for sure, shown as they are, no engine. Asked again, or «Chiedi al
+/// motore», the engine (the lines ride in front of it, as always).
+async fn from_memory(app: &AppHandle, chat: &Chat, asked: &str) -> Direct {
+    let question = crate::recipes::bare_question(asked);
+    if !crate::memory_answer::is_lookup(&question) {
+        return Direct::None;
+    }
+    let (found, engine) = crate::memory_meaning::deep_scored(app, &question).await;
+    let lines = crate::memory_answer::pick(&question, &found, crate::memory_meaning::answer_min(&engine));
+    if lines.is_empty() {
+        return Direct::None;
+    }
+    let k = key(chat);
+    let body: String = lines.iter().map(|l| format!("- {}
+", crate::memory_answer::shown(l))).collect();
+    // The engine hears of it at the next question, as a preamble.
+    let note = tf("[Prima di questa domanda EasyIsland ha risposto da solo, dalla memoria, a «{q}» con:
+{a}]
+
+", &[("q", &question), ("a", &body)]);
+    let before = chat.take_preamble().unwrap_or_default();
+    chat.put_back_preamble(format!("{before}{note}"));
+    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), Vec::new()));
+    {
+        let mut w = WAS_DIRECT.lock().unwrap();
+        if !w.contains(&k) {
+            w.push(k);
+        }
+    }
+    crate::log::line(format!("smistatore: risposta dalla memoria ({} righe)", lines.len()));
+    Direct::Answer(
+        format!("{}
+
+{body}
+📒 {}", t("Dalla memoria:"), t("Risposta di EasyIsland dalla memoria, senza motore. Per la risposta del motore riscrivi la domanda.")),
+        "memoria".into(),
     )
 }
 

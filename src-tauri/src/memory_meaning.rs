@@ -177,6 +177,21 @@ fn closest(query: &[f32], lines: &[String], store: &Store) -> (Vec<(f32, String)
     (found, best)
 }
 
+/// The `n` closest lines over the service's threshold, best first, however
+/// far below the best (memory_answer.rs filters them by their words).
+fn ranked(query: &[f32], lines: &[String], store: &Store, n: usize) -> Vec<(f32, String)> {
+    let (min, _) = limits(&store.engine);
+    let mut scored: Vec<(f32, &String)> = lines.iter()
+        .filter_map(|l| store.items.get(&crate::brain::note_hash(l)).map(|h| (cosine(query, &unpack(h)), l)))
+        .filter(|(s, _)| *s >= min)
+        .collect();
+    scored.sort_by(|a, b| b.0.total_cmp(&a.0));
+    scored.into_iter().take(n).map(|(s, l)| (s, l.clone())).collect()
+}
+
+/// Lines looked at for a direct answer from the memory.
+const DEEP: usize = 200;
+
 /// What the meaning brought in this turn (before the question and in
 /// memory_search), for the mark under the answer in the island. One list for
 /// all the conversations: a turn elsewhere at the same time may add to it.
@@ -186,6 +201,9 @@ static FOUND: Mutex<Vec<(String, f32)>> = Mutex::new(Vec::new());
 pub fn turn_start() {
     if let Ok(mut f) = FOUND.lock() {
         f.clear();
+    }
+    if let Ok(mut l) = LAST.lock() {
+        *l = None;
     }
 }
 
@@ -225,36 +243,76 @@ pub async fn with_meaning(app: &AppHandle, query: &str, found: String) -> String
 
 /// The memory's lines closest in meaning to the question (none when off or on any error).
 pub async fn related(app: &AppHandle, question: &str) -> Vec<String> {
-    let Some((engine, model, url)) = chosen(app) else { return Vec::new() };
+    related_scored(app, question).await.0.into_iter().map(|(_, l)| l).collect()
+}
+
+/// A line found this close or closer answers a lookup with no engine
+/// (memory_answer.rs), and tells the engine not to search further. The model
+/// on this PC: same-meaning lines 0.23–0.54 in the tests, 0.62–0.77 on the
+/// laptop's memory for «quale vm ha la farmacia falchi?» (15 Nov 2026).
+pub fn strong(engine: &str) -> f32 {
+    if engine == LOCAL { 0.55 } else { 0.62 }
+}
+
+/// A line with every word of a lookup and this close answers it with no
+/// engine (memory_answer.rs): lower than `strong`, the words decide first.
+pub fn answer_min(engine: &str) -> f32 {
+    if engine == LOCAL { 0.35 } else { 0.45 }
+}
+
+/// The same question in the same turn (the direct answer, then the engine's
+/// preface): asked of the model once.
+static LAST: Mutex<Option<(String, String, Vec<(f32, String)>, Vec<(f32, String)>, std::time::Instant)>> = Mutex::new(None);
+
+/// The closest lines with their score, best first, and the service that found them.
+pub async fn related_scored(app: &AppHandle, question: &str) -> (Vec<(f32, String)>, String) {
+    let Some((engine, model, url)) = chosen(app) else { return (Vec::new(), String::new()) };
     let question = question.trim();
     if question.chars().count() < 8 {
-        return Vec::new();
+        return (Vec::new(), engine);
+    }
+    if let Some((q, e, found, _, at)) = LAST.lock().ok().and_then(|g| g.clone()) {
+        if q == question && e == engine && at.elapsed() < Duration::from_secs(60) {
+            return (found, engine);
+        }
     }
     let lines = index(&engine, &model, url.as_deref()).await;
     if lines.is_empty() {
-        return Vec::new();
+        return (Vec::new(), engine);
     }
     let query = match embed(&engine, &model, url.as_deref(), &[question.chars().take(2_000).collect()]).await {
         Ok(mut v) if v.first().is_some_and(|q| !q.is_empty()) => v.remove(0),
-        Ok(_) => return Vec::new(),
+        Ok(_) => return (Vec::new(), engine),
         Err(e) => {
             crate::log::line(format!("ricerca per significato: {e}"));
-            return Vec::new();
+            return (Vec::new(), engine);
         }
     };
-    let (found, best) = {
+    let ((found, best), deep) = {
         let guard = STORE.lock().unwrap();
-        guard.as_ref().map(|s| closest(&query, &lines, s)).unwrap_or_default()
+        guard.as_ref().map(|s| (closest(&query, &lines, s), ranked(&query, &lines, s, DEEP))).unwrap_or_default()
     };
     // Scores only, never the memory's text, in the log.
     if found.is_empty() {
         crate::log::line(format!("significato ({engine}): niente sopra la soglia, la più vicina {best:.2}"));
     } else {
         let scores: Vec<String> = found.iter().map(|(s, _)| format!("{s:.2}")).collect();
-        crate::log::line(format!("significato ({engine}): {} righe vicine ({})", found.len(), scores.join(", ")));
+        let what = if found.len() == 1 { "riga vicina" } else { "righe vicine" };
+        crate::log::line(format!("significato ({engine}): {} {what} ({})", found.len(), scores.join(", ")));
     }
     note_found(&found);
-    found.into_iter().map(|(_, l)| l).collect()
+    if let Ok(mut g) = LAST.lock() {
+        *g = Some((question.to_string(), engine.clone(), found.clone(), deep, std::time::Instant::now()));
+    }
+    (found, engine)
+}
+
+/// The closest lines, many more than `related_scored` gives (memory_answer.rs
+/// picks among them by their words), and the service that found them.
+pub async fn deep_scored(app: &AppHandle, question: &str) -> (Vec<(f32, String)>, String) {
+    let (_, engine) = related_scored(app, question).await;
+    let deep = LAST.lock().ok().and_then(|g| g.clone()).filter(|(q, e, ..)| q == question.trim() && *e == engine).map(|(.., d, _)| d).unwrap_or_default();
+    (deep, engine)
 }
 
 /// Every line of the memory turned into a vector now (after the model's

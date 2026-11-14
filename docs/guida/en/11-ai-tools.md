@@ -68,6 +68,9 @@ When a question is always solved with the same read (the PC's status, your quick
 
 Direct answers also work when the period changes: if you asked «spese di settembre» and «spese di ottobre», for «spese di novembre» EasyIsland answers by itself with November's dates. The same for last month, week, today, yesterday and numbers («ticket 1234»).
 
+## Answers from the memory
+With **Search by meaning** on (Settings → Chat → Memory), to a question that only looks up something already noted («quale vm ha la farmacia Falchi?», «dove sono le password di Falchi?») EasyIsland answers by itself with the memory's lines, as they are written, under **📒 From the memory**. It does so only when the line holds everything you named; for «why», «how», the state right now or something to do the engine answers. For the engine's answer press **⚡ Ask the engine**.
+
 ## Commands with no engine
 Short orders skip the engine: «apri Teams» (when it is one of your quick actions), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland answers at once with **▶ Run**: nothing starts until you press it. If you meant something else press **⚡ Ask the engine**.
 
