@@ -5,7 +5,7 @@
 La memoria di EasyIsland è fatta di **file Markdown** in `%APPDATA%\EasyIsland\memoria`, che puoi leggere e correggere con qualsiasi editor. Vale per **tutti i motori**. Si spegne insieme alla cronologia (Impostazioni → Chat → Cronologia).
 
 ## Le note: MEMORIA.md
-Le cose da ricordare sempre, una per riga con la data: preferenze, clienti, persone, come si fa una cosa. Vanno davanti alla prima domanda di ogni conversazione (al massimo 4.000 caratteri, le più recenti prima), quindi costano pochi token.
+Le cose da ricordare sempre, una per riga con la data: preferenze, clienti, persone, come si fa una cosa. Le regole (quelle con «sempre», «mai», «non deve», «preferisce»…) vanno davanti a ogni conversazione; le altre note arrivano solo quando la domanda le riguarda, quindi costano pochi token.
 - La chat le salva **da sola** quando dici qualcosa che vale anche per le prossime volte.
 - Tu le salvi con `/ricorda …` in chat, o dal campo **Ricorda…** della finestra Memoria.
 - Oltre 60 note, le più vecchie passano in `archivio.md`, che resta cercabile.
@@ -77,7 +77,13 @@ Parte la domenica sera con il Riordino, se c'è qualcosa da sistemare, o subito 
 Se non c'è niente da fare non parte e non costa niente.
 
 ## Motore per la memoria
-In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi scegliere un motore, anche gratuito, che collega la memoria scrivendolo nei file: crea una pagina per ogni argomento che torna in più note (un cliente, un progetto, una persona), con i rimandi alle note, aggiunge le relazioni tra pagine («cliente di», «lavora con»…) e tiene aggiornato il riassunto di ogni pagina con gli altri nomi. Lavora da solo dopo il riordino della sera e quando premi **Collega con l'IA** nella mappa. Aggiunge soltanto: non cancella e non riscrive le tue note. Con un motore in cloud le note vengono mandate a quel servizio; con Ollama o LM Studio restano sul PC. Con **Nessuno** la mappa collega le voci da sola, dalle parole in comune.
+In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi scegliere un motore, anche gratuito, che collega la memoria scrivendolo nei file: crea una pagina per ogni argomento che torna in più note (un cliente, un progetto, una persona), con i rimandi alle note, aggiunge le relazioni tra pagine («cliente di», «lavora con»…) e tiene aggiornato il riassunto di ogni pagina con gli altri nomi. Lavora da solo dopo il riordino della sera e quando premi **Collega con l'IA** nella mappa. Aggiunge soltanto: non cancella e non riscrive le tue note. Con un motore in cloud le note vengono mandate a quel servizio; con Ollama o LM Studio restano sul PC. Con **Nessuno** la mappa collega le voci da sola, dalle parole in comune. Quando una nota su un cliente o un progetto finisce nella sua pagina, esce dalle note di sempre (resta nell'archivio).
+
+## Cosa ricorda da sola
+Dopo ogni risposta EasyIsland decide cosa tenere: le **regole** («i preventivi sempre in PDF») vanno tra le note, i **fatti** su un cliente, un sito o un progetto vanno nella sua pagina, e una nota corretta o ripetuta passa in archivio. Non tiene cose del momento, numeri di versione o codici interni. Le note su un appuntamento o un intervento con una data vanno in archivio quando quel giorno è passato.
+
+## Ricerca per significato
+In **Impostazioni → Chat → Memoria → Ricerca per significato** puoi far cercare la memoria anche per significato, non solo per le parole in comune: «computer» trova una nota sul «PC». Scegli un servizio (OpenAI, Gemini, OpenRouter con le chiavi della chat, oppure Ollama o LM Studio sul PC). Serve con una memoria grande; con un servizio in cloud le righe della memoria vengono mandate a quel servizio.
 
 **Collega con l'IA** controlla anche i collegamenti della mappa: per ogni nota nuova o cambiata il motore guarda le pagine e le note a cui potrebbe appartenere e tiene solo quelle vere (una parola in comune come «server» o «cliente» non basta più). Il giudizio resta in `collegamenti.json` accanto alla memoria, viaggia con la memoria condivisa e la mappa lo usa al posto delle supposizioni. Non cambia le note né le pagine. Sulla copia di un altro PC il pulsante controlla quella copia da qui, se quel PC non l'ha già fatto. Con molte note lo fa a pezzi: premilo di nuovo finché non dice che è finito.
 
@@ -126,6 +132,15 @@ Un argomento al centro e ciò che ne nasce, fino a tre anelli: ogni ramo ha il s
 ![La mappa concettuale](../media/memoria-concetti.png)
 
 Le pagine a livelli, dall'alto in basso, con frecce che dicono la relazione («usa», «referente», «contratto»…). Le pagine citate ma non ancora scritte sono tratteggiate.
+
+### Mappa ad albero
+I gruppi e le pagine principali in riquadri grandi quanto il loro peso nella memoria.
+
+### Matrice
+Una griglia con le pagine principali su righe e colonne: passa il mouse su una cella per leggere come sono legate.
+
+### Salute
+A colpo d'occhio quante pagine sono scritte, quante note sono isolate e da collegare, e gli argomenti principali.
 
 ### Fiume
 Gli argomenti nel tempo: ogni gruppo è una striscia colorata larga quanto se ne è scritto ogni settimana (ultimi sei mesi). Si vede quando un cliente o un progetto è diventato caldo. Rotellina per lo zoom sul tempo.

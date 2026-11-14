@@ -38,14 +38,14 @@
 | **Stripe** | Payments | Read-only key |
 | **Resend** | Sent emails | API key |
 | **n8n** | Workflow executions, errors | Address and API key |
-| **Claude usage** | Plan limits (5 hours, week, Opus) and Claude Code tokens | Claude Code signed in |
+| **Usage** | For each engine, apart: Claude Code (plan limits and tokens), opencode (tokens and cost), OpenRouter (credit, key limit, spending), Antigravity and the others (tokens of the answers given in EasyIsland). At the top of the island a click moves to the next engine | Claude Code signed in; for OpenRouter its key |
 
 ## This PC
 | Integration | What it shows |
 |---|---|
 | **PC status** | System disk space (orange under 10 %, red under 5 %), memory, battery, uptime, restart required. **Copy PC info**: name, user, Windows, model, serial number, IP and MAC ready for a ticket |
 | **Security** | Antivirus, signature age, last scan, firewall, threats found |
-| **Network** | Wi-Fi or cable, local and public IP, gateway, DNS, every adapter, VPNs, latency; alert if the internet doesn't answer. **Continuous ping** to the gateway or an address. **Change network…**: DHCP or manual IP and DNS per adapter (with Windows' administrator confirmation) |
+| **Network** | Wi-Fi or cable, local and public IP, gateway, DNS, every adapter, VPNs, latency; alert if the internet doesn't answer. **Continuous ping** to the gateway or an address. **Change network…**: DHCP or manual IP and DNS per adapter, and the **VLAN ID** on the adapters that have it (0 = none; the adapter restarts and the network drops for a few seconds), with Windows' administrator confirmation |
 | **Weather** | The current sky animated, humidity, wind, sunrise and sunset, 12 hours and 7 days, rain alert. Open-Meteo, free and keyless |
 | **Clipboard** | History of texts and images, in memory only (see [Files and screen](17-files-and-screen.md#clipboard)) |
 | **Media** | What's playing in any app (Spotify, browser…), with cover and controls |

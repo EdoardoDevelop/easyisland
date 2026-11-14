@@ -416,6 +416,10 @@ impl Chat {
         *self.usage.lock().unwrap() = usage;
     }
 
+    pub(crate) fn peek_usage(&self) -> Option<TurnUsage> {
+        self.usage.lock().unwrap().clone()
+    }
+
     pub(crate) fn take_usage(&self) -> Option<TurnUsage> {
         self.usage.lock().unwrap().take()
     }
@@ -561,6 +565,10 @@ fn request_body(model: &str, messages: Vec<Value>, agent: bool) -> Value {
         "system": system,
         "tools": tools,
         "messages": messages,
+        // Tools, instructions and the conversation so far are the same at
+        // every step of a turn and every turn: read from the cache they cost a
+        // tenth (14 Nov 2026; EasyIsland's tools alone are ~20k tokens).
+        "cache_control": { "type": "ephemeral" },
     });
     if supports_default_fallback(model) {
         body["fallbacks"] = json!("default");
@@ -643,6 +651,11 @@ pub async fn send_with(
             }
         };
 
+        // Its tokens, for «Consumo» (engine_usage.rs): every call of the turn.
+        if let Some(u) = response.get("usage") {
+            let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+            crate::engine_usage::record("api", model, n("input_tokens") + n("cache_creation_input_tokens"), n("output_tokens"), None, false);
+        }
         let stop = response.get("stop_reason").and_then(Value::as_str).unwrap_or("");
 
         // A policy decline comes back as HTTP 200 with stop_reason "refusal".

@@ -18,13 +18,14 @@ import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { N_, language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
-import { applyUiStyle, uiStyle } from "../core/uistyle";
+import { applyUiStyle, uiStyle, type UiStyle } from "../core/uistyle";
 import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type FontPick } from "../core/fonts";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
 import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
 import { freshPicks, proposalsAnswer, proposalsBox, setAll, type ProposalPicks } from "../views/proposals";
 import "./settings-windows.css";
+import "./settings-studio.css";
 import "./settings-light.css";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -486,6 +487,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
     recipesRow(),
+    routerRow(),
     portalsRow(),
     connectorsBlock(),
   );
@@ -1211,13 +1213,13 @@ const INTEGRATIONS: IntegrationDef[] = [
       get: (c) => (c.weatherOnCharacter ? "idle" : "pill"), set: (c, v) => { c.weatherOnCharacter = v === "idle"; },
     }],
     hint: t("Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) con il Meteo aperto e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore.") },
-  { id: "integration_claude_usage", name: t("Consumo Claude"), color: "#D97757", fields: [],
+  { id: "integration_claude_usage", name: t("Consumo"), color: "#D97757", fields: [],
     options: [{
-      label: t("Piano nell'isola"), type: "select", placeholder: "",
-      choices: [["header", t("Anche nell'intestazione dell'isola")], ["card", t("Solo nella card")]],
+      label: t("Consumo nell'isola"), type: "select", placeholder: "",
+      choices: [["header", t("Anche nell'intestazione dell'isola (clic: motore successivo)")], ["card", t("Solo nella card")]],
       get: (c) => (c.planInHeader === false ? "card" : "header"), set: (c, v) => { c.planInHeader = v === "header"; },
     }],
-    hint: t("Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo. In cima, le percentuali del piano Pro o Max (5 ore, settimana e settimana Opus): chieste ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di /usage; l'accesso viene solo letto), o passate da Claude Code alla sua status line.") },
+    hint: t("Quanto consuma ogni motore, ognuno per conto suo. Claude Code: token delle sessioni (terminale, VS Code, app desktop) dalle trascrizioni in %USERPROFILE%\\.claude\\projects, solo i conteggi, e in cima le percentuali del piano Pro o Max chieste ad Anthropic con l'accesso già fatto in Claude Code. opencode: le sue statistiche (token, costo, modelli). OpenRouter: credito, limite della chiave e spesa, chiesti a OpenRouter con la tua chiave. Antigravity, Claude con chiave API, OpenAI, Gemini, Ollama, LM Studio: i token delle risposte date in EasyIsland. Nell'intestazione dell'isola un clic passa al motore successivo.") },
   { id: "integration_clipboard", name: t("Appunti"), color: "#A78BFA", fields: [],
     hint: t("Gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, o trasformarli (maiuscole, una riga, JSON, URL). Si apre anche con la scorciatoia in Azioni rapide. Restano solo in memoria (mai su disco) e si svuotano alla chiusura; ciò che i gestori di password segnano come privato non viene registrato.") },
   { id: "integration_media", name: t("Media"), color: "#1ED760", fields: [],
@@ -1975,11 +1977,36 @@ function memoryRow(): HTMLElement {
     settings.memoryEngine = engine.value;
     void save();
   });
+  // «Ricerca per significato» (memory_meaning.rs): off, or a service with /embeddings.
+  const meaning = h("select", {}) as HTMLSelectElement;
+  for (const [id, name] of [["", t("No (solo le parole in comune)")], ["openai", "OpenAI"], ["gemini", "Gemini"], ["openrouter", "OpenRouter"], ["ollama", "Ollama"], ["lmstudio", "LM Studio"]]) {
+    meaning.append(h("option", { value: id, text: name }));
+  }
+  meaning.value = settings.memoryMeaning ?? "";
+  const meaningModel = h("input", { type: "text", spellcheck: "false", style: "width:200px" }) as HTMLInputElement;
+  const MEANING_MODELS: Record<string, string> = { openai: "text-embedding-3-small", gemini: "gemini-embedding-001", openrouter: "openai/text-embedding-3-small", ollama: "nomic-embed-text", lmstudio: "text-embedding-nomic-embed-text-v1.5" };
+  const drawMeaning = () => {
+    meaningModel.style.display = meaning.value ? "" : "none";
+    meaningModel.placeholder = MEANING_MODELS[meaning.value] ?? "";
+  };
+  meaningModel.value = settings.memoryMeaningModel ?? "";
+  drawMeaning();
+  meaning.addEventListener("change", () => {
+    settings.memoryMeaning = meaning.value;
+    drawMeaning();
+    void save();
+  });
+  meaningModel.addEventListener("change", () => {
+    settings.memoryMeaningModel = meaningModel.value.trim();
+    void save();
+  });
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Memoria dopo la risposta") }),
       toggle(settings.chatLearn !== false, (v) => { settings.chatLearn = v; void save(); }),
       h("span", { class: "hint note", text: t("EasyIsland manda la domanda e la risposta, senza il resto della conversazione, a un modello leggero (Haiku con l'abbonamento, o il Motore per la memoria qui sotto) e annota ciò che vale per le prossime volte. La chat non spende passi per ricordare: scrive in memoria solo se glielo chiedi") })),
+    h("div", { class: "row" }, h("label", { text: t("Ricerca per significato") }), meaning, meaningModel,
+      h("span", { class: "hint note", text: t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («computer» trova una nota sul «PC»): ogni riga diventa una volta un vettore con il servizio scelto (chiave o indirizzo come per la chat) e prima di ogni domanda arrivano le più vicine. Serve con una memoria grande. Con OpenAI, Gemini o OpenRouter le righe della memoria escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)") })),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
       h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }
@@ -1998,6 +2025,30 @@ function recipesRow(): HTMLElement {
   });
   void Bridge.recipesCount().then(show);
   return h("div", { class: "row" }, h("label", { text: t("Ricette") }), line, forget);
+}
+
+/** Chat → "Smistatore": direct answers and the turn log (router.rs). */
+function routerRow(): HTMLElement {
+  const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const forget = h("button", { text: t("Azzera") }) as HTMLButtonElement;
+  const show = (s: { turns: number; direct: number; prepared: number; saved: number } | null) => {
+    const n = s?.turns ?? 0;
+    const k = (x: number) => (x >= 1000 ? `${Math.round(x / 1000)}k` : String(x));
+    line.textContent = n
+      ? t("{n} turni registrati: {d} risposte dirette senza motore (circa {s} token risparmiati), {p} con i dati letti prima", { n, d: s?.direct ?? 0, s: k(s?.saved ?? 0), p: s?.prepared ?? 0 })
+      : t("Nessun turno registrato ancora");
+    forget.disabled = !n;
+  };
+  forget.addEventListener("click", async () => {
+    await Bridge.routerForget();
+    show(await Bridge.routerStats());
+  });
+  void Bridge.routerStats().then(show);
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row" }, h("label", { text: t("Risposte dirette") }),
+      toggle(settings.chatDirect !== false, (v) => { settings.chatDirect = v; void save(); }),
+      h("span", { class: "hint note", text: t("Alle domande che le ricette risolvono sempre con la stessa lettura (stato del PC, azioni rapide, una tabella di Notion) risponde EasyIsland da solo, subito e senza token. «Chiedi al motore» sotto la risposta, o la stessa domanda riscritta, passa al motore e per quel tipo di domanda non risponde più da solo. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che risparmia un passo") })),
+    h("div", { class: "row" }, h("label", { text: t("Registro dei turni") }), line, forget));
 }
 
 /** Chat → "Portali": the suppliers' portals taught in the chat (portals.rs), never in the code. */
@@ -2741,12 +2792,18 @@ function appearanceSections(): HTMLElement[] {
         pictured(pictureBox("look", settings, undefined, true),
           h("div", { class: "row" },
             h("label", { text: t("Stile") }),
-            select<"windows" | "classic">(
-              [["windows", t("Windows 11")], ["classic", t("Classico")]],
+            select<UiStyle>(
+              [
+                ["monolith", t("Monolite")],
+                ["titanium", t("Titanio")],
+                ["editorial", t("Vetro")],
+                ["windows", t("Windows 11")],
+                ["classic", t("Classico")],
+              ],
               uiStyle(th.style),
               (v) => { th.style = v; applyUiStyle(v, th.scheme); commit(); render(); },
             ),
-            h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (colore d'accento di Windows, icone a linea) o Classico (colori di EasyIsland)") }),
+            h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Monolite (alto contrasto), Titanio (pannelli incassati e tasti in rilievo), Vetro (vetro profondo), Windows 11 o Classico") }),
           ),
           h("div", { class: "row" },
             h("label", { text: t("Modalità") }),
@@ -6327,8 +6384,11 @@ async function main() {
     ];
     settings.activeProfile = "lavoro";
   }
-  // Preview: ?ui=classic shows the original look.
-  if (!info && new URLSearchParams(location.search).get("ui") === "classic") settings.theme = { ...settings.theme, style: "classic" };
+  // Preview: ?ui=classic|windows|monolith|titanium|editorial
+  const askedUi = new URLSearchParams(location.search).get("ui");
+  if (!info && (askedUi === "classic" || askedUi === "windows" || askedUi === "monolith" || askedUi === "titanium" || askedUi === "editorial")) {
+    settings.theme = { ...settings.theme, style: askedUi };
+  }
   // ?scheme=light: the light mode.
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };

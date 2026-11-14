@@ -170,7 +170,7 @@ export function fit(ctx: CanvasRenderingContext2D, text: string, max: number): s
 // ── What the views share: groups, freshness, paths, provenance ───────────────
 
 /** Colours of the groups (graph, galaxy, bubbles, stream): distinct on the dark sky. */
-export const GROUP_COLORS = ["#7c9cff", "#f5a524", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#fb7185", "#a3e635", "#fbbf24", "#2dd4bf", "#e879f9", "#94a3b8"];
+export const GROUP_COLORS = ["#7c9cff", "#f5a524", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#fb7185", "#a3e635", "#fbbf24", "#2dd4bf", "#e879f9", "#fb923c"];
 
 /** A group of nodes tied more among them than with the rest (a customer and its notes). */
 export interface Group {
@@ -217,20 +217,26 @@ export function provenance(n: MemNode): Provenance {
 }
 
 /**
- * Groups by label propagation: each node takes the group most of its
- * neighbours have (stronger links count more), in a fixed order so the same
- * memory gives the same groups. Groups under 3 nodes stay without colour.
+ * Groups by degree-normalized label propagation: each node takes the group most
+ * of its neighbours have, weighted by link strength and damped by neighbour
+ * degree so a single super-hub (like the user or app name) does not swallow the
+ * whole graph into one colour. Oversized groups are further split around their
+ * secondary page hubs. Groups under 3 nodes stay without colour.
  */
 export function findGroups(m: Model, strength: (a: string, b: string) => number): { groups: Group[]; of: Map<string, number> } {
   const ids = [...m.byId.keys()].sort();
+  const deg = new Map<string, number>();
+  for (const id of ids) deg.set(id, Math.max(1, m.neighbours(id).length));
   const label = new Map<string, string>(ids.map((id) => [id, id]));
-  for (let round = 0; round < 24; round++) {
+  for (let round = 0; round < 16; round++) {
     let changed = 0;
     for (const id of ids) {
       const votes = new Map<string, number>();
       for (const nb of m.neighbours(id)) {
         const l = label.get(nb.id)!;
-        votes.set(l, (votes.get(l) ?? 0) + strength(id, nb.id));
+        // Dampen super-hubs so distinct topic clusters stay separated.
+        const w = strength(id, nb.id) / Math.pow(deg.get(nb.id)!, 0.72);
+        votes.set(l, (votes.get(l) ?? 0) + w);
       }
       let best = label.get(id)!;
       let bestV = 0;
@@ -254,7 +260,48 @@ export function findGroups(m: Model, strength: (a: string, b: string) => number)
     if (list) list.push(id);
     else byLabel.set(l, [id]);
   }
-  const big = [...byLabel.values()].filter((l) => l.length >= 3).sort((a, b) => b.length - a.length);
+  // If one cluster still swallowed > 32% of a large graph, split it around its sub-hub pages.
+  const maxCluster = Math.max(12, Math.floor(ids.length * 0.28));
+  const finalClusters: string[][] = [];
+  for (const members of byLabel.values()) {
+    if (members.length <= maxCluster) {
+      finalClusters.push(members);
+      continue;
+    }
+    const memberSet = new Set(members);
+    const seeds = members
+      .map((id) => m.byId.get(id)!)
+      .filter((n) => n.kind === "page" || n.kind === "missing")
+      .sort((a, b) => b.weight - a.weight)
+      .slice(1, 7); // skip the #1 mega-hub, use secondary topic hubs as anchors
+    if (seeds.length < 2) {
+      finalClusters.push(members);
+      continue;
+    }
+    const sub = new Map<string, string[]>();
+    for (const s of seeds) sub.set(s.id, []);
+    const fallback: string[] = [];
+    for (const id of members) {
+      if (sub.has(id)) {
+        sub.get(id)!.push(id);
+        continue;
+      }
+      let bestSeed = "";
+      let bestScore = -1;
+      for (const nb of m.neighbours(id)) {
+        if (!memberSet.has(nb.id)) continue;
+        if (sub.has(nb.id)) {
+          const sc = strength(id, nb.id) * 2;
+          if (sc > bestScore) { bestScore = sc; bestSeed = nb.id; }
+        }
+      }
+      if (bestSeed) sub.get(bestSeed)!.push(id);
+      else fallback.push(id);
+    }
+    if (fallback.length >= 3) finalClusters.push(fallback);
+    for (const list of sub.values()) if (list.length >= 3) finalClusters.push(list);
+  }
+  const big = finalClusters.filter((l) => l.length >= 3).sort((a, b) => b.length - a.length);
   const groups: Group[] = [];
   const of = new Map<string, number>();
   big.forEach((members, i) => {

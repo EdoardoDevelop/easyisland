@@ -41,6 +41,8 @@ You need **opencode 2** on the PC. EasyIsland starts a private opencode server o
 ## Antigravity
 Install the CLI with `irm https://antigravity.google/cli/install.ps1 | iex`, then type `agy` and sign in with Google. With Antigravity's hooks installed, its commands ask Allow / Deny in the island.
 
+As with Claude, the engine menu picks the **model** (those of your Antigravity account) and the **effort** for that conversation; the mode button goes from **Manual** to **Accept edits**, **Plan** and **Automatic** (like its Turbo mode: no questions about commands). In **Plan** Antigravity prepares the plan and shows it in a card: **Go ahead** to let it work, **Keep planning** to change it.
+
 ## Ollama and LM Studio
 Models on your PC or another one on the network: no key, just the address (empty = the default one).
 

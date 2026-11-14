@@ -173,7 +173,6 @@ Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senz
 
 ## Memoria, seguiti
 - **Pulizia proposta:** `brain::check` segnala pagine doppie (alias, titoli, parole in comune) e relazioni ripetute con nomi diversi; il compito propone «unisci» con `task_ask` (la pagina unita va in archivio).
-- **Ricerca per significato:** embedding solo se la memoria diventa grande, con modello locale o servizio scelto in Impostazioni.
 
 ## Modello integrato (27/10, accantonato)
 Fatto nel branch `claude/modello-integrato` (non unito; passi in `docs/modello-integrato.md` del branch), manca la prova dal vivo. Per riprendere: aggiornare il branch con `claude/sviluppo`, verificare build di llama.cpp e hash dei modelli, provare.
@@ -204,3 +203,6 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 ## Pulizia del codice (solo quando si tocca quel file)
 - `mmss` duplicato in `src/views/integrations.ts` (secondi) e `src/views/threecx.ts` (ms); «Copiato ✓» ripetuto in più viste.
 - File lunghi: `src/settings/main.ts`, `src/island/island.ts`, `src/character/engine.ts`, `src-tauri/src/lib.rs`.
+
+## Smistatore: scelta del motore (14/11)
+Tappe 1, 2 e 4 fatte (`docs/chat.md` → Smistatore). Tappa 3: dal registro dei turni, un modello economico per le domande simili a quelle risolte bene con pochi passi e Claude per le altre; una riga in chat «risposto da …, perché simile a …», sempre cambiabile, e ogni cambio diventa un esempio. Prima servono settimane di registro.

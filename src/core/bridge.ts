@@ -135,6 +135,17 @@ export interface NetConfigInput {
   gateway: string;
   dnsAuto: boolean;
   dns: string[];
+  /** A new VLAN ID (0 = none) with the driver's keyword; absent = unchanged. */
+  vlan?: number;
+  vlanKeyword?: string;
+}
+
+/** An adapter's VLAN ID as its driver exposes it (netconfig.rs network_vlan). */
+export interface NetVlan {
+  keyword: string;
+  value: number;
+  min: number;
+  max: number;
 }
 
 export interface BootInfo {
@@ -253,6 +264,8 @@ export const Bridge = {
   networkAdapters: () => call<NetAdapter[]>("network_adapters"),
   /** Rete: applies an adapter's settings as administrator (Windows asks). */
   networkApply: (config: NetConfigInput) => callOrThrow<void>("network_apply", { config }),
+  /** Rete: the adapter's VLAN ID, or null when its driver has none. */
+  networkVlan: (index: number) => call<NetVlan>("network_vlan", { index }),
   /** Rete: a continuous ping in a new terminal; "gateway" = the main adapter's. */
   networkPing: (target: string) => callOrThrow<string>("network_ping", { target }),
   /** "Davanti al cliente" right now: why, or null. */
@@ -360,7 +373,7 @@ export const Bridge = {
   chatBranch: (folder: string) => call<string>("chat_branch", { folder }),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
   chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "", model: string | null = null, fast = false, agents = false) =>
-    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null; usage?: import("./state").TurnUsage | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
+    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null; plan?: string | null; usage?: import("./state").TurnUsage | null; direct?: boolean; command?: import("./state").ChatCommand | null }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
@@ -743,6 +756,11 @@ export const Bridge = {
   /** What the chat learnt by use (recipes.rs): how many, and forgetting them. */
   recipesCount: () => call<number>("recipes_count"),
   recipesForget: () => call<void>("recipes_forget"),
+  /** Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs). */
+  routerStats: () => call<{ turns: number; direct: number; refused: number; prepared: number; again: number; saved: number }>("router_stats"),
+  routerForget: () => call<void>("router_forget"),
+  /** «Esegui» under a command the chat offered (commands.rs). */
+  chatCommandRun: (tool: string, args: unknown) => callOrThrow<string>("chat_command_run", { tool, args }),
   /** Suppliers' portals the user taught (portals.rs): list, delete, export and import as JSON. */
   portalsList: () => call<PortalRecipe[]>("portals_list"),
   portalsDelete: (id: string) => call<void>("portals_delete", { id }),

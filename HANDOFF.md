@@ -1,10 +1,14 @@
 # Handoff — EasyIsland
 
-_11 novembre 2026. **1.0.43** in `main` (tag `v1.0.43`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_14 novembre 2026. **1.0.47** in `main` (tag `v1.0.47`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` scartato. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Comandi e ricette con date** (14/11, nella 1.0.47): da provare nell'app «apri <azione rapida>», «pausa», «ricordami di …» con Esegui; «spese di settembre», «di ottobre», poi «di novembre» in diretta; `cache_read_input_tokens` con il motore API.
+- [ ] **Smistatore** (14/11, nella 1.0.47): `docs/chat.md` → Smistatore. Da provare nell'app: una domanda ripetuta (stato del PC, azioni rapide) che dopo due turni uguali risponde da sola, «Chiedi al motore», i numeri in Impostazioni → Chat. Tappa 3 in `docs/idee.md`.
+- [ ] **VLAN ID in Modifica rete…** (13/11, ramo `claude/domande`): `docs/integrazioni.md` → Rete. Da provare l'applicazione vera da amministratore su una scheda con VLAN (e il ritorno a 0).
+- [ ] **Domande con le scelte nella chat** (13/11, ramo `claude/domande`): `docs/chat.md` → Domande e piano. Provate con un processo vero di Claude Code (driver) e nell'anteprima; da provare nell'app: domanda dall'isola, «Altro…», «Non ora», Ferma con la card aperta, Piano con «Procedi», un permesso normale non risposto (deve restare negato).
 - [ ] **Browser e portali dei fornitori** (12/11, in `main` dalla 1.0.45): `docs/chat.md` → Anteprima e Portali dei fornitori. Provati solo con test e con gli script sulle pagine vere (estrazione, blocco del carrello, modulo di accesso); da provare nell'app (`docs/prove-dal-vivo.md`). Seguiti in `docs/idee.md`.
 - [ ] **Importa abilità** (1.0.43, `docs/chat.md` → Abilità → Importa): provato su The Agency vera con `live_scan` e nell'anteprima; da provare nell'app con «Da Claude Code», una cartella vera e «Adatta con un motore» con i vari motori (risposta nel formato giusto, durata). Seguiti in `docs/idee.md`.
 - [ ] **Terminale vero nella chat** (9/11): fatto con ConPTY e xterm.js (`docs/chat.md` → Terminale); da provare dal vivo (editor, Ctrl+C, finestra staccata). Restano più schede e scelta della shell (`docs/idee.md`).
@@ -33,7 +37,6 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Modalità chiara:** funziona, poco usata: provare schede dell'isola e Impostazioni con l'app vera, correggere in `src/style-light.css` / `settings-light.css` (i colori in linea nel TS non cambiano).
 - [ ] **Flussi** (`docs/flussi.md`): da provare con flussi veri, soprattutto agente con campi, scelta del modello, ripresa dopo riavvio.
 - [ ] **Isola fissa, barra riservata** con tre aree scelte dall'utente, personaggio non trascinabile: decisa; primo passo una prova della barra di Windows (`docs/idee.md`).
-- [ ] **Modello integrato** (accantonato 27/10): branch `claude/modello-integrato`, manca la prova dal vivo.
 - [ ] **Recapiti tra due EasyIsland** senza VPN né cloud: da valutare (`docs/idee.md`).
 - [ ] **Pulizia strutturale** (27/10):
   - immagini della guida rotte su GitHub (`../media/` da `docs/guida/` punta a `docs/media`): percorso vero verso `site/media/`, corretto da `guida.mjs`; niente symlink;
@@ -53,19 +56,17 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
-Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
+### 14/11 — Versione 1.0.47
+Uniti in `main` smistatore, comandi e ricette con date, stili Studio, mappa della memoria e il nuovo aspetto dell'isola di Antigravity (ricerca a tutta larghezza con calcolatrice, barra laterale manuale, Panoramica con «Adesso», campo della chat; `src/views/views.ts`, `rail.ts`, `search.ts`, `chat.ts`). Novità in `CHANGELOG.md`.
 
-### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
-Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori. Poi pulsante ⧉/◨ nell'Anteprima per isola o finestra (`preview_dock`), da provare nell'app.
+### 14/11 — Mappa della memoria: viste Mappa ad albero, Matrice, Salute (ramo `restyling-mappa-memoria`, di Antigravity)
+Unito in `claude/sviluppo` con `claude/comandi-ricette`; `claude/modello-integrato` resta fuori (scartato). Animazioni a riposo e barra delle viste a gruppi (`src/memory/treemap.ts`, `matrix.ts`, `health.ts`); conflitto in `concept.ts`: i collegamenti solo per nome restano tratteggiati fermi, quello selezionato scorre a riposo.
 
-### 12/11 — Browser dell'Anteprima e portali dei fornitori (ramo `claude/browser`)
-Edoardo: cercare prodotti nei portali dei fornitori e farne preventivi, «i siti non devono finire nel codice». Mouse e tastiera veri, `preview_steps`, «Sempre» per sito, mai carrello e ordini, `preview_find`/`preview_extract` (prodotti senza conoscere il sito), ricette in `portals.rs` (dati dell'utente), `preview_login` con Devolutions, foto nel Vassoio, costo + ricarico nei preventivi. Poi suggerimenti sopra il campo per ciò che è nell'Anteprima (regole, senza IA), «?»/`/aiuto` «Cosa so fare», `/portali`, `/impara-portale`. «Automatica» della chat accesa di serie, spenta si chiama «Manuale». `docs/chat.md` → Anteprima, Portali dei fornitori, Suggerimenti.
+### 14/11 — Comandi senza motore, ricette con date, cache dell'API; relay di nuovo aggiornato (ramo `claude/comandi-ricette`, da `claude/sviluppo`)
+Antigravity in Turbo era di nuovo trattenuto: il relay installato era quello del 13/11 mattina (cargo lo credeva aggiornato); `npm run pack` ora lo ripulisce prima (`docs/sviluppo.md`), reinstallato qui e sul portatile. Poi i punti 1, 2, 4 scelti da Edoardo: comandi con «Esegui» (`commands.rs`), date e numeri della domanda nelle ricette (`periods.rs`), cache automatica del motore API. `docs/chat.md` → Smistatore.
 
-### 12/11 — Chat semplice: strumenti caricati a richiesta
-Edoardo: «il problema è anche con una richiesta sola». Misurato su fisso e portatile con «ok»: la chat fuori dalla Modalità terminale partiva da 34,8k token a passo (le definizioni dei ~100 strumenti di EasyIsland), la terminale da 21,7k. `ToolSearch` aggiunto a `TOOLS` (`claude_cli.rs`): 9,9k a passo, `list_status` provato. Da misurare dal vivo sul portatile. `docs/chat.md` → Connettori MCP.
-Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (blocchi «esito»/«errore» di `result_block`), che riempivano i 6.000 caratteri e tagliavano il «FATTO:» finale (#349, #351, #352). `agentchat::clean_reply` ora pubblica solo il testo dopo l'ultimo passo (`docs/integrazioni.md` → Agent Chat).
+### 14/11 — Stili Studio uniti in `claude/sviluppo` (ramo `refactor_ui_graphics`)
+Lavoro di Antigravity non salvato nel suo worktree: salvato sul ramo e unito. Tre stili nuovi in Aspetto → Stile: Monolite, Titanio, Vetro (nomi di altre app tolti). `docs/architettura.md` → Stili.
 
-### 12/11 — Chat: meno passi
-Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
-
+### 14/11 — Smistatore: registro dei turni, risposte dirette, dati letti prima (ramo `claude/smistatore`, da `claude/consumo`)
+Edoardo: niente LLM integrato che si allena da solo; tappe 1, 2 e 4 dello smistatore che impara con le Ricette (`router.rs`). Registro cifrato dei turni; domande che una ricetta risolve sempre con la stessa lettura risposte senza motore, «⚡ Chiedi al motore» le rimanda; altrimenti le letture fisse della ricetta fatte prima del motore. Test e anteprima (`?scene=chat&pensa=diretta`); da provare nell'app dopo qualche giorno di ricette. `docs/chat.md` → Smistatore.

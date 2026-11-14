@@ -32,7 +32,7 @@ The agent calls a small program, `easyisland-hook.exe`, at every event (start, t
 | **Codex** | Sessions and permissions with Allow / Deny. After installing, open `/hooks` in Codex and approve EasyIsland's hooks |
 | **opencode 2** | Turn on **Connect opencode**: EasyIsland follows its background service without installing anything. Permissions with Allow / Deny / Always, also answerable in opencode |
 | **opencode 1.x** | A plugin written by EasyIsland; restart opencode after installing |
-| **Antigravity** (Google) | Sessions of the `agy` CLI, the IDE and the app, with steps and diffs; commands and MCP tools with Allow / Deny. If you don't answer, Antigravity decides |
+| **Antigravity** (Google) | Sessions of the `agy` CLI, the IDE and the app, with steps and diffs; commands follow Antigravity's mode (in Turbo they run at once); Allow / Deny only when Antigravity itself asks |
 | **Gemini CLI** | Sessions and steps. Gemini doesn't accept permission answers from outside: the island tells you and takes you back to the terminal |
 | **Cursor** and **GitHub Copilot** | Observation only (sessions and steps), never permissions |
 | **Tasks** | EasyIsland's own tasks, as sessions of the "Tasks" agent (see [Tasks](14-tasks.md)) |
@@ -54,6 +54,6 @@ They keep only numbers and the project folder's name, never commands or contents
 ![The weekly recap](../media/recap.png)
 
 ## Claude plan limits
-With a Pro or Max plan, the **Claude usage** card shows the percentages of the **5 hours**, the **week** and the **Opus week**, with a warning from 80 %, and repeats them at the top of the island. It asks Anthropic every 5 minutes with the sign-in already done in Claude Code (the same data as `/usage`, read only) and also takes them from the sessions' status line. The card also shows tokens used, read from Claude Code's transcripts (numbers only, never the text).
+With a Pro or Max plan, the **Usage** card shows the percentages of the **5 hours**, the **week** and the **Opus week**, with a warning from 80 %, and repeats them at the top of the island. It asks Anthropic every 5 minutes with the sign-in already done in Claude Code (the same data as `/usage`, read only) and also takes them from the sessions' status line. The card also shows tokens used, read from Claude Code's transcripts (numbers only, never the text). The other engines have their own section in the same card: see Integrations.
 
 If Claude Code's sign-in expires, EasyIsland renews it by itself by opening Claude Code invisibly for an instant.

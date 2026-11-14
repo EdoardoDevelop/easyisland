@@ -32,7 +32,7 @@ L'agente chiama un piccolo programma, `easyisland-hook.exe`, a ogni evento (iniz
 | **Codex** | Sessioni e permessi con Consenti / Nega. Dopo l'installazione apri `/hooks` in Codex e approva gli hook di EasyIsland |
 | **opencode 2** | Accendi **Collega opencode**: EasyIsland segue il suo servizio in background senza installare nulla. Permessi con Consenti / Nega / Sempre, anche rispondendo in opencode |
 | **opencode 1.x** | Un plugin scritto da EasyIsland; dopo l'installazione riavvia opencode |
-| **Antigravity** (Google) | Sessioni della CLI `agy`, dell'IDE e dell'app, con passi e diff; comandi e strumenti MCP con Consenti / Nega. Se non rispondi decide Antigravity |
+| **Antigravity** (Google) | Sessioni della CLI `agy`, dell'IDE e dell'app, con passi e diff; i comandi seguono la modalità di Antigravity (in Turbo partono subito); Consenti / Nega solo quando è Antigravity a chiedere |
 | **Gemini CLI** | Sessioni e passi. Gemini non accetta risposte ai permessi da fuori: l'isola ti avvisa e ti riporta al terminale |
 | **Cursor** e **GitHub Copilot** | Solo in osservazione (sessioni e passi), mai sui permessi |
 | **Compiti** | I compiti di EasyIsland stessa, come sessioni dell'agente «Compiti» (vedi [Compiti](14-compiti.md)) |
@@ -54,6 +54,6 @@ Tengono solo numeri e il nome della cartella del progetto, mai comandi o contenu
 ![Il riepilogo settimanale](../media/recap.png)
 
 ## Limiti del piano Claude
-Con un piano Pro o Max, la card **Consumo Claude** mostra le percentuali delle **5 ore**, della **settimana** e della **settimana Opus**, con un avviso dall'80 %, e le riporta in alto nell'isola. Le chiede ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`, solo letto) e le prende anche dalla status line delle sessioni. La card mostra anche i token consumati, letti dalle trascrizioni di Claude Code (solo i numeri, mai il testo).
+Con un piano Pro o Max, la card **Consumo** mostra le percentuali delle **5 ore**, della **settimana** e della **settimana Opus**, con un avviso dall'80 %, e le riporta in alto nell'isola. Le chiede ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`, solo letto) e le prende anche dalla status line delle sessioni. La card mostra anche i token consumati, letti dalle trascrizioni di Claude Code (solo i numeri, mai il testo). Gli altri motori hanno la loro sezione nella stessa card: vedi Integrazioni.
 
 Se l'accesso di Claude Code scade, EasyIsland lo rinnova da solo aprendo Claude Code invisibile per un istante.

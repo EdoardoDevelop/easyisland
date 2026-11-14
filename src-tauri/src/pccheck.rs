@@ -34,6 +34,7 @@ const NETWORK: &str = r#"
 Get-NetIPConfiguration -ErrorAction SilentlyContinue | Where-Object { $_.NetAdapter.Status -eq 'Up' } | ForEach-Object {
   "Scheda {0}: IP {1} · gateway {2} · DNS {3}" -f $_.InterfaceAlias, (@($_.IPv4Address.IPAddress) -join ','), (@($_.IPv4DefaultGateway.NextHop) -join ','), (@($_.DNSServer | Where-Object AddressFamily -eq 2 | ForEach-Object ServerAddresses) -join ',')
 }
+Get-NetAdapterAdvancedProperty -ErrorAction SilentlyContinue | Where-Object { $_.RegistryKeyword -match '(?i)vlan_?id$' -and "$($_.RegistryValue)" -notin @('', '0') } | ForEach-Object { "VLAN ID di {0}: {1}" -f $_.Name, (@($_.RegistryValue) -join ',') }
 $gw = (Get-NetIPConfiguration -ErrorAction SilentlyContinue | Where-Object { $_.IPv4DefaultGateway } | Select-Object -First 1).IPv4DefaultGateway.NextHop
 foreach ($target in @($gw, '1.1.1.1') | Where-Object { $_ }) {
   $p = Test-Connection $target -Count 3 -ErrorAction SilentlyContinue

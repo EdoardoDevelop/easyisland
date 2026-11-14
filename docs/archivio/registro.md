@@ -2,6 +2,37 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13/11 — Consumo di tutti i motori (ramo `claude/consumo`, da `claude/domande`)
+Edoardo: «Consumo Claude» per tutti i motori, separati; clic sulle percentuali in alto = motore successivo. Fatto: integrazione «Consumo» con una sezione per motore (opencode dalle sue statistiche, OpenRouter credito e limite, Antigravity e gli altri dalle risposte in EasyIsland), intestazione a giro. Provato dal vivo opencode e OpenRouter (test ignorato `engine_sections_live`) e nell'anteprima; da provare nell'app. `docs/integrazioni.md` → Consumo. Poi, dai dati del portatile (126 passi, ~5 M token il 13/11, ~10.000 caratteri davanti a ogni conversazione): davanti solo le note-regola e le abilità che c'entrano, ricette confrontate nei due sensi, «trovato per la domanda» con più parole in comune. `docs/chat.md` → Memoria, Abilità.
+
+### 14/11 — Memoria più pulita e ricerca per significato (ramo `claude/consumo`)
+Edoardo: «fai tutti e 5». Dopo la risposta: REGOLA → note, [[Pagina]] → pagina, SUPERATA n → archivio, niente dettagli del momento né lavoro su EasyIsland; il riordino sposta in archivio le note copiate nella loro pagina; note su eventi con data passata in archivio; ricerca per significato facoltativa (`memory_meaning.rs`, provata con OpenRouter). Da provare nell'app sul portatile (memoria piena). Poi: Mappa concettuale, le pagine senza relazioni (create dal riordino del 14/11 alle 7) si agganciano alle pagine che nominano, tratteggiate; nomi di file riservati (`com1.md`…) rinominati; test con `USERPROFILE` serializzati (`ENV_LOCK`). `docs/chat.md` → Memoria.
+
+### 13/11 — Antigravity come Claude: modello, impegno, modalità; niente attesa (ramo `claude/domande`)
+Edoardo: in Turbo l'isola chiedeva Consenti/Nega su ogni comando e Antigravity aspettava fino a 2 minuti: ora l'isola trattiene solo `ask_permission` (fuori dalla chat), e senza progetto la sessione si chiama «Antigravity». Nella chat Antigravity ha modello, impegno, Manuale/Accetta modifiche/Piano/Automatica e la card del piano con «Procedi». `docs/agenti.md`, `docs/chat.md`. Da provare con agy vero nell'app (Piano, Automatica).
+
+### 13/11 — VLAN ID in «Modifica rete…» (ramo `claude/domande`)
+Edoardo: poter cambiare anche la VLAN. Campo VLAN ID per le schede il cui driver la prevede (`netconfig.rs` `network_vlan`), applicata per ultima con la stessa conferma di Windows; avviso della breve disconnessione. Lettura provata qui (Ethernet `RegVlanid`), comando provato con `-WhatIf`; da provare l'applicazione vera. `docs/integrazioni.md` → Rete.
+
+### 13/11 — Domande con le scelte nella chat (ramo `claude/domande`)
+Edoardo: la card delle domande come Claude Desktop. Claude Code in `-p` offre `AskUserQuestion`/`ExitPlanMode` solo con `--permission-prompt-tool stdio`: ora i processi tenuti lo usano e EasyIsland risponde sul canale di controllo con la card nella conversazione (domande e piano). Provato con un processo vero via driver e nell'anteprima (`?scene=domanda`); da provare nell'app, anche Piano e Telegram. `docs/chat.md` → Domande e piano.
+
+### 13/11 — Versione 1.0.46: meno token, EasyIsland fa il lavoro (unione di `claude/token`)
+Edoardo: «far fare a EasyIsland più lavoro e togliere lavoro all'IA», niente compact/clear. Misurato sul portatile: 84k token a passo, costo = passi × contesto. Fatti: misura per turno (sotto la risposta e `consumo-chat.jsonl`), ripresa leggera oltre 60k, memoria scritta dopo la risposta con Haiku, strumenti in anticipo, `pc_check` (provato qui e sul portatile via WinRM), Anteprima a differenze, giornata già raccolta. Da misurare dal vivo con `consumo-chat.jsonl`. `docs/chat.md` → Meno token.
+
+### 13/11 — Versione 1.0.45: card per motore, unione di `claude/motori` (con `claude/browser` e `claude/sviluppo`)
+Edoardo: migliorare OpenRouter (preferiti, scelta del modello) e la schermata dei motori, «ogni motore deve avere la sua card». Fatto il primo passo: Impostazioni → Chat → Motori a card (stato, pagamento, cosa sa fare, modello; clic = dettagli, «Usa come predefinito»). Prossimi: finestra dei modelli con filtri e preferiti (anche nel menu della chat e in opencode), saldo e limiti di OpenRouter (`/api/v1/key`), costo per risposta, privacy (fornitori senza conservazione), ripiego. `docs/chat.md` → Motori. Poi pulsante ⧉/◨ nell'Anteprima per isola o finestra (`preview_dock`), da provare nell'app.
+
+### 12/11 — Browser dell'Anteprima e portali dei fornitori (ramo `claude/browser`)
+Edoardo: cercare prodotti nei portali dei fornitori e farne preventivi, «i siti non devono finire nel codice». Mouse e tastiera veri, `preview_steps`, «Sempre» per sito, mai carrello e ordini, `preview_find`/`preview_extract` (prodotti senza conoscere il sito), ricette in `portals.rs` (dati dell'utente), `preview_login` con Devolutions, foto nel Vassoio, costo + ricarico nei preventivi. Poi suggerimenti sopra il campo per ciò che è nell'Anteprima (regole, senza IA), «?»/`/aiuto` «Cosa so fare», `/portali`, `/impara-portale`. «Automatica» della chat accesa di serie, spenta si chiama «Manuale». `docs/chat.md` → Anteprima, Portali dei fornitori, Suggerimenti.
+
+### 12/11 — Chat semplice: strumenti caricati a richiesta
+Edoardo: «il problema è anche con una richiesta sola». Misurato su fisso e portatile con «ok»: la chat fuori dalla Modalità terminale partiva da 34,8k token a passo (le definizioni dei ~100 strumenti di EasyIsland), la terminale da 21,7k. `ToolSearch` aggiunto a `TOOLS` (`claude_cli.rs`): 9,9k a passo, `list_status` provato. Da misurare dal vivo sul portatile. `docs/chat.md` → Connettori MCP.
+Agent Chat: le risposte di Claude Code pubblicavano anche gli esiti dei passi (blocchi «esito»/«errore» di `result_block`), che riempivano i 6.000 caratteri e tagliavano il «FATTO:» finale (#349, #351, #352). `agentchat::clean_reply` ora pubblica solo il testo dopo l'ultimo passo (`docs/integrazioni.md` → Agent Chat).
+
+### 12/11 — Chat: meno passi
+Edoardo: «non voglio che sia meno performante». Sul portatile 1 passo su 5 era una ToolSearch e metà erano memoria. Ora: ricerca in memoria fatta da EasyIsland prima della domanda (`memory::related`, senza modello), `queries`/`titles`/`notes` per fare più cose in una chiamata, i tre strumenti di memoria sempre caricati (`anthropic/alwaysLoad`), skill di serie di Claude Code spente in chat (−2,2k a passo), regole sui passi nel prompt; `custom_get` compatto (template a richiesta); oltre 100k di contesto avviso e clic sull'indicatore per compattare. Da misurare dopo l'installazione. `docs/chat.md` → Modalità terminale.
+
 ### 12/11 — Campo file con «accept»
 Richiesta di Edoardo per TTSpeak (il campo «Audio creato» mostrava ogni file): `accept` sul campo `file` delle integrazioni personali, gruppi (audio, immagini, video, pdf, word, excel, testo) o estensioni (`mp3,wav`); Vassoio filtrato e finestra di Windows con il solo filtro, un file. Misurato prima: la richiesta in chat dopo il taglio dei token partiva da 29k (prima 34–45k), ~260k in tutto. `docs/integrazioni.md`, guida 24. Da provare dal vivo la finestra.
 

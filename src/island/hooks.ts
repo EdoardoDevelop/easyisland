@@ -471,6 +471,11 @@ function showChatPermission(island: Island, payload: HookPayload, at: number) {
     // Which open conversation asks: the one working when only one is, then by its engine session.
     chatSid: State.chats.filter((c) => c.sending).length === 1 ? State.chats.find((c) => c.sending)?.sid : undefined,
   };
+  // Claude Code's questions and plans (its control channel, claude_cli.rs on_control): no «Sempre».
+  const questions = raw === "AskUserQuestion" ? askQuestions(input) : null;
+  const plan = raw === "ExitPlanMode" && typeof input.plan === "string" && input.plan.trim() ? input.plan : null;
+  if (questions) Object.assign(State.pendingApproval, { questions, always: undefined, permit: undefined, command: t("Domanda") });
+  else if (plan) Object.assign(State.pendingApproval, { plan, always: undefined, permit: undefined, command: t("Piano pronto: Consenti per iniziare a lavorarci") });
   const session = payload.session_id ?? "";
   if (session) {
     void Bridge.chatSessionOf(session).then((sid) => {
@@ -944,7 +949,8 @@ function handle(island: Island, payload: HookPayload) {
   }
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
-  const projectName = aliasProjectName(raw || "Session");
+  // No folder (an Antigravity conversation outside a project): the agent's name.
+  const projectName = aliasProjectName(raw || payload.easyisland_agent?.name || "Session");
   const host = sessionHost(payload);
   const focused = State.focusId === tid;
 

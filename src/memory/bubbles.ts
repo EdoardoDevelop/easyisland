@@ -4,7 +4,7 @@
 // place to the middle), drawn once: nothing moves unless you pan or zoom.
 
 import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
-import { Camera, type View } from "./stage";
+import { animateIdle, Camera, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { inkOf, paintBackground, pal } from "./theme";
 
@@ -70,58 +70,70 @@ export class BubblesView implements View {
     this.filter = ids;
   }
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
     this.size = { w, h };
     if (!this.framed && this.bubbles.length) {
       this.cam.frame(box(this.bubbles), w, h, true, 30);
       this.framed = true;
     }
     const moving = this.cam.step();
+    const idle = animateIdle();
     paintBackground(ctx, w, h);
     const p = pal();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
     const sel = this.selected;
-    const names: { text: string; x: number; y: number; score: number; color?: string; group: boolean }[] = [];
-    for (const b of this.bubbles) {
-      // The group's bubble: a tint of its colour with a thin edge.
-      ctx.fillStyle = alpha(b.colour, p.light ? 0.08 : 0.1);
+    const names: { text: string; x: number; y: number; score: number; color?: string; pillColor?: string; group: boolean }[] = [];
+    this.bubbles.forEach((b, bi) => {
+      const floatY = idle ? (Math.sin(time * 0.0014 + bi * 1.3) * 3.5) / k : 0;
+      const by = b.y + floatY;
+      // The group's bubble: a soft glassmorphic radial tint with a luminous rim.
+      const ggrad = ctx.createRadialGradient(b.x - b.r * 0.25, by - b.r * 0.25, b.r * 0.1, b.x, by, b.r);
+      ggrad.addColorStop(0, alpha(b.colour, p.light ? 0.15 : 0.19));
+      ggrad.addColorStop(0.75, alpha(b.colour, p.light ? 0.07 : 0.09));
+      ggrad.addColorStop(1, alpha(b.colour, p.light ? 0.04 : 0.05));
+      ctx.fillStyle = ggrad;
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.arc(b.x, by, b.r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = alpha(b.colour, 0.6);
-      ctx.lineWidth = 1 / k;
+      ctx.strokeStyle = alpha(b.colour, 0.7);
+      ctx.lineWidth = 1.3 / k;
       ctx.stroke();
       for (const c of b.inner) {
         const x = b.x + c.x;
-        const y = b.y + c.y;
+        const y = by + c.y;
         const on = (!sel && !this.filter) || c.n.id === sel || !!this.filter?.has(c.n.id);
         const page = c.n.kind === "page" || c.n.kind === "missing";
-        ctx.fillStyle = alpha(c.colour, on ? (page ? 0.9 : 0.6) : 0.15);
+        ctx.fillStyle = alpha(c.colour, on ? (page ? 0.92 : 0.62) : 0.15);
         ctx.beginPath();
         ctx.arc(x, y, c.r, 0, Math.PI * 2);
         ctx.fill();
+        if (page && on && c.n.id !== sel && c.n.id !== this.hovered) {
+          ctx.strokeStyle = p.light ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.28)";
+          ctx.lineWidth = 1 / k;
+          ctx.stroke();
+        }
         if (c.n.id === sel || c.n.id === this.hovered) {
           ctx.strokeStyle = p.ring;
           ctx.lineWidth = 2 / k;
           ctx.stroke();
         }
         const forced = c.n.id === sel || c.n.id === this.hovered;
-        if (forced || (on && page && c.r * k > 14)) names.push({ text: c.n.label, x, y, score: forced ? 1e9 : c.r, group: false });
+        if (forced || (on && page && c.r * k > 14)) names.push({ text: c.n.label, x, y, score: forced ? 1e9 : c.r, pillColor: c.colour, group: false });
       }
-      if (b.name) names.push({ text: b.name, x: b.x, y: b.y - b.r, score: 1e6 + b.r, color: inkOf(b.colour), group: true });
-    }
+      if (b.name) names.push({ text: b.name, x: b.x, y: by - b.r, score: 1e6 + b.r, color: inkOf(b.colour), pillColor: b.colour, group: true });
+    });
     ctx.restore();
     // Names in screen pixels, the biggest first; never one on another.
     const placer = new Placer();
     names.sort((a, b) => b.score - a.score);
     for (const n of names) {
       const at = this.cam.toScreen(n.x, n.y);
-      if (n.group) label(ctx, placer, n.text, at.x, at.y - 4, { size: 14, weight: 600, color: n.color, baseline: "bottom", max: 240 });
-      else label(ctx, placer, n.text, at.x, at.y, { size: 12, weight: n.score >= 1e9 ? 600 : 500, baseline: "middle", force: n.score >= 1e9, max: 160 });
+      if (n.group) label(ctx, placer, n.text, at.x, at.y - 4, { size: 13, weight: 600, color: n.color, baseline: "bottom", max: 240, pill: true, pillColor: n.pillColor });
+      else label(ctx, placer, n.text, at.x, at.y, { size: 12, weight: n.score >= 1e9 ? 600 : 500, baseline: "middle", force: n.score >= 1e9, max: 160, pill: n.score >= 1e9, pillColor: n.pillColor });
     }
-    return moving;
+    return moving || idle;
   }
 
   hit(x: number, y: number): string | null {

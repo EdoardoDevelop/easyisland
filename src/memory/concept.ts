@@ -3,7 +3,7 @@
 
 import { KIND_COLOR, alpha, fit, type Model } from "./data";
 import { t } from "../core/i18n";
-import { Camera, starfield, type View } from "./stage";
+import { animateIdle, Camera, starfield, type View } from "./stage";
 import { roundRect } from "./mindmap";
 import { Placer, label } from "./labels";
 import { font, pal } from "./theme";
@@ -23,6 +23,8 @@ interface Arrow {
   from: Box;
   to: Box;
   label: string;
+  /** Not written: a page with no written relation, tied to a page it names (dashed). */
+  named?: boolean;
 }
 
 const GAP_X = 36;
@@ -64,12 +66,23 @@ export class ConceptView implements View {
     const set = new Set(ids);
     const out = new Map<string, string[]>();
     const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
-    const arrows: [string, string, string][] = [];
-    for (const e of m.g.edges) {
-      if (!set.has(e.from) || !set.has(e.to) || (e.strength ?? 3) < 3) continue; // only what is written
-      arrows.push([e.from, e.to, e.label]);
+    const arrows: [string, string, string, boolean][] = [];
+    const add = (e: { from: string; to: string; label: string }, named: boolean) => {
+      arrows.push([e.from, e.to, e.label, named]);
       (out.get(e.from) ?? out.set(e.from, []).get(e.from)!).push(e.to);
       indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
+    };
+    for (const e of m.g.edges) {
+      if (!set.has(e.from) || !set.has(e.to) || (e.strength ?? 3) < 3) continue; // only what is written
+      add(e, false);
+    }
+    // A page with no written relation would float alone (14 Nov 2026): it hangs
+    // from the pages it names or that name it (brain.rs pages_named_in, strength 2), dashed.
+    const written = new Set(arrows.flatMap(([a, b]) => [a, b]));
+    for (const e of m.g.edges) {
+      if (!set.has(e.from) || !set.has(e.to) || e.strength !== 2) continue;
+      if (written.has(e.from) && written.has(e.to)) continue;
+      add(e, true);
     }
     // Layers: longest path from the pages nobody points to (cycles cut).
     const layer = new Map<string, number>();
@@ -162,7 +175,7 @@ export class ConceptView implements View {
       });
     }
     this.boxes = boxes;
-    this.arrows = arrows.map(([a, b, label]) => ({ from: boxes.get(a)!, to: boxes.get(b)!, label })).filter((a) => a.from && a.to);
+    this.arrows = arrows.map(([a, b, label, named]) => ({ from: boxes.get(a)!, to: boxes.get(b)!, label, named })).filter((a) => a.from && a.to);
     this.born = performance.now();
   }
 
@@ -184,8 +197,9 @@ export class ConceptView implements View {
       this.framed = true;
     }
     let moving = this.cam.step();
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
+    const idle = animateIdle();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
@@ -194,6 +208,27 @@ export class ConceptView implements View {
     const sel = this.selected;
     const on = (id: string) => (!sel || id === sel || this.arrows.some((a) => (a.from.id === sel && a.to.id === id) || (a.to.id === sel && a.from.id === id))) && (!this.filter || this.filter.has(id));
     const rels: { text: string; x: number; y: number; lit: boolean; named: boolean }[] = [];
+
+    // Subtle alternating horizontal bands behind each hierarchy layer.
+    const layerY = new Map<number, { minY: number; maxY: number }>();
+    let minX = Infinity, maxX = -Infinity;
+    for (const b of this.boxes.values()) {
+      minX = Math.min(minX, b.x);
+      maxX = Math.max(maxX, b.x + b.w);
+      const cur = layerY.get(b.layer);
+      if (cur) { cur.minY = Math.min(cur.minY, b.y); cur.maxY = Math.max(cur.maxY, b.y + b.h); }
+      else layerY.set(b.layer, { minY: b.y, maxY: b.y + b.h });
+    }
+    if (Number.isFinite(minX)) {
+      const bandEntries = [...layerY.entries()].sort((a, b) => (a[0] === -1 ? 999 : a[0]) - (b[0] === -1 ? 999 : b[0]));
+      bandEntries.forEach(([, r], bi) => {
+        if (bi % 2 === 0) {
+          ctx.fillStyle = p.light ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.022)";
+          roundRect(ctx, minX - 28, r.minY - 12, maxX - minX + 56, r.maxY - r.minY + 24, 10);
+          ctx.fill();
+        }
+      });
+    }
 
     // Arrows.
     for (const a of this.arrows) {
@@ -212,10 +247,30 @@ export class ConceptView implements View {
       const color = sel && lit ? p.ink : `rgba(${p.link},0.6)`;
       ctx.strokeStyle = color;
       ctx.lineWidth = (lit && sel ? 1.8 : 1.2) / Math.sqrt(k);
+      // A link by name only keeps its fixed dash; the selected one moves while idle.
+      if (a.named) ctx.setLineDash([5 / Math.sqrt(k), 4 / Math.sqrt(k)]);
+      else if (idle && lit && sel) {
+        ctx.setLineDash([6 / k, 4 / k]);
+        ctx.lineDashOffset = -(time * 0.02) / k;
+      }
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.bezierCurveTo(sx, c1y, c2x, c2y, ex, ey);
       ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      if (idle && lit && !a.named) {
+        const u = ((time * 0.00038 + (sx + sy) * 0.0013) % 1 + 1) % 1;
+        const q = 1 - u;
+        const px = q * q * q * sx + 3 * q * q * u * sx + 3 * q * u * u * c2x + u * u * u * ex;
+        const py = q * q * q * sy + 3 * q * q * u * c1y + 3 * q * u * u * c2y + u * u * u * ey;
+        ctx.fillStyle = alpha(p.accent, 0.85);
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5 / Math.sqrt(k), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
       // The head.
       const ang = Math.atan2(ey - c2y, ex - c2x);
       ctx.fillStyle = color;
@@ -227,7 +282,7 @@ export class ConceptView implements View {
       ctx.fill();
       const mx = (sx + ex) / 2 + (back ? (ex > sx ? 40 : -40) : 0);
       const my = back ? (sy + ey) / 2 + 30 : (sy + ey) / 2;
-      rels.push({ text: a.label || t("collegata a"), x: mx, y: my, lit, named: !!a.label });
+      if (!a.named) rels.push({ text: a.label || t("collegata a"), x: mx, y: my, lit, named: !!a.label });
     }
 
     // Boxes: flat cards with the kind's colour on the edge.
@@ -246,6 +301,11 @@ export class ConceptView implements View {
       ctx.lineWidth = (b.id === sel ? 2 : 1) / Math.min(1, k);
       ctx.stroke();
       ctx.setLineDash([]);
+      if (b.kind === "page") {
+        ctx.fillStyle = alpha(color, 0.9);
+        roundRect(ctx, b.x + 2, b.y + rise + 4, 3, b.h - 8, 1.5);
+        ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -274,10 +334,10 @@ export class ConceptView implements View {
     for (const r of rels) {
       if (sel && !r.lit) continue;
       const s = this.cam.toScreen(r.x, r.y);
-      label(ctx, placer, r.text, s.x, s.y, { size: 12, weight: 500, color: r.named ? p.ink : p.dim, baseline: "middle", max: 160 });
+      label(ctx, placer, r.text, s.x, s.y, { size: 11.5, weight: 500, color: r.named ? p.ink : p.dim, baseline: "middle", max: 160, pill: r.named });
     }
     ctx.globalAlpha = 1;
-    return moving;
+    return moving || idle;
   }
 
   hit(x: number, y: number): string | null {

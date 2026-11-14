@@ -6,7 +6,7 @@ import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type AskQuestion, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage, type ChatCommand } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -337,6 +337,7 @@ export function buildPrompt(
   actions: {
     runAction(a: QuickAction): void;
     decide(d: "allow" | "deny" | "always"): void;
+    answerQuestions(answers: Record<string, string>): void;
     popOut(key: string): void;
     dockBack(key: string): void;
   },
@@ -385,8 +386,24 @@ export function buildPrompt(
   const sideBtn = h("button", { class: "history-btn side-btn", title: t("Mostra o nascondi le conversazioni (Ctrl+B)") }, svg(ICONS.sidebar, 14, { stroke: 1.8 })) as HTMLButtonElement;
   // The conversation's title, as the history knows it (its first question until then).
   const titleEl = h("span", { class: "chat-title" });
+  const headCrumb = h("button", { class: "chat-crumb", title: t("Scegli la cartella del progetto per questa chat"), onclick: () => void toggleFolderMenu() }) as HTMLButtonElement;
+  headCrumb.style.display = "none";
+  // Overflow menu for secondary chat actions (keeps .chat-head uncluttered).
+  const moreMenu = h("div", { class: "chat-more-menu" });
+  moreMenu.style.display = "none";
+  const closeMoreMenu = () => {
+    moreMenu.style.display = "none";
+    moreBtn.classList.remove("menu-open");
+  };
+  const moreBtn = h("button", { class: "history-btn chat-more-btn", title: t("Altre azioni") }, svg(ICONS.ellipsis, 14)) as HTMLButtonElement;
+  moreBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = moreMenu.style.display === "none";
+    moreMenu.style.display = open ? "" : "none";
+    moreBtn.classList.toggle("menu-open", open);
+  });
   // «Esporta»: the conversation as a Markdown file in the Vassoio.
-  const exportBtn = h("button", { class: "history-btn", title: t("Esporta la conversazione in Markdown (nel Vassoio)") }, svg(ICONS.lineExport, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const exportBtn = h("button", { class: "chat-more-item", title: t("Esporta la conversazione in Markdown (nel Vassoio)") }, svg(ICONS.lineExport, 13, { stroke: 1.8 }), h("span", { text: t("Esporta Markdown") })) as HTMLButtonElement;
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
@@ -399,15 +416,19 @@ export function buildPrompt(
   // Opens the Anteprima, and closes it when it is open in the island.
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
-  const desktopBtn = h("button", { class: "history-btn desktop-btn" }, svg(ICONS.lineOut, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const desktopBtn = h("button", { class: "chat-more-item desktop-btn" }, svg(ICONS.lineOut, 13, { stroke: 1.8 }), h("span", { text: t("Continua in Claude Desktop") })) as HTMLButtonElement;
   // «Apri in una finestra» / «Rimetti nell'isola» (popout.ts): the chat as a window of its own and back.
-  const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
+  const popBtn = h("button", { class: "chat-more-item pop-btn" }) as HTMLButtonElement;
   // Named from the start: sync() renames them, but only while the chat is on screen.
   tip(desktopBtn, t("Continua in Claude Desktop, con tutta la conversazione"));
   tip(popBtn, t("Apri la chat in una finestra"));
   tip(folderBtn, t("Scegli la cartella del progetto per questa chat"));
   let popShown: boolean | null = null;
-  popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
+  popBtn.addEventListener("click", () => {
+    closeMoreMenu();
+    if (isPopped("chat")) actions.dockBack("chat");
+    else actions.popOut("chat");
+  });
   // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
   const termBtn = h("button", { class: "history-btn", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }, svg(ICONS.lineTerminal, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // xterm.js draws the conversation's terminal here (chat-terminal.ts).
@@ -425,10 +446,14 @@ export function buildPrompt(
   /** Output of a terminal that arrived before its id came back from terminal_open. */
   const early = new Map<number, string>();
   // «Cosa so fare»: the panel of what the chat can do (also /aiuto).
-  const helpBtn = h("button", { class: "history-btn", text: "?" }) as HTMLButtonElement;
+  const helpBtn = h("button", { class: "chat-more-item" }, h("span", { class: "chat-more-glyph", text: "?" }), h("span", { text: t("Cosa so fare") })) as HTMLButtonElement;
   tip(helpBtn, t("Cosa so fare: esempi da mettere nel campo (anche /aiuto)"));
-  helpBtn.addEventListener("click", () => toggleHelp());
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, helpBtn, previewBtn, desktopBtn, exportBtn, popBtn);
+  helpBtn.addEventListener("click", () => {
+    closeMoreMenu();
+    toggleHelp();
+  });
+  moreMenu.append(desktopBtn, exportBtn, popBtn, helpBtn);
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -437,10 +462,97 @@ export function buildPrompt(
   const askRisk = h("div", { class: "risk-hint" });
   const askAlways = h("div", { class: "chat-ask-always" });
   const askRow = h("div", { class: "chat-ask-row" });
-  const askEl = h("div", { class: "chat-ask" },
-    h("div", { class: "chat-ask-title", text: t("La chat chiede il permesso") }), askWhat, askRisk, askAlways, askRow);
+  const askTitle = h("div", { class: "chat-ask-title" });
+  // Claude Code's questions (AskUserQuestion): the question, its options, «Altro…».
+  const askQ = h("div", { class: "chat-ask-q" });
+  const askOpts = h("div", { class: "chat-ask-options" });
+  // Its plan (ExitPlanMode), to read before «Procedi».
+  const askPlan = h("div", { class: "chat-ask-plan" });
+  const askEl = h("div", { class: "chat-ask" }, askTitle, askQ, askOpts, askPlan, askWhat, askRisk, askAlways, askRow);
   let askKey = "";
+  // Which question of the request is on screen, and the answers so far.
+  let qFor = "";
+  let qIndex = 0;
+  let qAnswers: Record<string, string> = {};
+  function showOnly(...shown: HTMLElement[]) {
+    for (const el of [askQ, askOpts, askPlan, askWhat, askRisk, askAlways]) el.style.display = shown.includes(el) ? "" : "none";
+  }
+  /** One question at a time, as Claude Desktop shows them: a click answers, several with «Avanti». */
+  function fillQuestion(req: NonNullable<typeof State.pendingApproval>, all: AskQuestion[]) {
+    if (qFor !== req.requestId) {
+      qFor = req.requestId;
+      qIndex = 0;
+      qAnswers = {};
+    }
+    const q = all[qIndex];
+    if (!q) return;
+    askEl.classList.add("is-question");
+    showOnly(askQ, askOpts);
+    askTitle.textContent = all.length > 1
+      ? t("La chat ha {n} domande · {i} di {n}", { n: all.length, i: qIndex + 1 })
+      : t("La chat ha una domanda");
+    askQ.textContent = q.question;
+    const last = qIndex + 1 >= all.length;
+    const next = (value: string) => {
+      qAnswers[q.question] = value;
+      if (!last) {
+        qIndex += 1;
+        fillQuestion(req, all);
+        toBottom();
+        return;
+      }
+      actions.answerQuestions(qAnswers);
+    };
+    const picked = new Set<string>();
+    const go = h("button", { class: "btn primary", text: last ? t("Invia") : t("Avanti") }) as HTMLButtonElement;
+    go.disabled = true;
+    go.addEventListener("click", () => {
+      if (picked.size) next(q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
+    });
+    askOpts.replaceChildren(...q.options.map((o) => {
+      const b = h("button", { class: "chat-ask-opt" },
+        h("span", { class: "chat-ask-opt-label", text: o.label }),
+        o.description ? h("span", { class: "chat-ask-opt-desc", text: o.description }) : "") as HTMLButtonElement;
+      b.addEventListener("click", () => {
+        if (!q.multiSelect) return next(o.label);
+        if (picked.has(o.label)) picked.delete(o.label);
+        else picked.add(o.label);
+        b.classList.toggle("on", picked.has(o.label));
+        go.disabled = picked.size === 0;
+      });
+      return b;
+    }));
+    // Anything the options cannot say: written here, sent as the answer.
+    const other = h("input", { class: "ask-other", type: "text", placeholder: t("Altro… scrivi la risposta e premi Invio") }) as HTMLInputElement;
+    other.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const text = other.value.trim();
+      if (text) next(text);
+    });
+    askOpts.append(other);
+    const skip = h("button", { class: "btn secondary", title: t("Claude continua senza queste scelte e, se serve, chiede nel testo") },
+      h("span", { text: t("Non ora") }));
+    skip.addEventListener("click", () => actions.decide("deny"));
+    askRow.replaceChildren(skip);
+    if (q.multiSelect) askRow.append(go);
+  }
   function fillAsk(req: NonNullable<typeof State.pendingApproval>) {
+    const all = req.questions ?? [];
+    if (all.length) return fillQuestion(req, all);
+    askEl.classList.remove("is-question");
+    askTitle.textContent = req.plan ? t("Il piano è pronto") : t("La chat chiede il permesso");
+    askPlan.textContent = req.plan ?? "";
+    showOnly(...(req.plan ? [askPlan] : [askWhat]), askRisk, askAlways);
+    if (req.plan) {
+      const keep = h("button", { class: "btn secondary", onclick: () => actions.decide("deny") }, h("span", { text: t("Continua a pianificare") }));
+      const go = h("button", { class: "btn primary", onclick: () => actions.decide("allow") }, h("span", { text: t("Procedi") }));
+      askRisk.style.display = "none";
+      askAlways.style.display = "none";
+      askRow.replaceChildren(keep, go);
+      return;
+    }
     askWhat.textContent = req.command || req.tool || "…";
     const risks = req.risks ?? [];
     askRisk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
@@ -456,6 +568,26 @@ export function buildPrompt(
       askRow.append(always);
     }
     askRow.append(b(t("Consenti"), "primary", "allow"));
+  }
+  /** Antigravity's plan (a turn in «Piano»): «Procedi» leaves the mode and asks it to carry it out. */
+  function fillAgyPlan(c: ChatSessionState) {
+    askEl.classList.remove("is-question");
+    askTitle.textContent = t("Il piano è pronto");
+    askPlan.textContent = c.plan ?? "";
+    showOnly(askPlan);
+    const keep = h("button", { class: "btn secondary", onclick: () => {
+      c.plan = null;
+      Sound.play("blip");
+      State.notify();
+      input.focus();
+    } }, h("span", { text: t("Continua a pianificare") }));
+    const go = h("button", { class: "btn primary", onclick: () => {
+      c.plan = null;
+      c.mode = "";
+      Sound.play("blip");
+      void submit(t("Procedi con il piano."), c);
+    } }, h("span", { text: t("Procedi") }));
+    askRow.replaceChildren(keep, go);
   }
   // Scrolled up to read: new text does not pull the view down; ↓ goes back.
   let stick = true;
@@ -497,8 +629,30 @@ export function buildPrompt(
     if (c.sending) c.queue.push("/compatta");
     else void submit("/compatta", c);
   });
-  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, prBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
-  const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
+  const slashQuickBtn = h("button", { class: "auto-btn tool-quick", text: "/", title: t("Comandi (/)") }) as HTMLButtonElement;
+  slashQuickBtn.addEventListener("click", () => {
+    if (!input.value.startsWith("/")) setInput(`/${input.value}`);
+    slashSel = 0;
+    updateSlash();
+    input.focus();
+  });
+  const atQuickBtn = h("button", { class: "auto-btn tool-quick", text: "@", title: t("Allega contesto (@)") }) as HTMLButtonElement;
+  atQuickBtn.addEventListener("click", () => {
+    const cur = input.value;
+    if (!/(?:^|\s)@\S*$/.test(cur)) setInput(`${cur}${cur && !/\s$/.test(cur) ? " " : ""}@`);
+    slashSel = 0;
+    updateSlash();
+    input.focus();
+  });
+  const ctxBar = h(
+    "div",
+    { class: "chat-ctx-bar" },
+    h("div", { class: "chat-ctx-left" }, folderBtn, prBtn, engineBtn, autoBtn),
+    h("div", { class: "chat-ctx-right" }, contextMeter),
+  );
+  const tools = h("div", { class: "chat-tools" }, slashQuickBtn, atQuickBtn, fresh, remoteBtn, teamBtn, clip, mic, send);
+  const bar = h("div", { class: "chat-bar" }, field, tools);
+  const composer = h("div", { class: "chat-composer" }, ctxBar, bar, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
   slashMenu.style.display = "none";
@@ -542,16 +696,22 @@ export function buildPrompt(
     }
   }
 
-  // The sidebar: «Nuovo» and «Cerca» side by side, the search field, and the conversations (the open
-  // ones and the history), grouped by day. A click switches; the others go on.
+  // The sidebar: «Nuovo» and «Cerca» side by side, the search field, quick filter tabs, and the conversations.
   const sideNew = h("button", { class: "side-new", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuovo") }));
   const sideFind = h("button", { class: "side-new", title: t("Cerca nelle conversazioni…") }, lensIcon(12), h("span", { text: t("Cerca") }));
   const historySearch = h("input", { class: "history-search", type: "text", placeholder: t("Cerca nelle conversazioni…"), spellcheck: "false" }) as HTMLInputElement;
   historySearch.style.display = "none";
+  let sideTab: "all" | "active" | "pinned" = "all";
+  const tabBtns: Record<"all" | "active" | "pinned", HTMLButtonElement> = {
+    all: h("button", { class: "side-tab on", text: t("Tutte") }) as HTMLButtonElement,
+    active: h("button", { class: "side-tab", text: t("Attive") }) as HTMLButtonElement,
+    pinned: h("button", { class: "side-tab", text: t("Fissate") }) as HTMLButtonElement,
+  };
+  const sideTabs = h("div", { class: "side-tabs" }, tabBtns.all, tabBtns.active, tabBtns.pinned);
   const historyRows = h("div", { class: "history-rows" });
   // Its right edge, dragged: wider or narrower, remembered on this PC.
   const sideGrip = h("div", { class: "chat-side-grip", title: t("Trascina per allargare o stringere le conversazioni") });
-  const side = h("div", { class: "chat-side" }, h("div", { class: "side-top" }, sideNew, sideFind), historySearch, historyRows, sideGrip);
+  const side = h("div", { class: "chat-side" }, h("div", { class: "side-top" }, sideNew, sideFind), historySearch, sideTabs, historyRows, sideGrip);
   // Another open conversation asks a permission: a line over the field takes there.
   const otherAsk = h("button", { class: "chat-other-ask" }) as HTMLButtonElement;
   otherAsk.style.display = "none";
@@ -578,7 +738,7 @@ export function buildPrompt(
   /** The recent conversations sit above the field and, when shown, the tips row. */
   function placeRecent() {
     const tips = tipsRow.style.display !== "none" ? tipsRow.offsetHeight + 8 : 0;
-    recent.style.bottom = `${bar.offsetHeight + 32 + tips}px`;
+    recent.style.bottom = `${composer.offsetHeight + 32 + tips}px`;
   }
   function showRecent(on: boolean) {
     if (!on || State.settings.chatHistory === false) {
@@ -603,7 +763,7 @@ export function buildPrompt(
       recent.parentElement?.classList.toggle("has-recent", shown);
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, bar));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
   const el = h(
     "div",
     { class: "view" },
@@ -908,12 +1068,14 @@ export function buildPrompt(
           return { text: r.text, log: null, context: null };
         })
         : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
-          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
+          State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : engine === "antigravity" ? c.agyModel : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
       if (!session && "mode" in reply && !c.auto) c.mode = (reply as { mode?: string }).mode ?? "";
       const note = (reply as { note?: string | null }).note;
       if (note && c === State.chat) flash(note);
+      // Antigravity in «Piano»: its plan waits on a card for «Procedi».
+      c.plan = (reply as { plan?: string | null }).plan ?? null;
       c.context = reply.context ?? null;
       // Past HEAVY_CONTEXT every step re-reads it all: said once, the meter stays amber and compacts on a click.
       // With «Ripresa leggera» (Claude Code) EasyIsland lightens it by itself at the next question.
@@ -923,7 +1085,9 @@ export function buildPrompt(
         flash(t("La conversazione pesa {n} token e ogni passo li rilegge tutti: clic sull'indicatore del contesto (o /compatta) per riassumerla, o «Nuovo» se cambi argomento.", { n: Math.round((c.context?.[0] ?? 0) / 1000) + "k" }), true);
       }
       const usage = (reply as { usage?: TurnUsage | null }).usage ?? undefined;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage });
+      const direct = (reply as { direct?: boolean }).direct === true;
+      const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined, command });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1339,6 +1503,22 @@ export function buildPrompt(
     window.setTimeout(() => { btn.textContent = t("Copia"); }, 1400);
   }
 
+  /** «Esegui» under a command the chat offered: runs it once, the result goes under the answer. */
+  async function runCommand(m: ChatMessage, cmd: ChatCommand, btn: HTMLButtonElement) {
+    btn.disabled = true;
+    let line: string;
+    try {
+      const out = await Bridge.chatCommandRun(cmd.tool, cmd.args);
+      line = `✓ ${out || t("Fatto.")}`;
+    } catch (err) {
+      line = `✗ ${err instanceof Error ? err.message : String(err)}`;
+    }
+    m.commandDone = true;
+    m.content = `${m.content}\n\n${line}`;
+    renderedCount = -1;
+    State.notify();
+  }
+
   /** Copia under every message, Rigenera under the last answer, Modifica under a question. */
   function withActions(row: HTMLElement, m: ChatMessage, index: number, last: boolean): HTMLElement {
     const bar = h("div", { class: `msg-actions${last ? " last" : ""}` });
@@ -1352,7 +1532,16 @@ export function buildPrompt(
         bar.append(h("button", { class: "msg-act", title: t("Riporta i file cambiati da questa domanda in poi com'erano prima (come in Claude Desktop); la conversazione resta"), text: `⟲ ${t("File")}`, onclick: () => void restoreFiles(index) }));
       }
     }
-    if (own && last && m.role === "assistant" && !m.reviewer) {
+    if (own && last && m.role === "assistant" && m.command && !m.commandDone) {
+      const cmd = m.command;
+      const run = h("button", { class: "msg-act msg-run", title: cmd.label, text: `▶︎ ${t("Esegui")}` }) as HTMLButtonElement;
+      run.addEventListener("click", () => void runCommand(m, cmd, run));
+      bar.append(run);
+    }
+    if (own && last && m.role === "assistant" && m.direct) {
+      // The same question again goes to the engine, and that recipe stops answering by itself (router.rs).
+      bar.append(h("button", { class: "msg-act", title: t("EasyIsland ha risposto da solo con i dati delle domande simili: chiedi al motore, e per questo tipo di domanda risponderà sempre il motore"), text: `⚡ ${t("Chiedi al motore")}`, onclick: () => void regenerate() }));
+    } else if (own && last && m.role === "assistant" && !m.reviewer) {
       bar.append(h("button", { class: "msg-act", text: `↻ ${t("Rigenera")}`, onclick: () => void regenerate() }));
     }
     if (own && m.role === "assistant" && !last) {
@@ -1880,7 +2069,40 @@ export function buildPrompt(
       }
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
+    // Antigravity: the same choices, with its own models (`agy models`).
+    if (State.chatEngine === "antigravity") {
+      const now = effortOf(State.chat);
+      engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
+      for (const [id, label, hint] of efforts()) {
+        engineMenu.append(h("button", {
+          class: `engine-item${id === now ? " on" : ""}`, title: hint, text: id ? label : t("Predefinito del modello"),
+          onclick: () => pickEffort(id),
+        }));
+      }
+      const model = State.chat.agyModel ?? "";
+      engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Antigravity") }));
+      const pick = (id: string, label: string) => h("button", {
+        class: `engine-item${id === model ? " on" : ""}`, text: label,
+        onclick: () => { State.chat.agyModel = id || null; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
+      });
+      engineMenu.append(pick("", t("Quello delle Impostazioni")));
+      const list = h("div", { class: "engine-models" });
+      engineMenu.append(list);
+      agyModels ??= Promise.resolve(Bridge.chatModels("antigravity", null)).then((l) => (l ?? []).map((m) => m.id)).catch(() => { agyModels = null; return []; });
+      void agyModels.then((ids) => {
+        list.replaceChildren(...(ids.length ? ids.map((id) => pick(id, id)) : [h("div", { class: "engine-note", text: t("Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.") })]));
+      });
+      engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.") }));
+    }
     engineMenu.style.display = "";
+  }
+
+  /** Antigravity's models, read once per run (`agy models` takes a few seconds). */
+  let agyModels: Promise<string[]> | null = null;
+
+  /** Engines with Claude Code's modes and effort: Claude Code and Antigravity. */
+  function hasModes(engine: string): boolean {
+    return engine === "subscription" || engine === "antigravity";
   }
 
   function efforts(): [string, string, string][] {
@@ -2079,13 +2301,26 @@ export function buildPrompt(
     renderHistory(lastList, lastQuery);
   }
 
-  function renderHistory(list: ChatSummary[], query: string) {
-    lastList = list;
+  function renderHistory(rawList: ChatSummary[], query: string) {
+    lastList = rawList;
     lastQuery = query;
     clear(historyRows);
+    const activeChats = State.chats;
+    const isActiveSummary = (c: ChatSummary) => {
+      const open = activeChats.find((x) => x.logId === c.id);
+      return !!open && (open.sending || open.unread || State.pendingApproval?.chatSid === open.sid || open.sid === State.chatSid);
+    };
+    const list = sideTab === "pinned"
+      ? rawList.filter((c) => c.pinned)
+      : sideTab === "active"
+      ? rawList.filter(isActiveSummary)
+      : rawList;
     // Open conversations the history does not have yet (no answer saved): on top.
-    const fresh = query.trim() ? [] : State.chats.filter((c) => (!c.logId || !list.some((x) => x.id === c.logId))
+    const freshAll = query.trim() || sideTab === "pinned" ? [] : State.chats.filter((c) => (!c.logId || !rawList.some((x) => x.id === c.logId))
       && (c.history.length || c.sending || c.sid === State.chatSid));
+    const fresh = sideTab === "active"
+      ? freshAll.filter((c) => c.sending || c.unread || State.pendingApproval?.chatSid === c.sid || c.sid === State.chatSid)
+      : freshAll;
     const freshRow = (c: ChatSessionState): HTMLElement => {
       const first = c.history.find((m) => m.role === "user")?.content ?? "";
       const name = CHAT_ENGINES.find((e) => e.id === engineOf(c))?.name ?? engineOf(c);
@@ -2096,12 +2331,16 @@ export function buildPrompt(
     const loose = fresh.filter((c) => !c.folder);
     if (loose.length) historyRows.append(h("div", { class: "side-group", text: t("Aperte") }));
     for (const c of loose) historyRows.append(freshRow(c));
+    const activeCount = rawList.filter(isActiveSummary).length + freshAll.filter((c) => c.sending || c.unread || State.pendingApproval?.chatSid === c.sid || c.sid === State.chatSid).length;
+    tabBtns.active.textContent = activeCount > 0 ? `${t("Attive")} (${activeCount})` : t("Attive");
     if (!list.length && !fresh.length) {
       historyRows.append(h("div", { class: "engine-note", text: query.trim()
         ? t("Nessuna conversazione con queste parole.")
-        : State.settings.chatHistory === false
-          ? t("La cronologia è spenta: Impostazioni → Chat.")
-          : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
+        : sideTab !== "all"
+          ? t("Nessuna conversazione in questa vista.")
+          : State.settings.chatHistory === false
+            ? t("La cronologia è spenta: Impostazioni → Chat.")
+            : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
     }
     const savedRow = (c: ChatSummary): HTMLElement => {
       const engine = CHAT_ENGINES.find((e) => e.id === c.engine)?.name ?? c.engine;
@@ -2322,6 +2561,14 @@ export function buildPrompt(
     }
   }
   sideFind.addEventListener("click", () => showSearch(historySearch.style.display === "none"));
+  (["all", "active", "pinned"] as const).forEach((tab) => {
+    tabBtns[tab].addEventListener("click", () => {
+      if (sideTab === tab) return;
+      sideTab = tab;
+      (["all", "active", "pinned"] as const).forEach((k) => tabBtns[k].classList.toggle("on", k === tab));
+      renderSide();
+    });
+  });
 
   /** «/cronologia», «/cerca …»: the sidebar open, with the search when there is one. */
   async function toggleHistory(query?: string) {
@@ -2393,8 +2640,8 @@ export function buildPrompt(
 
   engineBtn.addEventListener("click", () => void toggleEngineMenu());
   sideBtn.addEventListener("click", () => showSide(!(narrow ? overlay : sideOpen)));
-  exportBtn.addEventListener("click", () => void exportChat());
-  desktopBtn.addEventListener("click", () => void toDesktop());
+  exportBtn.addEventListener("click", () => { closeMoreMenu(); void exportChat(); });
+  desktopBtn.addEventListener("click", () => { closeMoreMenu(); void toDesktop(); });
   remoteBtn.addEventListener("click", async () => {
     const problem = await toggleRemoteLink();
     if (problem) {
@@ -2414,7 +2661,7 @@ export function buildPrompt(
   autoBtn.addEventListener("click", () => {
     // Claude Code: Consenti / Nega → Accetta modifiche → Piano → Automatica (its own modes, as Claude Desktop offers them).
     const c = State.chat;
-    if (engineOf(c) === "subscription") {
+    if (hasModes(engineOf(c))) {
       const order = ["", "acceptEdits", "plan", "auto"];
       const now = c.auto ? "auto" : c.mode;
       const next = order[(order.indexOf(now) + 1) % order.length];
@@ -2430,7 +2677,9 @@ export function buildPrompt(
   });
   // Drawn in the island (a native <select> menu would open behind it); a click elsewhere closes it.
   document.addEventListener("pointerdown", (e) => {
-    if (engineMenu.style.display !== "none" && !bar.contains(e.target as Node)) engineMenu.style.display = "none";
+    const target = e.target as Node;
+    if (engineMenu.style.display !== "none" && !composer.contains(target)) engineMenu.style.display = "none";
+    if (moreMenu.style.display !== "none" && !moreMenu.contains(target) && !moreBtn.contains(target)) closeMoreMenu();
   });
   void onEvent<{ sid?: string; text: string }>("chat-stream", (p) => {
     const c = State.chats.find((x) => x.sid === p.sid);
@@ -2824,6 +3073,11 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         folderBtn.dataset.label = folderKey;
         folderBtn.replaceChildren(folderLabel, ...(branch ? [h("span", { class: "folder-branch", text: ` · ${branch}` })] : []));
       }
+      headCrumb.style.display = ownFolder ? "" : "none";
+      if (ownFolder && headCrumb.dataset.label !== folderKey) {
+        headCrumb.dataset.label = folderKey;
+        headCrumb.replaceChildren(h("span", { class: "chat-crumb-name", text: `📁 ${folderLabel}` }), ...(branch ? [h("span", { class: "chat-crumb-branch", text: ` · ${branch}` })] : []));
+      }
       tip(folderBtn, ownFolder
         ? [ownFolder, branch && t("Branch: {name}", { name: branch })].filter(Boolean).join("\n")
         : t("Scegli la cartella del progetto per questa chat"));
@@ -2873,14 +3127,19 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         onHeightChange();
       }
 
-      const effort = State.chatEngine === "subscription" ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
+      const effort = hasModes(State.chatEngine) ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
+      folderBtn.style.display = asked ? "none" : "";
+      slashQuickBtn.style.display = asked ? "none" : "";
+      atQuickBtn.style.display = asked ? "none" : "";
       exportBtn.style.display = State.chatHistory.length ? "" : "none";
       // ↗: only for a Claude Code conversation that has started, never on a session copy.
       desktopBtn.style.display = State.chatEngine === "subscription" && State.chatHistory.length && !asked ? "" : "none";
       desktopBtn.classList.toggle("on", State.chatDesktop);
+      const deskSpan = desktopBtn.querySelector("span");
+      if (deskSpan) deskSpan.textContent = State.chatDesktop ? t("Aperta in Claude Desktop") : t("Continua in Claude Desktop");
       tip(desktopBtn, State.chatDesktop
         ? t("La conversazione è proseguita in Claude Desktop: ciò che scrivi lì torna qui. Clic per riaprirla lì")
         : t("Continua in Claude Desktop, con tutta la conversazione"));
@@ -2908,22 +3167,28 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       const away = isPopped("chat");
       if (away !== popShown) {
         popShown = away;
-        popBtn.replaceChildren(svg(away ? ICONS.popIn : ICONS.popOut, 12));
+        popBtn.replaceChildren(svg(away ? ICONS.popIn : ICONS.popOut, 12), h("span", { text: away ? t("Rimetti nell'isola") : t("Apri in una finestra") }));
         tip(popBtn, away ? t("Rimetti la chat nell'isola") : t("Apri la chat in una finestra"));
       }
+      moreBtn.classList.toggle("on", State.chatDesktop || away);
       previewBtn.classList.toggle("on", State.previewOpen);
       tip(previewBtn, State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat"));
       autoBtn.classList.toggle("on", auto);
-      const claudeMode = terminal && !auto && engineOf(State.chat) === "subscription" ? State.chat.mode : "";
+      const claudeMode = terminal && !auto && hasModes(engineOf(State.chat)) ? State.chat.mode : "";
       autoBtn.classList.toggle("mode", !!claudeMode);
       const modeLabel = auto ? t("Automatica") : claudeMode === "plan" ? t("Piano") : claudeMode === "acceptEdits" ? t("Accetta modifiche") : t("Manuale");
       const labelEl = autoBtn.querySelector("span");
       if (labelEl && labelEl.textContent !== modeLabel) labelEl.textContent = modeLabel;
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
+      const agy = State.chatEngine === "antigravity";
       tip(autoBtn, claudeMode === "plan"
-        ? t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
+        ? (agy ? t("Piano: Antigravity legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica")
+          : t("Piano: Claude Code legge e prepara un piano senza cambiare niente; lo approvi dalla card e poi lavora. Clic: Automatica"))
         : claudeMode === "acceptEdits"
         ? t("Accetta modifiche: le modifiche ai file vanno senza chiedere, i comandi chiedono ancora. Clic: Piano")
+        : agy
+        ? (auto ? t("Automatica: Antigravity decide da solo quali comandi eseguire, come nella sua modalità Turbo. Clic per tornare a Consenti / Nega")
+          : t("Manuale: ogni comando chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica"))
         : State.chatEngine === "subscription"
         ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
           : t("Manuale: ogni comando e modifica chiede Consenti / Nega. Clic: Accetta modifiche, poi Piano, poi Automatica"))
@@ -2984,6 +3249,16 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         if (askKey !== key) {
           askKey = key;
           fillAsk(req);
+        }
+        if (log.lastChild !== askEl) {
+          log.append(askEl);
+          toBottom();
+        }
+      } else if (State.chat.plan && !sending && State.chat.mode === "plan") {
+        const key = `plan|${State.chat.sid}|${State.chat.plan.length}`;
+        if (askKey !== key) {
+          askKey = key;
+          fillAgyPlan(State.chat);
         }
         if (log.lastChild !== askEl) {
           log.append(askEl);

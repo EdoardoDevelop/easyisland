@@ -75,6 +75,23 @@ fn with_agents(a: &mut [String]) {
     }
 }
 
+/// Claude Code's multiple-choice question, answered on the island's card
+/// (`on_control`). Only for the island's own turns that can ask (not with
+/// `dontAsk`, where it is refused and wastes a step; not from Telegram or
+/// Agent Chat, which ask in the text).
+const QUESTION_TOOL: &str = "AskUserQuestion";
+
+fn with_questions(a: &mut [String]) {
+    if let Some(i) = a.iter().position(|x| x == "--tools") {
+        if let Some(v) = a.get_mut(i + 1) {
+            if !v.split(',').any(|t| t == QUESTION_TOOL) {
+                v.push(',');
+                v.push_str(QUESTION_TOOL);
+            }
+        }
+    }
+}
+
 /// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
 /// tools that change nothing (or nothing outside EasyIsland), pre-allowed:
 /// the read-only flag of hook/src/tool_list.rs, the one list. `show_card`
@@ -978,7 +995,15 @@ async fn read_lines(
                 if !line.trim_start().starts_with('{') {
                     continue;
                 }
+                // A question or a plan waiting for the user (or its cancel): answered aside.
+                if line.trim_start().starts_with("{\"type\":\"control_") {
+                    on_control(chat, &line);
+                    continue;
+                }
                 if let Some(id) = init_session(&line) {
+                    if chat != 0 {
+                        remember_session(chat, &id);
+                    }
                     on_session(&id);
                     remember_commands(&line);
                     if chat != 0 {
@@ -1309,7 +1334,8 @@ pub fn shutdown() {
 }
 
 fn spawn_live(mut cmd: Command, chat: usize, print: String) -> Result<Live, String> {
-    cmd.args(["--input-format", "stream-json"]);
+    // `stdio`: questions and plans come as control requests (`on_control`).
+    cmd.args(["--input-format", "stream-json", "--permission-prompt-tool", "stdio"]);
     let mut child = cmd.spawn().map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
     let stdin = child.stdin.take().ok_or(t("Claude Code si è interrotto."))?;
     let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
@@ -1393,6 +1419,8 @@ impl Steering {
 
 impl Drop for Steering {
     fn drop(&mut self) {
+        // Ferma, or the turn's end: a question still on screen has nobody to answer to.
+        release_asking(self.0);
         let mut all = STEERING.lock().unwrap();
         if let Some(i) = all.iter().rposition(|(c, _)| *c == self.0) {
             all.remove(i);
@@ -1417,6 +1445,180 @@ pub async fn steer(chat: usize, text: &str) -> bool {
         crate::log::line("claude: messaggio aggiunto al turno in corso".to_string());
     }
     ok
+}
+
+// ── Questions and plans: Claude Code's control channel ────────────────────────
+// In `-p` Claude Code drops the tools that wait for the user (AskUserQuestion,
+// ExitPlanMode) unless the host answers them on its control channel
+// (`--permission-prompt-tool stdio`, as the Agent SDK does). Tried with 2.1.323
+// on 13 Nov 2026: without it they are not even offered; with it the
+// PermissionRequest hook is still called, but only a `control_response` on
+// stdin answers them. A kept process (`spawn_live`) has the channel: a
+// `control_request` (`can_use_tool`) comes on stdout, the island's card (or
+// Telegram, Agent Chat, a task) answers through pipe.rs as for the hook, and
+// the answer goes back on stdin. Every other tool is still decided by the hook
+// (easyisland-hook leaves these two to this channel); one the hook left
+// without an answer comes here too and is refused, as before.
+
+static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
+/// At start-up (lib.rs): the cards of the control channel need the app.
+pub fn init(app: &tauri::AppHandle) {
+    let _ = APP.set(app.clone());
+}
+
+/// The tools that wait for the user, answered on the control channel.
+pub(crate) const USER_TOOLS: [&str; 2] = ["AskUserQuestion", "ExitPlanMode"];
+
+/// Where each conversation's turn came from ("telegram", "agentchat", "" = the island).
+static CHANNELS: std::sync::Mutex<Vec<(usize, &'static str)>> = std::sync::Mutex::new(Vec::new());
+/// Each conversation's Claude Code session, for the card to find its conversation.
+static SESSIONS: std::sync::Mutex<Vec<(usize, String)>> = std::sync::Mutex::new(Vec::new());
+/// Cards up for control requests: conversation, Claude Code's request id, card id.
+static ASKING: std::sync::Mutex<Vec<(usize, String, String)>> = std::sync::Mutex::new(Vec::new());
+
+fn set_channel(chat: usize, channel: &'static str) {
+    let mut all = CHANNELS.lock().unwrap();
+    all.retain(|(c, _)| *c != chat);
+    all.push((chat, channel));
+}
+
+fn channel_of(chat: usize) -> &'static str {
+    CHANNELS.lock().unwrap().iter().find(|(c, _)| *c == chat).map(|(_, ch)| *ch).unwrap_or("")
+}
+
+fn remember_session(chat: usize, id: &str) {
+    let mut all = SESSIONS.lock().unwrap();
+    all.retain(|(c, _)| *c != chat);
+    all.push((chat, id.to_string()));
+}
+
+fn session_of(chat: usize) -> String {
+    SESSIONS.lock().unwrap().iter().find(|(c, _)| *c == chat).map(|(_, s)| s.clone()).unwrap_or_default()
+}
+
+/// The stdin of the process answering for `chat` now (a turn, or work in the background).
+fn stdin_of(chat: usize) -> Option<Stdin> {
+    if let Some(s) = STEERING.lock().unwrap().iter().rev().find(|(c, _)| *c == chat).map(|(_, s)| s.clone()) {
+        return Some(s);
+    }
+    FOLLOWING.lock().unwrap().iter().find(|f| f.chat == chat).map(|f| f.stdin.clone())
+}
+
+/// The cards of `chat` still waiting leave the island (the turn is over or stopped).
+fn release_asking(chat: usize) {
+    let cards: Vec<String> = {
+        let mut all = ASKING.lock().unwrap();
+        let (gone, kept): (Vec<_>, Vec<_>) = all.drain(..).partition(|(c, _, _)| *c == chat);
+        *all = kept;
+        gone.into_iter().map(|(_, _, card)| card).collect()
+    };
+    if let Some(app) = APP.get() {
+        for card in cards {
+            crate::pipe::release(app, &card);
+        }
+    }
+}
+
+/// A `control_request` or `control_cancel_request` line of `chat`'s process.
+fn on_control(chat: usize, line: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return };
+    let kind = v.get("type").and_then(Value::as_str).unwrap_or_default();
+    if kind == "control_cancel_request" {
+        let id = v.get("request_id").and_then(Value::as_str).unwrap_or_default();
+        let card = {
+            let mut all = ASKING.lock().unwrap();
+            all.iter().position(|(c, r, _)| *c == chat && r == id).map(|i| all.remove(i).2)
+        };
+        if let (Some(card), Some(app)) = (card, APP.get()) {
+            crate::pipe::release(app, &card);
+        }
+        return;
+    }
+    if kind != "control_request" {
+        return;
+    }
+    let Some(id) = v.get("request_id").and_then(Value::as_str).map(str::to_string) else { return };
+    let request = v.get("request").cloned().unwrap_or(Value::Null);
+    let stdin = stdin_of(chat);
+    tauri::async_runtime::spawn(async move {
+        let response = match control_answer(chat, &id, &request).await {
+            Ok(r) => serde_json::json!({ "subtype": "success", "request_id": id, "response": r }),
+            Err(e) => serde_json::json!({ "subtype": "error", "request_id": id, "error": e }),
+        };
+        let line = serde_json::json!({ "type": "control_response", "response": response }).to_string();
+        let Some(stdin) = stdin else {
+            crate::log::line("claude: domanda senza processo a cui rispondere".to_string());
+            return;
+        };
+        let mut w = stdin.lock().await;
+        let _ = w.write_all(format!("{line}\n").as_bytes()).await;
+        let _ = w.flush().await;
+    });
+}
+
+/// What the user said to a `can_use_tool` request, as Claude Code wants it back.
+async fn control_answer(chat: usize, id: &str, request: &Value) -> Result<Value, String> {
+    if request.get("subtype").and_then(Value::as_str) != Some("can_use_tool") {
+        return Err("unsupported control request".into());
+    }
+    let tool = request.get("tool_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    let input = request.get("input").cloned().unwrap_or_else(|| serde_json::json!({}));
+    if !USER_TOOLS.contains(&tool.as_str()) {
+        // The hook gave no answer (island paused, no click in time): refused, as without the channel.
+        return Ok(refusal("Not allowed: nobody answered on EasyIsland's island."));
+    }
+    let channel = channel_of(chat);
+    if tool == "AskUserQuestion" && !channel.is_empty() {
+        return Ok(refusal("Ask this in the text of your answer instead: the user answers by writing."));
+    }
+    let Some(app) = APP.get() else { return Ok(refusal("Not allowed: nobody answered on EasyIsland's island.")) };
+    let mut payload = serde_json::json!({
+        "hook_event_name": "PermissionRequest",
+        "tool_name": tool,
+        "tool_input": input,
+        "session_id": session_of(chat),
+        "easyisland_chat": true,
+    });
+    if let Some(s) = request.get("permission_suggestions").filter(|s| s.is_array()) {
+        payload["permission_suggestions"] = s.clone();
+    }
+    if !channel.is_empty() {
+        payload["easyisland_channel"] = Value::String(channel.to_string());
+    }
+    let card = crate::pipe::new_request_id();
+    ASKING.lock().unwrap().push((chat, id.to_string(), card.clone()));
+    let decision = crate::pipe::decide_routed(app, &card, payload).await;
+    ASKING.lock().unwrap().retain(|(_, _, c)| *c != card);
+    Ok(control_decision(&tool, &input, decision.as_deref()))
+}
+
+fn refusal(message: &str) -> Value {
+    serde_json::json!({ "behavior": "deny", "message": message })
+}
+
+/// The card's decision (`allow`, `always`, `deny`, `answer {…}`, none) as a `can_use_tool` answer.
+fn control_decision(tool: &str, input: &Value, decision: Option<&str>) -> Value {
+    let allow = |input: Value| serde_json::json!({ "behavior": "allow", "updatedInput": input });
+    match decision.map(str::trim) {
+        Some(d) if d.starts_with("answer ") => {
+            let answers = serde_json::from_str::<Value>(d.get(7..).unwrap_or_default()).ok();
+            match (answers, input.as_object()) {
+                (Some(Value::Object(a)), Some(i)) if !a.is_empty() && a.values().all(Value::is_string) => {
+                    let mut i = i.clone();
+                    i.insert("answers".into(), Value::Object(a));
+                    allow(Value::Object(i))
+                }
+                _ => refusal("The user did not answer."),
+            }
+        }
+        // A question needs its answers: a bare allow would leave it empty.
+        Some("allow" | "always") if tool != "AskUserQuestion" => allow(input.clone()),
+        Some("deny") if tool == "AskUserQuestion" => refusal("The user chose not to answer these options. Ask in the text of your answer if you still need to know."),
+        Some("deny") if tool == "ExitPlanMode" => refusal("The user wants to keep planning: do not start yet. Ask what to change, or refine the plan."),
+        Some("deny") => refusal("Denied by EasyIsland."),
+        _ => refusal("Nobody answered on EasyIsland's island in time."),
+    }
 }
 
 /// Turns Claude Code still has lined up after this result (`queued_turn_count`):
@@ -1845,6 +2047,10 @@ async fn send_mode(
         if terminal.is_some() && chat.agents() {
             with_agents(&mut a);
         }
+        // Questions with options on the island's card, where Claude Code may ask (`default` or `auto`).
+        if (terminal.is_some() || connectors.uses_mcp()) && !locked && !telegram && chat.channel() != "agentchat" && !crate::tasks::in_turn() {
+            with_questions(&mut a);
+        }
         // Piano, Accetta modifiche (the chat's mode, as Claude Desktop offers them): Claude Code's own modes.
         if let (Some(_), false, Some(mode)) = (terminal, auto, chat.mode()) {
             if let Some(i) = a.iter().position(|x| x == "--permission-mode") {
@@ -1886,6 +2092,7 @@ async fn send_mode(
     } else {
         (TIMEOUT, t("Claude Code non ha risposto in tempo."))
     };
+    set_channel(chat as *const Chat as usize, if telegram { "telegram" } else { chat.channel() });
     // Kept at once: a turn stopped before its end is resumed by the next message.
     let on_session = |id: &str| chat.set_cli_session(Some(id.to_string()));
     let on_context = |used: u64, size: u64| chat.set_context(used, size);
@@ -2261,6 +2468,31 @@ mod tests {
     }
 
     #[test]
+    fn the_cards_answer_becomes_the_control_response() {
+        let input = serde_json::json!({ "questions": [{ "question": "Colore?", "options": [] }] });
+        let a = control_decision("AskUserQuestion", &input, Some(r#"answer {"Colore?":"Verde"}"#));
+        assert_eq!(a["behavior"], "allow");
+        assert_eq!(a["updatedInput"]["answers"]["Colore?"], "Verde");
+        assert_eq!(a["updatedInput"]["questions"][0]["question"], "Colore?");
+        // A question allowed with no answers, refused, or left alone: never an empty allow.
+        assert_eq!(control_decision("AskUserQuestion", &input, Some("allow"))["behavior"], "deny");
+        assert_eq!(control_decision("AskUserQuestion", &input, Some("deny"))["behavior"], "deny");
+        assert_eq!(control_decision("AskUserQuestion", &input, None)["behavior"], "deny");
+        assert_eq!(control_decision("AskUserQuestion", &input, Some(r#"answer {"Colore?":3}"#))["behavior"], "deny");
+        let plan = serde_json::json!({ "plan": "1. x" });
+        assert_eq!(control_decision("ExitPlanMode", &plan, Some("allow"))["updatedInput"]["plan"], "1. x");
+        assert_eq!(control_decision("ExitPlanMode", &plan, Some("deny"))["behavior"], "deny");
+    }
+
+    #[test]
+    fn questions_only_where_the_island_answers() {
+        let mut a = vec!["--tools".to_string(), "Read".to_string()];
+        with_questions(&mut a);
+        with_questions(&mut a);
+        assert_eq!(a[1], "Read,AskUserQuestion");
+    }
+
+    #[test]
     fn a_side_question_forks_once_then_goes_on_in_the_copy() {
         let dir = std::path::Path::new("C:/x");
         let first = super::ask_args(dir, "abc", None);
@@ -2499,7 +2731,7 @@ mod tests {
         assert_eq!(super::source_of(Path::new("C:/Users/x/AppData/Roaming/Claude/claude-code/2.1.286/claude.exe")), "desktop");
     }
 
-    use super::{args, parse_output, step_line, terminal_args, tool_prefix, with_agents, version_key, Connectors, Progress};
+    use super::{args, control_decision, with_questions, parse_output, step_line, terminal_args, tool_prefix, with_agents, version_key, Connectors, Progress};
     use crate::settings::McpChoice;
     use std::path::Path;
 

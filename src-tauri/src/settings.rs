@@ -47,6 +47,9 @@ pub struct IntegrationConfig {
     /// Consumo Claude: the plan's percentages in the open island's header too.
     #[serde(default = "default_true")]
     pub plan_in_header: bool,
+    /// Consumo: the engine the header shows (a click there moves to the next one).
+    #[serde(default)]
+    pub plan_engine: String,
     /// 3CX: "user" (the extension's own login) or "api" (an API client).
     #[serde(default = "user_mode")]
     pub threecx_mode: String,
@@ -314,6 +317,7 @@ impl Default for IntegrationConfig {
             weather_city: String::new(),
             weather_on_character: false,
             plan_in_header: true,
+            plan_engine: String::new(),
             threecx_mode: user_mode(),
             threecx_extension: String::new(),
             threecx_device: String::new(),
@@ -735,6 +739,12 @@ pub struct Settings {
     /// «Motore per la memoria» (memory_ai.rs): the engine that ties the memory together; "" = none.
     #[serde(default)]
     pub memory_engine: String,
+    /// «Ricerca per significato» (memory_meaning.rs): openai, gemini, openrouter, ollama, lmstudio; "" = off.
+    #[serde(default)]
+    pub memory_meaning: String,
+    /// Its model; "" = the service's usual one.
+    #[serde(default)]
+    pub memory_meaning_model: String,
     /// «Ricorda questo» (brain.rs `remember`): what is captured is learnt at
     /// once by a task; off, by the evening digest.
     #[serde(default = "default_true")]
@@ -1027,6 +1037,10 @@ pub struct Settings {
     /// answers as text instead of re-reading every step (lib.rs `light_restart`).
     #[serde(default = "default_true")]
     pub chat_light: bool,
+    /// «Risposte dirette» (14 Nov 2026): a question a recipe answers for sure
+    /// with one read gets it from EasyIsland, no engine (router.rs).
+    #[serde(default = "default_true")]
+    pub chat_direct: bool,
     /// The memory written by EasyIsland after the answer, with a light model,
     /// instead of memory_note steps in the middle of the work (memory_learn.rs).
     #[serde(default = "default_true")]
@@ -1241,6 +1255,8 @@ impl Default for Settings {
             chat_history: true,
             tasks_engine: String::new(),
             memory_engine: String::new(),
+            memory_meaning: String::new(),
+            memory_meaning_model: String::new(),
             remember_now: true,
             memory_claude_code: true,
             brain_tickets: true,
@@ -1333,6 +1349,7 @@ impl Default for Settings {
             chat_empty_art: default_chat_empty_art(),
             chat_tips: true,
             chat_light: true,
+            chat_direct: true,
             chat_learn: true,
             preview_docked: false,
             preview_width: 0.0,

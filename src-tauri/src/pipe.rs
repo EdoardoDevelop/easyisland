@@ -209,15 +209,7 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
-    // A chat turn from Telegram: Consenti / Nega there, never on the island.
-    let channel = payload.get("easyisland_channel").and_then(Value::as_str).unwrap_or_default().to_string();
-    let decision = if channel == "telegram" {
-        crate::telegram::request_decision(&app, payload).await
-    } else if channel == "agentchat" {
-        crate::agentchat::decide(&app, payload).await
-    } else {
-        request_decision(&app, payload).await
-    };
+    let decision = decide_routed(&app, &new_request_id(), payload).await;
 
     // No decision: say nothing at all. easyisland-hook then writes nothing to stdout
     // and Claude Code asks in the terminal, exactly as if EasyIsland were closed.
@@ -226,6 +218,21 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         let _ = pipe.flush().await;
     }
     let _ = pipe.disconnect();
+}
+
+/// A permission where its turn came from: a chat turn from Telegram asks
+/// there, never on the island; one of Agent Chat as «Permessi in Agent Chat»
+/// says; anything else on the island (`request_decision_id`, under `id`).
+/// Also used by claude_cli.rs for the questions and plans of its control channel.
+pub async fn decide_routed(app: &AppHandle, id: &str, payload: Value) -> Option<String> {
+    let channel = payload.get("easyisland_channel").and_then(Value::as_str).unwrap_or_default().to_string();
+    if channel == "telegram" {
+        crate::telegram::request_decision(app, payload).await
+    } else if channel == "agentchat" {
+        crate::agentchat::decide(app, payload).await
+    } else {
+        request_decision_id(app, id, payload).await
+    }
 }
 
 /// Shows a PermissionRequest card (a Claude-Code-shaped hook payload) and

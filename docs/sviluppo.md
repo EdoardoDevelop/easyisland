@@ -7,7 +7,7 @@
 - `site/` va su GitHub Pages (https://edoardodevelop.github.io/easyisland/) da `.github/workflows/pages.yml` a ogni push in `main` che tocca `site/`. Le novità in fondo alla homepage si aggiornano a ogni versione.
 
 ## Build e test
-- `npm run build`: typecheck + front end. `cargo test --workspace` in `src-tauri/`. `npm run pack`: installer in `release\`.
+- `npm run build`: typecheck + front end. `cargo test --workspace` in `src-tauri/`. `npm run pack`: installer in `release\`. Il pack ripulisce prima il relay (`cargo clean -p easyisland-hook`): il 14/11 cargo lo credeva aggiornato e due installer hanno rimesso il relay del 13/11 mattina (Antigravity in Turbo di nuovo trattenuto).
 - CI: `.github/workflows/build.yml` (windows-latest). I tag `v*` pubblicano se `PUBLISH` = `'true'`.
 - Test Rust che arrivano a `AppHandle::emit_to` fanno fallire l'avvio del binario dei test (`STATUS_ENTRYPOINT_NOT_FOUND`): passare da un trait sostituibile (es. `Ask` in `opencode.rs`).
 - Test dal vivo: `#[ignore]`, si lanciano con `-- --ignored`.

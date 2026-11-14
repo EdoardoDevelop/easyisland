@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.47** — **nuovo aspetto dell'isola** con ricerca-calcolatrice e Panoramica, stili Monolite, Titanio e Vetro; **comandi senza motore** con Esegui, risposte dirette con date e numeri; mappa della memoria rifatta.
 - **1.0.46** — **EasyIsland fa il lavoro al posto dell'IA**: ripresa leggera delle conversazioni pesanti, memoria scritta dopo la risposta, controllo del PC in un passo; passi e token sotto ogni risposta.
 - **1.0.45** — **il browser dell'Anteprima lavora per te**: prodotti e prezzi da qualsiasi pagina, portali dei fornitori insegnati alla chat, preventivi con costo e ricarico; una card per ogni motore.
 - **1.0.44** — **la chat consuma molto meno**: meno strumenti e passi, memoria cercata da EasyIsland, avviso sul contesto pesante; campi file che accettano solo certi tipi.
-- **1.0.42** — **gruppi nel menu** come le cartelle del telefono, con colore; **campo collegato** che cerca e compila.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
@@ -603,7 +603,7 @@ anche dal menu dell'icona nell'area di notifica. Tiene solo i conteggi e il nome
 della cartella del progetto, mai comandi o contenuti. **Limiti del piano** (Pro e
 Max): la card Consumo mostra le percentuali delle 5 ore, della settimana e della
 settimana Opus, con un avviso dall'80 %, e le riporta in alto nell'isola (si tolgono
-in Impostazioni → Integrazioni → Consumo Claude). Le chiede ad Anthropic ogni 5 minuti
+in Impostazioni → Integrazioni → Consumo; un clic lì passa al motore successivo: opencode, Antigravity, OpenRouter con il credito). Le chiede ad Anthropic ogni 5 minuti
 con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`; l'accesso viene
 solo letto), anche se usi solo l'app desktop di Claude; arrivano anche dalla status
 line delle sessioni nel terminale o in VS Code.

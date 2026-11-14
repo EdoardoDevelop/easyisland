@@ -5,7 +5,7 @@
 
 import { alpha, fit, type Model } from "./data";
 import { t } from "../core/i18n";
-import { type View } from "./stage";
+import { animateIdle, type View } from "./stage";
 import { font, paintBackground, pal } from "./theme";
 import { Placer } from "./labels";
 
@@ -67,16 +67,19 @@ export class StreamView implements View {
     if (sum(other)) this.streams.push({ name: t("Il resto"), colour: "#8a8f99", lead: null, counts: smooth(other) });
   }
 
+  private hoverX: number | null = null;
+
   setSelected(id: string | null) {
     this.selected = id;
   }
 
   setFilter() {}
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
     this.size = { w, h };
     paintBackground(ctx, w, h);
     const p = pal();
+    const idle = animateIdle();
     this.bands = [];
     const n = this.weeks.length;
     if (!n || !this.streams.length) {
@@ -84,7 +87,7 @@ export class StreamView implements View {
       ctx.font = font(13);
       ctx.textAlign = "center";
       ctx.fillText(t("Ancora nessuna nota con la data"), w / 2, h / 2);
-      return false;
+      return idle;
     }
     const left = 30;
     const right = w - 30;
@@ -98,19 +101,37 @@ export class StreamView implements View {
       return (base - w / 2) * this.zoomK + w / 2 + this.shift;
     };
     const mid = (top + bottom) / 2;
+    // Subtle vertical month gridlines behind the river.
+    ctx.save();
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = 1;
+    let lastGridMonth = -1;
+    this.weeks.forEach((ts, i) => {
+      const m = new Date(ts).getMonth();
+      if (m === lastGridMonth) return;
+      lastGridMonth = m;
+      const gx = xOf(i);
+      if (gx < left || gx > right) return;
+      ctx.beginPath();
+      ctx.moveTo(gx, top);
+      ctx.lineTo(gx, bottom + 6);
+      ctx.stroke();
+    });
+    ctx.restore();
     // Centred: the river flows in the middle, its banks move with the total.
     const base = totals.map((tot) => mid - (tot * scale) / 2);
     const acc = new Array(n).fill(0);
     const sel = this.selected;
     // The names never on each other: a stream whose name would cover another's goes without.
     const placer = new Placer();
-    for (const s of this.streams) {
+    this.streams.forEach((s, si) => {
       const topY: number[] = [];
       const botY: number[] = [];
       for (let i = 0; i < n; i++) {
-        topY.push(base[i] + acc[i] * scale);
+        const wave = idle ? Math.sin(time * 0.0022 - i * 0.5 + si * 0.9) * 3.2 : 0;
+        topY.push(base[i] + acc[i] * scale + wave);
         acc[i] += s.counts[i];
-        botY.push(base[i] + acc[i] * scale);
+        botY.push(base[i] + acc[i] * scale + wave);
       }
       this.bands.push({ top: topY, bottom: botY });
       const on = !sel || s.lead === sel;
@@ -140,7 +161,7 @@ export class StreamView implements View {
         const half = ctx.measureText(name).width / 2 + 6;
         if (placer.claim({ x0: nx - half, y0: ny - 10, x1: nx + half, y1: ny + 10 })) ctx.fillText(name, nx, ny);
       }
-    }
+    });
     // The months under the river.
     ctx.fillStyle = p.dim;
     ctx.font = font(12);
@@ -153,7 +174,24 @@ export class StreamView implements View {
       lastMonth = d.getMonth();
       ctx.fillText(d.toLocaleDateString(undefined, { month: "short", year: "2-digit" }), xOf(i), bottom + 16);
     });
-    return false;
+    // Interactive vertical hover crosshair highlighting the hovered week.
+    if (this.hoverX !== null && this.hoverX >= left && this.hoverX <= right) {
+      const basePos = ((this.hoverX - this.shift - w / 2) / this.zoomK + w / 2 - left) / (right - left);
+      const wi = Math.round(basePos * (n - 1));
+      if (wi >= 0 && wi < n) {
+        const cx = xOf(wi);
+        ctx.save();
+        ctx.strokeStyle = p.dim;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(cx, top);
+        ctx.lineTo(cx, bottom + 10);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    return idle;
   }
 
   private at(x: number, y: number): { s: Stream; week: number } | null {
@@ -177,6 +215,7 @@ export class StreamView implements View {
   }
 
   hover(x: number, y: number) {
+    this.hoverX = x;
     const a = this.at(x, y);
     if (!a) return null;
     const d = new Date(this.weeks[a.week]);

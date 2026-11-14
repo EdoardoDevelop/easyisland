@@ -212,7 +212,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many`; `gruppi` (due gruppi nel menu, uno aperto e uno chiuso) |
 | `files` | il Vassoio | `fresh`: una zona appena aggiunta |
 | `approval` | il permesso con il tempo rimasto | — |
-| `chat` | la chat | `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi motore al lavoro, `pensa=squadra-fine` con la risposta controllata) |
+| `chat` | la chat | `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi motore al lavoro, `pensa=squadra-fine` con la risposta controllata, `pensa=diretta` con una risposta diretta dello smistatore e «Chiedi al motore», `pensa=comando` con un comando e «Esegui») |
 | `clipboard` | gli appunti | `long` |
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |
@@ -224,7 +224,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `network` | la rete (con `activeIntegrations=integration_network`) | `form`: le impostazioni della scheda di rete aperte |
 | `notion` | Notion | `views`, `noinbox` |
 | `rdm` | RDM | `q=<ricerca>`, `nolist` |
-| `usage` | il consumo del piano | `stale`: numeri vecchi di 7 ore |
+| `usage` | il consumo per motore (Claude Code, opencode, Antigravity, OpenRouter) | `stale`: numeri di Claude vecchi di 7 ore; `motore=openrouter` (o `opencode`, `antigravity`): quello nell'intestazione |
 | `meteo` | il meteo | `sky=rain\|sun\|moon\|sun-cloud\|moon-cloud\|cloud\|fog\|snow\|storm`, `night`, `idle` |
 | `actions` | le azioni rapide | — |
 | `finished` | la card «ha finito» con «Continua» | va bene con `islandHeight=440` |
@@ -237,6 +237,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`); `media` («Messaggi vocali»: campo file con un'immagine e «Genera la voce» che risponde con un audio, salvato con `filename`); `opzioni` («TTSpeak»: Motore e Voce da una fonte finta con `optionsFrom`, 97 voci in «Molte voci», prezzo e nota compilati) |
 | `documento` | la chat chiede di creare un documento Word (card Consenti/Nega di `document_create`) | — |
 | `pdf` | la chat chiede di unire dei PDF (card Consenti/Nega di `pdf_merge`) | — |
+| `domanda` | Claude Code nella chat fa una domanda con le scelte (`AskUserQuestion`) | `multi` (due domande, la seconda a più scelte); `piano` (il piano da approvare, `ExitPlanMode`); `agy` con `chatEngine=antigravity` (il piano di Antigravity in «Piano») |
 | `chat&background` | lavori lasciati in background da Claude Code sotto la conversazione, con ✕ e «Ferma tutto» | — |
 | `compiti` | i Compiti | `ask`, `proposte` (correzioni con caselle e Commenta) |
 | `moment` | una proposta al momento giusto | `moment=download\|recording\|call\|ticket\|…` |

@@ -1040,9 +1040,22 @@ function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () =
     : PROBE_INTEGRATIONS[task.id] ?? "";
   const st = State.widgetStatus[id];
   const rows = h("div", { class: "int-rows tight" });
+  const engines = id === "integration_claude_usage" ? st?.engines ?? [] : [];
+  // Consumo: one block per engine, each with its own numbers (engine_usage.rs).
+  for (const e of engines) {
+    rows.append(h("div", { class: "int-row w-engine" },
+      dot(e.level === "warn" ? LEVEL_COLOR.warn : e.color, 5),
+      h("span", { class: "w-engine-name", text: e.name, style: `color:${e.color}` }),
+      h("span", { class: "w-value", text: e.summary })));
+    for (const f of e.fields) {
+      rows.append(h("div", { class: "int-row w-field w-sub" },
+        h("span", { class: "int-name", text: f.label }),
+        h("span", { class: "w-value", text: f.value })));
+    }
+  }
   // Every field, each value wrapping onto more lines when long: the island
   // grows to show them all (see the overview's fitHeight).
-  for (const f of st?.fields ?? []) {
+  for (const f of engines.length ? [] : st?.fields ?? []) {
     rows.append(h("div", { class: "int-row w-field" },
       h("span", { class: "int-name", text: f.label }),
       h("span", { class: "w-value", text: f.value })));

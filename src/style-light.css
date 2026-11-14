@@ -3,9 +3,9 @@
 /* The browser preview's fake desktop keeps its own colour. */
 html.browser-preview[data-scheme="light"] body { background: var(--preview-bg, #dfe3e8); }
 
-/* Windows 11, light: the layers of Windows' light theme (island #f3f3f3 in island.ts,
-   content #fbfbfb on it, white cards), and the darker accent Windows uses on light. */
-html[data-ui="windows"][data-scheme="light"] {
+/* Modern themes (Windows 11 + Studio), light: the layers of light surfaces,
+   and a high-contrast accent on light. */
+html:not([data-ui="classic"])[data-scheme="light"] {
   --layer: #fbfbfb;
   --card: #ffffff;
   --card-flat: #ffffff;
@@ -15,13 +15,34 @@ html[data-ui="windows"][data-scheme="light"] {
   --accent: color-mix(in srgb, var(--win-accent, #4cc2ff) 62%, #000);
   --on-accent: #ffffff;
 }
-html[data-ui="windows"][data-scheme="light"] #island:not(.bare) { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
-html[data-ui="windows"][data-scheme="light"] #island.pop:not(.bare) { box-shadow: var(--pop-shadow); }
+html[data-ui="monolith"][data-scheme="light"] {
+  --layer: #f3f4f6;
+  --card: #ffffff;
+  --card-flat: #ffffff;
+  --accent: #090a0c;
+  --on-accent: #ffffff;
+}
+html[data-ui="titanium"][data-scheme="light"] {
+  --layer: #e6e7eb;
+  --card: #f4f5f7;
+  --card-flat: #f4f5f7;
+  --accent: #181a20;
+  --on-accent: #ffffff;
+}
+html[data-ui="editorial"][data-scheme="light"] {
+  --layer: #eef2f6;
+  --card: #ffffff;
+  --card-flat: #ffffff;
+  --accent: #0f172a;
+  --on-accent: #ffffff;
+}
+html:not([data-ui="classic"])[data-scheme="light"] #island:not(.bare) { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+html:not([data-ui="classic"])[data-scheme="light"] #island.pop:not(.bare) { box-shadow: var(--pop-shadow); }
 html[data-scheme="light"] #island.pop { --pop-shadow: 0 6px 16px rgba(0, 0, 0, 0.16); }
 html[data-scheme="light"] #island.pop.pop-bottom { --pop-shadow: 0 -6px 16px rgba(0, 0, 0, 0.16); }
 
 /* Classic, light: white cards on the near-white island. */
-html[data-scheme="light"]:not([data-ui="windows"]) { --card: #ffffff; --card-flat: #f6f7f9; --tab-on: rgba(0, 0, 0, 0.06); }
+html[data-ui="classic"][data-scheme="light"] { --card: #ffffff; --card-flat: #f6f7f9; --tab-on: rgba(0, 0, 0, 0.06); }
 
 /* Contrast on white (review of 9 Nov 2026): the generated colours below stay too light. */
 html[data-scheme="light"] .clip-btn { color: var(--c, #4f545c); }

@@ -132,6 +132,12 @@ fn main() {
         quiet_exit(&arg_event);
     }
     let Some((payload, event, tool_input, suggestions, fallback)) = read_event() else { quiet_exit(&arg_event) };
+    // EasyIsland's own chat: its questions and plans are answered on Claude
+    // Code's control channel (claude_cli.rs on_control), which asks after this
+    // hook whatever it says. A card from here too would be the same question twice.
+    if chat && event == "PermissionRequest" && chat_asks_elsewhere(&payload) {
+        std::process::exit(0);
+    }
     // EasyIsland's own chat with Antigravity (antigravity.rs): only its
     // permissions reach the island, as the chat's; the rest is no session.
     if agy && std::env::var_os("EASYISLAND_AGY_CHAT").is_some() && event != "PermissionRequest" {
@@ -175,6 +181,12 @@ fn main() {
     }
     // Nothing printed: Claude Code asks in the terminal, as if we were not here.
     std::process::exit(0);
+}
+
+/// A question or a plan of EasyIsland's own chat (see `main`).
+fn chat_asks_elsewhere(payload: &str) -> bool {
+    let tool = serde_json::from_str::<serde_json::Value>(payload).ok().and_then(|v| v.get("tool_name")?.as_str().map(String::from));
+    matches!(tool.as_deref(), Some("AskUserQuestion" | "ExitPlanMode"))
 }
 
 /// The documented PermissionRequest output. Anything we do not recognise prints
@@ -504,7 +516,10 @@ fn read_event() -> Option<Event> {
         .and_then(|v| v.as_str())
         .map(str::is_empty)
         .unwrap_or(true);
-    if cwd_missing {
+    // Antigravity starts the hook in ~/.gemini/config: with no workspace the
+    // island would call the session "config", so it gets the agent's name.
+    let agy = map.get("easyisland_agent").and_then(|a| a.get("id")).and_then(|v| v.as_str()) == Some("antigravity");
+    if cwd_missing && !agy {
         if let Ok(cwd) = std::env::current_dir() {
             map.insert(
                 "cwd".into(),

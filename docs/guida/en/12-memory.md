@@ -5,7 +5,7 @@
 EasyIsland's memory is made of **Markdown files** in `%APPDATA%\EasyIsland\memoria`, which you can read and fix with any editor. It works with **every engine**. It turns off together with the history (Settings → Chat → History). Folder and file names on disk are in Italian (`memoria`, `diario`, `pagine`, `da-leggere`, `fonti`, `archivio`).
 
 ## Notes: MEMORIA.md
-Things to always remember, one per line with the date: preferences, clients, people, how something is done. They go in front of the first question of every conversation (4,000 characters at most, newest first), so they cost few tokens.
+Things to always remember, one per line with the date: preferences, clients, people, how something is done. Rules (those with «always», «never», «must not», «prefers»…) go in front of every conversation; the other notes come only when the question is about them, so they cost few tokens.
 - The chat saves them **by itself** when you say something that also holds for next time.
 - You save them with `/ricorda …` in the chat, or from the **Remember…** field of the Memory window.
 - Past 60 notes the oldest move to `archivio.md`, which stays searchable.
@@ -77,7 +77,13 @@ It runs on Sunday evening with the digest, if there's something to fix, or right
 If there's nothing to do it doesn't run and costs nothing.
 
 ## Memory engine
-In **Settings → Chat and AI engines → Memory → Memory engine** you can pick an engine, a free one too, that links the memory by writing it into the files: it creates a page for every subject that comes back in several notes (a customer, a project, a person), with references to the notes, adds relations between pages ("customer of", "works with"…) and keeps every page's summary up to date, with its other names. It works by itself after the evening digest and when you press **Link with AI** in the map. It only adds: it never deletes or rewrites your notes. With a cloud engine the notes are sent to that service; with Ollama or LM Studio they stay on the PC. With **None** the map links the items by itself, from the words in common.
+In **Settings → Chat and AI engines → Memory → Memory engine** you can pick an engine, a free one too, that links the memory by writing it into the files: it creates a page for every subject that comes back in several notes (a customer, a project, a person), with references to the notes, adds relations between pages ("customer of", "works with"…) and keeps every page's summary up to date, with its other names. It works by itself after the evening digest and when you press **Link with AI** in the map. It only adds: it never deletes or rewrites your notes. With a cloud engine the notes are sent to that service; with Ollama or LM Studio they stay on the PC. With **None** the map links the items by itself, from the words in common. When a note about a client or a project lands in its page, it leaves the always-on notes (it stays in the archive).
+
+## What it remembers by itself
+After each answer EasyIsland decides what to keep: **rules** («quotes always in PDF») go to the notes, **facts** about a client, a site or a project go to its page, and a note corrected or repeated moves to the archive. It doesn't keep things of the moment, version numbers or internal codes. Notes about an appointment or a job with a date move to the archive once that day has passed.
+
+## Search by meaning
+In **Settings → Chat → Memory → Search by meaning** the memory can also be searched by meaning, not only by words in common: «computer» finds a note about a «PC». Pick a service (OpenAI, Gemini, OpenRouter with the chat's keys, or Ollama or LM Studio on the PC). Useful with a large memory; with a cloud service the memory's lines are sent to that service.
 
 **Link with AI** also checks the map's links: for every new or changed note the engine looks at the pages and notes it may belong to and keeps only the real ones (a shared word such as "server" or "customer" is no longer enough). The verdict stays in `collegamenti.json` beside the memory, travels with the shared memory, and the map uses it instead of guesses. It changes neither notes nor pages. On another PC's copy the button checks that copy from here, unless that PC already did. With many notes it works in parts: press it again until it says it is done.
 
@@ -126,6 +132,15 @@ One subject in the middle and what grows from it, up to three rings: each branch
 ![The concept map](../media/memoria-concetti.png)
 
 Pages in layers, top to bottom, with arrows that name the relation ("uses", "contact", "contract"…). Pages mentioned but not yet written are dashed.
+
+### Treemap
+Groups and top pages in tiles as big as their weight in the memory.
+
+### Matrix
+A grid with the top pages on rows and columns: hover a cell to read how they are linked.
+
+### Health
+At a glance how many pages are written, how many notes are unlinked and need linking, and the main subjects.
 
 ### River
 Subjects over time: each group is a coloured stream as wide as how much was written about it each week (last six months). You see when a customer or a project became hot. Wheel to zoom on time.

@@ -454,6 +454,10 @@ export interface ChatSessionState {
   mode: string;
   /** Claude Code's model for this conversation ("opus", "sonnet"…; null = Impostazioni). */
   model: string | null;
+  /** Antigravity's model for this conversation (an `agy models` slug; null = Impostazioni). */
+  agyModel: string | null;
+  /** Antigravity's plan from the last turn in «Piano», waiting for «Procedi» (antigravity.rs take_plan). */
+  plan: string | null;
   /** Claude Code's fast mode for this conversation. */
   fast: boolean;
   /** Claude Code's sub-agents (Agent tool) in Modalità terminale: off unless turned on. */
@@ -502,7 +506,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: true, mode: "", model: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, auto: true, mode: "", model: null, agyModel: null, plan: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
@@ -520,6 +524,19 @@ export interface ChatMessage {
   file?: string;
   /** What the turn cost (Claude Code): shown small under the answer. */
   usage?: TurnUsage;
+  /** Answered by EasyIsland with no engine (router.rs): «Chiedi al motore» under it. */
+  direct?: boolean;
+  /** A short order the chat recognised (commands.rs): «Esegui» runs it, after the click only. */
+  command?: ChatCommand;
+  /** «Esegui» was pressed: the button goes. */
+  commandDone?: boolean;
+}
+
+/** commands.rs Command: the tool, its arguments, what it does in words. */
+export interface ChatCommand {
+  tool: string;
+  args: unknown;
+  label: string;
 }
 
 /** One turn of Claude Code, as claude_cli::finish measures it (claude.rs TurnUsage). */
@@ -700,6 +717,10 @@ export interface Settings {
   tasksEngine: string;
   /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
   memoryEngine: string;
+  /** «Ricerca per significato» (memory_meaning.rs): openai, gemini, ollama, lmstudio; "" = off. */
+  memoryMeaning?: string;
+  /** Its model; "" = the service's usual one. */
+  memoryMeaningModel?: string;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
   rememberNow?: boolean;
   /** Claude Code's own memory, read only (cc_memory.rs). */
@@ -872,6 +893,8 @@ export interface Settings {
   chatTips?: boolean;
   /** «Ripresa leggera» (lib.rs light_restart); off only when false. */
   chatLight?: boolean;
+  /** «Risposte dirette» (router.rs): on unless false. */
+  chatDirect?: boolean;
   /** The memory written by EasyIsland after the answer (memory_learn.rs); off only when false. */
   chatLearn?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */
@@ -900,6 +923,19 @@ export interface Settings {
   integrationConfig: IntegrationConfig;
 }
 
+/** One engine in «Consumo» (engine_usage.rs): its own numbers, and what the header shows. */
+export interface EngineUsage {
+  id: string;
+  name: string;
+  color: string;
+  level: "ok" | "warn" | "error";
+  summary: string;
+  fields: { label: string; value: string }[];
+  /** Percentages (pct) when the engine has a limit, else a plain number. */
+  gauge: { label: string; pct: number | null; text: string }[];
+  at: number;
+}
+
 export interface IntegrationConfig {
   /** Stato del PC: warn below this % of free space on the system disk. */
   systemWarn: number;
@@ -908,8 +944,10 @@ export interface IntegrationConfig {
   weatherCity: string;
   /** Meteo: the sky stays on the idle character, not only on the Meteo pill. */
   weatherOnCharacter: boolean;
-  /** Consumo Claude: the plan's percentages in the open island's header too. */
+  /** Consumo: the plan's percentages in the open island's header too. */
   planInHeader: boolean;
+  /** Consumo: the engine the header shows; a click there moves to the next one. */
+  planEngine?: string;
   /** 3CX: "user" (the extension's own login) or "api" (an API client). */
   threecxMode: "user" | "api";
   /** 3CX, API mode: the extension the API client monitors. */
@@ -1236,6 +1274,8 @@ export interface WidgetStatus {
   sky?: string;
   /** Consumo Claude: [used %, resets at (Unix s)] per window of the plan, and when they arrived (usage.rs PlanGauge). */
   plan?: { fiveHour?: [number, number]; sevenDay?: [number, number]; sevenDayOpus?: [number, number]; at?: number };
+  /** Consumo: one section per engine, Claude Code first (engine_usage.rs EngineUsage). */
+  engines?: EngineUsage[];
   /** Meteo: now, the next hours and days, for its card (src/views/weather.ts). */
   forecast?: unknown;
 }
@@ -1304,8 +1344,8 @@ export interface Theme {
   volumeEmotes: number;
   /** The island's colour behind the character while it is closed; off = the character alone. */
   compactBackground: boolean;
-  /** The look of the island and the settings: "windows" (Windows 11, the default) or "classic". */
-  style: "windows" | "classic";
+  /** The look of the island and the settings: "monolith", "titanium", "editorial", "windows" (the default) or "classic". */
+  style: "windows" | "classic" | "monolith" | "titanium" | "editorial";
   /** Light or dark: "dark" (the default), "light", or "auto" (follows Windows' app mode). */
   scheme: "dark" | "light" | "auto";
   /** What sits in the island: the character, the EasyIsland logo, the user's PNG or the weather (character/figure.ts). */

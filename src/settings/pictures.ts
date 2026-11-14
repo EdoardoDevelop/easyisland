@@ -15,7 +15,7 @@ import { characters } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { setCharacter } from "../character/character";
 import { setFigure, setFigureLogo, setFigureWeather } from "../character/figure";
-import { islandHex, uiStyle } from "../core/uistyle";
+import { islandHex, studioLook, uiStyle } from "../core/uistyle";
 
 export type PicKind =
   | "look" | "compactBg" | "greeting" | "follow" | "bubble" | "menuChar"
@@ -39,6 +39,7 @@ interface Paint {
   ink: string;
   body: string;
   windows: boolean;
+  studio: boolean;
   /** Jarvis: a sphere of dots rather than a body with eyes. */
   dots: boolean;
   /** Jarvis's own colours from the middle out (purple, magenta, orange), unless the user chose one. */
@@ -55,7 +56,8 @@ function paint(s: Settings): Paint {
     alpha: clamp(th.islandOpacity ?? 1, 0.5, 1),
     ink: luma(island) > 150 ? "#16181d" : "#f5f6f8",
     body: HEX.test(th.slimeColor ?? "") ? th.slimeColor : own,
-    windows: uiStyle(th.style) === "windows",
+    windows: uiStyle(th.style) !== "classic",
+    studio: studioLook(th.style),
     dots: (c?.id ?? "").startsWith("jarvis"),
     rings: HEX.test(th.slimeColor ?? "") ? null : ["#7C3AED", "#C026D3", "#F97316"],
   };
@@ -200,13 +202,19 @@ function panel(p: Paint, s: Settings, x: number, y: number, w: number, h: number
   // Menu.
   const rw = w * 0.26;
   const top = y + hh + 1;
-  const cr = rw * (({ large: 0.24, medium: 0.17, small: 0.11 } as const)[s.menuCharacter ?? "large"] ?? 0.24);
-  out += chr(p, x + 3 + rw / 2, top + 2 + cr * 1.1, cr);
-  if (hi === "menu") marks += mark(x + 3 + rw / 2 - cr * 1.3, top + 2 + cr * 1.1 - cr * 1.3, cr * 2.6, cr * 2.6, cr);
+  const cr = p.studio && hi !== "menu"
+    ? 0
+    : rw * (({ large: 0.24, medium: 0.17, small: 0.11 } as const)[s.menuCharacter ?? "large"] ?? 0.24);
+  if (cr > 0) {
+    out += chr(p, x + 3 + rw / 2, top + 2 + cr * 1.1, cr);
+    if (hi === "menu") marks += mark(x + 3 + rw / 2 - cr * 1.3, top + 2 + cr * 1.1 - cr * 1.3, cr * 2.6, cr * 2.6, cr);
+  } else {
+    out += chr(p, x + 5.2, y + 1 + hh / 2, 1.6);
+  }
   const colors = ["#94A3B8", "#A78BFA", "#22D3EE", "#F5A524", "#22C55E"];
   const step = Math.max(4.2, h * 0.075);
   for (let i = 0; i < 5; i++) {
-    const iy = top + 4 + cr * 2.4 + i * step;
+    const iy = top + (cr > 0 ? 4 + cr * 2.4 : 2.5) + i * step;
     if (iy + 3 > y + h - 2) break;
     if (i === 0) {
       out += `<rect x="${n1(x + 3)}" y="${n1(iy - 1)}" width="${n1(rw)}" height="${n1(step - 0.6)}" rx="1.2" fill="${p.ink}" fill-opacity="0.08"/>` +

@@ -2,6 +2,17 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.47** — **New island look**: a full-width search bar that is also a **calculator**, a side bar you open and close
+yourself, an **Overview** with the «Now» strip, one tile per integration and agent and your quick actions, a renewed chat
+field with commands (/) and context (@). Three new **styles** in Appearance → Style: Monolith, Titanium and Glass.
+**Commands with no engine**: «apri» followed by one of your quick actions, «profilo Ufficio», «pausa», «ricordami di …»
+answer at once with **Run**, and nothing starts before the click. **Direct answers** also work when the period changes
+(November's expenses from October's recipe) or a number does; the **router** keeps a turn log and reads the needed data
+first. **Memory map** redone: Tree map, Matrix and Health views, grouped views, clickable overview numbers, inactive notes
+included; a cleaner memory and search by meaning. **Usage** of every engine, separate. In the chat, **questions with
+choices** and plan; **Antigravity** like Claude (model, effort, mode), and in Turbo the island no longer holds it.
+**VLAN ID** in «Edit network…». Less text in front of each conversation and automatic caching for the API engine.
+
 **1.0.46** — **EasyIsland does the work instead of the AI**, so with the subscription you reach the limits less often.
 With Claude Code a conversation grown heavy (over 60,000 tokens) or idle for 45 minutes **resumes light**: only questions
 and answers, without re-reading all the work done at every step. **The memory is written by EasyIsland after the answer**

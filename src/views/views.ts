@@ -7,9 +7,9 @@ import { isSorting, sortable } from "./sortable";
 import * as MenuGroups from "../core/menu-groups";
 import { h, svg, clear, dot, brandOrDot, markIcon, tip } from "./dom";
 import { ICONS } from "./icons";
-import { actionIcon, actionIconSvg } from "./action-icons";
+import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { Ticker } from "./ticker";
-import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion, type EngineUsage } from "../core/state";
 import type { IslandViewName } from "../core/layout";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
@@ -21,7 +21,7 @@ import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
 import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
-import { buildActions, buildRun, type ActionHandlers } from "./actions";
+import { buildActions, buildRun, tabActions, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
 import { freshPicks, proposalsAnswer, proposalsBox, setAll } from "./proposals";
 import { buildRemember, type RememberHandlers } from "./remember";
@@ -162,34 +162,45 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 
 const USAGE_ID = "integration_claude_usage";
 
+/** Consumo's engines that have something for the header, in the card's order. */
+function gaugeEngines(): EngineUsage[] {
+  if (!State.settings.activeIntegrations.includes(USAGE_ID) || State.settings.integrationConfig.planInHeader === false) return [];
+  return (State.widgetStatus[USAGE_ID]?.engines ?? []).filter((e) => e.gauge.length);
+}
+
 /**
- * The plan's windows for the header (usage.rs PlanGauge), or null when the
- * card is off, has no plan yet, or the user keeps it in the card only.
+ * The header's gauge: the chosen engine of Consumo (usage.rs, engine_usage.rs),
+ * its plan's percentages or today's tokens; null when the card is off, has
+ * nothing yet, or the user keeps it in the card only.
  */
 function planGauge(): { key: string; parts: HTMLElement[]; title: string } | null {
-  if (!State.settings.activeIntegrations.includes(USAGE_ID) || State.settings.integrationConfig.planInHeader === false) return null;
-  const status = State.widgetStatus[USAGE_ID];
-  const plan = status?.plan;
-  if (!plan) return null;
+  const list = gaugeEngines();
+  if (!list.length) return null;
+  const e = list.find((x) => x.id === State.settings.integrationConfig.planEngine) ?? list[0];
   const now = Date.now() / 1000;
-  const windows: [string, [number, number] | undefined][] = [[t("5h"), plan.fiveHour], [t("7g"), plan.sevenDay]];
-  const shown = windows.flatMap(([label, w]) => {
-    if (!w) return [];
-    const pct = Math.round(w[1] <= now ? 0 : w[0]);
-    return [{ label, pct }];
-  });
-  if (!shown.length) return null;
-  // Past 15 minutes the numbers are old (as the card's "Piano aggiornato"): grey.
-  const stale = plan.at != null && now - plan.at >= 15 * 60;
+  // Claude Code past 15 minutes (as the card's "Piano aggiornato"): grey.
+  const stale = e.id === "subscription" && now - e.at >= 15 * 60;
   const level = (p: number) => (stale ? "stale" : p >= 100 ? "full" : p >= 80 ? "warn" : "");
-  const parts = shown.map(({ label, pct }) =>
-    h("span", { class: `pg ${level(pct)}`, style: `--p:${Math.min(100, pct)}%` },
-      h("b", { text: label }), h("span", { text: `${pct}%` })));
-  // The card's own lines ("Piano · 5 ore: 12% · si azzera tra 2 h 10"), as the tooltip;
-  // "Piano aggiornato" (how old, and why) first when the numbers are old.
-  const lines = (status.fields ?? []).filter((f) => f.label.startsWith(t("Piano"))).map((f) => `${f.label}: ${f.value}`);
+  const parts: HTMLElement[] = [];
+  // With more than one engine, whose numbers these are.
+  if (list.length > 1) parts.push(h("span", { class: "pg-engine", text: e.name, style: `color:${e.color}` }));
+  for (const g of e.gauge) {
+    const pct = g.pct == null ? null : Math.round(g.pct);
+    parts.push(h("span", { class: `pg ${pct == null ? "plain" : level(pct)}`, style: `--p:${Math.min(100, pct ?? 0)}%;--c:${e.color}` },
+      h("b", { text: g.label }), h("span", { text: g.text })));
+  }
+  // The engine's own lines as the tooltip; Claude's "Piano aggiornato" first when old.
+  const lines = e.id === "subscription"
+    ? e.fields.filter((f) => f.label.startsWith(t("Piano"))).map((f) => `${f.label}: ${f.value}`)
+    : [e.summary, ...e.fields.filter((f) => f.label !== t("Fonte")).map((f) => `${f.label}: ${f.value}`)];
   if (stale) lines.sort((a, b) => Number(b.startsWith(t("Piano aggiornato"))) - Number(a.startsWith(t("Piano aggiornato"))));
-  return { key: `${stale}|` + shown.map((s) => `${s.label}${s.pct}`).join("|") + lines.join("|"), parts, title: [t("Piano Claude"), ...lines].join("\n") };
+  const next = list[(list.indexOf(e) + 1) % list.length];
+  const hint = list.length > 1 ? t("Clic: {name}", { name: next.name }) : t("Clic: apri il consumo");
+  return {
+    key: `${stale}|${e.id}|${list.length}|` + e.gauge.map((g) => `${g.label}${g.pct}${g.text}`).join("|") + lines.join("|"),
+    parts,
+    title: [e.id === "subscription" ? t("Piano Claude") : e.name, ...lines, hint].join("\n"),
+  };
 }
 
 /**
@@ -260,9 +271,19 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
   const minBtn = h("button", { title: t("Riduci a icona"), style: "--c:#94A3B8", onclick: () => void Bridge.minimizeIsland() }, svg(ICONS.minimize, 14));
   const maxBtn = h("button", { title: t("Schermo intero"), style: "--c:#94A3B8", onclick: () => actions.toggleMaximized() }, svg(ICONS.maximize, 14));
   let maxShown: boolean | null = null;
-  // Claude's plan (Consumo Claude): "5h 12%  7g 83%", a click opens the card.
+  // Consumo in the header: "5h 12%  7g 83%" for Claude, today's tokens or the
+  // credit for the others; a click shows the next engine, with one only it opens the card.
   const planBtn = h("button", { class: "plan-gauge", onclick: () => {
     actions.blip();
+    const list = gaugeEngines();
+    if (list.length > 1) {
+      const cfg = State.settings.integrationConfig;
+      const i = list.findIndex((x) => x.id === cfg.planEngine);
+      cfg.planEngine = list[(Math.max(0, i) + 1) % list.length].id;
+      void Bridge.saveSettings(State.settings);
+      State.notify();
+      return;
+    }
     State.setFocus(USAGE_ID);
     actions.setView("overview");
   } });
@@ -275,12 +296,16 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
   const talk = h("div", { class: "say" }, say, sayMore);
   const field = h("div", { class: "header-field" });
 
+  const winSep = h("span", { class: "hdr-sep" });
+  const toolsGroup = h("span", { class: "hdr-group hdr-tools" }, pinBtn, memBtn, gearBtn, soundBtn);
+  const winGroup = h("span", { class: "hdr-group hdr-win" }, minBtn, maxBtn, closeBtn);
+
   const el = h(
     "div",
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, pinBtn, memBtn, gearBtn, soundBtn, minBtn, maxBtn, closeBtn),
+    h("div", { class: "header-actions" }, planBtn, toolsGroup, winSep, winGroup),
   );
 
   return {
@@ -305,6 +330,9 @@ ${b}` : a;
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
       minBtn.style.display = State.appWindow ? "" : "none";
       maxBtn.style.display = State.appWindow ? "" : "none";
+      const hasWinControls = State.appWindow || State.settings.closeButton;
+      winGroup.style.display = hasWinControls ? "" : "none";
+      winSep.style.display = hasWinControls ? "" : "none";
       if (maxShown !== State.maximized) {
         maxShown = State.maximized;
         maxBtn.replaceChildren(svg(State.maximized ? ICONS.restore : ICONS.maximize, 14));
@@ -499,6 +527,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       } else if (showsSummary()) {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
           + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`
+          + `~actions:${tabActions().map((a) => `${a.id}:${a.name}:${a.icon ?? ""}:${a.color ?? ""}`).join(",")}`
           + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
@@ -645,28 +674,71 @@ function showsSummary(): boolean {
   return State.showsSummary;
 }
 
-/** Panoramica: a tile per integration (and agent) with its latest line; a click opens its card. */
+function taskPriorityScore(task: AgentTask): number {
+  if (task.pillBadge === "approval") return 4;
+  if (task.pillBadge === "error" || task.state === "error" || task.state === "ratelimit") return 3;
+  if (task.state !== "idle" && task.state !== "sleeping" && task.state !== "finished") return 2;
+  if (task.pillBadge === "finished") return 1;
+  return 0;
+}
+
+/** Panoramica: highlighted "Adesso" strip + tile per integration/agent + Quick Actions row. */
 function renderSummary(actions: ViewActions): HTMLElement {
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const head = h("div", { class: "today-head" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date }));
+  const visible = State.tasks.filter((t) => t.id !== "integration_recorder");
+  const prioritized = visible
+    .map((task) => ({ task, score: taskPriorityScore(task) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2);
+
+  const head = h(
+    "div",
+    { class: "today-head" },
+    h("div", { class: "today-head-main" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date })),
+  );
+
+  const nowStrip = prioritized.length ? h("div", { class: "now-strip" }, ...prioritized.map(({ task, score }) => {
+    const label = pillLabel(task);
+    const status = task.steps.length ? task.steps[task.steps.length - 1] : task.state;
+    const urgent = score >= 3;
+    const cardBtn = h(
+      "button",
+      { class: `now-card ${urgent ? "urgent" : "live"}`, onclick: () => actions.setFocus(task.id) },
+      h("span", { class: "now-icon" }, markIcon(task.id, 17) ?? dot(task.color, 9)),
+      h("span", { class: "now-meta" }, h("strong", { text: label.text }), h("span", { text: status || " " })),
+      h("span", { class: `now-cta${urgent ? "" : " subtle"}`, text: urgent ? t("Controlla") : t("Apri") }),
+    );
+    cardBtn.style.setProperty("--c", task.color);
+    return cardBtn;
+  })) : null;
+
   const grid = h("div", { class: "summary" });
-  for (const t of State.tasks) {
-    // Registra lives in File e schermo.
-    if (t.id === "integration_recorder") continue;
-    const label = pillLabel(t);
-    const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
-    const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
-      // The logo, large and half hidden in the bottom-left corner; a circle of
-      // the integration's colour for those without one.
-      h("span", { class: "summary-mark", "aria-hidden": "true" }, markIcon(t.id, 52) ?? h("i", { class: "summary-circle" })),
+  for (const tsk of visible) {
+    const label = pillLabel(tsk);
+    const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : tsk.state === "idle" ? "" : tsk.state;
+    const stateText = tsk.pillBadge === "approval"
+      ? t("Richiede conferma")
+      : tsk.pillBadge === "error"
+      ? t("Errore")
+      : tsk.pillBadge === "finished"
+      ? t("Pronto")
+      : tsk.state !== "idle" && tsk.state !== "sleeping"
+      ? t("Attivo")
+      : "";
+    const row = h("button", { class: "summary-row", "data-id": tsk.id, title: label.title ?? tsk.name, onclick: () => actions.setFocus(tsk.id) },
+      // Classic look uses the bottom-right watermark; modern looks use the inline badge icon.
+      h("span", { class: "summary-mark", "aria-hidden": "true" }, markIcon(tsk.id, 52) ?? h("i", { class: "summary-circle" })),
       h("span", { class: "summary-top" },
+        h("span", { class: "summary-ico", "aria-hidden": "true" }, markIcon(tsk.id, 14) ?? h("i", { class: "summary-ico-dot" })),
         h("span", { class: "summary-name", text: label.text }),
-        t.pillBadge ? h("i", { class: "summary-badge" }) : null),
+        stateText ? h("span", { class: `summary-pill ${tsk.pillBadge ?? "live"}`, text: stateText }) : null,
+        tsk.pillBadge ? h("i", { class: "summary-badge" }) : null),
       h("span", { class: "summary-status", text: status || " " }));
-    row.style.setProperty("--c", t.color);
-    if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
+    row.style.setProperty("--c", tsk.color);
+    if (tsk.pillBadge) row.classList.add(`badge-${tsk.pillBadge}`);
     // In a group of the menu: a line along the bottom in the folder's colour (Edoardo, 10/11).
-    const group = MenuGroups.groupOf(t.id);
+    const group = MenuGroups.groupOf(tsk.id);
     if (group) {
       row.classList.add("in-group");
       row.style.setProperty("--g", group.color ?? "#f5a524");
@@ -674,10 +746,43 @@ function renderSummary(actions: ViewActions): HTMLElement {
     }
     grid.append(row);
   }
-  if (!State.tasks.length) grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
+  if (!visible.length) {
+    grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
+  }
+
+  const quick = tabActions();
+  const actionsRow = quick.length
+    ? h(
+        "div",
+        { class: "pan-actions" },
+        h("span", { class: "pan-actions-label", text: t("Azioni rapide") }),
+        h(
+          "div",
+          { class: "pan-actions-list" },
+          ...quick.map((a) => {
+            const pill = h(
+              "button",
+              {
+                class: "pan-action-pill",
+                title: a.hotkey ? `${a.name} (${a.hotkey})` : a.name,
+                onclick: () => actions.runAction(a),
+              },
+              h("span", { class: "pan-action-ico", "aria-hidden": "true" }, renderActionIcon(a.icon, 13)),
+              h("span", { text: a.name }),
+            );
+            if (a.color) pill.style.setProperty("--c", a.color);
+            return pill;
+          }),
+        ),
+      )
+    : null;
+
   // Dragged into the order the user wants: the same order as the menu.
-  sortable(grid, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
-  return h("div", { class: "today" }, head, grid, summaryNews(actions));
+  sortable(grid, {
+    enabled: () => !State.settings.lockOrder,
+    onReorder: (ids) => actions.reorder(ids),
+  });
+  return h("div", { class: "today" }, head, nowStrip, grid, actionsRow, summaryNews(actions));
 }
 
 /** Headlines in the Panoramica's «Notizie» box. */
@@ -693,7 +798,7 @@ function summaryNews(actions: ViewActions): HTMLElement | null {
       h("span", { class: "summary-name", text: t("Notizie") }),
       unread ? h("span", { class: "summary-news-count", text: t("{n} nuove", { n: unread }) }) : null),
     ...State.news.slice(0, SUMMARY_NEWS).map((n) =>
-      h("button", { class: "summary-news-row", title: n.link, onclick: () => actions.openUrl(n.link) },
+      h("button", { class: "summary-news-row", onclick: () => actions.openUrl(n.link) },
         h("span", { class: "summary-news-title", text: n.title }),
         h("span", { class: "summary-news-src", text: n.source }))));
 }

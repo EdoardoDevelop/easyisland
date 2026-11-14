@@ -7,7 +7,7 @@
 // on one (double click) dim the rest; notes tied to nothing wear a red ring.
 
 import { KIND_COLOR, alpha, around, freshness, type MemNode, type Model } from "./data";
-import { Camera, coreBox, starfield, type Colouring, type View } from "./stage";
+import { animateIdle, Camera, coreBox, starfield, type Colouring, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { inkOf, pal } from "./theme";
 
@@ -183,8 +183,9 @@ export class GraphView implements View {
     }
     if (this.heat > 0.02) moving = this.simulate();
     moving = this.cam.step() || moving;
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
+    const idle = animateIdle();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
@@ -221,13 +222,18 @@ export class GraphView implements View {
     }
 
     // Links: guesses fainter and dashed, the path bright.
+    let linkIdx = 0;
     for (const [a, b, , s] of this.links) {
+      linkIdx++;
       if (!visible(a.n.id) || !visible(b.n.id)) continue;
       const onPath = !!path && this.pathEdges.has(`${a.n.id}>${b.n.id}`);
       const on = path ? onPath : sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
       const weak = s < 2;
+      const gA = this.model?.groupColor(a.n.id);
+      const sameGroup = this.colouring === "group" && gA && gA === this.model?.groupColor(b.n.id);
       ctx.strokeStyle = onPath ? p.ring
         : on && sel ? alpha(this.colourOf(a.n.id === sel ? b.n : a.n), 0.8)
+        : on && sameGroup ? alpha(gA!, weak ? 0.16 : 0.24)
         : `rgba(${p.link},${on ? (weak ? 0.16 : 0.3) : 0.05})`;
       ctx.lineWidth = (onPath ? 2.4 : on && sel ? 1.6 : weak ? 0.7 : 1) / k;
       if (weak && !onPath) ctx.setLineDash([4 / k, 4 / k]);
@@ -238,30 +244,40 @@ export class GraphView implements View {
       ctx.quadraticCurveTo(mx, my, b.x, b.y);
       ctx.stroke();
       ctx.setLineDash([]);
-      // A spark travelling along the selected node's links, or along the path.
-      if ((on && sel && !path) || onPath) {
-        const t = ((time / 1400) + (a.x * 0.001)) % 1;
+      // Sparks travelling along selected links, path, or gently across strong links when idle.
+      const ambientSpark = idle && !sel && !path && on && s >= 2 && linkIdx % 7 === 0;
+      if ((on && sel && !path) || onPath || ambientSpark) {
+        const speed = ambientSpark ? 2600 : 1400;
+        const t = (((time / speed) + (a.x * 0.001 + linkIdx * 0.13)) % 1 + 1) % 1;
         const from = onPath ? a : a.n.id === sel ? a : b;
         const to = from === a ? b : a;
         const u = from === a ? t : 1 - t;
         const q = 1 - u;
         const sx = q * q * a.x + 2 * q * u * mx + u * u * b.x;
         const sy = q * q * a.y + 2 * q * u * my + u * u * b.y;
-        ctx.fillStyle = onPath ? p.ring : this.colourOf(to.n);
+        ctx.fillStyle = onPath ? p.ring : alpha(this.colourOf(to.n), ambientSpark ? 0.85 : 1);
         ctx.beginPath();
-        ctx.arc(sx, sy, 2.4 / k, 0, Math.PI * 2);
+        ctx.arc(sx, sy, (ambientSpark ? 2.1 : 2.5) / k, 0, Math.PI * 2);
         ctx.fill();
         moving = true;
       }
     }
 
-    // Nodes: as big as they are linked, as strong as they are recent; flat
-    // discs with a thin ring of the background so neighbours stay apart.
+    // Nodes: as big as they are linked, as strong as they are recent; hubs breathe gently.
     for (const b of this.bodies) {
       if (!visible(b.n.id)) continue;
       const on = lit(b.n.id);
       const color = this.colourOf(b.n);
-      const r = b.r * (b.n.id === sel ? 1 + Math.sin(time / 300) * 0.08 : 1);
+      const breath = idle && b.deg >= 4 ? 1 + Math.sin(time * 0.0024 + b.x * 0.02) * 0.09 : 1;
+      const r = b.r * (b.n.id === sel ? 1 + Math.sin(time / 300) * 0.1 : breath);
+      if (idle && b.deg >= 5 && on) {
+        const auraR = r * (1.8 + 0.5 * Math.sin(time * 0.002 + b.y * 0.02));
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, auraR, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (b.n.id === sel) moving = true;
       const strong = b.n.kind === "note" || b.n.kind === "page" ? 0.6 + b.fresh * 0.4 : 0.85;
       ctx.globalAlpha = on ? strong : 0.16;
@@ -281,6 +297,13 @@ export class GraphView implements View {
         ctx.strokeStyle = p.bg;
         ctx.lineWidth = 1.2 / k;
         ctx.stroke();
+        if (b.n.kind === "page" && this.colouring === "group") {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r + 2.2 / k, 0, Math.PI * 2);
+          ctx.strokeStyle = alpha(color, 0.55);
+          ctx.lineWidth = 1 / k;
+          ctx.stroke();
+        }
       }
       ctx.globalAlpha = on ? 1 : 0.3;
       // A note tied to nothing: to link.
@@ -331,7 +354,7 @@ export class GraphView implements View {
       named = true;
       for (const g of groupNames) {
         const s = this.cam.toScreen(g.x, g.y);
-        label(ctx, placer, g.name, s.x, s.y, { size: 14, weight: 600, color: inkOf(g.color), max: 240, baseline: "middle" });
+        label(ctx, placer, g.name, s.x, s.y, { size: 13, weight: 600, color: inkOf(g.color), max: 240, baseline: "middle", pill: true, pillColor: g.color });
       }
     };
     // Beyond what must be named, about one label per 14 000 px² of stage:
@@ -352,7 +375,7 @@ export class GraphView implements View {
       if (put && score < 1e6) budget--;
     }
     if (!named) nameGroups();
-    return moving;
+    return moving || idle;
   }
 
   hit(x: number, y: number): string | null {

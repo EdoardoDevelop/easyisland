@@ -188,7 +188,15 @@ export async function runScene(island: Island, scene: string) {
       if (pensa != null) {
         State.chatHistory = [{ id: 1, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
         if (pensa === "fine") State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", usage: { steps: 4, read: 61200, out: 900, peak: 16800, tools: [["Read", 1], ["Bash", 1], ["memory_search", 1]], light: 74000 }, content: "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`\n\n> ⚙ Cerca nella memoria · `NAS Rossi`\n\nIl disco di destinazione era **pieno**: alle 02:14 restavano 3 GB." });
-        State.chat.sending = pensa !== "fine";
+        // =diretta: answered by the smistatore with no engine (router.rs), «Chiedi al motore» under it.
+        if (pensa === "diretta") {
+          State.chatHistory = [{ id: 1, role: "user", content: "Stato del computer" }, { id: 2, role: "assistant", engine: "subscription", direct: true, content: "- **Stato del PC** · livello: ok · riassunto: CPU 12 %, RAM 41 %\n- **Rete** · livello: ok · riassunto: Online, 18 ms\n- **Meteo** · riassunto: 14 °C, sereno\n\n⚡ Risposta diretta di EasyIsland, senza motore: come per «come sta il computer». Per la risposta del motore riscrivi la domanda." }];
+        }
+        // =comando: a short order with its «Esegui» button (commands.rs).
+        if (pensa === "comando") {
+          State.chatHistory = [{ id: 1, role: "user", content: "Apri Teams" }, { id: 2, role: "assistant", engine: "subscription", direct: true, content: "Posso farlo subito, senza motore: **Azione rapida «Teams»**.", command: { tool: "run_quick_action", args: { id: "a1" }, label: "Azione rapida «Teams»" } }];
+        }
+        State.chat.sending = pensa !== "fine" && pensa !== "diretta" && pensa !== "comando";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
         if (pensa.startsWith("squadra")) {
@@ -630,7 +638,9 @@ export async function runScene(island: Island, scene: string) {
           { index: 27, name: "Wi-Fi", up: false, wireless: true, virtualHost: false, dhcp: true, dnsAuto: true, main: false,
             addresses: [], gateway: "", dns: [] },
         ],
-        networkApply: async () => { await wait(600); },
+        networkApply: async (c: unknown) => { (window as unknown as { applied: unknown }).applied = c; await wait(600); },
+        // Ethernet has the driver's VLAN ID (as a Realtek names it), the others none.
+        networkVlan: async (index: number) => (index === 4 ? { keyword: "RegVlanid", value: 0, min: 0, max: 4094 } : null),
         networkPing: async (target: string) => (target === "gateway" ? "192.168.1.1" : target),
       });
       await wait(300);
@@ -1000,10 +1010,12 @@ export async function runScene(island: Island, scene: string) {
     }
     case "usage": {
       // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card;
-      // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header).
+      // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header);
+      // the other engines below; &motore=openrouter (opencode, antigravity): that one in the header.
       await wait(300);
       const now = Math.floor(Date.now() / 1000);
-      const stale = new URLSearchParams(location.search).has("stale");
+      const q0 = new URLSearchParams(location.search);
+      const stale = q0.has("stale");
       State.widgetStatus.integration_claude_usage = {
         id: "integration_claude_usage", level: "warn", at: now - 30,
         summary: "Piano: 5 ore 12% · settimana 83% (quasi al limite)",
@@ -1015,6 +1027,22 @@ export async function runScene(island: Island, scene: string) {
           { label: "Ultime 5 ore", value: "1,2 M token" },
         ],
       };
+      // The other engines (engine_usage.rs), as the card and the header's clicks show them.
+      const st = State.widgetStatus.integration_claude_usage;
+      st.engines = [
+        { id: "subscription", name: "Claude Code", color: "#D97757", level: "warn", summary: st.summary, fields: st.fields, at: st.plan!.at!,
+          gauge: [{ label: "5h", pct: 12, text: "12%" }, { label: "7g", pct: 83, text: "83%" }] },
+        { id: "opencode", name: "opencode", color: "#F5A524", level: "ok", summary: "Oggi 336 mila token · 7 giorni 405 mila", at: now,
+          fields: [{ label: "Oggi", value: "336 mila token" }, { label: "7 giorni", value: "405 mila token · 1 richiesta" }, { label: "Modelli", value: "freellmapi/auto 100%" }],
+          gauge: [{ label: "oggi", pct: null, text: "336 mila" }] },
+        { id: "antigravity", name: "Antigravity", color: "#4C8BF5", level: "ok", summary: "Oggi 45 mila token · 7 giorni 120 mila", at: now,
+          fields: [{ label: "Oggi", value: "45 mila token · 6 chiamate" }, { label: "Fonte", value: "solo le risposte date in EasyIsland" }],
+          gauge: [{ label: "oggi", pct: null, text: "45 mila" }] },
+        { id: "openrouter", name: "OpenRouter", color: "#8B8FF8", level: "ok", summary: "credito $3,53 · oggi $0,00", at: now,
+          fields: [{ label: "Credito", value: "$3,53 rimasti su $15,00" }, { label: "Questo mese", value: "$0,40" }],
+          gauge: [{ label: "credito", pct: 76, text: "$3,53" }] },
+      ];
+      if (q0.get("motore")) State.settings.integrationConfig.planEngine = q0.get("motore")!;
       State.setFocus("integration_claude_usage");
       State.isPinned = true;
       island.alert("overview");
@@ -1180,6 +1208,55 @@ export async function runScene(island: Island, scene: string) {
           pdf: true,
           folder: "%USERPROFILE%\\OneDrive - Easytech SRL\\WORK\\Preventivi",
         },
+      });
+      break;
+    }
+    case "domanda": {
+      // Claude Code in the chat asks with options (AskUserQuestion, claude_cli.rs on_control);
+      // `&piano`: its plan (ExitPlanMode) instead; `&multi`: two questions, the second with several picks;
+      // `&agy`: Antigravity's plan card (with `&chatEngine=antigravity`).
+      await wait(300);
+      const q = new URLSearchParams(location.search);
+      const plan = q.has("piano");
+      // `&agy`: Antigravity's plan after a turn in «Piano» (antigravity.rs take_plan), no request.
+      if (q.has("agy")) {
+        State.chat.mode = "plan";
+        State.chat.plan = "# Piano\n1. Leggo il listino 2026\n2. Creo il preventivo dal modello\n3. Ne faccio il PDF";
+        State.chatHistory = [{ id: 1, role: "user", content: "Prepara il preventivo per la Farmacia Rossi" }, { id: 2, role: "assistant", engine: "antigravity", content: "Ho preparato il piano: appena lo approvi, procedo." }];
+        State.isPinned = true;
+        island.alert("prompt");
+        break;
+      }
+      const questions = [{
+        question: "Per il preventivo della Farmacia Rossi quale listino uso?",
+        header: "Listino",
+        multiSelect: false,
+        options: [
+          { label: "Listino 2026", description: "Prezzi aggiornati a ottobre, ricarico 30 %" },
+          { label: "Listino cliente", description: "Gli sconti concordati con la farmacia l'anno scorso" },
+          { label: "Prezzi del portale", description: "Cerco ora i prezzi del fornitore" },
+        ],
+      }];
+      if (q.has("multi")) {
+        questions.push({
+          question: "Cosa metto nel preventivo?",
+          header: "Righe",
+          multiSelect: true,
+          options: [
+            { label: "Switch 8 porte", description: "" },
+            { label: "Installazione", description: "3 ore" },
+            { label: "Assistenza annuale", description: "" },
+          ],
+        });
+      }
+      handleHook(island, {
+        hook_event_name: "PermissionRequest",
+        easyisland_chat: true,
+        request_id: "ask-chat-1",
+        tool_name: plan ? "ExitPlanMode" : "AskUserQuestion",
+        tool_input: plan
+          ? { plan: "1. Leggo il listino 2026 e i prezzi del portale\n2. Creo il preventivo dal modello «Preventivo Easytech»\n3. Ne faccio il PDF e lo metto nel Vassoio" }
+          : { questions },
       });
       break;
     }

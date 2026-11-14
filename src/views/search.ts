@@ -13,6 +13,8 @@ import { ICONS } from "./icons";
 import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
+import { calculate, formatResult, plainResult } from "../core/calc";
+import { Sound } from "../core/sound";
 import { Constellation } from "./constellation";
 import { Model } from "../memory/data";
 import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
@@ -38,7 +40,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
+  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -58,11 +60,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -206,6 +208,18 @@ export function buildSearch(actions: SearchActions): SearchHost {
 
   const collect = (q: string): Hit[] => {
     const out: Hit[] = [];
+    const calc = calculate(input.value.trim());
+    if (calc != null) {
+      out.push({
+        kind: "Calcolo",
+        name: formatResult(calc),
+        score: 100,
+        icon: () => h("span", { class: "search-calc-eq", text: "=" }),
+        run: () => {
+          void navigator.clipboard.writeText(plainResult(calc)).then(() => Sound.play("finish")).catch(() => {});
+        },
+      });
+    }
     for (const t of State.tasks) {
       const s = score(t.name, q);
       if (!s) continue;
@@ -325,9 +339,12 @@ export function buildSearch(actions: SearchActions): SearchHost {
     if (!keep) {
       sel = 0;
       picked = "";
-      askNotion(input.value.trim());
-      askRdm(input.value.trim());
-      askMore(input.value.trim());
+      const raw = input.value.trim();
+      if (calculate(raw) == null) {
+        askNotion(raw);
+        askRdm(raw);
+        askMore(raw);
+      }
     } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
     if (q) {

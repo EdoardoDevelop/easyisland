@@ -313,10 +313,53 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         (list, now, midnight, local)
     });
     ask_anthropic().await;
-    scanning
+    let others = crate::engine_usage::sections().await;
+    let r = scanning
         .await
         .map(|(list, now, midnight, local)| with_plan(result_for(&w.id, &list, now, midnight), plan().as_ref(), now, local - now))
-        .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Lettura delle trascrizioni interrotta")))
+        .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Lettura delle trascrizioni interrotta")));
+    with_engines(r, others)
+}
+
+/// Claude Code as the first section, then the other engines (engine_usage.rs).
+/// The card's own lines stay Claude Code's, plus one line per other engine
+/// (what an agent reading the integration sees).
+fn with_engines(mut r: WidgetResult, others: Vec<crate::engine_usage::EngineUsage>) -> WidgetResult {
+    use crate::engine_usage::{EngineUsage, GaugePart};
+    let mut sections = Vec::new();
+    let has_claude = r.plan.is_some() || !r.fields.is_empty();
+    if has_claude {
+        let now = unix_now();
+        let gauge = r.plan.as_ref().map(|p| {
+            let part = |label: &str, w: &Option<[f64; 2]>| w.map(|w| {
+                let pct = if (w[1] as i64) <= now { 0.0 } else { w[0] };
+                GaugePart { label: label.into(), pct: Some(pct), text: format!("{}%", pct.round() as i64) }
+            });
+            [part(t("5h"), &p.five_hour), part(t("7g"), &p.seven_day)].into_iter().flatten().collect()
+        }).unwrap_or_default();
+        sections.push(EngineUsage {
+            id: "subscription".into(),
+            name: "Claude Code".into(),
+            color: "#D97757".into(),
+            level: r.level.clone(),
+            summary: r.summary.clone(),
+            fields: r.fields.clone(),
+            gauge,
+            at: r.plan.as_ref().map(|p| p.at).unwrap_or(now),
+        });
+    }
+    for s in &others {
+        r.fields.push(crate::widgets::FieldValue { label: s.name.clone(), value: s.summary.clone() });
+        if s.level == "warn" && r.level == "ok" {
+            r.level = "warn".into();
+        }
+    }
+    if !has_claude && !others.is_empty() {
+        r.summary = others.iter().map(|s| format!("{}: {}", s.name, s.summary)).collect::<Vec<_>>().join(" · ");
+    }
+    sections.extend(others);
+    r.engines = Some(sections);
+    r
 }
 
 // ── Plan limits (Pro / Max) ──────────────────────────────────────────────────

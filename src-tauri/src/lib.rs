@@ -14,6 +14,7 @@ mod pdf;
 mod antigravity;
 mod agent;
 mod memory_learn;
+mod memory_meaning;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -64,6 +65,9 @@ mod notion;
 mod notion_map;
 mod notion_tools;
 mod recipes;
+mod router;
+mod commands;
+mod periods;
 mod portals;
 mod todo;
 mod second;
@@ -120,6 +124,10 @@ mod transcribe;
 mod tray;
 mod updates;
 mod usage;
+/// Tests that change process-wide environment variables (USERPROFILE…) run one at a time.
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+mod engine_usage;
 mod widgets;
 mod workdir;
 mod zip;
@@ -923,6 +931,29 @@ fn recipes_forget() {
     recipes::forget();
 }
 
+/// Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs).
+#[tauri::command]
+fn router_stats() -> serde_json::Value {
+    router::stats()
+}
+
+#[tauri::command]
+fn router_forget() {
+    router::forget();
+}
+
+/// «Esegui» under a command the chat offered (commands.rs): the user's click
+/// is the consent; only the tools in `commands::RUNS`.
+#[tauri::command]
+async fn chat_command_run(app: AppHandle, tool: String, args: serde_json::Value) -> Result<String, String> {
+    if !commands::RUNS.contains(&tool.as_str()) {
+        return Err(t("Questo comando non si può eseguire da qui.").into());
+    }
+    let out = agent::call(&app, &tool, &args).await;
+    let text = out.get("text").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
+    if out.get("ok").and_then(serde_json::Value::as_bool) == Some(true) { Ok(text) } else { Err(text) }
+}
+
 /// Impostazioni → Chat → «Portali»: the suppliers' portals the user taught (portals.rs).
 #[tauri::command]
 fn portals_list() -> Vec<portals::Portal> {
@@ -1409,7 +1440,7 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, usage: chat.take_usage() })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat) })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1424,8 +1455,14 @@ struct IslandReply {
     mode: String,
     /// Something the chat says once under the answer (fast mode refused).
     note: Option<String>,
+    /// Antigravity's plan from a turn in «Piano», for the card with «Procedi».
+    plan: Option<String>,
     /// What the turn cost (Claude Code), shown small under the answer.
     usage: Option<claude::TurnUsage>,
+    /// Answered by EasyIsland with no engine (router.rs): «Chiedi al motore» under it.
+    direct: bool,
+    /// A command offered with the answer (commands.rs): its «Esegui» button.
+    command: Option<commands::Command>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1663,7 +1700,8 @@ pub(crate) async fn chat_turn(
     // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
     // Claude Code keeps its session when the model changes (as in Claude Desktop): not a new conversation.
-    let key_model = if engine == "subscription" { other_model.as_str() } else { picked.as_deref().unwrap_or(&other_model) };
+    // So does Antigravity (`--conversation` with another `--model`, tried with agy 1.5.8).
+    let key_model = if engine == "subscription" || engine == "antigravity" { other_model.as_str() } else { picked.as_deref().unwrap_or(&other_model) };
     chat.use_engine(&in_folder(chat_key(&engine, key_model, terminal.is_some()), own.as_deref().filter(|_| terminal.is_some())));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
@@ -1684,6 +1722,42 @@ pub(crate) async fn chat_turn(
     // and the conversation starts over from it (`compacted`).
     let claude_code = !matches!(engine.as_str(), "api" | "opencode" | "antigravity") && !openai::ENGINES.contains(&engine.as_str());
     let own_compact = compact && claude_code && chat.cli_session().is_some();
+    // Smistatore (router.rs): a question a recipe answers for sure gets its
+    // read from EasyIsland, no engine, no tokens; asked again, the engine.
+    let direct_ok = learns && agent && !read_only && context.is_none() && matches!(channel, Channel::Island | Channel::Telegram) && !compact
+        && shared.settings.lock().unwrap().chat_direct;
+    let mut refused = false;
+    if direct_ok {
+        let started = std::time::Instant::now();
+        // A short order (commands.rs) gets its «Esegui» button: only in the
+        // island, where the button is.
+        let command = if channel == Channel::Island {
+            let s = shared.settings.lock().unwrap();
+            let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
+            commands::parse(&query, &s.actions, &profiles)
+        } else {
+            None
+        };
+        match router::direct(app, chat, &query, command).await {
+            router::Direct::Answer(text, tool) => {
+                if shared.settings.lock().unwrap().chat_history {
+                    chat_log::record(chat, &engine, &query, &text, if telegram { "Telegram · " } else { "" });
+                }
+                router::record(router::Turn {
+                    question: query.clone(),
+                    engine: engine.clone(),
+                    channel: channel_name(channel).into(),
+                    how: "diretta".into(),
+                    tools: vec![tool],
+                    ms: started.elapsed().as_millis() as u64,
+                    ..Default::default()
+                });
+                return Ok(ChatReply { text });
+            }
+            router::Direct::Refused => refused = true,
+            router::Direct::None => {}
+        }
+    }
     let notion =if has_tools && fresh { notion_map::index(agent) } else { None };
     // The memory (memory.rs): its notes in front of a new conversation, with
     // how to look further (memory_search) when the engine has the tools.
@@ -1712,7 +1786,7 @@ pub(crate) async fn chat_turn(
         (m, c) => m.or(c),
     };
     // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
-    let skills = if fresh && memory_tools { skills::index() } else { None };
+    let skills = if fresh && memory_tools { skills::index(&query) } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
@@ -1724,6 +1798,12 @@ pub(crate) async fn chat_turn(
         Some(h) => format!("{h}{query}"),
         None => query,
     };
+    // Smistatore, preparazione (router.rs): the reads those recipes needed, done now.
+    let prepared = if learns && agent && (has_tools || engine == "api") { router::prepare(app, &asked).await } else { None };
+    let query = match &prepared {
+        Some((p, _)) => format!("{p}{query}"),
+        None => query,
+    };
     // Strumenti in anticipo (toolhint.rs): Claude Code keeps EasyIsland's tools
     // behind ToolSearch; the ones this question needs, loaded in one search.
     let tools_hint = if learns && agent && has_tools && engine == "subscription" { toolhint::hint(&asked) } else { None };
@@ -1733,7 +1813,9 @@ pub(crate) async fn chat_turn(
     };
     // What the memory knows about this question, looked up here with no model
     // (memory::related): often one memory_search step less, at every question.
-    let related = if remember && memory_tools && learns { memory::related(&asked, fresh) } else { None };
+    // «Ricerca per significato» (memory_meaning.rs), when a service is chosen: the closest lines join them.
+    let meaning = if remember && memory_tools && learns { memory_meaning::related(app, &asked).await } else { Vec::new() };
+    let related = if remember && memory_tools && learns { memory::related(&asked, fresh, &meaning) } else { None };
     let query = match &related {
         Some(r) => format!("{r}{query}"),
         None => query,
@@ -1820,6 +1902,10 @@ pub(crate) async fn chat_turn(
     };
     let on_text: &(dyn Fn(&str) + Sync) = &timed;
     let recipe_mark = recipes::begin();
+    // For the turn log (router.rs): the model, Claude Code's measure, the other engines' tokens.
+    let used_model = match engine.as_str() { "subscription" => cli_model.clone(), "api" => model.clone(), _ => other_model.clone() };
+    chat.set_usage(None);
+    let tokens_before = (engine_usage::TOTAL_IN.load(std::sync::atomic::Ordering::Relaxed), engine_usage::TOTAL_OUT.load(std::sync::atomic::Ordering::Relaxed));
     let work_turn = async { match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
             let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), reads, read_only, ..Default::default() };
@@ -1846,7 +1932,7 @@ pub(crate) async fn chat_turn(
         // Antigravity always works with its own tools: in the terminal mode's folder, else the work folder.
         (_, "antigravity") => {
             let dir = terminal.clone().or_else(|| work.clone());
-            antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram).await
+            antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram, auto).await
         }
         (Some(folder), _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
         (None, "api") => {
@@ -1869,7 +1955,27 @@ pub(crate) async fn chat_turn(
         if reply.is_err() { ", non riuscito" } else { "" },
         recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
     ));
-    recipes::end(recipe_mark, &asked, learns && reply.is_ok());
+    let prepared_steps: &[String] = prepared.as_ref().map_or(&[], |(_, s)| s.as_slice());
+    let tools = recipes::end(recipe_mark, &asked, learns && reply.is_ok(), prepared_steps);
+    if learns {
+        let usage = chat.peek_usage().unwrap_or_default();
+        let read = engine_usage::TOTAL_IN.load(std::sync::atomic::Ordering::Relaxed).saturating_sub(tokens_before.0);
+        let out = engine_usage::TOTAL_OUT.load(std::sync::atomic::Ordering::Relaxed).saturating_sub(tokens_before.1);
+        router::record(router::Turn {
+            question: asked.clone(),
+            engine: engine.clone(),
+            model: used_model,
+            channel: channel_name(channel).into(),
+            how: if reply.is_err() { "errore" } else if refused { "al motore" } else { "motore" }.into(),
+            tools: if usage.tools.is_empty() { tools } else { usage.tools.iter().map(|(n, _)| n.clone()).collect() },
+            prepared: prepared.map(|(_, steps)| steps.iter().map(|s| s.split(' ').next().unwrap_or_default().to_string()).collect()).unwrap_or_default(),
+            ms: started.elapsed().as_millis() as u64,
+            steps: usage.steps,
+            read: if usage.read > 0 { usage.read } else { read },
+            out: if usage.out > 0 { usage.out } else { out },
+            ..Default::default()
+        });
+    }
     let reply = match reply {
         Ok(r) if compact && !own_compact => Ok(compacted(chat, &r.text)),
         other => other,
@@ -1896,6 +2002,18 @@ pub(crate) async fn chat_turn(
         }
     }
     reply
+}
+
+/// The channel as the turn log names it (router.rs).
+fn channel_name(channel: Channel) -> &'static str {
+    match channel {
+        Channel::Island => "isola",
+        Channel::Telegram => "telegram",
+        Channel::Task => "compito",
+        Channel::Helper => "aiutante",
+        Channel::AgentChat => "agentchat",
+        Channel::Revision => "correzione",
+    }
 }
 
 /// «/compatta», or Claude Code's own «/compact», alone in the message.
@@ -2010,7 +2128,7 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "antigravity" {
-        antigravity::send(&chat, &other_model, query, context, None, &|_| {}, false).await
+        antigravity::send(&chat, &other_model, query, context, None, &|_| {}, false, false).await
     } else if engine == "opencode" {
         let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default(), &|_| {}).await;
         opencode::forget(chat.cli_session());
@@ -4743,6 +4861,7 @@ pub fn run() {
             copy_pc_info,
             netconfig::network_adapters,
             netconfig::network_apply,
+            netconfig::network_vlan,
             netconfig::network_ping,
             presence_state,
             notify_test,
@@ -4795,6 +4914,9 @@ pub fn run() {
             notion_map_status,
             recipes_count,
             recipes_forget,
+            router_stats,
+            router_forget,
+            chat_command_run,
             portals_list,
             portals_delete,
             portals_export,
@@ -5131,6 +5253,7 @@ pub fn run() {
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
             preview::init(&handle);
+            claude_cli::init(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // "Chiudi finestra" from the taskbar (the island as an app) must not
