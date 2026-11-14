@@ -7,7 +7,7 @@ import { isSorting, sortable } from "./sortable";
 import * as MenuGroups from "../core/menu-groups";
 import { h, svg, clear, dot, brandOrDot, markIcon, tip } from "./dom";
 import { ICONS } from "./icons";
-import { actionIcon, actionIconSvg } from "./action-icons";
+import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { Ticker } from "./ticker";
 import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion, type EngineUsage } from "../core/state";
 import type { IslandViewName } from "../core/layout";
@@ -21,7 +21,7 @@ import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
 import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
-import { buildActions, buildRun, type ActionHandlers } from "./actions";
+import { buildActions, buildRun, tabActions, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
 import { freshPicks, proposalsAnswer, proposalsBox, setAll } from "./proposals";
 import { buildRemember, type RememberHandlers } from "./remember";
@@ -525,8 +525,9 @@ function buildOverview(actions: ViewActions): ViewHost {
           files.style.display = list.length ? "" : "none";
         }
       } else if (showsSummary()) {
-        const key = "summary~" + summaryFilter + "~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
+        const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
           + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`
+          + `~actions:${tabActions().map((a) => `${a.id}:${a.name}:${a.icon ?? ""}:${a.color ?? ""}`).join(",")}`
           + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
@@ -673,9 +674,6 @@ function showsSummary(): boolean {
   return State.showsSummary;
 }
 
-/** Active filter on Panoramica: all tiles or only items with live activity / news. */
-let summaryFilter: "all" | "active" = "all";
-
 function taskPriorityScore(task: AgentTask): number {
   if (task.pillBadge === "approval") return 4;
   if (task.pillBadge === "error" || task.state === "error" || task.state === "ratelimit") return 3;
@@ -684,7 +682,7 @@ function taskPriorityScore(task: AgentTask): number {
   return 0;
 }
 
-/** Panoramica: highlighted "Adesso" strip + tile per integration (and agent) with its latest line. */
+/** Panoramica: highlighted "Adesso" strip + tile per integration/agent + Quick Actions row. */
 function renderSummary(actions: ViewActions): HTMLElement {
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
   const visible = State.tasks.filter((t) => t.id !== "integration_recorder");
@@ -694,31 +692,10 @@ function renderSummary(actions: ViewActions): HTMLElement {
     .sort((a, b) => b.score - a.score)
     .slice(0, 2);
 
-  const filterAll = h("button", {
-    class: `today-filter${summaryFilter === "all" ? " on" : ""}`,
-    text: t("Vista completa"),
-    onclick: () => {
-      if (summaryFilter === "all") return;
-      actions.blip();
-      summaryFilter = "all";
-      State.notify();
-    },
-  });
-  const filterActive = h("button", {
-    class: `today-filter${summaryFilter === "active" ? " on" : ""}`,
-    text: t("Solo attivi"),
-    onclick: () => {
-      if (summaryFilter === "active") return;
-      actions.blip();
-      summaryFilter = "active";
-      State.notify();
-    },
-  });
   const head = h(
     "div",
     { class: "today-head" },
     h("div", { class: "today-head-main" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date })),
-    visible.length > 2 ? h("div", { class: "today-filters" }, filterAll, filterActive) : null,
   );
 
   const nowStrip = prioritized.length ? h("div", { class: "now-strip" }, ...prioritized.map(({ task, score }) => {
@@ -736,13 +713,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
     return cardBtn;
   })) : null;
 
-  const isQuiet = (task: AgentTask) => !task.pillBadge && (task.state === "idle" || task.state === "sleeping") && !task.steps.length;
-  const activeOnly = visible.filter((t) => !isQuiet(t));
-  const quiet = summaryFilter === "all" && activeOnly.length >= 2 ? visible.filter(isQuiet) : [];
-  const gridTasks = summaryFilter === "active" ? activeOnly : quiet.length ? activeOnly : visible;
-
   const grid = h("div", { class: "summary" });
-  for (const tsk of gridTasks) {
+  for (const tsk of visible) {
     const label = pillLabel(tsk);
     const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : tsk.state === "idle" ? "" : tsk.state;
     const stateText = tsk.pillBadge === "approval"
@@ -774,27 +746,43 @@ function renderSummary(actions: ViewActions): HTMLElement {
     }
     grid.append(row);
   }
-  if (!gridTasks.length) {
-    grid.append(h("span", {
-      class: "hint",
-      text: visible.length ? t("Nessuna attività o notifica in corso") : t("Nessuna integrazione attiva"),
-    }));
+  if (!visible.length) {
+    grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
   }
-  const quietRow = quiet.length ? h("div", { class: "quiet-row" }, ...quiet.map((tsk) => {
-    const label = pillLabel(tsk);
-    const pill = h("button", { class: "quiet-pill", title: label.title ?? tsk.name, onclick: () => actions.setFocus(tsk.id) },
-      h("i", { class: "quiet-dot" }),
-      h("span", { text: label.text }));
-    pill.style.setProperty("--c", tsk.color);
-    return pill;
-  })) : null;
-  // Dragged into the order the user wants: the same order as the menu (keep quiet item IDs appended).
-  const quietIds = quiet.map((q) => q.id);
+
+  const quick = tabActions();
+  const actionsRow = quick.length
+    ? h(
+        "div",
+        { class: "pan-actions" },
+        h("span", { class: "pan-actions-label", text: t("Azioni rapide") }),
+        h(
+          "div",
+          { class: "pan-actions-list" },
+          ...quick.map((a) => {
+            const pill = h(
+              "button",
+              {
+                class: "pan-action-pill",
+                title: a.hotkey ? `${a.name} (${a.hotkey})` : a.name,
+                onclick: () => actions.runAction(a),
+              },
+              h("span", { class: "pan-action-ico", "aria-hidden": "true" }, renderActionIcon(a.icon, 13)),
+              h("span", { text: a.name }),
+            );
+            if (a.color) pill.style.setProperty("--c", a.color);
+            return pill;
+          }),
+        ),
+      )
+    : null;
+
+  // Dragged into the order the user wants: the same order as the menu.
   sortable(grid, {
-    enabled: () => !State.settings.lockOrder && summaryFilter === "all",
-    onReorder: (ids) => actions.reorder(quietIds.length ? [...ids, ...quietIds] : ids),
+    enabled: () => !State.settings.lockOrder,
+    onReorder: (ids) => actions.reorder(ids),
   });
-  return h("div", { class: "today" }, head, nowStrip, grid, quietRow, summaryNews(actions));
+  return h("div", { class: "today" }, head, nowStrip, grid, actionsRow, summaryNews(actions));
 }
 
 /** Headlines in the Panoramica's «Notizie» box. */

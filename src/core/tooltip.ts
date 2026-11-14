@@ -32,6 +32,8 @@ function show(anchor: Element) {
   if (!text || !anchor.isConnected) return;
   const t = el();
   t.textContent = text;
+  t.style.left = "0px";
+  t.style.top = "0px";
   t.classList.add("on");
   // Under the element, or above it when there is no room; always inside the window.
   const r = anchor.getBoundingClientRect();

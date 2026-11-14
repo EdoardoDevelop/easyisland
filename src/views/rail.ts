@@ -30,24 +30,18 @@ const RAIL_COLLAPSE_KEY = "easyisland.railCollapsed";
 let manualCollapsed = (() => {
   try { return localStorage.getItem(RAIL_COLLAPSE_KEY) === "1"; } catch { return false; }
 })();
-let chatRailExpanded = false;
 
-/** Compact icon-only rail: automatic in Chat (to give conversation + sidebar more room) or toggled by the user. */
+/** Compact icon-only rail: controlled strictly by the user toggle across every view. */
 export function isRailCompact(): boolean {
-  if (State.view === "prompt") return !chatRailExpanded;
   return manualCollapsed;
 }
 
 function toggleRailCompact() {
-  if (State.view === "prompt") {
-    chatRailExpanded = !chatRailExpanded;
-  } else {
-    manualCollapsed = !manualCollapsed;
-    try {
-      if (manualCollapsed) localStorage.setItem(RAIL_COLLAPSE_KEY, "1");
-      else localStorage.removeItem(RAIL_COLLAPSE_KEY);
-    } catch { /* storage unavailable */ }
-  }
+  manualCollapsed = !manualCollapsed;
+  try {
+    if (manualCollapsed) localStorage.setItem(RAIL_COLLAPSE_KEY, "1");
+    else localStorage.removeItem(RAIL_COLLAPSE_KEY);
+  } catch { /* storage unavailable */ }
   State.notify();
 }
 

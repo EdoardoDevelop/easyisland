@@ -179,8 +179,6 @@ html:not([data-ui="classic"]) .header-actions button.on {
 }
 html:not([data-ui="classic"]) .header-actions button.pinned { color: var(--accent); }
 html:not([data-ui="classic"]) .header-actions .hdr-win button:last-child:hover { background: #c42b1c; color: #fff; }
-html:not([data-ui="classic"]) #header .header-field { display: flex; justify-content: center; }
-html:not([data-ui="classic"]) #header .search-bar { width: 100%; max-width: 480px; }
 
 /* ── Menu on the left ───────────────────────────────────────────────────── */
 
