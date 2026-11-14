@@ -123,7 +123,16 @@ export class TreemapView implements View {
         ctx.font = font(12, 600);
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText(fit(ctx, g.name, g.w - 16), g.x + 10, g.y + 13);
+        const countTxt = `${g.tiles.length}`;
+        const cw = ctx.measureText(countTxt).width + 10;
+        ctx.fillText(fit(ctx, g.name, g.w - cw - 20), g.x + 10, g.y + 13);
+        ctx.fillStyle = alpha(g.colour, p.light ? 0.16 : 0.25);
+        roundRect(ctx, g.x + g.w - cw - 6, g.y + 5, cw, 16, 8);
+        ctx.fill();
+        ctx.fillStyle = p.ink;
+        ctx.font = font(10.5, 600);
+        ctx.textAlign = "center";
+        ctx.fillText(countTxt, g.x + g.w - cw / 2 - 6, g.y + 13.5);
       }
 
       for (const tl of g.tiles) {
@@ -167,36 +176,60 @@ export class TreemapView implements View {
   }
 }
 
-/** Simple binary-split treemap layout so every group & tile fits cleanly. */
+/** Squarified treemap layout so every group and tile maintains clean proportions. */
 function sliceLayout(values: number[], x: number, y: number, w: number, h: number, gap: number): { x: number; y: number; w: number; h: number }[] {
   const out = new Array<{ x: number; y: number; w: number; h: number }>(values.length);
-  const split = (indices: number[], rx: number, ry: number, rw: number, rh: number) => {
-    if (!indices.length) return;
-    if (indices.length === 1) {
-      out[indices[0]] = { x: rx, y: ry, w: rw, h: rh };
-      return;
-    }
-    const total = indices.reduce((s, i) => s + values[i], 0) || 1;
-    let acc = 0;
-    let cut = 1;
-    for (let i = 0; i < indices.length - 1; i++) {
-      acc += values[indices[i]];
-      cut = i + 1;
-      if (acc >= total / 2) break;
-    }
-    const ratio = acc / total;
-    const left = indices.slice(0, cut);
-    const right = indices.slice(cut);
-    if (rw >= rh) {
-      const lw = Math.max(4, rw * ratio - gap / 2);
-      split(left, rx, ry, lw, rh);
-      split(right, rx + lw + gap, ry, Math.max(4, rw - lw - gap), rh);
+  const sumAll = values.reduce((a, b) => a + b, 0) || 1;
+  const totalArea = Math.max(1, w * h);
+  const items = values.map((v, idx) => ({ idx, area: (Math.max(0.01, v) / sumAll) * totalArea })).sort((a, b) => b.area - a.area);
+
+  const worst = (row: { area: number }[], side: number) => {
+    if (!row.length) return Infinity;
+    const s = row.reduce((a, b) => a + b.area, 0);
+    const maxA = Math.max(...row.map((r) => r.area));
+    const minA = Math.min(...row.map((r) => r.area));
+    const s2 = s * s;
+    const side2 = side * side;
+    return Math.max((side2 * maxA) / s2, s2 / (side2 * minA));
+  };
+
+  let rx = x, ry = y, rw = w, rh = h;
+  const layoutRow = (row: { idx: number; area: number }[], horiz: boolean) => {
+    const rowSum = row.reduce((a, b) => a + b.area, 0);
+    if (horiz) {
+      const stripW = Math.min(rw, rowSum / Math.max(1, rh));
+      let curY = ry;
+      for (const it of row) {
+        const ih = (it.area / Math.max(1e-6, rowSum)) * rh;
+        out[it.idx] = { x: rx, y: curY, w: Math.max(2, stripW - gap * 0.5), h: Math.max(2, ih - gap * 0.5) };
+        curY += ih;
+      }
+      rx += stripW;
+      rw = Math.max(1, rw - stripW);
     } else {
-      const lh = Math.max(4, rh * ratio - gap / 2);
-      split(left, rx, ry, rw, lh);
-      split(right, rx, ry + lh + gap, rw, Math.max(4, rh - lh - gap));
+      const stripH = Math.min(rh, rowSum / Math.max(1, rw));
+      let curX = rx;
+      for (const it of row) {
+        const iw = (it.area / Math.max(1e-6, rowSum)) * rw;
+        out[it.idx] = { x: curX, y: ry, w: Math.max(2, iw - gap * 0.5), h: Math.max(2, stripH - gap * 0.5) };
+        curX += iw;
+      }
+      ry += stripH;
+      rh = Math.max(1, rh - stripH);
     }
   };
-  split(values.map((_, i) => i), x, y, w, h);
+
+  let row: { idx: number; area: number }[] = [];
+  for (const it of items) {
+    const shortSide = Math.min(rw, rh);
+    const nextRow = [...row, it];
+    if (!row.length || worst(nextRow, shortSide) <= worst(row, shortSide)) {
+      row = nextRow;
+    } else {
+      layoutRow(row, rw >= rh);
+      row = [it];
+    }
+  }
+  if (row.length) layoutRow(row, rw >= rh);
   return out;
 }

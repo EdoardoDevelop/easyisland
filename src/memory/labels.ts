@@ -73,6 +73,25 @@ export interface LabelOpts {
   /** Written even when it overlaps (the picked node). */
   force?: boolean;
   alpha?: number;
+  /** Disegna una pillola traslucida dietro l'etichetta per staccarla dai fili. */
+  pill?: boolean;
+  /** Tinta opzionale per il bordo/bagliore della pillola. */
+  pillColor?: string;
+}
+
+function pillPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
 }
 
 /**
@@ -89,18 +108,37 @@ export function label(ctx: CanvasRenderingContext2D, placer: Placer, text: strin
   const base = o.baseline ?? "top";
   const x0 = align === "center" ? x - w / 2 : align === "right" || align === "end" ? x - w : x;
   const y0 = base === "top" ? y : base === "middle" ? y - size * 0.62 : y - size * 1.25;
+  const padX = o.pill ? 8 : 6;
+  const padY = o.pill ? 4 : 3;
   // A little air around each, so two labels never touch either.
-  const r = { x0: x0 - 6, y0: y0 - 3, x1: x0 + w + 6, y1: y0 + size * 1.25 + 3 };
+  const r = { x0: x0 - padX, y0: y0 - padY, x1: x0 + w + padX, y1: y0 + size * 1.25 + padY };
   if (!placer.claim(r, o.force)) return false;
   ctx.save();
   ctx.globalAlpha = o.alpha ?? 1;
+  if (o.pill) {
+    const px = x0 - 6;
+    const py = y0 - 2.5;
+    const pw = w + 12;
+    const ph = size * 1.25 + 5;
+    pillPath(ctx, px, py, pw, ph, ph * 0.45);
+    ctx.fillStyle = p.card;
+    ctx.globalAlpha = (o.alpha ?? 1) * 0.88;
+    ctx.fill();
+    ctx.globalAlpha = (o.alpha ?? 1) * 0.45;
+    ctx.strokeStyle = o.pillColor ?? p.dim;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = o.alpha ?? 1;
+  }
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  // The halo: the stage's colour around the letters, so lines under them do not cut them.
-  ctx.lineJoin = "round";
-  ctx.lineWidth = 3.5;
-  ctx.strokeStyle = p.halo;
-  ctx.strokeText(shown, x0, y0 + size * 0.08);
+  if (!o.pill) {
+    // The halo: the stage's colour around the letters, so lines under them do not cut them.
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = p.halo;
+    ctx.strokeText(shown, x0, y0 + size * 0.08);
+  }
   ctx.fillStyle = o.color ?? p.ink;
   ctx.fillText(shown, x0, y0 + size * 0.08);
   ctx.restore();

@@ -218,12 +218,39 @@ export class Graph3DView implements View {
     this.cam.ty = this.pitch * 300;
     starfield(ctx, w, h, this.cam, time);
     const p = pal();
-    // Subtle equatorial reference ring.
-    ctx.strokeStyle = p.line;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2, Math.min(w, h) * 0.38, Math.min(w, h) * 0.11, -0.1, 0, Math.PI * 2);
-    ctx.stroke();
+    // 3D projected equatorial ring and subtle meridian wireframe rotating with yaw/pitch.
+    {
+      const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+      const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      const eyeRef = EYE / this.zoomK;
+      const ringR = Math.max(120, ...this.bodies.map((b) => Math.hypot(b.x, b.y, b.z))) * 0.92;
+      const traceLoop = (ptAt: (a: number) => [number, number, number]) => {
+        ctx.beginPath();
+        let started = false;
+        for (let i = 0; i <= 64; i++) {
+          const [wx, wy, wz] = ptAt((i / 64) * Math.PI * 2);
+          const x1 = wx * cy + wz * sy;
+          const z1 = -wx * sy + wz * cy;
+          const y2 = wy * cp - z1 * sp;
+          const z2 = wy * sp + z1 * cp;
+          const depth = eyeRef - z2;
+          if (depth <= 10) continue;
+          const s = EYE / depth;
+          const sx = w / 2 + x1 * s;
+          const sy2 = h / 2 - y2 * s;
+          if (!started) { ctx.moveTo(sx, sy2); started = true; } else ctx.lineTo(sx, sy2);
+        }
+        ctx.stroke();
+      };
+      ctx.save();
+      ctx.strokeStyle = p.line;
+      ctx.lineWidth = 1;
+      traceLoop((a) => [Math.cos(a) * ringR, 0, Math.sin(a) * ringR]);
+      ctx.strokeStyle = `rgba(${p.link},0.16)`;
+      ctx.setLineDash([4, 6]);
+      traceLoop((a) => [Math.cos(a) * ringR, Math.sin(a) * ringR, 0]);
+      ctx.restore();
+    }
     this.project(w, h);
 
     const sel = this.selected;
@@ -283,6 +310,13 @@ export class Graph3DView implements View {
         ctx.strokeStyle = p.bg;
         ctx.lineWidth = 1;
         ctx.stroke();
+        if (b.n.kind === "page" && this.colouring === "group" && r > 3) {
+          ctx.beginPath();
+          ctx.arc(b.sx, b.sy, r + 2.2, 0, Math.PI * 2);
+          ctx.strokeStyle = alpha(color, 0.55);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
       }
       if (b.n.kind === "missing") {
         ctx.setLineDash([3, 3]);
@@ -314,7 +348,15 @@ export class Graph3DView implements View {
       .filter((c) => c.score >= 0)
       .sort((a, b) => b.score - a.score);
     for (const { b, score } of want) {
-      label(ctx, placer, b.n.label, b.sx, b.sy + b.r * b.s + 4, { size: 12, weight: score >= 1e9 ? 600 : 500, force: score >= 1e9, alpha: fog(b.d), max: 180 });
+      label(ctx, placer, b.n.label, b.sx, b.sy + b.r * b.s + 4, {
+        size: 12,
+        weight: score >= 1e9 ? 600 : 500,
+        force: score >= 1e9,
+        alpha: fog(b.d),
+        max: 180,
+        pill: score >= 1e9,
+        pillColor: this.colourOf(b.n),
+      });
     }
     return moving;
   }

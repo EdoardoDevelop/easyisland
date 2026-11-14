@@ -80,6 +80,8 @@ export class SunburstView implements View {
   }
 
   private size = { w: 0, h: 0 };
+  private hoveredSlice: Slice | null = null;
+  private lastSpin = 0;
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, time = 0): boolean {
     this.size = { w, h };
@@ -87,63 +89,80 @@ export class SunburstView implements View {
     const p = pal();
     const idle = animateIdle();
     const spin = idle ? Math.sin(time * 0.0005) * 0.04 : 0;
+    this.lastSpin = spin;
     const { cx, cy, R } = this.geometry(w, h);
     const sel = this.selected;
     const near = new Set<string>();
     if (sel && this.model) for (const nb of this.model.neighbours(sel)) near.add(nb.id);
     for (const s of this.slices) {
+      const span = s.a1 - s.a0;
+      const gap = span > 0.03 ? Math.min(0.01, span * 0.12) : 0;
+      const a0 = s.a0 + gap / 2 + spin;
+      const a1 = s.a1 - gap / 2 + spin;
+      if (a1 <= a0) continue;
+      const isHover = s === this.hoveredSlice;
       const on = (!sel && !this.filter) || s.id === sel || near.has(s.id) || !!this.filter?.has(s.id);
-      ctx.fillStyle = alpha(s.colour, on ? (s.r0 < 0.5 ? 0.85 : 0.6) : 0.15);
+      ctx.fillStyle = alpha(s.colour, on ? (isHover ? 0.96 : s.r0 < 0.5 ? 0.85 : 0.62) : 0.15);
       ctx.beginPath();
-      ctx.arc(cx, cy, s.r1 * R, s.a0 + spin, s.a1 + spin);
-      ctx.arc(cx, cy, s.r0 * R, s.a1 + spin, s.a0 + spin, true);
+      ctx.arc(cx, cy, (s.r1 + (isHover ? 0.015 : 0)) * R, a0, a1);
+      ctx.arc(cx, cy, s.r0 * R, a1, a0, true);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = s.id === sel ? p.ring : p.bg;
-      ctx.lineWidth = s.id === sel ? 2 : 1.2;
+      ctx.strokeStyle = s.id === sel || isHover ? p.ring : p.bg;
+      ctx.lineWidth = s.id === sel || isHover ? 2 : 1.1;
       ctx.stroke();
       // The pages' names along their slice, when it is wide enough.
-      if (s.r0 < 0.5 && (s.a1 - s.a0) * 0.46 * R > 30) {
-        const mid = (s.a0 + s.a1) / 2 + spin;
+      if (s.r0 < 0.5 && (a1 - a0) * 0.46 * R > 28) {
+        const mid = (a0 + a1) / 2;
         const r = 0.46 * R;
         ctx.save();
         ctx.translate(cx + Math.cos(mid) * r, cy + Math.sin(mid) * r);
         let rot = mid;
         if (Math.cos(mid) < 0) rot += Math.PI;
         ctx.rotate(rot);
-        // Dark letters on the bright slices, white on the dark ones.
-        ctx.fillStyle = on ? (p.light ? "#111111" : "#0b0b0b") : p.dim;
-        ctx.font = font(Math.max(12, Math.min(13, R / 26)), 600);
+        ctx.fillStyle = on ? sliceContrast(s.colour) : p.dim;
+        ctx.font = font(Math.max(11.5, Math.min(13, R / 26)), 600);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(fit(ctx, s.label, 0.3 * R), 0, 0);
         ctx.restore();
       }
     }
-    // The middle: the memory and its numbers.
+    // The middle: hovered slice details or overall memory numbers.
     ctx.fillStyle = p.card;
     ctx.beginPath();
     ctx.arc(cx, cy, 0.28 * R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = p.line;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = this.hoveredSlice ? this.hoveredSlice.colour : p.line;
+    ctx.lineWidth = this.hoveredSlice ? 1.8 : 1;
     ctx.stroke();
-    ctx.fillStyle = p.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = font(Math.max(16, R / 12), 600);
-    ctx.fillText(String(this.notes), cx, cy - R * 0.04);
-    ctx.font = font(Math.max(12, R / 30));
-    ctx.fillStyle = p.dim;
-    ctx.fillText(t("note · {n} pagine", { n: this.pages }), cx, cy + R * 0.07);
+    if (this.hoveredSlice) {
+      ctx.fillStyle = p.ink;
+      ctx.font = font(Math.max(12, R / 22), 600);
+      ctx.fillText(fit(ctx, this.hoveredSlice.label, 0.48 * R), cx, cy - R * 0.03);
+      const pct = Math.max(1, Math.round(((this.hoveredSlice.a1 - this.hoveredSlice.a0) / (Math.PI * 2)) * 100));
+      ctx.font = font(Math.max(11.5, R / 28));
+      ctx.fillStyle = p.dim;
+      ctx.fillText(`${pct}%`, cx, cy + R * 0.06);
+    } else {
+      ctx.fillStyle = p.ink;
+      ctx.font = font(Math.max(16, R / 12), 600);
+      ctx.fillText(String(this.notes), cx, cy - R * 0.04);
+      ctx.font = font(Math.max(12, R / 30));
+      ctx.fillStyle = p.dim;
+      ctx.fillText(t("note · {n} pagine", { n: this.pages }), cx, cy + R * 0.07);
+    }
     return idle;
   }
 
   private at(x: number, y: number): Slice | null {
     const { cx, cy, R } = this.geometry(this.size.w, this.size.h);
     const d = Math.hypot(x - cx, y - cy) / R;
-    let a = Math.atan2(y - cy, x - cx);
-    if (a < -Math.PI / 2) a += Math.PI * 2;
+    let a = Math.atan2(y - cy, x - cx) - this.lastSpin;
+    while (a < -Math.PI / 2) a += Math.PI * 2;
+    while (a > Math.PI * 1.5) a -= Math.PI * 2;
     return this.slices.find((s) => d >= s.r0 && d <= s.r1 && a >= s.a0 && a <= s.a1) ?? null;
   }
 
@@ -154,6 +173,7 @@ export class SunburstView implements View {
 
   hover(x: number, y: number) {
     const s = this.at(x, y);
+    this.hoveredSlice = s;
     return s && !s.id ? { text: s.label, sub: "" } : null;
   }
 
@@ -171,4 +191,12 @@ export class SunburstView implements View {
     this.tx = 0;
     this.ty = 0;
   }
+}
+
+/** Contrasto testo in base alla luminanza percettiva dello spicchio. */
+function sliceContrast(hex: string): string {
+  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+  if (!m) return "#0b0b0b";
+  const lum = (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) / 255;
+  return lum > 0.56 ? "#0e1015" : "#f8fafc";
 }

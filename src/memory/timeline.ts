@@ -43,6 +43,7 @@ export class TimelineView implements View {
   private size = { w: 0, h: 0 };
   private framed = false;
   private born = 0;
+  private hoverX: number | null = null;
 
   setModel(model: Model) {
     this.dots = model.g.events
@@ -129,9 +130,15 @@ export class TimelineView implements View {
 
     this.drawTicks(ctx, w, h, nowBox);
 
-    // Lanes.
+    // Lanes: subtle alternating horizontal bands + guide lines.
+    const bandTop = TOP + WAVE + 26;
+    const bandH = Math.max(46, (h - bandTop - 40) / LANES.length);
     LANES.forEach((lane, i) => {
       const y = this.laneY(i, h);
+      if (i % 2 === 0) {
+        ctx.fillStyle = p.light ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.02)";
+        ctx.fillRect(104, bandTop + bandH * i, Math.max(0, w - 104), bandH);
+      }
       ctx.strokeStyle = alpha(lane.color, p.light ? 0.3 : 0.2);
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -139,6 +146,37 @@ export class TimelineView implements View {
       ctx.lineTo(w, y);
       ctx.stroke();
     });
+
+    // Hover crosshair with formatted date readout.
+    if (this.hoverX !== null && this.hoverX > 106 && this.hoverX < w - 10) {
+      const hx = this.hoverX;
+      ctx.save();
+      ctx.strokeStyle = p.dim;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(hx, TOP);
+      ctx.lineTo(hx, h - 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const hoveredDate = new Date(this.t0 + hx * this.msPx);
+      const loc = language() === "en" ? "en-GB" : "it-IT";
+      const txt = hoveredDate.toLocaleDateString(loc, { day: "numeric", month: "short", year: "2-digit" });
+      ctx.font = font(11, 600);
+      const tw = ctx.measureText(txt).width + 12;
+      const rx = Math.min(Math.max(108, hx - tw / 2), w - tw - 6);
+      ctx.fillStyle = p.card;
+      ctx.strokeStyle = p.line;
+      ctx.beginPath();
+      ctx.rect(rx, TOP - 20, tw, 18);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = p.ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(txt, rx + tw / 2, TOP - 11);
+      ctx.restore();
+    }
 
     // The wave of the chat: questions per day.
     this.drawWave(ctx, w, intro);
@@ -161,48 +199,84 @@ export class TimelineView implements View {
       ctx.fillText(t("oggi"), nowX, TOP - 6);
     }
 
-    // The events.
+    // The events (clustered into ×N pills when tightly packed in a lane at zoomed-out scale).
     const placed: number[][] = LANES.map(() => [-Infinity, -Infinity]);
+    const buckets: { xSum: number; count: number; items: Dot[] }[][] = LANES.map(() => []);
     for (const d of this.dots) {
       const x = this.x(d.time);
-      if (x < 100 || x > w + 10) continue;
-      const lane = LANES[d.lane];
-      const y = this.laneY(d.lane, h);
-      const lit = (!this.filter || (d.ev.node && this.filter.has(d.ev.node)) || this.words.every((w) => d.ev.text.toLowerCase().includes(w))) && (!this.selected || d.ev.node === this.selected);
+      if (x < 104 || x > w + 10) continue;
       const sel = !!this.selected && d.ev.node === this.selected;
-      const r = (d.ev.lane === "diary" ? 2.6 : 5) * (sel ? 1.6 : 1) * intro;
-      ctx.globalAlpha = lit ? 1 : 0.18;
-      ctx.fillStyle = sel ? p.ring : lane.color;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      if (sel) {
-        ctx.strokeStyle = p.ring;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(x, y, r + 4 + Math.sin(time / 250) * 1.5, 0, Math.PI * 2);
-        ctx.stroke();
-        moving = true;
+      const lit = (!this.filter || (d.ev.node && this.filter.has(d.ev.node)) || this.words.every((w) => d.ev.text.toLowerCase().includes(w))) && (!this.selected || d.ev.node === this.selected);
+      const list = buckets[d.lane];
+      const prev = !sel && lit ? list[list.length - 1] : null;
+      if (prev && Math.abs(x - prev.xSum / prev.count) < 11 && prev.items.every((o) => (!this.filter || (o.ev.node && this.filter.has(o.ev.node))))) {
+        prev.xSum += x;
+        prev.count++;
+        prev.items.push(d);
+      } else {
+        list.push({ xSum: x, count: 1, items: [d] });
       }
-      // A label when there is room (not for the diary: too many).
-      if (d.ev.lane !== "diary" && lit) {
-        // Above or below the lane, where the last label ended before this one.
-        const ends = placed[d.lane];
-        const slot = ends.findIndex((end) => end < x);
-        if (slot >= 0) {
-          ctx.font = font(12);
-          const label = fit(ctx, d.ev.text, 150);
-          ends[slot] = x + 8 + ctx.measureText(label).width + 10;
+    }
+    for (let li = 0; li < buckets.length; li++) {
+      const lane = LANES[li];
+      const y = this.laneY(li, h);
+      for (const b of buckets[li]) {
+        if (b.count >= 3) {
+          const cx = b.xSum / b.count;
+          ctx.globalAlpha = 0.92;
+          const badgeTxt = `×${b.count}`;
+          ctx.font = font(10.5, 600);
+          const bw = Math.max(20, ctx.measureText(badgeTxt).width + 10);
+          ctx.fillStyle = alpha(lane.color, p.light ? 0.2 : 0.28);
+          ctx.strokeStyle = lane.color;
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.rect(cx - bw / 2, y - 8, bw, 16);
+          ctx.fill();
+          ctx.stroke();
           ctx.fillStyle = p.ink;
-          ctx.textAlign = "left";
+          ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          // Near the right edge it goes to the left of its dot.
-          const lw = ctx.measureText(label).width;
-          if (x + 8 + lw > w - 8) {
-            ctx.textAlign = "right";
-            ctx.fillText(label, x - 8, y + (slot ? 16 : -16));
-          } else {
-            ctx.fillText(label, x + 8, y + (slot ? 16 : -16));
+          ctx.fillText(badgeTxt, cx, y + 0.5);
+          continue;
+        }
+        for (const d of b.items) {
+          const x = this.x(d.time);
+          const lit = (!this.filter || (d.ev.node && this.filter.has(d.ev.node)) || this.words.every((w) => d.ev.text.toLowerCase().includes(w))) && (!this.selected || d.ev.node === this.selected);
+          const sel = !!this.selected && d.ev.node === this.selected;
+          const r = (d.ev.lane === "diary" ? 2.6 : 5) * (sel ? 1.6 : 1) * intro;
+          ctx.globalAlpha = lit ? 1 : 0.18;
+          ctx.fillStyle = sel ? p.ring : lane.color;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+          if (sel) {
+            ctx.strokeStyle = p.ring;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(x, y, r + 4 + Math.sin(time / 250) * 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+            moving = true;
+          }
+          // A label when there is room (not for the diary: too many).
+          if (d.ev.lane !== "diary" && lit) {
+            const ends = placed[d.lane];
+            const slot = ends.findIndex((end) => end < x);
+            if (slot >= 0) {
+              ctx.font = font(12);
+              const label = fit(ctx, d.ev.text, 150);
+              ends[slot] = x + 8 + ctx.measureText(label).width + 10;
+              ctx.fillStyle = p.ink;
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              const lw = ctx.measureText(label).width;
+              if (x + 8 + lw > w - 8) {
+                ctx.textAlign = "right";
+                ctx.fillText(label, x - 8, y + (slot ? 16 : -16));
+              } else {
+                ctx.fillText(label, x + 8, y + (slot ? 16 : -16));
+              }
+            }
           }
         }
       }
@@ -355,6 +429,7 @@ export class TimelineView implements View {
   }
 
   hover(x: number, y: number) {
+    this.hoverX = x > 104 ? x : null;
     const d = this.dotAt(x, y);
     return d ? { text: d.ev.text, sub: shortDate(d.ev.date) + (d.ev.date.length > 10 ? ` ${d.ev.date.slice(11, 16)}` : "") } : null;
   }

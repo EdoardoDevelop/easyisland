@@ -209,6 +209,27 @@ export class ConceptView implements View {
     const on = (id: string) => (!sel || id === sel || this.arrows.some((a) => (a.from.id === sel && a.to.id === id) || (a.to.id === sel && a.from.id === id))) && (!this.filter || this.filter.has(id));
     const rels: { text: string; x: number; y: number; lit: boolean; named: boolean }[] = [];
 
+    // Subtle alternating horizontal bands behind each hierarchy layer.
+    const layerY = new Map<number, { minY: number; maxY: number }>();
+    let minX = Infinity, maxX = -Infinity;
+    for (const b of this.boxes.values()) {
+      minX = Math.min(minX, b.x);
+      maxX = Math.max(maxX, b.x + b.w);
+      const cur = layerY.get(b.layer);
+      if (cur) { cur.minY = Math.min(cur.minY, b.y); cur.maxY = Math.max(cur.maxY, b.y + b.h); }
+      else layerY.set(b.layer, { minY: b.y, maxY: b.y + b.h });
+    }
+    if (Number.isFinite(minX)) {
+      const bandEntries = [...layerY.entries()].sort((a, b) => (a[0] === -1 ? 999 : a[0]) - (b[0] === -1 ? 999 : b[0]));
+      bandEntries.forEach(([, r], bi) => {
+        if (bi % 2 === 0) {
+          ctx.fillStyle = p.light ? "rgba(0,0,0,0.025)" : "rgba(255,255,255,0.022)";
+          roundRect(ctx, minX - 28, r.minY - 12, maxX - minX + 56, r.maxY - r.minY + 24, 10);
+          ctx.fill();
+        }
+      });
+    }
+
     // Arrows.
     for (const a of this.arrows) {
       const lit = !sel || a.from.id === sel || a.to.id === sel;
@@ -280,6 +301,11 @@ export class ConceptView implements View {
       ctx.lineWidth = (b.id === sel ? 2 : 1) / Math.min(1, k);
       ctx.stroke();
       ctx.setLineDash([]);
+      if (b.kind === "page") {
+        ctx.fillStyle = alpha(color, 0.9);
+        roundRect(ctx, b.x + 2, b.y + rise + 4, 3, b.h - 8, 1.5);
+        ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -308,7 +334,7 @@ export class ConceptView implements View {
     for (const r of rels) {
       if (sel && !r.lit) continue;
       const s = this.cam.toScreen(r.x, r.y);
-      label(ctx, placer, r.text, s.x, s.y, { size: 12, weight: 500, color: r.named ? p.ink : p.dim, baseline: "middle", max: 160 });
+      label(ctx, placer, r.text, s.x, s.y, { size: 11.5, weight: 500, color: r.named ? p.ink : p.dim, baseline: "middle", max: 160, pill: r.named });
     }
     ctx.globalAlpha = 1;
     return moving || idle;

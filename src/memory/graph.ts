@@ -229,8 +229,11 @@ export class GraphView implements View {
       const onPath = !!path && this.pathEdges.has(`${a.n.id}>${b.n.id}`);
       const on = path ? onPath : sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
       const weak = s < 2;
+      const gA = this.model?.groupColor(a.n.id);
+      const sameGroup = this.colouring === "group" && gA && gA === this.model?.groupColor(b.n.id);
       ctx.strokeStyle = onPath ? p.ring
         : on && sel ? alpha(this.colourOf(a.n.id === sel ? b.n : a.n), 0.8)
+        : on && sameGroup ? alpha(gA!, weak ? 0.16 : 0.24)
         : `rgba(${p.link},${on ? (weak ? 0.16 : 0.3) : 0.05})`;
       ctx.lineWidth = (onPath ? 2.4 : on && sel ? 1.6 : weak ? 0.7 : 1) / k;
       if (weak && !onPath) ctx.setLineDash([4 / k, 4 / k]);
@@ -294,6 +297,13 @@ export class GraphView implements View {
         ctx.strokeStyle = p.bg;
         ctx.lineWidth = 1.2 / k;
         ctx.stroke();
+        if (b.n.kind === "page" && this.colouring === "group") {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r + 2.2 / k, 0, Math.PI * 2);
+          ctx.strokeStyle = alpha(color, 0.55);
+          ctx.lineWidth = 1 / k;
+          ctx.stroke();
+        }
       }
       ctx.globalAlpha = on ? 1 : 0.3;
       // A note tied to nothing: to link.
@@ -344,7 +354,7 @@ export class GraphView implements View {
       named = true;
       for (const g of groupNames) {
         const s = this.cam.toScreen(g.x, g.y);
-        label(ctx, placer, g.name, s.x, s.y, { size: 14, weight: 600, color: inkOf(g.color), max: 240, baseline: "middle" });
+        label(ctx, placer, g.name, s.x, s.y, { size: 13, weight: 600, color: inkOf(g.color), max: 240, baseline: "middle", pill: true, pillColor: g.color });
       }
     };
     // Beyond what must be named, about one label per 14 000 px² of stage:

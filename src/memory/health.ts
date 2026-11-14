@@ -1,7 +1,7 @@
 // Salute della memoria: visual dashboard of coverage, orphan notes,
 // missing pages and top hubs. Clicking any card selects that node.
 
-import { KIND_COLOR, alpha, fit, type MemNode, type Model } from "./data";
+import { KIND_COLOR, alpha, fit, kindName, type MemNode, type Model, type NodeKind } from "./data";
 import { t } from "../core/i18n";
 import { animateIdle, type View } from "./stage";
 import { font, paintBackground, pal } from "./theme";
@@ -54,10 +54,13 @@ export class HealthView implements View {
     const lonely = m.lonely();
     const linkedNotes = Math.max(0, notes.length - lonely.length);
 
-    const pad = 24;
-    const gaugeH = 148;
-    const colW = Math.min(340, (w - pad * 3) / 2);
-    const startX = Math.max(pad, (w - colW * 2 - pad) / 2);
+    const pad = w < 560 ? 12 : 24;
+    const stacked = w < 540;
+    const gaugeH = stacked ? 124 : 144;
+    const colW = stacked ? Math.min(460, w - pad * 2) : Math.min(340, (w - pad * 3) / 2);
+    const startX = stacked ? Math.max(pad, (w - colW) / 2) : Math.max(pad, (w - colW * 2 - pad) / 2);
+    const totalW = stacked ? colW : colW * 2 + pad;
+    const distH = 74;
 
     // Top 2 animated radial gauges.
     this.drawGauge(
@@ -76,8 +79,8 @@ export class HealthView implements View {
     );
     this.drawGauge(
       ctx,
-      startX + colW + pad,
-      pad,
+      stacked ? startX : startX + colW + pad,
+      stacked ? pad + gaugeH + 12 : pad,
       colW,
       gaugeH,
       t("Note collegate"),
@@ -89,14 +92,72 @@ export class HealthView implements View {
       pulse,
     );
 
-    // Bottom 2 interactive action lists: Top Hubs & Da collegare / Da scrivere.
-    const listY = pad + gaugeH + 18;
-    const listH = Math.max(120, h - listY - pad);
+    // Interactive action lists: Top Hubs & Da collegare / Da scrivere.
+    const listY = stacked ? pad + (gaugeH + 12) * 2 : pad + gaugeH + 16;
+    const listH = stacked ? Math.max(100, (h - listY - distH - pad * 2) / 2) : Math.max(120, h - listY - distH - pad - 16);
     const hubs = [...pages].sort((a, b) => b.weight - a.weight).slice(0, 8);
     const todo: MemNode[] = [...missing.slice(0, 4), ...lonely.slice(0, 4)].slice(0, 8);
 
     this.drawListCard(ctx, startX, listY, colW, listH, t("Argomenti principali"), hubs, KIND_COLOR.page, true);
-    this.drawListCard(ctx, startX + colW + pad, listY, colW, listH, t("Da completare o collegare"), todo, "#e84855", false);
+    this.drawListCard(
+      ctx,
+      stacked ? startX : startX + colW + pad,
+      stacked ? listY + listH + 12 : listY,
+      colW,
+      listH,
+      t("Da completare o collegare"),
+      todo,
+      "#e84855",
+      false,
+    );
+
+    // 3rd section: distribution breakdown by node kind.
+    const distY = stacked ? listY + listH * 2 + 24 : listY + listH + 16;
+    if (distY + distH <= h - 6) {
+      const p = pal();
+      roundRect(ctx, startX, distY, totalW, distH, 10);
+      ctx.fillStyle = p.card;
+      ctx.fill();
+      ctx.strokeStyle = p.line;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = p.ink;
+      ctx.font = font(12.5, 600);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(t("Composizione della memoria"), startX + 14, distY + 18);
+
+      const counts = new Map<NodeKind, number>();
+      for (const n of m.g.nodes) counts.set(n.kind, (counts.get(n.kind) ?? 0) + 1);
+      const kinds = (["page", "note", "source", "day", "old", "missing"] as NodeKind[]).filter((k) => (counts.get(k) ?? 0) > 0);
+      const sumNodes = Math.max(1, m.g.nodes.length);
+      const barX = startX + 14;
+      const barW = totalW - 28;
+      let cx = barX;
+      kinds.forEach((k) => {
+        const bw = ((counts.get(k) ?? 0) / sumNodes) * barW;
+        if (bw >= 2) {
+          ctx.fillStyle = KIND_COLOR[k];
+          ctx.fillRect(cx, distY + 32, Math.max(2, bw - 2), 10);
+        }
+        cx += bw;
+      });
+      let lx = barX;
+      ctx.font = font(11.5);
+      for (const k of kinds) {
+        const txt = `${kindName(k)} ${counts.get(k)}`;
+        const tw = ctx.measureText(txt).width + 20;
+        if (lx + tw > startX + totalW - 10) break;
+        ctx.fillStyle = KIND_COLOR[k];
+        ctx.beginPath();
+        ctx.arc(lx + 4, distY + 56, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = p.dim;
+        ctx.fillText(txt, lx + 12, distY + 56);
+        lx += tw;
+      }
+    }
 
     return intro < 1 || idle;
   }

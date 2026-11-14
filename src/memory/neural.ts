@@ -8,7 +8,7 @@
 import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
 import { animateIdle, Camera, starfield, type View } from "./stage";
 import { Placer, label } from "./labels";
-import { pal } from "./theme";
+import { inkOf, pal } from "./theme";
 
 interface Neuron {
   n: MemNode;
@@ -37,6 +37,7 @@ const STAY_FADE_MS = 500;
 export class NeuralView implements View {
   private cam = new Camera();
   private neurons: Neuron[] = [];
+  private lobes: { name: string; color: string; x: number; y: number; r: number }[] = [];
   private index = new Map<string, Neuron>();
   private axons: [Neuron, Neuron][] = [];
   private pulses: Pulse[] = [];
@@ -55,6 +56,7 @@ export class NeuralView implements View {
     this.model = model;
     const { groups, of } = model.groups();
     this.neurons = [];
+    this.lobes = [];
     let seed = 5;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     // Lobes on a ring around the centre, the loose neurons in a halo outside.
@@ -65,6 +67,7 @@ export class NeuralView implements View {
       const cx = Math.cos(a) * d;
       const cy = Math.sin(a) * d * 0.8;
       const spread = 30 + Math.sqrt(g.members.length) * 22;
+      this.lobes.push({ name: g.name, color: g.color, x: cx, y: cy, r: spread + 22 });
       g.members.forEach((id, i) => {
         const n = model.byId.get(id)!;
         const t = Math.sqrt((i + 0.5) / g.members.length);
@@ -151,6 +154,25 @@ export class NeuralView implements View {
     if (sel && !this.stayAt && !this.pulses.length) this.stayAt = now;
     const stay = sel && this.stayAt ? Math.min(1, (now - this.stayAt) / STAY_FADE_MS) : 0;
     if (sel && stay < 1) moving = true;
+    // Soft translucent lobe membranes around each cortical cluster.
+    for (const lb of this.lobes) {
+      const mem = ctx.createRadialGradient(lb.x, lb.y, lb.r * 0.15, lb.x, lb.y, lb.r);
+      mem.addColorStop(0, alpha(lb.color, 0.08));
+      mem.addColorStop(0.75, alpha(lb.color, 0.04));
+      mem.addColorStop(1, alpha(lb.color, 0));
+      ctx.fillStyle = mem;
+      ctx.beginPath();
+      ctx.arc(lb.x, lb.y, lb.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = alpha(lb.color, 0.18);
+      ctx.lineWidth = 1 / Math.sqrt(k);
+      ctx.setLineDash([4 / Math.sqrt(k), 5 / Math.sqrt(k)]);
+      ctx.beginPath();
+      ctx.arc(lb.x, lb.y, lb.r * 0.92, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     // Axons: thin, curved, the ones of lit neurons brighter.
     for (const [a, b] of this.axons) {
       const glow = Math.max(0, 1 - (now - Math.max(a.lit, b.lit)) / GLOW_MS);
@@ -238,6 +260,13 @@ export class NeuralView implements View {
       ctx.beginPath();
       ctx.arc(x.x, x.y, r * 0.55, 0, Math.PI * 2);
       ctx.fill();
+      if (x.n.kind === "page" && !dim) {
+        ctx.strokeStyle = alpha(x.colour, 0.85);
+        ctx.lineWidth = 1.2 / Math.sqrt(k);
+        ctx.beginPath();
+        ctx.arc(x.x, x.y, r * 0.92, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
     ctx.globalCompositeOperation = "source-over";
     ctx.restore();
@@ -257,7 +286,22 @@ export class NeuralView implements View {
     for (const { x, score, nearLit } of want) {
       const at = this.cam.toScreen(x.x, x.y);
       if (at.x < -100 || at.x > w + 100 || at.y < -30 || at.y > h + 30) continue;
-      label(ctx, placer, x.n.label, at.x, at.y + x.r * k + 5, { size: 12, weight: score >= 1e9 ? 600 : 500, force: score >= 1e9, alpha: nearLit && score < 1e7 ? Math.max(0.3, stay) : 1, max: 170 });
+      const forced = score >= 1e9;
+      label(ctx, placer, x.n.label, at.x, at.y + x.r * k + 5, {
+        size: 12,
+        weight: forced ? 600 : 500,
+        force: forced,
+        alpha: nearLit && score < 1e7 ? Math.max(0.3, stay) : 1,
+        max: 170,
+        pill: forced,
+        pillColor: x.colour,
+      });
+    }
+    if (k < 1.35) {
+      for (const lb of this.lobes) {
+        const at = this.cam.toScreen(lb.x, lb.y - lb.r * 0.94);
+        label(ctx, placer, lb.name, at.x, at.y, { size: 12, weight: 600, color: inkOf(lb.color), max: 210, baseline: "middle", pill: true, pillColor: lb.color });
+      }
     }
     return moving || idle;
   }

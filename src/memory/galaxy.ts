@@ -132,11 +132,13 @@ export class GalaxyView implements View {
     this.cam.apply(ctx);
     const k = this.cam.k;
     ctx.globalCompositeOperation = add;
-    // Each galaxy's glow: a wide soft disc and a bright core.
-    for (const g of this.galaxies) {
-      const disc = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r * 1.5);
-      disc.addColorStop(0, alpha(g.colour, 0.18));
-      disc.addColorStop(0.25, alpha(g.colour, 0.07));
+    // Each galaxy's glow: a layered soft nebula disc, subtle spiral arm mist, and bright core.
+    for (let gi = 0; gi < this.galaxies.length; gi++) {
+      const g = this.galaxies[gi];
+      const disc = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r * 1.55);
+      disc.addColorStop(0, alpha(g.colour, 0.24));
+      disc.addColorStop(0.28, alpha(g.colour, 0.1));
+      disc.addColorStop(0.65, alpha(g.colour, 0.035));
       disc.addColorStop(1, alpha(g.colour, 0));
       ctx.fillStyle = disc;
       ctx.save();
@@ -144,8 +146,25 @@ export class GalaxyView implements View {
       ctx.scale(1, 0.62);
       ctx.translate(-g.x, -g.y);
       ctx.beginPath();
-      ctx.arc(g.x, g.y, g.r * 1.5, 0, Math.PI * 2);
+      ctx.arc(g.x, g.y, g.r * 1.55, 0, Math.PI * 2);
       ctx.fill();
+      if (idle) {
+        const spin = time * 0.00018 + gi;
+        ctx.strokeStyle = alpha(g.colour, 0.12);
+        ctx.lineWidth = 5 / Math.max(0.4, k);
+        for (let arm = 0; arm < 2; arm++) {
+          ctx.beginPath();
+          for (let s = 0; s <= 18; s++) {
+            const t = s / 18;
+            const ang = spin + arm * Math.PI + t * 4.4;
+            const px = g.x + Math.cos(ang) * g.r * 0.95 * t;
+            const py = g.y + Math.sin(ang) * g.r * 0.95 * t;
+            if (s === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+        }
+      }
       ctx.restore();
     }
     const sel = this.selected;
@@ -232,14 +251,14 @@ export class GalaxyView implements View {
       const at = this.cam.toScreen(s.x, s.y);
       if (at.x < -100 || at.x > w + 100 || at.y < -30 || at.y > h + 30) return;
       const forced = s.n.id === sel || s.n.id === this.hovered;
-      label(ctx, placer, s.n.label, at.x, at.y + s.r * k + 5, { size: 12, weight: forced ? 600 : 500, force: forced, max: forced ? 300 : 170 });
+      label(ctx, placer, s.n.label, at.x, at.y + s.r * k + 5, { size: 12, weight: forced ? 600 : 500, force: forced, max: forced ? 300 : 170, pill: forced, pillColor: s.colour });
     };
     let i = 0;
     for (; i < named.length && order(named[i]) < 100; i++) star(named[i]);
     if (k < 1.3) {
       for (const g of this.galaxies) {
         const at = this.cam.toScreen(g.x, g.y + g.r * 0.75);
-        label(ctx, placer, g.name, at.x, at.y, { size: 14, weight: 600, color: inkOf(g.colour), max: 240, baseline: "middle" });
+        label(ctx, placer, g.name, at.x, at.y, { size: 13, weight: 600, color: inkOf(g.colour), max: 240, baseline: "middle", pill: true, pillColor: g.colour });
       }
     }
     for (; i < named.length; i++) star(named[i]);

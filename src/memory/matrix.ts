@@ -27,7 +27,14 @@ export class MatrixView implements View {
       .filter((n) => n.kind === "page" || n.kind === "missing")
       .sort((a, b) => b.weight - a.weight)
       .slice(0, MAX_ITEMS);
-    this.items = pages.length ? pages : [...model.g.nodes].sort((a, b) => b.weight - a.weight).slice(0, MAX_ITEMS);
+    const chosen = pages.length ? pages : [...model.g.nodes].sort((a, b) => b.weight - a.weight).slice(0, MAX_ITEMS);
+    // Group blocks along the diagonal by sorting by group color first, then weight.
+    const { of } = model.groups();
+    this.items = [...chosen].sort((a, b) => {
+      const ga = of.get(a.id) ?? 9999;
+      const gb = of.get(b.id) ?? 9999;
+      return ga !== gb ? ga - gb : b.weight - a.weight;
+    });
     const set = new Set(this.items.map((n) => n.id));
     this.edges.clear();
     for (const e of model.g.edges) {

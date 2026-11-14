@@ -154,8 +154,8 @@ export class SankeyView implements View {
     for (const f of this.flows) {
       const on = this.hot ? f === this.hot : !sel || f.to.id === sel;
       const g = ctx.createLinearGradient(this.x0, 0, this.x1, 0);
-      g.addColorStop(0, alpha(f.from.colour, on ? 0.6 : 0.12));
-      g.addColorStop(1, alpha(f.to.colour, on ? 0.6 : 0.12));
+      g.addColorStop(0, alpha(f.from.colour, on ? 0.72 : 0.06));
+      g.addColorStop(1, alpha(f.to.colour, on ? 0.72 : 0.06));
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(this.x0, f.a0);
@@ -178,25 +178,44 @@ export class SankeyView implements View {
         ctx.fill();
       }
     }
+    const drawBar = (x: number, y0: number, y1: number, col: string) => {
+      const bh = Math.max(2, y1 - y0);
+      const r = Math.min(4, bh / 2);
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y0);
+      ctx.lineTo(x + 10 - r, y0);
+      ctx.quadraticCurveTo(x + 10, y0, x + 10, y0 + r);
+      ctx.lineTo(x + 10, y0 + bh - r);
+      ctx.quadraticCurveTo(x + 10, y0 + bh, x + 10 - r, y0 + bh);
+      ctx.lineTo(x + r, y0 + bh);
+      ctx.quadraticCurveTo(x, y0 + bh, x, y0 + bh - r);
+      ctx.lineTo(x, y0 + r);
+      ctx.quadraticCurveTo(x, y0, x + r, y0);
+      ctx.closePath();
+      ctx.fill();
+    };
     // The two columns, with their names and numbers.
     ctx.font = font(12, 600);
     ctx.textBaseline = "middle";
     // A name only where the one above has ended (thin bands crowd them).
     let after = -Infinity;
     for (const s of this.sources) {
-      ctx.fillStyle = s.colour;
-      ctx.fillRect(this.x0 - 10, s.y0, 10, s.y1 - s.y0);
-      ctx.fillStyle = p.ink;
+      drawBar(this.x0 - 10, s.y0, s.y1, s.colour);
       ctx.textAlign = "right";
       const y = (s.y0 + s.y1) / 2;
       if (y - 8 < after) continue;
       after = y + 8;
-      ctx.fillText(`${s.label} · ${s.value}`, this.x0 - 16, y);
+      ctx.fillStyle = s.colour;
+      ctx.beginPath();
+      ctx.arc(this.x0 - 18, y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = p.ink;
+      ctx.fillText(`${s.label} · ${s.value}`, this.x0 - 26, y);
     }
     after = -Infinity;
     for (const s of this.pages) {
-      ctx.fillStyle = s.colour;
-      ctx.fillRect(this.x1, s.y0, 10, s.y1 - s.y0);
+      drawBar(this.x1, s.y0, s.y1, s.colour);
       ctx.fillStyle = s.id === sel ? p.accent : p.ink;
       ctx.textAlign = "left";
       const y = (s.y0 + s.y1) / 2;

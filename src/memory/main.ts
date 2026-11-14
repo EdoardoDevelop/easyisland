@@ -51,6 +51,7 @@ const TABS: { id: Tab; name: string; group: string; hint: string }[] = [
   { id: "health", name: t("Salute"), group: "Tempo", hint: t("Copertura delle pagine, note isolate da collegare e argomenti principali a colpo d'occhio.") },
 ];
 
+const mindView = new MindMapView();
 const views: Record<Tab, View> = {
   timeline: new TimelineView(),
   graph: new GraphView(),
@@ -59,7 +60,7 @@ const views: Record<Tab, View> = {
   neural: new NeuralView(),
   bubbles: new BubblesView(),
   sunburst: new SunburstView(),
-  mind: new MindMapView(),
+  mind: mindView,
   concept: new ConceptView(),
   stream: new StreamView(),
   sankey: new SankeyView(),
@@ -68,6 +69,7 @@ const views: Record<Tab, View> = {
   health: new HealthView(),
 };
 const TAB_IDS = new Set<string>(TABS.map((x) => x.id));
+const NO_ZOOM_TABS = new Set<Tab>(["matrix", "treemap", "health", "sankey"]);
 
 /** Filters over every view, remembered on this PC. */
 interface Filters {
@@ -117,16 +119,33 @@ const LINE = {
   check: "M12 3.5l7 2.8v5.2c0 4.2-3 7.5-7 9-4-1.5-7-4.8-7-9V6.3zM9 12l2 2 4-4",
   info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5.5M12 7.8h.01",
   inbox: "M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20M4 13.5 6.5 5h11l2.5 8.5V19H4z",
+  sidebar: "M4 5h16v14H4zM14.5 5v14",
+};
+const VIEW_ICON: Record<Tab, string> = {
+  graph: "M6 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm12 2a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-6 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM7.6 6.2l8.8 1m-9.6.6 4.4 9.6m5.6-9.6-4.2 9.6",
+  graph3d: "M12 3.5 19.5 8v8L12 20.5 4.5 16V8zm0 0v8.5m0 0 7.5 4M12 12 4.5 16",
+  galaxy: "M12 12m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0M12 4c5 0 8.5 3.5 8.5 8s-3.5 8-8.5 8c-4.5 0-8-3-8-7 0-3.5 2.5-6 6-6 3 0 5 2 5 4.5",
+  neural: "M12 12m-2.2 0a2.2 2.2 0 1 0 4.4 0 2.2 2.2 0 1 0-4.4 0M5 6l5 4m9-4-5 4m-9 8 5-4m9 4-5-4M12 4v5.5",
+  mind: "M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm0-2.5H5.5M12 9.5h6.5M5.5 9.5 4 6m1.5 3.5L4 14m14.5-4.5L20 6m-1.5 3.5L20 14",
+  concept: "M8.5 4h7v4h-7zm-5 12h6.5v4H3.5zm10.5 0h6.5v4H14zM12 8v3.5m0 0H6.7V16M12 11.5h5.3V16",
+  bubbles: "M9 9.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm7.5-4a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm1.5 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+  sunburst: "M12 12m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0M12 12m-7.5 0a7.5 7.5 0 1 0 15 0 7.5 7.5 0 1 0-15 0M12 4.5V9m5.3-2.3-3.2 3.2m.2 5.3-2.3-2.3",
+  treemap: "M4 4.5h16v15H4zM11.5 4.5v15m0-8H20M4 12.5h7.5",
+  matrix: "M4 4h16v16H4zM9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16",
+  timeline: "M3.5 12h17M7 12V8.5m5 3.5v4.5m5-4.5V7.5M7 7a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm5 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm5-10a1 1 0 1 0 0 2 1 1 0 0 0 0-2z",
+  stream: "M3.5 15c3-5 5-5 8.5-2s5.5 2 8.5-4v7c-3 2.5-5.5 2.5-8.5.5s-5.5-2-8.5 1.5z",
+  sankey: "M4 6c5 0 7 4 16 4M4 12c6 0 8 0 16 0M4 18c5 0 7-4 16-4",
+  health: "M4 12h3.5l2.5-5.5 4 11 2.5-5.5H20",
 };
 const icon = (path: string, size = 16) => svg(path, size, { stroke: 1.6 });
 
 // Categorized view switcher: 4 compact category dropdowns on one row so all 14 views
 // stay organized and never clip off-screen.
-const GROUPS: { id: string; label: string }[] = [
-  { id: "Grafi", label: t("Grafi") },
-  { id: "Mappe", label: t("Mappe") },
-  { id: "Struttura", label: t("Struttura") },
-  { id: "Tempo", label: t("Analisi") },
+const GROUPS: { id: string; label: string; icon: string }[] = [
+  { id: "Grafi", label: t("Grafi"), icon: VIEW_ICON.graph },
+  { id: "Mappe", label: t("Mappe"), icon: VIEW_ICON.mind },
+  { id: "Struttura", label: t("Struttura"), icon: VIEW_ICON.treemap },
+  { id: "Tempo", label: t("Analisi"), icon: VIEW_ICON.stream },
 ];
 const viewPills = h("div", { class: "mem-cats", role: "menubar", "aria-label": t("Come disegnare la memoria") });
 const catMenus = new Map<string, { wrap: HTMLElement; btn: HTMLButtonElement; label: HTMLElement; menu: HTMLElement }>();
@@ -143,10 +162,10 @@ function closeCatMenus(except?: string) {
 for (const g of GROUPS) {
   const wrap = h("div", { class: "mem-cat-wrap" });
   const lbl = h("span", { text: g.label });
-  const btn = h("button", { class: "mem-cat-btn", "aria-haspopup": "menu", "aria-expanded": "false" }, lbl, icon(LINE.chevronDown, 13)) as HTMLButtonElement;
+  const btn = h("button", { class: "mem-cat-btn", "aria-haspopup": "menu", "aria-expanded": "false" }, icon(g.icon, 14), lbl, icon(LINE.chevronDown, 13)) as HTMLButtonElement;
   const catMenu = h("div", { class: "mem-menu mem-cat-menu", role: "menu", hidden: "" });
   for (const tb of TABS.filter((x) => x.group === g.id)) {
-    const item = h("button", { role: "menuitem" }, h("span", { text: tb.name }), h("small", { text: tb.hint })) as HTMLButtonElement;
+    const item = h("button", { role: "menuitem" }, icon(VIEW_ICON[tb.id], 15), h("span", { text: tb.name }), h("small", { text: tb.hint })) as HTMLButtonElement;
     item.addEventListener("click", () => {
       closeCatMenus();
       show(tb.id);
@@ -222,12 +241,52 @@ sureBox.checked = filters.sure;
 const sureLabel = h("label", { class: "mem-check", title: t("Nascondi i collegamenti solo stimati dalle parole in comune: restano quelli scritti nelle pagine, le note che nominano la pagina e quelli controllati dall'IA") }, sureBox, h("span", { text: t("Solo collegamenti sicuri") }));
 // How to use the view: shown over the stage until the first use, then behind ⓘ.
 const infoBtn = h("button", { class: "mem-icon", title: t("Come si usa questa vista"), "aria-label": t("Come si usa questa vista"), "aria-pressed": "false" }, icon(LINE.info)) as HTMLButtonElement;
-const viewBar = h("div", { class: "mem-viewbar" }, viewPills, colourPick, periodPick, sureLabel, infoBtn);
+const panelToggleBtn = h("button", { class: "mem-icon", title: t("Mostra o nascondi pannello laterale"), "aria-label": t("Mostra o nascondi pannello laterale"), "aria-pressed": "true" }, icon(LINE.sidebar)) as HTMLButtonElement;
+const viewBar = h("div", { class: "mem-viewbar" }, viewPills, colourPick, periodPick, sureLabel, h("div", { class: "mem-viewbar-right" }, infoBtn, panelToggleBtn));
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
 const empty = h("div", { class: "mem-empty" });
-const hint = h("div", { class: "mem-hint", role: "note" });
+const hintText = h("span");
+const hintClose = h("button", { class: "mem-hint-close", text: "×", title: t("Chiudi"), "aria-label": t("Chiudi") }) as HTMLButtonElement;
+const hint = h("div", { class: "mem-hint", role: "note" }, hintText, hintClose);
+hintClose.addEventListener("click", () => showHint(false));
+
+// Mind-map HUD: layout toggle (Radiale / Bilanciata) + navigation breadcrumbs.
+const mindRadialBtn = h("button", { class: "on", text: t("Radiale") }) as HTMLButtonElement;
+const mindBilateralBtn = h("button", { text: t("Bilanciata") }) as HTMLButtonElement;
+const mindCrumb = h("div", { class: "mem-mind-crumb", hidden: "" });
+const mindHud = h("div", { class: "mem-mind-hud", hidden: "" }, h("div", { class: "mem-mind-seg" }, mindRadialBtn, mindBilateralBtn), mindCrumb);
+const mindTrail: string[] = [];
+function renderMindCrumb() {
+  clear(mindCrumb);
+  if (!model || !mindTrail.length || tab !== "mind") {
+    mindCrumb.hidden = true;
+    return;
+  }
+  mindCrumb.hidden = false;
+  for (let i = 0; i < mindTrail.length; i++) {
+    const id = mindTrail[i];
+    const node = model.byId.get(id);
+    if (!node) continue;
+    if (i > 0) mindCrumb.append(h("span", { text: "›" }));
+    const b = h("button", { class: i === mindTrail.length - 1 ? "on" : "", text: node.label, title: node.label }) as HTMLButtonElement;
+    b.addEventListener("click", () => select(id));
+    mindCrumb.append(b);
+  }
+}
+mindRadialBtn.addEventListener("click", () => {
+  mindRadialBtn.classList.add("on");
+  mindBilateralBtn.classList.remove("on");
+  mindView.setLayoutMode("radial");
+  stage.wake();
+});
+mindBilateralBtn.addEventListener("click", () => {
+  mindBilateralBtn.classList.add("on");
+  mindRadialBtn.classList.remove("on");
+  mindView.setLayoutMode("bilateral");
+  stage.wake();
+});
 const HINTED_KEY = "easyisland.memory.hinted";
 let hinted = (() => {
   try {
@@ -253,7 +312,7 @@ zoomFitBtn.addEventListener("click", () => stage.resetView());
 function keepClear() {
   requestAnimationFrame(() => {
     const at = stageBox.getBoundingClientRect();
-    const rects = [legend, hint, zoomDock]
+    const rects = [legend, hint, zoomDock, mindHud]
       .filter((el) => !el.hidden && el.style.display !== "none" && el.isConnected)
       .map((el) => el.getBoundingClientRect())
       .filter((r) => r.width > 0)
@@ -302,7 +361,13 @@ const clearWatch = new ResizeObserver(() => keepClear());
 clearWatch.observe(legend);
 clearWatch.observe(stageBox);
 const panel = h("aside", { class: "mem-panel" });
-root.append(bar, viewBar, h("div", { class: "mem-main" }, stageBox, panel));
+const mainWrap = h("div", { class: "mem-main" }, stageBox, panel);
+panelToggleBtn.addEventListener("click", () => {
+  const collapsed = mainWrap.classList.toggle("collapsed");
+  panelToggleBtn.setAttribute("aria-pressed", String(!collapsed));
+  keepClear();
+});
+root.append(bar, viewBar, mainWrap);
 
 const stage = new Stage(stageBox, {
   select: (id) => select(id),
@@ -322,7 +387,7 @@ const stage = new Stage(stageBox, {
     tip.style.top = `${Math.min((y ?? 0) + 14, box.height - 60)}px`;
   },
 });
-stageBox.append(legend, zoomDock, hint, empty, tip);
+stageBox.append(legend, zoomDock, mindHud, hint, empty, tip);
 
 function remembered(): Tab {
   // ?tab=… (screenshots, smoke) wins.
@@ -400,9 +465,12 @@ function show(next: Tab) {
     c.label.textContent = isHere ? `${g.label} · ${activeTab.name}` : g.label;
   }
   for (const [id, item] of viewMenuItems) item.classList.toggle("on", id === next);
-  hint.textContent = activeTab.hint;
-  infoBtn.title = hint.textContent;
+  hintText.textContent = activeTab.hint;
+  infoBtn.title = activeTab.hint;
   legend.style.display = next === "timeline" || next === "stream" || next === "sankey" || next === "health" ? "none" : "flex";
+  zoomDock.hidden = NO_ZOOM_TABS.has(next);
+  mindHud.hidden = next !== "mind";
+  renderMindCrumb();
   keepClear();
   const view = views[next];
   view.setSelected(selected);
@@ -451,6 +519,15 @@ function select(id: string | null) {
     clearPath();
   }
   selected = id;
+  if (id && (!mindTrail.length || mindTrail[mindTrail.length - 1] !== id)) {
+    const idx = mindTrail.indexOf(id);
+    if (idx !== -1) mindTrail.splice(idx, 1);
+    mindTrail.push(id);
+    if (mindTrail.length > 4) mindTrail.shift();
+  } else if (!id) {
+    mindTrail.length = 0;
+  }
+  renderMindCrumb();
   for (const v of Object.values(views)) v.setSelected(id);
   stage.wake();
   renderPanel();
@@ -510,18 +587,39 @@ function renderPanel() {
   const links = model.neighbours(n.id);
   if (links.length) {
     panel.append(h("h3", { text: t("Collegamenti ({n})", { n: links.length }) }));
+    let linkFilter: "all" | "page" | "note" | "source" = "all";
+    const filterBar = h("div", { class: "mem-link-filters" });
     const list = h("div", { class: "mem-links" });
-    for (const nb of links.slice(0, 80)) {
-      const other = model.byId.get(nb.id);
-      if (!other) continue;
-      const b = h("button", { class: "mem-link" },
-        h("i", { style: `background:${KIND_COLOR[other.kind]}` }),
-        h("span", { text: other.label }),
-        h("small", { text: [nb.label && (nb.out ? `${nb.label} →` : `← ${nb.label}`), inferred(n, other, nb.strength) && t("dedotto")].filter(Boolean).join(" · ") })) as HTMLButtonElement;
-      b.addEventListener("click", () => select(other.id));
-      list.append(b);
+    const drawLinks = () => {
+      clear(list);
+      for (const nb of links) {
+        const other = model?.byId.get(nb.id);
+        if (!other) continue;
+        if (linkFilter === "page" && other.kind !== "page" && other.kind !== "missing") continue;
+        if (linkFilter === "note" && other.kind !== "note" && other.kind !== "day" && other.kind !== "old") continue;
+        if (linkFilter === "source" && other.kind !== "source") continue;
+        const b = h("button", { class: "mem-link" },
+          h("i", { style: `background:${KIND_COLOR[other.kind]}` }),
+          h("span", { text: other.label }),
+          h("small", { text: [nb.label && (nb.out ? `${nb.label} →` : `← ${nb.label}`), inferred(n, other, nb.strength) && t("dedotto")].filter(Boolean).join(" · ") })) as HTMLButtonElement;
+        b.addEventListener("click", () => select(other.id));
+        list.append(b);
+        if (list.childElementCount >= 80) break;
+      }
+    };
+    const filterButtons: { id: "all" | "page" | "note" | "source"; btn: HTMLButtonElement }[] = [];
+    for (const [fid, flabel] of [["all", t("Tutti")], ["page", t("Pagine")], ["note", t("Note")], ["source", t("Fonti")]] as const) {
+      const fb = h("button", { class: fid === linkFilter ? "on" : "", text: flabel }) as HTMLButtonElement;
+      fb.addEventListener("click", () => {
+        linkFilter = fid;
+        for (const x of filterButtons) x.btn.classList.toggle("on", x.id === fid);
+        drawLinks();
+      });
+      filterButtons.push({ id: fid, btn: fb });
+      filterBar.append(fb);
     }
-    panel.append(list);
+    drawLinks();
+    panel.append(filterBar, list);
   }
   renderPath();
   const row = h("div", { class: "mem-row" });
@@ -533,6 +631,11 @@ function renderPanel() {
     renderPanel();
   });
   row.append(way);
+  if (tab !== "mind") {
+    const toMind = h("button", { text: t("Apri in Mappa mentale") }) as HTMLButtonElement;
+    toMind.addEventListener("click", () => show("mind"));
+    row.append(toMind);
+  }
   if (n.kind !== "missing") {
     const open = h("button", { text: t("Apri il file") }) as HTMLButtonElement;
     open.addEventListener("click", () => void Bridge.memoryNodeOpen(n.id).catch(fail));

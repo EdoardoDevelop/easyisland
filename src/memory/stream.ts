@@ -67,6 +67,8 @@ export class StreamView implements View {
     if (sum(other)) this.streams.push({ name: t("Il resto"), colour: "#8a8f99", lead: null, counts: smooth(other) });
   }
 
+  private hoverX: number | null = null;
+
   setSelected(id: string | null) {
     this.selected = id;
   }
@@ -99,6 +101,23 @@ export class StreamView implements View {
       return (base - w / 2) * this.zoomK + w / 2 + this.shift;
     };
     const mid = (top + bottom) / 2;
+    // Subtle vertical month gridlines behind the river.
+    ctx.save();
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = 1;
+    let lastGridMonth = -1;
+    this.weeks.forEach((ts, i) => {
+      const m = new Date(ts).getMonth();
+      if (m === lastGridMonth) return;
+      lastGridMonth = m;
+      const gx = xOf(i);
+      if (gx < left || gx > right) return;
+      ctx.beginPath();
+      ctx.moveTo(gx, top);
+      ctx.lineTo(gx, bottom + 6);
+      ctx.stroke();
+    });
+    ctx.restore();
     // Centred: the river flows in the middle, its banks move with the total.
     const base = totals.map((tot) => mid - (tot * scale) / 2);
     const acc = new Array(n).fill(0);
@@ -155,6 +174,23 @@ export class StreamView implements View {
       lastMonth = d.getMonth();
       ctx.fillText(d.toLocaleDateString(undefined, { month: "short", year: "2-digit" }), xOf(i), bottom + 16);
     });
+    // Interactive vertical hover crosshair highlighting the hovered week.
+    if (this.hoverX !== null && this.hoverX >= left && this.hoverX <= right) {
+      const basePos = ((this.hoverX - this.shift - w / 2) / this.zoomK + w / 2 - left) / (right - left);
+      const wi = Math.round(basePos * (n - 1));
+      if (wi >= 0 && wi < n) {
+        const cx = xOf(wi);
+        ctx.save();
+        ctx.strokeStyle = p.dim;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(cx, top);
+        ctx.lineTo(cx, bottom + 10);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
     return idle;
   }
 
@@ -179,6 +215,7 @@ export class StreamView implements View {
   }
 
   hover(x: number, y: number) {
+    this.hoverX = x;
     const a = this.at(x, y);
     if (!a) return null;
     const d = new Date(this.weeks[a.week]);
