@@ -157,6 +157,16 @@ function saveDraft(text: string) {
   }
 }
 
+/** "🧠 2 per significato" under an answer: the memory lines the meaning found (memory_meaning.rs), on hover. */
+function meaningMark(found: [string, number][]): HTMLElement {
+  const lines = [t("Note trovate nella memoria per significato (con la vicinanza, da 0 a 1):")];
+  for (const [line, score] of found) {
+    const text = line.length > 140 ? `${line.slice(0, 140)}…` : line;
+    lines.push(`• ${text} (${score.toFixed(2).replace(".", ",")})`);
+  }
+  return h("span", { class: "msg-usage", title: lines.join("\n"), text: `🧠 ${t("{n} per significato", { n: found.length })}` });
+}
+
 /** "5 passi · 120k letti" under an answer of Claude Code; the tools and the light start on hover. */
 function usageMark(u: TurnUsage): HTMLElement {
   const k = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
@@ -1109,7 +1119,8 @@ export function buildPrompt(
       const usage = (reply as { usage?: TurnUsage | null }).usage ?? undefined;
       const direct = (reply as { direct?: boolean }).direct === true;
       const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined, command });
+      const meaning = (reply as { meaning?: [string, number][] }).meaning;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1569,6 +1580,7 @@ export function buildPrompt(
     if (own && m.role === "assistant" && !last) {
       bar.append(h("button", { class: "msg-act", title: t("Una conversazione nuova che parte da qui; questa resta nella cronologia"), text: `⑂ ${t("Dirama da qui")}`, onclick: () => void fork(index) }));
     }
+    if (m.role === "assistant" && m.meaning?.length) bar.append(meaningMark(m.meaning));
     if (m.role === "assistant" && m.usage) bar.append(usageMark(m.usage));
     row.classList.add("with-actions");
     row.append(bar);

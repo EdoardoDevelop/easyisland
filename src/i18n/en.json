@@ -5327,5 +5327,7 @@
   "Il modello scaricato è incompleto.": "The downloaded model is incomplete.",
   "Il modello per il significato non è su questo PC.": "The model for meaning is not on this PC.",
   "Il modello per il significato è rovinato: scaricalo di nuovo.": "The model for meaning is damaged: download it again.",
-  "Vicine per significato:": "Close in meaning:"
+  "Vicine per significato:": "Close in meaning:",
+  "Note trovate nella memoria per significato (con la vicinanza, da 0 a 1):": "Notes found in the memory by meaning (with how close they are, 0 to 1):",
+  "{n} per significato": "{n} by meaning"
 }

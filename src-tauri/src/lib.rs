@@ -1450,6 +1450,8 @@ async fn chat_send(
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
     let auto = auto.unwrap_or(false);
+    // What the meaning finds in this turn, for the mark under the answer.
+    memory_meaning::turn_start();
     let reply = if team == Some(true) {
         team::run(&app, chat.clone(), &sid, query, context, engine, auto, &on_text).await?
     } else {
@@ -1461,7 +1463,7 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat) })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat), meaning: memory_meaning::take_found() })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1484,6 +1486,8 @@ struct IslandReply {
     direct: bool,
     /// A command offered with the answer (commands.rs): its «Esegui» button.
     command: Option<commands::Command>,
+    /// Memory lines found by meaning in this turn, with their score (memory_meaning.rs).
+    meaning: Vec<(String, f32)>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each

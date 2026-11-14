@@ -530,6 +530,8 @@ export interface ChatMessage {
   command?: ChatCommand;
   /** «Esegui» was pressed: the button goes. */
   commandDone?: boolean;
+  /** Memory lines found by meaning in this turn, with their score (memory_meaning.rs). */
+  meaning?: [string, number][];
 }
 
 /** commands.rs Command: the tool, its arguments, what it does in words. */

@@ -160,16 +160,48 @@ async fn embed(engine: &str, model: &str, url: Option<&str>, inputs: &[String]) 
     Ok(out.into_iter().map(|(_, e)| e).collect())
 }
 
-/// The closest lines of `corpus` to `query`, best first.
-fn closest(query: &[f32], lines: &[String], store: &Store) -> Vec<String> {
+/// The closest lines of `corpus` to `query`, best first, with their score;
+/// and the best score of all, also when under the threshold (for the log).
+fn closest(query: &[f32], lines: &[String], store: &Store) -> (Vec<(f32, String)>, f32) {
     let (min, below) = limits(&store.engine);
     let mut scored: Vec<(f32, &String)> = lines.iter()
         .filter_map(|l| store.items.get(&crate::brain::note_hash(l)).map(|h| (cosine(query, &unpack(h)), l)))
-        .filter(|(s, _)| *s >= min)
         .collect();
     scored.sort_by(|a, b| b.0.total_cmp(&a.0));
     let best = scored.first().map(|s| s.0).unwrap_or(0.0);
-    scored.into_iter().filter(|(s, _)| *s >= best - below).take(MAX_FOUND).map(|(_, l)| l.clone()).collect()
+    let found = scored.into_iter()
+        .filter(|(s, _)| *s >= min && *s >= best - below)
+        .take(MAX_FOUND)
+        .map(|(s, l)| (s, l.clone()))
+        .collect();
+    (found, best)
+}
+
+/// What the meaning brought in this turn (before the question and in
+/// memory_search), for the mark under the answer in the island. One list for
+/// all the conversations: a turn elsewhere at the same time may add to it.
+static FOUND: Mutex<Vec<(String, f32)>> = Mutex::new(Vec::new());
+
+/// At the start of a turn of the island's chat.
+pub fn turn_start() {
+    if let Ok(mut f) = FOUND.lock() {
+        f.clear();
+    }
+}
+
+/// The lines found by meaning in this turn, once, each with its best score.
+pub fn take_found() -> Vec<(String, f32)> {
+    FOUND.lock().map(|mut f| std::mem::take(&mut *f)).unwrap_or_default()
+}
+
+fn note_found(found: &[(f32, String)]) {
+    let Ok(mut f) = FOUND.lock() else { return };
+    for (score, line) in found {
+        match f.iter_mut().find(|(l, _)| l == line) {
+            Some(x) => x.1 = x.1.max(*score),
+            None => f.push((line.clone(), *score)),
+        }
+    }
 }
 
 /// memory_search (memshare::search): the lines close in meaning that the
@@ -210,8 +242,19 @@ pub async fn related(app: &AppHandle, question: &str) -> Vec<String> {
             return Vec::new();
         }
     };
-    let guard = STORE.lock().unwrap();
-    guard.as_ref().map(|s| closest(&query, &lines, s)).unwrap_or_default()
+    let (found, best) = {
+        let guard = STORE.lock().unwrap();
+        guard.as_ref().map(|s| closest(&query, &lines, s)).unwrap_or_default()
+    };
+    // Scores only, never the memory's text, in the log.
+    if found.is_empty() {
+        crate::log::line(format!("significato ({engine}): niente sopra la soglia, la più vicina {best:.2}"));
+    } else {
+        let scores: Vec<String> = found.iter().map(|(s, _)| format!("{s:.2}")).collect();
+        crate::log::line(format!("significato ({engine}): {} righe vicine ({})", found.len(), scores.join(", ")));
+    }
+    note_found(&found);
+    found.into_iter().map(|(_, l)| l).collect()
 }
 
 /// Every line of the memory turned into a vector now (after the model's
@@ -300,7 +343,8 @@ mod tests {
         store.items.insert(crate::brain::note_hash(&lines[0]), pack(&[1.0, 0.0, 0.0]));
         store.items.insert(crate::brain::note_hash(&lines[1]), pack(&[0.9, 0.3, 0.0]));
         store.items.insert(crate::brain::note_hash(&lines[2]), pack(&[0.0, 0.0, 1.0]));
-        assert_eq!(closest(&[1.0, 0.1, 0.0], &lines, &store), vec!["PC di Rossi".to_string(), "computer di Rossi".to_string()]);
-        assert!(closest(&[0.0, 1.0, 0.0], &lines, &store).len() <= 1);
+        let names = |q: &[f32]| closest(q, &lines, &store).0.into_iter().map(|(_, l)| l).collect::<Vec<_>>();
+        assert_eq!(names(&[1.0, 0.1, 0.0]), vec!["PC di Rossi".to_string(), "computer di Rossi".to_string()]);
+        assert!(names(&[0.0, 1.0, 0.0]).len() <= 1);
     }
 }
