@@ -520,6 +520,8 @@ mod tests {
 
     #[test]
     fn project_folders_read_as_paths() {
+        // hooks.rs's test points USERPROFILE elsewhere while it runs.
+        let _env = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("USERNAME", "Edoardo");
         assert_eq!(project_label("C--Users-Edoardo-WORK-EasyIsland"), "WORK\\EasyIsland");
         assert_eq!(project_label("C--Users-Edoardo"), t("cartella utente"));

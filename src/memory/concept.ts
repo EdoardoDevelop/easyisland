@@ -23,6 +23,8 @@ interface Arrow {
   from: Box;
   to: Box;
   label: string;
+  /** Not written: a page with no written relation, tied to a page it names (dashed). */
+  named?: boolean;
 }
 
 const GAP_X = 36;
@@ -64,12 +66,23 @@ export class ConceptView implements View {
     const set = new Set(ids);
     const out = new Map<string, string[]>();
     const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
-    const arrows: [string, string, string][] = [];
-    for (const e of m.g.edges) {
-      if (!set.has(e.from) || !set.has(e.to) || (e.strength ?? 3) < 3) continue; // only what is written
-      arrows.push([e.from, e.to, e.label]);
+    const arrows: [string, string, string, boolean][] = [];
+    const add = (e: { from: string; to: string; label: string }, named: boolean) => {
+      arrows.push([e.from, e.to, e.label, named]);
       (out.get(e.from) ?? out.set(e.from, []).get(e.from)!).push(e.to);
       indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
+    };
+    for (const e of m.g.edges) {
+      if (!set.has(e.from) || !set.has(e.to) || (e.strength ?? 3) < 3) continue; // only what is written
+      add(e, false);
+    }
+    // A page with no written relation would float alone (14 Nov 2026): it hangs
+    // from the pages it names or that name it (brain.rs pages_named_in, strength 2), dashed.
+    const written = new Set(arrows.flatMap(([a, b]) => [a, b]));
+    for (const e of m.g.edges) {
+      if (!set.has(e.from) || !set.has(e.to) || e.strength !== 2) continue;
+      if (written.has(e.from) && written.has(e.to)) continue;
+      add(e, true);
     }
     // Layers: longest path from the pages nobody points to (cycles cut).
     const layer = new Map<string, number>();
@@ -162,7 +175,7 @@ export class ConceptView implements View {
       });
     }
     this.boxes = boxes;
-    this.arrows = arrows.map(([a, b, label]) => ({ from: boxes.get(a)!, to: boxes.get(b)!, label })).filter((a) => a.from && a.to);
+    this.arrows = arrows.map(([a, b, label, named]) => ({ from: boxes.get(a)!, to: boxes.get(b)!, label, named })).filter((a) => a.from && a.to);
     this.born = performance.now();
   }
 
@@ -212,10 +225,12 @@ export class ConceptView implements View {
       const color = sel && lit ? p.ink : `rgba(${p.link},0.6)`;
       ctx.strokeStyle = color;
       ctx.lineWidth = (lit && sel ? 1.8 : 1.2) / Math.sqrt(k);
+      if (a.named) ctx.setLineDash([5 / Math.sqrt(k), 4 / Math.sqrt(k)]);
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.bezierCurveTo(sx, c1y, c2x, c2y, ex, ey);
       ctx.stroke();
+      ctx.setLineDash([]);
       // The head.
       const ang = Math.atan2(ey - c2y, ex - c2x);
       ctx.fillStyle = color;
@@ -227,7 +242,7 @@ export class ConceptView implements View {
       ctx.fill();
       const mx = (sx + ex) / 2 + (back ? (ex > sx ? 40 : -40) : 0);
       const my = back ? (sy + ey) / 2 + 30 : (sy + ey) / 2;
-      rels.push({ text: a.label || t("collegata a"), x: mx, y: my, lit, named: !!a.label });
+      if (!a.named) rels.push({ text: a.label || t("collegata a"), x: mx, y: my, lit, named: !!a.label });
     }
 
     // Boxes: flat cards with the kind's colour on the edge.

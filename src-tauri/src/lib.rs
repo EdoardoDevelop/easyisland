@@ -121,6 +121,9 @@ mod transcribe;
 mod tray;
 mod updates;
 mod usage;
+/// Tests that change process-wide environment variables (USERPROFILE…) run one at a time.
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 mod engine_usage;
 mod widgets;
 mod workdir;

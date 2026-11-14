@@ -75,7 +75,21 @@ pub fn slug(title: &str) -> String {
         }
     }
     let out: String = out.trim_end_matches('-').chars().take(80).collect();
-    if out.is_empty() { "pagina".into() } else { out }
+    if out.is_empty() {
+        "pagina".into()
+    } else if reserved(&out) {
+        format!("{out}-pagina")
+    } else {
+        out
+    }
+}
+
+/// A name Windows keeps for a device (14 Nov 2026: pages «COM1»…«COM6» on the
+/// laptop were com1.md…, which Explorer and editors cannot open or copy).
+fn reserved(stem: &str) -> bool {
+    let s = stem.to_ascii_lowercase();
+    matches!(s.as_str(), "con" | "prn" | "aux" | "nul")
+        || ((s.starts_with("com") || s.starts_with("lpt")) && s.len() == 4 && s.as_bytes().get(3).is_some_and(|c| (b'1'..=b'9').contains(c)))
 }
 
 /// A page's version: FNV-1a of its text, stable between runs.
@@ -273,8 +287,16 @@ fn read_pages(dir: &Path) -> Vec<Page> {
             r.flatten()
                 .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
                 .filter_map(|e| {
-                    let path = e.path();
-                    let slug = path.file_stem()?.to_string_lossy().into_owned();
+                    let mut path = e.path();
+                    let mut slug = path.file_stem()?.to_string_lossy().into_owned();
+                    // An old page under a device's name gets a name that every program opens.
+                    if reserved(&slug) {
+                        let to = dir.join(format!("{slug}-pagina.md"));
+                        if !to.exists() && std::fs::rename(&path, &to).is_ok() {
+                            path = to;
+                            slug = format!("{slug}-pagina");
+                        }
+                    }
                     let text = std::fs::read_to_string(&path).ok()?;
                     Some(parse(&slug, &text))
                 })
@@ -1341,6 +1363,48 @@ fn stamp_dir(dir: &Path, depth: u32) -> Stamp {
     out
 }
 
+/// Text as « word word », lowercase: a name is found as whole words.
+fn as_words(text: &str) -> String {
+    format!(" {} ", fold(text).split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "))
+}
+
+/// (page, page it names) by title or alias as whole words in its summary or
+/// text. A name found in more than a third of the pages («Clienti») says
+/// nothing and is skipped; at most 5 per page, the longest names first.
+pub(crate) fn pages_named_in(all: &[Page]) -> Vec<(String, String)> {
+    let texts: Vec<String> = all.iter().map(|p| as_words(&format!("{} {}", p.summary, p.body))).collect();
+    let mut names: Vec<(usize, String)> = Vec::new();
+    for (i, p) in all.iter().enumerate() {
+        for n in std::iter::once(&p.title).chain(p.aliases.iter()) {
+            let w = as_words(n);
+            if w.trim().chars().count() >= 4 && !names.iter().any(|(j, m)| *j == i && *m == w) {
+                names.push((i, w));
+            }
+        }
+    }
+    let common = (all.len() / 3).max(3);
+    names.retain(|(i, w)| texts.iter().enumerate().filter(|(j, t)| j != i && t.contains(w.as_str())).count() <= common);
+    names.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+    let mut out = Vec::new();
+    for (i, text) in texts.iter().enumerate() {
+        let mut found: Vec<usize> = Vec::new();
+        for (j, w) in &names {
+            if *j != i && !found.contains(j) && text.contains(w.as_str()) {
+                found.push(*j);
+            }
+            if found.len() >= 5 {
+                break;
+            }
+        }
+        for j in found {
+            if let (Some(a), Some(b)) = (all.get(i), all.get(j)) {
+                out.push((a.slug.clone(), b.slug.clone()));
+            }
+        }
+    }
+    out
+}
+
 fn stamp_file(path: &Path) -> Stamp {
     std::fs::metadata(path).map(|m| vec![(path.to_path_buf(), m.modified().unwrap_or(std::time::UNIX_EPOCH), m.len())]).unwrap_or_default()
 }
@@ -1379,6 +1443,11 @@ fn make_graph(dir: &Path) -> Graph {
             }
             add_edge(&mut edges, &mut seen, &mut degree, id.clone(), sid, t("fonte").into());
         }
+    }
+    // Pages that name another one in their text (14 Nov 2026: pages created by
+    // the evening pass with no relation written floated alone on the map).
+    for (from, to) in pages_named_in(&all) {
+        add_edge_at(&mut edges, &mut seen, &mut degree, format!("p:{from}"), format!("p:{to}"), String::new(), 2);
     }
     // The sources read, with when they were moved.
     if let Ok(r) = std::fs::read_dir(dir.join("fonti")) {
@@ -2249,5 +2318,34 @@ Commercialisti.
         assert!(archive_dir().join("pagine").join("bianchi.md").exists());
         assert!(tool_read("Bianchi").is_err());
         let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn no_page_under_a_device_name() {
+        assert_eq!(super::slug("COM1"), "com1-pagina");
+        assert_eq!(super::slug("Lpt9"), "lpt9-pagina");
+        assert_eq!(super::slug("nul"), "nul-pagina");
+        assert_eq!(super::slug("COM10"), "com10");
+        assert_eq!(super::slug("Compiti"), "compiti");
+    }
+
+    #[test]
+    fn pages_that_name_each_other() {
+        let page = |slug: &str, text: &str| super::parse(slug, text);
+        let all = vec![
+            page("easytech", "# Easytech\n\nAzienda di Edoardo con molti clienti."),
+            page("allnet-italia", "# Allnet-Italia\nalias: Allnet\n\nPortale usato da Easytech per i prezzi ai clienti."),
+            page("wisp-store", "# Wisp.store\n\nPortale: dopo l'accesso con l'account Easytech i prezzi per i clienti sono IVA esclusa."),
+            page("clienti", "# Clienti\n\nRubrica dei clienti."),
+            page("rossi", "# Rossi\n\nUno dei clienti, compra su Allnet."),
+            page("h2o", "# H2O Tecno Impianti\nalias: H2O\n\nOutlook rifatto."),
+        ];
+        let got = super::pages_named_in(&all);
+        assert!(got.contains(&("allnet-italia".into(), "easytech".into())));
+        assert!(got.contains(&("wisp-store".into(), "easytech".into())));
+        assert!(got.contains(&("rossi".into(), "allnet-italia".into())));
+        // «clienti» is in four texts of six: too common to mean the page.
+        assert!(!got.iter().any(|(_, to)| to == "clienti"));
+        assert!(!got.iter().any(|(a, b)| a == b));
     }
 }
