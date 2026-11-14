@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 14/11 — Memoria più pulita e ricerca per significato (ramo `claude/consumo`)
+Edoardo: «fai tutti e 5». Dopo la risposta: REGOLA → note, [[Pagina]] → pagina, SUPERATA n → archivio, niente dettagli del momento né lavoro su EasyIsland; il riordino sposta in archivio le note copiate nella loro pagina; note su eventi con data passata in archivio; ricerca per significato facoltativa (`memory_meaning.rs`, provata con OpenRouter). Da provare nell'app sul portatile (memoria piena). Poi: Mappa concettuale, le pagine senza relazioni (create dal riordino del 14/11 alle 7) si agganciano alle pagine che nominano, tratteggiate; nomi di file riservati (`com1.md`…) rinominati; test con `USERPROFILE` serializzati (`ENV_LOCK`). `docs/chat.md` → Memoria.
+
 ### 13/11 — Antigravity come Claude: modello, impegno, modalità; niente attesa (ramo `claude/domande`)
 Edoardo: in Turbo l'isola chiedeva Consenti/Nega su ogni comando e Antigravity aspettava fino a 2 minuti: ora l'isola trattiene solo `ask_permission` (fuori dalla chat), e senza progetto la sessione si chiama «Antigravity». Nella chat Antigravity ha modello, impegno, Manuale/Accetta modifiche/Piano/Automatica e la card del piano con «Procedi». `docs/agenti.md`, `docs/chat.md`. Da provare con agy vero nell'app (Piano, Automatica).
 

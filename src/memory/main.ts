@@ -28,21 +28,27 @@ import { Graph3DView } from "./graph3d";
 import { MindMapView } from "./mindmap";
 import { ConceptView } from "./concept";
 import { TimelineView } from "./timeline";
+import { MatrixView } from "./matrix";
+import { TreemapView } from "./treemap";
+import { HealthView } from "./health";
 
-type Tab = "timeline" | "graph" | "graph3d" | "galaxy" | "neural" | "bubbles" | "sunburst" | "mind" | "concept" | "stream" | "sankey";
+type Tab = "timeline" | "graph" | "graph3d" | "galaxy" | "neural" | "bubbles" | "sunburst" | "mind" | "concept" | "stream" | "sankey" | "matrix" | "treemap" | "health";
 
-const TABS: { id: Tab; name: string; hint: string }[] = [
-  { id: "graph", name: t("Grafo"), hint: t("Ogni pagina, nota, fonte e giorno di chat, uniti dai collegamenti (tratteggiati quelli solo stimati). Clic per vedere, rotellina per lo zoom, doppio clic su un nodo per mettere a fuoco lui e i vicini, sullo sfondo per vedere tutto.") },
-  { id: "graph3d", name: t("Grafo 3D"), hint: t("Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.") },
-  { id: "galaxy", name: t("Galassia"), hint: t("Ogni gruppo è una galassia del suo colore: le pagine nel nucleo, le note lungo i bracci. Le note nuove brillano; cercando si accende la scia fra le stelle trovate.") },
-  { id: "neural", name: t("Rete neurale"), hint: t("La memoria come neuroni: quando la chat, Agent Chat o un altro PC la leggono o la scrivono, gli impulsi corrono verso ciò che toccano. Clic su un neurone per mandarne uno.") },
-  { id: "bubbles", name: t("Bolle"), hint: t("Una bolla per gruppo, grande quanto ciò che contiene, con dentro le sue pagine e note.") },
-  { id: "sunburst", name: t("Raggiera"), hint: t("Al centro la memoria, intorno le pagine larghe quanto le loro note, fuori le note di ogni pagina.") },
-  { id: "mind", name: t("Mappa mentale"), hint: t("Un argomento al centro e ciò che ne nasce. Clic su un ramo per portarlo al centro.") },
-  { id: "concept", name: t("Mappa concettuale"), hint: t("Le pagine a livelli, con le frecce che dicono come sono legate («- relazione: [[Pagina]]»).") },
-  { id: "stream", name: t("Fiume"), hint: t("Gli argomenti nel tempo: ogni gruppo è una striscia larga quanto se ne è scritto in quella settimana. Rotellina per lo zoom sul tempo.") },
-  { id: "sankey", name: t("Da dove arriva"), hint: t("Da dove arriva la memoria (chat, Agent Chat, altro PC, ticket, mail, chiamate, file letti) e in quali pagine finisce.") },
-  { id: "timeline", name: t("Timeline"), hint: t("La memoria nel tempo. Rotellina per lo zoom sul tempo, trascina per spostarti.") },
+const TABS: { id: Tab; name: string; group: string; hint: string }[] = [
+  { id: "graph", name: t("Grafo"), group: "Grafi", hint: t("Ogni pagina, nota, fonte e giorno di chat, uniti dai collegamenti (tratteggiati quelli solo stimati). Clic per vedere, rotellina per lo zoom, doppio clic su un nodo per mettere a fuoco lui e i vicini, sullo sfondo per vedere tutto.") },
+  { id: "graph3d", name: t("Grafo 3D"), group: "Grafi", hint: t("Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.") },
+  { id: "galaxy", name: t("Galassia"), group: "Grafi", hint: t("Ogni gruppo è una galassia del suo colore: le pagine nel nucleo, le note lungo i bracci. Le note nuove brillano; cercando si accende la scia fra le stelle trovate.") },
+  { id: "neural", name: t("Rete neurale"), group: "Grafi", hint: t("La memoria come neuroni: quando la chat, Agent Chat o un altro PC la leggono o la scrivono, gli impulsi corrono verso ciò che toccano. Clic su un neurone per mandarne uno.") },
+  { id: "mind", name: t("Mappa mentale"), group: "Mappe", hint: t("Un argomento al centro e ciò che ne nasce. Clic su un ramo per portarlo al centro.") },
+  { id: "concept", name: t("Mappa concettuale"), group: "Mappe", hint: t("Le pagine a livelli, con le frecce che dicono come sono legate («- relazione: [[Pagina]]»).") },
+  { id: "bubbles", name: t("Bolle"), group: "Struttura", hint: t("Una bolla per gruppo, grande quanto ciò che contiene, con dentro le sue pagine e note.") },
+  { id: "sunburst", name: t("Raggiera"), group: "Struttura", hint: t("Al centro la memoria, intorno le pagine larghe quanto le loro note, fuori le note di ogni pagina.") },
+  { id: "treemap", name: t("Mappa ad albero"), group: "Struttura", hint: t("I gruppi e le pagine principali in riquadri proporzionali al loro peso nella memoria.") },
+  { id: "matrix", name: t("Matrice"), group: "Struttura", hint: t("Griglia delle connessioni tra le pagine principali: passa il mouse su una cella per leggere la relazione.") },
+  { id: "timeline", name: t("Timeline"), group: "Tempo", hint: t("La memoria nel tempo. Rotellina per lo zoom sul tempo, trascina per spostarti.") },
+  { id: "stream", name: t("Fiume"), group: "Tempo", hint: t("Gli argomenti nel tempo: ogni gruppo è una striscia larga quanto se ne è scritto in quella settimana. Rotellina per lo zoom sul tempo.") },
+  { id: "sankey", name: t("Da dove arriva"), group: "Tempo", hint: t("Da dove arriva la memoria (chat, Agent Chat, altro PC, ticket, mail, chiamate, file letti) e in quali pagine finisce.") },
+  { id: "health", name: t("Salute"), group: "Tempo", hint: t("Copertura delle pagine, note isolate da collegare e argomenti principali a colpo d'occhio.") },
 ];
 
 const views: Record<Tab, View> = {
@@ -57,6 +63,9 @@ const views: Record<Tab, View> = {
   concept: new ConceptView(),
   stream: new StreamView(),
   sankey: new SankeyView(),
+  matrix: new MatrixView(),
+  treemap: new TreemapView(),
+  health: new HealthView(),
 };
 const TAB_IDS = new Set<string>(TABS.map((x) => x.id));
 
@@ -111,10 +120,18 @@ const LINE = {
 };
 const icon = (path: string, size = 16) => svg(path, size, { stroke: 1.6 });
 
-// The views in one menu (Edoardo, 4 Nov 2026: eleven tabs took a whole line).
-const viewPick = h("select", { class: "mem-select mem-view-pick", title: t("Come disegnare la memoria") }) as HTMLSelectElement;
-for (const tb of TABS) viewPick.append(h("option", { value: tb.id, text: tb.name }));
-viewPick.addEventListener("change", () => show(viewPick.value as Tab));
+// Grouped view pills for faster switching across all 14 views.
+const viewPills = h("div", { class: "mem-view-pills", role: "tablist", "aria-label": t("Come disegnare la memoria") });
+const viewButtons = new Map<Tab, HTMLButtonElement>();
+let lastGroup = "";
+for (const tb of TABS) {
+  if (lastGroup && tb.group !== lastGroup) viewPills.append(h("span", { class: "mem-view-sep", "aria-hidden": "true" }));
+  lastGroup = tb.group;
+  const b = h("button", { role: "tab", text: tb.name, title: tb.hint, "aria-selected": "false" }) as HTMLButtonElement;
+  b.addEventListener("click", () => show(tb.id));
+  viewButtons.set(tb.id, b);
+  viewPills.append(b);
+}
 // Which memory, shown only when another PC's is copied here: a segmented control.
 const sourcesBox = h("div", { class: "mem-sources", role: "group", "aria-label": t("Quale memoria"), style: "display:none" });
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…"), "aria-label": t("Cerca nella memoria…") }) as HTMLInputElement;
@@ -169,7 +186,7 @@ sureBox.checked = filters.sure;
 const sureLabel = h("label", { class: "mem-check", title: t("Nascondi i collegamenti solo stimati dalle parole in comune: restano quelli scritti nelle pagine, le note che nominano la pagina e quelli controllati dall'IA") }, sureBox, h("span", { text: t("Solo collegamenti sicuri") }));
 // How to use the view: shown over the stage until the first use, then behind ⓘ.
 const infoBtn = h("button", { class: "mem-icon", title: t("Come si usa questa vista"), "aria-label": t("Come si usa questa vista"), "aria-pressed": "false" }, icon(LINE.info)) as HTMLButtonElement;
-const viewBar = h("div", { class: "mem-viewbar" }, h("span", { class: "mem-view-label", text: t("Vista") }), viewPick, colourPick, periodPick, sureLabel, infoBtn);
+const viewBar = h("div", { class: "mem-viewbar" }, viewPills, colourPick, periodPick, sureLabel, infoBtn);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
@@ -189,10 +206,18 @@ function showHint(on: boolean) {
   keepClear();
 }
 /** The legend and the hint over the stage: the views keep their labels out from under them. */
+const zoomOutBtn = h("button", { text: "−", title: t("Riduci") }) as HTMLButtonElement;
+const zoomInBtn = h("button", { text: "+", title: t("Ingrandisci") }) as HTMLButtonElement;
+const zoomFitBtn = h("button", { text: t("Adatta"), title: t("Mostra tutto") }) as HTMLButtonElement;
+const zoomDock = h("div", { class: "mem-zoom-dock" }, zoomOutBtn, zoomInBtn, zoomFitBtn);
+zoomOutBtn.addEventListener("click", () => stage.zoomBy(0.8));
+zoomInBtn.addEventListener("click", () => stage.zoomBy(1.25));
+zoomFitBtn.addEventListener("click", () => stage.resetView());
+
 function keepClear() {
   requestAnimationFrame(() => {
     const at = stageBox.getBoundingClientRect();
-    const rects = [legend, hint]
+    const rects = [legend, hint, zoomDock]
       .filter((el) => !el.hidden && el.style.display !== "none" && el.isConnected)
       .map((el) => el.getBoundingClientRect())
       .filter((r) => r.width > 0)
@@ -261,7 +286,7 @@ const stage = new Stage(stageBox, {
     tip.style.top = `${Math.min((y ?? 0) + 14, box.height - 60)}px`;
   },
 });
-stageBox.append(legend, hint, empty, tip);
+stageBox.append(legend, zoomDock, hint, empty, tip);
 
 function remembered(): Tab {
   // ?tab=… (screenshots, smoke) wins.
@@ -331,10 +356,14 @@ function show(next: Tab) {
   } catch {
     /* no storage */
   }
-  viewPick.value = next;
+  for (const [id, b] of viewButtons) {
+    const on = id === next;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", String(on));
+  }
   hint.textContent = TABS.find((x) => x.id === next)!.hint;
   infoBtn.title = hint.textContent;
-  legend.style.display = next === "timeline" || next === "stream" || next === "sankey" ? "none" : "flex";
+  legend.style.display = next === "timeline" || next === "stream" || next === "sankey" || next === "health" ? "none" : "flex";
   keepClear();
   const view = views[next];
   view.setSelected(selected);

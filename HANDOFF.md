@@ -57,6 +57,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 14/11 — Mappa della memoria: viste Mappa ad albero, Matrice, Salute (ramo `restyling-mappa-memoria`, di Antigravity)
+Unito in `claude/sviluppo` con `claude/comandi-ricette`; `claude/modello-integrato` resta fuori (scartato). Animazioni a riposo e barra delle viste a gruppi (`src/memory/treemap.ts`, `matrix.ts`, `health.ts`); conflitto in `concept.ts`: i collegamenti solo per nome restano tratteggiati fermi, quello selezionato scorre a riposo.
+
 ### 14/11 — Comandi senza motore, ricette con date, cache dell'API; relay di nuovo aggiornato (ramo `claude/comandi-ricette`, da `claude/sviluppo`)
 Antigravity in Turbo era di nuovo trattenuto: il relay installato era quello del 13/11 mattina (cargo lo credeva aggiornato); `npm run pack` ora lo ripulisce prima (`docs/sviluppo.md`), reinstallato qui e sul portatile. Poi i punti 1, 2, 4 scelti da Edoardo: comandi con «Esegui» (`commands.rs`), date e numeri della domanda nelle ricette (`periods.rs`), cache automatica del motore API. `docs/chat.md` → Smistatore.
 
@@ -65,9 +68,6 @@ Lavoro di Antigravity non salvato nel suo worktree: salvato sul ramo e unito. Tr
 
 ### 14/11 — Smistatore: registro dei turni, risposte dirette, dati letti prima (ramo `claude/smistatore`, da `claude/consumo`)
 Edoardo: niente LLM integrato che si allena da solo; tappe 1, 2 e 4 dello smistatore che impara con le Ricette (`router.rs`). Registro cifrato dei turni; domande che una ricetta risolve sempre con la stessa lettura risposte senza motore, «⚡ Chiedi al motore» le rimanda; altrimenti le letture fisse della ricetta fatte prima del motore. Test e anteprima (`?scene=chat&pensa=diretta`); da provare nell'app dopo qualche giorno di ricette. `docs/chat.md` → Smistatore.
-
-### 14/11 — Memoria più pulita e ricerca per significato (ramo `claude/consumo`)
-Edoardo: «fai tutti e 5». Dopo la risposta: REGOLA → note, [[Pagina]] → pagina, SUPERATA n → archivio, niente dettagli del momento né lavoro su EasyIsland; il riordino sposta in archivio le note copiate nella loro pagina; note su eventi con data passata in archivio; ricerca per significato facoltativa (`memory_meaning.rs`, provata con OpenRouter). Da provare nell'app sul portatile (memoria piena). Poi: Mappa concettuale, le pagine senza relazioni (create dal riordino del 14/11 alle 7) si agganciano alle pagine che nominano, tratteggiate; nomi di file riservati (`com1.md`…) rinominati; test con `USERPROFILE` serializzati (`ENV_LOCK`). `docs/chat.md` → Memoria.
 
 ### 13/11 — Consumo di tutti i motori (ramo `claude/consumo`, da `claude/domande`)
 Edoardo: «Consumo Claude» per tutti i motori, separati; clic sulle percentuali in alto = motore successivo. Fatto: integrazione «Consumo» con una sezione per motore (opencode dalle sue statistiche, OpenRouter credito e limite, Antigravity e gli altri dalle risposte in EasyIsland), intestazione a giro. Provato dal vivo opencode e OpenRouter (test ignorato `engine_sections_live`) e nell'anteprima; da provare nell'app. `docs/integrazioni.md` → Consumo. Poi, dai dati del portatile (126 passi, ~5 M token il 13/11, ~10.000 caratteri davanti a ogni conversazione): davanti solo le note-regola e le abilità che c'entrano, ricette confrontate nei due sensi, «trovato per la domanda» con più parole in comune. `docs/chat.md` → Memoria, Abilità.

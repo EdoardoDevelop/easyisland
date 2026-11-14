@@ -133,6 +133,15 @@ One subject in the middle and what grows from it, up to three rings: each branch
 
 Pages in layers, top to bottom, with arrows that name the relation ("uses", "contact", "contract"…). Pages mentioned but not yet written are dashed.
 
+### Treemap
+Groups and top pages in tiles as big as their weight in the memory.
+
+### Matrix
+A grid with the top pages on rows and columns: hover a cell to read how they are linked.
+
+### Health
+At a glance how many pages are written, how many notes are unlinked and need linking, and the main subjects.
+
 ### River
 Subjects over time: each group is a coloured stream as wide as how much was written about it each week (last six months). You see when a customer or a project became hot. Wheel to zoom on time.
 

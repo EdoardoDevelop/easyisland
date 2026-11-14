@@ -3,7 +3,7 @@
 
 import { KIND_COLOR, alpha, fit, type Model } from "./data";
 import { t } from "../core/i18n";
-import { Camera, starfield, type View } from "./stage";
+import { animateIdle, Camera, starfield, type View } from "./stage";
 import { roundRect } from "./mindmap";
 import { Placer, label } from "./labels";
 import { font, pal } from "./theme";
@@ -197,8 +197,9 @@ export class ConceptView implements View {
       this.framed = true;
     }
     let moving = this.cam.step();
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
+    const idle = animateIdle();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
@@ -225,12 +226,18 @@ export class ConceptView implements View {
       const color = sel && lit ? p.ink : `rgba(${p.link},0.6)`;
       ctx.strokeStyle = color;
       ctx.lineWidth = (lit && sel ? 1.8 : 1.2) / Math.sqrt(k);
+      // A link by name only keeps its fixed dash; the selected one moves while idle.
       if (a.named) ctx.setLineDash([5 / Math.sqrt(k), 4 / Math.sqrt(k)]);
+      else if (idle && lit && sel) {
+        ctx.setLineDash([6 / k, 4 / k]);
+        ctx.lineDashOffset = -(time * 0.02) / k;
+      }
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.bezierCurveTo(sx, c1y, c2x, c2y, ex, ey);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
       // The head.
       const ang = Math.atan2(ey - c2y, ex - c2x);
       ctx.fillStyle = color;

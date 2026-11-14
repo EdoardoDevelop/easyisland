@@ -5,7 +5,7 @@
 // Frames only while something moves: the twinkle lasts a few seconds.
 
 import { KIND_COLOR, alpha, freshness, type MemNode, type Model } from "./data";
-import { Camera, starfield, type View } from "./stage";
+import { animateIdle, Camera, starfield, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { inkOf, pal } from "./theme";
 
@@ -121,9 +121,10 @@ export class GalaxyView implements View {
     }
     let moving = this.cam.step();
     const now = performance.now();
-    const twinkling = now - this.since < TWINKLE_MS;
+    const idle = animateIdle();
+    const twinkling = idle || now - this.since < TWINKLE_MS;
     // The sky: the window's surface (light adds up only on a dark one).
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
     const add: GlobalCompositeOperation = p.light ? "source-over" : "lighter";
     const core = (a: number) => (p.light ? `rgba(40,40,40,${a * 0.5})` : `rgba(255,255,255,${a})`);

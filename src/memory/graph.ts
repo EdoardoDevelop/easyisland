@@ -7,7 +7,7 @@
 // on one (double click) dim the rest; notes tied to nothing wear a red ring.
 
 import { KIND_COLOR, alpha, around, freshness, type MemNode, type Model } from "./data";
-import { Camera, coreBox, starfield, type Colouring, type View } from "./stage";
+import { animateIdle, Camera, coreBox, starfield, type Colouring, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { inkOf, pal } from "./theme";
 
@@ -183,8 +183,9 @@ export class GraphView implements View {
     }
     if (this.heat > 0.02) moving = this.simulate();
     moving = this.cam.step() || moving;
-    starfield(ctx, w, h, this.cam);
+    starfield(ctx, w, h, this.cam, time);
     const p = pal();
+    const idle = animateIdle();
     ctx.save();
     this.cam.apply(ctx);
     const k = this.cam.k;
@@ -352,7 +353,7 @@ export class GraphView implements View {
       if (put && score < 1e6) budget--;
     }
     if (!named) nameGroups();
-    return moving;
+    return moving || idle;
   }
 
   hit(x: number, y: number): string | null {

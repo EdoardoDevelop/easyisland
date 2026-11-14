@@ -133,6 +133,15 @@ Un argomento al centro e ciò che ne nasce, fino a tre anelli: ogni ramo ha il s
 
 Le pagine a livelli, dall'alto in basso, con frecce che dicono la relazione («usa», «referente», «contratto»…). Le pagine citate ma non ancora scritte sono tratteggiate.
 
+### Mappa ad albero
+I gruppi e le pagine principali in riquadri grandi quanto il loro peso nella memoria.
+
+### Matrice
+Una griglia con le pagine principali su righe e colonne: passa il mouse su una cella per leggere come sono legate.
+
+### Salute
+A colpo d'occhio quante pagine sono scritte, quante note sono isolate e da collegare, e gli argomenti principali.
+
 ### Fiume
 Gli argomenti nel tempo: ogni gruppo è una striscia colorata larga quanto se ne è scritto ogni settimana (ultimi sei mesi). Si vede quando un cliente o un progetto è diventato caldo. Rotellina per lo zoom sul tempo.
 
