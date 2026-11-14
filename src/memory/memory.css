@@ -988,6 +988,7 @@ svg {
 .mem-link {
   text-align: left;
   display: flex;
+  flex-shrink: 0;
   gap: 10px;
   align-items: center;
   width: 100%;
@@ -1106,14 +1107,22 @@ svg {
 }
 
 .mem-bucket .mem-links {
-  max-height: 280px;
+  max-height: 360px;
   overflow-y: auto;
+  gap: 4px;
   margin: 0 -4px;
 }
 
 .mem-bucket .mem-link {
+  flex-shrink: 0;
+  height: auto;
   align-items: flex-start;
-  padding: 6px 6px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.mem-bucket .mem-link:last-child {
+  border-bottom: 0;
 }
 
 .mem-bucket .mem-link i {
