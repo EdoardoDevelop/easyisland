@@ -206,3 +206,4 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 
 ## Smistatore: scelta del motore (14/11)
 Tappe 1, 2 e 4 fatte (`docs/chat.md` → Smistatore). Tappa 3: dal registro dei turni, un modello economico per le domande simili a quelle risolte bene con pochi passi e Claude per le altre; una riga in chat «risposto da …, perché simile a …», sempre cambiabile, e ogni cambio diventa un esempio. Prima servono settimane di registro.
+- Ricette per somiglianza (14/11): con il modello di `meaning_local.rs` le ricette si confrontano anche per significato, non solo per radici («spegni la musica» ≈ «metti in pausa»); soglia alta e «Esegui»/«Chiedi al motore» come oggi. Prima misurare sul registro dei turni quante domande ripetute le radici non riconoscono.

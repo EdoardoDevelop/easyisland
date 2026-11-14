@@ -303,6 +303,8 @@ async fn online(srv: &Server, agent: &str) -> bool {
 pub async fn search(app: &AppHandle, query: &str, month: &str) -> Result<String, String> {
     let (q, m) = (query.to_string(), month.to_string());
     let own = tauri::async_runtime::spawn_blocking(move || crate::memory::search(&q, &m)).await.map_err(|e| e.to_string())??;
+    // «Ricerca per significato» (memory_meaning.rs): what the words missed.
+    let own = if month.trim().is_empty() { crate::memory_meaning::with_meaning(app, query, own).await } else { own };
     let Some(from) = source(app) else { return Ok(own) };
     let nothing = own == t("Niente in memoria su questo.");
     let (dir, q) = (copy_dir(&from), query.to_string());

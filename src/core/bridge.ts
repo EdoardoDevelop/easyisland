@@ -10,6 +10,16 @@ import type { RecapHistory } from "../island/recap";
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** meaning_local.rs Status: the model for «Ricerca per significato» on this PC. */
+export interface MeaningLocalStatus {
+  ready: boolean;
+  busy: boolean;
+  percent: number;
+  error: string;
+  download_mb: number;
+  disk_mb: number;
+}
+
 export interface WorkEntry {
   name: string;
   rel: string;
@@ -759,6 +769,10 @@ export const Bridge = {
   /** Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs). */
   routerStats: () => call<{ turns: number; direct: number; refused: number; prepared: number; again: number; saved: number }>("router_stats"),
   routerForget: () => call<void>("router_forget"),
+  /** «Ricerca per significato» on this PC (meaning_local.rs): the model's state, download, removal. */
+  meaningLocalStatus: () => call<MeaningLocalStatus>("meaning_local_status"),
+  meaningLocalDownload: () => callOrThrow<void>("meaning_local_download"),
+  meaningLocalRemove: () => callOrThrow<void>("meaning_local_remove"),
   /** «Esegui» under a command the chat offered (commands.rs). */
   chatCommandRun: (tool: string, args: unknown) => callOrThrow<string>("chat_command_run", { tool, args }),
   /** Suppliers' portals the user taught (portals.rs): list, delete, export and import as JSON. */

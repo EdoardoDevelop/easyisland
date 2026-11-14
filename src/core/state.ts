@@ -717,7 +717,7 @@ export interface Settings {
   tasksEngine: string;
   /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
   memoryEngine: string;
-  /** «Ricerca per significato» (memory_meaning.rs): openai, gemini, ollama, lmstudio; "" = off. */
+  /** «Ricerca per significato» (memory_meaning.rs): locale (meaning_local.rs), openai, gemini, openrouter, ollama, lmstudio; "" = off. */
   memoryMeaning?: string;
   /** Its model; "" = the service's usual one. */
   memoryMeaningModel?: string;

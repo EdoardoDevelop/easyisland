@@ -739,7 +739,7 @@ pub struct Settings {
     /// «Motore per la memoria» (memory_ai.rs): the engine that ties the memory together; "" = none.
     #[serde(default)]
     pub memory_engine: String,
-    /// «Ricerca per significato» (memory_meaning.rs): openai, gemini, openrouter, ollama, lmstudio; "" = off.
+    /// «Ricerca per significato» (memory_meaning.rs): locale (meaning_local.rs), openai, gemini, openrouter, ollama, lmstudio; "" = off.
     #[serde(default)]
     pub memory_meaning: String,
     /// Its model; "" = the service's usual one.

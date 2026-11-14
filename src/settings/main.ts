@@ -10,7 +10,7 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 
 /** The animated logo's character id (logo-anim.ts). */
 const LOGO_ID = LOGO_CHARACTER.id;
-import { type DoneItem, type MemoryInfo, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
+import { type DoneItem, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
@@ -1977,17 +1977,56 @@ function memoryRow(): HTMLElement {
     settings.memoryEngine = engine.value;
     void save();
   });
-  // «Ricerca per significato» (memory_meaning.rs): off, or a service with /embeddings.
+  // «Ricerca per significato» (memory_meaning.rs): off, EasyIsland's own model
+  // on this PC (meaning_local.rs, downloaded here), or a service with /embeddings.
   const meaning = h("select", {}) as HTMLSelectElement;
-  for (const [id, name] of [["", t("No (solo le parole in comune)")], ["openai", "OpenAI"], ["gemini", "Gemini"], ["openrouter", "OpenRouter"], ["ollama", "Ollama"], ["lmstudio", "LM Studio"]]) {
+  for (const [id, name] of [["", t("No (solo le parole in comune)")], ["locale", t("EasyIsland, su questo PC")], ["openai", "OpenAI"], ["gemini", "Gemini"], ["openrouter", "OpenRouter"], ["ollama", "Ollama"], ["lmstudio", "LM Studio"]]) {
     meaning.append(h("option", { value: id, text: name }));
   }
   meaning.value = settings.memoryMeaning ?? "";
   const meaningModel = h("input", { type: "text", spellcheck: "false", style: "width:200px" }) as HTMLInputElement;
   const MEANING_MODELS: Record<string, string> = { openai: "text-embedding-3-small", gemini: "gemini-embedding-001", openrouter: "openai/text-embedding-3-small", ollama: "nomic-embed-text", lmstudio: "text-embedding-nomic-embed-text-v1.5" };
+  // The model on this PC: its state, «Scarica» and «Togli».
+  const localLine = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const localGet = h("button", {}) as HTMLButtonElement;
+  const localDrop = h("button", { text: t("Togli") }) as HTMLButtonElement;
+  const localRow = h("div", { class: "row" }, h("label", { text: "" }), localLine, localGet, localDrop);
+  let polling = 0;
+  const drawLocal = (st: MeaningLocalStatus | null) => {
+    const on = meaning.value === "locale";
+    localRow.style.display = on ? "" : "none";
+    if (!on) return;
+    const mb = st?.download_mb ?? 530;
+    localGet.textContent = st?.ready ? t("Scarica di nuovo") : t("Scarica ({mb} MB)", { mb });
+    localGet.disabled = !st || st.busy;
+    localDrop.style.display = st?.ready ? "" : "none";
+    localDrop.disabled = !st || st.busy;
+    localLine.textContent = !st
+      ? t("Disponibile nell'app installata.")
+      : st.busy
+        ? t("Scaricamento del modello: {p}%", { p: st.percent })
+        : st.ready
+          ? t("Modello pronto su questo PC ({mb} MB). Nessuna chiave, niente rete: le righe della memoria non escono dal PC", { mb: st.disk_mb })
+          : st.error
+            ? t("Non riuscito: {e}", { e: st.error })
+            : t("Serve il modello (MIT, 101 lingue): si scarica una volta da Hugging Face, poi lavora senza rete");
+    window.clearTimeout(polling);
+    if (st?.busy) polling = window.setTimeout(() => void Bridge.meaningLocalStatus().then(drawLocal), 1000);
+  };
+  localGet.addEventListener("click", () => {
+    localGet.disabled = true;
+    void Bridge.meaningLocalDownload().catch(() => {}).then(() => Bridge.meaningLocalStatus()).then(drawLocal);
+    window.setTimeout(() => void Bridge.meaningLocalStatus().then(drawLocal), 300);
+  });
+  localDrop.addEventListener("click", () => {
+    void Bridge.meaningLocalRemove()
+      .catch((e: unknown) => { localLine.textContent = String(e).replace(/^Error:\s*/, ""); })
+      .then(() => Bridge.meaningLocalStatus()).then(drawLocal);
+  });
   const drawMeaning = () => {
-    meaningModel.style.display = meaning.value ? "" : "none";
+    meaningModel.style.display = meaning.value && meaning.value !== "locale" ? "" : "none";
     meaningModel.placeholder = MEANING_MODELS[meaning.value] ?? "";
+    void Bridge.meaningLocalStatus().then(drawLocal);
   };
   meaningModel.value = settings.memoryMeaningModel ?? "";
   drawMeaning();
@@ -2006,7 +2045,8 @@ function memoryRow(): HTMLElement {
       toggle(settings.chatLearn !== false, (v) => { settings.chatLearn = v; void save(); }),
       h("span", { class: "hint note", text: t("EasyIsland manda la domanda e la risposta, senza il resto della conversazione, a un modello leggero (Haiku con l'abbonamento, o il Motore per la memoria qui sotto) e annota ciò che vale per le prossime volte. La chat non spende passi per ricordare: scrive in memoria solo se glielo chiedi") })),
     h("div", { class: "row" }, h("label", { text: t("Ricerca per significato") }), meaning, meaningModel,
-      h("span", { class: "hint note", text: t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («computer» trova una nota sul «PC»): ogni riga diventa una volta un vettore con il servizio scelto (chiave o indirizzo come per la chat) e prima di ogni domanda arrivano le più vicine. Serve con una memoria grande. Con OpenAI, Gemini o OpenRouter le righe della memoria escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)") })),
+      h("span", { class: "hint note", text: t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («server» trova una nota sul «NAS»): ogni riga diventa una volta un vettore e prima di ogni domanda, e in ogni ricerca della chat, arrivano le più vicine. «EasyIsland, su questo PC» lo fa da sola con un modello scaricato qui sotto: niente chiave, niente rete, la memoria resta sul PC. Con OpenAI, Gemini o OpenRouter le righe escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)") })),
+    localRow,
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
       h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }
