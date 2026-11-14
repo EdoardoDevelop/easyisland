@@ -2,6 +2,18 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.47** — **Nuovo aspetto dell'isola**: barra di ricerca a tutta larghezza che fa anche da **calcolatrice**, barra
+laterale che apri e chiudi tu, **Panoramica** con la striscia «Adesso», una scheda per integrazione e agente e le tue azioni
+rapide, campo della chat rinnovato con comandi (/) e contesto (@). Tre **stili** nuovi in Aspetto → Stile: Monolite,
+Titanio e Vetro. **Comandi senza motore**: «apri» seguito da una tua azione rapida, «profilo Ufficio», «pausa», «ricordami
+di …» rispondono subito con **Esegui**, e niente parte prima del clic. Le **risposte dirette** valgono anche quando cambia il
+periodo («spese di novembre» dalla ricetta di ottobre) o un numero; lo **smistatore** tiene il registro dei turni e legge
+prima i dati che servono. **Mappa della memoria** rifatta: viste Mappa ad albero, Matrice e Salute, viste a gruppi, numeri
+della panoramica cliccabili, anche per le note non attive; memoria più pulita e ricerca per significato. **Consumo** di tutti
+i motori, separati. Nella chat **domande con le scelte** e piano; **Antigravity** come Claude (modello, impegno, modalità),
+e in Turbo l'isola non lo trattiene più. **VLAN ID** in «Modifica rete…». Meno testo davanti a ogni conversazione e cache
+automatica del motore API.
+
 **1.0.46** — **EasyIsland fa il lavoro al posto dell'IA**, così con l'abbonamento arrivi meno ai limiti. Con Claude Code
 una conversazione diventata pesante (oltre 60.000 token) o ferma da 45 minuti **riparte leggera**: solo domande e risposte,
 senza rileggere a ogni passo tutto il lavoro fatto. La **memoria la scrive EasyIsland dopo la risposta** con un modello
