@@ -236,7 +236,7 @@ export function buildNews(actions: ViewActions): ViewHost {
           more,
           save,
           less));
-      list.append(h("div", { class: n.found > seen ? "news-item new" : "news-item", role: "link", tabindex: "0", title: n.link, onclick: () => actions.openUrl(n.link) },
+      list.append(h("div", { class: n.found > seen ? "news-item new" : "news-item", role: "link", tabindex: "0", onclick: () => actions.openUrl(n.link) },
         ...(look === "list" ? [] : [thumb(n)]),
         text));
     }

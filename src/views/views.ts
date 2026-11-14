@@ -798,7 +798,7 @@ function summaryNews(actions: ViewActions): HTMLElement | null {
       h("span", { class: "summary-name", text: t("Notizie") }),
       unread ? h("span", { class: "summary-news-count", text: t("{n} nuove", { n: unread }) }) : null),
     ...State.news.slice(0, SUMMARY_NEWS).map((n) =>
-      h("button", { class: "summary-news-row", title: n.link, onclick: () => actions.openUrl(n.link) },
+      h("button", { class: "summary-news-row", onclick: () => actions.openUrl(n.link) },
         h("span", { class: "summary-news-title", text: n.title }),
         h("span", { class: "summary-news-src", text: n.source }))));
 }

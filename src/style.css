@@ -5519,6 +5519,11 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   place-items: center;
   color: #8e939c;
 }
+.search-calc-eq {
+  font: 700 14px var(--font);
+  color: #38bdf8;
+  line-height: 1;
+}
 .search-name {
   flex: 1 1 auto;
   min-width: 0;

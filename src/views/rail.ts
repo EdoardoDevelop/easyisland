@@ -187,8 +187,8 @@ export function buildRail(actions: ViewActions): ViewHost {
     fn();
   };
   const row = (id: string, icon: Element, label: string, onclick: () => void) =>
-    h("button", { class: "rail-item", "data-rail": id, onclick: go(onclick) },
-      h("span", { class: "rail-icon" }, icon), h("span", { class: "rail-label", text: label, title: label }), h("span", { class: "rail-meta" }));
+    h("button", { class: "rail-item", "data-rail": id, "data-label": label, onclick: go(onclick) },
+      h("span", { class: "rail-icon" }, icon), h("span", { class: "rail-label", text: label }), h("span", { class: "rail-meta" }));
 
   const sections: Record<Section, HTMLElement> = {
     oggi: row("oggi", glyph("house"), t("Panoramica"), () => {
@@ -306,8 +306,9 @@ export function buildRail(actions: ViewActions): ViewHost {
       placed.add(g.id);
       const members = g.items.map((id) => tasks.find((y) => y.id === id)).filter((y): y is AgentTask => !!y);
       const open = !!g.open;
+      const groupTip = t("{name}: clic per aprire o chiudere, trascina qui un'integrazione per aggiungerla", { name: g.name });
       const head = h("button", { class: "rail-item rail-group", "data-id": `group:${g.id}`, "data-head": g.id, "data-open": open ? "1" : "0",
-        "aria-expanded": String(open), title: t("{name}: clic per aprire o chiudere, trascina qui un'integrazione per aggiungerla", { name: g.name }),
+        "data-label": g.name, "data-group-tip": groupTip, "aria-expanded": String(open), title: groupTip,
         onclick: () => {
           if (renaming === g.id) return;
           actions.blip();
@@ -414,6 +415,16 @@ export function buildRail(actions: ViewActions): ViewHost {
 
       for (const b of el.querySelectorAll<HTMLElement>(".rail-item")) {
         b.classList.toggle("on", !!on && b.dataset.rail === on);
+        const wanted = compact ? (b.dataset.label ?? "") : (b.dataset.groupTip ?? "");
+        const shown = b.getAttribute("data-tip") ?? b.getAttribute("title") ?? "";
+        if (shown !== wanted) {
+          b.removeAttribute("data-tip");
+          if (wanted) tip(b, wanted);
+          else {
+            b.removeAttribute("title");
+            b.removeAttribute("aria-label");
+          }
+        }
       }
       edge();
       // The dot of what has news: on its row, and on its group's row while the group is closed.
