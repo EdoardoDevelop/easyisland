@@ -5298,5 +5298,20 @@
   "Fonti lette ({n})": "Read sources ({n})",
   "Giorni di chat ({n})": "Chat days ({n})",
   "Archiviate da MEMORIA.md (archivio.md): non vengono caricate automaticamente a ogni chat, ma restano nella memoria. Clicca una nota per aprirla o collegarla.": "Archived from MEMORIA.md (archivio.md): not automatically loaded into every chat, but kept in memory. Click a note to inspect or link it.",
-  "Clic per vedere l'elenco": "Click to view list"
+  "Clic per vedere l'elenco": "Click to view list",
+  "Esporta Markdown": "Export Markdown",
+  "Continua in Claude Desktop": "Continue in Claude Desktop",
+  "Cosa so fare": "What I can do",
+  "Comandi (/)": "Commands (/)",
+  "Allega contesto (@)": "Attach context (@)",
+  "Attive": "Active",
+  "Nessuna conversazione in questa vista.": "No conversations in this view.",
+  "Aperta in Claude Desktop": "Open in Claude Desktop",
+  "Espandi barra laterale": "Expand sidebar",
+  "Comprimi barra laterale": "Collapse sidebar",
+  "Vista completa": "Full view",
+  "Solo attivi": "Active only",
+  "Richiede conferma": "Needs confirmation",
+  "Attivo": "Active",
+  "Nessuna attività o notifica in corso": "No active tasks or notifications right now"
 }

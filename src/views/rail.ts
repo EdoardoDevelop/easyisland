@@ -5,14 +5,14 @@
 // header's tabs and of the overview's pills: one way to get anywhere.
 // What shows and how is chosen in Impostazioni, never in the island.
 
-import { h, svg, dot, brandIcon, markIcon } from "./dom";
+import { h, svg, dot, brandIcon, markIcon, tip } from "./dom";
 import { ICONS, LINE_SECTIONS } from "./icons";
 import { studioLook, windowsLook } from "../core/uistyle";
 import { isRailDragging, railDrag } from "./rail-drag";
 import { State, CLAUDE_TASK, isSessionTask, type AgentTask, type MenuGroup } from "../core/state";
 import * as Groups from "../core/menu-groups";
 import { Bridge } from "../core/bridge";
-import { RAIL_BOT, railHead, type IslandViewName } from "../core/layout";
+import { RAIL_BOT, RAIL_COMPACT_W, railHead, type IslandViewName } from "../core/layout";
 import { t } from "../core/i18n";
 import type { ViewActions, ViewHost } from "./views";
 import { actionIcon, actionIconSvg } from "./action-icons";
@@ -24,6 +24,31 @@ type Section = "oggi" | "agenti" | "chat" | "azioni" | "file" | "notizie";
 export function railBotSize(): number {
   if (studioLook(State.settings.theme?.style)) return 0;
   return RAIL_BOT[State.settings.menuCharacter ?? "large"] ?? RAIL_BOT.large;
+}
+
+const RAIL_COLLAPSE_KEY = "easyisland.railCollapsed";
+let manualCollapsed = (() => {
+  try { return localStorage.getItem(RAIL_COLLAPSE_KEY) === "1"; } catch { return false; }
+})();
+let chatRailExpanded = false;
+
+/** Compact icon-only rail: automatic in Chat (to give conversation + sidebar more room) or toggled by the user. */
+export function isRailCompact(): boolean {
+  if (State.view === "prompt") return !chatRailExpanded;
+  return manualCollapsed;
+}
+
+function toggleRailCompact() {
+  if (State.view === "prompt") {
+    chatRailExpanded = !chatRailExpanded;
+  } else {
+    manualCollapsed = !manualCollapsed;
+    try {
+      if (manualCollapsed) localStorage.setItem(RAIL_COLLAPSE_KEY, "1");
+      else localStorage.removeItem(RAIL_COLLAPSE_KEY);
+    } catch { /* storage unavailable */ }
+  }
+  State.notify();
 }
 
 const BADGE: Record<string, string> = { approval: "#F5A524", finished: "#22C55E", error: "#F4505E" };
@@ -189,6 +214,15 @@ export function buildRail(actions: ViewActions): ViewHost {
     file: row("file", glyph("stack"), t("File e schermo"), () => actions.openFiles()),
     notizie: row("notizie", actionIconSvg(actionIcon("i:globe")!, 15), t("Notizie"), () => actions.setView("news")),
   };
+  const secHeadLabel = h("span", { class: "rail-label-head rail-sec-label", text: t("Sezioni") });
+  const collapseBtn = h("button", {
+    class: "rail-collapse",
+    onclick: () => {
+      actions.blip();
+      toggleRailCompact();
+    },
+  }, svg(ICONS.chevronLeft, 11, { stroke: 2 })) as HTMLButtonElement;
+  const secHead = h("div", { class: "rail-sec-head" }, secHeadLabel, collapseBtn);
   const fixed = h("div", { class: "rail-fixed" }, ...Object.values(sections));
   const label = h("div", { class: "rail-label-head", text: t("Integrazioni") });
   const list = h("div", { class: "rail-list" });
@@ -214,7 +248,7 @@ export function buildRail(actions: ViewActions): ViewHost {
       actions.reorder(order);
     },
   });
-  const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, fixed, label, list);
+  const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, secHead, fixed, label, list);
   // More rows below the edge: the last one fades out, so it reads as «scroll», not as cut.
   const edge = () => list.classList.toggle("more", list.scrollHeight - list.scrollTop - list.clientHeight > 2);
   list.addEventListener("scroll", edge, { passive: true });
@@ -309,10 +343,22 @@ export function buildRail(actions: ViewActions): ViewHost {
   // The Agenti count once that row was opened: it comes back only when more start.
   let agentsSeen = 0;
 
+  let compactShown: boolean | null = null;
+
   return {
     el,
     sync() {
-      head.style.height = `${railHead(railBotSize())}px`;
+      const compact = isRailCompact();
+      el.classList.toggle("compact", compact);
+      if (compact !== compactShown) {
+        compactShown = compact;
+        collapseBtn.replaceChildren(svg(compact ? ICONS.chevronRight : ICONS.chevronLeft, 11, { stroke: 2 }));
+        tip(collapseBtn, compact ? t("Espandi barra laterale") : t("Comprimi barra laterale"));
+        collapseBtn.setAttribute("aria-label", compact ? t("Espandi barra laterale") : t("Comprimi barra laterale"));
+      }
+      const botSize = railBotSize();
+      const headDia = compact && botSize > 0 ? Math.min(botSize, Math.max(24, RAIL_COMPACT_W - 10)) : botSize;
+      head.style.height = `${railHead(headDia)}px`;
       // The look changed in Impostazioni: the sections' glyphs follow.
       if (document.documentElement.dataset.ui !== uiSeen) {
         uiSeen = document.documentElement.dataset.ui;
@@ -405,7 +451,7 @@ export function buildRail(actions: ViewActions): ViewHost {
       const first = shownRows[0] ?? null;
       const last = shownRows[shownRows.length - 1] ?? null;
       const rows = first && last ? last.offsetTop + last.offsetHeight - first.offsetTop : 0;
-      return head.offsetHeight + fixed.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + rows + 12;
+      return head.offsetHeight + secHead.offsetHeight + fixed.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + rows + 12;
     },
   };
 }

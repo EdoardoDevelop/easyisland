@@ -99,6 +99,7 @@ export const TOPBAR_H = 34;
 export const BODY_GAP = 8;
 /** The menu on the left of the open island (sections, integrations), and the gap after it. */
 export const RAIL_W = 164;
+export const RAIL_COMPACT_W = 50;
 export const RAIL_GAP = 10;
 /** The character at the head of the menu: its diameter for each size (`menuCharacter`). */
 export const RAIL_BOT: Record<string, number> = { large: 64, medium: 52, small: 40 };
@@ -293,6 +294,7 @@ export function botPosition(
   compact: { w: number; h: number } = { w: COMPACT_W, h: NOTCH_H },
   /** The open island has its menu: the character sits at its head (diameter). */
   rail = 0,
+  railWidth = RAIL_W,
 ): BotPlacement {
   const badge = compact.w !== COMPACT_W;
   switch (mode) {
@@ -306,8 +308,9 @@ export function botPosition(
         : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       if (rail > 0) {
+        const d = Math.min(rail, Math.max(24, railWidth - 10));
         // Top inset + top bar + gap, then the head of the menu (railHead).
-        return { cx: 10 + RAIL_W / 2, cy: 8 + TOPBAR_H + BODY_GAP + railHead(rail) / 2, diameter: rail, opacity: 1 };
+        return { cx: 10 + railWidth / 2, cy: 8 + TOPBAR_H + BODY_GAP + railHead(d) / 2, diameter: d, opacity: 1 };
       }
       const layout = VIEW_LAYOUTS[view];
       if (view === "uploading") {

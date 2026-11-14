@@ -8,7 +8,7 @@ import { barAct, barItemOf, barMenuOf, barWheels, musicButtons, toggleAlt } from
 import { barKind } from "../core/barkinds";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, TOPBAR_H, PANEL_H, PANEL_W,
-  RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
+  RAIL_COMPACT_W, RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandMax, islandSize, panelFor,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
@@ -29,7 +29,7 @@ import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type View
 import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
-import { buildRail, railBotSize, renameGroup } from "../views/rail";
+import { buildRail, isRailCompact, railBotSize, renameGroup } from "../views/rail";
 import * as MenuGroups from "../core/menu-groups";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
@@ -147,9 +147,10 @@ export class Island {
   private clipEl!: HTMLElement;
   private contentEl!: HTMLElement;
   private viewsEl!: HTMLElement;
-  /** The menu on the left of the open island (src/views/rail.ts), and the height it last needed. */
+  /** The menu on the left of the open island (src/views/rail.ts), and the height/width it last needed. */
   private rail!: ViewHost;
   private railNeed = 0;
+  private lastRailW = 0;
   /** Beside the compact island's character (src/views/strip.ts), its measured width and its hold. */
   private strip!: Strip;
   private stripW = 0;
@@ -816,9 +817,14 @@ export class Island {
     return this.paneShown ? this.paneSplit(islandMax(this.limits).w).pane + 10 : 0;
   }
 
+  /** Current width of the left rail (`RAIL_COMPACT_W` when collapsed or in Chat, `RAIL_W` otherwise). */
+  private get currentRailW(): number {
+    return isRailCompact() ? RAIL_COMPACT_W : RAIL_W;
+  }
+
   /** What the menu adds to the island's width. */
   private get railRoom(): number {
-    return this.railShown ? RAIL_W + RAIL_GAP : 0;
+    return this.railShown ? this.currentRailW + RAIL_GAP : 0;
   }
 
   /** Navigating out of the drop flow ends the sequence, as on macOS. */
@@ -4092,9 +4098,11 @@ ${note}` : text };
     if (State.mode === "expanded" && this.railShown && studioLook(State.settings.theme?.style)) {
       return { cx: 25, cy: 8 + 17, diameter: 18, opacity: 1 };
     }
+    const railW = this.railShown ? this.currentRailW : RAIL_W;
+    const compactSize = this.railShown && isRailCompact() ? Math.min(railBotSize(), Math.max(24, railW - 10)) : railBotSize();
     const p = botPosition(
       State.mode, State.view, height, State.uploadProgress,
-      compact, this.railShown ? railBotSize() : 0,
+      compact, this.railShown ? compactSize : 0, railW,
     );
     if (this.stripShown) {
       // In its square at one end, the strip on the other side.
@@ -4342,7 +4350,9 @@ ${note}` : text };
     // The menu: shown with the open island, the views beside it with no room
     // kept for the character any more (--bot-room in style.css).
     const railed = this.railShown;
+    const compactRail = railed && isRailCompact();
     this.islandEl.classList.toggle("railed", railed);
+    this.islandEl.classList.toggle("rail-compact", compactRail);
     this.islandEl.classList.toggle("pop", !!State.popover);
     this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
     this.islandEl.classList.toggle("open", expanded);
@@ -4350,10 +4360,17 @@ ${note}` : text };
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
       const need = Math.round(this.rail.fitHeight?.() ?? 0);
-      if (Math.abs(need - this.railNeed) > 1) {
+      const railW = this.currentRailW;
+      if (Math.abs(need - this.railNeed) > 1 || (this.lastRailW > 0 && railW !== this.lastRailW)) {
+        const shrinking = railW < this.lastRailW && Math.abs(need - this.railNeed) <= 1;
         this.railNeed = need;
-        this.animateGeometry(false);
+        this.lastRailW = railW;
+        this.animateGeometry(shrinking);
+      } else {
+        this.lastRailW = railW;
       }
+    } else {
+      this.lastRailW = 0;
     }
     this.search.el.style.display = this.searchShown ? "" : "none";
     guard("search", () => this.search.sync());

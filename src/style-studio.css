@@ -134,6 +134,10 @@ html[data-ui="monolith"] #island:not(.bare) {
     inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+html[data-ui="monolith"] #island.railed #rail.compact {
+  padding: 2px 4px 6px;
+}
+
 html[data-ui="monolith"] #island.railed #rail {
   border-right: 1px solid var(--hairline);
   border-radius: 0;

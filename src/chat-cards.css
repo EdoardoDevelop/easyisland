@@ -78,10 +78,11 @@ html[data-chat-look="cards"] .card.chat-card {
 }
 html[data-chat-look="cards"] .chat-card .chat-layout { gap: var(--cc-s2); }
 
-/* No bold anywhere in the chat (8 Nov 2026). */
-html[data-chat-look="cards"] .chat-card :is(.chat-title, .md-h, .msg-act, .engine-pick, .engine-item,
-  .side-new, .side-group, .side-project-toggle, .history-title, .second-btn, .new-chat-btn,
+/* Restrained hierarchy: regular body, light-semibold (500/600) only on key anchors. */
+html[data-chat-look="cards"] .chat-card :is(.md-h, .msg-act, .engine-pick, .engine-item,
+  .side-new, .side-group, .history-title, .second-btn, .new-chat-btn,
   .chat-ask-title, .chat-ask-what, .chat-other-ask, .chat-queued-btn, .slash-item, .bubble-file) { font-weight: 400; }
+html[data-chat-look="cards"] .chat-card :is(.chat-title, .side-project-toggle, .chat-side .history-item.on .history-title, .md-h) { font-weight: 500; }
 
 /* ── The conversations ─────────────────────────────────────────────────── */
 html[data-chat-look="cards"] .chat-card .chat-side {
@@ -153,8 +154,35 @@ html[data-chat-look="cards"] .chat-card .chat-head { padding: 0; border-bottom: 
 html[data-chat-look="cards"] .chat-card .chat-title {
   margin-left: var(--cc-s1);
   font-size: var(--cc-t-ui);
-  color: var(--cc-dim);
+  color: var(--cc-ink);
 }
+html[data-chat-look="cards"] .chat-card .chat-crumb {
+  height: 24px;
+  border-radius: var(--cc-r-ctl);
+  background: var(--cc-soft);
+  color: var(--cc-dim);
+  font-size: var(--cc-t-small);
+}
+html[data-chat-look="cards"] .chat-card .chat-crumb:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-more-menu {
+  background: var(--cc-menu);
+  border-color: var(--cc-bar-line);
+  border-radius: var(--cc-r-item);
+  box-shadow: var(--cc-shadow);
+}
+html[data-chat-look="cards"] .chat-card .chat-more-item {
+  border-radius: var(--cc-r-ctl);
+  color: var(--cc-reply);
+  font-size: var(--cc-t-ui);
+}
+html[data-chat-look="cards"] .chat-card .chat-more-item:hover { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .side-tabs {
+  background: var(--cc-soft);
+  border-radius: var(--cc-r-ctl);
+}
+html[data-chat-look="cards"] .chat-card .side-tab { color: var(--cc-dim); font-size: var(--cc-t-small); }
+html[data-chat-look="cards"] .chat-card .side-tab:hover { color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .side-tab.on { background: var(--cc-hover); color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .chat-head .history-btn {
   width: 28px;
   height: 28px;
@@ -192,8 +220,9 @@ html[data-chat-look="cards"] .chat-card .chat-row.user .msg-actions {
 html[data-chat-look="cards"] .chat-card .bubble,
 html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .bubble {
   background: var(--cc-user);
+  border: 1px solid var(--cc-line);
   padding: var(--cc-s2) var(--cc-s3);
-  border-radius: var(--cc-r-item);
+  border-radius: 12px 12px 4px 12px;
   font-size: var(--cc-t-body);
   line-height: 1.5;
   color: var(--cc-ink);
@@ -206,8 +235,8 @@ html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .reply {
   padding-top: 0;
   gap: var(--cc-s2);
 }
-/* Bold and code stand out by a step of colour only, never as white on grey. */
-html[data-chat-look="cards"] .chat-card .md strong { font-weight: 400; color: var(--cc-ink); }
+/* Bold and code stand out clearly without screaming. */
+html[data-chat-look="cards"] .chat-card .md strong { font-weight: 600; color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .md-code {
   font-size: calc(var(--cc-t-body) - 1.5px);
   /* Cascadia Mono's SemiLight where Windows has it: the regular cut reads as bold beside Segoe UI. */
@@ -267,10 +296,18 @@ html[data-chat-look="cards"] .chat-card .chat-ask-row { gap: var(--cc-s2); }
 html[data-chat-look="cards"] .chat-card .chat-other-ask { border-radius: var(--cc-r-ctl); font-size: var(--cc-t-small); }
 
 /* ── The field: floating over the bottom of the conversation, on its shadow ── */
+html[data-chat-look="cards"] .chat-card .chat-composer {
+  z-index: 3;
+  margin-top: calc(-1 * var(--cc-s5));
+  gap: 6px;
+}
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar {
+  padding: 0 2px;
+}
 html[data-chat-look="cards"] .chat-card .chat-bar,
 html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .chat-bar {
   z-index: 3;
-  margin-top: calc(-1 * var(--cc-s5));
+  margin-top: 0;
   padding: var(--cc-s3) var(--cc-s3) var(--cc-s2);
   gap: var(--cc-s2);
   border-radius: var(--cc-r-card);
@@ -287,20 +324,23 @@ html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .chat-bar:focus
 html[data-chat-look="cards"] .chat-card .chat-input { font-size: var(--cc-t-body); line-height: 1.5; padding: 0 var(--cc-s1); }
 html[data-chat-look="cards"] .chat-card .chat-tools { gap: var(--cc-s1); }
 /* Every control under the text: 28 high, corners of 8, neutral. */
-html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn, .clip-btn, .mic-btn) {
-  height: 28px;
-  min-width: 28px;
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn, .clip-btn, .mic-btn, .tool-quick),
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar .auto-btn {
+  height: 26px;
+  min-width: 26px;
   border-radius: var(--cc-r-ctl);
   font-size: var(--cc-t-small);
   justify-content: center;
 }
-html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .clip-btn, .mic-btn) { padding: 0 6px; }
-html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn:not(.on):not(.mode), .clip-btn:not(.on), .mic-btn:not(.on)) {
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .clip-btn, .mic-btn, .tool-quick) { padding: 0 6px; }
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn:not(.on):not(.mode), .clip-btn:not(.on), .mic-btn:not(.on), .tool-quick),
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar .auto-btn:not(.on):not(.mode) {
   color: var(--cc-dim);
   background: transparent;
   opacity: 1;
 }
-html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn:not(.on):not(.mode), .clip-btn:not(.on), .mic-btn:not(.on)):hover {
+html[data-chat-look="cards"] .chat-card .chat-tools :is(.new-chat-btn, .auto-btn:not(.on):not(.mode), .clip-btn:not(.on), .mic-btn:not(.on), .tool-quick):hover,
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar .auto-btn:not(.on):not(.mode):hover {
   color: var(--cc-ink);
   background: var(--cc-hover);
 }
@@ -308,8 +348,8 @@ html[data-chat-look="cards"] .chat-card .new-chat-btn svg { color: inherit; }
 html[data-chat-look="cards"] .chat-card .chat-tools .clip-btn.on { color: var(--cc-ink); background: var(--cc-hover); }
 html[data-chat-look="cards"] .chat-card .engine-pick,
 html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .engine-pick {
-  height: 28px;
-  padding: 0 10px;
+  height: 26px;
+  padding: 0 9px;
   border-radius: var(--cc-r-ctl);
   font-size: var(--cc-t-small);
   color: var(--cc-reply);
@@ -335,7 +375,7 @@ html[data-chat-look="cards"] .chat-card :is(.engine-menu, .slash-menu) {
   border: 1px solid var(--cc-bar-line);
   box-shadow: var(--cc-shadow);
 }
-html[data-chat-look="cards"] .chat-card .chat-bar .engine-menu { margin-bottom: var(--cc-s2); }
+html[data-chat-look="cards"] .chat-card .chat-composer .engine-menu { margin-bottom: var(--cc-s2); }
 /* Its group names as written, not in capitals, and its notes small and dim. */
 html[data-chat-look="cards"] .chat-card .engine-head {
   padding: var(--cc-s3) 10px var(--cc-s1);

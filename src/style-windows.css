@@ -178,7 +178,9 @@ html:not([data-ui="classic"]) .header-actions button.on {
   background: rgba(255, 255, 255, 0.07);
 }
 html:not([data-ui="classic"]) .header-actions button.pinned { color: var(--accent); }
-html:not([data-ui="classic"]) .header-actions button:last-child:hover { background: #c42b1c; color: #fff; }
+html:not([data-ui="classic"]) .header-actions .hdr-win button:last-child:hover { background: #c42b1c; color: #fff; }
+html:not([data-ui="classic"]) #header .header-field { display: flex; justify-content: center; }
+html:not([data-ui="classic"]) #header .search-bar { width: 100%; max-width: 480px; }
 
 /* ── Menu on the left ───────────────────────────────────────────────────── */
 
@@ -219,7 +221,15 @@ html:not([data-ui="classic"]) .rail-label-head {
   font-weight: 500;
   color: var(--dim-3);
 }
-html:not([data-ui="classic"]) .rail-meta.count {
+html:not([data-ui="classic"]) #rail.compact { padding: 0 4px 6px; }
+html:not([data-ui="classic"]) .rail-collapse { border-radius: 4px; }
+html:not([data-ui="classic"]) .today-filter { border-radius: 6px; border-color: var(--stroke); }
+html:not([data-ui="classic"]) .now-card { border-radius: 8px; border-color: var(--stroke); background: var(--card-flat); }
+html:not([data-ui="classic"]) .now-card:hover { background: #323232; }
+html:not([data-ui="classic"]) .quiet-pill { border-color: var(--stroke); }
+html:not([data-ui="classic"]) .chat-more-menu { background: var(--card); border-color: var(--stroke); }
+html:not([data-ui="classic"]) .chat-crumb { border-radius: 4px; }
+html:not([data-ui="classic"]) .chat-crumb:hover { background: rgba(255, 255, 255, 0.11); }
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 600;

@@ -296,12 +296,16 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
   const talk = h("div", { class: "say" }, say, sayMore);
   const field = h("div", { class: "header-field" });
 
+  const winSep = h("span", { class: "hdr-sep" });
+  const toolsGroup = h("span", { class: "hdr-group hdr-tools" }, pinBtn, memBtn, gearBtn, soundBtn);
+  const winGroup = h("span", { class: "hdr-group hdr-win" }, minBtn, maxBtn, closeBtn);
+
   const el = h(
     "div",
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, pinBtn, memBtn, gearBtn, soundBtn, minBtn, maxBtn, closeBtn),
+    h("div", { class: "header-actions" }, planBtn, toolsGroup, winSep, winGroup),
   );
 
   return {
@@ -326,6 +330,9 @@ ${b}` : a;
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
       minBtn.style.display = State.appWindow ? "" : "none";
       maxBtn.style.display = State.appWindow ? "" : "none";
+      const hasWinControls = State.appWindow || State.settings.closeButton;
+      winGroup.style.display = hasWinControls ? "" : "none";
+      winSep.style.display = hasWinControls ? "" : "none";
       if (maxShown !== State.maximized) {
         maxShown = State.maximized;
         maxBtn.replaceChildren(svg(State.maximized ? ICONS.restore : ICONS.maximize, 14));
@@ -518,7 +525,7 @@ function buildOverview(actions: ViewActions): ViewHost {
           files.style.display = list.length ? "" : "none";
         }
       } else if (showsSummary()) {
-        const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
+        const key = "summary~" + summaryFilter + "~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
           + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`
           + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
@@ -666,28 +673,100 @@ function showsSummary(): boolean {
   return State.showsSummary;
 }
 
-/** Panoramica: a tile per integration (and agent) with its latest line; a click opens its card. */
+/** Active filter on Panoramica: all tiles or only items with live activity / news. */
+let summaryFilter: "all" | "active" = "all";
+
+function taskPriorityScore(task: AgentTask): number {
+  if (task.pillBadge === "approval") return 4;
+  if (task.pillBadge === "error" || task.state === "error" || task.state === "ratelimit") return 3;
+  if (task.state !== "idle" && task.state !== "sleeping" && task.state !== "finished") return 2;
+  if (task.pillBadge === "finished") return 1;
+  return 0;
+}
+
+/** Panoramica: highlighted "Adesso" strip + tile per integration (and agent) with its latest line. */
 function renderSummary(actions: ViewActions): HTMLElement {
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const head = h("div", { class: "today-head" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date }));
+  const visible = State.tasks.filter((t) => t.id !== "integration_recorder");
+  const prioritized = visible
+    .map((task) => ({ task, score: taskPriorityScore(task) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2);
+
+  const filterAll = h("button", {
+    class: `today-filter${summaryFilter === "all" ? " on" : ""}`,
+    text: t("Vista completa"),
+    onclick: () => {
+      if (summaryFilter === "all") return;
+      actions.blip();
+      summaryFilter = "all";
+      State.notify();
+    },
+  });
+  const filterActive = h("button", {
+    class: `today-filter${summaryFilter === "active" ? " on" : ""}`,
+    text: t("Solo attivi"),
+    onclick: () => {
+      if (summaryFilter === "active") return;
+      actions.blip();
+      summaryFilter = "active";
+      State.notify();
+    },
+  });
+  const head = h(
+    "div",
+    { class: "today-head" },
+    h("div", { class: "today-head-main" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date })),
+    visible.length > 2 ? h("div", { class: "today-filters" }, filterAll, filterActive) : null,
+  );
+
+  const nowStrip = prioritized.length ? h("div", { class: "now-strip" }, ...prioritized.map(({ task, score }) => {
+    const label = pillLabel(task);
+    const status = task.steps.length ? task.steps[task.steps.length - 1] : task.state;
+    const urgent = score >= 3;
+    const cardBtn = h(
+      "button",
+      { class: `now-card ${urgent ? "urgent" : "live"}`, onclick: () => actions.setFocus(task.id) },
+      h("span", { class: "now-icon" }, markIcon(task.id, 17) ?? dot(task.color, 9)),
+      h("span", { class: "now-meta" }, h("strong", { text: label.text }), h("span", { text: status || " " })),
+      h("span", { class: `now-cta${urgent ? "" : " subtle"}`, text: urgent ? t("Controlla") : t("Apri") }),
+    );
+    cardBtn.style.setProperty("--c", task.color);
+    return cardBtn;
+  })) : null;
+
+  const isQuiet = (task: AgentTask) => !task.pillBadge && (task.state === "idle" || task.state === "sleeping") && !task.steps.length;
+  const activeOnly = visible.filter((t) => !isQuiet(t));
+  const quiet = summaryFilter === "all" && activeOnly.length >= 2 ? visible.filter(isQuiet) : [];
+  const gridTasks = summaryFilter === "active" ? activeOnly : quiet.length ? activeOnly : visible;
+
   const grid = h("div", { class: "summary" });
-  for (const t of State.tasks) {
-    // Registra lives in File e schermo.
-    if (t.id === "integration_recorder") continue;
-    const label = pillLabel(t);
-    const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
-    const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
-      // The logo, large and half hidden in the bottom-left corner; a circle of
-      // the integration's colour for those without one.
-      h("span", { class: "summary-mark", "aria-hidden": "true" }, markIcon(t.id, 52) ?? h("i", { class: "summary-circle" })),
+  for (const tsk of gridTasks) {
+    const label = pillLabel(tsk);
+    const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : tsk.state === "idle" ? "" : tsk.state;
+    const stateText = tsk.pillBadge === "approval"
+      ? t("Richiede conferma")
+      : tsk.pillBadge === "error"
+      ? t("Errore")
+      : tsk.pillBadge === "finished"
+      ? t("Pronto")
+      : tsk.state !== "idle" && tsk.state !== "sleeping"
+      ? t("Attivo")
+      : "";
+    const row = h("button", { class: "summary-row", "data-id": tsk.id, title: label.title ?? tsk.name, onclick: () => actions.setFocus(tsk.id) },
+      // Classic look uses the bottom-right watermark; modern looks use the inline badge icon.
+      h("span", { class: "summary-mark", "aria-hidden": "true" }, markIcon(tsk.id, 52) ?? h("i", { class: "summary-circle" })),
       h("span", { class: "summary-top" },
+        h("span", { class: "summary-ico", "aria-hidden": "true" }, markIcon(tsk.id, 14) ?? h("i", { class: "summary-ico-dot" })),
         h("span", { class: "summary-name", text: label.text }),
-        t.pillBadge ? h("i", { class: "summary-badge" }) : null),
+        stateText ? h("span", { class: `summary-pill ${tsk.pillBadge ?? "live"}`, text: stateText }) : null,
+        tsk.pillBadge ? h("i", { class: "summary-badge" }) : null),
       h("span", { class: "summary-status", text: status || " " }));
-    row.style.setProperty("--c", t.color);
-    if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
+    row.style.setProperty("--c", tsk.color);
+    if (tsk.pillBadge) row.classList.add(`badge-${tsk.pillBadge}`);
     // In a group of the menu: a line along the bottom in the folder's colour (Edoardo, 10/11).
-    const group = MenuGroups.groupOf(t.id);
+    const group = MenuGroups.groupOf(tsk.id);
     if (group) {
       row.classList.add("in-group");
       row.style.setProperty("--g", group.color ?? "#f5a524");
@@ -695,10 +774,27 @@ function renderSummary(actions: ViewActions): HTMLElement {
     }
     grid.append(row);
   }
-  if (!State.tasks.length) grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
-  // Dragged into the order the user wants: the same order as the menu.
-  sortable(grid, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
-  return h("div", { class: "today" }, head, grid, summaryNews(actions));
+  if (!gridTasks.length) {
+    grid.append(h("span", {
+      class: "hint",
+      text: visible.length ? t("Nessuna attività o notifica in corso") : t("Nessuna integrazione attiva"),
+    }));
+  }
+  const quietRow = quiet.length ? h("div", { class: "quiet-row" }, ...quiet.map((tsk) => {
+    const label = pillLabel(tsk);
+    const pill = h("button", { class: "quiet-pill", title: label.title ?? tsk.name, onclick: () => actions.setFocus(tsk.id) },
+      h("i", { class: "quiet-dot" }),
+      h("span", { text: label.text }));
+    pill.style.setProperty("--c", tsk.color);
+    return pill;
+  })) : null;
+  // Dragged into the order the user wants: the same order as the menu (keep quiet item IDs appended).
+  const quietIds = quiet.map((q) => q.id);
+  sortable(grid, {
+    enabled: () => !State.settings.lockOrder && summaryFilter === "all",
+    onReorder: (ids) => actions.reorder(quietIds.length ? [...ids, ...quietIds] : ids),
+  });
+  return h("div", { class: "today" }, head, nowStrip, grid, quietRow, summaryNews(actions));
 }
 
 /** Headlines in the Panoramica's «Notizie» box. */

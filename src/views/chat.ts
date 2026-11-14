@@ -386,8 +386,24 @@ export function buildPrompt(
   const sideBtn = h("button", { class: "history-btn side-btn", title: t("Mostra o nascondi le conversazioni (Ctrl+B)") }, svg(ICONS.sidebar, 14, { stroke: 1.8 })) as HTMLButtonElement;
   // The conversation's title, as the history knows it (its first question until then).
   const titleEl = h("span", { class: "chat-title" });
+  const headCrumb = h("button", { class: "chat-crumb", title: t("Scegli la cartella del progetto per questa chat"), onclick: () => void toggleFolderMenu() }) as HTMLButtonElement;
+  headCrumb.style.display = "none";
+  // Overflow menu for secondary chat actions (keeps .chat-head uncluttered).
+  const moreMenu = h("div", { class: "chat-more-menu" });
+  moreMenu.style.display = "none";
+  const closeMoreMenu = () => {
+    moreMenu.style.display = "none";
+    moreBtn.classList.remove("menu-open");
+  };
+  const moreBtn = h("button", { class: "history-btn chat-more-btn", title: t("Altre azioni") }, svg(ICONS.ellipsis, 14)) as HTMLButtonElement;
+  moreBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = moreMenu.style.display === "none";
+    moreMenu.style.display = open ? "" : "none";
+    moreBtn.classList.toggle("menu-open", open);
+  });
   // «Esporta»: the conversation as a Markdown file in the Vassoio.
-  const exportBtn = h("button", { class: "history-btn", title: t("Esporta la conversazione in Markdown (nel Vassoio)") }, svg(ICONS.lineExport, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const exportBtn = h("button", { class: "chat-more-item", title: t("Esporta la conversazione in Markdown (nel Vassoio)") }, svg(ICONS.lineExport, 13, { stroke: 1.8 }), h("span", { text: t("Esporta Markdown") })) as HTMLButtonElement;
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
@@ -400,15 +416,19 @@ export function buildPrompt(
   // Opens the Anteprima, and closes it when it is open in the island.
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
-  const desktopBtn = h("button", { class: "history-btn desktop-btn" }, svg(ICONS.lineOut, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const desktopBtn = h("button", { class: "chat-more-item desktop-btn" }, svg(ICONS.lineOut, 13, { stroke: 1.8 }), h("span", { text: t("Continua in Claude Desktop") })) as HTMLButtonElement;
   // «Apri in una finestra» / «Rimetti nell'isola» (popout.ts): the chat as a window of its own and back.
-  const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
+  const popBtn = h("button", { class: "chat-more-item pop-btn" }) as HTMLButtonElement;
   // Named from the start: sync() renames them, but only while the chat is on screen.
   tip(desktopBtn, t("Continua in Claude Desktop, con tutta la conversazione"));
   tip(popBtn, t("Apri la chat in una finestra"));
   tip(folderBtn, t("Scegli la cartella del progetto per questa chat"));
   let popShown: boolean | null = null;
-  popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
+  popBtn.addEventListener("click", () => {
+    closeMoreMenu();
+    if (isPopped("chat")) actions.dockBack("chat");
+    else actions.popOut("chat");
+  });
   // «Terminale» (terminal.rs): the user's own PowerShell in the project, as Claude Desktop has one beside the chat.
   const termBtn = h("button", { class: "history-btn", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }, svg(ICONS.lineTerminal, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // xterm.js draws the conversation's terminal here (chat-terminal.ts).
@@ -426,10 +446,14 @@ export function buildPrompt(
   /** Output of a terminal that arrived before its id came back from terminal_open. */
   const early = new Map<number, string>();
   // «Cosa so fare»: the panel of what the chat can do (also /aiuto).
-  const helpBtn = h("button", { class: "history-btn", text: "?" }) as HTMLButtonElement;
+  const helpBtn = h("button", { class: "chat-more-item" }, h("span", { class: "chat-more-glyph", text: "?" }), h("span", { text: t("Cosa so fare") })) as HTMLButtonElement;
   tip(helpBtn, t("Cosa so fare: esempi da mettere nel campo (anche /aiuto)"));
-  helpBtn.addEventListener("click", () => toggleHelp());
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, termBtn, helpBtn, previewBtn, desktopBtn, exportBtn, popBtn);
+  helpBtn.addEventListener("click", () => {
+    closeMoreMenu();
+    toggleHelp();
+  });
+  moreMenu.append(desktopBtn, exportBtn, popBtn, helpBtn);
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -605,8 +629,30 @@ export function buildPrompt(
     if (c.sending) c.queue.push("/compatta");
     else void submit("/compatta", c);
   });
-  const tools = h("div", { class: "chat-tools" }, fresh, folderBtn, prBtn, engineBtn, remoteBtn, teamBtn, autoBtn, contextMeter, clip, mic, send);
-  const bar = h("div", { class: "chat-bar" }, field, tools, engineMenu);
+  const slashQuickBtn = h("button", { class: "auto-btn tool-quick", text: "/", title: t("Comandi (/)") }) as HTMLButtonElement;
+  slashQuickBtn.addEventListener("click", () => {
+    if (!input.value.startsWith("/")) setInput(`/${input.value}`);
+    slashSel = 0;
+    updateSlash();
+    input.focus();
+  });
+  const atQuickBtn = h("button", { class: "auto-btn tool-quick", text: "@", title: t("Allega contesto (@)") }) as HTMLButtonElement;
+  atQuickBtn.addEventListener("click", () => {
+    const cur = input.value;
+    if (!/(?:^|\s)@\S*$/.test(cur)) setInput(`${cur}${cur && !/\s$/.test(cur) ? " " : ""}@`);
+    slashSel = 0;
+    updateSlash();
+    input.focus();
+  });
+  const ctxBar = h(
+    "div",
+    { class: "chat-ctx-bar" },
+    h("div", { class: "chat-ctx-left" }, folderBtn, prBtn, engineBtn, autoBtn),
+    h("div", { class: "chat-ctx-right" }, contextMeter),
+  );
+  const tools = h("div", { class: "chat-tools" }, slashQuickBtn, atQuickBtn, fresh, remoteBtn, teamBtn, clip, mic, send);
+  const bar = h("div", { class: "chat-bar" }, field, tools);
+  const composer = h("div", { class: "chat-composer" }, ctxBar, bar, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
   slashMenu.style.display = "none";
@@ -650,16 +696,22 @@ export function buildPrompt(
     }
   }
 
-  // The sidebar: «Nuovo» and «Cerca» side by side, the search field, and the conversations (the open
-  // ones and the history), grouped by day. A click switches; the others go on.
+  // The sidebar: «Nuovo» and «Cerca» side by side, the search field, quick filter tabs, and the conversations.
   const sideNew = h("button", { class: "side-new", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuovo") }));
   const sideFind = h("button", { class: "side-new", title: t("Cerca nelle conversazioni…") }, lensIcon(12), h("span", { text: t("Cerca") }));
   const historySearch = h("input", { class: "history-search", type: "text", placeholder: t("Cerca nelle conversazioni…"), spellcheck: "false" }) as HTMLInputElement;
   historySearch.style.display = "none";
+  let sideTab: "all" | "active" | "pinned" = "all";
+  const tabBtns: Record<"all" | "active" | "pinned", HTMLButtonElement> = {
+    all: h("button", { class: "side-tab on", text: t("Tutte") }) as HTMLButtonElement,
+    active: h("button", { class: "side-tab", text: t("Attive") }) as HTMLButtonElement,
+    pinned: h("button", { class: "side-tab", text: t("Fissate") }) as HTMLButtonElement,
+  };
+  const sideTabs = h("div", { class: "side-tabs" }, tabBtns.all, tabBtns.active, tabBtns.pinned);
   const historyRows = h("div", { class: "history-rows" });
   // Its right edge, dragged: wider or narrower, remembered on this PC.
   const sideGrip = h("div", { class: "chat-side-grip", title: t("Trascina per allargare o stringere le conversazioni") });
-  const side = h("div", { class: "chat-side" }, h("div", { class: "side-top" }, sideNew, sideFind), historySearch, historyRows, sideGrip);
+  const side = h("div", { class: "chat-side" }, h("div", { class: "side-top" }, sideNew, sideFind), historySearch, sideTabs, historyRows, sideGrip);
   // Another open conversation asks a permission: a line over the field takes there.
   const otherAsk = h("button", { class: "chat-other-ask" }) as HTMLButtonElement;
   otherAsk.style.display = "none";
@@ -686,7 +738,7 @@ export function buildPrompt(
   /** The recent conversations sit above the field and, when shown, the tips row. */
   function placeRecent() {
     const tips = tipsRow.style.display !== "none" ? tipsRow.offsetHeight + 8 : 0;
-    recent.style.bottom = `${bar.offsetHeight + 32 + tips}px`;
+    recent.style.bottom = `${composer.offsetHeight + 32 + tips}px`;
   }
   function showRecent(on: boolean) {
     if (!on || State.settings.chatHistory === false) {
@@ -711,7 +763,7 @@ export function buildPrompt(
       recent.parentElement?.classList.toggle("has-recent", shown);
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, bar));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
   const el = h(
     "div",
     { class: "view" },
@@ -2249,13 +2301,26 @@ export function buildPrompt(
     renderHistory(lastList, lastQuery);
   }
 
-  function renderHistory(list: ChatSummary[], query: string) {
-    lastList = list;
+  function renderHistory(rawList: ChatSummary[], query: string) {
+    lastList = rawList;
     lastQuery = query;
     clear(historyRows);
+    const activeChats = State.chats;
+    const isActiveSummary = (c: ChatSummary) => {
+      const open = activeChats.find((x) => x.logId === c.id);
+      return !!open && (open.sending || open.unread || State.pendingApproval?.chatSid === open.sid || open.sid === State.chatSid);
+    };
+    const list = sideTab === "pinned"
+      ? rawList.filter((c) => c.pinned)
+      : sideTab === "active"
+      ? rawList.filter(isActiveSummary)
+      : rawList;
     // Open conversations the history does not have yet (no answer saved): on top.
-    const fresh = query.trim() ? [] : State.chats.filter((c) => (!c.logId || !list.some((x) => x.id === c.logId))
+    const freshAll = query.trim() || sideTab === "pinned" ? [] : State.chats.filter((c) => (!c.logId || !rawList.some((x) => x.id === c.logId))
       && (c.history.length || c.sending || c.sid === State.chatSid));
+    const fresh = sideTab === "active"
+      ? freshAll.filter((c) => c.sending || c.unread || State.pendingApproval?.chatSid === c.sid || c.sid === State.chatSid)
+      : freshAll;
     const freshRow = (c: ChatSessionState): HTMLElement => {
       const first = c.history.find((m) => m.role === "user")?.content ?? "";
       const name = CHAT_ENGINES.find((e) => e.id === engineOf(c))?.name ?? engineOf(c);
@@ -2266,12 +2331,16 @@ export function buildPrompt(
     const loose = fresh.filter((c) => !c.folder);
     if (loose.length) historyRows.append(h("div", { class: "side-group", text: t("Aperte") }));
     for (const c of loose) historyRows.append(freshRow(c));
+    const activeCount = rawList.filter(isActiveSummary).length + freshAll.filter((c) => c.sending || c.unread || State.pendingApproval?.chatSid === c.sid || c.sid === State.chatSid).length;
+    tabBtns.active.textContent = activeCount > 0 ? `${t("Attive")} (${activeCount})` : t("Attive");
     if (!list.length && !fresh.length) {
       historyRows.append(h("div", { class: "engine-note", text: query.trim()
         ? t("Nessuna conversazione con queste parole.")
-        : State.settings.chatHistory === false
-          ? t("La cronologia è spenta: Impostazioni → Chat.")
-          : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
+        : sideTab !== "all"
+          ? t("Nessuna conversazione in questa vista.")
+          : State.settings.chatHistory === false
+            ? t("La cronologia è spenta: Impostazioni → Chat.")
+            : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
     }
     const savedRow = (c: ChatSummary): HTMLElement => {
       const engine = CHAT_ENGINES.find((e) => e.id === c.engine)?.name ?? c.engine;
@@ -2492,6 +2561,14 @@ export function buildPrompt(
     }
   }
   sideFind.addEventListener("click", () => showSearch(historySearch.style.display === "none"));
+  (["all", "active", "pinned"] as const).forEach((tab) => {
+    tabBtns[tab].addEventListener("click", () => {
+      if (sideTab === tab) return;
+      sideTab = tab;
+      (["all", "active", "pinned"] as const).forEach((k) => tabBtns[k].classList.toggle("on", k === tab));
+      renderSide();
+    });
+  });
 
   /** «/cronologia», «/cerca …»: the sidebar open, with the search when there is one. */
   async function toggleHistory(query?: string) {
@@ -2563,8 +2640,8 @@ export function buildPrompt(
 
   engineBtn.addEventListener("click", () => void toggleEngineMenu());
   sideBtn.addEventListener("click", () => showSide(!(narrow ? overlay : sideOpen)));
-  exportBtn.addEventListener("click", () => void exportChat());
-  desktopBtn.addEventListener("click", () => void toDesktop());
+  exportBtn.addEventListener("click", () => { closeMoreMenu(); void exportChat(); });
+  desktopBtn.addEventListener("click", () => { closeMoreMenu(); void toDesktop(); });
   remoteBtn.addEventListener("click", async () => {
     const problem = await toggleRemoteLink();
     if (problem) {
@@ -2600,7 +2677,9 @@ export function buildPrompt(
   });
   // Drawn in the island (a native <select> menu would open behind it); a click elsewhere closes it.
   document.addEventListener("pointerdown", (e) => {
-    if (engineMenu.style.display !== "none" && !bar.contains(e.target as Node)) engineMenu.style.display = "none";
+    const target = e.target as Node;
+    if (engineMenu.style.display !== "none" && !composer.contains(target)) engineMenu.style.display = "none";
+    if (moreMenu.style.display !== "none" && !moreMenu.contains(target) && !moreBtn.contains(target)) closeMoreMenu();
   });
   void onEvent<{ sid?: string; text: string }>("chat-stream", (p) => {
     const c = State.chats.find((x) => x.sid === p.sid);
@@ -2994,6 +3073,11 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         folderBtn.dataset.label = folderKey;
         folderBtn.replaceChildren(folderLabel, ...(branch ? [h("span", { class: "folder-branch", text: ` · ${branch}` })] : []));
       }
+      headCrumb.style.display = ownFolder ? "" : "none";
+      if (ownFolder && headCrumb.dataset.label !== folderKey) {
+        headCrumb.dataset.label = folderKey;
+        headCrumb.replaceChildren(h("span", { class: "chat-crumb-name", text: `📁 ${folderLabel}` }), ...(branch ? [h("span", { class: "chat-crumb-branch", text: ` · ${branch}` })] : []));
+      }
       tip(folderBtn, ownFolder
         ? [ownFolder, branch && t("Branch: {name}", { name: branch })].filter(Boolean).join("\n")
         : t("Scegli la cartella del progetto per questa chat"));
@@ -3047,10 +3131,15 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
+      folderBtn.style.display = asked ? "none" : "";
+      slashQuickBtn.style.display = asked ? "none" : "";
+      atQuickBtn.style.display = asked ? "none" : "";
       exportBtn.style.display = State.chatHistory.length ? "" : "none";
       // ↗: only for a Claude Code conversation that has started, never on a session copy.
       desktopBtn.style.display = State.chatEngine === "subscription" && State.chatHistory.length && !asked ? "" : "none";
       desktopBtn.classList.toggle("on", State.chatDesktop);
+      const deskSpan = desktopBtn.querySelector("span");
+      if (deskSpan) deskSpan.textContent = State.chatDesktop ? t("Aperta in Claude Desktop") : t("Continua in Claude Desktop");
       tip(desktopBtn, State.chatDesktop
         ? t("La conversazione è proseguita in Claude Desktop: ciò che scrivi lì torna qui. Clic per riaprirla lì")
         : t("Continua in Claude Desktop, con tutta la conversazione"));
@@ -3078,9 +3167,10 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       const away = isPopped("chat");
       if (away !== popShown) {
         popShown = away;
-        popBtn.replaceChildren(svg(away ? ICONS.popIn : ICONS.popOut, 12));
+        popBtn.replaceChildren(svg(away ? ICONS.popIn : ICONS.popOut, 12), h("span", { text: away ? t("Rimetti nell'isola") : t("Apri in una finestra") }));
         tip(popBtn, away ? t("Rimetti la chat nell'isola") : t("Apri la chat in una finestra"));
       }
+      moreBtn.classList.toggle("on", State.chatDesktop || away);
       previewBtn.classList.toggle("on", State.previewOpen);
       tip(previewBtn, State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat"));
       autoBtn.classList.toggle("on", auto);
