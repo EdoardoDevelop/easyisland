@@ -5288,5 +5288,15 @@
   "Radiale": "Radial",
   "Bilanciata": "Balanced",
   "Tutti": "All",
-  "Apri in Mappa mentale": "Open in Mind Map"
+  "Apri in Mappa mentale": "Open in Mind Map",
+  "note non attive": "inactive notes",
+  "Note spostate in archivio.md: clic per vedere cosa sono": "Notes moved to archivio.md: click to see what they are",
+  "Pagine ({n})": "Pages ({n})",
+  "Pagine da scrivere ({n})": "Pages to write ({n})",
+  "Note attive ({n})": "Active notes ({n})",
+  "Note non attive ({n})": "Inactive notes ({n})",
+  "Fonti lette ({n})": "Read sources ({n})",
+  "Giorni di chat ({n})": "Chat days ({n})",
+  "Archiviate da MEMORIA.md (archivio.md): non vengono caricate automaticamente a ogni chat, ma restano nella memoria. Clicca una nota per aprirla o collegarla.": "Archived from MEMORIA.md (archivio.md): not automatically loaded into every chat, but kept in memory. Click a note to inspect or link it.",
+  "Clic per vedere l'elenco": "Click to view list"
 }

@@ -528,6 +528,7 @@ function select(id: string | null) {
     mindTrail.length = 0;
   }
   renderMindCrumb();
+  applySearch();
   for (const v of Object.values(views)) v.setSelected(id);
   stage.wake();
   renderPanel();
@@ -647,18 +648,59 @@ function renderPanel() {
   panel.append(row, feedback);
 }
 
+let overviewBucket: NodeKind | null = null;
+
 function renderOverview() {
   const g = model?.g;
   const count = (kinds: NodeKind[]) => g?.nodes.filter((n) => kinds.includes(n.kind)).length ?? 0;
   const days = new Set(g?.events.filter((e) => e.lane === "diary").map((e) => e.date.slice(0, 10))).size;
-  panel.append(
-    h("h2", { text: t("La tua memoria") }),
-    h("div", { class: "mem-stats" },
-      stat(count(["page"]), t("pagine")),
-      stat(count(["note"]), t("note attive")),
-      stat(count(["source"]), t("fonti lette")),
-      stat(days, t("giorni di chat"))),
+  const oldCount = count(["old"]);
+  if (overviewBucket && !count([overviewBucket])) overviewBucket = null;
+
+  const stats = h("div", { class: "mem-stats" },
+    stat(count(["page"]), t("pagine"), "page"),
+    stat(count(["note"]), t("note attive"), "note"),
+    ...(oldCount > 0 ? [stat(oldCount, t("note non attive"), "old", t("Note spostate in archivio.md: clic per vedere cosa sono"))] : []),
+    stat(count(["source"]), t("fonti lette"), "source"),
+    stat(days, t("giorni di chat"), "day"),
   );
+  panel.append(h("h2", { text: t("La tua memoria") }), stats);
+
+  if (overviewBucket && g) {
+    const items = g.nodes
+      .filter((n) => n.kind === overviewBucket)
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.weight - a.weight);
+    const titles: Record<NodeKind, string> = {
+      page: t("Pagine ({n})", { n: items.length }),
+      missing: t("Pagine da scrivere ({n})", { n: items.length }),
+      note: t("Note attive ({n})", { n: items.length }),
+      old: t("Note non attive ({n})", { n: items.length }),
+      source: t("Fonti lette ({n})", { n: items.length }),
+      day: t("Giorni di chat ({n})", { n: items.length }),
+    };
+    const close = h("button", { class: "mem-bucket-close", text: "×", title: t("Chiudi"), "aria-label": t("Chiudi") }) as HTMLButtonElement;
+    close.addEventListener("click", () => {
+      overviewBucket = null;
+      applySearch();
+      renderPanel();
+    });
+    const bucket = h("div", { class: "mem-bucket" },
+      h("div", { class: "mem-bucket-head" }, h("h3", { text: titles[overviewBucket] }), close));
+    if (overviewBucket === "old") {
+      bucket.append(h("div", { class: "mem-note", text: t("Archiviate da MEMORIA.md (archivio.md): non vengono caricate automaticamente a ogni chat, ma restano nella memoria. Clicca una nota per aprirla o collegarla.") }));
+    }
+    const list = h("div", { class: "mem-links" });
+    for (const item of items.slice(0, 120)) {
+      const b = h("button", { class: "mem-link" },
+        h("i", { style: `background:${KIND_COLOR[item.kind]}` }),
+        h("span", { text: (item.kind === "note" || item.kind === "old") && item.text ? item.text : item.label }),
+        h("small", { text: shortDate(item.date) })) as HTMLButtonElement;
+      b.addEventListener("click", () => select(item.id));
+      list.append(b);
+    }
+    bucket.append(list);
+    panel.append(bucket);
+  }
   // Another PC's copy: read only, kept fresh by Agent Chat.
   if (source && source !== "*") {
     panel.append(h("div", { class: "mem-note", text: t("Copia della memoria di {name}: si aggiorna da sola quando quel PC la cambia. Le note nuove vanno nella memoria di questo PC.", { name: source }) }), feedback);
@@ -745,8 +787,19 @@ function pageText(text: string, of: MemNode): HTMLElement {
   return box;
 }
 
-function stat(n: number, label: string) {
-  return h("div", {}, h("b", { text: String(n) }), h("small", { text: label }));
+function stat(n: number, label: string, bucket?: NodeKind, tipText?: string) {
+  if (!bucket) return h("div", {}, h("b", { text: String(n) }), h("small", { text: label }));
+  const b = h("button", {
+    class: overviewBucket === bucket ? "mem-stat on" : "mem-stat",
+    title: tipText ?? t("Clic per vedere l'elenco"),
+    "aria-pressed": String(overviewBucket === bucket),
+  }, h("b", { text: String(n) }), h("small", { text: label })) as HTMLButtonElement;
+  b.addEventListener("click", () => {
+    overviewBucket = overviewBucket === bucket ? null : bucket;
+    applySearch();
+    renderPanel();
+  });
+  return b;
 }
 
 function fail(e: unknown) {
@@ -866,7 +919,11 @@ sureBox.addEventListener("change", () => { filters.sure = sureBox.checked; saveF
 for (const v of Object.values(views)) v.setColouring?.(filters.colours);
 
 function applySearch() {
-  const ids = query.trim() && model ? model.matches(query) : null;
+  const ids = query.trim() && model
+    ? model.matches(query)
+    : !selected && overviewBucket && model
+      ? new Set(model.g.nodes.filter((n) => n.kind === overviewBucket).map((n) => n.id))
+      : null;
   for (const v of Object.values(views)) v.setFilter(ids, query);
   stage.wake();
   return ids;
