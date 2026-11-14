@@ -102,6 +102,10 @@ fn corpus() -> Vec<String> {
     let archive = std::fs::read_to_string(crate::memory::dir().join("archivio.md")).unwrap_or_default();
     lines.extend(crate::memory::notes_of(&archive).into_iter().rev());
     for p in crate::brain::pages() {
+        // The page's summary, kept apart from its body: «chi è Falchi?» (memory_answer.rs).
+        if p.summary.trim().chars().count() > 20 {
+            lines.push(format!("[[{}]] riassunto: {}", p.title, p.summary.trim()));
+        }
         for l in p.body.lines().map(str::trim).filter(|l| l.chars().count() > 20) {
             lines.push(format!("[[{}]] {}", p.title, l.trim_start_matches("- ")));
         }
