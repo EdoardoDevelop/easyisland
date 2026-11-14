@@ -5250,5 +5250,13 @@
   "Chiedi al motore": "Ask the engine",
   "[Prima di questa domanda EasyIsland ha risposto da solo, senza motore, a «{q}» con:\n{a}]\n\n": "[Before this question EasyIsland answered «{q}» by itself, with no engine, with:\n{a}]\n\n",
   "Risposta diretta di EasyIsland, senza motore: come per «{q}». Per la risposta del motore riscrivi la domanda.": "Direct answer from EasyIsland, with no engine: as for «{q}». For the engine's answer, write the question again.",
-  "[Già letto da EasyIsland per questa domanda, con gli strumenti che le domande simili hanno usato: se questi dati bastano rispondi con questi, senza richiamare gli strumenti.": "[Already read by EasyIsland for this question, with the tools similar questions used: if this data is enough, answer with it without calling the tools again."
+  "[Già letto da EasyIsland per questa domanda, con gli strumenti che le domande simili hanno usato: se questi dati bastano rispondi con questi, senza richiamare gli strumenti.": "[Already read by EasyIsland for this question, with the tools similar questions used: if this data is enough, answer with it without calling the tools again.",
+  "Musica: brano successivo": "Music: next track",
+  "Musica: brano precedente": "Music: previous track",
+  "Musica: pausa o riprendi": "Music: pause or resume",
+  "Azione rapida «{name}»": "Quick action «{name}»",
+  "Profilo «{name}»": "Profile «{name}»",
+  "Nuova attività in To Do: «{title}»": "New task in To Do: «{title}»",
+  "Questo comando non si può eseguire da qui.": "This command can't be run from here.",
+  "Posso farlo subito, senza motore: **{what}**.": "I can do it right away, with no engine: **{what}**."
 }

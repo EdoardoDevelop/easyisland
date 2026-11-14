@@ -565,6 +565,10 @@ fn request_body(model: &str, messages: Vec<Value>, agent: bool) -> Value {
         "system": system,
         "tools": tools,
         "messages": messages,
+        // Tools, instructions and the conversation so far are the same at
+        // every step of a turn and every turn: read from the cache they cost a
+        // tenth (14 Nov 2026; EasyIsland's tools alone are ~20k tokens).
+        "cache_control": { "type": "ephemeral" },
     });
     if supports_default_fallback(model) {
         body["fallbacks"] = json!("default");

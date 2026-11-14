@@ -75,6 +75,8 @@ static LOG: Mutex<Option<Log>> = Mutex::new(None);
 static LAST_DIRECT: Mutex<Vec<(usize, String, Vec<String>)>> = Mutex::new(Vec::new());
 /// Conversations whose last reply was direct (chat_send tells the island).
 static WAS_DIRECT: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+/// The command offered with a reply, per conversation, until chat_send takes it.
+static COMMANDS: Mutex<Vec<(usize, crate::commands::Command)>> = Mutex::new(Vec::new());
 
 fn path() -> std::path::PathBuf {
     crate::settings::config_dir().join("turni.bin")
@@ -146,7 +148,7 @@ fn split(step: &str) -> (&str, &str) {
 }
 
 /// Tappa 2: the answer without an engine, when a recipe is sure of it.
-pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str) -> Direct {
+pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<crate::commands::Command>) -> Direct {
     let k = key(chat);
     let last = {
         let mut g = LAST_DIRECT.lock().unwrap();
@@ -159,8 +161,11 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str) -> Direct {
             return Direct::Refused;
         }
     }
-    let Some(r) = crate::recipes::sure(asked) else { return Direct::None };
-    let Some(step) = r.steps.first() else { return Direct::None };
+    if let Some(c) = command {
+        return offer(chat, asked, c);
+    }
+    let Some((r, steps)) = crate::recipes::sure(asked) else { return Direct::None };
+    let Some(step) = steps.first() else { return Direct::None };
     let (tool, args) = split(step);
     if !READS.contains(&tool) {
         return Direct::None;
@@ -193,6 +198,38 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str) -> Direct {
     )
 }
 
+/// Tappa 1 of the 14 Nov ideas: a short order («apri Teams», «profilo
+/// Ufficio», «pausa») gets its button at once, no engine; nothing runs until
+/// the user presses «Esegui» (chat_command_run). Written again, or «Chiedi al
+/// motore», it goes to the engine like a direct answer.
+fn offer(chat: &Chat, asked: &str, c: crate::commands::Command) -> Direct {
+    let k = key(chat);
+    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), Vec::new()));
+    {
+        let mut w = WAS_DIRECT.lock().unwrap();
+        if !w.contains(&k) {
+            w.push(k);
+        }
+    }
+    let text = tf("Posso farlo subito, senza motore: **{what}**.", &[("what", &c.label)]);
+    let tool = c.tool.clone();
+    {
+        let mut p = COMMANDS.lock().unwrap();
+        p.retain(|(x, _)| *x != k);
+        p.push((k, c));
+    }
+    crate::log::line(format!("smistatore: comando {tool}"));
+    Direct::Answer(text, tool)
+}
+
+/// The command offered with the last reply of this conversation (chat_send, once).
+pub fn take_command(chat: &Chat) -> Option<crate::commands::Command> {
+    let k = key(chat);
+    let mut g = COMMANDS.lock().unwrap();
+    let i = g.iter().position(|(c, _)| *c == k)?;
+    Some(g.remove(i).1)
+}
+
 /// The last reply of this conversation was direct (chat_send, once).
 pub fn was_direct(chat: &Chat) -> bool {
     let k = key(chat);
@@ -213,12 +250,19 @@ pub async fn prepare(app: &AppHandle, asked: &str) -> Option<(String, Vec<String
     let mut done: Vec<String> = Vec::new();
     let mut room = MAX_PREPARED;
     for r in crate::recipes::fitting(asked) {
-        for step in &r.steps {
+        // A recipe with placeholders: its steps for this question, or none.
+        let filled = crate::recipes::steps_for(&r, asked);
+        if !r.template.is_empty() && filled.is_none() {
+            continue;
+        }
+        let steps = filled.unwrap_or_else(|| r.steps.clone());
+        for step in &steps {
             let (tool, args) = split(step);
             if !READS.contains(&tool) || SLOW.contains(&tool) || done.contains(step) || room < 200 {
                 continue;
             }
-            // Values that change with the question (a month) are the engine's to pick.
+            // Values that change with the question (a month) are the engine's
+            // to pick, unless the recipe knows which of them the question gives.
             let fixed = args.trim() == "{}" || r.same >= 2;
             let Ok(a) = serde_json::from_str::<Value>(args) else { continue };
             if !fixed {

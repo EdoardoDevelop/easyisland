@@ -192,7 +192,11 @@ export async function runScene(island: Island, scene: string) {
         if (pensa === "diretta") {
           State.chatHistory = [{ id: 1, role: "user", content: "Stato del computer" }, { id: 2, role: "assistant", engine: "subscription", direct: true, content: "- **Stato del PC** · livello: ok · riassunto: CPU 12 %, RAM 41 %\n- **Rete** · livello: ok · riassunto: Online, 18 ms\n- **Meteo** · riassunto: 14 °C, sereno\n\n⚡ Risposta diretta di EasyIsland, senza motore: come per «come sta il computer». Per la risposta del motore riscrivi la domanda." }];
         }
-        State.chat.sending = pensa !== "fine" && pensa !== "diretta";
+        // =comando: a short order with its «Esegui» button (commands.rs).
+        if (pensa === "comando") {
+          State.chatHistory = [{ id: 1, role: "user", content: "Apri Teams" }, { id: 2, role: "assistant", engine: "subscription", direct: true, content: "Posso farlo subito, senza motore: **Azione rapida «Teams»**.", command: { tool: "run_quick_action", args: { id: "a1" }, label: "Azione rapida «Teams»" } }];
+        }
+        State.chat.sending = pensa !== "fine" && pensa !== "diretta" && pensa !== "comando";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
         if (pensa.startsWith("squadra")) {

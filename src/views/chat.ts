@@ -6,7 +6,7 @@ import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type AskQuestion, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type AskQuestion, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage, type ChatCommand } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -1034,7 +1034,8 @@ export function buildPrompt(
       }
       const usage = (reply as { usage?: TurnUsage | null }).usage ?? undefined;
       const direct = (reply as { direct?: boolean }).direct === true;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined });
+      const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined, command });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1450,6 +1451,22 @@ export function buildPrompt(
     window.setTimeout(() => { btn.textContent = t("Copia"); }, 1400);
   }
 
+  /** «Esegui» under a command the chat offered: runs it once, the result goes under the answer. */
+  async function runCommand(m: ChatMessage, cmd: ChatCommand, btn: HTMLButtonElement) {
+    btn.disabled = true;
+    let line: string;
+    try {
+      const out = await Bridge.chatCommandRun(cmd.tool, cmd.args);
+      line = `✓ ${out || t("Fatto.")}`;
+    } catch (err) {
+      line = `✗ ${err instanceof Error ? err.message : String(err)}`;
+    }
+    m.commandDone = true;
+    m.content = `${m.content}\n\n${line}`;
+    renderedCount = -1;
+    State.notify();
+  }
+
   /** Copia under every message, Rigenera under the last answer, Modifica under a question. */
   function withActions(row: HTMLElement, m: ChatMessage, index: number, last: boolean): HTMLElement {
     const bar = h("div", { class: `msg-actions${last ? " last" : ""}` });
@@ -1462,6 +1479,12 @@ export function buildPrompt(
       if (State.settings.chatTerminal === true) {
         bar.append(h("button", { class: "msg-act", title: t("Riporta i file cambiati da questa domanda in poi com'erano prima (come in Claude Desktop); la conversazione resta"), text: `⟲ ${t("File")}`, onclick: () => void restoreFiles(index) }));
       }
+    }
+    if (own && last && m.role === "assistant" && m.command && !m.commandDone) {
+      const cmd = m.command;
+      const run = h("button", { class: "msg-act msg-run", title: cmd.label, text: `▶︎ ${t("Esegui")}` }) as HTMLButtonElement;
+      run.addEventListener("click", () => void runCommand(m, cmd, run));
+      bar.append(run);
     }
     if (own && last && m.role === "assistant" && m.direct) {
       // The same question again goes to the engine, and that recipe stops answering by itself (router.rs).

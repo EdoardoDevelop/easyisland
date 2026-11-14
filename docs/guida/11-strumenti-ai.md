@@ -66,6 +66,11 @@ Dopo una risposta riuscita, EasyIsland ricorda **quali strumenti** sono serviti 
 ## Risposte dirette, senza motore
 Quando una domanda si risolve sempre con la stessa lettura (lo stato del PC, le tue azioni rapide, una tabella di Notion) e l'hai già fatta almeno due volte, EasyIsland risponde da solo: subito e senza token, con «⚡ Risposta diretta» sotto. Se vuoi la risposta del motore premi **⚡ Chiedi al motore** o riscrivi la domanda: da lì quel tipo di domanda va sempre al motore. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che fa un passo in meno. In **Impostazioni → Chat** spegni le **Risposte dirette** e nel **Registro dei turni** vedi quante risposte dirette ha dato e quanti token ha risparmiato.
 
+Le risposte dirette valgono anche quando cambia il periodo: se hai chiesto «spese di settembre» e «spese di ottobre», a «spese di novembre» EasyIsland risponde da solo con le date di novembre. Lo stesso per mese scorso, settimana, oggi, ieri e i numeri («ticket 1234»).
+
+## Comandi senza motore
+Gli ordini brevi non passano dal motore: «apri Teams» (se è una tua azione rapida), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland risponde subito con **▶ Esegui**: niente parte finché non premi. Se intendevi altro premi **⚡ Chiedi al motore**.
+
 ## Modalità terminale
 **Impostazioni → Chat → Modalità terminale**, insieme alla **cartella di lavoro**: la chat lavora come Claude Code o opencode da terminale.
 - **Claude Code** usa i tuoi strumenti, server MCP, plugin, `CLAUDE.md`, skill, regole di permesso e hook, nella cartella scelta. Ogni domanda di permesso arriva all'isola.

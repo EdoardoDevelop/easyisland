@@ -66,6 +66,11 @@ After a successful answer, EasyIsland remembers **which tools** were needed for 
 ## Direct answers, with no engine
 When a question is always solved with the same read (the PC's status, your quick actions, a Notion table) and you have asked it at least twice, EasyIsland answers by itself: at once and with no tokens, with «⚡ Direct answer» under it. For the engine's answer press **⚡ Ask the engine** or write the question again: from then on that kind of question always goes to the engine. For other similar questions EasyIsland reads that data first and hands it to the engine, which takes one step less. In **Settings → Chat** you turn **Direct answers** off, and the **Turn log** shows how many direct answers it gave and how many tokens it saved.
 
+Direct answers also work when the period changes: if you asked «spese di settembre» and «spese di ottobre», for «spese di novembre» EasyIsland answers by itself with November's dates. The same for last month, week, today, yesterday and numbers («ticket 1234»).
+
+## Commands with no engine
+Short orders skip the engine: «apri Teams» (when it is one of your quick actions), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland answers at once with **▶ Run**: nothing starts until you press it. If you meant something else press **⚡ Ask the engine**.
+
 ## Terminal mode
 **Settings → Chat → Terminal mode**, together with the **working folder**: the chat works like Claude Code or opencode in a terminal.
 - **Claude Code** uses your tools, MCP servers, plugins, `CLAUDE.md`, skills, permission rules and hooks, in the chosen folder. Every permission question reaches the island.

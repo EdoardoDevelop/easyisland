@@ -66,6 +66,8 @@ mod notion_map;
 mod notion_tools;
 mod recipes;
 mod router;
+mod commands;
+mod periods;
 mod portals;
 mod todo;
 mod second;
@@ -940,6 +942,18 @@ fn router_forget() {
     router::forget();
 }
 
+/// «Esegui» under a command the chat offered (commands.rs): the user's click
+/// is the consent; only the tools in `commands::RUNS`.
+#[tauri::command]
+async fn chat_command_run(app: AppHandle, tool: String, args: serde_json::Value) -> Result<String, String> {
+    if !commands::RUNS.contains(&tool.as_str()) {
+        return Err(t("Questo comando non si può eseguire da qui.").into());
+    }
+    let out = agent::call(&app, &tool, &args).await;
+    let text = out.get("text").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
+    if out.get("ok").and_then(serde_json::Value::as_bool) == Some(true) { Ok(text) } else { Err(text) }
+}
+
 /// Impostazioni → Chat → «Portali»: the suppliers' portals the user taught (portals.rs).
 #[tauri::command]
 fn portals_list() -> Vec<portals::Portal> {
@@ -1426,7 +1440,7 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat) })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat) })
 }
 
 /// A turn of the island's chat, with the conversation's id in the history
@@ -1447,6 +1461,8 @@ struct IslandReply {
     usage: Option<claude::TurnUsage>,
     /// Answered by EasyIsland with no engine (router.rs): «Chiedi al motore» under it.
     direct: bool,
+    /// A command offered with the answer (commands.rs): its «Esegui» button.
+    command: Option<commands::Command>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1713,7 +1729,16 @@ pub(crate) async fn chat_turn(
     let mut refused = false;
     if direct_ok {
         let started = std::time::Instant::now();
-        match router::direct(app, chat, &query).await {
+        // A short order (commands.rs) gets its «Esegui» button: only in the
+        // island, where the button is.
+        let command = if channel == Channel::Island {
+            let s = shared.settings.lock().unwrap();
+            let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
+            commands::parse(&query, &s.actions, &profiles)
+        } else {
+            None
+        };
+        match router::direct(app, chat, &query, command).await {
             router::Direct::Answer(text, tool) => {
                 if shared.settings.lock().unwrap().chat_history {
                     chat_log::record(chat, &engine, &query, &text, if telegram { "Telegram · " } else { "" });
@@ -4891,6 +4916,7 @@ pub fn run() {
             recipes_forget,
             router_stats,
             router_forget,
+            chat_command_run,
             portals_list,
             portals_delete,
             portals_export,

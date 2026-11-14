@@ -526,6 +526,17 @@ export interface ChatMessage {
   usage?: TurnUsage;
   /** Answered by EasyIsland with no engine (router.rs): «Chiedi al motore» under it. */
   direct?: boolean;
+  /** A short order the chat recognised (commands.rs): «Esegui» runs it, after the click only. */
+  command?: ChatCommand;
+  /** «Esegui» was pressed: the button goes. */
+  commandDone?: boolean;
+}
+
+/** commands.rs Command: the tool, its arguments, what it does in words. */
+export interface ChatCommand {
+  tool: string;
+  args: unknown;
+  label: string;
 }
 
 /** One turn of Claude Code, as claude_cli::finish measures it (claude.rs TurnUsage). */

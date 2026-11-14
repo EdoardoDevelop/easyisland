@@ -10,6 +10,12 @@
 // no confirmation (Edoardo's choice). Impostazioni → Chat shows how many there
 // are and forgets them. Only EasyIsland's tools are seen: an engine's own
 // connectors are not.
+//
+// Values the question decides (14 Nov 2026): the dates of a period it names
+// («ottobre», «mese scorso», «ieri», periods.rs) and its numbers («ticket
+// 1234») become placeholders in `template`, so «spese di novembre» reuses the
+// recipe of «spese di ottobre» with November's dates, also for an answer
+// without the engine (router.rs).
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -37,6 +43,13 @@ pub struct Recipe {
     /// The user asked the engine after a direct answer: never direct again.
     #[serde(default)]
     pub direct_off: bool,
+    /// `steps` with the question's values as placeholders ({inizio}, {fine},
+    /// {dopo}, {mese}, {n1}…; "{#n1}" for a number), when it had any.
+    #[serde(default)]
+    pub template: Vec<String>,
+    /// The kind of period its dates are (periods.rs `Span::name`), "" for none.
+    #[serde(default)]
+    pub span: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -185,6 +198,15 @@ const STOP: &[&str] = &[
 /// Stems of the words that mean something: no accents, no small words, no
 /// numbers (dates change), the first five letters.
 fn stems(text: &str) -> Vec<String> {
+    stems_of(text, false)
+}
+
+/// `stems`, without the words that only name a period («novembre», «scorso»).
+fn stems_no_period(text: &str) -> Vec<String> {
+    stems_of(text, true)
+}
+
+fn stems_of(text: &str, drop_periods: bool) -> Vec<String> {
     let plain: String = text.to_lowercase().chars().map(|c| match c {
         'à' | 'á' => 'a',
         'è' | 'é' => 'e',
@@ -196,6 +218,9 @@ fn stems(text: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for w in plain.split(|c: char| !c.is_alphanumeric()) {
         if w.chars().count() < 3 || w.chars().all(|c| c.is_ascii_digit()) || STOP.contains(&w) {
+            continue;
+        }
+        if drop_periods && crate::periods::is_period_word(w) {
             continue;
         }
         let s: String = w.chars().take(5).collect();
@@ -215,6 +240,7 @@ fn learn(question: &str, steps: Vec<String>) {
     let short: String = q.chars().take(120).collect();
     let tools = |s: &[String]| s.iter().map(|x| signature(x)).collect::<Vec<_>>();
     let sig = tools(&steps);
+    let (template, span) = templatize(q, &steps, crate::periods::today()).unwrap_or_default();
     with_book(|b| {
         if let Some(r) = b.recipes.iter_mut().find(|r| tools(&r.steps) == sig) {
             for w in words {
@@ -227,12 +253,16 @@ fn learn(question: &str, steps: Vec<String>) {
                 r.words.drain(..extra);
             }
             r.question = short;
-            r.same = if r.steps == steps { r.same.max(1) + 1 } else { 1 };
+            // The same steps, or the same ones but for the question's own values.
+            let alike = r.steps == steps || (!template.is_empty() && r.template == template && r.span == span);
+            r.same = if alike { r.same.max(1) + 1 } else { 1 };
             r.steps = steps;
+            r.template = template;
+            r.span = span;
             r.uses += 1;
             r.at = now();
         } else {
-            b.recipes.push(Recipe { question: short, words, steps, uses: 1, at: now(), same: 1, direct_off: false });
+            b.recipes.push(Recipe { question: short, words, steps, uses: 1, at: now(), same: 1, direct_off: false, template, span });
             if b.recipes.len() > MAX_RECIPES {
                 // The least used, then the oldest, goes.
                 if let Some(i) = b.recipes.iter().enumerate().min_by_key(|(_, r)| (r.uses, r.at)).map(|(i, _)| i) {
@@ -281,21 +311,147 @@ pub fn hint(question: &str) -> Option<String> {
     Some(s)
 }
 
-/// The recipe a question can be answered with, without an engine (router.rs):
-/// one step, the same values at least twice in a row, and every meaningful
-/// word of the question already seen with it (so «novembre» never gets
-/// October's rows).
-pub fn sure(question: &str) -> Option<Recipe> {
-    let q = stems(bare(question));
-    if q.is_empty() {
+/// The recipe a question can be answered with, without an engine (router.rs),
+/// and its steps for this question: one step, the same values at least twice
+/// in a row (or the same but for the question's own period and numbers), and
+/// every other meaningful word of the question already seen with it (so
+/// «novembre» never gets October's rows from a recipe with fixed dates).
+pub fn sure(question: &str) -> Option<(Recipe, Vec<String>)> {
+    let q = bare(question);
+    let all = stems(q);
+    let plain = stems_no_period(q);
+    if all.is_empty() {
         return None;
     }
+    let today = crate::periods::today();
     with_book(|b| {
         b.recipes.iter()
-            .filter(|r| r.same >= 2 && !r.direct_off && r.steps.len() == 1 && q.iter().all(|w| r.words.contains(w)))
-            .max_by_key(|r| (r.uses, r.at))
-            .cloned()
+            .filter(|r| r.same >= 2 && !r.direct_off && r.steps.len() == 1)
+            .filter_map(|r| {
+                if r.template.is_empty() {
+                    all.iter().all(|w| r.words.contains(w)).then(|| (r.clone(), r.steps.clone()))
+                } else {
+                    let ok = !plain.is_empty() && plain.iter().all(|w| r.words.contains(w));
+                    ok.then(|| fill(&r.template, &r.span, q, today)).flatten().map(|s| (r.clone(), s))
+                }
+            })
+            .max_by_key(|(r, _)| (r.uses, r.at))
     })
+}
+
+/// A recipe's steps for this question: its template filled in with the
+/// question's period and numbers (None when it has no template, or the
+/// question does not give what the template needs).
+pub fn steps_for(r: &Recipe, question: &str) -> Option<Vec<String>> {
+    if r.template.is_empty() {
+        return None;
+    }
+    fill(&r.template, &r.span, bare(question), crate::periods::today())
+}
+
+/// The numbers a question gives (two digits or more), without the year of
+/// its period.
+fn numbers(question: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for w in question.split(|c: char| !c.is_ascii_digit()) {
+        if w.len() < 2 || crate::periods::is_period_word(w) || out.iter().any(|x| x == w) {
+            continue;
+        }
+        out.push(w.to_string());
+    }
+    out
+}
+
+/// The steps with the question's values as placeholders, and the kind of
+/// period its dates are; None when nothing in them came from the question.
+fn templatize(question: &str, steps: &[String], today: i64) -> Option<(Vec<String>, String)> {
+    let period = crate::periods::find(question, today);
+    let nums = numbers(question);
+    if period.is_none() && nums.is_empty() {
+        return None;
+    }
+    let (mut dates, mut any) = (false, false);
+    let mut out: Vec<String> = Vec::new();
+    for step in steps {
+        let (tool, args) = step.split_once(' ').unwrap_or((step.as_str(), "{}"));
+        // Values cut at 400 characters (`compact`) are not JSON any more.
+        let Ok(mut v) = serde_json::from_str::<Value>(args) else {
+            out.push(step.clone());
+            continue;
+        };
+        mark(&mut v, period.as_ref(), &nums, &mut dates, &mut any);
+        out.push(format!("{tool} {v}"));
+    }
+    let span = if dates { period.map(|p| p.span.name().to_string()).unwrap_or_default() } else { String::new() };
+    any.then_some((out, span))
+}
+
+fn mark(v: &mut Value, period: Option<&crate::periods::Period>, nums: &[String], dates: &mut bool, any: &mut bool) {
+    match v {
+        Value::String(s) => {
+            if let Some(p) = period {
+                let before = s.clone();
+                let month = p.start.get(..7).unwrap_or_default().to_string();
+                *s = s.replace(&p.start, "{inizio}");
+                if p.end != p.start {
+                    *s = s.replace(&p.end, "{fine}");
+                }
+                *s = s.replace(&p.after, "{dopo}");
+                if !month.is_empty() {
+                    *s = s.replace(&month, "{mese}");
+                }
+                if *s != before {
+                    *dates = true;
+                    *any = true;
+                }
+            }
+            if let Some(i) = nums.iter().position(|n| n == s.trim()) {
+                *s = format!("{{n{}}}", i + 1);
+                *any = true;
+            }
+        }
+        Value::Number(n) => {
+            if let Some(i) = nums.iter().position(|x| Some(x.as_str()) == n.as_i64().map(|k| k.to_string()).as_deref()) {
+                *v = Value::String(format!("{{#n{}}}", i + 1));
+                *any = true;
+            }
+        }
+        Value::Array(list) => list.iter_mut().for_each(|x| mark(x, period, nums, dates, any)),
+        Value::Object(map) => map.values_mut().for_each(|x| mark(x, period, nums, dates, any)),
+        _ => {}
+    }
+}
+
+/// The template with this question's values; None when the question does not
+/// give a period of the same kind, or the numbers it needs.
+fn fill(template: &[String], span: &str, question: &str, today: i64) -> Option<Vec<String>> {
+    let nums = numbers(question);
+    let joined = template.join("\n");
+    // As many numbers as the recipe had: more or fewer is another question.
+    let wanted = (1..=9).take_while(|i| joined.contains(&format!("{{n{i}}}")) || joined.contains(&format!("{{#n{i}}}"))).count();
+    if wanted != nums.len() {
+        return None;
+    }
+    let period = if span.is_empty() {
+        None
+    } else {
+        Some(crate::periods::find(question, today).filter(|p| p.span.name() == span)?)
+    };
+    let mut out: Vec<String> = Vec::new();
+    for step in template {
+        let mut s = step.clone();
+        if let Some(p) = &period {
+            s = s.replace("{inizio}", &p.start).replace("{fine}", &p.end).replace("{dopo}", &p.after)
+                .replace("{mese}", p.start.get(..7).unwrap_or_default());
+        }
+        for (i, n) in nums.iter().enumerate() {
+            s = s.replace(&format!("\"{{#n{}}}\"", i + 1), n).replace(&format!("{{n{}}}", i + 1), n);
+        }
+        let (_, args) = s.split_once(' ').unwrap_or((s.as_str(), "{}"));
+        serde_json::from_str::<Value>(args).ok()?;
+        out.push(s);
+    }
+    Some(out)
 }
 
 /// The recipes that fit a question (as `hint`), the best first.
@@ -367,7 +523,7 @@ mod tests {
     use serde_json::json;
 
     fn recipe(q: &str, steps: &[&str]) -> Recipe {
-        Recipe { question: q.into(), words: stems(q), steps: steps.iter().map(|s| s.to_string()).collect(), uses: 1, at: 0, same: 1, direct_off: false }
+        Recipe { question: q.into(), words: stems(q), steps: steps.iter().map(|s| s.to_string()).collect(), uses: 1, at: 0, same: 1, direct_off: false, ..Default::default() }
     }
 
     #[test]
@@ -441,7 +597,7 @@ mod tests {
         learn("stato del computer oggi", vec!["list_status {}".into()]);
         let once = sure("stato del computer oggi").is_some();
         learn("stato del computer", vec!["list_status {}".into()]);
-        let twice = sure("stato computer").map(|r| r.steps);
+        let twice = sure("stato computer").map(|(r, _)| r.steps);
         let new_word = sure("stato computer di Rossi").is_some();
         learn("spese di ottobre", vec![r#"notion_query {"database":"Movimenti","m":10}"#.into()]);
         learn("spese di settembre", vec![r#"notion_query {"database":"Movimenti","m":9}"#.into()]);
@@ -453,7 +609,7 @@ mod tests {
         end(m, "azioni rapide", true, &[r#"list_quick_actions {}"#.to_string()]);
         let m = begin();
         end(m, "azioni rapide", true, &[r#"list_quick_actions {}"#.to_string()]);
-        let prepared = sure("azioni rapide").map(|r| r.same);
+        let prepared = sure("azioni rapide").map(|(r, _)| r.same);
         with_book(|b| b.recipes = before);
         assert!(!once, "one turn is not enough");
         assert_eq!(twice, Some(vec!["list_status {}".to_string()]));
@@ -463,5 +619,43 @@ mod tests {
         assert_eq!(prepared, Some(2));
         assert!(same_question("[x]\n\nStato del computer?", "stato del computer"));
         assert!(!same_question("stato del computer", "stato del computer di Rossi"));
+    }
+
+    #[test]
+    fn the_question_decides_dates_and_numbers() {
+        let today = crate::periods::days_from_civil(2026, 11, 14);
+        let step = |a: &str, b: &str| format!(r#"notion_query {{"database":"Movimenti","filter":{{"and":[{{"date":{{"on_or_after":"{a}"}}}},{{"date":{{"before":"{b}"}}}}]}}}}"#);
+        let (t, span) = templatize("Quanto ho speso a ottobre?", &[step("2026-10-01", "2026-11-01")], today).unwrap();
+        assert_eq!(span, "mese");
+        assert_eq!(t, vec![step("{inizio}", "{dopo}")]);
+        assert_eq!(fill(&t, &span, "e a settembre?", today), Some(vec![step("2026-09-01", "2026-10-01")]));
+        assert_eq!(fill(&t, &span, "e ieri?", today), None, "a day is not a month");
+        assert_eq!(fill(&t, &span, "e in totale?", today), None);
+        let (n, _) = templatize("stato del ticket 1234", &[r#"custom_records {"id":"ticket","numero":1234,"q":"1234"}"#.into()], today).unwrap();
+        assert_eq!(n, vec![r#"custom_records {"id":"ticket","numero":"{#n1}","q":"{n1}"}"#.to_string()]);
+        assert_eq!(fill(&n, "", "e il ticket 98?", today), Some(vec![r#"custom_records {"id":"ticket","numero":98,"q":"98"}"#.to_string()]));
+        assert_eq!(fill(&n, "", "e il ticket?", today), None);
+        assert!(templatize("stato del computer", &["list_status {}".into()], today).is_none());
+        assert!(templatize("spese di ottobre", &[r#"notion_query {"database":"Movimenti"}"#.into()], today).is_none(), "nothing came from the question");
+    }
+
+    #[test]
+    fn a_month_recipe_answers_another_month() {
+        let _one = TEST_BOOK.lock().unwrap_or_else(|e| e.into_inner());
+        let before = with_book(|b| std::mem::take(&mut b.recipes));
+        let today = crate::periods::today();
+        let range = |q: &str| {
+            let p = crate::periods::find(q, today).unwrap();
+            format!(r#"notion_query {{"database":"Movimenti","da":"{}","a":"{}"}}"#, p.start, p.end)
+        };
+        learn("spese di settembre", vec![range("settembre")]);
+        let once = sure("spese di novembre").is_some();
+        learn("spese di ottobre", vec![range("ottobre")]);
+        let twice = sure("spese di novembre").map(|(_, s)| s);
+        let other = sure("spese di Rossi a novembre").is_some();
+        with_book(|b| b.recipes = before);
+        assert!(!once);
+        assert_eq!(twice, Some(vec![range("novembre")]));
+        assert!(!other, "a word never seen with it");
     }
 }
