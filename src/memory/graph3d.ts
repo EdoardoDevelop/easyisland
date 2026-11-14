@@ -4,7 +4,7 @@
 // zooms, double click shows everything. Frames only while something moves.
 
 import { KIND_COLOR, alpha, type MemNode, type Model } from "./data";
-import { animateIdle, Camera, starfield, type View } from "./stage";
+import { animateIdle, Camera, starfield, type Colouring, type View } from "./stage";
 import { Placer, label } from "./labels";
 import { pal } from "./theme";
 
@@ -44,8 +44,18 @@ export class Graph3DView implements View {
   private spin = { yaw: 0.004, pitch: 0 };
   private zoomK = 1;
   private goal: { yaw: number; pitch: number } | null = null;
+  private colouring: Colouring = "group";
   // Only for the starfield's parallax.
   private cam = new Camera();
+
+  setColouring(c: Colouring) {
+    this.colouring = c;
+  }
+
+  private colourOf(n: MemNode): string {
+    if (this.colouring === "group") return this.model?.groupColor(n.id) ?? KIND_COLOR[n.kind];
+    return KIND_COLOR[n.kind];
+  }
 
   setModel(model: Model) {
     this.model = model;
@@ -201,7 +211,7 @@ export class Graph3DView implements View {
       this.spin.pitch *= 0.9;
       moving = true;
     } else if (animateIdle() && !this.selected) {
-      this.yaw += 0.0014;
+      this.yaw += 0.0032;
       moving = true;
     }
     this.cam.tx = this.yaw * 300;
@@ -225,23 +235,27 @@ export class Graph3DView implements View {
     const fog = (d: number) => Math.max(0.25, Math.min(1, 1.35 - d / (eye * 1.6)));
 
     // Links, back to front with the stars would be costly: links first, faded by depth.
+    const idle = animateIdle();
+    let linkIdx = 0;
     for (const [a, b] of this.links) {
+      linkIdx++;
       if (!a.s || !b.s) continue;
       const on = sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
       const f = fog((a.d + b.d) / 2);
-      ctx.strokeStyle = on && sel ? alpha(KIND_COLOR[a.n.id === sel ? b.n.kind : a.n.kind], 0.8 * f) : `rgba(${p.link},${(on ? 0.3 : 0.06) * f})`;
+      ctx.strokeStyle = on && sel ? alpha(this.colourOf(a.n.id === sel ? b.n : a.n), 0.8 * f) : `rgba(${p.link},${(on ? 0.3 : 0.06) * f})`;
       ctx.lineWidth = on && sel ? 1.6 : 0.8;
       ctx.beginPath();
       ctx.moveTo(a.sx, a.sy);
       ctx.lineTo(b.sx, b.sy);
       ctx.stroke();
-      if (on && sel) {
-        const p = ((time / 1400) + (a.x * 0.001)) % 1;
+      const ambientSpark = idle && !sel && on && linkIdx % 9 === 0;
+      if ((on && sel) || ambientSpark) {
+        const p3 = ((time / (ambientSpark ? 2400 : 1400)) + (a.x * 0.001 + linkIdx * 0.11)) % 1;
         const from = a.n.id === sel ? a : b;
         const to = from === a ? b : a;
-        ctx.fillStyle = alpha(KIND_COLOR[to.n.kind], 0.95);
+        ctx.fillStyle = alpha(this.colourOf(to.n), (ambientSpark ? 0.8 : 0.95) * f);
         ctx.beginPath();
-        ctx.arc(from.sx + (to.sx - from.sx) * ((p % 1 + 1) % 1), from.sy + (to.sy - from.sy) * ((p % 1 + 1) % 1), 2.4, 0, Math.PI * 2);
+        ctx.arc(from.sx + (to.sx - from.sx) * ((p3 % 1 + 1) % 1), from.sy + (to.sy - from.sy) * ((p3 % 1 + 1) % 1), ambientSpark ? 2 : 2.4, 0, Math.PI * 2);
         ctx.fill();
         moving = true;
       }
@@ -251,7 +265,7 @@ export class Graph3DView implements View {
     const order = this.bodies.filter((b) => b.s > 0).sort((a, b) => b.d - a.d);
     for (const b of order) {
       const on = lit(b.n.id);
-      const color = KIND_COLOR[b.n.kind];
+      const color = this.colourOf(b.n);
       const pulse = b.n.id === sel ? 1 + Math.sin(time / 300) * 0.12 : 1;
       if (b.n.id === sel) moving = true;
       const r = Math.max(1.2, b.r * b.s * pulse);

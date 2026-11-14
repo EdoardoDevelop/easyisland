@@ -86,7 +86,7 @@ export class BubblesView implements View {
     const sel = this.selected;
     const names: { text: string; x: number; y: number; score: number; color?: string; group: boolean }[] = [];
     this.bubbles.forEach((b, bi) => {
-      const floatY = idle ? Math.sin(time * 0.0011 + bi * 1.3) * 2.5 : 0;
+      const floatY = idle ? (Math.sin(time * 0.0014 + bi * 1.3) * 3.5) / k : 0;
       const by = b.y + floatY;
       // The group's bubble: a tint of its colour with a glassmorphic edge.
       ctx.fillStyle = alpha(b.colour, p.light ? 0.08 : 0.11);

@@ -120,18 +120,54 @@ const LINE = {
 };
 const icon = (path: string, size = 16) => svg(path, size, { stroke: 1.6 });
 
-// Grouped view pills for faster switching across all 14 views.
-const viewPills = h("div", { class: "mem-view-pills", role: "tablist", "aria-label": t("Come disegnare la memoria") });
-const viewButtons = new Map<Tab, HTMLButtonElement>();
-let lastGroup = "";
-for (const tb of TABS) {
-  if (lastGroup && tb.group !== lastGroup) viewPills.append(h("span", { class: "mem-view-sep", "aria-hidden": "true" }));
-  lastGroup = tb.group;
-  const b = h("button", { role: "tab", text: tb.name, title: tb.hint, "aria-selected": "false" }) as HTMLButtonElement;
-  b.addEventListener("click", () => show(tb.id));
-  viewButtons.set(tb.id, b);
-  viewPills.append(b);
+// Categorized view switcher: 4 compact category dropdowns on one row so all 14 views
+// stay organized and never clip off-screen.
+const GROUPS: { id: string; label: string }[] = [
+  { id: "Grafi", label: t("Grafi") },
+  { id: "Mappe", label: t("Mappe") },
+  { id: "Struttura", label: t("Struttura") },
+  { id: "Tempo", label: t("Analisi") },
+];
+const viewPills = h("div", { class: "mem-cats", role: "menubar", "aria-label": t("Come disegnare la memoria") });
+const catMenus = new Map<string, { wrap: HTMLElement; btn: HTMLButtonElement; label: HTMLElement; menu: HTMLElement }>();
+const viewMenuItems = new Map<Tab, HTMLButtonElement>();
+
+function closeCatMenus(except?: string) {
+  for (const [gid, c] of catMenus) {
+    if (gid === except) continue;
+    c.menu.hidden = true;
+    c.btn.setAttribute("aria-expanded", "false");
+  }
 }
+
+for (const g of GROUPS) {
+  const wrap = h("div", { class: "mem-cat-wrap" });
+  const lbl = h("span", { text: g.label });
+  const btn = h("button", { class: "mem-cat-btn", "aria-haspopup": "menu", "aria-expanded": "false" }, lbl, icon(LINE.chevronDown, 13)) as HTMLButtonElement;
+  const catMenu = h("div", { class: "mem-menu mem-cat-menu", role: "menu", hidden: "" });
+  for (const tb of TABS.filter((x) => x.group === g.id)) {
+    const item = h("button", { role: "menuitem" }, h("span", { text: tb.name }), h("small", { text: tb.hint })) as HTMLButtonElement;
+    item.addEventListener("click", () => {
+      closeCatMenus();
+      show(tb.id);
+    });
+    viewMenuItems.set(tb.id, item);
+    catMenu.append(item);
+  }
+  btn.addEventListener("click", () => {
+    const opening = catMenu.hidden;
+    closeCatMenus(opening ? g.id : undefined);
+    catMenu.hidden = !opening;
+    btn.setAttribute("aria-expanded", String(opening));
+  });
+  wrap.append(btn, catMenu);
+  catMenus.set(g.id, { wrap, btn, label: lbl, menu: catMenu });
+  viewPills.append(wrap);
+}
+
+document.addEventListener("pointerdown", (e) => {
+  if (!(e.target as HTMLElement).closest(".mem-cat-wrap")) closeCatMenus();
+});
 // Which memory, shown only when another PC's is copied here: a segmented control.
 const sourcesBox = h("div", { class: "mem-sources", role: "group", "aria-label": t("Quale memoria"), style: "display:none" });
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…"), "aria-label": t("Cerca nella memoria…") }) as HTMLInputElement;
@@ -356,12 +392,15 @@ function show(next: Tab) {
   } catch {
     /* no storage */
   }
-  for (const [id, b] of viewButtons) {
-    const on = id === next;
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-selected", String(on));
+  const activeTab = TABS.find((x) => x.id === next)!;
+  for (const g of GROUPS) {
+    const c = catMenus.get(g.id)!;
+    const isHere = activeTab.group === g.id;
+    c.btn.classList.toggle("on", isHere);
+    c.label.textContent = isHere ? `${g.label} · ${activeTab.name}` : g.label;
   }
-  hint.textContent = TABS.find((x) => x.id === next)!.hint;
+  for (const [id, item] of viewMenuItems) item.classList.toggle("on", id === next);
+  hint.textContent = activeTab.hint;
   infoBtn.title = hint.textContent;
   legend.style.display = next === "timeline" || next === "stream" || next === "sankey" || next === "health" ? "none" : "flex";
   keepClear();

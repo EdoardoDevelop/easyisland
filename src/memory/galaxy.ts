@@ -191,7 +191,7 @@ export class GalaxyView implements View {
     // The stars.
     for (const s of this.stars) {
       const dim = (sel && s.n.id !== sel && !near.has(s.n.id)) || (this.filter && !this.filter.has(s.n.id));
-      const tw = twinkling ? 0.75 + 0.25 * Math.sin(time / 180 + s.phase * 3) * (s.fresh > 0.6 ? 1.6 : 0.6) : 1;
+      const tw = twinkling ? 0.65 + 0.35 * Math.sin(time / 220 + s.phase * 4) * (s.fresh > 0.6 ? 1.4 : 0.85) : 1;
       const picked = s.n.id === sel;
       const a = (dim ? 0.16 : 0.5 + s.fresh * 0.4) * tw * (picked ? 1 : s.damp);
       const r = s.r * (picked ? 1.6 : 1);

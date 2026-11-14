@@ -433,7 +433,7 @@ svg {
   color: var(--ink);
 }
 
-.mem-view-pills {
+.mem-cats {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -441,47 +441,56 @@ svg {
   border-radius: calc(var(--r-ctl) + 2px);
   background: var(--control-active);
   border: 1px solid var(--stroke);
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: none;
 }
 
-.mem-view-pills::-webkit-scrollbar {
-  display: none;
+.mem-cat-wrap {
+  position: relative;
 }
 
-.mem-view-pills button {
+.mem-cat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 0;
   border-radius: var(--r-ctl);
   background: transparent;
   color: var(--dim);
-  padding: 4px 9px;
+  padding: 4px 10px;
   min-height: 26px;
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
-  flex: none;
 }
 
-.mem-view-pills button:hover {
+.mem-cat-btn:hover {
   color: var(--ink);
   background: var(--control);
 }
 
-.mem-view-pills button.on {
+.mem-cat-btn.on {
   background: var(--card);
   color: var(--ink);
   font-weight: 600;
   box-shadow: 0 0 0 1px var(--stroke);
 }
 
-.mem-view-sep {
-  width: 1px;
-  height: 16px;
-  margin: 0 3px;
-  background: var(--stroke-strong);
-  flex: none;
+.mem-cat-menu {
+  left: 0;
+  right: auto;
+  width: 280px;
+}
+
+.mem-cat-menu button {
+  grid-template-columns: 1fr;
+}
+
+.mem-cat-menu button.on {
+  background: var(--control-hover);
+}
+
+.mem-cat-menu button.on span {
+  color: var(--accent);
 }
 
 .mem-zoom-dock {

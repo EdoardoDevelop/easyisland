@@ -238,6 +238,18 @@ export class ConceptView implements View {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
+      if (idle && lit && !a.named) {
+        const u = ((time * 0.00038 + (sx + sy) * 0.0013) % 1 + 1) % 1;
+        const q = 1 - u;
+        const px = q * q * q * sx + 3 * q * q * u * sx + 3 * q * u * u * c2x + u * u * u * ex;
+        const py = q * q * q * sy + 3 * q * q * u * c1y + 3 * q * u * u * c2y + u * u * u * ey;
+        ctx.fillStyle = alpha(p.accent, 0.85);
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5 / Math.sqrt(k), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
       // The head.
       const ang = Math.atan2(ey - c2y, ex - c2x);
       ctx.fillStyle = color;
@@ -299,7 +311,7 @@ export class ConceptView implements View {
       label(ctx, placer, r.text, s.x, s.y, { size: 12, weight: 500, color: r.named ? p.ink : p.dim, baseline: "middle", max: 160 });
     }
     ctx.globalAlpha = 1;
-    return moving;
+    return moving || idle;
   }
 
   hit(x: number, y: number): string | null {

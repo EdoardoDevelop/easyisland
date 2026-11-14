@@ -109,7 +109,7 @@ export class StreamView implements View {
       const topY: number[] = [];
       const botY: number[] = [];
       for (let i = 0; i < n; i++) {
-        const wave = idle ? Math.sin(time * 0.0014 + i * 0.45 + si * 0.9) * 1.4 : 0;
+        const wave = idle ? Math.sin(time * 0.0022 - i * 0.5 + si * 0.9) * 3.2 : 0;
         topY.push(base[i] + acc[i] * scale + wave);
         acc[i] += s.counts[i];
         botY.push(base[i] + acc[i] * scale + wave);

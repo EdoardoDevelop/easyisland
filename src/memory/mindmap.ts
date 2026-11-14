@@ -192,8 +192,10 @@ export class MindMapView implements View {
     }
 
     const rels: { text: string; x: number; y: number; hue: string }[] = [];
+    let twigIdx = 0;
     for (const t of this.twigs.values()) {
       if (!t.parent) continue;
+      twigIdx++;
       const pt = this.twigs.get(t.parent)!;
       const g = grown(t.depth);
       if (g <= 0) continue;
@@ -219,6 +221,17 @@ export class MindMapView implements View {
       ctx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
       ctx.stroke();
       ctx.setLineDash([]);
+      // Traveling energy pulse along grown branches.
+      if (idle && g >= 1) {
+        const u = ((time * 0.00042 + twigIdx * 0.17) % 1 + 1) % 1;
+        const q = 1 - u;
+        const bx = q * q * q * pt.cx + 3 * q * q * u * c1x + 3 * q * u * u * c2x + u * u * u * ex;
+        const by = q * q * q * pt.cy + 3 * q * q * u * c1y + 3 * q * u * u * c2y + u * u * u * ey;
+        ctx.fillStyle = alpha(t.hue, 0.9);
+        ctx.beginPath();
+        ctx.arc(bx, by, 3 / k, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (t.rel && g >= 1) rels.push({ text: t.rel, x: (pt.cx + t.cx) / 2, y: (pt.cy + t.cy) / 2, hue: t.hue });
     }
     ctx.globalAlpha = 1;

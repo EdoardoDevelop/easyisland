@@ -131,9 +131,9 @@ export class NeuralView implements View {
     let moving = this.cam.step();
     const now = performance.now();
     const idle = animateIdle();
-    if (idle && this.axons.length && this.pulses.length < 2 && now - this.lastAmbient > 1600) {
+    if (idle && this.axons.length && this.pulses.length < 5 && now - this.lastAmbient > 550) {
       this.lastAmbient = now;
-      const [a, b] = this.axons[Math.floor((now * 0.013) % this.axons.length)];
+      const [a, b] = this.axons[Math.floor((now * 0.037) % this.axons.length)];
       this.fire(a, [b], 1);
     }
     starfield(ctx, w, h, this.cam, time);
@@ -216,14 +216,16 @@ export class NeuralView implements View {
       moving = true;
     }
     // Neurons.
-    for (const x of this.neurons) {
+    for (let i = 0; i < this.neurons.length; i++) {
+      const x = this.neurons[i];
       const glow = Math.max(0, 1 - (now - x.lit) / GLOW_MS);
       const picked = x.n.id === sel;
       const neighbour = stay > 0 && near.has(x.n.id);
       const dim = (sel && !picked && !neighbour) || (this.filter && !this.filter.has(x.n.id));
       // The picked one and its neighbours keep a glow of their own once the pulses are gone.
       const keep = (picked ? 0.5 : neighbour ? 0.25 : 0) * stay;
-      const shine = Math.max(glow, keep);
+      const breath = idle && !dim ? 0.08 * (0.5 + 0.5 * Math.sin(time * 0.0025 + i * 0.9)) : 0;
+      const shine = Math.max(glow, keep, breath);
       const r = x.r * (1 + shine * 0.8);
       const halo = ctx.createRadialGradient(x.x, x.y, 0, x.x, x.y, r * (3 + shine * 4));
       halo.addColorStop(0, alpha(x.colour, (dim ? 0.12 : 0.55) + shine * 0.4));
