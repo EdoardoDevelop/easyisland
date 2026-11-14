@@ -47,9 +47,10 @@ const COMMON: &[&str] = &[
 ];
 
 const MAX_WORDS: usize = 14;
-/// At most this many lines, within `BELOW_BEST` of the best one.
+/// At most this many lines, as good as the best one (same page, same words).
 const MAX_LINES: usize = 2;
-const BELOW_BEST: f32 = 0.12;
+/// A second line only this close in meaning to the first one.
+const SECOND_BELOW: f32 = 0.05;
 
 fn words(question: &str) -> Vec<String> {
     question
@@ -151,13 +152,33 @@ pub fn pick(question: &str, found: &[(f32, String)], min: f32) -> Vec<String> {
         let tw = words(&title.replace('-', " "));
         subjects.iter().filter(|s| tw.iter().any(|t| t == *s)).count()
     };
-    let mut good: Vec<(usize, f32, &String)> = found.iter().filter(|(s, l)| *s >= min && fits(l)).map(|(s, l)| (own_page(l), *s, l)).collect();
-    good.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.total_cmp(&a.1)));
-    let Some(&(page, best, _)) = good.first() else { return Vec::new() };
+    // Then the lines with what is asked besides the names («vm»: in the line,
+    // not only in its page's title); a question that only names the page
+    // («chi è Falchi?») gets its summary; then the meaning, then the shorter.
+    let body = |l: &str| l.trim().strip_prefix("[[").and_then(|r| r.split_once("]]")).map(|(_, b)| b.trim()).unwrap_or(l).to_lowercase();
+    let body_hits = |l: &str| {
+        let b = body(l);
+        let bw = words(&b);
+        subjects.iter().filter(|s| has_word(&bw, &b, s)).count()
+    };
+    let summary = |l: &str| own_page(l) == subjects.len() && body(l).starts_with("riassunto:");
+    let mut good: Vec<(usize, usize, bool, f32, usize, &String)> = found
+        .iter()
+        .filter(|(s, l)| *s >= min && (fits(l) || summary(l)))
+        .map(|(s, l)| (own_page(l), body_hits(l), summary(l), *s, l.chars().count(), l))
+        .collect();
+    good.sort_by(|a, b| b.0.cmp(&a.0).then(b.2.cmp(&a.2)).then(b.1.cmp(&a.1)).then(b.3.total_cmp(&a.3)).then(a.4.cmp(&b.4)));
+    #[cfg(test)]
+    if std::env::var_os("EI_EXPLAIN").is_some() {
+        for (p, h, r, s, _, l) in good.iter().take(6) {
+            println!("    cand p={p} h={h} r={r} {s:.2} {}", l.chars().take(90).collect::<String>());
+        }
+    }
+    let Some(&(page, hits, sum, best, ..)) = good.first() else { return Vec::new() };
     good.into_iter()
-        .filter(|(p, s, _)| *p == page && *s >= best - BELOW_BEST)
-        .take(MAX_LINES)
-        .map(|(_, _, l)| l.clone())
+        .filter(|(p, h, r, s, ..)| *p == page && *h == hits && *r == sum && *s >= best - SECOND_BELOW)
+        .take(if sum { 1 } else { MAX_LINES })
+        .map(|(.., l)| l.clone())
         .collect()
 }
 
@@ -169,8 +190,8 @@ pub fn shown(line: &str) -> String {
         None => line.to_string(),
     };
     let text = text.replace("[[", "").replace("]]", "");
-    if text.chars().count() > 400 {
-        format!("{}…", text.chars().take(400).collect::<String>())
+    if text.chars().count() > 700 {
+        format!("{}…", text.chars().take(700).collect::<String>())
     } else {
         text
     }
@@ -242,7 +263,7 @@ mod tests {
             let qv = crate::meaning_local::embed(std::slice::from_ref(q)).unwrap().remove(0);
             let mut scored: Vec<(f32, String)> = vectors.iter().zip(&lines).map(|(v, l)| (v.iter().zip(&qv).map(|(a, b)| a * b).sum::<f32>(), l.clone())).collect();
             scored.sort_by(|a, b| b.0.total_cmp(&a.0));
-            scored.truncate(200);
+            scored.truncate(5_000);
             let picked = pick(q, &scored, min);
             println!("\n«{q}» consultazione={} → {}", is_lookup(q), if picked.is_empty() { "MOTORE".to_string() } else { format!("MEMORIA ({})", picked.len()) });
             for l in &picked {

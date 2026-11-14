@@ -177,20 +177,18 @@ fn closest(query: &[f32], lines: &[String], store: &Store) -> (Vec<(f32, String)
     (found, best)
 }
 
-/// The `n` closest lines over the service's threshold, best first, however
-/// far below the best (memory_answer.rs filters them by their words).
+/// The `n` closest lines, best first, with no threshold: memory_answer.rs
+/// picks by their words, the meaning only breaks ties.
 fn ranked(query: &[f32], lines: &[String], store: &Store, n: usize) -> Vec<(f32, String)> {
-    let (min, _) = limits(&store.engine);
     let mut scored: Vec<(f32, &String)> = lines.iter()
         .filter_map(|l| store.items.get(&crate::brain::note_hash(l)).map(|h| (cosine(query, &unpack(h)), l)))
-        .filter(|(s, _)| *s >= min)
         .collect();
     scored.sort_by(|a, b| b.0.total_cmp(&a.0));
     scored.into_iter().take(n).map(|(s, l)| (s, l.clone())).collect()
 }
 
 /// Lines looked at for a direct answer from the memory.
-const DEEP: usize = 200;
+const DEEP: usize = 5_000;
 
 /// What the meaning brought in this turn (before the question and in
 /// memory_search), for the mark under the answer in the island. One list for
@@ -254,10 +252,12 @@ pub fn strong(engine: &str) -> f32 {
     if engine == LOCAL { 0.55 } else { 0.62 }
 }
 
-/// A line with every word of a lookup and this close answers it with no
-/// engine (memory_answer.rs): lower than `strong`, the words decide first.
+/// A line with every word of a lookup and at least this close answers it
+/// with no engine (memory_answer.rs). Low: the words decide. On the laptop the
+/// line with Falchi's VMs was 0.30 for «quale vm ha la farmacia falchi?», under
+/// a note about another pharmacy at 0.41 (15 Nov 2026).
 pub fn answer_min(engine: &str) -> f32 {
-    if engine == LOCAL { 0.35 } else { 0.45 }
+    if engine == LOCAL { 0.15 } else { 0.25 }
 }
 
 /// The same question in the same turn (the direct answer, then the engine's
