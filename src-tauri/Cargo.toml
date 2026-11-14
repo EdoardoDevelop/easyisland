@@ -87,3 +87,5 @@ png = "0.18"
 # (ooxzip.rs) and the streams of PDF files (pdftext.rs).
 flate2 = "1"
 crc32fast = "1"
+# Already in the tree (tauri): graphemes for the local meaning model's normalisation.
+unicode-segmentation = "1"

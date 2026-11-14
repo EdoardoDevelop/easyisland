@@ -5,6 +5,7 @@ _14 novembre 2026. **1.0.47** in `main` (tag `v1.0.47`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Ricerca per significato sul PC** (14/11, ramo `claude/significato-locale`): da provare nell'app «Scarica», poi domande con parole diverse dalle note (il registro dei turni dice se `memory_search` cala); soglie 0,30/0,10 da rivedere sulla memoria vera. Dopo: lo stesso confronto per le ricette (`docs/idee.md`).
 - [ ] **Comandi e ricette con date** (14/11, nella 1.0.47): da provare nell'app «apri <azione rapida>», «pausa», «ricordami di …» con Esegui; «spese di settembre», «di ottobre», poi «di novembre» in diretta; `cache_read_input_tokens` con il motore API.
 - [ ] **Smistatore** (14/11, nella 1.0.47): `docs/chat.md` → Smistatore. Da provare nell'app: una domanda ripetuta (stato del PC, azioni rapide) che dopo due turni uguali risponde da sola, «Chiedi al motore», i numeri in Impostazioni → Chat. Tappa 3 in `docs/idee.md`.
 - [ ] **VLAN ID in Modifica rete…** (13/11, ramo `claude/domande`): `docs/integrazioni.md` → Rete. Da provare l'applicazione vera da amministratore su una scheda con VLAN (e il ritorno a 0).
@@ -56,6 +57,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 14/11 — Ricerca per significato sul PC (ramo `claude/significato-locale`, da `claude/sviluppo`)
+Edoardo: tra i modelli piccoli scelto model2vec, prima per la ricerca nella memoria; scaricato da Impostazioni, non nell'installer. Fatto `meaning_local.rs` (download a revisione e SHA-256 fissi, conversione a 8 bit mentre arriva, tokenizer Unigram in Rust uguale all'originale su 3.649 frasi), voce «EasyIsland, su questo PC» in Impostazioni → Chat → Memoria, anche dentro `memory_search`. `docs/chat.md` → Memoria.
+
 ### 14/11 — Versione 1.0.47
 Uniti in `main` smistatore, comandi e ricette con date, stili Studio, mappa della memoria e il nuovo aspetto dell'isola di Antigravity (ricerca a tutta larghezza con calcolatrice, barra laterale manuale, Panoramica con «Adesso», campo della chat; `src/views/views.ts`, `rail.ts`, `search.ts`, `chat.ts`). Novità in `CHANGELOG.md`.
 
@@ -67,6 +71,3 @@ Antigravity in Turbo era di nuovo trattenuto: il relay installato era quello del
 
 ### 14/11 — Stili Studio uniti in `claude/sviluppo` (ramo `refactor_ui_graphics`)
 Lavoro di Antigravity non salvato nel suo worktree: salvato sul ramo e unito. Tre stili nuovi in Aspetto → Stile: Monolite, Titanio, Vetro (nomi di altre app tolti). `docs/architettura.md` → Stili.
-
-### 14/11 — Smistatore: registro dei turni, risposte dirette, dati letti prima (ramo `claude/smistatore`, da `claude/consumo`)
-Edoardo: niente LLM integrato che si allena da solo; tappe 1, 2 e 4 dello smistatore che impara con le Ricette (`router.rs`). Registro cifrato dei turni; domande che una ricetta risolve sempre con la stessa lettura risposte senza motore, «⚡ Chiedi al motore» le rimanda; altrimenti le letture fisse della ricetta fatte prima del motore. Test e anteprima (`?scene=chat&pensa=diretta`); da provare nell'app dopo qualche giorno di ricette. `docs/chat.md` → Smistatore.

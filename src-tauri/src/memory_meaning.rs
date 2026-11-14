@@ -11,7 +11,9 @@
 // model starts over). Before each question the question is turned into a
 // vector too and the closest lines go in front with `memory::related`.
 // With a cloud service the lines leave the PC (as with any cloud engine);
-// with Ollama or LM Studio they stay here.
+// with Ollama or LM Studio they stay here; with «locale» (meaning_local.rs,
+// 14 Nov 2026) EasyIsland does it itself, with a model downloaded once from
+// Impostazioni: no key, no network, nothing out of the PC.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -30,11 +32,24 @@ const MAX_BATCHES: usize = 8;
 const MIN_SCORE: f32 = 0.45;
 const BELOW_BEST: f32 = 0.12;
 const MAX_FOUND: usize = 4;
+/// The model on this PC has lower numbers: same-meaning lines 0.23–0.54,
+/// unrelated ones up to 0.21 (test meaning_on_this_pc, 14 Nov 2026).
+const LOCAL_MIN_SCORE: f32 = 0.30;
+const LOCAL_BELOW_BEST: f32 = 0.10;
+/// On this PC every missing line at once: no service to spare.
+const LOCAL_BATCH: usize = 512;
 
-pub const ENGINES: &[&str] = &["openai", "gemini", "openrouter", "ollama", "lmstudio"];
+/// EasyIsland's own model (meaning_local.rs).
+pub const LOCAL: &str = "locale";
+pub const ENGINES: &[&str] = &[LOCAL, "openai", "gemini", "openrouter", "ollama", "lmstudio"];
+
+fn limits(engine: &str) -> (f32, f32) {
+    if engine == LOCAL { (LOCAL_MIN_SCORE, LOCAL_BELOW_BEST) } else { (MIN_SCORE, BELOW_BEST) }
+}
 
 pub fn default_model(engine: &str) -> &'static str {
     match engine {
+        LOCAL => "potion-multilingual-128M",
         "openai" => "text-embedding-3-small",
         "gemini" => "gemini-embedding-001",
         "openrouter" => "openai/text-embedding-3-small",
@@ -105,12 +120,22 @@ fn chosen(app: &AppHandle) -> Option<(String, String, Option<String>)> {
     if !ENGINES.contains(&engine.as_str()) || !s.chat_history {
         return None;
     }
+    drop(s);
+    if engine == LOCAL {
+        // Chosen but not downloaded (or removed): the words alone, as when off.
+        return crate::meaning_local::ready().then(|| (engine, default_model(LOCAL).to_string(), None));
+    }
+    let s = shared.settings.lock().unwrap();
     let model = if s.memory_meaning_model.trim().is_empty() { default_model(&engine).to_string() } else { s.memory_meaning_model.trim().to_string() };
     let url = s.engine_urls.get(&engine).cloned();
     Some((engine, model, url))
 }
 
 async fn embed(engine: &str, model: &str, url: Option<&str>, inputs: &[String]) -> Result<Vec<Vec<f32>>, String> {
+    if engine == LOCAL {
+        let inputs = inputs.to_vec();
+        return tauri::async_runtime::spawn_blocking(move || crate::meaning_local::embed(&inputs)).await.map_err(|e| e.to_string())?;
+    }
     let base = crate::openai::base_url(engine, url)?;
     let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build().map_err(|e| e.to_string())?;
     let request = crate::openai::auth(engine, client.post(format!("{base}/embeddings")).json(&json!({ "model": model, "input": inputs })))?;
@@ -137,13 +162,33 @@ async fn embed(engine: &str, model: &str, url: Option<&str>, inputs: &[String]) 
 
 /// The closest lines of `corpus` to `query`, best first.
 fn closest(query: &[f32], lines: &[String], store: &Store) -> Vec<String> {
+    let (min, below) = limits(&store.engine);
     let mut scored: Vec<(f32, &String)> = lines.iter()
         .filter_map(|l| store.items.get(&crate::brain::note_hash(l)).map(|h| (cosine(query, &unpack(h)), l)))
-        .filter(|(s, _)| *s >= MIN_SCORE)
+        .filter(|(s, _)| *s >= min)
         .collect();
     scored.sort_by(|a, b| b.0.total_cmp(&a.0));
     let best = scored.first().map(|s| s.0).unwrap_or(0.0);
-    scored.into_iter().filter(|(s, _)| *s >= best - BELOW_BEST).take(MAX_FOUND).map(|(_, l)| l.clone()).collect()
+    scored.into_iter().filter(|(s, _)| *s >= best - below).take(MAX_FOUND).map(|(_, l)| l.clone()).collect()
+}
+
+/// memory_search (memshare::search): the lines close in meaning that the
+/// words did not find, under what they found.
+pub async fn with_meaning(app: &AppHandle, query: &str, found: String) -> String {
+    let lines = related(app, query).await;
+    let nothing = found == crate::i18n::t("Niente in memoria su questo.");
+    let new: Vec<String> = lines.into_iter()
+        .filter(|l| {
+            let core: String = l.rsplit("- ").next().unwrap_or(l).chars().take(80).collect();
+            nothing || !found.contains(&core)
+        })
+        .map(|l| format!("- {}", l.trim_start_matches("- ")))
+        .collect();
+    if new.is_empty() {
+        return found;
+    }
+    let head = crate::i18n::t("Vicine per significato:");
+    if nothing { format!("{head}\n{}", new.join("\n")) } else { format!("{found}\n\n{head}\n{}", new.join("\n")) }
 }
 
 /// The memory's lines closest in meaning to the question (none when off or on any error).
@@ -153,6 +198,34 @@ pub async fn related(app: &AppHandle, question: &str) -> Vec<String> {
     if question.chars().count() < 8 {
         return Vec::new();
     }
+    let lines = index(&engine, &model, url.as_deref()).await;
+    if lines.is_empty() {
+        return Vec::new();
+    }
+    let query = match embed(&engine, &model, url.as_deref(), &[question.chars().take(2_000).collect()]).await {
+        Ok(mut v) if v.first().is_some_and(|q| !q.is_empty()) => v.remove(0),
+        Ok(_) => return Vec::new(),
+        Err(e) => {
+            crate::log::line(format!("ricerca per significato: {e}"));
+            return Vec::new();
+        }
+    };
+    let guard = STORE.lock().unwrap();
+    guard.as_ref().map(|s| closest(&query, &lines, s)).unwrap_or_default()
+}
+
+/// Every line of the memory turned into a vector now (after the model's
+/// download), not at the next question.
+pub async fn prepare(app: &AppHandle) {
+    if let Some((engine, model, url)) = chosen(app) {
+        let n = index(&engine, &model, url.as_deref()).await.len();
+        crate::log::line(format!("ricerca per significato: {n} righe pronte con {engine}"));
+    }
+}
+
+/// The memory's lines, with the vectors of the new ones made and kept on disk.
+async fn index(engine: &str, model: &str, url: Option<&str>) -> Vec<String> {
+    let (engine, model) = (engine.to_string(), model.to_string());
     let lines = tauri::async_runtime::spawn_blocking(corpus).await.unwrap_or_default();
     if lines.is_empty() {
         return Vec::new();
@@ -169,8 +242,9 @@ pub async fn related(app: &AppHandle, question: &str) -> Vec<String> {
         lines.iter().filter(|l| !store.items.contains_key(&crate::brain::note_hash(l))).cloned().collect()
     };
     let mut added = false;
-    for chunk in missing.chunks(BATCH).take(MAX_BATCHES) {
-        match embed(&engine, &model, url.as_deref(), chunk).await {
+    let (batch, batches) = if engine == LOCAL { (LOCAL_BATCH, usize::MAX) } else { (BATCH, MAX_BATCHES) };
+    for chunk in missing.chunks(batch).take(batches) {
+        match embed(&engine, &model, url, chunk).await {
             Ok(vectors) => {
                 let mut guard = STORE.lock().unwrap();
                 if let Some(store) = guard.as_mut() {
@@ -192,16 +266,7 @@ pub async fn related(app: &AppHandle, question: &str) -> Vec<String> {
             let _ = std::fs::write(store_path(), text);
         }
     }
-    let query = match embed(&engine, &model, url.as_deref(), &[question.chars().take(2_000).collect()]).await {
-        Ok(mut v) if !v.is_empty() => v.remove(0),
-        Ok(_) => return Vec::new(),
-        Err(e) => {
-            crate::log::line(format!("ricerca per significato: {e}"));
-            return Vec::new();
-        }
-    };
-    let guard = STORE.lock().unwrap();
-    guard.as_ref().map(|s| closest(&query, &lines, s)).unwrap_or_default()
+    lines
 }
 
 #[cfg(test)]

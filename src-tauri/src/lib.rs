@@ -15,6 +15,7 @@ mod antigravity;
 mod agent;
 mod memory_learn;
 mod memory_meaning;
+mod meaning_local;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -940,6 +941,26 @@ fn router_stats() -> serde_json::Value {
 #[tauri::command]
 fn router_forget() {
     router::forget();
+}
+
+/// «Ricerca per significato» on this PC (meaning_local.rs): the model's state.
+#[tauri::command]
+fn meaning_local_status() -> meaning_local::Status {
+    meaning_local::status()
+}
+
+/// Downloads the model, after the click in Impostazioni; then the memory's
+/// lines get their vectors at once, not at the next question.
+#[tauri::command]
+async fn meaning_local_download(app: AppHandle) -> Result<(), String> {
+    meaning_local::download().await?;
+    tauri::async_runtime::spawn(async move { memory_meaning::prepare(&app).await });
+    Ok(())
+}
+
+#[tauri::command]
+fn meaning_local_remove() -> Result<(), String> {
+    meaning_local::remove()
 }
 
 /// «Esegui» under a command the chat offered (commands.rs): the user's click
@@ -4916,6 +4937,9 @@ pub fn run() {
             recipes_forget,
             router_stats,
             router_forget,
+            meaning_local_status,
+            meaning_local_download,
+            meaning_local_remove,
             chat_command_run,
             portals_list,
             portals_delete,
