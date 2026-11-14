@@ -332,7 +332,7 @@ export function botPosition(
 
 /** Height of the menu's head, where the character stands (with room for its badge and glow). */
 export function railHead(diameter: number): number {
-  return Math.round(diameter * 1.45);
+  return diameter <= 0 ? 0 : Math.round(diameter * 1.45);
 }
 
 export function botGlowColor(s: BotStateName): string {

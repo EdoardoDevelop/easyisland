@@ -3,6 +3,7 @@
 import { barFont } from "./core/fonts";
 import "./style.css";
 import "./style-windows.css";
+import "./style-studio.css";
 import "./style-light.css";
 import "./chat-cards.css";
 import "./character/roster";
@@ -71,8 +72,11 @@ async function main() {
     State.settings = { ...State.settings, ...overrides } as Settings;
     const who = params.get("character");
     if (who) State.settings.theme = { ...State.settings.theme, character: who };
-    // ?ui=classic: the original look.
-    if (params.get("ui") === "classic") State.settings.theme = { ...State.settings.theme, style: "classic" };
+    // ?ui=classic|windows|monolith|titanium|editorial
+    const uiParam = params.get("ui");
+    if (uiParam === "classic" || uiParam === "windows" || uiParam === "monolith" || uiParam === "titanium" || uiParam === "editorial") {
+      State.settings.theme = { ...State.settings.theme, style: uiParam };
+    }
     // ?scheme=light: the light mode.
     const sch = params.get("scheme");
     if (sch === "light" || sch === "auto") State.settings.theme = { ...State.settings.theme, scheme: sch };

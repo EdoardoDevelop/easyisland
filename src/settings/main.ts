@@ -18,13 +18,14 @@ import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { N_, language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
-import { applyUiStyle, uiStyle } from "../core/uistyle";
+import { applyUiStyle, uiStyle, type UiStyle } from "../core/uistyle";
 import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type FontPick } from "../core/fonts";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
 import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
 import { freshPicks, proposalsAnswer, proposalsBox, setAll, type ProposalPicks } from "../views/proposals";
 import "./settings-windows.css";
+import "./settings-studio.css";
 import "./settings-light.css";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -2791,12 +2792,18 @@ function appearanceSections(): HTMLElement[] {
         pictured(pictureBox("look", settings, undefined, true),
           h("div", { class: "row" },
             h("label", { text: t("Stile") }),
-            select<"windows" | "classic">(
-              [["windows", t("Windows 11")], ["classic", t("Classico")]],
+            select<UiStyle>(
+              [
+                ["monolith", t("Obsidian (Linear / Raycast)")],
+                ["titanium", t("Titanium (Hardware Pro)")],
+                ["editorial", t("Spotlight (Deep Glass)")],
+                ["windows", t("Windows 11")],
+                ["classic", t("Classico")],
+              ],
               uiStyle(th.style),
               (v) => { th.style = v; applyUiStyle(v, th.scheme); commit(); render(); },
             ),
-            h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (colore d'accento di Windows, icone a linea) o Classico (colori di EasyIsland)") }),
+            h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Obsidian (monolite ad alto contrasto), Titanium (pannelli incassati e tasti fisici), Spotlight (vetro profondo ed editoriale), Windows 11 o Classico") }),
           ),
           h("div", { class: "row" },
             h("label", { text: t("Modalità") }),
@@ -6377,8 +6384,11 @@ async function main() {
     ];
     settings.activeProfile = "lavoro";
   }
-  // Preview: ?ui=classic shows the original look.
-  if (!info && new URLSearchParams(location.search).get("ui") === "classic") settings.theme = { ...settings.theme, style: "classic" };
+  // Preview: ?ui=classic|windows|monolith|titanium|editorial
+  const askedUi = new URLSearchParams(location.search).get("ui");
+  if (!info && (askedUi === "classic" || askedUi === "windows" || askedUi === "monolith" || askedUi === "titanium" || askedUi === "editorial")) {
+    settings.theme = { ...settings.theme, style: askedUi };
+  }
   // ?scheme=light: the light mode.
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };

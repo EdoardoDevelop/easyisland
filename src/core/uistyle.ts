@@ -1,34 +1,60 @@
-// The look of the island and the settings window: "windows" (Windows 11, the
-// default) or "classic" (the original black island). The page carries it as
-// <html data-ui="…">; the Windows 11 rules live in src/style-windows.css and
-// src/settings/settings-windows.css, every one scoped to html[data-ui="windows"].
+// The look of the island and the settings window:
+// - "monolith": Obsidian Monolith (Linear / Raycast precision grade)
+// - "titanium": Anodized Hardware (recessed panels, tactile keycaps, tabular telemetry)
+// - "editorial": Deep Glass Spotlight (executive studio layout)
+// - "windows": Windows 11 (the default)
+// - "classic": the original black island
+// The page carries it as <html data-ui="…">.
 
 import { Bridge } from "./bridge";
 
-export type UiStyle = "windows" | "classic";
+export type UiStyle = "windows" | "classic" | "monolith" | "titanium" | "editorial";
+
+const STUDIO_STYLES: ReadonlySet<UiStyle> = new Set<UiStyle>(["monolith", "titanium", "editorial"]);
 
 export function uiStyle(style: string | undefined): UiStyle {
-  return style === "classic" ? "classic" : "windows";
+  if (style === "classic" || style === "monolith" || style === "titanium" || style === "editorial") {
+    return style;
+  }
+  return "windows";
 }
 
-/** True while the page shows the Windows 11 look (read by the icon helpers). */
+/** True while the page shows a modern line-icon look (Windows 11 or one of the Studio themes). */
 export function windowsLook(): boolean {
   return document.documentElement.dataset.ui !== "classic";
 }
 
-const WINDOWS_ISLAND = "#1c1c1c";
-const WINDOWS_ISLAND_LIGHT = "#f3f3f3";
-const CLASSIC_ISLAND_LIGHT = "#fbfbfc";
+/** True while one of the three Studio themes (Obsidian, Titanium, Spotlight) is active. */
+export function studioLook(style?: string): boolean {
+  const current = (style ? uiStyle(style) : (document.documentElement.dataset.ui as UiStyle | undefined)) ?? "windows";
+  return STUDIO_STYLES.has(current);
+}
+
+const DARK_ISLAND: Record<UiStyle, string> = {
+  windows: "#1c1c1c",
+  classic: "#000000",
+  monolith: "#0b0c0e",
+  titanium: "#111215",
+  editorial: "#0d0f14",
+};
+
+const LIGHT_ISLAND: Record<UiStyle, string> = {
+  windows: "#f3f3f3",
+  classic: "#fbfbfc",
+  monolith: "#f7f7f8",
+  titanium: "#ededf0",
+  editorial: "#f4f6f9",
+};
 
 /**
  * The island's colour as "#rrggbb": the user's, or for the untouched black the
- * grey of Windows' dark surfaces, or the light ones in light mode.
+ * default surface of the chosen style in dark or light mode.
  */
 export function islandHex(islandColor: string | undefined, style: string | undefined): string {
   const hex = islandColor && /^#[0-9a-f]{6}$/i.test(islandColor) ? islandColor : "#000000";
   if (hex !== "#000000") return hex;
-  if (scheme() === "light") return uiStyle(style) === "windows" ? WINDOWS_ISLAND_LIGHT : CLASSIC_ISLAND_LIGHT;
-  return uiStyle(style) === "windows" ? WINDOWS_ISLAND : hex;
+  const ui = uiStyle(style);
+  return scheme() === "light" ? LIGHT_ISLAND[ui] : DARK_ISLAND[ui];
 }
 
 let accentRead = 0;

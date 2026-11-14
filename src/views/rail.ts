@@ -7,7 +7,7 @@
 
 import { h, svg, dot, brandIcon, markIcon } from "./dom";
 import { ICONS, LINE_SECTIONS } from "./icons";
-import { windowsLook } from "../core/uistyle";
+import { studioLook, windowsLook } from "../core/uistyle";
 import { isRailDragging, railDrag } from "./rail-drag";
 import { State, CLAUDE_TASK, isSessionTask, type AgentTask, type MenuGroup } from "../core/state";
 import * as Groups from "../core/menu-groups";
@@ -20,8 +20,9 @@ import { unreadNews } from "./news";
 
 type Section = "oggi" | "agenti" | "chat" | "azioni" | "file" | "notizie";
 
-/** The character's diameter at the head of the menu (Impostazioni → Posizione e aspetto). */
+/** The character's diameter at the head of the menu (0 in Studio themes, where the optical core sits in the header). */
 export function railBotSize(): number {
+  if (studioLook(State.settings.theme?.style)) return 0;
   return RAIL_BOT[State.settings.menuCharacter ?? "large"] ?? RAIL_BOT.large;
 }
 

@@ -1,0 +1,97 @@
+/* Studio themes for the settings window:
+   - html[data-ui="monolith"]  — Obsidian Monolith (Linear / Raycast)
+   - html[data-ui="titanium"]  — Anodized Hardware (Precision Pro)
+   - html[data-ui="editorial"] — Deep Glass Spotlight (Studio) */
+
+html[data-ui="monolith"],
+html[data-ui="titanium"],
+html[data-ui="editorial"] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.012em;
+}
+
+/* ── 1. Obsidian Monolith ───────────────────────────────────────────────── */
+
+html[data-ui="monolith"] {
+  --accent: #ededef;
+  --on-accent: #090a0c;
+  --ink: #ededef;
+  --dim: #a0a5b1;
+  --dim-2: #8a8f98;
+  --bg: #090a0c;
+  --card: #111318;
+  --hairline: rgba(255, 255, 255, 0.065);
+  --stroke: rgba(255, 255, 255, 0.08);
+}
+
+html[data-ui="monolith"] .page {
+  background: #0c0e12;
+  border-top-left-radius: 10px;
+}
+
+html[data-ui="monolith"] section {
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+/* ── 2. Anodized Hardware / Titanium ────────────────────────────────────── */
+
+html[data-ui="titanium"] {
+  --accent: #e2e8f0;
+  --on-accent: #090a0c;
+  --ink: #e4e5e9;
+  --dim: #a2a7b2;
+  --dim-2: #8e939e;
+  --bg: #0e0f12;
+  --card: #15171c;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --stroke: rgba(255, 255, 255, 0.08);
+}
+
+html[data-ui="titanium"] .page {
+  background: #121418;
+  border-top-left-radius: 8px;
+}
+
+html[data-ui="titanium"] section {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--stroke);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+}
+
+html[data-ui="titanium"] button:not(.nav-item):not(.switch):not(.int-row-head):not(.hotkey-clear):not(.icon):not(.subtab) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.03) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+/* ── 3. Spotlight / Editorial ───────────────────────────────────────────── */
+
+html[data-ui="editorial"] {
+  --accent: #ffffff;
+  --on-accent: #090a0f;
+  --ink: #f1f5f9;
+  --dim: #cbd5e1;
+  --dim-2: #94a3b8;
+  --bg: #0a0c11;
+  --card: #141822;
+  --hairline: rgba(255, 255, 255, 0.075);
+  --stroke: rgba(255, 255, 255, 0.085);
+}
+
+html[data-ui="editorial"] .page {
+  background: #0e1118;
+  border-top-left-radius: 12px;
+}
+
+html[data-ui="editorial"] section {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
+  border: 1px solid var(--stroke);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
