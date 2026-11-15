@@ -1578,15 +1578,23 @@ export async function runScene(island: Island, scene: string) {
       });
       State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };
       State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"];
+      const pSearch = new URLSearchParams(location.search);
       await wait(300);
-      island.setView("overview");
-      // Out of the greeting, or it closes the island a moment later.
-      (island as unknown as { fsm: { forceHome(): void } }).fsm.forceHome();
-      island.setPinned(true);
+      if (pSearch.has("only")) {
+        (island as unknown as { fsm: { forceHidden(): void } }).fsm.forceHidden();
+        await wait(100);
+        await island.onHotkey("open");
+      } else {
+        island.setView("overview");
+        // Out of the greeting, or it closes the island a moment later.
+        (island as unknown as { fsm: { forceHome(): void } }).fsm.forceHome();
+        island.setPinned(true);
+      }
       await wait(400);
       const field = document.querySelector<HTMLInputElement>(".search-input");
-      if (field) {
-        field.value = new URLSearchParams(location.search).get("q") ?? "rossi";
+      const query = pSearch.get("q");
+      if (field && query !== "") {
+        field.value = query ?? "rossi";
         field.dispatchEvent(new Event("input"));
       }
       // The memory, the chats and Zammad are asked 400 ms after the last key.

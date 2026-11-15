@@ -1677,6 +1677,8 @@ class AppState {
    * the element's centre from the bar's left end, logical px.
    */
   popover: { x: number } | null = null;
+  /** Opened via shortcut in search-only mode: centred on screen, rising as results open. */
+  searchOnly = false;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   get chatHistory() { return this.chat.history; }

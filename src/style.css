@@ -26,6 +26,19 @@
   --cyan: #22d3ee;
   --indigo: #6366f1;
   --pink: #f472b6;
+  --search-line: linear-gradient(90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.28) 6%,
+    #38bdf8 20%,
+    #22d3ee 32%,
+    #818cf8 47%,
+    #a855f7 57%,
+    #c084fc 63%,
+    #818cf8 72%,
+    #38bdf8 82%,
+    rgba(56, 189, 248, 0.28) 94%,
+    transparent 100%);
+  --search-line-glow: drop-shadow(0 1px 5px rgba(99, 102, 241, 0.45)) drop-shadow(0 0 2px rgba(56, 189, 248, 0.35));
 }
 
 * {
@@ -155,7 +168,7 @@ html.browser-preview #root {
 #island-clip {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   border-radius: inherit;
 }
 
@@ -5490,6 +5503,7 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   margin-top: 8px;
 }
 .search-bar {
+  position: relative;
   height: 28px;
   display: flex;
   align-items: center;
@@ -5500,10 +5514,25 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   background: rgba(255, 255, 255, 0.05);
   color: var(--dim-3);
 }
+.search-bar::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--search-line);
+  filter: var(--search-line-glow);
+  pointer-events: none;
+  opacity: 0.62;
+  transition: opacity 0.2s ease;
+}
 .search-bar:focus-within {
-  border-color: rgba(56, 189, 248, 0.55);
+  border-color: rgba(255, 255, 255, 0.14);
   color: var(--ink);
 }
+.search-bar:focus-within::after { opacity: 1; }
 .search-input {
   flex: 1 1 auto;
   min-width: 0;
@@ -5514,6 +5543,10 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   outline: none;
 }
 .search-input::placeholder { color: var(--dim-3); }
+.search-count,
+.search-clear,
+.search-esc,
+.search-foot { display: none; }
 /* The results cover the view between the header and the bar. */
 .search-results {
   display: none;
@@ -6087,6 +6120,249 @@ html[data-scheme="light"] .rail-rename { background: #fff; }
 }
 #island.railed.rail-compact .search-results {
   left: 70px;
+}
+
+/* Opened via hotkey in search-only mode: centred unified Spotlight palette rising with results. */
+#island.search-only #content { padding: 0; }
+#island.search-only #header {
+  cursor: default;
+  height: 54px;
+  flex: 0 0 54px;
+  margin: 0;
+  border-bottom: 0;
+  padding: 0;
+}
+#island.search-only #header .say,
+#island.search-only #header .header-actions,
+#island.search-only #body { display: none; }
+#island.search-only #header .header-field {
+  margin: 0;
+  flex: 1 1 auto;
+  height: 54px;
+  --fs-up: 1px;
+}
+#island.search-only .search-bar {
+  position: relative;
+  height: 54px;
+  gap: 11px;
+  padding: 0 14px 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.58);
+}
+#island.search-only .search-bar:focus-within {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent, #38bdf8);
+}
+#island.search-only .search-bar::before,
+#island.search-only .search-bar::after {
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+}
+#island.search-only .search-bar::after {
+  background: var(--search-line);
+  filter: var(--search-line-glow);
+  opacity: 0.72;
+}
+#island.search-only .search-bar:focus-within::after { opacity: 1; }
+#island.search-only #search:not(.open) .search-bar::before {
+  opacity: 0;
+  animation: none;
+}
+#island.search-only .search-bar > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+#island.search-only .search-input {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--ink);
+}
+#island.search-only .search-input::placeholder { color: rgba(255, 255, 255, 0.36); }
+#island.search-only #search.open .search-count {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font: 500 11px var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+#island.search-only #search.open .search-clear {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+#island.search-only #search.open .search-clear:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+#island.search-only #search.open .search-clear svg {
+  width: 12px;
+  height: 12px;
+}
+#island.search-only #search:not(.open) .search-esc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font: 400 11px var(--font);
+  color: rgba(255, 255, 255, 0.44);
+  white-space: nowrap;
+}
+#island.search-only .search-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font: 600 10px var(--font);
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+#island.search-only .search-results {
+  top: 54px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#island.search-only .sky {
+  margin: 0;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 42%, rgba(56, 189, 248, 0.09), transparent 68%), rgba(0, 0, 0, 0.34);
+  border: 0 solid rgba(255, 255, 255, 0.07);
+}
+#island.search-only .sky.on {
+  margin: 10px 10px 4px;
+  border-width: 1px;
+}
+#island.search-only .sky-caption {
+  left: 0;
+  right: 0;
+  height: 34px;
+  padding: 0 10px;
+  border-bottom: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+#island.search-only .sky-open {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+#island.search-only .sky-open:hover { background: rgba(255, 255, 255, 0.12); }
+#island.search-only .sky-chat {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+}
+#island.search-only .sky-chat:hover { background: rgba(56, 189, 248, 0.28); }
+#island.search-only .search-list {
+  padding: 6px 8px;
+}
+#island.search-only .search-list::-webkit-scrollbar { width: 4px; }
+#island.search-only .search-list::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+#island.search-only .search-list::-webkit-scrollbar-track { background: transparent; }
+#island.search-only .search-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+#island.search-only .search-list:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.26); }
+#island.search-only .search-hit {
+  position: relative;
+  padding: 7px 10px 7px 14px;
+  border-radius: 10px;
+  gap: 10px;
+  min-height: 36px;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+#island.search-only .search-hit.on {
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--ink);
+}
+#island.search-only .search-hit.on::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent, #38bdf8);
+}
+#island.search-only .search-kind {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font: 500 10.5px var(--font);
+  color: rgba(255, 255, 255, 0.56);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+#island.search-only .search-hit.on .search-kind {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.34);
+}
+#island.search-only .search-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 0 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+  font: 400 11px var(--font);
+  color: rgba(255, 255, 255, 0.52);
+  white-space: nowrap;
+  overflow: hidden;
+}
+#island.search-only .search-foot-keys {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+#island.search-only .search-foot-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+#island.search-only:not(.bare) {
+  background: rgba(14, 16, 21, 0.98) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 22px 54px rgba(0, 0, 0, 0.58),
+    0 6px 18px rgba(0, 0, 0, 0.32);
 }
 
 

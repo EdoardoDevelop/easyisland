@@ -104,15 +104,20 @@ html:not([data-ui="classic"]) .search-bar::before,
 html:not([data-ui="classic"]) .search-bar::after {
   content: "";
   position: absolute;
-  left: -1px;
-  right: -1px;
+  left: 2px;
+  right: 2px;
   bottom: -1px;
   height: 2px;
-  border-radius: 0 0 4px 4px;
+  border-radius: 2px;
   pointer-events: none;
-  opacity: 0;
 }
-html:not([data-ui="classic"]) .search-bar::after { background: var(--accent); }
+html:not([data-ui="classic"]) .search-bar::before { opacity: 0; }
+html:not([data-ui="classic"]) .search-bar::after {
+  background: var(--search-line);
+  filter: var(--search-line-glow);
+  opacity: 0.62;
+  transition: opacity 0.2s ease;
+}
 html:not([data-ui="classic"]) .search-bar:focus-within::after { opacity: 1; }
 html[data-anim="ricche"]:not([data-ui="classic"]) .search-bar:focus-within::after {
   animation: search-line-in 2.4s var(--ease-out, ease-out) both;

@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.50** — **barra di ricerca rinnovata** al centro dello schermo (`searchOnly`, scura e chiara) con fuoco immediato, tutte le pagine delle Impostazioni riordinate a sotto-schede, chiusura senza finestre nascoste nella barra delle applicazioni, clic sul personaggio che riporta in primo piano l'isola e avvio di app Store, collegamenti e Pannello di controllo dalla ricerca.
 - **1.0.49** — **un modello sul tuo PC**, dentro EasyIsland e sulla scheda grafica: consigliato per il tuo PC, con la prova di velocità; chat, modalità terminale e risposte dalla memoria senza installare niente.
 - **1.0.48** — **la memoria risponde da sola**, senza motore; ricerca per significato sul PC; **👍 / 👎** che le insegnano, «Solo EasyIsland» senza token; domande suggerite dalla memoria.
 - **1.0.47** — **nuovo aspetto dell'isola** con ricerca-calcolatrice e Panoramica, stili Monolite, Titanio e Vetro; **comandi senza motore** con Esegui, risposte dirette con date e numeri; mappa della memoria rifatta.
-- **1.0.46** — **EasyIsland fa il lavoro al posto dell'IA**: ripresa leggera delle conversazioni pesanti, memoria scritta dopo la risposta, controllo del PC in un passo; passi e token sotto ogni risposta.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

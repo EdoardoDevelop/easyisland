@@ -96,9 +96,43 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
     if target.is_empty() {
         return Err(t("Nessun programma indicato.").into());
     }
+    if let Some(app_id) = strip_apps_folder(target) {
+        // Only packaged/Store AUMIDs (`Package!App`) use ApplicationActivationManager;
+        // legacy shell items and desktop shortcuts in AppsFolder launch cleanly via Explorer.
+        if args.trim().is_empty() && app_id.contains('!') && activate_app_id(app_id).is_ok() {
+            return Ok(());
+        }
+        let explorer_target = apps_folder_explorer_target(app_id, target);
+        if args.trim().is_empty() {
+            if std::process::Command::new("explorer.exe").arg(explorer_target).spawn().is_ok() {
+                return Ok(());
+            }
+        }
+        if shell_execute(explorer_target, args).is_ok() {
+            return Ok(());
+        }
+        return std::process::Command::new("explorer.exe")
+            .arg(explorer_target)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| tf("Impossibile avviare {target}: {e}", &[("target", &target), ("e", &e)]));
+    }
+    if starts_with_ignore_ascii_case(target, "shell:") {
+        if shell_execute(target, args).is_ok() {
+            return Ok(());
+        }
+        return std::process::Command::new("explorer.exe")
+            .arg(target)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| tf("Impossibile avviare {target}: {e}", &[("target", &target), ("e", &e)]));
+    }
     let path = Path::new(target);
-    // A folder or a document: Explorer knows what to do with it.
+    // A folder or a document: Explorer / Shell knows what to do with it.
     if path.is_dir() || (path.is_file() && !is_executable(path)) {
+        if is_shortcut(path) && shell_execute(target, args).is_ok() {
+            return Ok(());
+        }
         std::process::Command::new("explorer")
             .arg(target)
             .spawn()
@@ -108,33 +142,123 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
     match std::process::Command::new(target).args(split_args(args)).spawn() {
         Ok(_) => Ok(()),
         // CreateProcess only knows full paths and the PATH. ShellExecute also
-        // reads App Paths (chrome, winword, excel), opens shell: and ms-settings:
-        // targets and asks for elevation when a program wants it (regedit):
-        // the usual reasons a "Programma" action did not start.
+        // reads App Paths (chrome, winword, excel), opens ms-settings: and
+        // asks for elevation when a program wants it (regedit).
         Err(e) => shell_execute(target, args).map_err(|_| tf("Impossibile avviare {target}: {e}", &[("target", &target), ("e", &e)])),
     }
 }
 
-/// ShellExecute "open": no shell in between, the arguments go as typed.
+const CONTROL_PANEL_SHELL: &str = "shell:::{26EE0668-A00A-44D7-9371-BEB064C98683}";
+
+/// Maps virtual AppsFolder IDs that fail direct invocation to their Explorer shell target.
+/// On Windows 11 `control.exe` with no arguments can exit immediately without opening a window,
+/// whereas Explorer opens Control Panel reliably via its canonical namespace CLSID.
+fn apps_folder_explorer_target<'a>(app_id: &str, target: &'a str) -> &'a str {
+    if app_id.eq_ignore_ascii_case("Microsoft.Windows.ControlPanel") {
+        CONTROL_PANEL_SHELL
+    } else {
+        target
+    }
+}
+
+fn starts_with_ignore_ascii_case(s: &str, prefix: &str) -> bool {
+    s.get(..prefix.len()).is_some_and(|p| p.eq_ignore_ascii_case(prefix))
+}
+
+fn strip_apps_folder(target: &str) -> Option<&str> {
+    const PREFIX: &str = r"shell:AppsFolder\";
+    starts_with_ignore_ascii_case(target, PREFIX)
+        .then(|| target[PREFIX.len()..].trim())
+        .filter(|id| !id.is_empty())
+}
+
+fn is_shortcut(p: &Path) -> bool {
+    matches!(
+        p.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref(),
+        Some("lnk" | "url")
+    )
+}
+
+/// Runs a COM STA operation, spawning a fresh thread if the caller is already MTA.
+fn with_com_sta<T: Send + 'static>(f: impl FnOnce() -> Result<T, ()> + Send + 'static) -> Result<T, ()> {
+    use windows::Win32::Foundation::{RPC_E_CHANGED_MODE, S_FALSE, S_OK};
+    use windows::Win32::System::Com::{
+        CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
+    };
+
+    struct StaGuard;
+    impl Drop for StaGuard {
+        fn drop(&mut self) {
+            unsafe { CoUninitialize() };
+        }
+    }
+
+    let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) };
+    if hr == RPC_E_CHANGED_MODE {
+        return std::thread::spawn(move || with_com_sta(f))
+            .join()
+            .unwrap_or(Err(()));
+    }
+    if hr != S_OK && hr != S_FALSE {
+        return Err(());
+    }
+    let _guard = StaGuard;
+    f()
+}
+
+/// Launches a Start Menu / Store / AUMID entry cleanly via Windows' ApplicationActivationManager.
+fn activate_app_id(app_id: &str) -> Result<(), ()> {
+    let app_id = app_id.to_string();
+    with_com_sta(move || {
+        use windows::core::HSTRING;
+        use windows::Win32::System::Com::{
+            CoAllowSetForegroundWindow, CoCreateInstance, CLSCTX_LOCAL_SERVER,
+        };
+        use windows::Win32::UI::Shell::{
+            ApplicationActivationManager, IApplicationActivationManager, AO_NONE,
+        };
+
+        let mgr: IApplicationActivationManager =
+            unsafe { CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER) }
+                .map_err(|_| ())?;
+        let _ = unsafe { CoAllowSetForegroundWindow(&mgr, None) };
+        let id = HSTRING::from(app_id);
+        unsafe { mgr.ActivateApplication(&id, None, AO_NONE) }.map(|_| ()).map_err(|_| ())
+    })
+}
+
+/// ShellExecute on a COM STA thread: tries the item's default verb first for virtual
+/// shell targets (e.g. shell:AppsFolder), then explicit "open".
 /// SEE_MASK_FLAG_NO_UI: a name that does not exist is an error in the island,
 /// not a Windows dialog (the UAC prompt of an elevated program still shows).
 fn shell_execute(target: &str, args: &str) -> Result<(), ()> {
-    use windows::core::{HSTRING, PCWSTR};
-    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SHELLEXECUTEINFOW};
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let target = target.to_string();
+    let args = args.trim().to_string();
+    with_com_sta(move || {
+        use windows::core::{HSTRING, PCWSTR};
+        use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SHELLEXECUTEINFOW};
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
-    let file = HSTRING::from(target);
-    let params = HSTRING::from(args.trim());
-    let mut info = SHELLEXECUTEINFOW {
-        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
-        fMask: SEE_MASK_FLAG_NO_UI,
-        lpVerb: windows::core::w!("open"),
-        lpFile: PCWSTR(file.as_ptr()),
-        lpParameters: if args.trim().is_empty() { PCWSTR::null() } else { PCWSTR(params.as_ptr()) },
-        nShow: SW_SHOWNORMAL.0,
-        ..Default::default()
-    };
-    unsafe { ShellExecuteExW(&mut info) }.map_err(|_| ())
+        let file = HSTRING::from(target.as_str());
+        let params = HSTRING::from(args.as_str());
+        let invoke = |verb: PCWSTR| {
+            let mut info = SHELLEXECUTEINFOW {
+                cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+                fMask: SEE_MASK_FLAG_NO_UI,
+                lpVerb: verb,
+                lpFile: PCWSTR(file.as_ptr()),
+                lpParameters: if args.is_empty() { PCWSTR::null() } else { PCWSTR(params.as_ptr()) },
+                nShow: SW_SHOWNORMAL.0,
+                ..Default::default()
+            };
+            unsafe { ShellExecuteExW(&mut info) }.map_err(|_| ())
+        };
+        if starts_with_ignore_ascii_case(&target, "shell:") {
+            invoke(PCWSTR::null()).or_else(|_| invoke(windows::core::w!("open")))
+        } else {
+            invoke(windows::core::w!("open")).or_else(|_| invoke(PCWSTR::null()))
+        }
+    })
 }
 
 /// A protocol link (msteams:…) to the program that handles it, as it is.
@@ -571,6 +695,29 @@ mod tests {
         assert_eq!(expand_env("100% sicuro", env), "100% sicuro");
         assert_eq!(expand_env("a%%b", env), "a%%b");
         assert_eq!(expand_env("mstsc", env), "mstsc");
+    }
+
+    #[test]
+    fn parses_shell_apps_folder_targets() {
+        assert_eq!(
+            super::strip_apps_folder(r"shell:AppsFolder\Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"),
+            Some("Microsoft.WindowsNotepad_8wekyb3d8bbwe!App")
+        );
+        assert_eq!(
+            super::strip_apps_folder(r"  SHELL:appsfolder\AcrobatReader  ".trim()),
+            Some("AcrobatReader")
+        );
+        assert_eq!(super::strip_apps_folder(r"shell:AppsFolder\"), None);
+        assert_eq!(super::strip_apps_folder(r"shell:Desktop"), None);
+        assert_eq!(
+            super::apps_folder_explorer_target("microsoft.windows.controlpanel", r"shell:AppsFolder\Microsoft.Windows.ControlPanel"),
+            super::CONTROL_PANEL_SHELL
+        );
+        assert_eq!(
+            super::apps_folder_explorer_target("AcrobatReader", r"shell:AppsFolder\AcrobatReader"),
+            r"shell:AppsFolder\AcrobatReader"
+        );
+        assert!(super::open_app("   ", "").is_err());
     }
 
     #[test]

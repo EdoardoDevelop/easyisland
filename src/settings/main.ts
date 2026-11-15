@@ -135,7 +135,10 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   for (const tool of AGENT_ORDER) rows.append(agentRow(tool, tool === "claude" ? claudeStatus : null));
   return h("section", {},
     h("h2", {}, h("span", { text: t("Collegamento degli agenti all'isola") })),
-    h("div", { class: "hint", text: t("Ogni agente ha la sua sessione nella voce Agenti dell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano.") }),
+    moreHint(
+      t("Ogni agente ha la sua sessione nella voce Agenti dell'isola."),
+      t("«Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano."),
+    ),
     relay,
     relayWarn,
     rows,
@@ -256,7 +259,10 @@ function recapSection(): HTMLElement {
   } });
   return h("section", {},
     h("h2", {}, h("span", { text: t("Riepilogo settimanale degli agenti") })),
-    h("div", { class: "hint", text: t("Il lunedì dalle 8 l'isola mostra la settimana prima: tempo, sessioni, file e righe cambiate, comandi, permessi. Si contano solo i numeri e il nome della cartella del progetto, mai comandi, file o richieste; restano su questo PC (12 settimane).") }),
+    moreHint(
+      t("Il lunedì dalle 8 l'isola mostra il riepilogo della settimana precedente."),
+      t("Include tempo, sessioni, file e righe cambiate, comandi e permessi. Si contano solo i numeri e il nome della cartella del progetto, mai comandi, file o richieste; i dati restano su questo PC (12 settimane)."),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Riepilogo") }),
       toggle(settings.weeklyRecap !== false, (v) => { settings.weeklyRecap = v; void save(); }),
@@ -279,7 +285,10 @@ function dailySection(): HTMLElement {
   });
   return h("section", {},
     h("h2", {}, h("span", { text: t("Riepilogo giornaliero degli agenti") })),
-    h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche da salvare in git e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
+    moreHint(
+      t("Al mattino dalle 8 mostra il tempo di ieri; a fine giornata quello di oggi, con modifiche git e pull request."),
+      t("Controlla i repository dove hanno lavorato gli agenti (con gh o il token GitHub, salvando solo i percorsi su questo PC). Si apre una volta sola al giorno, e solo se c'è qualcosa da segnalare."),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Riepilogo") }),
       select<Settings["dailyRecap"]>(
@@ -297,19 +306,41 @@ function dailySection(): HTMLElement {
         settings.dailyAi ?? "",
         (v) => { settings.dailyAi = v; void save(); },
       ),
-      h("span", { class: "hint note", text: t("all'ora del riepilogo un motore scrive la giornata di oggi (al mattino) o di domani (alla sera) da Notion, To Do, Outlook, ticket e meteo, come /oggi e /domani. Serve un motore con gli strumenti di EasyIsland; ogni riassunto è un turno del motore, quindi costa come una domanda in chat") })),
+      moreHint(
+        t("scrive la giornata di oggi o domani da Notion, To Do, Outlook, ticket e meteo"),
+        t("Come /oggi e /domani: serve un motore con gli strumenti di EasyIsland e ogni riassunto consuma un turno in chat."),
+      )),
     h("div", { class: "row" },
       h("label", { text: t("Anche su Telegram") }),
       toggle(settings.dailyTelegram === true, (v) => { settings.dailyTelegram = v; void save(); }),
-      h("span", { class: "hint note", text: t("all'ora del riepilogo il bot collegato riceve il riassunto dell'IA (se scelto) e il tempo degli agenti, anche con l'isola chiusa") })));
+      h("span", { class: "hint note", text: t("il bot riceve riassunto dell'IA e tempo degli agenti, anche con l'isola chiusa") })));
 }
 
 /** EasyIsland's tools in Claude Code everywhere (mcp_setup.rs). */
 function mcpSection(): HTMLElement {
   return h("section", {},
     h("h2", {}, h("span", { text: t("Strumenti di EasyIsland in Claude Code") })),
-    h("div", { class: "hint", text: t("Claude Code, nel terminale o in VS Code, può mostrare card con pulsanti nell'isola (per esempio «ho finito» o una domanda rapida), avvisi, e mettere file nel Vassoio. La chat dell'isola li ha già. Claude Code chiede il permesso prima di usare uno strumento.") }),
+    moreHint(
+      t("Permette a Claude Code di mostrare card, avvisi e file nel Vassoio dell'isola."),
+      t("La chat dell'isola li ha già integrati. Claude Code chiede comunque il permesso prima di usare uno strumento."),
+    ),
     mcpStatus(false));
+}
+
+/** Impostazioni → Agenti di codice: split connection/tools from scheduled recaps. */
+function agentsSections(claudeStatus: HookStatus): HTMLElement[] {
+  return createSubtabs("claude", [
+    {
+      id: "collegamento",
+      label: t("Collegamento e strumenti"),
+      content: () => [agentsSection(claudeStatus), agentsTabSection(), mcpSection()],
+    },
+    {
+      id: "riepiloghi",
+      label: t("Riepiloghi"),
+      content: () => [dailySection(), recapSection()],
+    },
+  ], "collegamento");
 }
 
 /** Status, «Aggiungi…» / «Togli…» and the confirmation, for Claude Code or Antigravity (mcp_setup.rs). */
@@ -434,29 +465,82 @@ function moreHint(shortText: string, detailText: string): HTMLElement {
       h("div", { class: "hint", text: detailText })));
 }
 
-/** Tabs inside Impostazioni → Chat e motori AI (mirroring Aspetto's subtabs). */
-type ChatTab = "motori" | "strumenti" | "memoria" | "permessi";
-const CHAT_TABS = (): [ChatTab, string][] => [
-  ["motori", t("Motori")],
-  ["strumenti", t("Strumenti e lavoro")],
-  ["memoria", t("Istruzioni e memoria")],
-  ["permessi", t("Permessi")],
-];
-const CHAT_TAB_KEY = "easyisland.settings.chat";
-let chatTabNow: ChatTab | null = null;
-let setChatTabActive: ((tab: ChatTab) => void) | null = null;
+/** In-memory active sub-tab per settings page, so re-renders preserve selection cleanly. */
+const pageTabNow = new Map<string, string>();
+const setPageTabActive = new Map<string, (tab: string) => void>();
+let activePageId = "";
 
-function chatTab(): ChatTab {
-  if (chatTabNow) return chatTabNow;
-  const want = (v: string | null) => CHAT_TABS().find(([id]) => id === v)?.[0];
+interface SubtabDef<T extends string> {
+  id: T;
+  label: string;
+  badge?: string;
+  content: () => HTMLElement[];
+}
+
+/**
+ * Reusable mounted sub-tabs for multi-concern settings pages: keeps every panel
+ * mounted in the DOM (preserving async state and letting `smoke` exercise every
+ * control) while syncing `?tab=`, `localStorage`, and `[data-item]` deep-links.
+ */
+function createSubtabs<T extends string>(
+  pageId: string,
+  defs: SubtabDef<T>[],
+  defaultTab: T,
+): HTMLElement[] {
+  const storageKey = `easyisland.settings.${pageId}`;
+  const want = (v: string | null | undefined) => defs.find((d) => d.id === v)?.id;
   let saved: string | null = null;
   try {
-    saved = localStorage.getItem(CHAT_TAB_KEY);
+    saved = localStorage.getItem(storageKey);
   } catch {
-    // Storage may be unavailable: default to the engines tab.
+    // Storage may be unavailable: fall back to the default tab.
   }
-  chatTabNow = want(new URLSearchParams(location.search).get("tab")) ?? want(saved) ?? "motori";
-  return chatTabNow;
+  const urlTab = activePageId === pageId ? want(new URLSearchParams(location.search).get("tab")) : undefined;
+  const active: T = want(pageTabNow.get(pageId)) ?? urlTab ?? want(saved) ?? defaultTab;
+
+  const tabs = h("div", { class: "subtabs", role: "tablist" });
+  const tabButtons = new Map<T, HTMLElement>();
+  const panels = new Map<T, HTMLElement>();
+
+  const apply = (id: T, persist = true) => {
+    pageTabNow.set(pageId, id);
+    if (persist) {
+      try {
+        localStorage.setItem(storageKey, id);
+      } catch {
+        // Storage may be unavailable.
+      }
+    }
+    for (const [tId, btn] of tabButtons) {
+      const on = tId === id;
+      btn.className = on ? "subtab on" : "subtab";
+      btn.setAttribute("aria-selected", String(on));
+    }
+    for (const [tId, panel] of panels) {
+      panel.classList.toggle("on", tId === id);
+    }
+  };
+  setPageTabActive.set(pageId, (tab) => {
+    const valid = want(tab);
+    if (valid) apply(valid, false);
+  });
+
+  for (const d of defs) {
+    const b = h("button", {
+      class: d.id === active ? "subtab on" : "subtab",
+      role: "tab",
+      "aria-selected": d.id === active,
+    },
+      h("span", { text: d.label }),
+      d.badge ? h("span", { class: "subtab-badge", text: d.badge }) : null);
+    b.addEventListener("click", () => apply(d.id));
+    tabButtons.set(d.id, b);
+    tabs.append(b);
+    const panel = h("div", { class: "subtab-panel", "data-page": pageId, "data-tab": d.id }, ...d.content());
+    panels.set(d.id, panel);
+  }
+  apply(active, false);
+  return [tabs, ...defs.map((d) => panels.get(d.id)!)];
 }
 
 type EngineGroup = "agents" | "api" | "local";
@@ -791,78 +875,52 @@ function chatSections(hasKey: boolean): HTMLElement[] {
   showEngine();
   void refreshCli();
 
-  // ── Sub-tabs and 4 mounted panels ──
-  const activeTab = chatTab();
-  const tabs = h("div", { class: "subtabs", role: "tablist" });
-  const tabButtons = new Map<ChatTab, HTMLElement>();
-  const panels = new Map<ChatTab, HTMLElement>();
-
-  const applyTab = (id: ChatTab, persist = true) => {
-    chatTabNow = id;
-    if (persist) {
-      try {
-        localStorage.setItem(CHAT_TAB_KEY, id);
-      } catch {
-        // Storage may be unavailable.
-      }
-    }
-    for (const [tId, btn] of tabButtons) {
-      const on = tId === id;
-      btn.className = on ? "subtab on" : "subtab";
-      btn.setAttribute("aria-selected", String(on));
-    }
-    for (const [tId, panel] of panels) {
-      panel.classList.toggle("on", tId === id);
-    }
-  };
-  setChatTabActive = (tab) => applyTab(tab, false);
-
-  for (const [id, label] of CHAT_TABS()) {
-    const b = h("button", { class: id === activeTab ? "subtab on" : "subtab", role: "tab", "aria-selected": id === activeTab, text: label });
-    b.addEventListener("click", () => applyTab(id));
-    tabButtons.set(id, b);
-    tabs.append(b);
-  }
-
-  const motoriPanel = h("div", { class: "chat-panel", "data-tab": "motori" },
-    h("section", { "data-item": "motori" },
-      h("h2", {}, dot, h("span", { text: t("Motori AI") })),
-      h("div", { class: "hint", text: t("Scegli il motore predefinito della chat (e di Telegram). Nella chat, dal nome del motore in alto, puoi cambiare solo per quella conversazione.") }),
-      summaryEl,
-      filtersBox,
-      groupsBox,
-      h("div", { class: "engine-detail" },
-        detailHead,
-        engineHint,
-        cliBlock,
-        apiBlock,
-        other.el)));
-
-  const strumentiPanel = h("div", { class: "chat-panel", "data-tab": "strumenti" },
-    ...terminalSections());
-
-  const memoriaPanel = h("div", { class: "chat-panel", "data-tab": "memoria" },
-    h("section", { "data-item": "istruzioni" },
-      h("h2", {}, h("span", { text: t("Istruzioni e assistenti") }), profileChip()),
-      instructionsRow(),
-      assistantsBlock()),
-    h("section", { "data-item": "memoria" },
-      h("h2", {}, h("span", { text: t("Memoria della chat") })),
-      memoryRow()),
-    h("section", { "data-item": "cronologia" },
-      h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
-      historyRow()));
-
-  const permessiPanel = h("div", { class: "chat-panel", "data-tab": "permessi" },
-    ...permitsSections());
-
-  panels.set("motori", motoriPanel);
-  panels.set("strumenti", strumentiPanel);
-  panels.set("memoria", memoriaPanel);
-  panels.set("permessi", permessiPanel);
-  applyTab(activeTab, false);
-
-  return [tabs, motoriPanel, strumentiPanel, memoriaPanel, permessiPanel];
+  return createSubtabs("chat", [
+    {
+      id: "motori",
+      label: t("Motori"),
+      content: () => [
+        h("section", { "data-item": "motori" },
+          h("h2", {}, dot, h("span", { text: t("Motori AI") })),
+          h("div", { class: "hint", text: t("Scegli il motore predefinito della chat (e di Telegram). Nella chat, dal nome del motore in alto, puoi cambiare solo per quella conversazione.") }),
+          summaryEl,
+          filtersBox,
+          groupsBox,
+          h("div", { class: "engine-detail" },
+            detailHead,
+            engineHint,
+            cliBlock,
+            apiBlock,
+            other.el)),
+      ],
+    },
+    {
+      id: "strumenti",
+      label: t("Strumenti e lavoro"),
+      content: () => terminalSections(),
+    },
+    {
+      id: "memoria",
+      label: t("Istruzioni e memoria"),
+      content: () => [
+        h("section", { "data-item": "istruzioni" },
+          h("h2", {}, h("span", { text: t("Istruzioni e assistenti") }), profileChip()),
+          instructionsRow(),
+          assistantsBlock()),
+        h("section", { "data-item": "memoria" },
+          h("h2", {}, h("span", { text: t("Memoria della chat") })),
+          memoryRow()),
+        h("section", { "data-item": "cronologia" },
+          h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
+          historyRow()),
+      ],
+    },
+    {
+      id: "permessi",
+      label: t("Permessi"),
+      content: () => permitsSections(),
+    },
+  ], "motori");
 }
 
 /**
@@ -2726,16 +2784,17 @@ const INTEGRATION_GROUPS: [string, string[]][] = [
 /** The integration whose settings are open (one at a time), kept while the window is. */
 let openIntegration = "";
 let integrationQuery = "";
+let integrationGroup = "all";
 let onlyActive = false;
 
 /**
- * Impostazioni → Integrazioni: a short list by group, each integration one
- * row (switch, name, state, what it is); a click opens its settings under it,
- * one at a time. A search and "solo attive" narrow the list.
+ * Impostazioni → Integrazioni: category filter chips, search and "solo attive" over
+ * grouped rows, paired with a separate island-menu ordering card and the "Create da te" tab.
  */
-function integrationsSection(present: Record<string, boolean>): HTMLElement {
+function integrationsSections(present: Record<string, boolean>): HTMLElement[] {
   const note = h("div", { class: "hint" });
   const list = h("div", { class: "int-groups" });
+  const catsBox = h("div", { class: "engine-filters", role: "group" });
   const entries: { def: IntegrationDef; el: HTMLElement; text: string; refresh: () => void; open: (on: boolean) => void }[] = [];
 
   function updateNote() {
@@ -2930,7 +2989,30 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     draw();
   }
 
-  // Groups, then the search and "solo attive" over them.
+  function paintCats() {
+    clear(catsBox);
+    const grouped = new Set(INTEGRATION_GROUPS.flatMap(([, ids]) => ids));
+    const hasOther = entries.some((e) => !grouped.has(e.def.id));
+    const catDefs: [string, string][] = [
+      ["all", t("Tutte")],
+      ...INTEGRATION_GROUPS.map(([name]): [string, string] => [name, name]),
+      ...(hasOther ? [[t("Altre"), t("Altre")] as [string, string]] : []),
+    ];
+    for (const [id, label] of catDefs) {
+      const b = h("button", {
+        class: integrationGroup === id ? "chip-opt on" : "chip-opt",
+        text: label,
+      }) as HTMLButtonElement;
+      b.addEventListener("click", () => {
+        integrationGroup = id;
+        paintCats();
+        draw();
+      });
+      catsBox.append(b);
+    }
+  }
+
+  // Groups, then category chips, search and "solo attive" over them.
   function draw() {
     clear(list);
     const q = integrationQuery.trim().toLowerCase();
@@ -2942,6 +3024,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       [t("Altre"), entries.filter((e) => !grouped.has(e.def.id))],
     ];
     for (const [name, items] of groups) {
+      if (integrationGroup !== "all" && integrationGroup !== name) continue;
       const visible = items.filter(shown);
       if (!visible.length) continue;
       const on = items.filter((e) => settings.activeIntegrations.includes(e.def.id)).length;
@@ -2949,13 +3032,14 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         h("div", { class: "int-group-head" }, h("span", { text: name }), h("span", { class: "hint", text: t("{n} di {total} attive", { n: on, total: items.length }) })),
         ...visible.map((e) => e.el)));
     }
-    if (!list.childElementCount) list.append(h("div", { class: "hint", text: t("Nessuna integrazione trovata.") }));
+    if (!list.childElementCount) list.append(h("div", { class: "empty-hint", text: t("Nessuna integrazione trovata.") }));
   }
 
   const search = h("input", { type: "text", placeholder: t("Cerca un'integrazione…"), value: integrationQuery, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
   search.addEventListener("input", () => { integrationQuery = search.value; draw(); });
   const filterRow = h("div", { class: "row" }, search,
     h("label", { class: "inline-check" }, toggle(onlyActive, (v) => { onlyActive = v; draw(); }), h("span", { text: t("Solo attive") })));
+  paintCats();
   draw();
 
   updateNote();
@@ -2966,14 +3050,14 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     h("label", { text: t("Blocca lo spostamento") }),
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
-    h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
+    h("span", { class: "hint note", text: t("acceso, impedisce di riordinare integrazioni e riquadri trascinandoli nell'isola") }));
   // Groups of the menu (core/menu-groups.ts): made in the island, named and let go here too.
   const groupsBox = h("div", { class: "menu-groups" });
   const drawGroups = () => {
     groupsBox.replaceChildren();
     const all = settings.menuGroups ?? [];
     if (!all.length) {
-      groupsBox.append(h("div", { class: "hint", text: t("Nessun gruppo. Nell'isola trascina un'integrazione del menu sopra un'altra: nasce un gruppo con tutte e due. Trascinane altre sul gruppo per aggiungerle, fuori per toglierle.") }));
+      groupsBox.append(h("div", { class: "empty-hint", text: t("Nessun gruppo. Nell'isola trascina un'integrazione sopra un'altra per unirle in una cartella, o trascinala fuori per toglierla.") }));
       return;
     }
     for (const g of all) {
@@ -2999,9 +3083,18 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     }
   };
   drawGroups();
-  return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, filterRow, list,
-    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow,
-    h("h3", { class: "int-sub", text: t("Gruppi del menu") }), groupsBox);
+  const serviziPanel = [
+    h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, catsBox, filterRow, list),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Menu e gruppi dell'isola") })),
+      orderRow,
+      h("h3", { class: "int-sub", text: t("Gruppi del menu") }),
+      groupsBox),
+  ];
+  return createSubtabs("integrazioni", [
+    { id: "servizi", label: t("Servizi e PC"), content: () => serviziPanel },
+    { id: "create", label: t("Create da te"), content: () => [customsSection()] },
+  ], "servizi");
 }
 
 /** The first sentence of a hint, for the integration's row. */
@@ -4461,7 +4554,11 @@ function hotkeyInput(value: string, apply: (v: string) => void): HTMLElement {
   return h("span", { class: "hotkey-field" }, el, clearBtn, hint);
 }
 
-function actionsSection(): HTMLElement {
+/**
+ * Impostazioni → Azioni rapide: split action cards/context behavior from global
+ * keyboard shortcuts, while keeping every live ref (drafts, starters, hotkey warnings).
+ */
+function actionsSections(): HTMLElement[] {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
   const folders = h("div", { class: "row qa-folders" });
   const warn = h("div", {});
@@ -4833,70 +4930,100 @@ function actionsSection(): HTMLElement {
   draw();
   void checkHotkeys();
 
-  return h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Azioni rapide") }), profileChip()),
-    h("div", {
-      class: "hint",
-      text: t("Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande alla chat sul testo copiato, sul testo selezionato o sul file rilasciato. Nessuna chiave o password qui dentro."),
-    }),
-    h("div", { class: "row" }, h("label", { text: t("Apri l'isola") }),
-      hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Chiedi sul testo copiato") }),
-      hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Menu sul testo selezionato") }),
-      hotkeyField(settings.hotkeySelectionMenu ?? "", (v) => { settings.hotkeySelectionMenu = v; }),
-      h("span", { class: "hint note", text: t("in qualunque app, browser compresi: mostra le azioni che lavorano sul testo selezionato") })),
-    starters,
-    h("div", { class: "row" }, h("label", { text: t("Cronologia appunti") }),
-      hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Riquadra e chiedi") }),
-      hotkeyField(settings.hotkeyScreenshot, (v) => { settings.hotkeyScreenshot = v; }),
-      h("span", { class: "hint note", text: t("scorciatoie di questo PC, valgono in ogni app") })),
-    h("div", { class: "row" }, h("label", { text: t("Aggiungi alla Raccolta") }),
-      hotkeyField(settings.hotkeyCollect ?? "", (v) => { settings.hotkeyCollect = v; }),
-      h("span", { class: "hint note", text: t("il testo selezionato, con la sua fonte, nella Raccolta di «File e schermo», da passare poi alla chat") })),
-    h("div", { class: "row" }, h("label", { text: t("Parla") }),
-      hotkeyField(settings.hotkeyTalk ?? "", (v) => { settings.hotkeyTalk = v; }),
-      h("span", { class: "hint note", text: t("il microfono si accende solo adesso; finisci con una pausa e la domanda va alla chat. Trascrive il servizio dei Vocali di Telegram") })),
-    h("div", { class: "row" }, h("label", { text: t("Rispondi a voce") }),
-      toggle(settings.talkReply !== false, (v) => { settings.talkReply = v; void save(); }),
-      h("span", { class: "hint note", text: t("dopo una domanda a voce, la risposta si sente anche dagli altoparlanti (OpenAI o Google AI); Esc la ferma") })),
-    h("div", { class: "row" }, h("label", { text: t("Ricorda questo") }),
-      hotkeyField(settings.hotkeyRemember ?? "", (v) => { settings.hotkeyRemember = v; }),
-      h("span", { class: "hint note", text: t("il testo selezionato nella memoria, con da dove viene; senza selezione scrivi tu cosa ricordare") })),
-    h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),
-      hotkeyField(settings.hotkeyPending, (v) => { settings.hotkeyPending = v; }),
-      h("span", { class: "hint note", text: t("poi N nega, Y consente, S sempre; 1–9 sceglie una risposta") })),
-    h("div", { class: "row" }, h("label", { text: t("Porta avanti la sessione") }),
-      hotkeyField(settings.hotkeySession, (v) => { settings.hotkeySession = v; }),
-      h("span", { class: "hint note", text: t("l'app dove gira la sessione: terminale, VS Code, Cursor o Claude") })),
-    h("div", { class: "row" }, h("label", { text: t("Integrazione successiva") }),
-      hotkeyField(settings.hotkeyNextPill ?? "", (v) => { settings.hotkeyNextPill = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Suoni sì / no") }),
-      hotkeyField(settings.hotkeyMute ?? "", (v) => { settings.hotkeyMute = v; }),
-      h("span", { class: "hint note", text: t("Isola aperta: ← → voce successiva, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude") })),
-    h("div", { class: "row" }, h("label", { text: t("Suggerimenti per l'app in uso") }),
-      toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
-      h("span", { class: "hint note", text: t("in cima alla scheda ⚡: per Outlook, Excel, Word, il browser, il codice… usano il testo che hai selezionato") })),
+  const actionsPanel = [
+    h(
+      "section",
+      {},
+      h("h2", {}, h("span", { text: t("Azioni nella scheda ⚡") }), profileChip()),
+      moreHint(
+        t("Pulsanti della scheda ⚡: link, programmi, script e domande alla chat su testi o file."),
+        t("Gli script partono solo dopo un clic nell'isola. Nessuna chiave o password viene salvata qui dentro."),
+      ),
+      starters,
+      folders,
+      list,
+      h("div", { class: "row" }, add),
+    ),
+    h(
+      "section",
+      {},
+      h("h2", {}, h("span", { text: t("Voce e suggerimenti nella scheda ⚡") })),
+      h("div", { class: "row" }, h("label", { text: t("Suggerimenti per l'app in uso") }),
+        toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
+        h("span", { class: "hint note", text: t("in cima alla scheda ⚡: per Outlook, Excel, Word, browser e codice usano il testo selezionato") })),
+      h("div", { class: "row" }, h("label", { text: t("Rispondi a voce") }),
+        toggle(settings.talkReply !== false, (v) => { settings.talkReply = v; void save(); }),
+        h("span", { class: "hint note", text: t("dopo una domanda a voce, legge la risposta dagli altoparlanti (OpenAI o Google AI); Esc la ferma") })),
+    ),
+  ];
+
+  const shortcutsPanel = [
     warn,
-    folders,
-    list,
-    h("div", { class: "row" }, add),
-  );
+    h(
+      "section",
+      {},
+      h("h2", {}, h("span", { text: t("Isola e controlli") })),
+      h("div", { class: "hint", text: t("Scorciatoie globali di questo PC: funzionano in qualsiasi programma.") }),
+      h("div", { class: "row" }, h("label", { text: t("Apri l'isola") }),
+        hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
+      h("div", { class: "row" }, h("label", { text: t("Integrazione successiva") }),
+        hotkeyField(settings.hotkeyNextPill ?? "", (v) => { settings.hotkeyNextPill = v; })),
+      h("div", { class: "row" }, h("label", { text: t("Suoni sì / no") }),
+        hotkeyField(settings.hotkeyMute ?? "", (v) => { settings.hotkeyMute = v; })),
+      h("div", { class: "hint", text: t("Isola aperta: ← → voce successiva, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude.") }),
+    ),
+    h(
+      "section",
+      {},
+      h("h2", {}, h("span", { text: t("Testo, schermo e appunti") })),
+      h("div", { class: "row" }, h("label", { text: t("Chiedi sul testo copiato") }),
+        hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; })),
+      h("div", { class: "row" }, h("label", { text: t("Menu sul testo selezionato") }),
+        hotkeyField(settings.hotkeySelectionMenu ?? "", (v) => { settings.hotkeySelectionMenu = v; }),
+        h("span", { class: "hint note", text: t("mostra le azioni sul testo selezionato in qualsiasi app") })),
+      h("div", { class: "row" }, h("label", { text: t("Cronologia appunti") }),
+        hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; })),
+      h("div", { class: "row" }, h("label", { text: t("Riquadra e chiedi") }),
+        hotkeyField(settings.hotkeyScreenshot, (v) => { settings.hotkeyScreenshot = v; })),
+      h("div", { class: "row" }, h("label", { text: t("Aggiungi alla Raccolta") }),
+        hotkeyField(settings.hotkeyCollect ?? "", (v) => { settings.hotkeyCollect = v; }),
+        h("span", { class: "hint note", text: t("salva il testo selezionato e la fonte nella Raccolta di «File e schermo»") })),
+      h("div", { class: "row" }, h("label", { text: t("Ricorda questo") }),
+        hotkeyField(settings.hotkeyRemember ?? "", (v) => { settings.hotkeyRemember = v; }),
+        h("span", { class: "hint note", text: t("salva la selezione in memoria, oppure apre il campo per scriverlo") })),
+    ),
+    h(
+      "section",
+      {},
+      h("h2", {}, h("span", { text: t("Voce e sessioni agenti") })),
+      h("div", { class: "row" }, h("label", { text: t("Parla") }),
+        hotkeyField(settings.hotkeyTalk ?? "", (v) => { settings.hotkeyTalk = v; }),
+        h("span", { class: "hint note", text: t("attiva il microfono ora e invia alla pausa (usa il servizio Vocali di Telegram)") })),
+      h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),
+        hotkeyField(settings.hotkeyPending, (v) => { settings.hotkeyPending = v; }),
+        h("span", { class: "hint note", text: t("poi N nega, Y consente, S sempre; 1–9 sceglie una risposta") })),
+      h("div", { class: "row" }, h("label", { text: t("Porta avanti la sessione") }),
+        hotkeyField(settings.hotkeySession, (v) => { settings.hotkeySession = v; }),
+        h("span", { class: "hint note", text: t("porta in primo piano terminale, VS Code, Cursor o Claude") })),
+    ),
+  ];
+
+  return createSubtabs("azioni", [
+    { id: "azioni", label: t("Azioni e contesto"), content: () => actionsPanel },
+    { id: "scorciatoie", label: t("Scorciatoie da tastiera"), content: () => shortcutsPanel },
+  ], "azioni");
 }
 
 // ── Flows (the editor is its own window: src/flows/, docs/flussi.md) ─────────
 
-function automationsSection(): HTMLElement {
+function automationsSections(): HTMLElement[] {
   const list = h("div", { class: "flow-list" });
   const commit = () => void save();
   function draw() {
     clear(list);
     const flows = settings.automations as Automation[];
     if (!flows.length) {
-      list.append(h("div", { class: "hint", text: t("Ancora nessun flusso. Aprine uno nuovo, partendo da un modello o descrivendolo a parole.") }));
+      list.append(h("div", { class: "empty-hint", text: t("Ancora nessun flusso. Aprine uno nuovo da un modello o descrivendolo a parole.") }));
     }
     for (const a of flows) {
       const issue = a.steps.map(flowMissing).find(Boolean);
@@ -4916,7 +5043,10 @@ function automationsSection(): HTMLElement {
   async function drawHabits() {
     clear(habitsBox);
     if (!settings.habitsEnabled) {
-      habitsBox.append(h("div", { class: "hint", text: t("Spento. Acceso, EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette collegate, le azioni rapide e i profili scelti a mano. Tutto resta su questo PC (45 giorni al massimo) e da lì propone automazioni: una al giorno al massimo, da accettare o rifiutare.") }));
+      habitsBox.append(moreHint(
+        t("Spento. Tutto resta su questo PC e propone al massimo un'automazione al giorno."),
+        t("Acceso, EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette collegate, le azioni rapide e i profili scelti a mano (massimo 45 giorni di storico locale)."),
+      ));
     } else {
       const st = await Bridge.habitsStats();
       const since = st?.since ? new Date(st.since).toLocaleDateString(locale()) : "";
@@ -4964,28 +5094,30 @@ function automationsSection(): HTMLElement {
   void onEvent<null>("habits-changed", () => void drawHabits());
   void drawHabits();
 
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Flussi") })),
-    h("div", { class: "hint", text: t("Un flusso parte da solo quando succede qualcosa e fa i passi che hai scelto, senza chiedere: lo hai approvato creandolo. Si costruiscono nella finestra Flussi, trascinando i blocchi, o a parole in chat.") }),
-    list,
-    h("div", { class: "row" },
-      h("button", { class: "primary", text: t("Apri la finestra Flussi"), onclick: () => void Bridge.openFlowsWindow("") })),
-    h("h3", { text: t("Proposte dalle tue abitudini") }),
-    h("div", { class: "row" }, h("label", { text: t("Proponimi automazioni") }),
-      toggle(settings.habitsEnabled === true, (v) => { settings.habitsEnabled = v; void save().then(() => drawHabits()); }),
-      h("span", { class: "hint note", text: t("da attivare a mano; tutto resta su questo PC") })),
-    h("div", { class: "row" }, h("label", { text: t("Programmi da non osservare") }),
-      (() => {
-        const el = h("input", { type: "text", value: (settings.habitsExcluded ?? []).join(", "),
-          placeholder: t("es. steam.exe, spotify"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
-        el.addEventListener("change", () => {
-          settings.habitsExcluded = el.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
-          void save();
-        });
-        return el;
-      })()),
-    habitsBox,
-  );
+  return [
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Flussi") })),
+      h("div", { class: "hint", text: t("Partono da soli quando succede qualcosa ed eseguono i passi scelti nella finestra Flussi o a parole in chat.") }),
+      list,
+      h("div", { class: "row" },
+        h("button", { class: "primary", text: t("Apri la finestra Flussi"), onclick: () => void Bridge.openFlowsWindow("") }))),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Proposte dalle tue abitudini") })),
+      h("div", { class: "row" }, h("label", { text: t("Proponimi automazioni") }),
+        toggle(settings.habitsEnabled === true, (v) => { settings.habitsEnabled = v; void save().then(() => drawHabits()); }),
+        h("span", { class: "hint note", text: t("da attivare a mano; tutto resta su questo PC") })),
+      h("div", { class: "row" }, h("label", { text: t("Programmi da non osservare") }),
+        (() => {
+          const el = h("input", { type: "text", value: (settings.habitsExcluded ?? []).join(", "),
+            placeholder: t("es. steam.exe, spotify"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+          el.addEventListener("change", () => {
+            settings.habitsExcluded = el.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+            void save();
+          });
+          return el;
+        })()),
+      habitsBox),
+  ];
 }
 
 // ── Connectors (MCP) ──────────────────────────────────────────────────────────
@@ -5120,6 +5252,9 @@ function widgetsSection(): HTMLElement {
 
   function draw() {
     clear(list);
+    if (!settings.widgets.length) {
+      list.append(h("div", { class: "empty-hint", text: t("Nessun widget configurato. Aggiungine uno qui sotto per tenere d'occhio calendari ICS, domini, siti, porte, servizi Windows o API JSON.") }));
+    }
     settings.widgets.forEach((w, idx) => {
       const input = (value: string | number, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0", type = "text") => {
         const el = h("input", { type, value: String(value), placeholder, style, spellcheck: "false" }) as HTMLInputElement;
@@ -5293,10 +5428,10 @@ function widgetsSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Widget") }), profileChip()),
-    h("div", {
-      class: "hint",
-      text: t("Controlli che compaiono nel menu dell'isola: il calendario (link ICS), la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON; se ne possono creare quanti servono. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa."),
-    }),
+    moreHint(
+      t("Controlli periodici mostrati nel menu dell'isola: il personaggio avvisa quando un controllo passa da OK a problema."),
+      t("Puoi creare controlli per calendari (ICS), scadenza domini, siti, certificati, server, porte, servizi Windows o API JSON; si fermano quando EasyIsland è in pausa. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni."),
+    ),
     list,
     templates,
   );
@@ -5361,10 +5496,10 @@ function reactionsSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Reazioni del personaggio") }), profileChip()),
-    h("div", {
-      class: "hint",
-      text: t("Per ogni situazione scegli cosa fa il personaggio. «Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo dice solo il pallino nel menu. Permessi e domande degli agenti si fanno sempre vedere, perché l'agente aspetta te."),
-    }),
+    moreHint(
+      t("Per ogni situazione scegli se il personaggio appare con suono, cambia faccia in silenzio o resta tranquillo."),
+      t("«Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo segnala solo il pallino nel menu. Permessi e domande degli agenti si fanno sempre vedere perché l'agente aspetta te."),
+    ),
     h("h3", { text: t("Agenti") }),
     row(t("Ha finito"), "agentFinished"),
     row(t("Si ferma per un errore"), "agentError"),
@@ -5372,7 +5507,7 @@ function reactionsSection(): HTMLElement {
     h("h3", { text: t("Controlli e integrazioni") }),
     ...(checks.length
       ? checks.map(([name, key]) => row(name, key))
-      : [h("div", { class: "hint", text: t("Nessun controllo attivo: le integrazioni e i widget accesi compaiono qui.") })]),
+      : [h("div", { class: "empty-hint", text: t("Nessun controllo attivo: le integrazioni e i widget accesi compaiono qui.") })]),
   );
 }
 
@@ -5387,13 +5522,13 @@ function momentsSection(): HTMLElement {
       h("span", { class: "hint note", text: note }));
   return h("section", {},
     h("h2", {}, h("span", { text: t("Proposte al momento giusto") })),
-    h("div", { class: "hint", text: t("L'isola nota cosa succede sul PC e propone il passo dopo con un clic. Non copre mai quello che stai facendo e segue le regole qui sopra.") }),
-    row(t("Download finito"), "momentDownloads", t("Apri, Mostra nella cartella e le azioni sui file, per un file nuovo nella cartella Download")),
-    row(t("Errore copiato"), "momentErrors", t("«Spiega e correggi» per uno stack trace o un traceback negli appunti, e chi tiene una porta occupata (serve l'integrazione Appunti)")),
-    row(t("Server di sviluppo"), "momentServers", t("«Apri nel browser» quando npm run dev, vite, uvicorn… iniziano ad ascoltare su localhost")),
-    row(t("Fine di una chiamata"), "momentCalls", t("«Annota» dopo una chiamata 3CX risposta di almeno 30 secondi: due righe su cosa vi siete detti vanno nella memoria, nella pagina di chi ha chiamato")),
-    row(t("Ticket assegnato a te"), "momentTickets", t("«Prepara» quando Zammad ti assegna un ticket: la chat con cosa sa la memoria del cliente, i ticket simili e come si sono risolti, e una bozza di risposta (mai inviata)")),
-    row(t("Password e chiavi copiate"), "clearSecrets", t("tolte dagli appunti dopo 30 secondi, se nel frattempo non hai copiato altro")));
+    h("div", { class: "hint", text: t("L'isola nota cosa succede sul PC e propone il passo dopo con un clic, senza mai coprire quello che stai facendo.") }),
+    row(t("Download finito"), "momentDownloads", t("Apri, Mostra nella cartella e azioni sui file nuovi in Download")),
+    row(t("Errore copiato"), "momentErrors", t("«Spiega e correggi» su stack trace negli appunti e porte occupate (serve Appunti)")),
+    row(t("Server di sviluppo"), "momentServers", t("«Apri nel browser» quando npm run dev, vite o uvicorn ascoltano su localhost")),
+    row(t("Fine di una chiamata"), "momentCalls", t("«Annota» dopo una chiamata 3CX ≥ 30 s, salvata nella pagina di chi ha chiamato")),
+    row(t("Ticket assegnato a te"), "momentTickets", t("«Prepara» su un nuovo ticket Zammad: contesto cliente, ticket simili e bozza (mai inviata)")),
+    row(t("Password e chiavi copiate"), "clearSecrets", t("tolte dagli appunti dopo 30 secondi, se non hai copiato altro")));
 }
 
 function presenceSection(): HTMLElement {
@@ -5410,25 +5545,26 @@ function presenceSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Davanti al cliente") }), profileChip()),
-    h("div", { class: "hint", text: t("Il personaggio si fa da parte quando qualcuno potrebbe vedere il tuo schermo. Si attiva anche a mano: icona nell'area di notifica → Davanti al cliente.") }),
+    h("div", { class: "hint", text: t("Il personaggio si fa da parte quando qualcuno può vedere lo schermo (anche a mano dall'icona nell'area di notifica → Davanti al cliente).") }),
     h("div", { class: "row" },
       h("label", { text: t("Durante le chiamate") }),
       toggle(settings.presenceMeeting, (v) => { settings.presenceMeeting = v; commit(); }),
-      h("span", { class: "hint note", text: t("microfono o webcam in uso da qualsiasi app: Teams, Zoom, Meet nel browser, Webex…") }),
+      h("span", { class: "hint note", text: t("microfono o webcam in uso: Teams, Zoom, Meet, Webex…") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Durante l'assistenza") }),
       toggle(settings.presenceRemote, (v) => { settings.presenceRemote = v; commit(); }),
-      h("span", { class: "hint note", text: t("qualcuno è collegato a questo PC: Desktop remoto, Assistenza rapida, TeamViewer") }),
+      h("span", { class: "hint note", text: t("sessione remota attiva: Desktop remoto, Assistenza rapida, TeamViewer") }),
     ),
     h("div", { class: "row" }, h("label", { text: t("Altri programmi") }), apps),
     h("div", { class: "row" },
       h("label", { text: t("Cosa fa") }),
       select<Settings["presenceMode"]>(
-        [["hide", t("Nasconde il personaggio e silenzia (le richieste di permesso compaiono comunque)")], ["silent", t("Solo silenzio, il personaggio resta")]],
+        [["hide", t("Nasconde il personaggio e silenzia")], ["silent", t("Solo silenzio, il personaggio resta")]],
         settings.presenceMode,
         (v) => { settings.presenceMode = v; commit(); },
       ),
+      h("span", { class: "hint note", text: t("le richieste di permesso compaiono comunque") }),
     ),
   );
 }
@@ -5462,11 +5598,35 @@ function scriptsSection(hookPath: string): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Messaggi dagli script") })),
-    h("div", { class: "hint", text: t("Qualsiasi script, attività pianificata, n8n o programma può mostrare un messaggio sull'isola. Stato: ok, avviso, errore o info; --apri aggiunge un pulsante con un link. Valgono le regole di questa pagina: in «solo avvisi» passano solo avvisi ed errori.") }),
+    moreHint(
+      t("Qualsiasi script, attività pianificata o programma può mostrare un messaggio sull'isola."),
+      t("Stati: ok, avviso, errore o info; --apri aggiunge un pulsante con un link. Seguono le regole di Notifiche: in «Solo avvisi» passano solo avvisi ed errori."),
+    ),
     h("code", { class: "path", style: "display:block;white-space:pre-wrap;word-break:break-all", text: command }),
     h("div", { class: "row" }, copy, test),
     feedback,
   );
+}
+
+/** Impostazioni → Notifiche: sub-tabs separating alerts/moments, per-source reactions, and privacy/scripts. */
+function notifySections(hookPath: string): HTMLElement[] {
+  return createSubtabs("notifiche", [
+    {
+      id: "avvisi",
+      label: t("Avvisi e proposte"),
+      content: () => [notifySection(), momentsSection()],
+    },
+    {
+      id: "reazioni",
+      label: t("Reazioni"),
+      content: () => [reactionsSection()],
+    },
+    {
+      id: "privacy",
+      label: t("Privacy e script"),
+      content: () => [presenceSection(), scriptsSection(hookPath)],
+    },
+  ], "avvisi");
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -5554,8 +5714,8 @@ function whenLabel(when: string): string {
   return when;
 }
 
-/** The form for a new task and the list of all of them. */
-function tasksSection(): HTMLElement {
+/** The form for a new task and the list of all of them, split into two cards. */
+function tasksSections(): HTMLElement[] {
   const list = h("div", { class: "tasks", id: "tasks-list" });
   const feedback = h("div", {});
   const title = h("input", { type: "text", placeholder: t("Titolo (facoltativo)"), style: "flex:1 1 220px" }) as HTMLInputElement;
@@ -5605,17 +5765,22 @@ function tasksSection(): HTMLElement {
     }
   });
   void refreshTasks();
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Nuovo compito") })),
-    h("div", { class: "row" }, title),
-    goal,
-    engines,
-    h("div", { class: "row" }, h("label", { text: t("Quando") }), kind, date, weekday, every, time, h("span", { class: "spacer" }), add),
-    feedback,
-    h("span", { class: "hint", text: t("Puoi crearli anche dalla chat («/compito …», oppure a parole) e da Telegram. Mentre lavora lo vedi nella scheda Agenti dell'isola: permessi e domande arrivano lì.") }),
-    h("h2", {}, h("span", { text: t("I tuoi compiti") })),
-    list,
-  );
+  return [
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Nuovo compito") })),
+      h("div", { class: "row" }, title),
+      goal,
+      engines,
+      h("div", { class: "row" }, h("label", { text: t("Quando") }), kind, date, weekday, every, time, h("span", { class: "spacer" }), add),
+      feedback,
+      moreHint(
+        t("Puoi creare compiti anche in chat («/compito …») e da Telegram."),
+        t("Mentre lavora vedi l'avanzamento nella scheda Agenti dell'isola: richieste di permesso e domande compaiono lì."),
+      )),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("I tuoi compiti") })),
+      list),
+  ];
 }
 
 async function refreshTasks() {
@@ -5638,7 +5803,7 @@ function paintTasks() {
   if (!list) return;
   clear(list);
   if (!taskItems.length) {
-    list.append(h("span", { class: "hint", text: t("Ancora nessun compito.") }));
+    list.append(h("div", { class: "empty-hint", text: t("Ancora nessun compito.") }));
     return;
   }
   for (const task of [...taskItems].reverse()) list.append(taskRow(task));
@@ -5798,19 +5963,22 @@ function tasksSettingsSection(): HTMLElement {
   return h("section", {},
     h("h2", {}, h("span", { text: t("Come lavorano") })),
     h("div", { class: "row" }, h("label", { text: t("Motore") }), engine,
-      h("span", { class: "hint note", text: t("serve un motore con gli strumenti: Claude con l'abbonamento (consigliato), Claude con la chiave API, opencode o Antigravity; gli altri rispondono soltanto") })),
+      moreHint(
+        t("serve un motore con strumenti (Claude, opencode o Antigravity)"),
+        t("Consigliato: Claude con l'abbonamento, Claude con chiave API, opencode o Antigravity; gli altri motori rispondono soltanto senza eseguire azioni."),
+      )),
     h("div", { class: "row" }, h("label", { text: t("Turni per volta") }),
       slider(1, 50, 1, settings.tasksMaxTurns ?? 12, "", (v) => {
         settings.tasksMaxTurns = v;
         void save();
       }),
-      h("span", { class: "hint note", text: t("poi il compito va in pausa e lo riprendi tu: così tempo e costi restano sotto controllo") })),
+      h("span", { class: "hint note", text: t("poi il compito va in pausa e lo riprendi tu, tenendo sotto controllo tempo e costi") })),
     h("div", { class: "row" }, h("label", { text: t("Minuti per volta") }),
       slider(5, 240, 5, settings.tasksMaxMinutes ?? 30, " min", (v) => {
         settings.tasksMaxMinutes = v;
         void save();
       })),
-    h("span", { class: "hint", text: t("Un compito alla volta, gli altri in coda. Ha gli stessi strumenti e permessi della chat: inviare, eliminare o approvare resta sempre un tuo clic.") }),
+    h("span", { class: "hint", text: t("Un compito alla volta, gli altri in coda. Inviare, eliminare o approvare resta sempre un tuo clic.") }),
   );
 }
 
@@ -5985,7 +6153,10 @@ function customsSection(): HTMLElement {
   });
   return h("section", {},
     h("h2", {}, h("span", { text: t("Create da te") })),
-    h("span", { class: "hint", text: t("Integrazioni fatte a parole nella chat: «crea un'integrazione per i preventivi, con cliente, voci con quantità e prezzo, IVA e totale, e un pulsante che crea il PDF». Hanno campi, caselle, scelte, tabelle, calcoli, un modello del documento e pulsanti per salvare, creare il documento, copiarlo, chiedere alla chat, aprire un link, eseguire un'azione rapida o aggiungerle a Notion. Per cambiarne una chiedilo alla chat, oppure modifica qui la sua descrizione.") }),
+    moreHint(
+      t("Integrazioni costruite a parole nella chat, con campi, tabelle, calcoli e modelli di documento."),
+      t("Esempio in chat: «crea un'integrazione per i preventivi, con cliente, voci con quantità e prezzo, IVA e totale, e un pulsante che crea il PDF». Puoi chiedere alla chat di modificarle o aggiornare la descrizione qui."),
+    ),
     list);
 }
 
@@ -5994,7 +6165,7 @@ function paintCustoms() {
   if (!list) return;
   clear(list);
   if (!customItems.length) {
-    list.append(h("span", { class: "hint", text: t("Ancora nessuna: chiedila alla chat.") }));
+    list.append(h("div", { class: "empty-hint", text: t("Ancora nessuna: chiedi alla chat di crearne una a parole.") }));
     return;
   }
   for (const c of customItems) list.append(customRow(c));
@@ -6120,9 +6291,15 @@ function heartbeatSection(): HTMLElement {
   return h("section", {},
     h("h2", {}, h("span", { text: t("Battito") })),
     h("div", { class: "row" }, h("label", { text: t("Controllo periodico") }), every, list,
-      h("span", { class: "hint note", text: t("a ogni battito l'agente guarda le cose elencate in BATTITO.md (ticket, mail, scadenze…) e ti avvisa solo se c'è qualcosa; senza righe nell'elenco non parte e non costa niente") })),
+      moreHint(
+        t("controlla BATTITO.md e ti avvisa solo se c'è qualcosa"),
+        t("Ad ogni battito l'agente verifica ticket, mail, scadenze o voci elencate in BATTITO.md; se l'elenco è vuoto non parte e non consuma nulla."),
+      )),
     h("div", { class: "row" }, h("label", { text: t("Riordino della memoria") }), digest,
-      h("span", { class: "hint note", text: t("ogni sera alle 22:30 l'agente rilegge il diario della chat e ti propone le cose da ricordare (salva solo quelle che approvi), legge i file messi in da-leggere della memoria e la domenica propone come sistemarla. Se non c'è niente da fare non parte") })),
+      moreHint(
+        t("ogni sera alle 22:30 propone cosa salvare dal diario e la domenica come riordinarla"),
+        t("Salva solo quello che approvi e legge eventuali file in «da-leggere» della memoria; se non c'è nulla da fare non parte."),
+      )),
     feedback);
 }
 
@@ -6140,24 +6317,30 @@ function secondBrainSection(): HTMLElement {
   });
   return h("section", {},
     h("h2", {}, h("span", { text: t("Secondo cervello") })),
-    h("div", { class: "hint", text: t("Quello che succede tiene aggiornate le pagine di persone e clienti nella memoria. Un compito propone le righe da aggiungere e i promemoria; scrive solo quelle che approvi. Al massimo 8 volte al giorno.") }),
+    moreHint(
+      t("Aggiorna le pagine di persone e clienti nella memoria proponendo righe e promemoria (massimo 8 volte al giorno)."),
+      t("Un compito analizza eventi selezionati qui sotto e scrive nella memoria soltanto le aggiunte che approvi."),
+    ),
     h("div", { class: "row" }, h("label", { text: t("Ticket chiusi") }),
       toggle(settings.brainTickets !== false, (v) => { settings.brainTickets = v; void save(); }),
-      h("span", { class: "hint note", text: t("quando un tuo ticket di Zammad si chiude: il problema e come è stato risolto, nella pagina del cliente") })),
+      h("span", { class: "hint note", text: t("quando chiudi un ticket Zammad: problema e soluzione nella pagina del cliente") })),
     h("div", { class: "row" }, h("label", { text: t("Mail importanti") }),
       toggle(settings.brainMail !== false, (v) => { settings.brainMail = v; void save(); }),
-      h("span", { class: "hint note", text: t("con l'account Microsoft collegato: le mail segnate come importanti e quelle di chi ha una pagina nella memoria (Outlook classico da solo non dà il testo)") })),
+      h("span", { class: "hint note", text: t("account Microsoft: mail importanti e contatti già presenti in memoria") })),
     h("div", { class: "row" }, h("label", { text: t("Impegni presi") }),
       toggle(settings.brainPromises !== false, (v) => { settings.brainPromises = v; void save(); }),
-      h("span", { class: "hint note", text: t("in ticket, mail, «Ricorda» e note delle chiamate cerca le promesse («ti mando domani il preventivo») e le propone come promemoria in To Do, o nella pagina «Impegni»") })),
+      h("span", { class: "hint note", text: t("cerca promesse in ticket, mail, note chiamate e «Ricorda» come promemoria in To Do") })),
     h("div", { class: "row" }, h("label", { text: t("Riepilogo della settimana") }), week,
-      h("span", { class: "hint note", text: t("il venerdì alle 17: cosa ha imparato la memoria in settimana e cosa è rimasto aperto. Se non è cambiato niente non parte") })),
+      h("span", { class: "hint note", text: t("il venerdì alle 17: cosa ha imparato la memoria e cosa resta aperto (parte solo se ci sono novità)") })),
     h("div", { class: "row" }, h("label", { text: t("Memoria di Claude Code") }),
       toggle(settings.memoryClaudeCode !== false, (v) => { settings.memoryClaudeCode = v; void save(); }),
-      h("span", { class: "hint note", text: t("anche le note che Claude Code salva da solo (le sue preferenze e i fatti dei progetti, di ogni account) si trovano nella ricerca della memoria e nella mappa, alla voce «Claude Code». Si leggono soltanto: le scrive e le corregge Claude Code") })),
+      moreHint(
+        t("mostra in sola lettura le note salvate da Claude Code nella ricerca e nella mappa"),
+        t("Include preferenze e fatti dei progetti di ogni account sotto la voce «Claude Code»; solo Claude Code può scriverle o modificarle."),
+      )),
     h("div", { class: "row" }, h("label", { text: t("«Ricorda questo» impara subito") }),
       toggle(settings.rememberNow !== false, (v) => { settings.rememberNow = v; void save(); }),
-      h("span", { class: "hint note", text: t("quello che fai ricordare (scorciatoia, campo in alto, /ricorda su Telegram) lo legge subito un compito e lo mette nelle pagine della memoria; spento, aspetta il riordino della sera") })),
+      h("span", { class: "hint note", text: t("smista subito nelle pagine della memoria; spento, aspetta il riordino della sera") })),
     feedback);
 }
 
@@ -6188,7 +6371,10 @@ function skillsSection(): HTMLElement {
   }
   return h("section", {},
     h("h2", {}, h("span", { text: t("Abilità") })),
-    h("span", { class: "hint", text: t("Procedure scritte una volta, che la chat e i compiti seguono quando servono: per esempio «resoconto mensile di un cliente» o «controllo dei backup». Ognuna è un file .md che puoi modificare, ha un motore preferito se vuoi, ed è anche il comando /nome nella chat. Si creano anche dalla chat: «ricordati come si fa…».") }),
+    moreHint(
+      t("Procedure riutilizzabili che la chat e i compiti seguono quando servono (anche come /nome in chat)."),
+      t("Ognuna è un file .md modificabile, con un eventuale motore preferito (es. «resoconto mensile» o «controllo backup»). Puoi crearle anche in chat scrivendo «ricordati come si fa…»."),
+    ),
     h("div", { class: "row", style: "flex-wrap:wrap" }, add,
       importFrom(t("Importa file…"), "files", t("Uno o più file .md, anche scritti per altri agenti AI")),
       importFrom(t("Importa cartella…"), "folder", t("Una cartella con agenti o skill, per esempio una raccolta scaricata da GitHub: elenca quelli che trova, anche nelle sottocartelle")),
@@ -6196,6 +6382,27 @@ function skillsSection(): HTMLElement {
       folder),
     h("div", { id: "skills-import" }),
     list);
+}
+
+/** Impostazioni → Flussi: separate active tasks, scheduled flows/heartbeat, and second brain/skills. */
+function flowsSections(): HTMLElement[] {
+  return createSubtabs("compiti", [
+    {
+      id: "compiti",
+      label: t("Compiti"),
+      content: () => [...tasksSections(), tasksSettingsSection()],
+    },
+    {
+      id: "flussi",
+      label: t("Flussi e battito"),
+      content: () => [...automationsSections(), heartbeatSection()],
+    },
+    {
+      id: "cervello",
+      label: t("Secondo cervello e abilità"),
+      content: () => [secondBrainSection(), skillsSection()],
+    },
+  ], "compiti");
 }
 
 // ── Abilità → «Importa…» (skillimport.rs) ─────────────────────────────────────
@@ -6676,10 +6883,10 @@ function updatesSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Aggiornamenti") })),
-    h("div", {
-      class: "hint",
-      text: t("Le nuove versioni arrivano dalle release di GitHub (EdoardoDevelop/easyisland), firmate: l'app verifica la firma prima di installare e installa solo dopo un tuo clic. È l'unica richiesta di rete che non configuri tu, e si può spegnere."),
-    }),
+    moreHint(
+      t("Nuove versioni scaricate da GitHub, verificate con firma e installate solo dopo un tuo clic."),
+      t("Release ufficiali da EdoardoDevelop/easyisland su GitHub: è l'unica richiesta di rete automatica e puoi disattivarla qui sotto."),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Versione") }),
       h("span", { text: version || "—" }),
@@ -6734,10 +6941,11 @@ function backupSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Backup e trasferimento") })),
-    h("div", {
-      class: "hint",
-      text: t("Esporta in un file JSON nella cartella Documenti le impostazioni (profili compresi), la memoria della chat, le abilità, i compiti, le integrazioni personali, la cronologia delle chat e le abitudini; importalo su un altro PC per ritrovare tutto. Importando, quello che c'era viene messo da parte, non cancellato. Le chiavi API restano in Gestione credenziali e non vengono esportate."),
-    }),
+    h("ul", { class: "backup-points" },
+      h("li", {}, h("b", { text: t("Cosa viene esportato: ") }), h("span", { text: t("impostazioni e profili, memoria della chat, abilità, compiti, integrazioni personali, cronologia chat e abitudini.") })),
+      h("li", {}, h("b", { text: t("Cosa resta protetto: ") }), h("span", { text: t("le chiavi API e le password restano in Gestione credenziali di Windows e vanno reinserite sul nuovo PC.") })),
+      h("li", {}, h("b", { text: t("Importazione sicura: ") }), h("span", { text: t("la configurazione attuale viene messa da parte, mai sovrascritta o cancellata.") })),
+    ),
     h("div", { class: "row" }, exportBtn, importBtn, file),
     feedback,
   );
@@ -6753,8 +6961,8 @@ function choice(options: [string, string][], value: string, onChange: (v: string
   return el;
 }
 
-/** «Notizie», step 1 (docs/idee.md): the subjects followed, the memory's proposals and the excluded ones. */
-function newsSection(): HTMLElement {
+/** «Notizie», step 1 (docs/idee.md): source settings card + followed/proposed/excluded topics card. */
+function newsSections(): HTMLElement[] {
   const news = (): NewsSettings => (settings.news ??= { topics: [], excluded: [] });
   const commit = () => void save();
   const proposed = h("div", { class: "news-list" });
@@ -6854,7 +7062,10 @@ function newsSection(): HTMLElement {
     });
   };
 
-  const input = h("input", { type: "text", placeholder: t("Un argomento, per esempio «Windows 11» o «UniFi»"), spellcheck: "false" }) as HTMLInputElement;
+  const input = h("input", {
+    type: "text", placeholder: t("Un argomento, per esempio «Windows 11» o «UniFi»"),
+    spellcheck: "false", style: "flex:1 1 auto;min-width:0",
+  }) as HTMLInputElement;
   const add = () => {
     const name = input.value.trim();
     if (!name || followed(name)) return;
@@ -6883,34 +7094,42 @@ function newsSection(): HTMLElement {
   });
 
   void load();
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Notizie") })),
-    h("div", { class: "row" },
-      h("label", { text: t("Scheda «Notizie» nell'isola") }),
-      toggle(news().tab !== false, (v) => { news().tab = v; commit(); }),
-      h("span", { class: "hint note", text: t("la voce nel menu dell'isola e il riquadro nella Panoramica") })),
-    h("div", { class: "row" },
-      h("label", { text: t("Fonte") }),
-      choice([["google", "Google News"], ["bing", "Bing News"], ["both", t("Google e Bing insieme")]], news().source ?? "google", (v) => { news().source = v as NewsSettings["source"]; commit(); }),
-      h("span", { class: "hint note", text: t("Google News: miniatura con il logo del giornale. Bing News: la foto dell'articolo e una riga di riassunto. Insieme: le notizie di tutti e due, mescolate, senza doppioni. Vale dal prossimo controllo.") })),
-    h("div", { class: "row" },
-      h("label", { text: t("Aggiungi da soli gli argomenti") }),
-      toggle(news().auto !== false, (v) => { news().auto = v; commit(); }),
-      autoNow,
-      autoStatus),
-    h("div", { class: "hint", text: t("Una volta al giorno il motore della memoria (o, se non c'è, quello della chat) guarda di cosa parla la tua memoria e segue da sé gli argomenti adatti alle notizie: prodotti, tecnologie, aziende, settori, luoghi. Mai persone, te stesso, clienti o progetti interni. Quelli che non ti interessano li spegni o li togli qui sotto: tolti, non tornano.") }),
-    h("h2", {}, h("span", { text: t("Argomenti delle notizie") })),
-    h("div", { class: "hint", text: t("Le proposte vengono dalle pagine collegate più citate e da quelle nominate nelle note e nelle chat. Le pagine su persone e clienti non vengono mai proposte.") }),
-    h("h3", { text: t("Proposti dalla memoria") }),
-    proposed,
-    h("div", { class: "row" }, h("button", { text: t("Aggiorna le proposte"), onclick: () => void load() })),
-    h("h3", { text: t("I tuoi argomenti") }),
-    mine,
-    h("div", { class: "row" }, input, h("button", { text: t("Aggiungi"), onclick: add })),
-    h("h3", { text: t("Esclusi") }),
-    h("div", { class: "hint", text: t("La memoria non li propone più, anche se continua a parlarne.") }),
-    excluded,
-  );
+  return [
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Fonti e automatismi") })),
+      h("div", { class: "row" },
+        h("label", { text: t("Scheda «Notizie» nell'isola") }),
+        toggle(news().tab !== false, (v) => { news().tab = v; commit(); }),
+        h("span", { class: "hint note", text: t("voce nel menu dell'isola e riquadro nella Panoramica") })),
+      h("div", { class: "row" },
+        h("label", { text: t("Fonte") }),
+        choice([["google", "Google News"], ["bing", "Bing News"], ["both", t("Google e Bing insieme")]], news().source ?? "google", (v) => { news().source = v as NewsSettings["source"]; commit(); }),
+        moreHint(
+          t("sceglie tra Google News (logo), Bing News (foto + riassunto) o entrambi senza doppioni"),
+          t("Google News mostra la miniatura del giornale; Bing News mostra foto e riga di riassunto. Insieme mescola i risultati senza doppioni dal prossimo controllo."),
+        )),
+      h("div", { class: "row" },
+        h("label", { text: t("Aggiungi da soli gli argomenti") }),
+        toggle(news().auto !== false, (v) => { news().auto = v; commit(); }),
+        autoNow,
+        autoStatus),
+      moreHint(
+        t("Una volta al giorno il motore della memoria individua prodotti, tecnologie o aziende adatti alle notizie."),
+        t("Esclude automaticamente persone, te stesso, clienti e progetti interni. Se spegni o rimuovi un argomento proposto, non viene aggiunto di nuovo."),
+      )),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Argomenti delle notizie") })),
+      h("div", { class: "hint", text: t("Le proposte vengono dalle pagine più citate della memoria (mai persone o clienti).") }),
+      h("h3", { text: t("Proposti dalla memoria") }),
+      proposed,
+      h("div", { class: "row" }, h("button", { text: t("Aggiorna le proposte"), onclick: () => void load() })),
+      h("h3", { text: t("I tuoi argomenti") }),
+      mine,
+      h("div", { class: "row" }, input, h("button", { text: t("Aggiungi"), onclick: add })),
+      h("h3", { text: t("Esclusi") }),
+      h("div", { class: "hint", text: t("La memoria non li propone più, anche se continua a parlarne.") }),
+      excluded),
+  ];
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
@@ -6986,28 +7205,24 @@ async function main() {
     if (page === "integrazioni" && item) {
       openIntegration = item;
       integrationQuery = "";
+      integrationGroup = "all";
       onlyActive = false;
     }
-    // A tab of Aspetto or Chat ("aspetto" + "barra", or "chat" + "strumenti").
+    // A tab of Aspetto ("aspetto" + "barra") or any createSubtabs page ("chat" + "strumenti").
     const tab = page === "aspetto" ? LOOK_TABS().find(([id]) => id === item)?.[0] : undefined;
     if (tab) {
       lookTabNow = tab;
       render();
       return;
     }
-    const cTab = page === "chat" ? CHAT_TABS().find(([id]) => id === item)?.[0] : undefined;
-    if (cTab) {
-      chatTabNow = cTab;
-      render();
-      return;
-    }
+    if (item) pageTabNow.set(page, item);
     render();
     if (!item) return;
     requestAnimationFrame(() => {
       const el = root.querySelector<HTMLElement>(`[data-item="${CSS.escape(item)}"]`);
       if (!el) return;
-      const panelTab = el.closest<HTMLElement>(".chat-panel")?.dataset.tab as ChatTab | undefined;
-      if (panelTab) setChatTabActive?.(panelTab);
+      const panel = el.closest<HTMLElement>(".subtab-panel");
+      if (panel?.dataset.page && panel.dataset.tab) setPageTabActive.get(panel.dataset.page)?.(panel.dataset.tab);
       el.scrollIntoView({ block: "center" });
       el.classList.add("goto");
       window.setTimeout(() => el.classList.remove("goto"), 1600);
@@ -7074,8 +7289,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "notifiche", label: t("Notifiche"), icon: "alert", color: "#F5A524", title: t("Notifiche"),
-      intro: t("Quando il personaggio si fa vedere, quando si fa da parte e i messaggi dagli script."),
-      sections: () => [notifySection(), momentsSection(), reactionsSection(), presenceSection(), scriptsSection(b.status.hookPath)],
+      intro: t("Avvisi, proposte al momento giusto, reazioni per situazione, privacy davanti al cliente e messaggi dagli script."),
+      sections: () => notifySections(b.status.hookPath),
     },
     {
       id: "chat", label: t("Chat e motori AI"), icon: "chat", color: "#A78BFA", title: t("Chat dell'isola e motori AI"),
@@ -7084,25 +7299,25 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "claude", label: t("Agenti di codice"), icon: "terminal", color: "#E07A5F", title: t("Agenti di codice nel terminale"),
-      intro: t("Claude Code, Codex, opencode e gli altri agenti che lavori da terminale o editor: collegarli all'isola per vederne sessioni e permessi, i riepiloghi del loro lavoro e gli strumenti di EasyIsland che possono usare."),
-      sections: () => [agentsSection(b.status), agentsTabSection(), recapSection(), dailySection(), mcpSection()],
+      intro: t("Collegamento di Claude Code, Codex e opencode all'isola, strumenti disponibili e riepiloghi giornalieri e settimanali."),
+      sections: () => agentsSections(b.status),
     },
     {
       id: "azioni", label: t("Azioni rapide"), icon: "bolt", color: "#FACC15", title: t("Azioni rapide"),
-      intro: t("Pulsanti della scheda ⚡ e scorciatoie da tastiera."),
-      sections: () => [actionsSection()],
+      intro: t("Pulsanti della scheda ⚡, suggerimenti per l'app in uso e scorciatoie da tastiera."),
+      sections: () => actionsSections(),
     },
     {
       // Automations and tasks in one page (docs/flussi.md, stage 3); the id stays
       // "compiti" because the island opens it from a task ("Apri").
       id: "compiti", label: t("Flussi"), icon: "rocket", color: "#22D3EE", title: t("Flussi"),
-      intro: t("Quando succede qualcosa EasyIsland fa qualcosa per te: passi fissi, rami, domande e agenti che lavorano da soli. I compiti sono obiettivi che un agente porta avanti con un piano."),
-      sections: () => [automationsSection(), tasksSection(), heartbeatSection(), secondBrainSection(), skillsSection(), tasksSettingsSection()],
+      intro: t("Compiti autonomi, flussi automatici, controllo periodico (Battito), secondo cervello e abilità."),
+      sections: () => flowsSections(),
     },
     {
       id: "integrazioni", label: t("Integrazioni"), icon: "network", color: "#38BDF8", title: t("Integrazioni"),
-      intro: t("Servizi e programmi, uno per tipo: GitHub, Vercel, n8n, Stripe, Zammad, Outlook, stato del PC, sicurezza, rete, meteo…"),
-      sections: () => [integrationsSection(b.present), customsSection()],
+      intro: t("Servizi esterni, controlli di sistema, ordine del menu e integrazioni create a parole nella chat."),
+      sections: () => integrationsSections(b.present),
     },
     {
       id: "widget", label: t("Widget"), icon: "chart", color: "#22C55E", title: t("Widget"),
@@ -7111,8 +7326,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "notizie", label: t("Notizie"), icon: "globe", color: "#38BDF8", title: t("Notizie"),
-      intro: t("Notizie dal web sugli argomenti che ti interessano, ricavati dalla memoria o scelti da te."),
-      sections: () => [newsSection()],
+      intro: t("Fonti delle notizie e argomenti seguiti, proposti dalla memoria o aggiunti a mano."),
+      sections: () => newsSections(),
     },
     {
       id: "backup", label: t("Backup"), icon: "cloud", color: "#A78BFA", title: t("Backup e trasferimento"),
@@ -7142,6 +7357,7 @@ function render() {
   if (!boot) return;
   const list = pages(boot);
   const page = currentPage(list);
+  activePageId = page.id;
   const scroller = root.querySelector(".page");
   const same = scroller?.getAttribute("data-page") === page.id;
   const scrollTop = same ? scroller!.scrollTop : 0;
