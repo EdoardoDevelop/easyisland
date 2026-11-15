@@ -934,8 +934,8 @@ function terminalSections(): HTMLElement[] {
       h("label", { text: t("Modalità terminale") }),
       toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); }),
       moreHint(
-        t("La chat esegue comandi, modifica file e usa MCP/skill chiedendo conferma nell'isola."),
-        t("La chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori cloud o locali usano il terminale interno o opencode."))),
+        t("La chat esegue comandi e modifica file, chiedendo conferma nell'isola."),
+        t("Claude (abbonamento), opencode e Antigravity lavorano con i loro strumenti: comandi, file e i tuoi server MCP, plugin e skill. Il Modello sul PC, OpenRouter, Ollama e LM Studio usano il terminale interno di EasyIsland: comandi PowerShell, file e strumenti di EasyIsland, senza web né server MCP. La chiave API di Claude, OpenAI e Gemini passano da opencode. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda."))),
     h("div", { class: "row" },
       h("label", { text: t("Anteprima") }),
       select([["docked", t("Nell'isola, a destra")], ["window", t("Finestra separata")], ["off", t("Spenta")]],

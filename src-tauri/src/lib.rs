@@ -2115,7 +2115,8 @@ pub(crate) async fn chat_turn(
             let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), reads, read_only, ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
-        (Some(folder), "local") => local_agent::send(app, chat, &other_model, folder, query, context, auto, telegram, on_text).await,
+        // The model on this PC, OpenRouter, Ollama, LM Studio: EasyIsland's own terminal (local_agent.rs).
+        (Some(folder), e) if local_agent::ENGINES.contains(&e) => local_agent::send(app, chat, e, url.as_deref(), &other_model, folder, query, context, auto, telegram, on_text).await,
         // "Modalità terminale" for an engine without tools: through opencode.
         (Some(folder), e) if e == "api" || openai::ENGINES.contains(&e) => {
             let api_model = if e == "api" { model.clone() } else { other_model.clone() };

@@ -11,11 +11,11 @@ In **Settings → Chat and AI engines** every engine has its own **card**: wheth
 | **Anthropic API key** | Pay as you go | Yes | Web search and EasyIsland's tools |
 | **opencode** | Free (Zen) or the provider's | Yes | Free, local or connected providers' models, with commands and files |
 | **Antigravity** (Google) | Your Google account | Yes | With its own tools |
-| **OpenRouter** | Pay as you go | With terminal mode | One key for hundreds of models |
+| **OpenRouter** | Pay as you go | With terminal mode (internal) | One key for hundreds of models |
 | **OpenAI** | Pay as you go | With terminal mode | |
 | **Gemini** (Google AI Studio) | Pay as you go / free | With terminal mode | |
 | **Model on this PC** | Free, inside EasyIsland | With terminal mode (needs the graphics card) | Nothing leaves the PC, nothing to install |
-| **Ollama**, **LM Studio** | Free, on your PC | With terminal mode | Nothing leaves the network |
+| **Ollama**, **LM Studio** | Free, on your PC | With terminal mode (internal) | Nothing leaves the network |
 
 ## Claude subscription
 EasyIsland uses **Claude Code installed on the PC** (hidden, no windows) with your Pro or Max plan: no key and no extra cost, but questions count towards the plan's limits. Claude Code stays on between messages, so answers start quickly.
@@ -55,6 +55,7 @@ An AI model that runs **inside EasyIsland**, with nothing to install and nothing
 The model starts when needed and stops by itself after 5 minutes with no questions, freeing memory and graphics card. With **terminal mode** it runs commands and modifies files on its own, after your permission and with no external programs, when it runs on the graphics card.
 
 ## Ollama and LM Studio
+With **terminal mode**, like the Model on this PC and OpenRouter, they use EasyIsland's internal terminal: commands and files after your permission, without opencode. It needs a model that can use tools.
 Models on your PC or another one on the network: no key, just the address (empty = the default one).
 
 ## Several engines together

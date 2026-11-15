@@ -11,11 +11,11 @@ In **Impostazioni → Chat e motori AI** ogni motore ha la sua **card**: se è p
 | **Chiave API Anthropic** | A consumo | Sì | Ricerca web e strumenti di EasyIsland |
 | **opencode** | Gratuito (Zen) o del fornitore | Sì | Modelli gratuiti, locali o dei fornitori collegati, con comandi e file |
 | **Antigravity** (Google) | Il tuo account Google | Sì | Con i suoi strumenti |
-| **OpenRouter** | A consumo | Con la modalità terminale | Una chiave per centinaia di modelli |
+| **OpenRouter** | A consumo | Con la modalità terminale (interna) | Una chiave per centinaia di modelli |
 | **OpenAI** | A consumo | Con la modalità terminale | |
 | **Gemini** (Google AI Studio) | A consumo / gratuito | Con la modalità terminale | |
 | **Modello sul PC** | Gratis, dentro EasyIsland | Con la modalità terminale (serve la scheda grafica) | Nulla esce dal PC, niente da installare |
-| **Ollama**, **LM Studio** | Gratis, sul tuo PC | Con la modalità terminale | Nulla esce dalla rete |
+| **Ollama**, **LM Studio** | Gratis, sul tuo PC | Con la modalità terminale (interna) | Nulla esce dalla rete |
 
 ## Abbonamento Claude
 EasyIsland usa **Claude Code installato sul PC** (nascosto, senza finestre) con il tuo piano Pro o Max: nessuna chiave e nessun costo extra, ma le domande contano nei limiti del piano. Claude Code resta acceso tra un messaggio e l'altro, così le risposte partono in fretta.
@@ -55,6 +55,7 @@ Un modello di intelligenza artificiale che gira **dentro EasyIsland**, senza pro
 Il modello si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando memoria e scheda grafica. Con la **modalità terminale** esegue comandi e modifica file da solo, dopo il tuo permesso, senza altri programmi, se sta sulla scheda grafica.
 
 ## Ollama e LM Studio
+Con la **modalità terminale**, come il Modello sul PC e OpenRouter, usano il terminale interno di EasyIsland: comandi e file dopo il tuo permesso, senza opencode. Serve un modello che sappia usare gli strumenti.
 Modelli sul tuo PC o su un altro della rete: nessuna chiave, solo l'indirizzo (vuoto = quello predefinito).
 
 ## Più motori insieme
