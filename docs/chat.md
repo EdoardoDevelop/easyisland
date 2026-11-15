@@ -1,7 +1,7 @@
 # Chat e agente che usa il PC
 
 ## Motori
-- Impostazioni → Chat → **Motori** (13/11): una card per motore (`claudeChatSection` in `src/settings/main.ts`, `ENGINE_FACTS` per pagamento ed etichette, stato da `engines_ready` + login di Claude Code + chiave), il clic apre i dettagli sotto (`shown`, non per forza il predefinito), «Usa come predefinito».
+- Impostazioni → Chat → **Motori**, **Strumenti e lavoro**, **Istruzioni e memoria**, **Permessi** (`chatSections` in `src/settings/main.ts`, 4 sotto-schede stile Aspetto, `ENGINE_FACTS` per pagamento ed etichette, barra riepilogo predefinito + filtri per categoria/stato, gruppi Claude e agenti / Cloud API / Sul tuo PC, stato da `engines_ready` + login di Claude Code + chiave, «Usa come predefinito», dettagli «Come funziona» espandibili).
 - Predefinito `settings.chatEngine`; il menu della chat sceglie per la sola conversazione (`State.chatEngineOverride`, mai salvato, `engine` di `chat_send`), mostra «(predefinito)» e solo i motori pronti.
 - Elenco `CHAT_ENGINES` (`src/core/state.ts`); modelli in `engineModels`, indirizzi locali in `engineUrls` (salvati dopo mezzo secondo di pausa).
 - `claude.rs`: API Anthropic con chiave. `claude_cli.rs`: `claude -p` con l'abbonamento (`needs_login` spiega il login scaduto). `openai.rs`: OpenRouter, OpenAI, Gemini, Ollama, LM Studio in streaming compatibile OpenAI (`chat-stream`, ragionamento nascosto, senza strumenti).

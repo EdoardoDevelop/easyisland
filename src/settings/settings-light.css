@@ -18,3 +18,11 @@ html[data-ui="editorial"][data-scheme="light"] { --accent: #0f172a; --on-accent:
 /* Light surfaces: the page grey, cards white on it (inverted, cards would come out darker than the page). */
 html[data-scheme="light"] { --bg: #f2f3f5; --card: #ffffff; }
 html:not([data-ui="classic"])[data-scheme="light"] { --bg: #f3f3f3; --card: #fbfbfb; }
+
+/* Chat & engines in light mode: legible badges and active card contrast. */
+html[data-scheme="light"] .engine-summary-badge.ok { color: #15803d; background: rgba(22, 163, 74, 0.12); }
+html[data-scheme="light"] .engine-summary-badge.off,
+html[data-scheme="light"] .engine-card.off .engine-card-state { color: #c62828; }
+html[data-scheme="light"] .engine-summary-badge.off { background: rgba(198, 40, 40, 0.1); }
+html[data-scheme="light"] button.engine-card.on { border-color: var(--accent, rgba(0, 0, 0, 0.35)); background: rgba(0, 0, 0, 0.04); }
+html[data-scheme="light"] .local-model-row.active { border-color: rgba(22, 163, 74, 0.55); background: rgba(22, 163, 74, 0.07); }
