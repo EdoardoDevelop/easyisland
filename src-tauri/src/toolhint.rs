@@ -45,7 +45,7 @@ const GROUPS: &[(&[&str], &[&str])] = &[
 const MAX_TOOLS: usize = 10;
 
 /// The tools a question calls for, in the order of the groups, without repeats.
-fn tools_for(question: &str) -> Vec<&'static str> {
+pub(crate) fn tools_for(question: &str) -> Vec<&'static str> {
     let low = question.to_lowercase();
     // Word starts only: "rete" in "rete", "reti", not in "interessante".
     let starts: Vec<usize> = std::iter::once(0)

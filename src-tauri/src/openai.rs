@@ -71,7 +71,7 @@ const STREAM_EVERY_MS: u128 = 80;
 
 /// The user message of this turn: the attached file or text (first turn only)
 /// and the question.
-fn user_message(first: bool, query: &str, context: Option<&ChatContext>) -> Value {
+pub(crate) fn user_message(first: bool, query: &str, context: Option<&ChatContext>) -> Value {
     let mut parts: Vec<Value> = Vec::new();
     if first {
         for (part, _) in crate::claude::parts(context) {

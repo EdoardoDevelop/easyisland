@@ -841,7 +841,7 @@ const ENGINE_HINTS: Record<string, string> = {
   gemini: t("Google AI Studio con la tua chiave. Solo chat: niente web né azioni sul PC."),
   ollama: t("Modelli locali con Ollama, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
   lmstudio: t("Modelli locali con LM Studio, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
-  local: t("Un modello che gira dentro EasyIsland, sulla scheda grafica quando c'è: niente programmi da installare, nulla esce dal PC. Con la Modalità terminale usa gli strumenti tramite opencode."),
+  local: t("Un modello che gira dentro EasyIsland, sulla scheda grafica quando c'è: niente programmi da installare, nulla esce dal PC. Con la Modalità terminale esegue comandi e modifica file da solo, dopo il tuo permesso."),
 };
 
 /**

@@ -52,7 +52,7 @@ Un modello di intelligenza artificiale che gira **dentro EasyIsland**, senza pro
 - **Scheda grafica**: acceso, il modello lavora sulla scheda (NVIDIA, AMD o Intel); spento, solo sul processore;
 - **Risposte dalla memoria**: quando EasyIsland risponde dalla memoria, il modello scrive la risposta con le righe trovate; le righe restano sotto, e se il modello nomina qualcosa che non c'è si vedono solo le righe.
 
-Il modello si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando memoria e scheda grafica. Con la **modalità terminale** usa comandi e file tramite opencode, se sta sulla scheda grafica.
+Il modello si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando memoria e scheda grafica. Con la **modalità terminale** esegue comandi e modifica file da solo, dopo il tuo permesso, senza altri programmi, se sta sulla scheda grafica.
 
 ## Ollama e LM Studio
 Modelli sul tuo PC o su un altro della rete: nessuna chiave, solo l'indirizzo (vuoto = quello predefinito).

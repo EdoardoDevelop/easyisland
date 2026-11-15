@@ -18,8 +18,8 @@
 // nothing runs, no timer either.
 //
 // Used by: the chat (engine "local", openai.rs), the Modalità terminale
-// (through opencode, `opencode_config`) and the answers from the memory
-// (`compose`, router.rs: Potion finds the lines, the model writes them).
+// (local_agent.rs, internal loop without opencode) and the answers from the
+// memory (`compose`, router.rs: Potion finds the lines, the model writes them).
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -46,8 +46,8 @@ const IDLE: Duration = Duration::from_secs(5 * 60);
 const IDLE_CHECK: Duration = Duration::from_secs(30);
 /// Loading a big model from a slow disk takes a while.
 const START_TIMEOUT: Duration = Duration::from_secs(180);
-/// The Modalità terminale needs room for opencode's instructions and tools.
-const TERMINAL_CONTEXT: u32 = 16_384;
+/// The Modalità terminale needs room for instructions, tools and the working turn.
+pub(crate) const TERMINAL_CONTEXT: u32 = 16_384;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const BELOW_NORMAL_PRIORITY_CLASS: u32 = 0x0000_4000;
@@ -755,9 +755,8 @@ struct Server {
     path: PathBuf,
     port: u16,
     key: String,
-    /// On the graphics card, and the conversation's room in tokens.
+    /// On the graphics card.
     gpu: bool,
-    context: u32,
     /// Turns using it now: never stopped under them.
     busy: usize,
     last_used: Instant,
@@ -820,7 +819,6 @@ impl Drop for Job {
 pub struct Lease {
     pub base: String,
     pub key: String,
-    pub context: u32,
     port: u16,
 }
 
@@ -836,7 +834,7 @@ impl Drop for Lease {
 fn lease(s: &mut Server) -> Lease {
     s.busy += 1;
     s.last_used = Instant::now();
-    Lease { base: format!("http://127.0.0.1:{}/v1", s.port), key: s.key.clone(), context: s.context, port: s.port }
+    Lease { base: format!("http://127.0.0.1:{}/v1", s.port), key: s.key.clone(), port: s.port }
 }
 
 /// The last lines of the server's log: why it did not start.
@@ -919,7 +917,7 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
     crate::log::line(format!("modello sul PC: pronto in {:.1} s", started.elapsed().as_secs_f64()));
-    let mut server = Server { child, model: model.trim().to_string(), path, port, key, gpu, context, busy: 0, last_used: Instant::now(), _job: job };
+    let mut server = Server { child, model: model.trim().to_string(), path, port, key, gpu, busy: 0, last_used: Instant::now(), _job: job };
     let l = lease(&mut server);
     *SERVER.lock().unwrap() = Some(server);
     watch();
@@ -977,7 +975,7 @@ async fn complete(model: &str, messages: Value, max_tokens: u32, timeout: Durati
     Ok((without_thinking(&text), v.get("timings").cloned().unwrap_or(Value::Null)))
 }
 
-fn without_thinking(text: &str) -> String {
+pub(crate) fn without_thinking(text: &str) -> String {
     let mut out = text.to_string();
     while let (Some(a), Some(b)) = (out.find("<think>"), out.find("</think>")) {
         if b < a {
@@ -1095,25 +1093,6 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
     }
     crate::log::line(format!("modello sul PC: risposta dalla memoria composta in {ms} ms"));
     Some((text, display_name(&model)))
-}
-
-/// Modalità terminale: opencode talks to our server as an OpenAI-compatible
-/// provider (the same form the user's opencode.json uses), the key in the
-/// environment. The lease keeps the server on for the turn.
-pub async fn opencode_endpoint(model: &str) -> Result<(Lease, String), String> {
-    let lease = ensure(model, TERMINAL_CONTEXT).await?;
-    let config = json!({
-        "provider": {
-            "easyisland": {
-                "npm": "@ai-sdk/openai-compatible",
-                "name": "EasyIsland",
-                "options": { "baseURL": lease.base, "apiKey": "{env:EASYISLAND_LLM_KEY}" },
-                "models": { "easyisland": { "name": display_name(model), "tool_call": true, "limit": { "context": lease.context, "output": 4096 } } }
-            }
-        }
-    })
-    .to_string();
-    Ok((lease, config))
 }
 
 /// "Spegni ora", and when the engine or the model changes.

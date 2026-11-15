@@ -5,7 +5,7 @@ _15 novembre 2026. **1.0.48** in `main` (tag `v1.0.48`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
-- [ ] **Modello sul PC** (15/11, ramo `claude/llm-interno` da `claude/sviluppo`, non unito): `docs/chat.md` → Motori → Modello sul PC. Provato dal vivo con `chiedi`: RTX 3070 (Qwen 3.5 4B, 55 token/s scritti, 1.500 letti) e Radeon 840M del portatile (Gemma 4 E2B 21/180, consigliato lì; 4B 8/150). Da provare nell'isola: Impostazioni → card, «Scarica» del consigliato, «Prova la velocità», le risposte dalla memoria scritte dal modello, la Modalità terminale con un permesso vero. Da decidere: istruzioni di opencode più corte per i modelli sul PC (~11.000 token alla prima domanda).
+- [ ] **Modello sul PC** (15/11, ramo `claude/llm-interno` da `claude/sviluppo`, non unito): `docs/chat.md` → Motori → Modello sul PC. Provato dal vivo con `chiedi`: RTX 3070 (Qwen 3.5 4B, 55 token/s scritti, 1.500 letti) e Radeon 840M del portatile (Gemma 4 E2B 21/180, consigliato lì; 4B 8/150). Ora in Modalità terminale usa il giro interno (`local_agent.rs`, senza opencode). Da provare nell'isola: Impostazioni → card, «Scarica» del consigliato, «Prova la velocità», risposte dalla memoria scritte dal modello, Modalità terminale (tempo e token sotto 2.500 nel `server.log`, `git status` senza card, `write_file`/`npm install` con card, Ferma su comando lungo, «⟲ File»).
 - [ ] **Voti e Solo EasyIsland** (15/11, ramo `claude/voti-solo-easyisland`, da `claude/sviluppo` che ha già `claude/risposte-memoria`): `docs/chat.md` → Voti, Solo EasyIsland. Provati con test, anteprima e `chiedi --motore easyisland` sul portatile (risposte, righe vicine, domanda ripetuta); da provare nell'isola i voti veri (👍 a un motore che insegna una riga, 👎 poi «Chiedi al motore») e «Riprova» in Impostazioni → Chat. Unito in `claude/sviluppo`. Poi (stesso ramo) i suggerimenti 📒 dalla memoria (`memory_tips.rs`): da guardare nell'isola con una pagina o un file di un cliente davanti e dopo una domanda.
 - [ ] **Risposte dalla memoria e `chiedi`** (15/11, in `claude/sviluppo`): da guardare nell'isola «📒 Dalla memoria» e «Chiedi al motore»; con l'uso, i 👎 dicono dove la regola delle parole in `memory_answer.rs` sbaglia.
 - [ ] **Ricerca per significato sul PC** (14/11, in `claude/sviluppo`): da provare nell'app «Scarica», poi domande con parole diverse dalle note: «🧠 N per significato» sotto la risposta e le righe «significato (…)» nel log dicono cosa ha trovato e con che punteggio; soglie 0,30/0,10 da rivedere sulla memoria vera. Dopo: lo stesso confronto per le ricette (`docs/idee.md`).
@@ -60,6 +60,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
+Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.
+
 ### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
 Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.
 
@@ -74,12 +77,6 @@ Edoardo: like/dislike alle risposte e una chat senza motori per allenare EasyIsl
 
 ### 15/11 — Risposte dalla memoria senza motore e `easyisland-hook chiedi` (ramo `claude/risposte-memoria`, da `claude/sviluppo`)
 Sul portatile «quale vm ha la farmacia falchi?» andava a Claude (due passi). Fatto `memory_answer.rs` (righe della memoria come risposta, scelte per parole e pagina: il solo significato sbagliava) e `chiedi` per domandare alla chat da script e WinRM, motore a scelta (`docs/agenti.md`). Provato dal vivo sul portatile via WinRM: dalla memoria in ~30 ms; con opencode 10 s; con Claude la parafrasi in 1 passo (prima 2). `docs/chat.md` → Smistatore.
-
-
-
-
-### 14/11 — Ricerca per significato sul PC (ramo `claude/significato-locale`, da `claude/sviluppo`)
-Edoardo: tra i modelli piccoli scelto model2vec, prima per la ricerca nella memoria; scaricato da Impostazioni, non nell'installer. Fatto `meaning_local.rs` (download a revisione e SHA-256 fissi, conversione a 8 bit mentre arriva, tokenizer Unigram in Rust uguale all'originale su 3.649 frasi), voce «EasyIsland, su questo PC» in Impostazioni → Chat → Memoria, anche dentro `memory_search`. `docs/chat.md` → Memoria.
 
 
 

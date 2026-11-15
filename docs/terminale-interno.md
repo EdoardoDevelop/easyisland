@@ -167,12 +167,12 @@ npm run smoke:rapido      (con «npm run dev» acceso: deve dire «nessun errore
 - Non fare push né unioni.
 
 ## 9. Definizione di «finito»
-- [ ] `local_agent.rs` con giro, strumenti, permessi, test (punto 6) che passano.
-- [ ] `chat_turn` usa `local_agent` per `local` in Modalità terminale; opencode non più usato per `local`.
-- [ ] Nessun avviso di `cargo check`; `cargo test --workspace`, `npm run build`, `check:i18n`, `smoke:rapido` puliti.
-- [ ] `CLAUDE.md` aggiornato (solo la frase del punto 3).
-- [ ] Documentazione (punto 10).
-- [ ] Commit sul ramo `claude/llm-interno`, in italiano.
+- [x] `local_agent.rs` con giro, strumenti, permessi, test (punto 6) che passano.
+- [x] `chat_turn` usa `local_agent` per `local` in Modalità terminale; opencode non più usato per `local`.
+- [x] Nessun avviso di `cargo check`; `cargo test --workspace`, `npm run build`, `check:i18n`, `smoke:rapido` puliti.
+- [x] `CLAUDE.md` aggiornato (solo la frase del punto 3).
+- [x] Documentazione (punto 10).
+- [x] Commit sul ramo `claude/llm-interno`, in italiano.
 
 ## 10. Documentazione da aggiornare
 - `docs/chat.md` → «Motori» → «Modello sul PC», punto «Usi»: la Modalità terminale interna (`local_agent.rs`, strumenti, permessi, limiti: 25 passi, 20.000 caratteri, 600 s). Stile asciutto, a elenco, dove stanno le cose e perché, niente codice.
@@ -182,4 +182,19 @@ npm run smoke:rapido      (con «npm run dev» acceso: deve dire «nessun errore
 - `HANDOFF.md`: voce «Modello sul PC» in «Da fare» aggiornata; voce di 2–4 righe in cima al «Registro» (massimo 5 voci: la più vecchia va in `docs/archivio/registro.md`).
 
 ## Stato
-_(da compilare da Antigravity a fine lavoro: cosa è fatto, cosa provare dal vivo, dubbi)_
+- **Fatto (15/11/2026):**
+  - Nuovo modulo `src-tauri/src/local_agent.rs`: giro OpenAI-compatibile diretto contro `llama-server` (`local_model::ensure` con `TERMINAL_CONTEXT`), istruzioni brevi via `i18n::prompt`, 6 strumenti locali (`run_command`, `read_file`, `list_dir`, `search_text`, `write_file`, `edit_file`) + `memory_search` e gli strumenti pertinenti da `toolhint::tools_for`, permessi con `needs_ask` + card `pipe::request_decision_id` / `telegram::request_decision` e memoria `"always"` per conversazione e comando/file esatto (`local_agent::forget` alla chiusura/reset/apertura cronologia), checkpoint (`checkpoints::touching`), Anteprima (`preview::touched_by`), retry una volta su HTTP 400 accorciando i risultati più vecchi, `TurnUsage` / `engine_usage::record`, 7 test unitari incluso server HTTP finto a due turni.
+  - Collegamento in `src-tauri/src/lib.rs` (`chat_turn`, `chat_close`, `chat_reset`, `chat_history_open`); rimossi `local_model::opencode_endpoint`, `opencode::via_local` e il campo non letto `Lease.context` / `Server.context`.
+  - Testo aggiornato in `src/settings/main.ts` (`ENGINE_HINTS.local`) e `src/i18n/en.json`.
+  - Aggiornati `CLAUDE.md`, `docs/chat.md`, `docs/decisioni.md`, `docs/guida/09-motori.md`, `docs/guida/en/09-engines.md`, `HANDOFF.md`, `docs/archivio/registro.md` e rigenerato `site/guida/` + `site/en/guide/` con `node scripts/guida.mjs`.
+  - Verifiche dopo le modifiche: `cargo check --workspace --tests` (0 avvisi), `cargo test --workspace` (`574 passed; 0 failed; 70 ignored` su `easyisland_lib`, incluse tutte e 7 le prove di `local_agent::tests`, più `38 passed` su `easyisland_hook`), `npm run build` (`5256 testi, 0 senza inglese`, built in `2.75s`), `npm run smoke:rapido` (`11 prove in 32 s con 6 Edge, nessun errore`).
+- **Cosa provare dal vivo (dopo `release\installa.cmd`):**
+  1. RTX 3070 e Radeon 840M: prima domanda in Modalità terminale con «Modello sul PC»; verificare in `%LOCALAPPDATA%\EasyIsland\llama\server.log` (`prompt eval time`) che i token letti siano sotto **2.500** e notare il tempo.
+  2. «Elenca i file della cartella» e «esegui git status»: devono andare senza card di permesso.
+  3. «Crea prova.txt con scritto ciao»: deve comparire la card Consenti/Nega con la differenza.
+  4. «Esegui npm install» o un comando fuori cartella: deve comparire la card Consenti/Nega (e testare «Sempre» sullo stesso comando esatto nella stessa conversazione).
+  5. **Ferma** durante un comando lungo (`Start-Sleep 60`): verificare che `powershell.exe` sparisca da Gestione attività e non restino messaggi a metà nella chat.
+  6. **«⟲ File»** dopo una modifica con `write_file`/`edit_file`: verificare che il file torni allo stato precedente.
+- **Note / dubbi:**
+  - `check:i18n` non segnala testi mancanti; la vecchia chiave `ENGINE_HINTS.local` è stata sostituita e quelle già segnalate prima (`223 inutilizzati`) non riguardano questa modifica.
+  - Questo file (`docs/terminale-interno.md`) resta nel commit con la sezione Stato compilata per le prove dal vivo; a fine prove si potrà rimuovere.

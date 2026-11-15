@@ -52,7 +52,7 @@ An AI model that runs **inside EasyIsland**, with nothing to install and nothing
 - **Graphics card**: on, the model works on the card (NVIDIA, AMD or Intel); off, only on the processor;
 - **Answers from the memory**: when EasyIsland answers from the memory, the model writes the answer from the lines found; the lines stay under it, and if the model names something that is not there only the lines show.
 
-The model starts when needed and stops by itself after 5 minutes with no questions, freeing memory and graphics card. With **terminal mode** it uses commands and files through opencode, when it runs on the graphics card.
+The model starts when needed and stops by itself after 5 minutes with no questions, freeing memory and graphics card. With **terminal mode** it runs commands and modifies files on its own, after your permission and with no external programs, when it runs on the graphics card.
 
 ## Ollama and LM Studio
 Models on your PC or another one on the network: no key, just the address (empty = the default one).

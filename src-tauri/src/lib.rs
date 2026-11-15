@@ -20,6 +20,7 @@ mod memory_answer;
 mod votes;
 mod memory_tips;
 mod local_model;
+mod local_agent;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -1768,6 +1769,7 @@ fn chat_close(chats: State<'_, Chats>, sid: String) {
     let Some(chat) = chats.0.lock().unwrap().remove(&sid) else { return };
     chat.stop.notify_waiters();
     checkpoints::forget(std::sync::Arc::as_ptr(&chat) as usize);
+    local_agent::forget(std::sync::Arc::as_ptr(&chat) as usize);
     claude_cli::drop_live(&chat);
     opencode::forget(chat.cli_session());
 }
@@ -2113,17 +2115,11 @@ pub(crate) async fn chat_turn(
             let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), reads, read_only, ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
+        (Some(folder), "local") => local_agent::send(app, chat, &other_model, folder, query, context, auto, telegram, on_text).await,
         // "Modalità terminale" for an engine without tools: through opencode.
         (Some(folder), e) if e == "api" || openai::ENGINES.contains(&e) => {
             let api_model = if e == "api" { model.clone() } else { other_model.clone() };
-            // The model on this PC: its server on for the turn, opencode pointed at it.
-            let local = if e == "local" { Some(local_model::opencode_endpoint(&api_model).await) } else { None };
-            let via = match &local {
-                Some(Ok((lease, config))) => Ok(opencode::via_local(&lease.key, config)),
-                Some(Err(err)) => Err(err.clone()),
-                None => opencode::via(e, &api_model, url.as_deref()),
-            };
-            match via {
+            match opencode::via(e, &api_model, url.as_deref()) {
                 Ok((m, mut o)) if opencode::find_exe().is_some() => {
                     o.folder = Some(folder.clone());
                     o.auto = auto;
@@ -2401,6 +2397,7 @@ fn selection_menu(app: AppHandle, entries: Vec<tray::MenuEntry>) {
 fn chat_reset(chats: State<'_, Chats>, sid: String) {
     let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
+    local_agent::forget(std::sync::Arc::as_ptr(&chat) as usize);
     chat.reset();
     chat.set_persona(None);
     opencode::forget(before);
@@ -2426,6 +2423,7 @@ fn chat_history_open(shared: State<'_, Shared>, chats: State<'_, Chats>, sid: St
     chat.set_folder(chat_log::folder_of(&id));
     let own = own_folder(&chat);
     let opened = chat_log::open(&chat, &id, &in_folder(chat_key(&engine, &model, terminal), own.as_deref().filter(|_| terminal)))?;
+    local_agent::forget(std::sync::Arc::as_ptr(&chat) as usize);
     opencode::forget(before);
     Ok(opened)
 }
