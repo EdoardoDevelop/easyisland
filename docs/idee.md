@@ -182,6 +182,14 @@ Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scr
 - **Risorse** (stime da misurare sul portatile con il modello dentro l'app, prima di unirlo): ~400 MB su disco, ~0,5–0,7 GB in memoria solo mentre scrive, 1–3 s di CPU. Solo sulle risposte dalla memoria, priorità bassa e max 2 core, scaricato subito dopo, tempo massimo 4 s, mai a batteria, sotto carico o in chiamata 3CX; spento di serie.
 - **Misura:** 👍/👎 (`votes.rs`) delle risposte composte contro le righe.
 
+## Modalità terminale interna: limiti rispetto a opencode (15/11, lasciati così da Edoardo)
+`local_agent.rs` (Modello sul PC) legge ~4.000 token invece di ~11.000 e non vuole opencode, ma rispetto a opencode:
+- **Strumenti:** niente web (cerca, apri pagina); ricerca solo a sottostringa, niente regex né per nome di file (`*.ts`); modifica = un testo unico sostituito o il file intero, niente patch su più punti o più file; niente piano a passi, sotto-agenti, skill, domande con scelte, diagnostica dell'editor; niente server MCP di `opencode.json` (solo gli strumenti di EasyIsland scelti da `toolhint`).
+- **Comandi:** un PowerShell nuovo per comando (cartella e variabili non restano); niente comandi che restano accesi (server di sviluppo, watch: tempo massimo 600 s); output a 20.000 caratteri; Ferma chiude PowerShell ma non per forza i programmi che ha avviato.
+- **Memoria del lavoro:** 25 passi per domanda; nella storia solo domanda e risposta finale (i file letti e i comandi del turno si rileggono al turno dopo); niente riassunto della sessione.
+- **Permessi:** «Sempre» solo per quel comando o file esatti, nella conversazione (opencode salva regole più larghe).
+- Più semplici da togliere, se servirà: ricerca per nome di file, modifica di più punti in una volta.
+
 ## Modello integrato (27/10)
 Ripreso il 15/11 come «Modello sul PC» sul ramo `claude/llm-interno` (`docs/chat.md` → Motori): controllo della scheda grafica, consiglio, Vulkan, Modalità terminale, risposte dalla memoria. Il ramo `claude/modello-integrato` non serve più.
 
