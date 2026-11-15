@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.49** — **a model on your PC**, inside EasyIsland and on the graphics card: recommended for your PC, with a speed test; chat, terminal mode and answers from the memory with nothing to install.
 - **1.0.48** — **the memory answers by itself** with no engine; search by meaning on the PC; **👍 / 👎** that teach it, «Only EasyIsland» with no tokens; questions suggested from the memory.
 - **1.0.47** — **a new island look** with a search bar that calculates and an Overview, Monolith, Titanium and Glass styles; **commands with no engine** with Run, direct answers with dates and numbers; the memory map redone.
 - **1.0.46** — **EasyIsland does the work instead of the AI**: light resume of heavy conversations, memory written after the answer, a PC checked in one step; steps and tokens under each answer.
-- **1.0.45** — **the Preview's browser works for you**: products and prices from any page, suppliers' portals taught to the chat, quotes with cost and markup; one card per engine.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 

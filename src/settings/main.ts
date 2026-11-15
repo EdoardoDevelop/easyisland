@@ -424,7 +424,62 @@ function modelSelect(
   return select;
 }
 
-function claudeChatSection(hasKey: boolean): HTMLElement {
+/** Collapsible technical detail kept out of the first scan; full copy stays one click away. */
+function moreHint(shortText: string, detailText: string): HTMLElement {
+  return h("div", { class: "hint note chat-more-wrap" },
+    h("span", { text: shortText }),
+    " ",
+    h("details", { class: "chat-more" },
+      h("summary", { text: t("Come funziona") }),
+      h("div", { class: "hint", text: detailText })));
+}
+
+/** Tabs inside Impostazioni → Chat e motori AI (mirroring Aspetto's subtabs). */
+type ChatTab = "motori" | "strumenti" | "memoria" | "permessi";
+const CHAT_TABS = (): [ChatTab, string][] => [
+  ["motori", t("Motori")],
+  ["strumenti", t("Strumenti e lavoro")],
+  ["memoria", t("Istruzioni e memoria")],
+  ["permessi", t("Permessi")],
+];
+const CHAT_TAB_KEY = "easyisland.settings.chat";
+let chatTabNow: ChatTab | null = null;
+let setChatTabActive: ((tab: ChatTab) => void) | null = null;
+
+function chatTab(): ChatTab {
+  if (chatTabNow) return chatTabNow;
+  const want = (v: string | null) => CHAT_TABS().find(([id]) => id === v)?.[0];
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(CHAT_TAB_KEY);
+  } catch {
+    // Storage may be unavailable: default to the engines tab.
+  }
+  chatTabNow = want(new URLSearchParams(location.search).get("tab")) ?? want(saved) ?? "motori";
+  return chatTabNow;
+}
+
+type EngineGroup = "agents" | "api" | "local";
+type EngineFilter = "all" | "ready" | EngineGroup;
+const ENGINE_GROUP_OF: Record<string, EngineGroup> = {
+  subscription: "agents",
+  api: "agents",
+  opencode: "agents",
+  antigravity: "agents",
+  openrouter: "api",
+  openai: "api",
+  gemini: "api",
+  local: "local",
+  ollama: "local",
+  lmstudio: "local",
+};
+
+/**
+ * Impostazioni → Chat e motori AI: sub-tabs separating engine setup, tools/workspace,
+ * instructions/memory and tool permissions, keeping all panels mounted for instant
+ * switching and preserved async state.
+ */
+function chatSections(hasKey: boolean): HTMLElement[] {
   const dot = statusDot(false);
   let keyPresent = hasKey;
   let cliReady = false;
@@ -432,21 +487,27 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   // ── One card per engine; the open one's settings below the grid ──
   // `shown` is the card open, not necessarily the default engine.
   let shown: string = settings.chatEngine;
+  let filter: EngineFilter = "all";
   let cliFound = false;
   const engineHint = h("div", { class: "hint" });
   const other = otherEngineBlock(() => refreshCards());
-  const cards = h("div", { class: "engine-cards" });
+  const groupsBox = h("div", { class: "engine-groups" });
+  const filtersBox = h("div", { class: "engine-filters", role: "group" });
+  const summaryEl = h("div", { class: "engine-summary" });
   const detailName = h("b", {});
+  const detailState = h("span", { class: "hint" });
   const makeDefault = h("button", { class: "primary", text: t("Usa come predefinito") }) as HTMLButtonElement;
-  const defaultNote = h("span", { class: "hint note", text: t("è il motore predefinito della chat") });
+  const defaultChip = h("span", { class: "engine-chip", text: t("Predefinito") });
   makeDefault.addEventListener("click", () => {
     settings.chatEngine = shown as Settings["chatEngine"];
     void save();
     showEngine();
   });
-  const detailHead = h("div", { class: "row engine-detail-head" }, detailName, makeDefault, defaultNote);
+  const detailHead = h("div", { class: "row engine-detail-head" },
+    h("div", { class: "engine-detail-title" }, detailName, detailState),
+    makeDefault, defaultChip);
 
-  // ── Subscription block ──
+  // ── Subscription block (Claude Code CLI) ──
   const cliDot = statusDot(false);
   const cliState = h("span", { class: "hint", text: t("Verifica di Claude Code…") });
   const recheck = h("button", { text: t("Ricontrolla") });
@@ -483,12 +544,11 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Azioni sul PC") }),
-      toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
-      h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
-    recipesRow(),
-    routerRow(),
-    portalsRow(),
+      h("label", { text: t("Ripresa leggera") }),
+      toggle(settings.chatLight !== false, (v) => { settings.chatLight = v; void save(); }),
+      moreHint(
+        t("Riprende le chat lunghe di Claude Code in una sessione leggera per risparmiare token."),
+        t("Quando una conversazione supera 60.000 token di contesto, o resta ferma più di 45 minuti, EasyIsland la riprende in una sessione nuova con le sole domande e risposte: ogni passo rilegge poche migliaia di token invece di tutto il lavoro fatto. Sotto ogni risposta vedi i passi e i token letti."))),
     connectorsBlock(),
   );
 
@@ -516,7 +576,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   recheck.addEventListener("click", () => void refreshCli());
 
   // ── API block ──
-  const state = h("span", { class: "hint" });
+  const state = h("span", { class: "hint note" });
   const field = h("input", {
     type: "password",
     style: "flex:1 1 auto;min-width:0",
@@ -529,7 +589,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
 
   function paintKey() {
     state.textContent = keyPresent
-      ? t("Chiave salvata in Gestione credenziali di Windows.")
+      ? t("Salvata in Gestione credenziali di Windows.")
       : t("Nessuna chiave: serve per usare questo motore.");
     field.placeholder = keyPresent ? "••••••••••••  (salvata)" : "sk-ant-...";
     clearBtn.style.display = keyPresent ? "" : "none";
@@ -569,8 +629,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   const apiBlock = h(
     "div",
     { class: "engine-block" },
-    state,
-    h("div", { class: "row" }, h("label", { text: t("Chiave API") }), field, saveBtn, clearBtn),
+    h("div", { class: "row" }, h("label", { text: t("Chiave API") }), field, saveBtn, clearBtn, state),
     h("div", { class: "row" },
       h("label", { text: t("Modello") }),
       modelSelect(MODELS, settings.model, (v) => {
@@ -608,41 +667,110 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   }
 
   /** The model the engine uses, as the card shows it. */
-  function modelOf(id: string): string {
-    if (id === "subscription") return CLI_MODELS.find(([m]) => m === settings.cliModel)?.[1] ?? (settings.cliModel || t("predefinito"));
-    if (id === "api") return MODELS.find(([m]) => m === settings.model)?.[1] ?? settings.model;
+  function modelOf(id: string): [string, boolean] {
+    if (id === "subscription") return [CLI_MODELS.find(([m]) => m === settings.cliModel)?.[1] ?? (settings.cliModel || t("predefinito")), true];
+    if (id === "api") return [MODELS.find(([m]) => m === settings.model)?.[1] ?? settings.model, true];
     const m = settings.engineModels?.[id]?.trim();
-    return m || (id === "antigravity" ? t("quello del tuo account") : t("nessun modello"));
+    if (id === "local" && m) return [(m.split(/[\\/]/).pop() ?? m).replace(/\.gguf$/i, ""), true];
+    if (m) return [m, true];
+    return [id === "antigravity" ? t("quello del tuo account") : t("nessun modello"), false];
+  }
+
+  function makeCard(e: (typeof CHAT_ENGINES)[number], state: [boolean, string]): HTMLElement {
+    const [ok, label] = state;
+    const facts = ENGINE_FACTS[e.id];
+    const isDefault = e.id === settings.chatEngine;
+    const [modelText, hasModel] = modelOf(e.id);
+    const card = h("button", {
+      class: `engine-card${e.id === shown ? " on" : ""}${ok ? "" : " off"}`,
+      title: ENGINE_HINTS[e.id] ?? "",
+    },
+      h("div", { class: "engine-card-top" },
+        h("b", { text: e.name }),
+        isDefault ? h("span", { class: "engine-chip", text: t("Predefinito") }) : h("span", {})),
+      h("div", { class: "engine-card-meta" },
+        h("span", { class: "engine-card-state" }, statusDot(ok), h("span", { text: label })),
+        facts?.pay ? h("span", { class: "engine-card-pay", text: facts.pay }) : h("span", {})),
+      h("div", { class: "engine-tags" },
+        ...(facts?.tags ?? []).map(([text, kind]) => h("span", { class: `engine-tag ${kind}`, text }))),
+      h("div", { class: `engine-card-model${hasModel ? "" : " empty"}`, text: modelText }));
+    card.setAttribute("aria-pressed", String(e.id === shown));
+    card.addEventListener("click", () => {
+      shown = e.id;
+      showEngine();
+    });
+    return card;
   }
 
   async function paintCards() {
     const states = await Promise.all(CHAT_ENGINES.map((e) => stateOf(e.id)));
-    clear(cards);
-    CHAT_ENGINES.forEach((e, i) => {
-      const [ok, label] = states[i];
-      const facts = ENGINE_FACTS[e.id];
-      const isDefault = e.id === settings.chatEngine;
-      const card = h("button", {
-        class: `engine-card${e.id === shown ? " on" : ""}${ok ? "" : " off"}`,
-        title: ENGINE_HINTS[e.id] ?? "",
-      },
-        h("div", { class: "engine-card-top" },
-          h("b", { text: e.name }),
-          isDefault ? h("span", { class: "engine-chip", text: t("Predefinito") }) : h("span", {})),
-        h("div", { class: "engine-card-state" }, statusDot(ok), h("span", { text: label })),
-        h("div", { class: "engine-card-pay", text: facts?.pay ?? "" }),
-        h("div", { class: "engine-tags" },
-          ...(facts?.tags ?? []).map(([text, kind]) => h("span", { class: `engine-tag ${kind}`, text }))),
-        h("div", { class: "engine-card-model", text: modelOf(e.id) }));
-      card.setAttribute("aria-pressed", String(e.id === shown));
-      card.addEventListener("click", () => {
-        shown = e.id;
-        showEngine();
+    const readyCount = states.filter(([ok]) => ok).length;
+    const defIdx = Math.max(0, CHAT_ENGINES.findIndex((e) => e.id === settings.chatEngine));
+    const defEngine = CHAT_ENGINES[defIdx];
+    const [defOk, defLabel] = states[defIdx] ?? [false, ""];
+    const [defModel] = modelOf(defEngine.id);
+    dot.style.background = defOk ? "#22c55e" : "#f4505e";
+
+    clear(summaryEl);
+    summaryEl.append(
+      h("div", { class: "engine-summary-main" },
+        statusDot(defOk),
+        h("span", { class: "hint", text: t("Predefinito:") }),
+        h("b", { text: defEngine.name }),
+        h("span", { class: "engine-summary-model", text: defModel }),
+        h("span", { class: `engine-summary-badge${defOk ? " ok" : " off"}`, text: defLabel })),
+      h("span", { class: "hint engine-summary-count", text: t("{r} su {n} pronti", { r: readyCount, n: CHAT_ENGINES.length }) }));
+
+    const shownIdx = CHAT_ENGINES.findIndex((e) => e.id === shown);
+    if (shownIdx >= 0) {
+      const [sOk, sLabel] = states[shownIdx];
+      detailState.textContent = sOk ? `· ${t("Pronto")}` : `· ${sLabel}`;
+      detailState.style.color = sOk ? "#4ADE80" : "#ff8d97";
+    }
+
+    clear(filtersBox);
+    const filterDefs: [EngineFilter, string][] = [
+      ["all", t("Tutti")],
+      ["ready", t("Pronti ({n})", { n: readyCount })],
+      ["agents", t("Claude e agenti")],
+      ["api", t("Cloud API")],
+      ["local", t("Sul tuo PC")],
+    ];
+    for (const [id, label] of filterDefs) {
+      const b = h("button", {
+        class: `chip-opt${filter === id ? " on" : ""}`,
+        text: label,
       });
-      cards.append(card);
-    });
-    const def = CHAT_ENGINES.findIndex((e) => e.id === settings.chatEngine);
-    dot.style.background = states[def]?.[0] ? "#22c55e" : "#f4505e";
+      b.addEventListener("click", () => {
+        filter = id;
+        void paintCards();
+      });
+      filtersBox.append(b);
+    }
+
+    clear(groupsBox);
+    if (filter === "all") {
+      const groups: [EngineGroup, string, string][] = [
+        ["agents", t("Claude e agenti"), "cols-2"],
+        ["api", t("Cloud con chiave API"), "cols-3"],
+        ["local", t("Sul tuo PC (in locale)"), "cols-3"],
+      ];
+      for (const [gId, title, colsClass] of groups) {
+        const items = CHAT_ENGINES.map((e, i) => [e, states[i]] as const).filter(([e]) => ENGINE_GROUP_OF[e.id] === gId);
+        const grid = h("div", { class: `engine-cards ${colsClass}` }, ...items.map(([e, st]) => makeCard(e, st)));
+        groupsBox.append(h("div", { class: "engine-group" },
+          h("div", { class: "engine-group-title", text: title }),
+          grid));
+      }
+    } else {
+      const items = CHAT_ENGINES.map((e, i) => [e, states[i]] as const).filter(([e, st]) =>
+        filter === "ready" ? st[0] : ENGINE_GROUP_OF[e.id] === filter);
+      if (!items.length) {
+        groupsBox.append(h("div", { class: "notice", text: t("Nessun motore è pronto ancora: scegli un motore da «Tutti» e configura chiave, login o modello.") }));
+      } else {
+        groupsBox.append(h("div", { class: "engine-cards" }, ...items.map(([e, st]) => makeCard(e, st))));
+      }
+    }
   }
 
   function showEngine() {
@@ -651,7 +779,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     detailName.textContent = CHAT_ENGINES.find((e) => e.id === shown)?.name ?? shown;
     const isDefault = shown === settings.chatEngine;
     makeDefault.style.display = isDefault ? "none" : "";
-    defaultNote.style.display = isDefault ? "" : "none";
+    defaultChip.style.display = isDefault ? "" : "none";
     engineHint.textContent = ENGINE_HINTS[shown] ?? "";
     apiBlock.style.display = api ? "flex" : "none";
     cliBlock.style.display = cli ? "flex" : "none";
@@ -663,38 +791,86 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   showEngine();
   void refreshCli();
 
-  return h(
-    "section",
-    {},
-    h("h2", {}, dot, h("span", { text: t("Motori") })),
-    h("div", { class: "hint", text: t("Clic su un motore per chiave, modello e opzioni. Nella chat, dal nome del motore in alto, ne scegli un altro solo per quella conversazione.") }),
-    cards,
-    h("div", { class: "engine-detail" },
-      detailHead,
-      engineHint,
-      cliBlock,
-      apiBlock,
-      other.el),
-    h("div", { class: "row" }, h("label", { text: t("Ripresa leggera") }),
-      toggle(settings.chatLight !== false, (v) => { settings.chatLight = v; void save(); }),
-      h("span", { class: "hint note", text: t("con Claude Code: quando una conversazione supera 60.000 token di contesto, o resta ferma più di 45 minuti, EasyIsland la riprende in una sessione nuova con le sole domande e risposte. Ogni passo rilegge poche migliaia di token invece di tutto il lavoro fatto. Sotto ogni risposta vedi i passi e i token letti") })),
-    h("h2", {}, h("span", { text: t("Comandi e file (modalità terminale)") })),
-    terminalRow(),
-    h("h2", {}, h("span", { text: t("Istruzioni e memoria") })),
-    instructionsRow(),
-    assistantsBlock(),
-    memoryRow(),
-    h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
-    historyRow(),
-  );
+  // ── Sub-tabs and 4 mounted panels ──
+  const activeTab = chatTab();
+  const tabs = h("div", { class: "subtabs", role: "tablist" });
+  const tabButtons = new Map<ChatTab, HTMLElement>();
+  const panels = new Map<ChatTab, HTMLElement>();
+
+  const applyTab = (id: ChatTab, persist = true) => {
+    chatTabNow = id;
+    if (persist) {
+      try {
+        localStorage.setItem(CHAT_TAB_KEY, id);
+      } catch {
+        // Storage may be unavailable.
+      }
+    }
+    for (const [tId, btn] of tabButtons) {
+      const on = tId === id;
+      btn.className = on ? "subtab on" : "subtab";
+      btn.setAttribute("aria-selected", String(on));
+    }
+    for (const [tId, panel] of panels) {
+      panel.classList.toggle("on", tId === id);
+    }
+  };
+  setChatTabActive = (tab) => applyTab(tab, false);
+
+  for (const [id, label] of CHAT_TABS()) {
+    const b = h("button", { class: id === activeTab ? "subtab on" : "subtab", role: "tab", "aria-selected": id === activeTab, text: label });
+    b.addEventListener("click", () => applyTab(id));
+    tabButtons.set(id, b);
+    tabs.append(b);
+  }
+
+  const motoriPanel = h("div", { class: "chat-panel", "data-tab": "motori" },
+    h("section", { "data-item": "motori" },
+      h("h2", {}, dot, h("span", { text: t("Motori AI") })),
+      h("div", { class: "hint", text: t("Scegli il motore predefinito della chat (e di Telegram). Nella chat, dal nome del motore in alto, puoi cambiare solo per quella conversazione.") }),
+      summaryEl,
+      filtersBox,
+      groupsBox,
+      h("div", { class: "engine-detail" },
+        detailHead,
+        engineHint,
+        cliBlock,
+        apiBlock,
+        other.el)));
+
+  const strumentiPanel = h("div", { class: "chat-panel", "data-tab": "strumenti" },
+    ...terminalSections());
+
+  const memoriaPanel = h("div", { class: "chat-panel", "data-tab": "memoria" },
+    h("section", { "data-item": "istruzioni" },
+      h("h2", {}, h("span", { text: t("Istruzioni e assistenti") }), profileChip()),
+      instructionsRow(),
+      assistantsBlock()),
+    h("section", { "data-item": "memoria" },
+      h("h2", {}, h("span", { text: t("Memoria della chat") })),
+      memoryRow()),
+    h("section", { "data-item": "cronologia" },
+      h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
+      historyRow()));
+
+  const permessiPanel = h("div", { class: "chat-panel", "data-tab": "permessi" },
+    ...permitsSections());
+
+  panels.set("motori", motoriPanel);
+  panels.set("strumenti", strumentiPanel);
+  panels.set("memoria", memoriaPanel);
+  panels.set("permessi", permessiPanel);
+  applyTab(activeTab, false);
+
+  return [tabs, motoriPanel, strumentiPanel, memoriaPanel, permessiPanel];
 }
 
 /**
- * Impostazioni → Chat → Modalità terminale (docs/chat.md): the chat works as
- * Claude Code or opencode in a terminal, in a folder of the user's. Commands
- * and changes still ask in the island.
+ * Impostazioni → Chat → Strumenti e lavoro (terminal.rs, router.rs, recipes.rs,
+ * portals.rs, team.rs): workspace folder, PC actions, terminal mode, preview,
+ * fast/direct routing, portals and multi-engine orchestration.
  */
-function terminalRow(): HTMLElement {
+function terminalSections(): HTMLElement[] {
   const folder = h("input", {
     type: "text", value: settings.chatFolder ?? "", placeholder: t("la tua cartella utente"),
     style: "flex:1 1 auto;min-width:0", spellcheck: "false",
@@ -721,12 +897,13 @@ function terminalRow(): HTMLElement {
       bad.textContent = String(e).replace(/^Error:\s*/, "");
     }
   });
-  // The work folder is for every chat, not only terminal mode (docs/strumenti.md).
-  const folderRow = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+  const folderRow = h("div", { style: "display:flex;flex-direction:column;gap:4px", "data-item": "cartella" },
     h("div", { class: "row" }, h("label", { text: t("Cartella di lavoro") }), folder, pickBtn, bad),
-    h("span", { class: "hint note", text: t("La chat (con gli strumenti di EasyIsland) e Telegram la consultano e ci spostano i file; la trovi anche in «File e schermo». Con la modalità terminale è la cartella in cui la chat lavora; vuota = la tua cartella utente.") }));
-  // «Multi motore» (team.rs): which engines work with the conversation's.
-  const team = h("div", { class: "row", style: "flex-wrap:wrap;gap:10px" }, h("label", { text: t("Multi motore") }));
+    h("span", { class: "hint note", text: t("Cartella usata da chat, Telegram e Modalità terminale (vuota = la tua cartella utente).") }));
+
+  // «Multi motore» (team.rs): checkboxes sit inside `.chat-team-picks` so `.row > label`
+  // does not force 132px width onto every individual checkbox label.
+  const picks = h("div", { class: "chat-team-picks" });
   void Bridge.enginesReady().then((list) => {
     const all = list ?? CHAT_ENGINES.map((e): [string, string, boolean] => [e.id, e.name, true]);
     for (const [id, name, ok] of all) {
@@ -739,30 +916,53 @@ function terminalRow(): HTMLElement {
         settings.chatTeam = all.map(([i]) => i).filter((i) => chosen.has(i));
         void save();
       });
-      team.append(h("label", { style: "display:flex;gap:4px;align-items:center;min-width:0", title: ok ? "" : t("non pronto") }, cb, h("span", { text: name })));
+      picks.append(h("label", {
+        class: ok ? "team-pick" : "team-pick off",
+        title: ok ? "" : t("non pronto"),
+      }, cb, h("span", { text: name })));
     }
   });
-  const teamBox = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
-    team,
-    h("span", { class: "hint note", text: t("i motori che lavorano insieme quando accendi «Multi motore» in una conversazione: il motore della chat guida e ti risponde, gli altri fanno pezzi del lavoro. Ne bastano due, meglio di due marche diverse.") }),
+
+  const workspaceSection = h("section", { "data-item": "terminale" },
+    h("h2", {}, h("span", { text: t("Spazio di lavoro e strumenti") })),
+    folderRow,
     h("div", { class: "row" },
-      h("label", { text: t("Controllo finale") }),
-      toggle(settings.chatTeamCheck !== false, (v) => { settings.chatTeamCheck = v; void save(); }),
-      h("span", { class: "hint note", text: t("prima della risposta un altro motore controlla il lavoro senza sapere chi l'ha fatto; salta le risposte brevi senza azioni. Più sicuro, ma può metterci il doppio.") })));
-  return h("div", { style: "display:flex;flex-direction:column;gap:8px" },
+      h("label", { text: t("Azioni sul PC") }),
+      toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
+      h("span", { class: "hint note", text: t("Programmi, cartelle, link, azioni rapide, stato di PC, rete, posta e ticket (ogni modifica chiede conferma nell'isola).") })),
     h("div", { class: "row" },
       h("label", { text: t("Modalità terminale") }),
       toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); }),
-      h("span", { class: "hint note", text: t("la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato") })),
-    folderRow,
-    teamBox,
+      moreHint(
+        t("La chat esegue comandi, modifica file e usa MCP/skill chiedendo conferma nell'isola."),
+        t("La chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori cloud o locali usano il terminale interno o opencode."))),
     h("div", { class: "row" },
       h("label", { text: t("Anteprima") }),
-      // One choice: off, its own window, or stuck to the island (preview.rs).
       select([["docked", t("Nell'isola, a destra")], ["window", t("Finestra separata")], ["off", t("Spenta")]],
         settings.chatPreview === false ? "off" : settings.previewDocked ? "docked" : "window",
         (v) => { settings.chatPreview = v !== "off"; settings.previewDocked = v === "docked"; void save(); }),
-      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser") })));
+      moreHint(
+        t("Apre link, pagine web e file modificati dalla chat accanto all'isola o in una finestra dedicata."),
+        t("I link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser."))));
+
+  const routingSection = h("section", {},
+    h("h2", {}, h("span", { text: t("Risposte rapide, ricette e portali") })),
+    recipesRow(),
+    routerRow(),
+    portalsRow());
+
+  const teamSection = h("section", { "data-item": "multi-motore" },
+    h("h2", {}, h("span", { text: t("Multi motore") })),
+    h("div", { class: "hint note", text: t("Quando accendi «Multi motore» nella chat, il motore della conversazione guida e risponde, gli altri fanno pezzi del lavoro (ne bastano due, meglio di marche diverse).") }),
+    picks,
+    h("div", { class: "row" },
+      h("label", { text: t("Controllo finale") }),
+      toggle(settings.chatTeamCheck !== false, (v) => { settings.chatTeamCheck = v; void save(); }),
+      moreHint(
+        t("Un secondo motore verifica il risultato prima della risposta finale."),
+        t("Prima della risposta un altro motore controlla il lavoro senza sapere chi l'ha fatto; salta le risposte brevi senza azioni. Più sicuro, ma può metterci il doppio."))));
+
+  return [workspaceSection, routingSection, teamSection];
 }
 
 /** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */
@@ -836,29 +1036,29 @@ const ENGINE_HINTS: Record<string, string> = {
   api: t("L'API di Anthropic con la tua chiave, a consumo dalla Console di Anthropic."),
   antigravity: t("Google Antigravity (la CLI agy) su questo PC, con il tuo account Google: un agente con strumenti come Claude Code e opencode. Ogni comando o strumento MCP chiede Consenti / Nega nell'isola."),
   opencode: t("opencode 2 su questo PC: modelli gratuiti, locali o dei tuoi fornitori, con strumenti (comandi, file, web). Ogni comando o modifica chiede Consenti / Nega nell'isola; senza risposta è un no."),
-  openrouter: t("Una chiave per centinaia di modelli (openrouter.ai), a consumo. Solo chat: niente web né azioni sul PC."),
-  openai: t("L'API di OpenAI con la tua chiave, a consumo. Solo chat: niente web né azioni sul PC."),
-  gemini: t("Google AI Studio con la tua chiave. Solo chat: niente web né azioni sul PC."),
-  ollama: t("Modelli locali con Ollama, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
-  lmstudio: t("Modelli locali con LM Studio, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
+  openrouter: t("Una chiave per centinaia di modelli (openrouter.ai), a consumo. Solo chat: con la Modalità terminale usa gli strumenti di EasyIsland."),
+  openai: t("L'API di OpenAI con la tua chiave, a consumo. Solo chat: con la Modalità terminale usa gli strumenti di EasyIsland."),
+  gemini: t("Google AI Studio con la tua chiave. Solo chat: con la Modalità terminale usa gli strumenti di EasyIsland."),
+  ollama: t("Modelli locali con Ollama, su questo PC o in rete: nulla esce dalla tua rete. Solo chat; con la Modalità terminale usa gli strumenti."),
+  lmstudio: t("Modelli locali con LM Studio, su questo PC o in rete: nulla esce dalla tua rete. Solo chat; con la Modalità terminale usa gli strumenti."),
   local: t("Un modello che gira dentro EasyIsland, sulla scheda grafica quando c'è: niente programmi da installare, nulla esce dal PC. Con la Modalità terminale esegue comandi e modifica file da solo, dopo il tuo permesso."),
 };
 
 /**
- * What each engine's card says: how it is paid, and what it can do (as in
- * docs/guida/09-motori.md). Tags: "yes" can, "dim" only in a way.
+ * What each engine's card says: how it is paid, and what it can do natively
+ * without extra contradictory pills.
  */
 const ENGINE_FACTS: Record<string, { pay: string; tags: [string, "yes" | "dim"][] }> = {
-  subscription: { pay: t("Abbonamento Pro o Max, nessun costo extra"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Connettori MCP"), "yes"]] },
+  subscription: { pay: t("Abbonamento Pro/Max"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("MCP"), "yes"]] },
   api: { pay: t("A consumo"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"]] },
-  opencode: { pay: t("Gratis, locale o del tuo fornitore"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Comandi e file"), "yes"]] },
-  antigravity: { pay: t("Il tuo account Google"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Comandi e file"), "yes"]] },
-  openrouter: { pay: t("A consumo, alcuni modelli gratis"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
-  openai: { pay: t("A consumo"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
-  gemini: { pay: t("A consumo, con una parte gratis"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
-  ollama: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
-  lmstudio: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
-  local: { pay: t("Gratis, dentro EasyIsland"), tags: [[t("Locale"), "yes"], [t("Scheda grafica"), "yes"], [t("Strumenti con il terminale"), "dim"]] },
+  opencode: { pay: t("Gratis o tuo fornitore"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Comandi e file"), "yes"]] },
+  antigravity: { pay: t("Account Google"), tags: [[t("Strumenti"), "yes"], [t("Web"), "yes"], [t("Comandi e file"), "yes"]] },
+  openrouter: { pay: t("A consumo / gratis"), tags: [[t("Solo chat"), "dim"]] },
+  openai: { pay: t("A consumo"), tags: [[t("Solo chat"), "dim"]] },
+  gemini: { pay: t("A consumo / free tier"), tags: [[t("Solo chat"), "dim"]] },
+  ollama: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"]] },
+  lmstudio: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"]] },
+  local: { pay: t("Gratis, in app"), tags: [[t("Locale"), "yes"], [t("Scheda grafica"), "yes"], [t("Comandi e file"), "yes"]] },
 };
 
 /** What each model of the catalog is for (local_model.rs CATALOG). */
@@ -968,27 +1168,36 @@ function localModelBlock(changed: () => void): HTMLElement {
         ? t("llama.cpp vede: {d}", { d: s.devices.join(" · ") })
         : t("llama.cpp non vede una scheda grafica: i modelli girano sul processore. Aggiorna il driver della scheda grafica e riapri le Impostazioni.") }));
     }
-    el.append(h("div", { class: "hint", text: t("Il motore (llama.cpp, {size}) si scarica da GitHub insieme al primo modello, i modelli da Hugging Face; ogni file viene controllato prima di usarlo. Si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando la memoria.", { size: sizeLabel(s.runtimeSize) }) }));
+    el.append(moreHint(
+      t("Motore integrato llama.cpp ({size}): si avvia quando serve e si spegne dopo 5 minuti.", { size: sizeLabel(s.runtimeSize) }),
+      t("Il motore (llama.cpp, {size}) si scarica da GitHub insieme al primo modello, i modelli da Hugging Face; ogni file viene controllato prima di usarlo. Si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando la memoria.", { size: sizeLabel(s.runtimeSize) })));
+    const catalog = h("div", { class: "local-catalog" });
     for (const m of s.models) {
       const rec = m.id === s.recommended;
+      const inUse = m.installed && current === m.id;
       const fitNote = m.fit === "no" ? t("Troppo grande per questo PC.") : m.fit === "tight" ? t("Su questo PC sarebbe lento.") : "";
-      const info = h("div", { style: "flex:1 1 auto;min-width:0" },
-        h("div", {}, h("b", { text: m.name }), h("span", { class: "hint", text: ` · ${sizeLabel(m.size)}` })),
-        rec ? h("div", { style: "margin:2px 0" }, h("span", { class: "engine-chip", text: t("Consigliato per questo PC") })) : h("span", {}),
+      const head = h("div", { class: "local-model-head" },
+        h("b", { text: m.name }),
+        h("span", { class: "hint", text: sizeLabel(m.size) }),
+        rec ? h("span", { class: "engine-chip", text: t("Consigliato") }) : h("span", {}),
+        inUse ? h("span", { class: "engine-chip", text: t("In uso") }) : h("span", {}));
+      const info = h("div", { class: "local-model-info" },
+        head,
         h("div", { class: "hint", text: [LOCAL_HINTS[m.id] ?? "", fitNote].filter(Boolean).join(" ") }));
-      const row = h("div", { class: "row" }, info);
+      const actions = h("div", { class: "local-model-actions" });
       if (downloading === m.id) {
         const stop = h("button", { text: t("Annulla") });
         stop.addEventListener("click", () => void Bridge.localModelCancel());
-        row.append(localBar(), stop);
+        actions.append(localBar(), stop);
       } else if (m.installed) {
-        const inUse = current === m.id;
-        const use = h("button", { class: inUse ? "" : "primary", text: inUse ? t("In uso") : t("Usa") }) as HTMLButtonElement;
-        use.disabled = inUse;
-        use.addEventListener("click", () => {
-          pick(m.id);
-          void draw();
-        });
+        if (!inUse) {
+          const use = h("button", { class: "primary", text: t("Usa") }) as HTMLButtonElement;
+          use.addEventListener("click", () => {
+            pick(m.id);
+            void draw();
+          });
+          actions.append(use);
+        }
         // Two clicks: the file is gigabytes to download again.
         const del = h("button", { class: "danger", text: t("Elimina") });
         let armed = false;
@@ -1006,7 +1215,7 @@ function localModelBlock(changed: () => void): HTMLElement {
           }
           void draw();
         });
-        row.append(use, del);
+        actions.append(del);
       } else {
         const get = h("button", { class: rec ? "primary" : "", text: m.partial > 0 ? t("Riprendi") : t("Scarica") }) as HTMLButtonElement;
         get.disabled = !!downloading;
@@ -1014,10 +1223,11 @@ function localModelBlock(changed: () => void): HTMLElement {
         get.addEventListener("click", () => void download(m.id, () => {
           if (!settings.engineModels?.local) pick(m.id);
         }));
-        row.append(get);
+        actions.append(get);
       }
-      el.append(row);
+      catalog.append(h("div", { class: `local-model-row${inUse ? " active" : ""}` }, info, actions));
     }
+    el.append(catalog);
     // A GGUF file the user already has: used where it is, never copied.
     const own = !!current && !s.models.some((m) => m.id === current);
     const file = h("button", { text: t("Usa un file GGUF…") }) as HTMLButtonElement;
@@ -1052,7 +1262,9 @@ function localModelBlock(changed: () => void): HTMLElement {
       h("span", { class: "hint note", text: t("Il modello lavora sulla scheda grafica (Vulkan: NVIDIA, AMD, Intel). Spento, solo sul processore.") })));
     el.append(h("div", { class: "row" }, h("label", { text: t("Risposte dalla memoria") }),
       toggle(settings.localCompose === true, (v) => { settings.localCompose = v; void save(); }),
-      h("span", { class: "hint note", text: t("Quando EasyIsland risponde dalla memoria (con Potion), il modello sul PC scrive la risposta con le righe trovate; le righe restano sotto. Se nomina qualcosa che nelle righe non c'è, o non risponde entro 20 secondi, si vedono solo le righe.") })));
+      moreHint(
+        t("Scrive la risposta dalle righe trovate in memoria (Potion); le righe restano sotto."),
+        t("Quando EasyIsland risponde dalla memoria (con Potion), il modello sul PC scrive la risposta con le righe trovate; le righe restano sotto. Se nomina qualcosa che nelle righe non c'è, o non risponde entro 20 secondi, si vedono solo le righe."))));
     const state = h("span", { class: "hint", style: "flex:1 1 auto;min-width:0" });
     const stateRow = h("div", { class: "row" }, state);
     if (s.running) {
@@ -1088,7 +1300,12 @@ function localModelBlock(changed: () => void): HTMLElement {
     }
     el.append(stateRow);
     if (bench) el.append(h("div", { class: "notice", text: bench }));
-    if (!current) el.append(h("div", { class: "notice err", text: t("Nessun modello scelto: scaricane uno (quello consigliato è evidenziato) o scegli un file GGUF.") }));
+    const hasInstalled = s.models.some((m) => m.installed);
+    if (!current && !hasInstalled && !s.running) {
+      el.append(h("div", { class: "notice err", text: t("Nessun modello scelto: scaricane uno (quello consigliato è evidenziato) o scegli un file GGUF.") }));
+    } else if (!current && hasInstalled && !s.running) {
+      el.append(h("div", { class: "notice warn", text: t("Hai già modelli scaricati: premi «Usa» nell'elenco sopra o scegli un file GGUF.") }));
+    }
     if (error) el.append(h("div", { class: "notice err", text: error }));
   }
   void draw();
@@ -1134,12 +1351,12 @@ function otherEngineBlock(changed: () => void) {
     }
     const feedback = h("div", {});
     if (e.key) {
-      const state = h("span", { class: "hint" });
+      const state = h("span", { class: "hint note" });
       const field = h("input", { type: "password", style: "flex:1 1 auto;min-width:0", autocomplete: "off", spellcheck: "false" }) as HTMLInputElement;
       const saveBtn = h("button", { class: "primary", text: t("Salva chiave") });
       const clearBtn = h("button", { class: "danger", text: t("Rimuovi") });
       const paint = () => {
-        state.textContent = keyPresent ? t("Chiave salvata in Gestione credenziali di Windows.") : t("Nessuna chiave: serve per usare questo motore.");
+        state.textContent = keyPresent ? t("Salvata in Gestione credenziali di Windows.") : t("Nessuna chiave: serve per usare questo motore.");
         field.placeholder = keyPresent ? "••••••••••••  (salvata)" : t("incolla la chiave");
         clearBtn.style.display = keyPresent ? "" : "none";
         changed();
@@ -1170,7 +1387,7 @@ function otherEngineBlock(changed: () => void) {
         }
         paint();
       });
-      el.append(state, h("div", { class: "row" }, h("label", { text: t("Chiave API") }), field, saveBtn, clearBtn));
+      el.append(h("div", { class: "row" }, h("label", { text: t("Chiave API") }), field, saveBtn, clearBtn, state));
       paint();
     } else if (!opencode && !agy) {
       const url = h("input", { type: "text", value: settings.engineUrls[id] ?? "", placeholder: e.url ?? "", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
@@ -2284,12 +2501,18 @@ function memoryRow(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Memoria dopo la risposta") }),
       toggle(settings.chatLearn !== false, (v) => { settings.chatLearn = v; void save(); }),
-      h("span", { class: "hint note", text: t("EasyIsland manda la domanda e la risposta, senza il resto della conversazione, a un modello leggero (Haiku con l'abbonamento, o il Motore per la memoria qui sotto) e annota ciò che vale per le prossime volte. La chat non spende passi per ricordare: scrive in memoria solo se glielo chiedi") })),
+      moreHint(
+        t("Annota ciò che vale per le prossime chat senza spendere passi della conversazione."),
+        t("EasyIsland manda la domanda e la risposta, senza il resto della conversazione, a un modello leggero (Haiku con l'abbonamento, o il Motore per la memoria qui sotto) e annota ciò che vale per le prossime volte. La chat non spende passi per ricordare: scrive in memoria solo se glielo chiedi."))),
     h("div", { class: "row" }, h("label", { text: t("Ricerca per significato") }), meaning, meaningModel,
-      h("span", { class: "hint note", text: t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («server» trova una nota sul «NAS»): ogni riga diventa una volta un vettore e prima di ogni domanda, e in ogni ricerca della chat, arrivano le più vicine. «EasyIsland, su questo PC» lo fa da sola con un modello scaricato qui sotto: niente chiave, niente rete, la memoria resta sul PC. Con OpenAI, Gemini o OpenRouter le righe escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)") })),
+      moreHint(
+        t("Trova note con parole diverse ma stesso senso («server» → «NAS»)."),
+        t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («server» trova una nota sul «NAS»): ogni riga diventa una volta un vettore e prima di ogni domanda, e in ogni ricerca della chat, arrivano le più vicine. «EasyIsland, su questo PC» lo fa da sola con un modello scaricato qui sotto: niente chiave, niente rete, la memoria resta sul PC. Con OpenAI, Gemini o OpenRouter le righe escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)."))),
     localRow,
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
-      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
+      moreHint(
+        t("Organizza pagine, collegamenti e riassunti nei file .md della memoria (va bene un motore gratuito)."),
+        t("Collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui."))));
 }
 
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
@@ -2328,7 +2551,9 @@ function routerRow(): HTMLElement {
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Risposte dirette") }),
       toggle(settings.chatDirect !== false, (v) => { settings.chatDirect = v; void save(); }),
-      h("span", { class: "hint note", text: t("Alle domande che le ricette risolvono sempre con la stessa lettura (stato del PC, azioni rapide, una tabella di Notion) risponde EasyIsland da solo, subito e senza token. «Chiedi al motore» sotto la risposta, o la stessa domanda riscritta, passa al motore e per quel tipo di domanda non risponde più da solo. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che risparmia un passo") })),
+      moreHint(
+        t("Risponde subito senza chiamare il motore alle domande semplici già note."),
+        t("Alle domande che le ricette risolvono sempre con la stessa lettura (stato del PC, azioni rapide, una tabella di Notion) risponde EasyIsland da solo, subito e senza token. «Chiedi al motore» sotto la risposta, o la stessa domanda riscritta, passa al motore e per quel tipo di domanda non risponde più da solo. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che risparmia un passo."))),
     h("div", { class: "row" }, h("label", { text: t("Registro dei turni") }), line, forget),
     votesRow());
 }
@@ -5658,7 +5883,7 @@ let doneListening = false;
  * the reversible tools allowed for good with «Sempre» on a card, taken away
  * here, and «Cosa ho fatto» with Annulla.
  */
-function permitsSection(): HTMLElement {
+function permitsSections(): HTMLElement[] {
   const allowedList = h("div", {});
   const paintAllowed = () => {
     const on = (settings.toolsAllowed ?? []).filter((x) => REVERSIBLE_TOOLS.includes(x));
@@ -5725,13 +5950,16 @@ function permitsSection(): HTMLElement {
     void onEvent<null>("did-changed", () => repaintDone?.());
   }
 
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Permessi degli strumenti") })),
-    h("span", { class: "hint", text: t("Leggere è sempre libero. Le azioni che si possono annullare (righe di Notion, attività di To Do, file del Vassoio) chiedono finché non scegli «Sempre» sulla loro card. Inviare, eliminare, aprire, eseguire e cambiare le impostazioni chiedono ogni volta.") }),
-    h("div", { class: "row" }, h("label", { text: t("Senza chiedere") }), allowedList),
-    h("h2", {}, h("span", { text: t("Cosa ho fatto") })),
-    h("span", { class: "hint", text: t("Le azioni degli strumenti di EasyIsland che hanno cambiato qualcosa, dalla chat, da Telegram e dai compiti; le ultime {n}.", { n: SHOWN }) }),
-    doneList);
+  return [
+    h("section", { "data-item": "permessi" },
+      h("h2", {}, h("span", { text: t("Permessi degli strumenti") })),
+      h("span", { class: "hint", text: t("Leggere è sempre libero. Le azioni che si possono annullare (righe di Notion, attività di To Do, file del Vassoio) chiedono finché non scegli «Sempre» sulla loro card. Inviare, eliminare, aprire, eseguire e cambiare le impostazioni chiedono ogni volta.") }),
+      h("div", { class: "row" }, h("label", { text: t("Senza chiedere") }), allowedList)),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Cosa ho fatto") })),
+      h("span", { class: "hint", text: t("Le azioni degli strumenti di EasyIsland che hanno cambiato qualcosa, dalla chat, da Telegram e dai compiti; le ultime {n}.", { n: SHOWN }) }),
+      doneList),
+  ];
 }
 
 /** "Claude (abbonamento) · aiutanti: opencode, Gemini". */
@@ -6760,10 +6988,16 @@ async function main() {
       integrationQuery = "";
       onlyActive = false;
     }
-    // A tab of Aspetto ("aspetto" + "barra": the fixed bar's menu).
+    // A tab of Aspetto or Chat ("aspetto" + "barra", or "chat" + "strumenti").
     const tab = page === "aspetto" ? LOOK_TABS().find(([id]) => id === item)?.[0] : undefined;
     if (tab) {
       lookTabNow = tab;
+      render();
+      return;
+    }
+    const cTab = page === "chat" ? CHAT_TABS().find(([id]) => id === item)?.[0] : undefined;
+    if (cTab) {
+      chatTabNow = cTab;
       render();
       return;
     }
@@ -6772,6 +7006,8 @@ async function main() {
     requestAnimationFrame(() => {
       const el = root.querySelector<HTMLElement>(`[data-item="${CSS.escape(item)}"]`);
       if (!el) return;
+      const panelTab = el.closest<HTMLElement>(".chat-panel")?.dataset.tab as ChatTab | undefined;
+      if (panelTab) setChatTabActive?.(panelTab);
       el.scrollIntoView({ block: "center" });
       el.classList.add("goto");
       window.setTimeout(() => el.classList.remove("goto"), 1600);
@@ -6843,8 +7079,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "chat", label: t("Chat e motori AI"), icon: "chat", color: "#A78BFA", title: t("Chat dell'isola e motori AI"),
-      intro: t("Il motore che risponde quando scrivi nell'isola o al bot di Telegram, cosa può fare sul PC, la cartella di lavoro e le conversazioni salvate."),
-      sections: () => [claudeChatSection(b.hasKey), permitsSection()],
+      intro: t("Motori AI, strumenti e cartella di lavoro, istruzioni del profilo, memoria e permessi."),
+      sections: () => chatSections(b.hasKey),
     },
     {
       id: "claude", label: t("Agenti di codice"), icon: "terminal", color: "#E07A5F", title: t("Agenti di codice nel terminale"),

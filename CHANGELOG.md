@@ -2,6 +2,12 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.49** — **Modello sul PC**: un modello di intelligenza artificiale che gira dentro EasyIsland, sulla scheda grafica
+(NVIDIA, AMD o Intel), senza programmi da installare e senza che niente esca dal PC. In Impostazioni → Chat EasyIsland
+dice che scheda grafica hai, consiglia il modello adatto al tuo PC e misura la velocità con **Prova la velocità**. Si usa
+nella chat, nella **Modalità terminale** (comandi e file eseguiti da EasyIsland dopo il tuo permesso, senza opencode) e per
+**scrivere le risposte dalla memoria** con le righe trovate. Impostazioni → Chat e motori riordinate in sotto-schede.
+
 **1.0.48** — **La memoria risponde da sola.** Alle domande che cercano un dato già annotato («quale vm ha la farmacia
 Falchi?», «chi è …?») EasyIsland risponde con le righe della memoria, subito e senza motore. La **ricerca per significato** ora
 può girare **sul PC**, con un modello scaricato da Impostazioni: trova le note anche con parole diverse, e «🧠» sotto la
