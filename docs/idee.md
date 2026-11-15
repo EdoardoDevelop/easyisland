@@ -177,9 +177,9 @@ Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senz
 ## TextComposer: risposte dalla memoria scritte da un modello piccolo (15/11, per il futuro)
 Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scrive. Ingresso: domanda, estratti trovati, riferimenti; uscita: testo composto o «non riesco». Modello sostituibile senza toccare la ricerca.
 - **Primo compositore = oggi:** le righe così come sono (`memory_answer::shown`); è anche il ripiego a ogni errore.
-- **Poi un servizio compatibile OpenAI** già usato dalla chat (Ollama, LM Studio; es. `qwen2.5:0.5b`, Apache 2.0): nessuna dipendenza nuova. Dentro l'app solo se convince, riusando `claude/modello-integrato` (llama-server in processo separato, download dopo clic con SHA-256).
+- **Poi un modello dentro EasyIsland** (Edoardo, 15/11: mai Ollama, LM Studio o servizi esterni per i modelli sul PC; es. Qwen2.5 0.5B Instruct, Apache 2.0): scaricato dopo un clic con SHA-256, eseguito dall'app, riusando `claude/modello-integrato` (llama-server in processo separato). La ricerca resta Potion (deciso il 15/11: altri modelli model2vec sono inglesi o peggiori; model2vec-rs dà gli stessi vettori con ~500 MB di RAM invece di ~25).
 - **Controllo:** ogni numero, IP, nome in maiuscolo o codice del testo deve stare negli estratti, se no si mostrano le righe; fonti sempre sotto, piegate.
-- **Risorse** (stime da misurare sul portatile con Ollama prima del codice): ~400 MB su disco, ~0,5–0,7 GB in memoria solo mentre scrive, 1–3 s di CPU. Solo sulle risposte dalla memoria, priorità bassa e max 2 core, scaricato subito dopo, tempo massimo 4 s, mai a batteria, sotto carico o in chiamata 3CX; spento di serie.
+- **Risorse** (stime da misurare sul portatile con il modello dentro l'app, prima di unirlo): ~400 MB su disco, ~0,5–0,7 GB in memoria solo mentre scrive, 1–3 s di CPU. Solo sulle risposte dalla memoria, priorità bassa e max 2 core, scaricato subito dopo, tempo massimo 4 s, mai a batteria, sotto carico o in chiamata 3CX; spento di serie.
 - **Misura:** 👍/👎 (`votes.rs`) delle risposte composte contro le righe.
 
 ## Modello integrato (27/10, accantonato)

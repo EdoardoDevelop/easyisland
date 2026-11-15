@@ -2,6 +2,15 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.48** — **La memoria risponde da sola.** Alle domande che cercano un dato già annotato («quale vm ha la farmacia
+Falchi?», «chi è …?») EasyIsland risponde con le righe della memoria, subito e senza motore. La **ricerca per significato** ora
+può girare **sul PC**, con un modello scaricato da Impostazioni: trova le note anche con parole diverse, e «🧠» sotto la
+risposta dice cosa ha trovato. **👍 e 👎** sotto ogni risposta: EasyIsland ricorda le righe giuste, non ripete quelle
+sbagliate e impara da un 👍 al motore. **Solo EasyIsland** nel menu dei motori, per usare la chat senza motore e senza token.
+**Puoi chiedere** propone domande dalla memoria sul cliente che hai davanti, su una riga che scorre. `easyisland-hook chiedi`
+fa domande alla chat da script e da remoto. L'isola segue il contenuto che cambia (niente più fondo tagliato), gli avvisi
+dei controlli dicono «Attenzione» e non «Errore».
+
 **1.0.47** — **Nuovo aspetto dell'isola**: barra di ricerca a tutta larghezza che fa anche da **calcolatrice**, barra
 laterale che apri e chiudi tu, **Panoramica** con la striscia «Adesso», una scheda per integrazione e agente e le tue azioni
 rapide, campo della chat rinnovato con comandi (/) e contesto (@). Tre **stili** nuovi in Aspetto → Stile: Monolite,

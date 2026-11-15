@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 14/11 — Mappa della memoria: viste Mappa ad albero, Matrice, Salute (ramo `restyling-mappa-memoria`, di Antigravity)
+Unito in `claude/sviluppo` con `claude/comandi-ricette`; `claude/modello-integrato` resta fuori (scartato). Animazioni a riposo e barra delle viste a gruppi (`src/memory/treemap.ts`, `matrix.ts`, `health.ts`); conflitto in `concept.ts`: i collegamenti solo per nome restano tratteggiati fermi, quello selezionato scorre a riposo.
+
 ### 14/11 — Comandi senza motore, ricette con date, cache dell'API; relay di nuovo aggiornato (ramo `claude/comandi-ricette`, da `claude/sviluppo`)
 Antigravity in Turbo era di nuovo trattenuto: il relay installato era quello del 13/11 mattina (cargo lo credeva aggiornato); `npm run pack` ora lo ripulisce prima (`docs/sviluppo.md`), reinstallato qui e sul portatile. Poi i punti 1, 2, 4 scelti da Edoardo: comandi con «Esegui» (`commands.rs`), date e numeri della domanda nelle ricette (`periods.rs`), cache automatica del motore API. `docs/chat.md` → Smistatore.
 
