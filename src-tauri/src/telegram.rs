@@ -834,7 +834,9 @@ pub(crate) fn engines(app: &AppHandle) -> Vec<(&'static str, String, bool)> {
         if let Some(p) = crate::openai::provider(e) {
             let key = p.key.is_none_or(|k| crate::secrets::get(k).is_some());
             let name = if *e == "gemini" { "Gemini" } else { p.name };
-            list.push((*e, name.to_string(), key && has_model(e)));
+            // The model on this PC also needs its engine and its file here.
+            let file = *e != "local" || models.get(*e).is_some_and(|m| crate::local_model::ready(m));
+            list.push((*e, name.to_string(), key && has_model(e) && file));
         }
     }
     list

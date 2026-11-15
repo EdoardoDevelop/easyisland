@@ -745,6 +745,13 @@ pub struct Settings {
     /// Its model; "" = the service's usual one.
     #[serde(default)]
     pub memory_meaning_model: String,
+    /// «Modello sul PC» (local_model.rs): it writes the answers from the memory
+    /// (TextComposer) with the model of `engine_models.local`; off = the lines as they are.
+    #[serde(default)]
+    pub local_compose: bool,
+    /// The model on the graphics card (Vulkan) when there is a fitting one.
+    #[serde(default = "default_true")]
+    pub local_gpu: bool,
     /// «Ricorda questo» (brain.rs `remember`): what is captured is learnt at
     /// once by a task; off, by the evening digest.
     #[serde(default = "default_true")]
@@ -1257,6 +1264,8 @@ impl Default for Settings {
             memory_engine: String::new(),
             memory_meaning: String::new(),
             memory_meaning_model: String::new(),
+            local_compose: false,
+            local_gpu: true,
             remember_now: true,
             memory_claude_code: true,
             brain_tickets: true,

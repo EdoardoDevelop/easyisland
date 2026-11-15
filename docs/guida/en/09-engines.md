@@ -14,6 +14,7 @@ In **Settings → Chat and AI engines** every engine has its own **card**: wheth
 | **OpenRouter** | Pay as you go | With terminal mode | One key for hundreds of models |
 | **OpenAI** | Pay as you go | With terminal mode | |
 | **Gemini** (Google AI Studio) | Pay as you go / free | With terminal mode | |
+| **Model on this PC** | Free, inside EasyIsland | With terminal mode (needs the graphics card) | Nothing leaves the PC, nothing to install |
 | **Ollama**, **LM Studio** | Free, on your PC | With terminal mode | Nothing leaves the network |
 
 ## Claude subscription
@@ -42,6 +43,16 @@ You need **opencode 2** on the PC. EasyIsland starts a private opencode server o
 Install the CLI with `irm https://antigravity.google/cli/install.ps1 | iex`, then type `agy` and sign in with Google. With Antigravity's hooks installed, its commands ask Allow / Deny in the island.
 
 As with Claude, the engine menu picks the **model** (those of your Antigravity account) and the **effort** for that conversation; the mode button goes from **Manual** to **Accept edits**, **Plan** and **Automatic** (like its Turbo mode: no questions about commands). In **Plan** Antigravity prepares the plan and shows it in a card: **Go ahead** to let it work, **Keep planning** to change it.
+
+## Model on this PC
+An AI model that runs **inside EasyIsland**, with nothing to install and nothing leaving the PC. In the **Model on this PC** card:
+- at the top EasyIsland tells you which **graphics card** you have and how much memory it has; the model that suits your PC is labelled **Recommended for this PC**, and the ones too big or slow say so;
+- **Download** gets the model (and, the first time, the llama.cpp engine, 37 MB); every file is checked before use. You can also use a **GGUF** file you already have;
+- **Test the speed** tells how many tokens per second it writes and whether it works on the graphics card (from 15 up the chat flows);
+- **Graphics card**: on, the model works on the card (NVIDIA, AMD or Intel); off, only on the processor;
+- **Answers from the memory**: when EasyIsland answers from the memory, the model writes the answer from the lines found; the lines stay under it, and if the model names something that is not there only the lines show.
+
+The model starts when needed and stops by itself after 5 minutes with no questions, freeing memory and graphics card. With **terminal mode** it runs commands and modifies files on its own, after your permission and with no external programs, when it runs on the graphics card.
 
 ## Ollama and LM Studio
 Models on your PC or another one on the network: no key, just the address (empty = the default one).

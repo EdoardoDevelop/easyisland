@@ -1040,7 +1040,7 @@ pub async fn models() -> Result<Vec<crate::openai::ModelOption>, String> {
 }
 
 /// Providers that run on this PC: nothing to pay, whatever the catalog says.
-const LOCAL_PROVIDERS: &[&str] = &["ollama", "lmstudio", "llama.cpp", "llamacpp"];
+const LOCAL_PROVIDERS: &[&str] = &["ollama", "lmstudio", "llama.cpp", "llamacpp", "easyisland"];
 
 /// The models of `/api/model`, with their price: `cost` is a list of tiers
 /// (opencode 2.x, the first is the base price) or one object (older), in

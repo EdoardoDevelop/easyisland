@@ -14,6 +14,7 @@ In **Impostazioni → Chat e motori AI** ogni motore ha la sua **card**: se è p
 | **OpenRouter** | A consumo | Con la modalità terminale | Una chiave per centinaia di modelli |
 | **OpenAI** | A consumo | Con la modalità terminale | |
 | **Gemini** (Google AI Studio) | A consumo / gratuito | Con la modalità terminale | |
+| **Modello sul PC** | Gratis, dentro EasyIsland | Con la modalità terminale (serve la scheda grafica) | Nulla esce dal PC, niente da installare |
 | **Ollama**, **LM Studio** | Gratis, sul tuo PC | Con la modalità terminale | Nulla esce dalla rete |
 
 ## Abbonamento Claude
@@ -42,6 +43,16 @@ Serve **opencode 2** sul PC. EasyIsland avvia un server privato di opencode solo
 Installi la CLI con `irm https://antigravity.google/cli/install.ps1 | iex`, poi scrivi `agy` e accedi con Google. Con gli hook di Antigravity installati, i suoi comandi chiedono Consenti / Nega nell'isola.
 
 Come con Claude, dal menu del motore scegli il **modello** (quelli del tuo account Antigravity) e l'**impegno** per quella conversazione; il pulsante della modalità passa da **Manuale** ad **Accetta modifiche**, **Piano** e **Automatica** (come la sua modalità Turbo: nessuna domanda sui comandi). In **Piano** Antigravity prepara il piano e te lo mostra in una card: **Procedi** per farlo lavorare, **Continua a pianificare** per cambiarlo.
+
+## Modello sul PC
+Un modello di intelligenza artificiale che gira **dentro EasyIsland**, senza programmi da installare e senza che niente esca dal PC. Nella card **Modello sul PC**:
+- in alto EasyIsland dice che **scheda grafica** hai e quanta memoria ha; il modello adatto al tuo PC ha l'etichetta **Consigliato per questo PC**, quelli troppo grandi o lenti lo dicono;
+- **Scarica** prende il modello (e, la prima volta, il motore llama.cpp, 37 MB); ogni file viene controllato prima dell'uso. Puoi anche usare un file **GGUF** che hai già;
+- **Prova la velocità** dice quanti token al secondo scrive e se lavora sulla scheda grafica (da 15 in su la chat è scorrevole);
+- **Scheda grafica**: acceso, il modello lavora sulla scheda (NVIDIA, AMD o Intel); spento, solo sul processore;
+- **Risposte dalla memoria**: quando EasyIsland risponde dalla memoria, il modello scrive la risposta con le righe trovate; le righe restano sotto, e se il modello nomina qualcosa che non c'è si vedono solo le righe.
+
+Il modello si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando memoria e scheda grafica. Con la **modalità terminale** esegue comandi e modifica file da solo, dopo il tuo permesso, senza altri programmi, se sta sulla scheda grafica.
 
 ## Ollama e LM Studio
 Modelli sul tuo PC o su un altro della rete: nessuna chiave, solo l'indirizzo (vuoto = quello predefinito).

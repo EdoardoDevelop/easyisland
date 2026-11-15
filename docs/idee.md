@@ -174,7 +174,7 @@ Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senz
 ## Memoria, seguiti
 - **Pulizia proposta:** `brain::check` segnala pagine doppie (alias, titoli, parole in comune) e relazioni ripetute con nomi diversi; il compito propone «unisci» con `task_ask` (la pagina unita va in archivio).
 
-## TextComposer: risposte dalla memoria scritte da un modello piccolo (15/11, per il futuro)
+## TextComposer: risposte dalla memoria scritte da un modello piccolo (15/11; prima versione fatta: `local_model::compose`, `docs/chat.md` → Modello sul PC)
 Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scrive. Ingresso: domanda, estratti trovati, riferimenti; uscita: testo composto o «non riesco». Modello sostituibile senza toccare la ricerca.
 - **Primo compositore = oggi:** le righe così come sono (`memory_answer::shown`); è anche il ripiego a ogni errore.
 - **Poi un modello dentro EasyIsland** (Edoardo, 15/11: mai Ollama, LM Studio o servizi esterni per i modelli sul PC; es. Qwen2.5 0.5B Instruct, Apache 2.0): scaricato dopo un clic con SHA-256, eseguito dall'app, riusando `claude/modello-integrato` (llama-server in processo separato). La ricerca resta Potion (deciso il 15/11: altri modelli model2vec sono inglesi o peggiori; model2vec-rs dà gli stessi vettori con ~500 MB di RAM invece di ~25).
@@ -182,11 +182,16 @@ Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scr
 - **Risorse** (stime da misurare sul portatile con il modello dentro l'app, prima di unirlo): ~400 MB su disco, ~0,5–0,7 GB in memoria solo mentre scrive, 1–3 s di CPU. Solo sulle risposte dalla memoria, priorità bassa e max 2 core, scaricato subito dopo, tempo massimo 4 s, mai a batteria, sotto carico o in chiamata 3CX; spento di serie.
 - **Misura:** 👍/👎 (`votes.rs`) delle risposte composte contro le righe.
 
-## Modello integrato (27/10, accantonato)
-Fatto nel branch `claude/modello-integrato` (non unito; passi in `docs/modello-integrato.md` del branch), manca la prova dal vivo. Per riprendere: aggiornare il branch con `claude/sviluppo`, verificare build di llama.cpp e hash dei modelli, provare.
-- `llama-server.exe` (CPU + Vulkan) scaricato con il primo modello, avviato nascosto solo quando serve e spento dopo minuti senza richieste; API compatibile OpenAI → riusa `openai.rs`. Processo separato (un crash del C++ non chiude l'isola); job object lo chiude con l'app.
-- Modelli GGUF 3–8B consigliati in Impostazioni → Chat, «Scarica» dopo clic in `%LOCALAPPDATA%\EasyIsland\models` con SHA-256, eliminabili; anche un GGUF già sul disco.
-- Presentarlo per chat e privacy, non per l'agente (i modelli piccoli sbagliano gli strumenti). Utile anche per memoria ed embedding.
+## Modalità terminale interna: limiti rispetto a opencode (15/11, lasciati così da Edoardo)
+`local_agent.rs` (Modello sul PC) legge ~4.000 token invece di ~11.000 e non vuole opencode, ma rispetto a opencode:
+- **Strumenti:** niente web (cerca, apri pagina); ricerca solo a sottostringa, niente regex né per nome di file (`*.ts`); modifica = un testo unico sostituito o il file intero, niente patch su più punti o più file; niente piano a passi, sotto-agenti, skill, domande con scelte, diagnostica dell'editor; niente server MCP di `opencode.json` (solo gli strumenti di EasyIsland scelti da `toolhint`).
+- **Comandi:** un PowerShell nuovo per comando (cartella e variabili non restano); niente comandi che restano accesi (server di sviluppo, watch: tempo massimo 600 s); output a 20.000 caratteri; Ferma chiude PowerShell ma non per forza i programmi che ha avviato.
+- **Memoria del lavoro:** 25 passi per domanda; nella storia solo domanda e risposta finale (i file letti e i comandi del turno si rileggono al turno dopo); niente riassunto della sessione.
+- **Permessi:** «Sempre» solo per quel comando o file esatti, nella conversazione (opencode salva regole più larghe).
+- Più semplici da togliere, se servirà: ricerca per nome di file, modifica di più punti in una volta.
+
+## Modello integrato (27/10)
+Ripreso il 15/11 come «Modello sul PC» sul ramo `claude/llm-interno` (`docs/chat.md` → Motori): controllo della scheda grafica, consiglio, Vulkan, Modalità terminale, risposte dalla memoria. Il ramo `claude/modello-integrato` non serve più.
 
 ## EasyIsland collegati: memoria condivisa (31/10, da decidere)
 Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un secondo EasyIsland usato da Telegram. Si condivide solo la memoria, anche con due EasyIsland al lavoro insieme (nessun custode). (Agent Chat ha poi aggiunto una memoria condivisa via server: `memshare.rs`.)

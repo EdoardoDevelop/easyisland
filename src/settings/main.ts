@@ -10,7 +10,7 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 
 /** The animated logo's character id (logo-anim.ts). */
 const LOGO_ID = LOGO_CHARACTER.id;
-import { type DoneItem, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
+import { type DoneItem, type LocalModelStatus, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
@@ -841,6 +841,7 @@ const ENGINE_HINTS: Record<string, string> = {
   gemini: t("Google AI Studio con la tua chiave. Solo chat: niente web né azioni sul PC."),
   ollama: t("Modelli locali con Ollama, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
   lmstudio: t("Modelli locali con LM Studio, su questo PC o in rete: nulla esce dalla tua rete. Solo chat."),
+  local: t("Un modello che gira dentro EasyIsland, sulla scheda grafica quando c'è: niente programmi da installare, nulla esce dal PC. Con la Modalità terminale esegue comandi e modifica file da solo, dopo il tuo permesso."),
 };
 
 /**
@@ -857,7 +858,242 @@ const ENGINE_FACTS: Record<string, { pay: string; tags: [string, "yes" | "dim"][
   gemini: { pay: t("A consumo, con una parte gratis"), tags: [[t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
   ollama: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
   lmstudio: { pay: t("Gratis, sul tuo PC"), tags: [[t("Locale"), "yes"], [t("Solo chat"), "dim"], [t("Strumenti con il terminale"), "dim"]] },
+  local: { pay: t("Gratis, dentro EasyIsland"), tags: [[t("Locale"), "yes"], [t("Scheda grafica"), "yes"], [t("Strumenti con il terminale"), "dim"]] },
 };
+
+/** What each model of the catalog is for (local_model.rs CATALOG). */
+const LOCAL_HINTS: Record<string, string> = {
+  "qwen3.5-0.8b": t("Piccolissimo e veloce: risposte semplici, va anche senza scheda grafica."),
+  "gemma-4-e2b": t("Leggero, scrive bene in italiano."),
+  "qwen3.5-4b": t("Equilibrato tra qualità e velocità."),
+  "gemma-4-e4b": t("Più bravo; vuole una scheda grafica."),
+  "qwen3.5-9b": t("Il migliore del catalogo: serve una scheda grafica con 8 GB."),
+};
+
+function sizeLabel(bytes: number): string {
+  const gb = bytes / 1e9;
+  return gb >= 1
+    ? `${gb.toLocaleString(locale(), { maximumFractionDigits: 1 })} GB`
+    : `${Math.round(bytes / 1e6).toLocaleString(locale())} MB`;
+}
+
+/** "Model" or "C:\…\Model.gguf" → what the settings show. */
+function localName(s: LocalModelStatus, model: string): string {
+  return s.models.find((m) => m.id === model)?.name ?? (model.split(/[\\/]/).pop() ?? "").replace(/\.gguf$/i, "");
+}
+
+/** This PC in one line: the card and its memory, or what the model would run on. */
+function hardwareLine(s: LocalModelStatus): string {
+  const g = s.hardware.gpus[0];
+  const ram = Math.round(s.hardware.ramMb / 1024);
+  if (s.place === "gpu" && g) return t("Scheda grafica: {name}, {gb} GB propri. I modelli girano lì, veloci.", { name: g.name, gb: Math.round(g.dedicatedMb / 1024) });
+  if (s.place === "igpu" && g) return t("Scheda grafica integrata: {name}, usa la memoria del PC ({gb} GB). Vanno bene i modelli piccoli e medi.", { name: g.name, gb: ram });
+  return t("Nessuna scheda grafica adatta (Vulkan): il modello andrebbe sul processore, lento. Meglio il più piccolo. Memoria: {gb} GB.", { gb: ram });
+}
+
+/** The download in progress, from `local-model-progress`; the block's bar follows it. */
+let localProgress: { id: string; done: number; total: number } | null = null;
+let onLocalProgress: (() => void) | null = null;
+void onEvent<{ id: string; done: number; total: number }>("local-model-progress", (p) => {
+  localProgress = p;
+  onLocalProgress?.();
+});
+
+/** A bar and "1,2 GB di 2,7 GB" ("Motore: …" while the engine comes first). */
+function localBar(): HTMLElement {
+  const bar = h("progress", { style: "width:120px" }) as HTMLProgressElement;
+  const text = h("span", { class: "hint note" });
+  const paint = () => {
+    const p = localProgress;
+    if (!p) {
+      text.textContent = t("Avvio…");
+      return;
+    }
+    bar.max = p.total;
+    bar.value = p.done;
+    const amount = t("{done} di {total}", { done: sizeLabel(p.done), total: sizeLabel(p.total) });
+    text.textContent = p.id === "runtime" ? t("Motore: {amount}", { amount }) : amount;
+  };
+  paint();
+  onLocalProgress = paint;
+  return h("div", { style: "display:flex;flex-direction:column;align-items:flex-end;gap:2px" }, bar, text);
+}
+
+/**
+ * Impostazioni → Chat → Modello sul PC (src-tauri/src/local_model.rs): this
+ * PC's graphics card, the catalog with the model that fits marked, Scarica /
+ * Usa / Elimina, a GGUF of one's own, «Prova» and the server's state; the
+ * graphics card and the answers from the memory can be turned off. Nothing
+ * downloads without a click.
+ */
+function localModelBlock(changed: () => void): HTMLElement {
+  const el = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  let error = "";
+  let busy = ""; // what this window is downloading
+  let bench = ""; // the last «Prova»
+  const errText = (err: unknown) => String(err).replace(/^Error:\s*/, "");
+  const pick = (model: string) => {
+    settings.engineModels ??= {};
+    settings.engineModels.local = model;
+    bench = "";
+    void save();
+    changed();
+  };
+  async function download(id: string, then?: () => void) {
+    busy = id;
+    error = "";
+    localProgress = null;
+    void draw();
+    try {
+      await Bridge.localModelDownload(id);
+      then?.();
+    } catch (err) {
+      error = errText(err);
+    }
+    busy = "";
+    localProgress = null;
+    void draw();
+  }
+  async function draw() {
+    const s = await Bridge.localModelStatus();
+    clear(el);
+    onLocalProgress = null;
+    if (!s) return;
+    const current = settings.engineModels?.local ?? "";
+    const downloading = busy || s.downloading || "";
+    // This PC first: what fits is chosen from it.
+    el.append(h("div", { class: "notice", text: hardwareLine(s) }));
+    if (s.devices) {
+      el.append(h("div", { class: "hint", text: s.devices.length
+        ? t("llama.cpp vede: {d}", { d: s.devices.join(" · ") })
+        : t("llama.cpp non vede una scheda grafica: i modelli girano sul processore. Aggiorna il driver della scheda grafica e riapri le Impostazioni.") }));
+    }
+    el.append(h("div", { class: "hint", text: t("Il motore (llama.cpp, {size}) si scarica da GitHub insieme al primo modello, i modelli da Hugging Face; ogni file viene controllato prima di usarlo. Si avvia quando serve e si spegne da solo dopo 5 minuti senza domande, liberando la memoria.", { size: sizeLabel(s.runtimeSize) }) }));
+    for (const m of s.models) {
+      const rec = m.id === s.recommended;
+      const fitNote = m.fit === "no" ? t("Troppo grande per questo PC.") : m.fit === "tight" ? t("Su questo PC sarebbe lento.") : "";
+      const info = h("div", { style: "flex:1 1 auto;min-width:0" },
+        h("div", {}, h("b", { text: m.name }), h("span", { class: "hint", text: ` · ${sizeLabel(m.size)}` })),
+        rec ? h("div", { style: "margin:2px 0" }, h("span", { class: "engine-chip", text: t("Consigliato per questo PC") })) : h("span", {}),
+        h("div", { class: "hint", text: [LOCAL_HINTS[m.id] ?? "", fitNote].filter(Boolean).join(" ") }));
+      const row = h("div", { class: "row" }, info);
+      if (downloading === m.id) {
+        const stop = h("button", { text: t("Annulla") });
+        stop.addEventListener("click", () => void Bridge.localModelCancel());
+        row.append(localBar(), stop);
+      } else if (m.installed) {
+        const inUse = current === m.id;
+        const use = h("button", { class: inUse ? "" : "primary", text: inUse ? t("In uso") : t("Usa") }) as HTMLButtonElement;
+        use.disabled = inUse;
+        use.addEventListener("click", () => {
+          pick(m.id);
+          void draw();
+        });
+        // Two clicks: the file is gigabytes to download again.
+        const del = h("button", { class: "danger", text: t("Elimina") });
+        let armed = false;
+        del.addEventListener("click", async () => {
+          if (!armed) {
+            armed = true;
+            del.textContent = t("Conferma");
+            return;
+          }
+          try {
+            await Bridge.localModelDelete(m.id);
+            if (inUse) pick("");
+          } catch (err) {
+            error = errText(err);
+          }
+          void draw();
+        });
+        row.append(use, del);
+      } else {
+        const get = h("button", { class: rec ? "primary" : "", text: m.partial > 0 ? t("Riprendi") : t("Scarica") }) as HTMLButtonElement;
+        get.disabled = !!downloading;
+        // The first model downloaded becomes the one in use.
+        get.addEventListener("click", () => void download(m.id, () => {
+          if (!settings.engineModels?.local) pick(m.id);
+        }));
+        row.append(get);
+      }
+      el.append(row);
+    }
+    // A GGUF file the user already has: used where it is, never copied.
+    const own = !!current && !s.models.some((m) => m.id === current);
+    const file = h("button", { text: t("Usa un file GGUF…") }) as HTMLButtonElement;
+    file.disabled = !!downloading;
+    file.addEventListener("click", async () => {
+      let path: string | null = null;
+      try {
+        path = await Bridge.localModelPick();
+      } catch (err) {
+        error = errText(err);
+      }
+      if (!path) return void draw();
+      const chosen = path;
+      if (s.runtime) {
+        pick(chosen);
+        void draw();
+      } else void download("runtime", () => pick(chosen));
+    });
+    const fileRow = h("div", { class: "row" }, h("span", { class: "hint", style: "flex:1 1 auto;min-width:0;overflow-wrap:anywhere",
+      text: own ? t("In uso: {path}", { path: current }) : t("Oppure un modello GGUF che hai già sul disco (non viene copiato).") }));
+    if (downloading === "runtime") fileRow.append(localBar());
+    fileRow.append(file);
+    el.append(fileRow);
+    // Where it runs, and «Prova».
+    el.append(h("div", { class: "row" }, h("label", { text: t("Scheda grafica") }),
+      toggle(settings.localGpu !== false, async (v) => {
+        settings.localGpu = v;
+        await save();
+        await Bridge.localModelStop();
+        void draw();
+      }),
+      h("span", { class: "hint note", text: t("Il modello lavora sulla scheda grafica (Vulkan: NVIDIA, AMD, Intel). Spento, solo sul processore.") })));
+    el.append(h("div", { class: "row" }, h("label", { text: t("Risposte dalla memoria") }),
+      toggle(settings.localCompose === true, (v) => { settings.localCompose = v; void save(); }),
+      h("span", { class: "hint note", text: t("Quando EasyIsland risponde dalla memoria (con Potion), il modello sul PC scrive la risposta con le righe trovate; le righe restano sotto. Se nomina qualcosa che nelle righe non c'è, o non risponde entro 20 secondi, si vedono solo le righe.") })));
+    const state = h("span", { class: "hint", style: "flex:1 1 auto;min-width:0" });
+    const stateRow = h("div", { class: "row" }, state);
+    if (s.running) {
+      state.textContent = s.runningGpu
+        ? t("Acceso con {name} sulla scheda grafica: si spegne da solo dopo 5 minuti senza domande.", { name: localName(s, s.running) })
+        : t("Acceso con {name} sul processore: si spegne da solo dopo 5 minuti senza domande.", { name: localName(s, s.running) });
+      const off = h("button", { text: t("Spegni ora") });
+      off.addEventListener("click", async () => {
+        await Bridge.localModelStop();
+        void draw();
+      });
+      stateRow.append(off);
+    } else {
+      state.textContent = t("Spento: non usa memoria, processore né scheda grafica.");
+    }
+    if (current && s.runtime && (s.models.some((m) => m.id === current && m.installed) || own)) {
+      const test = h("button", { text: t("Prova la velocità") }) as HTMLButtonElement;
+      test.addEventListener("click", async () => {
+        test.disabled = true;
+        test.textContent = t("Prova in corso…");
+        try {
+          const b = await Bridge.localModelBench(current);
+          const where = b.gpu ? t("sulla scheda grafica") : t("sul processore");
+          bench = t("{n} token al secondo {where} (risposta in {s} s, caricamento compreso). Da 15 in su la chat è scorrevole. «{sample}»", {
+            n: Math.round(b.writeTps), where, s: (b.ms / 1000).toLocaleString(locale(), { maximumFractionDigits: 1 }), sample: b.sample.slice(0, 160),
+          });
+        } catch (err) {
+          bench = errText(err);
+        }
+        void draw();
+      });
+      stateRow.append(test);
+    }
+    el.append(stateRow);
+    if (bench) el.append(h("div", { class: "notice", text: bench }));
+    if (!current) el.append(h("div", { class: "notice err", text: t("Nessun modello scelto: scaricane uno (quello consigliato è evidenziato) o scegli un file GGUF.") }));
+    if (error) el.append(h("div", { class: "notice err", text: error }));
+  }
+  void draw();
+  return el;
+}
 
 /**
  * OpenRouter, OpenAI, Gemini, Ollama, LM Studio (src-tauri/src/openai.rs): the
@@ -884,6 +1120,11 @@ function otherEngineBlock(changed: () => void) {
     if (!e || id === "subscription" || id === "api") return;
     settings.engineModels ??= {};
     settings.engineUrls ??= {};
+    if (id === "local") {
+      el.append(localModelBlock(changed));
+      changed();
+      return;
+    }
     const opencode = id === "opencode";
     const agy = id === "antigravity";
     if (agy) el.append(await antigravityHowTo());

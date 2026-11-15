@@ -28,7 +28,7 @@ struct Entry {
     kind: Kind,
 }
 
-const ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
+const ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio", "local"];
 const CHARACTERS: &[&str] = &["drop", "slime", "cube", "gecko", "flame", "magma", "stone", "rock", "leaf", "jarvis", "jarvis-sfera", "jarvis-plasma"];
 /// Mirrors TOGGLEABLE_INTEGRATION_IDS in src/core/state.ts.
 const INTEGRATIONS: &[&str] = &[
@@ -45,7 +45,7 @@ const MORE: &str = "Riepiloghi, proposte e avvio";
 const INTEGR: &str = "Integrazioni";
 
 const ENTRIES: &[Entry] = &[
-    Entry { key: "chatEngine", section: CHAT, what: "motore predefinito della chat: subscription = Claude con l'abbonamento (Claude Code), api = Claude con chiave API, opencode, openrouter, openai, gemini, ollama, lmstudio", kind: Kind::Choice(ENGINES) },
+    Entry { key: "chatEngine", section: CHAT, what: "motore predefinito della chat: subscription = Claude con l'abbonamento (Claude Code), api = Claude con chiave API, opencode, openrouter, openai, gemini, ollama, lmstudio, local = modello sul PC (llama.cpp dentro EasyIsland)", kind: Kind::Choice(ENGINES) },
     Entry { key: "cliModel", section: CHAT, what: "modello di Claude con l'abbonamento: opus, sonnet, haiku, o vuoto = quello di Claude Code", kind: Kind::Text },
     Entry { key: "model", section: CHAT, what: "modello di Claude con chiave API (es. claude-opus-5-5)", kind: Kind::Text },
     Entry { key: "engineModels.opencode", section: CHAT, what: "modello di opencode (provider/modello)", kind: Kind::Text },
@@ -54,6 +54,8 @@ const ENTRIES: &[Entry] = &[
     Entry { key: "engineModels.gemini", section: CHAT, what: "modello di Gemini", kind: Kind::Text },
     Entry { key: "engineModels.ollama", section: CHAT, what: "modello di Ollama", kind: Kind::Text },
     Entry { key: "engineModels.lmstudio", section: CHAT, what: "modello di LM Studio", kind: Kind::Text },
+    Entry { key: "engineModels.local", section: CHAT, what: "modello sul PC: id del catalogo (qwen3.5-0.8b, gemma-4-e2b, qwen3.5-4b, gemma-4-e4b, qwen3.5-9b) o percorso di un file .gguf", kind: Kind::Text },
+    Entry { key: "localCompose", section: CHAT, what: "il modello sul PC scrive le risposte dalla memoria con le righe trovate (true/false)", kind: Kind::Bool },
     Entry { key: "chatHistory", section: CHAT, what: "tenere le conversazioni su questo PC per riaprirle", kind: Kind::Bool },
     Entry { key: "contextActions", section: CHAT, what: "scheda ⚡ con le azioni per l'app in primo piano", kind: Kind::Bool },
     Entry { key: "searchBar", section: CHAT, what: "barra di ricerca in alto nell'isola aperta", kind: Kind::Bool },

@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 14/11 — Ricerca per significato sul PC (ramo `claude/significato-locale`, da `claude/sviluppo`)
+Edoardo: tra i modelli piccoli scelto model2vec, prima per la ricerca nella memoria; scaricato da Impostazioni, non nell'installer. Fatto `meaning_local.rs` (download a revisione e SHA-256 fissi, conversione a 8 bit mentre arriva, tokenizer Unigram in Rust uguale all'originale su 3.649 frasi), voce «EasyIsland, su questo PC» in Impostazioni → Chat → Memoria, anche dentro `memory_search`. `docs/chat.md` → Memoria.
+
+### 14/11 — Versione 1.0.47
+Uniti in `main` smistatore, comandi e ricette con date, stili Studio, mappa della memoria e il nuovo aspetto dell'isola di Antigravity (ricerca a tutta larghezza con calcolatrice, barra laterale manuale, Panoramica con «Adesso», campo della chat; `src/views/views.ts`, `rail.ts`, `search.ts`, `chat.ts`). Novità in `CHANGELOG.md`.
+
 ### 14/11 — Mappa della memoria: viste Mappa ad albero, Matrice, Salute (ramo `restyling-mappa-memoria`, di Antigravity)
 Unito in `claude/sviluppo` con `claude/comandi-ricette`; `claude/modello-integrato` resta fuori (scartato). Animazioni a riposo e barra delle viste a gruppi (`src/memory/treemap.ts`, `matrix.ts`, `health.ts`); conflitto in `concept.ts`: i collegamenti solo per nome restano tratteggiati fermi, quello selezionato scorre a riposo.
 
