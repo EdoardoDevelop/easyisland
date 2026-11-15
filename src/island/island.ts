@@ -251,6 +251,8 @@ export class Island {
   private homeCollapseAt: number | null = null;
   /** Width of the views the top bar needs for its buttons, bubble and field (measureHeader). */
   private headerNeed = 0;
+  /** Last search-only results height, so shrinking vs growing picks curve vs spring. */
+  private lastSearchH = 0;
   /** Hovering the compact island for `openDelay` seconds opens it. */
   private hoverOpenTimer: number | null = null;
 
@@ -306,7 +308,7 @@ export class Island {
       this.ensureRunning();
       // 📌 makes the open island an ordinary app window; unpinning, or closing
       // (which drops the pin), gives the usual island back.
-      const app = ((State.keepOpen && !State.keptByItself) || !!State.settings.islandApp) && State.mode === "expanded";
+      const app = !State.searchOnly && ((State.keepOpen && !State.keptByItself) || !!State.settings.islandApp) && State.mode === "expanded";
       if (app !== this.appMode) {
         this.appMode = app;
         State.appWindow = app;
@@ -478,7 +480,8 @@ export class Island {
       runAction: (a) => void this.runAction(a),
       openProgram: (path) => {
         Sound.play("blip");
-        void Bridge.actionOpenApp(path, "").then(() => this.collapse(), (e) => this.note(String(e), State.view));
+        this.collapse(true);
+        void Bridge.actionOpenApp(path, "").catch((e) => this.note(String(e), State.view));
       },
       ask: (text) => {
         Sound.play("blip");
@@ -502,6 +505,15 @@ export class Island {
         this.setView("prompt");
         window.setTimeout(() => reopenChat(id), 60);
       },
+      onLayout: () => {
+        if (!State.searchOnly || State.mode !== "expanded") return;
+        const nextH = this.search.resultsHeight();
+        const shrinking = nextH < this.lastSearchH;
+        this.lastSearchH = nextH;
+        this.animateGeometry(shrinking);
+      },
+      onDone: () => this.collapse(true),
+      onEscape: () => this.collapse(true),
     });
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
@@ -591,7 +603,7 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || State.windowPick != null || this.windowPress != null
       // Typing in a Notion page of the card (notionpage.ts): it does not close under the caret.
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
@@ -697,8 +709,9 @@ export class Island {
     // Before the content fades (syncDom).
     if (closing && !State.maximized) closeIsland(this.contentEl);
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
-    // Opening (motion.ts): the contents come in while the island grows.
-    if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized) {
+    // Opening (motion.ts): the contents come in while the island grows. Search-only
+    // stays visible right away: partsIn's 30 px slide-up would clip it inside the 50 px bar.
+    if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized && !State.searchOnly) {
       const parts = [...this.islandEl.querySelectorAll<HTMLElement>("#header, #rail, #views")];
       if (!openIsland(parts) && motionLevel() !== "spente") this.openWave();
     }
@@ -790,8 +803,8 @@ export class Island {
   }
 
   private get searchShown(): boolean {
-    return State.mode === "expanded" && State.settings.searchBar !== false
-      && !FIXED_SIZE_VIEWS.has(State.view) && State.view !== "prompt" && !this.uploadActive;
+    return State.mode === "expanded" && (State.searchOnly || (State.settings.searchBar !== false
+      && !FIXED_SIZE_VIEWS.has(State.view) && State.view !== "prompt" && !this.uploadActive));
   }
 
   /**
@@ -799,12 +812,12 @@ export class Island {
    * for the greeting and the drop sequence, drawn at their fixed size.
    */
   private get railShown(): boolean {
-    return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover;
+    return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover && !State.searchOnly;
   }
 
   /** The Anteprima's panel is in the open island (not on the greeting and the drop views; not with the chat in its window). */
   private get paneShown(): boolean {
-    return (this.paneOpen || State.chatTermOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !isPopped("chat");
+    return (this.paneOpen || State.chatTermOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat");
   }
 
   /**
@@ -829,7 +842,7 @@ export class Island {
    * taking it from the conversation, as the Anteprima's panel does.
    */
   private get chatSideRoom(): number {
-    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !isPopped("chat") ? chatSideWidth() : 0;
+    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !State.searchOnly && !isPopped("chat") ? chatSideWidth() : 0;
   }
 
   private get paneWidth(): number {
@@ -931,6 +944,7 @@ export class Island {
     }
     // Out of the card's own views (a request, the chat…): the whole island again, at its place.
     if (State.popover && !POP_VIEWS.has(view)) this.leavePopover();
+    if (State.searchOnly && State.mode === "expanded") this.leaveSearchOnly();
     if (view === "actions") void this.refreshForeground();
     if (view !== "files") this.trayUntil = 0;
     this.stopSequenceIfLeaving(view);
@@ -1962,12 +1976,23 @@ ${note}` : text };
     if (name === "open") {
       // Pressed again with the island open: it closes (a waiting request stays, see collapse).
       if (State.mode === "expanded") {
-        this.collapse();
+        this.collapse(State.searchOnly);
         return;
       }
-      // The Panoramica, as the ⌂ tab; a request waiting for an answer comes first.
-      State.summary = true;
-      this.setView(State.pendingCard() ?? "overview");
+      // A request waiting for an answer opens directly; otherwise open search-only in the centre.
+      const pending = State.pendingCard();
+      if (pending) {
+        State.searchOnly = false;
+        State.summary = true;
+        this.setView(pending);
+      } else {
+        State.searchOnly = true;
+        State.summary = false;
+        this.lastSearchH = 0;
+        this.openedByUser = true;
+        this.setView("overview");
+        this.openedByUser = false;
+      }
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       // A picture copied (and no text): attach it instead.
@@ -2024,7 +2049,10 @@ ${note}` : text };
     if (State.mode === "expanded" && (name === "open" || name === "pending" || name === "nextPill")) {
       this.keyboard = true;
       void Bridge.focusWindow(true);
-      if (name === "open") this.focusSearchSoon();
+      if (name === "open") {
+        if (State.searchOnly) this.search.focus();
+        this.focusSearchSoon();
+      }
     }
   }
 
@@ -2068,7 +2096,7 @@ ${note}` : text };
       this.toggleKeepOpen();
       return;
     }
-    if (typing || ctrl || e.altKey || e.repeat) return;
+    if (State.searchOnly || typing || ctrl || e.altKey || e.repeat) return;
     const k = CSS.escape(key);
     const button = this.viewsEl.querySelector<HTMLElement>(`.view.on :is([data-key="${k}"], [data-key-alt="${k}"])`);
     if (button) {
@@ -2554,9 +2582,9 @@ ${note}` : text };
     const greeting = State.view === "greeting";
     // With the fixed bar too (Edoardo, 30 Oct 2026): «In alto al centro» is
     // centred against the band, the work area ending there (island.rs place_origin).
-    this.awayPlace = State.popover ? "pop" : greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
+    this.awayPlace = State.popover ? "pop" : State.searchOnly ? "center" : greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
-    const place = State.popover ? `pop:${State.popover.x}:${POP_W}` : greeting ? this.awayPlace : null;
+    const place = State.popover ? `pop:${State.popover.x}:${POP_W}` : State.searchOnly ? "search" : greeting ? this.awayPlace : null;
     void Bridge.setExpanded(true, place).then((shift) => this.shiftPopover(shift));
   }
 
@@ -2574,6 +2602,7 @@ ${note}` : text };
    * the whole island. Already open, the island moves there.
    */
   openFromBarAt(view: IslandViewName, x?: number) {
+    State.searchOnly = false;
     if (x == null || !Number.isFinite(x) || State.settings.fixedBarLook?.popover === false) {
       if (State.popover) this.leavePopover();
       this.openFromBar(view);
@@ -2599,9 +2628,9 @@ ${note}` : text };
     void Bridge.setExpanded(true, `pop:${x}:${POP_W}`).then((shift) => this.shiftPopover(shift));
   }
 
-  /** A press outside the card come out of the bar: it goes back in, unless 📌 holds it. */
+  /** A press outside the card come out of the bar (or search-only bar): it goes back in, unless 📌 holds it. */
   closePopover() {
-    if (State.popover && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse(true);
+    if ((State.popover || State.searchOnly) && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse(true);
   }
 
   /** From the card come out of the bar to the whole island, at its usual place. */
@@ -2614,9 +2643,20 @@ ${note}` : text };
     void Bridge.setExpanded(true, null);
   }
 
+  /** From search-only mode into the full island (e.g. a hit opened Chat or an integration). */
+  private leaveSearchOnly() {
+    State.searchOnly = false;
+    this.lastSearchH = 0;
+    if (State.mode !== "expanded") return;
+    this.awayPlace = State.settings.islandPlace ?? "character";
+    this.away = this.awayPlace !== "character";
+    void Bridge.setExpanded(true, null);
+  }
+
   /** Opened elsewhere: it retracts there, then the window goes back to the character. */
   private closeAway() {
     if (!this.away) {
+      State.searchOnly = false;
       void Bridge.setExpanded(false);
       return;
     }
@@ -2626,6 +2666,8 @@ ${note}` : text };
       if (State.mode === "expanded") return;
       this.away = false;
       State.popover = null;
+      State.searchOnly = false;
+      this.lastSearchH = 0;
       this.popShift = 0;
       void Bridge.setExpanded(false);
       this.animateGeometry(false);
@@ -2746,6 +2788,12 @@ ${note}` : text };
         const cap = State.view === "barcard" && State.barCard === "appmenu" ? max.h : POP_MAX_H;
         h = Math.min(cap, Math.max(POP_MIN_H, Math.ceil(own)));
       }
+      if (State.searchOnly) {
+        w = Math.min(max.w, 640);
+        const resultsH = this.search.resultsHeight();
+        const capH = Math.min(max.h, Math.max(PANEL_H - 2 * EDGE_MARGIN, this.panel.h - 2 * EDGE_MARGIN));
+        h = resultsH > 0 ? Math.min(capH, 54 + resultsH) : 54;
+      }
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -2769,6 +2817,7 @@ ${note}` : text };
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
     if (State.maximized && State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) r = 0;
+    else if (State.searchOnly && State.mode === "expanded") r = Math.max(r, 16);
     return { w, h, r };
   }
 
@@ -2888,7 +2937,7 @@ ${note}` : text };
     // The resize corner: opposite the anchored side, on the free edge.
     const grip = this.resizeGrip.style;
     // Not out of the bar: the card is as big as its content.
-    const showGrip = State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover;
+    const showGrip = State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover && !State.searchOnly;
     grip.display = showGrip ? "block" : "none";
     if (showGrip) {
       const left = p.h === "right";
@@ -3582,6 +3631,7 @@ ${note}` : text };
    * island made it compact again (Edoardo, 29 Oct 2026).
    */
   private openFromBar(view?: IslandViewName) {
+    State.searchOnly = false;
     if (State.mode !== "expanded") {
       this.openedByUser = true;
       this.fsm.forceHome();
@@ -3589,10 +3639,12 @@ ${note}` : text };
     }
     if (view) this.setView(view);
     this.stayIfAsked();
+    this.focusSearchSoon();
   }
 
   /** Opened by the user (hover, click): the search bar takes the keyboard. */
   private openByUser() {
+    State.searchOnly = false;
     this.openedByUser = true;
     this.fsm.click();
     this.openedByUser = false;
@@ -3609,12 +3661,14 @@ ${note}` : text };
 
   /** Opened from the tray icon or from EasyIsland pinned to the taskbar (started again). */
   openFromTaskbar() {
+    State.searchOnly = false;
     if (State.mode !== "expanded") {
       this.openedByUser = true;
       this.alert(State.defaultView());
       this.openedByUser = false;
     }
     this.stayIfAsked();
+    this.focusSearchSoon();
   }
 
   /** ▢: the open island fills the work area; again, back to its own size. */
@@ -3630,11 +3684,15 @@ ${note}` : text };
    * and not over a request waiting for its N / Y keys.
    */
   private focusSearchSoon() {
-    window.setTimeout(() => {
+    const attempt = () => {
       if (State.mode !== "expanded" || !this.searchShown || State.pendingApproval) return;
+      this.search.el.style.display = "";
       this.keyboard = true;
       this.search.focus();
-    }, 120);
+    };
+    attempt();
+    window.setTimeout(attempt, 60);
+    window.setTimeout(attempt, 160);
   }
 
   private cancelHoverOpen() {
@@ -3670,6 +3728,7 @@ ${note}` : text };
 
   /** True for the open island's header background, where a drag moves the island. */
   private isHeaderGrab(target: EventTarget | null): boolean {
+    if (State.searchOnly) return false;
     const t = target as HTMLElement | null;
     return !!t?.closest?.("#header") && !t.closest("button, input, select, [data-id]");
   }
@@ -3699,7 +3758,7 @@ ${note}` : text };
     };
     const movePress = (e: PointerEvent) => {
       const p = this.press;
-      if (!p) return;
+      if (!p || State.searchOnly) return;
       const dx = e.screenX - p.x;
       const dy = e.screenY - p.y;
       if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
@@ -4154,10 +4213,10 @@ ${note}` : text };
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
     // The drop canvas draws its own the character; two of them would overlap.
-    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !State.popover && this.greetLeaving == null;
+    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !State.popover && !State.searchOnly && this.greetLeaving == null;
     this.botCanvas.style.opacity = visible ? "1" : "0";
 
-    if (State.mode === "expanded" && State.view !== "uploading" && !greetingActive && !this.uploadActive) {
+    if (State.mode === "expanded" && State.view !== "uploading" && !greetingActive && !this.uploadActive && !State.searchOnly) {
       const d = p.diameter;
       const color = botGlowColor(State.effectiveState);
       this.botGlow.style.display = "block";
@@ -4347,7 +4406,7 @@ ${note}` : text };
   }
 
   private updateCountdown(nowMs: number) {
-    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || State.pendingApproval || this.homeCollapseAt == null) {
+    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || State.pendingApproval || State.searchOnly || this.homeCollapseAt == null) {
       this.countdown.style.width = "0px";
       return;
     }
@@ -4379,6 +4438,7 @@ ${note}` : text };
     this.islandEl.classList.toggle("rail-compact", compactRail);
     this.islandEl.classList.toggle("pop", !!State.popover);
     this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
+    this.islandEl.classList.toggle("search-only", State.searchOnly);
     this.islandEl.classList.toggle("open", expanded);
     if (railed) {
       guard("menu", () => this.rail.sync());

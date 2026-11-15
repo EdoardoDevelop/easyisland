@@ -5642,5 +5642,16 @@
   "Pulsanti della scheda ⚡, suggerimenti per l'app in uso e scorciatoie da tastiera.": "Buttons in the ⚡ tab, active-app suggestions and keyboard shortcuts.",
   "Compiti autonomi, flussi automatici, controllo periodico (Battito), secondo cervello e abilità.": "Autonomous tasks, automated flows, periodic Heartbeat checks, second brain and skills.",
   "Servizi esterni, controlli di sistema, ordine del menu e integrazioni create a parole nella chat.": "External services, system checks, menu order and custom chat-built integrations.",
-  "Fonti delle notizie e argomenti seguiti, proposti dalla memoria o aggiunti a mano.": "News sources and followed topics, whether suggested from memory or added manually."
+  "Fonti delle notizie e argomenti seguiti, proposti dalla memoria o aggiunti a mano.": "News sources and followed topics, whether suggested from memory or added manually.",
+  "Pulisci (Esc)": "Clear (Esc)",
+  "chiude": "closes",
+  "{n} risultato": "{n} result",
+  "{n} risultati": "{n} results",
+  "o": "or",
+  "scorre": "navigate",
+  "apri": "open",
+  "pulisci": "clear",
+  "Invio": "Enter",
+  "Ctrl+Invio": "Ctrl+Enter",
+  "Alt+Invio": "Alt+Enter"
 }

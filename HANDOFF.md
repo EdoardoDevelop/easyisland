@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_15 novembre 2026. **1.0.49** in `main` (tag `v1.0.49`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_15 novembre 2026. **1.0.50** in `main` (tag `v1.0.50`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -60,6 +60,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 15/11 — Versione 1.0.50
+Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su schermo, tema scuro e chiaro, fuoco automatico), tutte le schede delle Impostazioni riordinate con sotto-schede condivise e tre fix Windows (chiusura pulita senza finestra nascosta nella barra delle applicazioni, clic sul personaggio che riporta in primo piano l'isola coperta, avvio di app Store, collegamenti `.lnk`/`.url` e Pannello di controllo dalla ricerca). Smoke completo «nessun errore» (91 prove), test Rust 575 + 38.
+
 ### 15/11 — Versione 1.0.49
 Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo della scheda grafica e modello consigliato, Modalità terminale interna, risposte dalla memoria scritte dal modello) e le sotto-schede di Impostazioni → Chat e motori. Smoke completo «nessun errore» (91 prove), test Rust 574 + 38.
 
@@ -73,11 +76,6 @@ Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, 
 
 ### 15/11 — Versione 1.0.48
 Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.
-
-
-
-### 15/11 — Voti 👍/👎 e «Solo EasyIsland» (ramo `claude/voti-solo-easyisland`, da `claude/sviluppo`)
-Edoardo: like/dislike alle risposte e una chat senza motori per allenare EasyIsland. Fatto `votes.rs` (voti cifrati; 👍/👎 sulle righe della memoria, 👍 a un motore insegna le righe usate; «Riprova» come prove di regressione) e la voce «Solo EasyIsland» nel menu dei motori (`lib.rs` `ONLY_EASY`, `router::only_none`). Risposte dalla memoria anche senza servizio di significato (solo parole). `claude/risposte-memoria` unito in `claude/sviluppo` (avanti veloce). Poi: «Puoi chiedere» con domande dalla memoria sulle pagine che si hanno davanti (solo quelle a cui risponde da solo), nascosto sotto i menu; quadratino bianco della barra di scorrimento della chat tolto. Ricerca per significato fino a 50.000 righe (portatile: 1.200), vettori in `significato.bin` binario (34 ms e 13 MB a 50.000; il JSON si converte da solo); niente database vettoriale. Isola rimisurata quando il contenuto cambia da solo (fondo tagliato in Modifica rete… e altre schede). Avvisi dei controlli (pioggia, disco) con «Attenzione» giallo invece di «Errore»; nella Panoramica il nome non si taglia più per l'etichetta.
 
 
 

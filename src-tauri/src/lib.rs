@@ -375,8 +375,10 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
 // ── Quick actions ─────────────────────────────────────────────────────────────
 
 #[tauri::command]
-fn action_open_app(target: String, args: String) -> Result<(), String> {
-    actions::open_app(&target, &args)
+async fn action_open_app(target: String, args: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || actions::open_app(&target, &args))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Impostazioni → Lingua: the island and the menus are built in one language.
@@ -512,6 +514,9 @@ fn set_collapsed(
     if let (Some(w), Some(h)) = (width, height) {
         *shared.gate.collapsed_size.lock().unwrap() = (w.max(1.0), h.max(1.0));
     }
+    if collapsed {
+        island::set_app_mode(&app, false);
+    }
     // Closing or opening again: always back on top.
     island::come_forward(&app);
     let settings = shared.settings.lock().unwrap().clone();
@@ -519,17 +524,33 @@ fn set_collapsed(
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     // Hidden behind a full-screen app while resting; always back for anything else.
     if let Some(win) = island::window(&app) {
+        if collapsed {
+            island::set_want_focus(false);
+            island::set_activating(&win, false);
+        }
         // With the fixed bar the closed island is not there at all: the bar is (appbar.rs).
         let quiet = collapsed
             && (shared.gate.fullscreen.load(Ordering::Relaxed) || settings.bar_edge().is_some())
             && !island::CAPTURING.load(Ordering::Relaxed);
         let _ = if quiet { win.hide() } else { win.show() };
+        island::keep_out_of_alt_tab(&win);
     }
+    if !collapsed && island::wants_app_mode() {
+        island::apply_app_mode(&app, true);
+    }
+    island::apply_taskbar(&app);
     // The wake strip must always take the mouse, and a resize invalidates the flag.
     island::set_ignore_cursor(&app, false);
     shared.gate.forget_ignore_state();
     shared.gate.set_active(!collapsed);
     sync_character(&app);
+    if !collapsed && island::wants_focus() {
+        if let Some(win) = island::window(&app) {
+            if win.is_visible().unwrap_or(false) {
+                island::activate_window(&app, &win);
+            }
+        }
+    }
 }
 
 /// The front end pushes the island shape; Rust decides click-through from it.
@@ -540,10 +561,14 @@ fn set_island_rect(shared: State<Shared>, x: f64, y: f64, width: f64, height: f6
 
 #[tauri::command]
 fn focus_window(app: AppHandle, focused: bool) {
+    island::set_want_focus(focused);
     let Some(win) = island::window(&app) else { return };
     island::set_activating(&win, focused);
     if focused {
-        let _ = win.set_focus();
+        let collapsed = app.state::<Shared>().gate.collapsed.load(Ordering::Relaxed);
+        if !collapsed && win.is_visible().unwrap_or(false) {
+            island::activate_window(&app, &win);
+        }
     }
 }
 
@@ -4201,6 +4226,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
         if !ch.is_visible().unwrap_or(false) {
             let _ = ch.show();
         }
+        island::force_toolwindow(&ch.as_ref().window());
         island::raise_character(app);
         return;
     }
@@ -4232,6 +4258,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
         if ch.is_visible().unwrap_or(false) {
             let _ = ch.hide();
         }
+        island::force_toolwindow(&ch.as_ref().window());
         return;
     };
     let _ = ch.set_size(size);
@@ -4243,6 +4270,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
     if !ch.is_visible().unwrap_or(false) {
         let _ = ch.show();
     }
+    island::force_toolwindow(&ch.as_ref().window());
     island::raise_character(app);
 }
 

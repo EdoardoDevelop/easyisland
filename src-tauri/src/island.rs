@@ -14,13 +14,15 @@ use serde::Serialize;
 use crate::settings::Settings;
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize};
 
-use windows::Win32::Foundation::{HWND, POINT};
+use windows::Win32::Foundation::{HWND, POINT, RECT};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowW, FlashWindowEx, GetCursorPos, GetForegroundWindow, GetWindowLongPtrW, IsWindowVisible, SetWindowLongPtrW,
-    SetWindowPos, FLASHWINFO, FLASHW_TIMERNOFG, FLASHW_TRAY, GWL_EXSTYLE, GWL_STYLE, HWND_NOTOPMOST, HWND_TOPMOST,
-    SWP_ASYNCWINDOWPOS, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WS_EX_APPWINDOW,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MINIMIZEBOX,
+    FindWindowW, FlashWindowEx, GetCursorPos, GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowRect,
+    GetWindowThreadProcessId, IsWindowVisible, SetWindowLongPtrW, SetWindowPos, FLASHWINFO, FLASHW_TIMERNOFG,
+    FLASHW_TRAY, GWL_EXSTYLE, GWL_STYLE, GW_HWNDPREV, HWND_NOTOPMOST, HWND_TOPMOST, SWP_ASYNCWINDOWPOS,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, SWP_NOZORDER, WS_EX_APPWINDOW,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_MINIMIZEBOX,
 };
 
 /// Logical size of the full window while open, at least. Taller than any fixed
@@ -258,7 +260,7 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let place = gate.open_place.lock().unwrap().clone();
     let pop = place.as_deref().filter(|_| open).and_then(|p| pop_origin(work, (pw, ph), p, settings, scale));
     *POP_SHIFT.lock().unwrap() = pop.map_or(0.0, |p| p.1);
-    POP_OPEN.store(pop.is_some(), Ordering::Relaxed);
+    POP_OPEN.store(pop.is_some() || (open && place.as_deref() == Some("search")), Ordering::Relaxed);
     let (x, y) = match pop {
         Some((o, _)) => o,
         None => open_origin(work, (pw, ph), settings, place.as_deref(), scale, open),
@@ -375,7 +377,7 @@ fn place_origin(work: (i32, i32, u32, u32), size: (u32, u32), place: &str) -> Op
     let x = wx + (ww as i32 - pw) / 2;
     let y = match place {
         "top" => wy,
-        "center" => wy + (wh as i32 - ph) / 2,
+        "center" | "search" => wy + (wh as i32 - ph) / 2,
         "bottom" => wy + wh as i32 - ph,
         _ => return None,
     };
@@ -800,17 +802,134 @@ pub fn come_forward(app: &AppHandle) {
 /// it was behind and is now in front; false when it was in front already.
 /// The character's window never activates, so the foreground still is the
 /// window the user was in before the click.
-pub fn to_front(app: &AppHandle) -> bool {
-    use windows::Win32::UI::Input::KeyboardAndMouse::{
-        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
-    };
-    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, SetForegroundWindow, GA_ROOT};
+/// Remember whether the UI asked to focus the island before it became visible.
+static WANT_FOCUS: AtomicBool = AtomicBool::new(false);
+
+pub fn set_want_focus(want: bool) {
+    WANT_FOCUS.store(want, Ordering::Relaxed);
+}
+
+pub fn wants_focus() -> bool {
+    WANT_FOCUS.load(Ordering::Relaxed)
+}
+
+/// True if any visible non-EasyIsland window sits above the island in Z-order
+/// and overlaps its rectangle (even when `BEHIND` was not tripped by a focus change).
+fn is_obscured(app: &AppHandle) -> bool {
+    let Some(win) = window(app) else { return false };
+    let Some(me) = hwnd_of(&win) else { return false };
+    let own_pid = std::process::id();
+    unsafe {
+        if !IsWindowVisible(me).as_bool() {
+            return false;
+        }
+        let mut me_rect = RECT::default();
+        if GetWindowRect(me, &mut me_rect).is_err() {
+            return false;
+        }
+        let mut cur = me;
+        while let Ok(prev) = GetWindow(cur, GW_HWNDPREV) {
+            if prev.0.is_null() {
+                break;
+            }
+            cur = prev;
+            if IsWindowVisible(prev).as_bool() {
+                let mut pid = 0u32;
+                GetWindowThreadProcessId(prev, Some(&mut pid));
+                if pid != own_pid {
+                    let mut cloaked: u32 = 0;
+                    let is_cloaked = DwmGetWindowAttribute(
+                        prev,
+                        DWMWA_CLOAKED,
+                        &mut cloaked as *mut u32 as *mut _,
+                        std::mem::size_of::<u32>() as u32,
+                    )
+                    .is_ok()
+                        && cloaked != 0;
+                    let ex = GetWindowLongPtrW(prev, GWL_EXSTYLE);
+                    let click_through = (ex & (WS_EX_TRANSPARENT.0 as isize)) != 0;
+                    if !is_cloaked && !click_through {
+                        let mut r = RECT::default();
+                        if GetWindowRect(prev, &mut r).is_ok()
+                            && r.right - r.left > 2
+                            && r.bottom - r.top > 2
+                            && r.left < me_rect.right
+                            && r.right > me_rect.left
+                            && r.top < me_rect.bottom
+                            && r.bottom > me_rect.top
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Unlocks Windows foreground activation and gives keyboard focus to the island window.
+pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
+    set_activating(win, true);
+    let Some(hwnd) = hwnd_of(win) else { return };
+    unsafe {
+        use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+        use windows::Win32::UI::Input::KeyboardAndMouse::{
+            SendInput, SetFocus, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
+        };
+        use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
+
+        let fg = GetForegroundWindow();
+        if fg != hwnd {
+            let cur_tid = GetCurrentThreadId();
+            let fg_tid = if !fg.0.is_null() {
+                GetWindowThreadProcessId(fg, None)
+            } else {
+                0
+            };
+            let attached = fg_tid != 0 && fg_tid != cur_tid && AttachThreadInput(cur_tid, fg_tid, true).as_bool();
+            let _ = SetForegroundWindow(hwnd);
+            let _ = BringWindowToTop(hwnd);
+            let _ = SetFocus(Some(hwnd));
+            if attached {
+                let _ = AttachThreadInput(cur_tid, fg_tid, false);
+            }
+            if GetForegroundWindow() != hwnd {
+                let key = |flags| INPUT {
+                    r#type: INPUT_KEYBOARD,
+                    Anonymous: INPUT_0 {
+                        ki: KEYBDINPUT { wVk: VK_MENU, dwFlags: flags, ..Default::default() },
+                    },
+                };
+                let _ = SendInput(
+                    &[key(Default::default()), key(KEYEVENTF_KEYUP)],
+                    std::mem::size_of::<INPUT>() as i32,
+                );
+                let _ = SetForegroundWindow(hwnd);
+                let _ = BringWindowToTop(hwnd);
+                let _ = SetFocus(Some(hwnd));
+            }
+        }
+    }
+    let _ = win.set_focus();
     if !app_mode() {
-        // On top unless it stepped back behind a window (step_aside_for).
-        if !is_behind() {
+        raise_over_taskbar(app);
+    }
+}
+
+pub fn to_front(app: &AppHandle) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
+    if !app_mode() {
+        // On top unless it stepped back behind a window or another window covers it.
+        if !is_behind() && !is_obscured(app) {
             return false;
         }
         come_forward(app);
+        if wants_focus() {
+            if let Some(win) = window(app) {
+                activate_window(app, &win);
+            }
+        }
         return true;
     }
     let Some(win) = window(app) else { return false };
@@ -819,21 +938,32 @@ pub fn to_front(app: &AppHandle) -> bool {
         let _ = win.unminimize();
     } else {
         let fg = unsafe { GetAncestor(GetForegroundWindow(), GA_ROOT) };
-        if fg == me {
+        if fg == me && !is_obscured(app) {
             return false;
         }
     }
+    // Lift above any covering window while remaining HWND_NOTOPMOST in app mode.
     unsafe {
-        // Only the app with the last input may take the foreground; a tapped
-        // Alt lets SetForegroundWindow through (as apps.rs::focus_app).
-        let key = |flags| INPUT {
-            r#type: INPUT_KEYBOARD,
-            Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: VK_MENU, dwFlags: flags, ..Default::default() } },
-        };
-        let _ = SendInput(&[key(Default::default()), key(KEYEVENTF_KEYUP)], std::mem::size_of::<INPUT>() as i32);
-        let _ = SetForegroundWindow(me);
+        let _ = SetWindowPos(
+            me,
+            Some(HWND_TOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER,
+        );
+        let _ = SetWindowPos(
+            me,
+            Some(HWND_NOTOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER,
+        );
     }
-    let _ = win.set_focus();
+    activate_window(app, &win);
     raise_character(app);
     true
 }
@@ -925,20 +1055,36 @@ pub fn hwnd_of(win: &tauri::Window) -> Option<HWND> {
 }
 
 /// Tao rewrites the extended style from its own flags at every change of them
+/// Forces a window out of Alt+Tab and out of the Windows taskbar unconditionally
+/// (used directly for auxiliary overlay windows like `personaggio`).
+pub fn force_toolwindow(win: &tauri::Window) {
+    let Some(hwnd) = hwnd_of(win) else { return };
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let want = (ex & !(WS_EX_APPWINDOW.0 as isize)) | (WS_EX_TOOLWINDOW.0 as isize);
+        if want != ex {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
+    }
+    let _ = win.set_skip_taskbar(true);
+}
+
 /// (ignore cursor events, always on top) and drops WS_EX_TOOLWINDOW: the closed
 /// island then showed in Alt+Tab. Put back unless it is open as an app.
 pub fn keep_out_of_alt_tab(win: &tauri::Window) {
     if app_mode() {
         return;
     }
-    let Some(hwnd) = hwnd_of(win) else { return };
-    unsafe {
-        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let tool = WS_EX_TOOLWINDOW.0 as isize;
-        if ex & tool == 0 {
-            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex & !(WS_EX_APPWINDOW.0 as isize)) | tool);
-        }
-    }
+    force_toolwindow(win);
 }
 
 /// `set_ignore_cursor_events`, keeping the island out of Alt+Tab.
@@ -953,9 +1099,23 @@ pub fn make_non_activating(win: &tauri::Window) {
     let Some(hwnd) = hwnd_of(win) else { return };
     unsafe {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let want = ex | WS_EX_NOACTIVATE.0 as isize | WS_EX_TOOLWINDOW.0 as isize;
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+        let want = (ex & !(WS_EX_APPWINDOW.0 as isize))
+            | (WS_EX_NOACTIVATE.0 as isize)
+            | (WS_EX_TOOLWINDOW.0 as isize);
+        if want != ex {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
     }
+    let _ = win.set_skip_taskbar(true);
 }
 
 /// The character's own window back at the top of the topmost band, above the
@@ -990,20 +1150,44 @@ pub fn set_activating(win: &tauri::Window, activating: bool) {
     let Some(hwnd) = hwnd_of(win) else { return };
     unsafe {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let want = if activating {
-            ex & !(WS_EX_NOACTIVATE.0 as isize)
+        let base = if app_mode() {
+            ex
         } else {
-            ex | WS_EX_NOACTIVATE.0 as isize
+            (ex & !(WS_EX_APPWINDOW.0 as isize)) | (WS_EX_TOOLWINDOW.0 as isize)
         };
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+        let want = if activating {
+            base & !(WS_EX_NOACTIVATE.0 as isize)
+        } else {
+            base | WS_EX_NOACTIVATE.0 as isize
+        };
+        if want != ex {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
+    }
+    if !app_mode() {
+        let _ = win.set_skip_taskbar(true);
     }
 }
 
 /// 📌 "Tieni aperta": the open island is an ordinary window while it is pinned.
 static APP_MODE: AtomicBool = AtomicBool::new(false);
+static WANT_APP_MODE: AtomicBool = AtomicBool::new(false);
 
 pub fn app_mode() -> bool {
     APP_MODE.load(Ordering::Relaxed)
+}
+
+pub fn wants_app_mode() -> bool {
+    WANT_APP_MODE.load(Ordering::Relaxed)
 }
 
 /// 📌 on: the open island becomes an ordinary app window — a button on the
@@ -1014,6 +1198,15 @@ pub fn app_mode() -> bool {
 /// Every place that raises the island (apply_geometry, raise_over_taskbar,
 /// set_activating) checks `app_mode` first.
 pub fn set_app_mode(app: &AppHandle, on: bool) {
+    WANT_APP_MODE.store(on, Ordering::Relaxed);
+    if on && app.try_state::<crate::Shared>().is_some_and(|s| s.gate.collapsed.load(Ordering::Relaxed)) {
+        return;
+    }
+    apply_app_mode(app, on);
+}
+
+/// Applies `app_mode` immediately without overwriting `WANT_APP_MODE` (used when collapsing/expanding).
+pub fn apply_app_mode(app: &AppHandle, on: bool) {
     if APP_MODE.swap(on, Ordering::Relaxed) == on {
         return;
     }
@@ -1043,9 +1236,12 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
     }
     // Tao's own flags follow, so its later calls agree with the window.
     let _ = win.set_always_on_top(!on);
-        keep_out_of_alt_tab(&win);
     let _ = win.set_skip_taskbar(!on);
-    if on {
+    if !on {
+        make_non_activating(&win);
+    } else if wants_focus() {
+        activate_window(app, &win);
+    } else {
         // Just pinned with a click on it: it is the active window now.
         let _ = win.set_focus();
     }
@@ -1059,6 +1255,7 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
 pub fn apply_taskbar(app: &AppHandle) {
     let Some(win) = window(app) else { return };
     let _ = win.set_skip_taskbar(!app_mode());
+    keep_out_of_alt_tab(&win);
 }
 
 /// A permission or a question while the pinned island is behind other windows:
@@ -1278,6 +1475,7 @@ mod tests {
         let size = (720, 560);
         assert_eq!(place_origin(WORK, size, "top"), Some((600, 0)));
         assert_eq!(place_origin(WORK, size, "center"), Some((600, 240)));
+        assert_eq!(place_origin(WORK, size, "search"), Some((600, 240)));
         assert_eq!(place_origin(WORK, size, "bottom"), Some((600, 480)));
         assert_eq!(place_origin(WORK, size, "character"), None);
     }
