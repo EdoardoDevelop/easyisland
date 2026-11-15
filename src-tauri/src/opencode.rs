@@ -165,6 +165,15 @@ pub fn via(engine: &str, model: &str, custom_url: Option<&str>) -> Result<(Strin
     Ok((format!("{provider}/{model}"), o))
 }
 
+/// Modalità terminale with the model on this PC (local_model.rs): its server as
+/// an OpenAI-compatible provider, the key only in the environment.
+pub fn via_local(key: &str, config: &str) -> (String, Options) {
+    let mut o = Options::default();
+    o.env.push(("EASYISLAND_LLM_KEY", key.to_string()));
+    o.config = Some(config.to_string());
+    ("easyisland/easyisland".to_string(), o)
+}
+
 /// The config files opencode reads at start, with their times: a change means
 /// the server must start again to see it.
 fn config_stamp() -> Vec<(String, Option<std::time::SystemTime>)> {
@@ -1040,7 +1049,7 @@ pub async fn models() -> Result<Vec<crate::openai::ModelOption>, String> {
 }
 
 /// Providers that run on this PC: nothing to pay, whatever the catalog says.
-const LOCAL_PROVIDERS: &[&str] = &["ollama", "lmstudio", "llama.cpp", "llamacpp"];
+const LOCAL_PROVIDERS: &[&str] = &["ollama", "lmstudio", "llama.cpp", "llamacpp", "easyisland"];
 
 /// The models of `/api/model`, with their price: `cost` is a list of tiers
 /// (opencode 2.x, the first is the base price) or one object (older), in

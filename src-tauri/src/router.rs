@@ -253,13 +253,26 @@ async fn from_memory(app: &AppHandle, chat: &Chat, asked: &str, only: bool) -> D
         m.push((k, lines.clone()));
     }
     crate::log::line(format!("smistatore: risposta dalla memoria ({} righe)", lines.len()));
-    Direct::Answer(
-        format!("{}
+    let tail = if only { t("«Chiedi al motore» per la risposta di un motore.") } else { t("Per la risposta del motore riscrivi la domanda.") };
+    // «Modello sul PC» (local_model.rs): it writes the lines as an answer, the
+    // lines stay under it; anything it names that they do not have, and the lines alone.
+    let text = match crate::local_model::compose(app, &question, &lines).await {
+        Some((composed, model)) => format!(
+            "{composed}
+
+{}
 
 {body}
-📒 {}", t("Dalla memoria:"), if only { t("Risposta di EasyIsland dalla memoria, senza motore. «Chiedi al motore» per la risposta di un motore.") } else { t("Risposta di EasyIsland dalla memoria, senza motore. Per la risposta del motore riscrivi la domanda.") }),
-        "memoria".into(),
-    )
+📒 {}",
+            t("Dalle righe della memoria:"),
+            tf("Scritta da {m} su questo PC con le righe della memoria, senza motore. {tail}", &[("m", &model), ("tail", &tail)])
+        ),
+        None => format!("{}
+
+{body}
+📒 {}", t("Dalla memoria:"), tf("Risposta di EasyIsland dalla memoria, senza motore. {tail}", &[("tail", &tail)])),
+    };
+    Direct::Answer(text, "memoria".into())
 }
 
 fn mark_direct(k: usize, asked: &str) {

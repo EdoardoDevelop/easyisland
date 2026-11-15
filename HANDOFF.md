@@ -5,6 +5,7 @@ _15 novembre 2026. **1.0.48** in `main` (tag `v1.0.48`). Si lavora su `claude/sv
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Modello sul PC** (15/11, ramo `claude/llm-interno` da `claude/sviluppo`, non unito): `docs/chat.md` → Motori → Modello sul PC. Provato dal vivo con `chiedi`: RTX 3070 (Qwen 3.5 4B, 55 token/s scritti, 1.500 letti) e Radeon 840M del portatile (Gemma 4 E2B 21/180, consigliato lì; 4B 8/150). Da provare nell'isola: Impostazioni → card, «Scarica» del consigliato, «Prova la velocità», le risposte dalla memoria scritte dal modello, la Modalità terminale con un permesso vero. Da decidere: istruzioni di opencode più corte per i modelli sul PC (~11.000 token alla prima domanda).
 - [ ] **Voti e Solo EasyIsland** (15/11, ramo `claude/voti-solo-easyisland`, da `claude/sviluppo` che ha già `claude/risposte-memoria`): `docs/chat.md` → Voti, Solo EasyIsland. Provati con test, anteprima e `chiedi --motore easyisland` sul portatile (risposte, righe vicine, domanda ripetuta); da provare nell'isola i voti veri (👍 a un motore che insegna una riga, 👎 poi «Chiedi al motore») e «Riprova» in Impostazioni → Chat. Unito in `claude/sviluppo`. Poi (stesso ramo) i suggerimenti 📒 dalla memoria (`memory_tips.rs`): da guardare nell'isola con una pagina o un file di un cliente davanti e dopo una domanda.
 - [ ] **Risposte dalla memoria e `chiedi`** (15/11, in `claude/sviluppo`): da guardare nell'isola «📒 Dalla memoria» e «Chiedi al motore»; con l'uso, i 👎 dicono dove la regola delle parole in `memory_answer.rs` sbaglia.
 - [ ] **Ricerca per significato sul PC** (14/11, in `claude/sviluppo`): da provare nell'app «Scarica», poi domande con parole diverse dalle note: «🧠 N per significato» sotto la risposta e le righe «significato (…)» nel log dicono cosa ha trovato e con che punteggio; soglie 0,30/0,10 da rivedere sulla memoria vera. Dopo: lo stesso confronto per le ricette (`docs/idee.md`).
@@ -59,11 +60,16 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
+Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.
+
 ### 15/11 — Versione 1.0.48
 Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.
 
+
 ### 15/11 — Voti 👍/👎 e «Solo EasyIsland» (ramo `claude/voti-solo-easyisland`, da `claude/sviluppo`)
 Edoardo: like/dislike alle risposte e una chat senza motori per allenare EasyIsland. Fatto `votes.rs` (voti cifrati; 👍/👎 sulle righe della memoria, 👍 a un motore insegna le righe usate; «Riprova» come prove di regressione) e la voce «Solo EasyIsland» nel menu dei motori (`lib.rs` `ONLY_EASY`, `router::only_none`). Risposte dalla memoria anche senza servizio di significato (solo parole). `claude/risposte-memoria` unito in `claude/sviluppo` (avanti veloce). Poi: «Puoi chiedere» con domande dalla memoria sulle pagine che si hanno davanti (solo quelle a cui risponde da solo), nascosto sotto i menu; quadratino bianco della barra di scorrimento della chat tolto. Ricerca per significato fino a 50.000 righe (portatile: 1.200), vettori in `significato.bin` binario (34 ms e 13 MB a 50.000; il JSON si converte da solo); niente database vettoriale. Isola rimisurata quando il contenuto cambia da solo (fondo tagliato in Modifica rete… e altre schede). Avvisi dei controlli (pioggia, disco) con «Attenzione» giallo invece di «Errore»; nella Panoramica il nome non si taglia più per l'etichetta.
+
 
 
 ### 15/11 — Risposte dalla memoria senza motore e `easyisland-hook chiedi` (ramo `claude/risposte-memoria`, da `claude/sviluppo`)
@@ -71,12 +77,9 @@ Sul portatile «quale vm ha la farmacia falchi?» andava a Claude (due passi). F
 
 
 
+
 ### 14/11 — Ricerca per significato sul PC (ramo `claude/significato-locale`, da `claude/sviluppo`)
 Edoardo: tra i modelli piccoli scelto model2vec, prima per la ricerca nella memoria; scaricato da Impostazioni, non nell'installer. Fatto `meaning_local.rs` (download a revisione e SHA-256 fissi, conversione a 8 bit mentre arriva, tokenizer Unigram in Rust uguale all'originale su 3.649 frasi), voce «EasyIsland, su questo PC» in Impostazioni → Chat → Memoria, anche dentro `memory_search`. `docs/chat.md` → Memoria.
 
-
-
-### 14/11 — Versione 1.0.47
-Uniti in `main` smistatore, comandi e ricette con date, stili Studio, mappa della memoria e il nuovo aspetto dell'isola di Antigravity (ricerca a tutta larghezza con calcolatrice, barra laterale manuale, Panoramica con «Adesso», campo della chat; `src/views/views.ts`, `rail.ts`, `search.ts`, `chat.ts`). Novità in `CHANGELOG.md`.
 
 

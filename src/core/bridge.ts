@@ -386,6 +386,17 @@ export const Bridge = {
     callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null; plan?: string | null; usage?: import("./state").TurnUsage | null; direct?: boolean; command?: import("./state").ChatCommand | null; meaning?: [string, number][]; memory?: string[] }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
+  /** Impostazioni → Chat → Modello sul PC (local_model.rs): this PC, the catalog, the server. */
+  localModelStatus: async () => IS_TAURI ? call<LocalModelStatus>("local_model_status") : PREVIEW_LOCAL_MODEL,
+  /** The engine when missing, then the model ("runtime" = only the engine); progress as `local-model-progress`. */
+  localModelDownload: (id: string) => callOrThrow<void>("local_model_download", { id }),
+  localModelCancel: () => call<void>("local_model_cancel"),
+  localModelDelete: (id: string) => callOrThrow<void>("local_model_delete", { id }),
+  /** Windows' open dialog for a .gguf file; null when cancelled. */
+  localModelPick: () => callOrThrow<string | null>("local_model_pick"),
+  localModelStop: () => call<void>("local_model_stop"),
+  /** «Prova»: how fast the model writes here, and where. */
+  localModelBench: (model: string) => callOrThrow<LocalModelBench>("local_model_bench", { model }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
   antigravityStatus: () => call<{ found: boolean; path: string }>("antigravity_status"),
   /** Impostazioni → Telegram → «Vocali»: the models of a service that take audio, cheapest first (transcribe.rs). */
@@ -1409,6 +1420,53 @@ export interface CaptureZone {
   width: number;
   height: number;
 }
+
+/** Impostazioni → Chat → Modello sul PC (local_model.rs Status). */
+export interface LocalModelStatus {
+  runtime: boolean;
+  runtimeSize: number;
+  models: { id: string; name: string; size: number; installed: boolean; partial: number; fit: "ok" | "tight" | "no" }[];
+  /** The model the server has loaded now (catalog id or path), null when off. */
+  running: string | null;
+  runningGpu: boolean;
+  downloading: string | null;
+  modelsDir: string;
+  hardware: { gpus: { name: string; vendor: string; dedicatedMb: number; sharedMb: number; discrete: boolean }[]; ramMb: number; vulkan: boolean };
+  /** Where a model runs here: "gpu" (a card of its own), "igpu" (integrated), "cpu". */
+  place: "gpu" | "igpu" | "cpu";
+  recommended: string;
+  /** What llama.cpp sees («Vulkan0: …»); null before the engine is downloaded. */
+  devices: string[] | null;
+}
+
+export interface LocalModelBench {
+  writeTps: number;
+  readTps: number;
+  ms: number;
+  gpu: boolean;
+  sample: string;
+}
+
+/** The browser preview of Impostazioni → Chat → Modello sul PC. */
+const PREVIEW_LOCAL_MODEL: LocalModelStatus = {
+  runtime: true,
+  runtimeSize: 37_155_235,
+  models: [
+    { id: "qwen3.5-0.8b", name: "Qwen 3.5 0.8B", size: 833_592_096, installed: false, partial: 0, fit: "ok" },
+    { id: "gemma-4-e2b", name: "Gemma 4 E2B", size: 2_841_481_184, installed: false, partial: 0, fit: "ok" },
+    { id: "qwen3.5-4b", name: "Qwen 3.5 4B", size: 2_740_937_888, installed: true, partial: 0, fit: "ok" },
+    { id: "gemma-4-e4b", name: "Gemma 4 E4B", size: 4_590_807_392, installed: false, partial: 1_200_000_000, fit: "ok" },
+    { id: "qwen3.5-9b", name: "Qwen 3.5 9B", size: 5_680_522_464, installed: false, partial: 0, fit: "ok" },
+  ],
+  running: "qwen3.5-4b",
+  runningGpu: true,
+  downloading: null,
+  modelsDir: "C:\\Users\\…\\AppData\\Local\\EasyIsland\\models",
+  hardware: { gpus: [{ name: "NVIDIA GeForce RTX 3070", vendor: "nvidia", dedicatedMb: 8192, sharedMb: 16300, discrete: true }], ramMb: 32768, vulkan: true },
+  place: "gpu",
+  recommended: "qwen3.5-9b",
+  devices: ["Vulkan0: NVIDIA GeForce RTX 3070 (8192 MiB, 7187 MiB free)"],
+};
 
 export async function onEvent<T>(name: string, handler: (payload: T) => void) {
   if (!IS_TAURI) return () => {};

@@ -685,7 +685,7 @@ Guarda anche se note e pagine si contraddicono o sono superate (memory_page, mem
 }
 
 /// The chat's engines (CHAT_ENGINES in src/core/state.ts).
-const KNOWN_ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
+const KNOWN_ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio", "local"];
 
 /// The user answers the question of a task that is waiting: it goes back in the queue.
 pub fn answer(app: &AppHandle, id: &str, text: &str) -> Result<(), String> {

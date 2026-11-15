@@ -19,6 +19,7 @@ mod meaning_local;
 mod memory_answer;
 mod votes;
 mod memory_tips;
+mod local_model;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -935,6 +936,46 @@ fn recipes_forget() {
     recipes::forget();
 }
 
+/// Impostazioni → Chat → «Modello sul PC» (local_model.rs): this PC, the catalog, the server.
+#[tauri::command]
+fn local_model_status() -> local_model::Status {
+    local_model::status()
+}
+
+/// "Scarica": the engine when missing, then the model; progress as `local-model-progress`.
+#[tauri::command]
+async fn local_model_download(app: AppHandle, id: String) -> Result<(), String> {
+    local_model::download(&app, &id).await
+}
+
+#[tauri::command]
+fn local_model_cancel() {
+    local_model::cancel();
+}
+
+#[tauri::command]
+fn local_model_delete(id: String) -> Result<(), String> {
+    local_model::delete(&id)
+}
+
+/// "Usa un file GGUF…": the path, None when cancelled.
+#[tauri::command]
+async fn local_model_pick() -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(local_model::pick_file).await.map_err(|e| e.to_string())?
+}
+
+/// "Spegni ora": the server stops and gives its memory back.
+#[tauri::command]
+fn local_model_stop() {
+    local_model::stop();
+}
+
+/// «Prova»: how fast the model writes on this PC, and where.
+#[tauri::command]
+async fn local_model_bench(model: String) -> Result<local_model::Bench, String> {
+    local_model::bench(&model).await
+}
+
 /// 👍 / 👎 under an answer of the chat (votes.rs); `vote` 0 takes it back.
 /// Returns what EasyIsland learnt, said under the answer.
 #[tauri::command]
@@ -1559,7 +1600,7 @@ pub(crate) async fn relay_ask(app: &AppHandle, question: &str, engine: Option<St
 
 /// The engines `chiedi --motore` takes (the chat's ids).
 fn relay_engines() -> &'static [&'static str] {
-    &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio", ONLY_EASY]
+    &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio", "local", ONLY_EASY]
 }
 
 /// «Solo EasyIsland» (15 Nov 2026): the chat's «engine» that is none, picked in
@@ -2075,7 +2116,14 @@ pub(crate) async fn chat_turn(
         // "Modalità terminale" for an engine without tools: through opencode.
         (Some(folder), e) if e == "api" || openai::ENGINES.contains(&e) => {
             let api_model = if e == "api" { model.clone() } else { other_model.clone() };
-            match opencode::via(e, &api_model, url.as_deref()) {
+            // The model on this PC: its server on for the turn, opencode pointed at it.
+            let local = if e == "local" { Some(local_model::opencode_endpoint(&api_model).await) } else { None };
+            let via = match &local {
+                Some(Ok((lease, config))) => Ok(opencode::via_local(&lease.key, config)),
+                Some(Err(err)) => Err(err.clone()),
+                None => opencode::via(e, &api_model, url.as_deref()),
+            };
+            match via {
                 Ok((m, mut o)) if opencode::find_exe().is_some() => {
                     o.folder = Some(folder.clone());
                     o.auto = auto;
@@ -5077,6 +5125,13 @@ pub fn run() {
             recipes_forget,
             router_stats,
             chat_vote,
+            local_model_status,
+            local_model_download,
+            local_model_cancel,
+            local_model_delete,
+            local_model_pick,
+            local_model_stop,
+            local_model_bench,
             chat_memory_tips,
             votes_stats,
             votes_check,
@@ -5465,6 +5520,7 @@ pub fn run() {
             threecx::spawn(handle.clone());
             teams::spawn(handle.clone());
             brain_watch::init(&handle);
+            local_model::init(&handle);
             telegram::spawn(handle.clone());
             agentchat::spawn(handle.clone());
             tasks::init(&handle);

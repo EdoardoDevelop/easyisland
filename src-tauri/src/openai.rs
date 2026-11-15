@@ -17,7 +17,7 @@ use crate::secrets;
 use crate::i18n::{t, tf};
 
 /// The engines this module serves, by their `chatEngine` value.
-pub const ENGINES: &[&str] = &["openrouter", "openai", "gemini", "ollama", "lmstudio"];
+pub const ENGINES: &[&str] = &["openrouter", "openai", "gemini", "ollama", "lmstudio", "local"];
 
 pub struct Provider {
     pub name: &'static str,
@@ -37,6 +37,8 @@ pub fn provider(engine: &str) -> Option<Provider> {
         },
         "ollama" => Provider { name: "Ollama", base: "http://localhost:11434/v1", key: None },
         "lmstudio" => Provider { name: "LM Studio", base: "http://localhost:1234/v1", key: None },
+        // The model on this PC (local_model.rs): the address changes at every start.
+        "local" => Provider { name: t("Modello sul PC"), base: "", key: None },
         _ => return None,
     })
 }
@@ -196,6 +198,12 @@ fn client() -> Result<reqwest::Client, String> {
 
 pub(crate) fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
     let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
+    if engine == "local" {
+        return Ok(match crate::local_model::key() {
+            Some(k) => request.bearer_auth(k),
+            None => request,
+        });
+    }
     let Some(key_name) = p.key else { return Ok(request) };
     let key = secrets::get(key_name).ok_or_else(|| tf("Manca la chiave di {name}. Apri le impostazioni.", &[("name", &p.name)]))?;
     let mut request = request.bearer_auth(key);
@@ -208,6 +216,9 @@ pub(crate) fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<req
 
 fn network_error(engine: &str, base: &str, err: reqwest::Error) -> String {
     let p = provider(engine).map(|p| p.name).unwrap_or("Il servizio");
+    if engine == "local" && !err.is_timeout() {
+        return tf("Il modello sul PC si è fermato: {err}", &[("err", &err)]);
+    }
     if err.is_connect() && provider(engine).is_some_and(|p| p.key.is_none()) {
         tf("{p} non risponde su {base}: è avviato?", &[("p", &p), ("base", &base)])
     } else if err.is_timeout() {
@@ -232,7 +243,12 @@ pub async fn send(
     if model.trim().is_empty() {
         return Err(tf("Scegli un modello di {name} nelle impostazioni (Chat).", &[("name", &p.name)]));
     }
-    let base = base_url(engine, custom_url)?;
+    // The model on this PC: its server, started (or kept) for this turn.
+    let lease = if engine == "local" { Some(crate::local_model::ensure(model, 0).await?) } else { None };
+    let base = match &lease {
+        Some(l) => l.base.clone(),
+        None => base_url(engine, custom_url)?,
+    };
 
     // The front end sends a context only with the first question or a file
     // added later (pasted in the chat, sent on Telegram): it always goes.
@@ -240,7 +256,8 @@ pub async fn send(
     let mut messages = vec![json!({ "role": "system", "content": crate::i18n::prompt(SYSTEM_PROMPT) })];
 
     messages.extend(chat.snapshot());
-    let mut body = json!({ "model": model.trim(), "messages": messages, "stream": true });
+    // llama-server knows its model by the alias it was started with.
+    let mut body = json!({ "model": if engine == "local" { "easyisland" } else { model.trim() }, "messages": messages, "stream": true });
     // The tokens (and OpenRouter's cost) in the last chunk, for «Consumo»: only
     // where the service is known to take it; the others are estimated.
     if matches!(engine, "openrouter" | "openai") {
@@ -249,6 +266,7 @@ pub async fn send(
     let sent: usize = messages.iter().map(|m| m.to_string().len()).sum();
 
     let result = stream_turn_usage(engine, &base, &body, on_text).await;
+    drop(lease);
     let result = result.map(|(text, usage)| {
         let n = |k: &str| usage.as_ref().and_then(|u| u.get(k)).and_then(Value::as_u64);
         match (n("prompt_tokens"), n("completion_tokens")) {
@@ -325,6 +343,9 @@ async fn stream_turn_usage(engine: &str, base: &str, body: &Value, on_text: &(dy
 
 /// Impostazioni → Chat → "Carica modelli": the model ids the engine offers.
 pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<ModelOption>, String> {
+    if engine == "local" {
+        return Ok(crate::local_model::installed());
+    }
     let base = base_url(engine, custom_url)?;
     let request = auth(engine, client()?.get(format!("{base}/models")))?;
     let response = request.send().await.map_err(|e| network_error(engine, &base, e))?;

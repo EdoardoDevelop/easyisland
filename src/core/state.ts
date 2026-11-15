@@ -94,7 +94,7 @@ export function reactionKey(t: AgentTask): string | null {
   return t.state === "error" || t.state === "ratelimit" || t.state === "finished" ? t.id : null;
 }
 
-export type ChatEngine = "subscription" | "api" | "opencode" | "antigravity" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
+export type ChatEngine = "subscription" | "api" | "opencode" | "antigravity" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio" | "local";
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
@@ -106,6 +106,7 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
   { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: t("una chiave per centinaia di modelli (openrouter.ai)") },
   { id: "openai", name: "OpenAI", key: "openai-api-key", hint: t("API di OpenAI (platform.openai.com)") },
   { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: t("Google AI Studio (aistudio.google.com)") },
+  { id: "local", name: t("Modello sul PC"), hint: t("un modello che gira dentro EasyIsland, sulla scheda grafica se c'è: niente programmi da installare, nulla esce dal PC") },
   { id: "ollama", name: "Ollama", url: "http://localhost:11434", hint: t("modelli locali, nessuna chiave") },
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: t("modelli locali, nessuna chiave") },
 ];
@@ -298,7 +299,9 @@ export function barThickness(s: { hoverStyle: string; hoverSize: number; compact
 export function engineLabel(s: { chatEngine: ChatEngine; engineModels?: Record<string, string>; cliModel?: string; model?: string }): string {
   const e = CHAT_ENGINES.find((x) => x.id === s.chatEngine) ?? CHAT_ENGINES[0];
   const model = s.chatEngine === "subscription" ? s.cliModel || "" : s.chatEngine === "api" ? s.model ?? "" : s.engineModels?.[s.chatEngine] ?? "";
-  return model ? `${e.name} · ${model}` : e.name;
+  // The model on this PC may be a GGUF file of the user's: its name, not the path.
+  const shown = s.chatEngine === "local" ? (model.split(/[\\/]/).pop() ?? "").replace(/\.gguf$/i, "") : model;
+  return shown ? `${e.name} · ${shown}` : e.name;
 }
 
 /** One file edit of the Claude Code session, as the relay computed it (hook/src/diff.rs). */
@@ -732,6 +735,10 @@ export interface Settings {
   memoryMeaning?: string;
   /** Its model; "" = the service's usual one. */
   memoryMeaningModel?: string;
+  /** «Modello sul PC» writes the answers from the memory (local_model.rs); off = the lines as they are. */
+  localCompose?: boolean;
+  /** The model on the graphics card when there is a fitting one. */
+  localGpu?: boolean;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
   rememberNow?: boolean;
   /** Claude Code's own memory, read only (cc_memory.rs). */
