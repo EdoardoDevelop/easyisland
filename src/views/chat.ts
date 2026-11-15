@@ -1090,6 +1090,9 @@ export function buildPrompt(
 
     c.streamed = "";
     const engine = engineOf(c);
+    // «Solo EasyIsland»: no engine, but «Chiedi al motore» sends this one question to it.
+    const sent = c.onlyEasy && !c.engineOnce ? "easyisland" : engine;
+    c.engineOnce = false;
     try {
       // "Chiedi a questa sessione": a read-only copy of the session answers;
       // the next questions go on in that copy.
@@ -1099,7 +1102,7 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null, context: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
+        : await Bridge.chatSend(c.sid, asked, context, sent, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
           State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : engine === "antigravity" ? c.agyModel : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
@@ -1120,7 +1123,8 @@ export function buildPrompt(
       const direct = (reply as { direct?: boolean }).direct === true;
       const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
       const meaning = (reply as { meaning?: [string, number][] }).meaning;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined });
+      const memory = (reply as { memory?: string[] }).memory;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1298,6 +1302,8 @@ export function buildPrompt(
     if (u < 0) return;
     const question = list[u].content;
     const keep = list.slice(0, u);
+    // «Chiedi al motore» after an answer of «Solo EasyIsland»: this time the engine.
+    if (c.onlyEasy && list[list.length - 1]?.direct) c.engineOnce = true;
     c.history = keep;
     renderedCount = -1;
     await Bridge.chatRewind(c.sid, lines(keep));
@@ -1552,6 +1558,19 @@ export function buildPrompt(
     State.notify();
   }
 
+  /** 👍 / 👎 (votes.rs): pressed again, taken back. EasyIsland says what it learnt. */
+  async function giveVote(m: ChatMessage, index: number, v: 1 | -1) {
+    const q = State.chatHistory.slice(0, index).reverse().find((x) => x.role === "user");
+    if (!q) return;
+    const next = m.vote === v ? 0 : v;
+    m.vote = next || undefined;
+    renderedCount = -1;
+    Sound.play("blip");
+    State.notify();
+    const said = await Bridge.chatVote(q.content, m.content, m.engine ?? "", !!m.direct, m.memory ?? [], next);
+    if (said) flash(said);
+  }
+
   /** Copia under every message, Rigenera under the last answer, Modifica under a question. */
   function withActions(row: HTMLElement, m: ChatMessage, index: number, last: boolean): HTMLElement {
     const bar = h("div", { class: `msg-actions${last ? " last" : ""}` });
@@ -1579,6 +1598,11 @@ export function buildPrompt(
     }
     if (own && m.role === "assistant" && !last) {
       bar.append(h("button", { class: "msg-act", title: t("Una conversazione nuova che parte da qui; questa resta nella cronologia"), text: `⑂ ${t("Dirama da qui")}`, onclick: () => void fork(index) }));
+    }
+    if (!State.chatSession && m.role === "assistant" && !m.reviewer && !m.content.endsWith(`⏹ ${t("Fermato.")}`)) {
+      for (const [v, icon, hint] of [[1, "👍", t("Risposta giusta: EasyIsland se lo ricorda per le domande simili")], [-1, "👎", t("Risposta sbagliata: EasyIsland non la ripete per le domande simili")]] as [1 | -1, string, string][]) {
+        bar.append(h("button", { class: `msg-act vote${m.vote === v ? " on" : ""}`, title: hint, text: icon, onclick: () => void giveVote(m, index, v) }));
+      }
     }
     if (m.role === "assistant" && m.meaning?.length) bar.append(meaningMark(m.meaning));
     if (m.role === "assistant" && m.usage) bar.append(usageMark(m.usage));
@@ -2066,13 +2090,20 @@ export function buildPrompt(
     for (const e of list) {
       const label = engineLabel({ ...State.settings, chatEngine: e.id }) + (e.id === State.settings.chatEngine ? t(" (predefinito)") : "");
       engineMenu.append(h("button", {
-        class: `engine-item${e.id === State.chatEngine ? " on" : ""}`, title: e.hint, text: label,
+        class: `engine-item${e.id === State.chatEngine && !State.chat.onlyEasy ? " on" : ""}`, title: e.hint, text: label,
         onclick: () => pickEngine(e.id),
       }));
     }
+    // «Solo EasyIsland»: no engine, for zero tokens and to teach it with 👍 / 👎.
+    engineMenu.append(h("button", {
+      class: `engine-item${State.chat.onlyEasy ? " on" : ""}`,
+      title: t("Nessun motore: risponde solo EasyIsland, dalla memoria, con le ricette e i comandi; se non sa, mostra le righe più vicine e «Chiedi al motore». Zero token"),
+      text: `📒 ${t("Solo EasyIsland, senza motore")}`,
+      onclick: () => pickOnlyEasy(),
+    }));
     engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat. Predefinito, chiavi e modelli: Impostazioni → Chat") }));
     // Claude Code: how much it reasons (`--effort`), for this chat and the next ones.
-    if (State.chatEngine === "subscription") {
+    if (State.chatEngine === "subscription" && !State.chat.onlyEasy) {
       const now = effortOf(State.chat);
       engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Claude") }));
       for (const [id, label, hint] of efforts()) {
@@ -2107,7 +2138,7 @@ export function buildPrompt(
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
     // Antigravity: the same choices, with its own models (`agy models`).
-    if (State.chatEngine === "antigravity") {
+    if (State.chatEngine === "antigravity" && !State.chat.onlyEasy) {
       const now = effortOf(State.chat);
       engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
       for (const [id, label, hint] of efforts()) {
@@ -2229,11 +2260,30 @@ export function buildPrompt(
   /** Only for the conversation in progress: the default stays in Impostazioni → Chat. */
   function pickEngine(id: ChatEngine) {
     engineMenu.style.display = "none";
+    if (State.chat.onlyEasy && !State.chat.sending) {
+      // Back to an engine: the conversation goes on (EasyIsland's answers ride in front of it).
+      State.chat.onlyEasy = false;
+      if (id === State.chatEngine) {
+        State.notify();
+        return;
+      }
+    }
     if (id === State.chatEngine || State.chat.sending) return;
     // Another engine is another conversation (the backend starts over too).
     if (State.chatHistory.length) startOver();
     State.chatEngineOverride = id === State.settings.chatEngine ? null : id;
     State.notify();
+  }
+
+  /** «Solo EasyIsland» for this conversation: it goes on, with no engine from now. */
+  function pickOnlyEasy() {
+    engineMenu.style.display = "none";
+    if (State.chat.sending) return;
+    State.chat.onlyEasy = !State.chat.onlyEasy;
+    if (State.chat.onlyEasy) flash(`📒 ${t("Solo EasyIsland: nessun motore, zero token. Con 👍 e 👎 impara; «Chiedi al motore» per una risposta del motore.")}`);
+    Sound.play("blip");
+    State.notify();
+    input.focus();
   }
 
   /** "14:30" today, "8 ott" this year, "8 ott 2025" before. */
@@ -2639,7 +2689,9 @@ export function buildPrompt(
       c.window = null;
       c.attach = [];
       c.session = null;
-      c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
+      // A conversation of «Solo EasyIsland» reopens as such.
+      c.onlyEasy = got.engine === "easyisland";
+      c.engineOverride = got.engine === State.settings.chatEngine || c.onlyEasy || !CHAT_ENGINES.some((e) => e.id === got.engine) ? null : (got.engine as ChatEngine);
       c.folder = got.folder || null;
       c.auto = true;
       c.mode = "";
@@ -2808,6 +2860,7 @@ export function buildPrompt(
     const c = newChatSession();
     c.folder = p.folder || here.folder;
     c.engineOverride = here.engineOverride;
+    c.onlyEasy = here.onlyEasy;
     State.chats.push(c);
     void submit(p.prompt, c);
     flash(t("Nuova conversazione a parte: «{title}». La trovi nella barra laterale.", { title: p.title || p.prompt.slice(0, 40) }));
@@ -3165,7 +3218,9 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       }
 
       const effort = hasModes(State.chatEngine) ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
-      engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
+      engineBtn.textContent = State.chat.onlyEasy
+        ? `📒 ${t("Solo EasyIsland")} ▾`
+        : `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
       folderBtn.style.display = asked ? "none" : "";

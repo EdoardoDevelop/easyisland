@@ -29,7 +29,7 @@ La domanda fa la stessa strada di quelle scritte nell'isola: risposte dirette, m
 
 | Opzione | Significato |
 |---|---|
-| `--motore` | `subscription`, `api`, `opencode`, `antigravity`, `openrouter`, `openai`, `gemini`, `ollama`, `lmstudio`; senza, quello predefinito della chat |
+| `--motore` | `subscription`, `api`, `opencode`, `antigravity`, `openrouter`, `openai`, `gemini`, `ollama`, `lmstudio`, `easyisland` (solo EasyIsland, senza motore); senza, quello predefinito della chat |
 | `--conversazione relay-…` | continua la stessa conversazione |
 | `--json` | la risposta completa, per gli script |
 

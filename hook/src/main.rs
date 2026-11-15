@@ -412,7 +412,8 @@ resta nella cronologia della chat con «Relay · » davanti; i permessi chiedono
 comunque il clic nell'isola.
 
   --motore, -e <id>         subscription | api | opencode | antigravity | openrouter |
-                            openai | gemini | ollama | lmstudio (predefinito: quello della chat)
+                            openai | gemini | ollama | lmstudio | easyisland (solo EasyIsland,
+                            senza motore; predefinito: quello della chat)
   --conversazione, -c <id>  continua una conversazione del relay (l'id lo stampa la risposta)
   --json                    stampa la risposta com'è (testo, motore, passi, note per significato)
 

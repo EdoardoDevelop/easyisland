@@ -2088,7 +2088,46 @@ function routerRow(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Risposte dirette") }),
       toggle(settings.chatDirect !== false, (v) => { settings.chatDirect = v; void save(); }),
       h("span", { class: "hint note", text: t("Alle domande che le ricette risolvono sempre con la stessa lettura (stato del PC, azioni rapide, una tabella di Notion) risponde EasyIsland da solo, subito e senza token. «Chiedi al motore» sotto la risposta, o la stessa domanda riscritta, passa al motore e per quel tipo di domanda non risponde più da solo. Alle altre domande simili EasyIsland legge prima quei dati e li passa al motore, che risparmia un passo") })),
-    h("div", { class: "row" }, h("label", { text: t("Registro dei turni") }), line, forget));
+    h("div", { class: "row" }, h("label", { text: t("Registro dei turni") }), line, forget),
+    votesRow());
+}
+
+/** Chat → «Voti»: the 👍 / 👎 under the answers (votes.rs), tried again on today's memory. */
+function votesRow(): HTMLElement {
+  const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const out = h("div", { class: "hint note", style: "display:none;white-space:pre-line" });
+  const again = h("button", { text: t("Riprova") }) as HTMLButtonElement;
+  const forget = h("button", { text: t("Azzera") }) as HTMLButtonElement;
+  const show = (s: Awaited<ReturnType<typeof Bridge.votesStats>>) => {
+    const n = s?.votes ?? 0;
+    line.textContent = n
+      ? t("Dalla memoria {mu} 👍 e {md} 👎, dai motori {eu} 👍 e {ed} 👎; {l} risposte imparate dai motori. «Riprova» rifà le domande votate sulla memoria di oggi, senza motore.", { mu: s?.memoryUp ?? 0, md: s?.memoryDown ?? 0, eu: s?.engineUp ?? 0, ed: s?.engineDown ?? 0, l: s?.learnt ?? 0 })
+      : t("Nessun voto ancora: 👍 e 👎 sotto le risposte della chat. Con 👍 EasyIsland ricorda le righe giuste, con 👎 non le ripete; un 👍 a un motore gli insegna le righe che ha usato.");
+    forget.disabled = again.disabled = !n;
+  };
+  again.addEventListener("click", async () => {
+    again.disabled = true;
+    const r = await Bridge.votesCheck();
+    again.disabled = false;
+    out.style.display = "";
+    if (!r) {
+      out.textContent = t("Non riuscito.");
+      return;
+    }
+    out.textContent = r.changed.length
+      ? [t("{c} su {n} domande ora hanno un'altra risposta:", { c: r.changed.length, n: r.tried }),
+        ...r.changed.map((c) => `${c.up ? "👍" : "👎"} «${c.question}» → ${c.now.length ? c.now.join(" · ") : t("al motore")}`)].join("\n")
+      : t("Tutte le {n} domande votate hanno ancora la stessa risposta.", { n: r.tried });
+  });
+  forget.addEventListener("click", async () => {
+    await Bridge.votesForget();
+    out.style.display = "none";
+    show(await Bridge.votesStats());
+  });
+  void Bridge.votesStats().then(show);
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row" }, h("label", { text: t("Voti") }), line, again, forget),
+    h("div", { class: "row" }, h("label", { text: "" }), out));
 }
 
 /** Chat → "Portali": the suppliers' portals taught in the chat (portals.rs), never in the code. */

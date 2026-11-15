@@ -92,11 +92,12 @@ fn subjects(question: &str) -> Vec<String> {
         .collect()
 }
 
-/// The word is in the line: whole for a short one («ip» not in «tipo»), by
-/// its first five letters for a long one («farmacie» / «farmacia»).
+/// The word is in the line: whole for a short one («ip» not in «tipo»,
+/// «teams» not in «TeamSystem»), by its first five letters for a long one
+/// («farmacie» / «farmacia»).
 fn has_word(line_words: &[String], line: &str, w: &str) -> bool {
     let n = w.chars().count();
-    if n <= 4 {
+    if n <= 5 {
         return line_words.iter().any(|x| x == w);
     }
     if line.contains(w) {
@@ -197,9 +198,119 @@ pub fn shown(line: &str) -> String {
     }
 }
 
+/// The subjects of a question as a key, for the votes (votes.rs): «quale vm ha
+/// Falchi?» and «che VM ha falchi» share it, «quale ip ha Falchi?» does not.
+/// Not recipes::same_question, which drops two-letter words like «vm» and «ip».
+pub fn key(question: &str) -> Vec<String> {
+    let mut k: Vec<String> = subjects(question)
+        .into_iter()
+        .map(|w| {
+            let w: String = w.chars().map(fold).collect();
+            if w.chars().count() >= 6 { w.chars().take(5).collect() } else { w }
+        })
+        .collect();
+    k.sort();
+    k.dedup();
+    k
+}
+
+fn fold(c: char) -> char {
+    match c {
+        'à' | 'á' => 'a',
+        'è' | 'é' => 'e',
+        'ì' | 'í' => 'i',
+        'ò' | 'ó' => 'o',
+        'ù' | 'ú' => 'u',
+        c => c,
+    }
+}
+
+/// Two lookups about the same things (see `key`).
+pub fn similar(a: &str, b: &str) -> bool {
+    let (x, y) = (key(a), key(b));
+    !x.is_empty() && x == y
+}
+
+/// With no safe answer («Solo EasyIsland»): the lines that name the most of
+/// what is asked, then the closest in meaning; never structural ones.
+pub fn near(question: &str, found: &[(f32, String)], n: usize) -> Vec<String> {
+    let subjects = subjects(question);
+    if subjects.is_empty() {
+        return Vec::new();
+    }
+    let mut scored: Vec<(usize, f32, &String)> = found
+        .iter()
+        .filter(|(_, l)| !structural(l))
+        .map(|(s, l)| {
+            let low = l.to_lowercase();
+            let lw = words(&low);
+            (subjects.iter().filter(|w| has_word(&lw, &low, w)).count(), *s, l)
+        })
+        .filter(|(hits, ..)| *hits > 0)
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.total_cmp(&a.1)));
+    scored.into_iter().take(n).map(|(.., l)| l.clone()).collect()
+}
+
+/// A 👍 on an engine's answer to a lookup (votes.rs): the memory lines the
+/// answer was made of (most of their words are in it, and they name something
+/// of the question), so the next similar question gets them directly. This is
+/// how «che macchine virtuali ha Falchi?» learns the line with «VM».
+pub fn used_lines(question: &str, answer: &str, lines: &[String]) -> Vec<String> {
+    if !is_lookup(question) {
+        return Vec::new();
+    }
+    let subjects = subjects(question);
+    let said: std::collections::HashSet<String> = words(answer).into_iter().map(|w| w.chars().map(fold).collect()).collect();
+    let significant = |l: &str| -> Vec<String> {
+        let body = l.trim().strip_prefix("[[").and_then(|r| r.split_once("]]")).map(|(_, b)| b).unwrap_or(l);
+        words(body)
+            .into_iter()
+            .map(|w| w.chars().map(fold).collect::<String>())
+            .filter(|w| (w.chars().count() >= 3 || w.chars().any(|c| c.is_ascii_digit())) && !COMMON.contains(&w.as_str()))
+            .collect()
+    };
+    let mut scored: Vec<(usize, &String)> = lines
+        .iter()
+        .filter(|l| !structural(l))
+        .filter_map(|l| {
+            let low = l.to_lowercase();
+            let lw = words(&low);
+            if !subjects.iter().any(|s| has_word(&lw, &low, s)) {
+                return None;
+            }
+            let sig = significant(l);
+            let hit = sig.iter().filter(|w| said.contains(*w)).count();
+            (hit >= 3 && hit * 10 >= sig.len() * 6).then_some((hit, l))
+        })
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    scored.into_iter().take(MAX_LINES).map(|(_, l)| l.clone()).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keys_and_lines_for_votes() {
+        assert!(similar("quale vm ha la farmacia Falchi?", "che VM ha la farmacia falchi"));
+        assert!(!similar("quale vm ha falchi?", "quale ip ha falchi?"));
+        let lines = vec![
+            "[[farmacia-falchi]] VM: FALCHI-DC, FALCHI-WINFARM, FALCHI-POLLER, FALCHI-PBS.".to_string(),
+            "[[farmacia-falchi]] Host falchi-pve01, IP 192.168.0.254".to_string(),
+            "[[rossi]] NAS DS920+ in sala server".to_string(),
+        ];
+        let answer = "La farmacia Falchi ha quattro macchine virtuali: FALCHI-DC, FALCHI-WINFARM, FALCHI-POLLER e FALCHI-PBS.";
+        let got = used_lines("che macchine virtuali ha la farmacia Falchi?", answer, &lines);
+        assert_eq!(got, vec![lines[0].clone()]);
+        assert!(used_lines("perché il backup di Falchi non parte?", answer, &lines).is_empty());
+        let near = near("che switch ha falchi?", &[(0.3, lines[1].clone()), (0.2, lines[2].clone())], 3);
+        assert_eq!(near, vec![lines[1].clone()]);
+        // «teams» is not inside «TeamSystem» (on the laptop, 15 Nov 2026).
+        let ts = vec![(0.3, "[[listino]] Marche ricorrenti: UniFi, Synology, TeamSystem".to_string())];
+        assert!(super::near("apri teams", &ts, 3).is_empty());
+    }
 
     #[test]
     fn lookups_and_not() {

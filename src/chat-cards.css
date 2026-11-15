@@ -261,6 +261,8 @@ html[data-chat-look="cards"] .chat-card .msg-act {
   color: var(--cc-faint);
 }
 html[data-chat-look="cards"] .chat-card .msg-act:hover { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .msg-act.vote { padding: 0 var(--cc-s1); }
+html[data-chat-look="cards"] .chat-card .msg-act.vote.on { background: var(--cc-soft); }
 html[data-chat-look="cards"] .chat-card .second-btn,
 html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .second-btn {
   height: 26px;

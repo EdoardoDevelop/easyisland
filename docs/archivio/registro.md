@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 14/11 — Comandi senza motore, ricette con date, cache dell'API; relay di nuovo aggiornato (ramo `claude/comandi-ricette`, da `claude/sviluppo`)
+Antigravity in Turbo era di nuovo trattenuto: il relay installato era quello del 13/11 mattina (cargo lo credeva aggiornato); `npm run pack` ora lo ripulisce prima (`docs/sviluppo.md`), reinstallato qui e sul portatile. Poi i punti 1, 2, 4 scelti da Edoardo: comandi con «Esegui» (`commands.rs`), date e numeri della domanda nelle ricette (`periods.rs`), cache automatica del motore API. `docs/chat.md` → Smistatore.
+
 ### 13/11 — Consumo di tutti i motori (ramo `claude/consumo`, da `claude/domande`)
 Edoardo: «Consumo Claude» per tutti i motori, separati; clic sulle percentuali in alto = motore successivo. Fatto: integrazione «Consumo» con una sezione per motore (opencode dalle sue statistiche, OpenRouter credito e limite, Antigravity e gli altri dalle risposte in EasyIsland), intestazione a giro. Provato dal vivo opencode e OpenRouter (test ignorato `engine_sections_live`) e nell'anteprima; da provare nell'app. `docs/integrazioni.md` → Consumo. Poi, dai dati del portatile (126 passi, ~5 M token il 13/11, ~10.000 caratteri davanti a ogni conversazione): davanti solo le note-regola e le abilità che c'entrano, ricette confrontate nei due sensi, «trovato per la domanda» con più parole in comune. `docs/chat.md` → Memoria, Abilità.
 

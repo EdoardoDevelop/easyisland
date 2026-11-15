@@ -1,11 +1,12 @@
 # Handoff — EasyIsland
 
-_14 novembre 2026. **1.0.47** in `main` (tag `v1.0.47`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` scartato. Repo pubblico `EdoardoDevelop/easyisland`._
+_15 novembre 2026. **1.0.47** in `main` (tag `v1.0.47`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` scartato. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
-- [ ] **Risposte dalla memoria e `chiedi`** (15/11, ramo `claude/risposte-memoria`, provato dal vivo sul portatile con `chiedi`): da unire in `claude/sviluppo`; da guardare nell'isola come appare la risposta «📒 Dalla memoria» e «Chiedi al motore»; con l'uso, se qualche risposta dalla memoria è sbagliata, la regola delle parole in `memory_answer.rs`.
+- [ ] **Voti e Solo EasyIsland** (15/11, ramo `claude/voti-solo-easyisland`, da `claude/sviluppo` che ha già `claude/risposte-memoria`): `docs/chat.md` → Voti, Solo EasyIsland. Provati con test, anteprima e `chiedi --motore easyisland` sul portatile (risposte, righe vicine, domanda ripetuta); da provare nell'isola i voti veri (👍 a un motore che insegna una riga, 👎 poi «Chiedi al motore») e «Riprova» in Impostazioni → Chat. Da unire in `claude/sviluppo`.
+- [ ] **Risposte dalla memoria e `chiedi`** (15/11, in `claude/sviluppo`): da guardare nell'isola «📒 Dalla memoria» e «Chiedi al motore»; con l'uso, i 👎 dicono dove la regola delle parole in `memory_answer.rs` sbaglia.
 - [ ] **Ricerca per significato sul PC** (14/11, in `claude/sviluppo`): da provare nell'app «Scarica», poi domande con parole diverse dalle note: «🧠 N per significato» sotto la risposta e le righe «significato (…)» nel log dicono cosa ha trovato e con che punteggio; soglie 0,30/0,10 da rivedere sulla memoria vera. Dopo: lo stesso confronto per le ricette (`docs/idee.md`).
 - [ ] **Comandi e ricette con date** (14/11, nella 1.0.47): da provare nell'app «apri <azione rapida>», «pausa», «ricordami di …» con Esegui; «spese di settembre», «di ottobre», poi «di novembre» in diretta; `cache_read_input_tokens` con il motore API.
 - [ ] **Smistatore** (14/11, nella 1.0.47): `docs/chat.md` → Smistatore. Da provare nell'app: una domanda ripetuta (stato del PC, azioni rapide) che dopo due turni uguali risponde da sola, «Chiedi al motore», i numeri in Impostazioni → Chat. Tappa 3 in `docs/idee.md`.
@@ -58,17 +59,21 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 15/11 — Voti 👍/👎 e «Solo EasyIsland» (ramo `claude/voti-solo-easyisland`, da `claude/sviluppo`)
+Edoardo: like/dislike alle risposte e una chat senza motori per allenare EasyIsland. Fatto `votes.rs` (voti cifrati; 👍/👎 sulle righe della memoria, 👍 a un motore insegna le righe usate; «Riprova» come prove di regressione) e la voce «Solo EasyIsland» nel menu dei motori (`lib.rs` `ONLY_EASY`, `router::only_none`). Risposte dalla memoria anche senza servizio di significato (solo parole). `claude/risposte-memoria` unito in `claude/sviluppo` (avanti veloce).
+
 ### 15/11 — Risposte dalla memoria senza motore e `easyisland-hook chiedi` (ramo `claude/risposte-memoria`, da `claude/sviluppo`)
 Sul portatile «quale vm ha la farmacia falchi?» andava a Claude (due passi). Fatto `memory_answer.rs` (righe della memoria come risposta, scelte per parole e pagina: il solo significato sbagliava) e `chiedi` per domandare alla chat da script e WinRM, motore a scelta (`docs/agenti.md`). Provato dal vivo sul portatile via WinRM: dalla memoria in ~30 ms; con opencode 10 s; con Claude la parafrasi in 1 passo (prima 2). `docs/chat.md` → Smistatore.
+
 
 ### 14/11 — Ricerca per significato sul PC (ramo `claude/significato-locale`, da `claude/sviluppo`)
 Edoardo: tra i modelli piccoli scelto model2vec, prima per la ricerca nella memoria; scaricato da Impostazioni, non nell'installer. Fatto `meaning_local.rs` (download a revisione e SHA-256 fissi, conversione a 8 bit mentre arriva, tokenizer Unigram in Rust uguale all'originale su 3.649 frasi), voce «EasyIsland, su questo PC» in Impostazioni → Chat → Memoria, anche dentro `memory_search`. `docs/chat.md` → Memoria.
 
+
 ### 14/11 — Versione 1.0.47
 Uniti in `main` smistatore, comandi e ricette con date, stili Studio, mappa della memoria e il nuovo aspetto dell'isola di Antigravity (ricerca a tutta larghezza con calcolatrice, barra laterale manuale, Panoramica con «Adesso», campo della chat; `src/views/views.ts`, `rail.ts`, `search.ts`, `chat.ts`). Novità in `CHANGELOG.md`.
+
 
 ### 14/11 — Mappa della memoria: viste Mappa ad albero, Matrice, Salute (ramo `restyling-mappa-memoria`, di Antigravity)
 Unito in `claude/sviluppo` con `claude/comandi-ricette`; `claude/modello-integrato` resta fuori (scartato). Animazioni a riposo e barra delle viste a gruppi (`src/memory/treemap.ts`, `matrix.ts`, `health.ts`); conflitto in `concept.ts`: i collegamenti solo per nome restano tratteggiati fermi, quello selezionato scorre a riposo.
 
-### 14/11 — Comandi senza motore, ricette con date, cache dell'API; relay di nuovo aggiornato (ramo `claude/comandi-ricette`, da `claude/sviluppo`)
-Antigravity in Turbo era di nuovo trattenuto: il relay installato era quello del 13/11 mattina (cargo lo credeva aggiornato); `npm run pack` ora lo ripulisce prima (`docs/sviluppo.md`), reinstallato qui e sul portatile. Poi i punti 1, 2, 4 scelti da Edoardo: comandi con «Esegui» (`commands.rs`), date e numeri della domanda nelle ricette (`periods.rs`), cache automatica del motore API. `docs/chat.md` → Smistatore.

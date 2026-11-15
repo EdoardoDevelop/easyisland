@@ -116,6 +116,12 @@ fn corpus() -> Vec<String> {
     lines
 }
 
+/// Every line the meaning searches, read now (votes.rs, and the answers from
+/// the memory when no meaning service is chosen).
+pub async fn all_lines() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(corpus).await.unwrap_or_default()
+}
+
 /// The service and model chosen, if any.
 fn chosen(app: &AppHandle) -> Option<(String, String, Option<String>)> {
     let shared = app.try_state::<crate::Shared>()?;

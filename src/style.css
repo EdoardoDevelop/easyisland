@@ -1601,6 +1601,10 @@ input[type="range"]::-webkit-slider-thumb {
   background: transparent;
 }
 .msg-act:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+/* 👍 / 👎 (votes.rs): grey until given. */
+.msg-act.vote { padding: 0 4px; filter: grayscale(1); opacity: 0.6; }
+.msg-act.vote:hover, .msg-act.vote.on { filter: none; opacity: 1; }
+.msg-act.vote.on { background: rgba(255, 255, 255, 0.12); }
 /* What the turn cost (Claude Code): small, after the actions. */
 .msg-usage {
   align-self: center;

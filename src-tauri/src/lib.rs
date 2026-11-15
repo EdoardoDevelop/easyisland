@@ -17,6 +17,7 @@ mod memory_learn;
 mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
+mod votes;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -933,6 +934,28 @@ fn recipes_forget() {
     recipes::forget();
 }
 
+/// 👍 / 👎 under an answer of the chat (votes.rs); `vote` 0 takes it back.
+/// Returns what EasyIsland learnt, said under the answer.
+#[tauri::command]
+async fn chat_vote(question: String, answer: String, engine: String, direct: bool, lines: Vec<String>, vote: i32) -> String {
+    votes::vote(&question, &answer, &engine, direct, lines, match vote { 1 => Some(true), -1 => Some(false), _ => None }).await
+}
+
+#[tauri::command]
+fn votes_stats() -> serde_json::Value {
+    votes::stats()
+}
+
+#[tauri::command]
+async fn votes_check(app: AppHandle) -> serde_json::Value {
+    votes::check(&app).await
+}
+
+#[tauri::command]
+fn votes_forget() {
+    votes::forget();
+}
+
 /// Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs).
 #[tauri::command]
 fn router_stats() -> serde_json::Value {
@@ -1464,7 +1487,7 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat), meaning: memory_meaning::take_found() })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat), meaning: memory_meaning::take_found(), memory: router::take_memory(&chat) })
 }
 
 /// `easyisland-hook chiedi` (pipe.rs, 15 Nov 2026): a question to the island's
@@ -1505,6 +1528,7 @@ pub(crate) async fn relay_ask(app: &AppHandle, question: &str, engine: Option<St
     let reply = chat_turn(app, &chat, question.to_string(), None, engine, None, false, Channel::Island, &|_| {}).await;
     let direct = router::was_direct(&chat);
     let _ = router::take_command(&chat);
+    let lines = router::take_memory(&chat);
     let usage = chat.take_usage();
     let meaning: Vec<serde_json::Value> = memory_meaning::take_found().into_iter().map(|(l, s)| serde_json::json!({ "line": l, "score": s })).collect();
     // The history shows where it came from.
@@ -1517,6 +1541,7 @@ pub(crate) async fn relay_ask(app: &AppHandle, question: &str, engine: Option<St
             "engine": if direct { "easyisland".to_string() } else { used },
             "conversation": sid,
             "meaning": meaning,
+            "memory": lines,
             "usage": usage,
             "ms": started.elapsed().as_millis() as u64,
         }),
@@ -1526,8 +1551,13 @@ pub(crate) async fn relay_ask(app: &AppHandle, question: &str, engine: Option<St
 
 /// The engines `chiedi --motore` takes (the chat's ids).
 fn relay_engines() -> &'static [&'static str] {
-    &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"]
+    &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio", ONLY_EASY]
 }
+
+/// «Solo EasyIsland» (15 Nov 2026): the chat's «engine» that is none, picked in
+/// the chat's menu for a conversation. EasyIsland answers alone (commands,
+/// recipes, memory) or says it does not know, with «Chiedi al motore».
+pub(crate) const ONLY_EASY: &str = "easyisland";
 
 /// A turn of the island's chat, with the conversation's id in the history
 /// (chat_log.rs): the sidebar knows which entry is this open conversation.
@@ -1551,6 +1581,8 @@ struct IslandReply {
     command: Option<commands::Command>,
     /// Memory lines found by meaning in this turn, with their score (memory_meaning.rs).
     meaning: Vec<(String, f32)>,
+    /// The memory lines of an answer from the memory (router.rs), sent back with its 👍 / 👎.
+    memory: Vec<String>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1734,6 +1766,13 @@ fn light_restart(chat: &Chat) {
     chat.set_light_from(Some(used));
 }
 
+/// A short order of the island's chat (commands.rs), with the user's actions and profiles.
+fn island_command(shared: &Shared, query: &str) -> Option<commands::Command> {
+    let s = shared.settings.lock().unwrap();
+    let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
+    commands::parse(query, &s.actions, &profiles)
+}
+
 pub(crate) async fn chat_turn(
     app: &AppHandle,
     chat: &Chat,
@@ -1781,6 +1820,28 @@ pub(crate) async fn chat_turn(
         let mcp = if plain { Default::default() } else { s.mcp_servers.clone() };
         (e, model, cli_model, mcp, s.agent_tools && !plain, other, url, terminal)
     };
+    // «Solo EasyIsland»: no engine, not even to start one (votes.rs, router.rs).
+    if engine == ONLY_EASY && matches!(channel, Channel::Island | Channel::Telegram) {
+        let started = std::time::Instant::now();
+        let command = if channel == Channel::Island { island_command(&shared, &query) } else { None };
+        let text = match router::direct(app, chat, &query, command, true, agent).await {
+            router::Direct::Answer(text, _) => text,
+            _ => router::only_none(app, chat, &query).await,
+        };
+        if shared.settings.lock().unwrap().chat_history {
+            chat_log::record(chat, &engine, &query, &text, if telegram { "Telegram · " } else { "" });
+        }
+        router::record(router::Turn {
+            question: query.clone(),
+            engine: engine.clone(),
+            channel: channel_name(channel).into(),
+            how: "diretta".into(),
+            tools: vec![ONLY_EASY.into()],
+            ms: started.elapsed().as_millis() as u64,
+            ..Default::default()
+        });
+        return Ok(ChatReply { text });
+    }
     // The work folder, when one is chosen (workdir.rs): the engines may read it.
     let work = if plain { None } else { workdir::root(app) };
     // A different model is a different conversation too: start over (an
@@ -1819,14 +1880,8 @@ pub(crate) async fn chat_turn(
         let started = std::time::Instant::now();
         // A short order (commands.rs) gets its «Esegui» button: only in the
         // island, where the button is.
-        let command = if channel == Channel::Island {
-            let s = shared.settings.lock().unwrap();
-            let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
-            commands::parse(&query, &s.actions, &profiles)
-        } else {
-            None
-        };
-        match router::direct(app, chat, &query, command).await {
+        let command = if channel == Channel::Island { island_command(&shared, &query) } else { None };
+        match router::direct(app, chat, &query, command, false, true).await {
             router::Direct::Answer(text, tool) => {
                 if shared.settings.lock().unwrap().chat_history {
                     chat_log::record(chat, &engine, &query, &text, if telegram { "Telegram · " } else { "" });
@@ -5013,6 +5068,10 @@ pub fn run() {
             recipes_count,
             recipes_forget,
             router_stats,
+            chat_vote,
+            votes_stats,
+            votes_check,
+            votes_forget,
             router_forget,
             meaning_local_status,
             meaning_local_download,

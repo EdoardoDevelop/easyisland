@@ -174,6 +174,14 @@ Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senz
 ## Memoria, seguiti
 - **Pulizia proposta:** `brain::check` segnala pagine doppie (alias, titoli, parole in comune) e relazioni ripetute con nomi diversi; il compito propone «unisci» con `task_ask` (la pagina unita va in archivio).
 
+## TextComposer: risposte dalla memoria scritte da un modello piccolo (15/11, per il futuro)
+Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scrive. Ingresso: domanda, estratti trovati, riferimenti; uscita: testo composto o «non riesco». Modello sostituibile senza toccare la ricerca.
+- **Primo compositore = oggi:** le righe così come sono (`memory_answer::shown`); è anche il ripiego a ogni errore.
+- **Poi un servizio compatibile OpenAI** già usato dalla chat (Ollama, LM Studio; es. `qwen2.5:0.5b`, Apache 2.0): nessuna dipendenza nuova. Dentro l'app solo se convince, riusando `claude/modello-integrato` (llama-server in processo separato, download dopo clic con SHA-256).
+- **Controllo:** ogni numero, IP, nome in maiuscolo o codice del testo deve stare negli estratti, se no si mostrano le righe; fonti sempre sotto, piegate.
+- **Risorse** (stime da misurare sul portatile con Ollama prima del codice): ~400 MB su disco, ~0,5–0,7 GB in memoria solo mentre scrive, 1–3 s di CPU. Solo sulle risposte dalla memoria, priorità bassa e max 2 core, scaricato subito dopo, tempo massimo 4 s, mai a batteria, sotto carico o in chiamata 3CX; spento di serie.
+- **Misura:** 👍/👎 (`votes.rs`) delle risposte composte contro le righe.
+
 ## Modello integrato (27/10, accantonato)
 Fatto nel branch `claude/modello-integrato` (non unito; passi in `docs/modello-integrato.md` del branch), manca la prova dal vivo. Per riprendere: aggiornare il branch con `claude/sviluppo`, verificare build di llama.cpp e hash dei modelli, provare.
 - `llama-server.exe` (CPU + Vulkan) scaricato con il primo modello, avviato nascosto solo quando serve e spento dopo minuti senza richieste; API compatibile OpenAI → riusa `openai.rs`. Processo separato (un crash del C++ non chiude l'isola); job object lo chiude con l'app.

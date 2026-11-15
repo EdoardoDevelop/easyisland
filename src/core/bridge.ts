@@ -383,7 +383,7 @@ export const Bridge = {
   chatBranch: (folder: string) => call<string>("chat_branch", { folder }),
   chatPickFolder: (start: string | null) => callOrThrow<string | null>("chat_pick_folder", { start }),
   chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false, folder: string | null = null, team = false, effort: string | null = null, mode = "", model: string | null = null, fast = false, agents = false) =>
-    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null; plan?: string | null; usage?: import("./state").TurnUsage | null; direct?: boolean; command?: import("./state").ChatCommand | null; meaning?: [string, number][] }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
+    callOrThrow<{ text: string; log: string | null; context: [number, number] | null; mode: string; note?: string | null; plan?: string | null; usage?: import("./state").TurnUsage | null; direct?: boolean; command?: import("./state").ChatCommand | null; meaning?: [string, number][]; memory?: string[] }>("chat_send", { sid, query, context, engine, auto, folder, team, effort, mode: mode || null, model, fast, agents }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
@@ -767,6 +767,13 @@ export const Bridge = {
   recipesCount: () => call<number>("recipes_count"),
   recipesForget: () => call<void>("recipes_forget"),
   /** Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs). */
+  /** 👍 (1), 👎 (-1) or taken back (0) under an answer (votes.rs): what EasyIsland learnt. */
+  chatVote: (question: string, answer: string, engine: string, direct: boolean, lines: string[], vote: number) =>
+    call<string>("chat_vote", { question, answer, engine, direct, lines, vote }),
+  votesStats: () => call<{ votes: number; memoryUp: number; memoryDown: number; engineUp: number; engineDown: number; directUp: number; directDown: number; learnt: number }>("votes_stats"),
+  /** The voted questions asked again of today's memory, no engine. */
+  votesCheck: () => call<{ tried: number; changed: { question: string; up: boolean; now: string[] }[] }>("votes_check"),
+  votesForget: () => call<void>("votes_forget"),
   routerStats: () => call<{ turns: number; direct: number; refused: number; prepared: number; again: number; saved: number }>("router_stats"),
   routerForget: () => call<void>("router_forget"),
   /** «Ricerca per significato» on this PC (meaning_local.rs): the model's state, download, removal. */

@@ -200,7 +200,12 @@ export async function runScene(island: Island, scene: string) {
         if (pensa === "significato") {
           State.chatHistory = [{ id: 1, role: "user", content: "Che server ha Rossi?" }, { id: 2, role: "assistant", engine: "subscription", content: "Rossi ha un **NAS Synology DS920+** in ufficio, con il backup notturno alle 2:00.", meaning: [["[[Rossi]] NAS Synology DS920+ in ufficio, IP 192.168.1.20", 0.47], ["2026-10-02 backup notturno del NAS di Rossi alle 2:00", 0.38]], usage: { steps: 1, read: 18200, out: 120, peak: 18200, tools: [] } }];
         }
-        State.chat.sending = pensa !== "fine" && pensa !== "diretta" && pensa !== "comando" && pensa !== "significato";
+        // =solo: «Solo EasyIsland», an answer from the memory with its 👍 given (votes.rs).
+        if (pensa === "solo") {
+          State.chat.onlyEasy = true;
+          State.chatHistory = [{ id: 1, role: "user", content: "Quale vm ha la farmacia Falchi?" }, { id: 2, role: "assistant", engine: "easyisland", direct: true, vote: 1, memory: ["[[farmacia-falchi]] VM: FALCHI-DC, FALCHI-WINFARM, FALCHI-POLLER, FALCHI-PBS."], content: "Dalla memoria:\n\n- **farmacia-falchi** — VM: FALCHI-DC, FALCHI-WINFARM, FALCHI-POLLER, FALCHI-PBS.\n\n📒 Risposta di EasyIsland dalla memoria, senza motore. Per la risposta del motore riscrivi la domanda." }];
+        }
+        State.chat.sending = pensa !== "fine" && pensa !== "diretta" && pensa !== "comando" && pensa !== "significato" && pensa !== "solo";
         State.chat.streamed = pensa === "passo" ? "Guardo i log.\n\n> ⚙ Legge · `backup.log`\n\n> ⚙ Esegue · `Get-Content nas.log -Tail 50`"
           : pensa === "testo" ? "Il backup si è fermato alle 02:14." : "";
         if (pensa.startsWith("squadra")) {

@@ -29,7 +29,7 @@ The question goes the same way as those typed in the island: direct answers, mem
 
 | Option | Meaning |
 |---|---|
-| `--engine` | `subscription`, `api`, `opencode`, `antigravity`, `openrouter`, `openai`, `gemini`, `ollama`, `lmstudio`; without it, the chat's default |
+| `--engine` | `subscription`, `api`, `opencode`, `antigravity`, `openrouter`, `openai`, `gemini`, `ollama`, `lmstudio`, `easyisland` (only EasyIsland, no engine); without it, the chat's default |
 | `--conversation relay-…` | goes on with the same conversation |
 | `--json` | the whole answer, for scripts |
 
