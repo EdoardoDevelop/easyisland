@@ -2,6 +2,12 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.49** — **Model on this PC**: an AI model that runs inside EasyIsland, on the graphics card (NVIDIA, AMD or
+Intel), with nothing to install and nothing leaving the PC. In Settings → Chat EasyIsland tells which graphics card you
+have, recommends the model that suits your PC and measures it with **Test the speed**. It works in the chat, in **Terminal
+mode** (commands and files run by EasyIsland after your permission, without opencode) and to **write the answers from the
+memory** from the lines found. Settings → Chat and engines reorganised in sub-tabs.
+
 **1.0.48** — **The memory answers by itself.** Questions that look up something already noted («which vm does the Falchi
 pharmacy have?», «who is …?») get the memory's lines, at once and with no engine. **Search by meaning** can now run **on the
 PC**, with a model downloaded from Settings: it finds notes written with other words, and «🧠» under the answer says what

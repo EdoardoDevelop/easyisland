@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 15/11 — Risposte dalla memoria senza motore e `easyisland-hook chiedi` (ramo `claude/risposte-memoria`, da `claude/sviluppo`)
+Sul portatile «quale vm ha la farmacia falchi?» andava a Claude (due passi). Fatto `memory_answer.rs` (righe della memoria come risposta, scelte per parole e pagina: il solo significato sbagliava) e `chiedi` per domandare alla chat da script e WinRM, motore a scelta (`docs/agenti.md`). Provato dal vivo sul portatile via WinRM: dalla memoria in ~30 ms; con opencode 10 s; con Claude la parafrasi in 1 passo (prima 2). `docs/chat.md` → Smistatore.
+
 ### 14/11 — Ricerca per significato sul PC (ramo `claude/significato-locale`, da `claude/sviluppo`)
 Edoardo: tra i modelli piccoli scelto model2vec, prima per la ricerca nella memoria; scaricato da Impostazioni, non nell'installer. Fatto `meaning_local.rs` (download a revisione e SHA-256 fissi, conversione a 8 bit mentre arriva, tokenizer Unigram in Rust uguale all'originale su 3.649 frasi), voce «EasyIsland, su questo PC» in Impostazioni → Chat → Memoria, anche dentro `memory_search`. `docs/chat.md` → Memoria.
 
