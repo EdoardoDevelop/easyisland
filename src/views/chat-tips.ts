@@ -110,6 +110,37 @@ export async function contextTips(page: PageKind | null): Promise<Tip[]> {
   return out.slice(0, 4);
 }
 
+/**
+ * What is in front of the user, as words for the tips from the memory
+ * (memory_tips.rs): the Anteprima's page, the files in the Vassoio, the last
+ * question. Empty when there is nothing: no tips in an empty chat (9 Nov).
+ */
+export function tipsText(page: PageKind | null, lastQuestion: string): string {
+  const parts: string[] = [];
+  if (page && page.kind !== "none") parts.push([page.title, page.host, page.path?.split(/[\\/]/).pop()].filter(Boolean).join(" "));
+  for (const f of (State.inbox ?? []).slice(-3)) parts.push(f.name.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " "));
+  if (lastQuestion.trim()) parts.push(lastQuestion.trim().slice(0, 300));
+  return parts.filter((x) => x.trim()).join("\n");
+}
+
+let memoryKey = "";
+let memoryList: Tip[] = [];
+
+/** The tips from the memory for that text, asked again only when it changes. 📒: the memory answers them at once. */
+export async function memoryTips(text: string, asked: string[]): Promise<Tip[]> {
+  // In the browser preview: ?tips=memoria fakes them (docs/anteprima-browser.md).
+  if (!IS_TAURI && new URLSearchParams(location.search).get("tips") === "memoria") {
+    return [{ label: "📒 Cosa so di Farmacia Falchi", prompt: "Cosa sai di Farmacia Falchi?" }, { label: "📒 Host di Farmacia Falchi", prompt: "Che Host ha Farmacia Falchi?" }, { label: "📒 VM di Farmacia Falchi", prompt: "Che VM ha Farmacia Falchi?" }, { label: "📒 Rete di Farmacia Falchi", prompt: "Che Rete ha Farmacia Falchi?" }, { label: "📒 NAS di Farmacia Falchi", prompt: "Che NAS ha Farmacia Falchi?" }];
+  }
+  if (!text) return [];
+  const key = `${text}\u0000${asked.length}`;
+  if (key !== memoryKey) {
+    memoryKey = key;
+    memoryList = ((await Bridge.chatMemoryTips(text, asked)) ?? []).map((x) => ({ label: `📒 ${x.label}`, prompt: x.prompt }));
+  }
+  return memoryList;
+}
+
 /** «Cosa so fare»: what the chat can do, by group; examples go to the field. */
 export function helpGroups(): { title: string; items: Tip[] }[] {
   return [

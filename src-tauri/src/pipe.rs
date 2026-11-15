@@ -188,6 +188,19 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
+    // `easyisland-hook chiedi`: a question to the island's chat (lib.rs relay_ask),
+    // answered on the same connection when the turn is over.
+    if event == "EasyIslandAsk" {
+        let s = |k: &str| payload.get(k).and_then(Value::as_str).map(str::to_string);
+        let reply = crate::relay_ask(&app, &s("question").unwrap_or_default(), s("engine"), s("conversation")).await;
+        let _ = pipe.write_all(format!("{reply}\n").as_bytes()).await;
+        let _ = pipe.flush().await;
+        let mut rest = [0u8; 64];
+        let _ = tokio::time::timeout(Duration::from_secs(10), pipe.read(&mut rest)).await;
+        let _ = pipe.disconnect();
+        return;
+    }
+
     // The plan limits from Claude Code's status line (easyisland-hook statusline):
     // not a session event, and it comes at every message, so it is not logged.
     if event == "StatusLine" {

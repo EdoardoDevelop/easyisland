@@ -98,6 +98,10 @@ fn main() {
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));
     }
+    // A question to the island's chat from a script or a WinRM session (`ask`).
+    if matches!(std::env::args().nth(1).as_deref(), Some("chiedi" | "ask")) {
+        std::process::exit(ask(std::env::args().skip(2).collect()));
+    }
     // "Continua" on the island: text from stdin into a session's console (console.rs).
     if std::env::args().nth(1).as_deref() == Some("type") {
         std::process::exit(console::run(std::env::args().skip(2).collect()));
@@ -398,6 +402,132 @@ fn notify(args: Vec<String>) -> i32 {
         eprintln!("EasyIsland non è in esecuzione: il messaggio non è stato mostrato.");
         2
     }
+}
+
+const ASK_USAGE: &str = "Uso: easyisland-hook chiedi \"domanda\" [opzioni]
+
+Fa una domanda alla chat di EasyIsland, come se fosse scritta nell'isola
+(smistatore, memoria, ricette, motore), e stampa la risposta. La conversazione
+resta nella cronologia della chat con «Relay · » davanti; i permessi chiedono
+comunque il clic nell'isola.
+
+  --motore, -e <id>         subscription | api | opencode | antigravity | openrouter |
+                            openai | gemini | ollama | lmstudio | easyisland (solo EasyIsland,
+                            senza motore; predefinito: quello della chat)
+  --conversazione, -c <id>  continua una conversazione del relay (l'id lo stampa la risposta)
+  --json                    stampa la risposta com'è (testo, motore, passi, note per significato)
+
+Esempio:
+  easyisland-hook chiedi \"quale vm ha la farmacia Falchi?\"
+  easyisland-hook chiedi \"riassumi le novità\" --motore gemini
+
+Esce con 0 se ha risposto, 1 per un errore, 2 se EasyIsland non è in esecuzione.";
+
+/// A turn may take minutes (an engine with tools); the app answers when it is over.
+const ASK_BUDGET: Duration = Duration::from_secs(15 * 60);
+
+/// `easyisland-hook chiedi`: a question to the island's chat (src-tauri lib.rs relay_ask).
+fn ask(args: Vec<String>) -> i32 {
+    let (mut engine, mut conversation, mut json_out) = (String::new(), String::new(), false);
+    let mut words = Vec::new();
+    let mut it = args.into_iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "-h" | "--help" | "/?" => {
+                println!("{ASK_USAGE}");
+                return 0;
+            }
+            "--motore" | "--engine" | "-e" => engine = it.next().unwrap_or_default(),
+            "--conversazione" | "--conversation" | "-c" => conversation = it.next().unwrap_or_default(),
+            "--json" => json_out = true,
+            other if other.starts_with("--") => {
+                eprintln!("Opzione sconosciuta: {other}\n\n{ASK_USAGE}");
+                return 1;
+            }
+            _ => words.push(a),
+        }
+    }
+    let question = words.join(" ");
+    if question.trim().is_empty() {
+        eprintln!("{ASK_USAGE}");
+        return 1;
+    }
+    let payload = serde_json::json!({
+        "hook_event_name": "EasyIslandAsk",
+        "question": question.chars().take(8_000).collect::<String>(),
+        "engine": engine.trim(),
+        "conversation": conversation.trim(),
+    });
+    let line = format!("{payload}\n");
+    let (tx, rx) = mpsc::channel::<Option<String>>();
+    std::thread::spawn(move || {
+        let Some(mut pipe) = connect() else {
+            let _ = tx.send(None);
+            return;
+        };
+        if pipe.write_all(line.as_bytes()).is_err() || pipe.flush().is_err() {
+            let _ = tx.send(None);
+            return;
+        }
+        let mut buf = Vec::new();
+        let mut chunk = [0u8; 8192];
+        loop {
+            match pipe.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(n) => {
+                    buf.extend_from_slice(&chunk[..n]);
+                    if buf.contains(&b'\n') {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+        let _ = tx.send(Some(String::from_utf8_lossy(&buf).trim().to_string()));
+    });
+    let answer = match rx.recv_timeout(ASK_BUDGET) {
+        Ok(Some(a)) if !a.is_empty() => a,
+        Ok(None) => {
+            eprintln!("EasyIsland non è in esecuzione.");
+            return 2;
+        }
+        _ => {
+            eprintln!("EasyIsland non ha risposto in tempo.");
+            return 1;
+        }
+    };
+    if json_out {
+        println!("{answer}");
+    }
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(&answer) else {
+        if !json_out {
+            eprintln!("Risposta non valida da EasyIsland.");
+        }
+        return 1;
+    };
+    let s = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or_default().to_string();
+    if v.get("ok").and_then(|x| x.as_bool()) != Some(true) {
+        if !json_out {
+            eprintln!("{}", s("error"));
+        }
+        return 1;
+    }
+    if !json_out {
+        println!("{}", s("text"));
+        let mut info = vec![if v.get("direct").and_then(|x| x.as_bool()) == Some(true) { "senza motore".to_string() } else { format!("motore: {}", s("engine")) }];
+        if let Some(u) = v.get("usage").filter(|u| !u.is_null()) {
+            let n = |k: &str| u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+            info.push(format!("{} passi, {} token letti", n("steps"), n("read")));
+        }
+        let found = v.get("meaning").and_then(|m| m.as_array()).map_or(0, |m| m.len());
+        if found > 0 {
+            info.push(format!("{found} note per significato"));
+        }
+        info.push(format!("{} s", v.get("ms").and_then(|x| x.as_u64()).unwrap_or(0) / 1000));
+        info.push(format!("conversazione {}", s("conversation")));
+        println!("\n— {}", info.join(" · "));
+    }
+    0
 }
 
 /// Reads stdin and returns the payload to forward, the event name and the

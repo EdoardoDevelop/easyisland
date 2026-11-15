@@ -98,8 +98,11 @@ export function handleWidget(island: Island, r: WidgetStatus) {
     const wasBad = prev ? prev.level !== "ok" : false;
     const isBad = r.level !== "ok";
     const shows = State.reaction(task.id) === "show";
+    // A warning is «Attenzione», not «Errore» (Meteo with rain on the way said «Errore»).
+    const bad = r.level === "warn" ? "warn" : "error";
+    if (isBad && wasBad && prev?.level !== r.level && (task.pillBadge === "warn" || task.pillBadge === "error")) task.pillBadge = bad;
     if (isBad && !wasBad) {
-      if (State.focusId !== task.id) task.pillBadge = "error";
+      if (State.focusId !== task.id) task.pillBadge = bad;
       // The very first result only sets the badge: no fanfare at startup.
       if (prev && shows) {
         Sound.play("error");
@@ -110,7 +113,7 @@ export function handleWidget(island: Island, r: WidgetStatus) {
       if (shows) Sound.play("finish");
     } else if (r.event && prev) {
       // A new ticket and the like: announced even though the level stayed put.
-      if (State.focusId !== task.id && task.pillBadge !== "error") task.pillBadge = "finished";
+      if (State.focusId !== task.id && task.pillBadge !== "error" && task.pillBadge !== "warn") task.pillBadge = "finished";
       if (shows) {
         Sound.play("finish");
         island.reveal();

@@ -25,7 +25,7 @@
 <header class="top">
 <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
 <a href="../it/index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
-<span class="badge">Guida · 1.0.46</span>
+<span class="badge">Guida · 1.0.47</span>
 <div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
 <nav class="links"><a href="../it/index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../en/guide/command-line.html" hreflang="en">English</a></nav>
 </header>
@@ -40,6 +40,13 @@
 <pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" notify "Backup" "Completato in 4 minuti" --stato ok</code></pre>
 <div class="table"><table><thead><tr><th>Opzione</th><th>Significato</th></tr></thead><tbody><tr><td><code>--stato</code></td><td><code>ok</code>, <code>avviso</code>, <code>errore</code> o <code>info</code> (colore e suono)</td></tr><tr><td><code>--apri https://…</code></td><td>Aggiunge un pulsante con un link</td></tr><tr><td><code>--help</code></td><td>L'aiuto</td></tr></tbody></table></div>
 <p>Esce con <strong>0</strong> se il messaggio è arrivato e con <strong>2</strong> se EasyIsland non è in esecuzione, quindi uno script non resta mai bloccato. Valgono le regole di notifica del profilo. In <strong>Impostazioni → Notifiche</strong> c'è il comando pronto da copiare e <strong>Prova</strong>.</p>
+<h2 id="domande-alla-chat"><a class="anchor" href="#domande-alla-chat">#</a>Domande alla chat</h2>
+<p>Uno script, un'attività pianificata o una sessione remota (WinRM, sempre con il tuo utente) può fare una domanda alla chat di EasyIsland e leggerne la risposta:</p>
+<pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" chiedi "quale vm ha la farmacia Falchi?"
+&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" chiedi "riassumi le novità di oggi" --motore gemini</code></pre>
+<p>La domanda fa la stessa strada di quelle scritte nell'isola: risposte dirette, memoria, ricette, motore. Sotto la risposta una riga dice com'è arrivata (senza motore o con quale motore, passi e token, note trovate per significato) e l'id della conversazione.</p>
+<div class="table"><table><thead><tr><th>Opzione</th><th>Significato</th></tr></thead><tbody><tr><td><code>--motore</code></td><td><code>subscription</code>, <code>api</code>, <code>opencode</code>, <code>antigravity</code>, <code>openrouter</code>, <code>openai</code>, <code>gemini</code>, <code>ollama</code>, <code>lmstudio</code>, <code>easyisland</code> (solo EasyIsland, senza motore); senza, quello predefinito della chat</td></tr><tr><td><code>--conversazione relay-…</code></td><td>continua la stessa conversazione</td></tr><tr><td><code>--json</code></td><td>la risposta completa, per gli script</td></tr></tbody></table></div>
+<p>La conversazione resta nella cronologia della chat con <strong>Relay ·</strong> davanti, così vedi cosa è stato chiesto. Se il motore vuole eseguire o modificare qualcosa, la card Consenti/Nega compare nell'isola e aspetta il tuo clic: dal comando non si approva niente. Funziona solo sul PC e con il tuo utente, nessuna porta in rete; da fuori c'è Agent Chat.</p>
 <h2 id="aprire-le-impostazioni"><a class="anchor" href="#aprire-le-impostazioni">#</a>Aprire le Impostazioni</h2>
 <pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\easyisland.exe" --settings</code></pre>
 <h2 id="il-relay-degli-agenti"><a class="anchor" href="#il-relay-degli-agenti">#</a>Il relay degli agenti</h2>
@@ -58,9 +65,9 @@
 <h2 id="il-log"><a class="anchor" href="#il-log">#</a>Il log</h2>
 <p><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code>: avvio, eventi degli hook, decisioni sui permessi, tempi dei turni della chat e degli strumenti, problemi dei controlli. Resta sul tuo PC.</p>
 <div class="pager"><a class="prev" href="privacy.html"><small>Precedente</small>Privacy e sicurezza</a><a class="next" href="problemi.html"><small>Successiva</small>Problemi e soluzioni</a></div>
-<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland 1.0.46 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/28-riga-di-comando.md">Modifica questa pagina su GitHub</a></footer>
+<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland 1.0.47 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/28-riga-di-comando.md">Modifica questa pagina su GitHub</a></footer>
 </main>
-<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#messaggi-dagli-script">Messaggi dagli script</a></li><li class="l2"><a href="#aprire-le-impostazioni">Aprire le Impostazioni</a></li><li class="l2"><a href="#il-relay-degli-agenti">Il relay degli agenti</a></li><li class="l3"><a href="#un-tuo-strumento-in-agenti">Un tuo strumento in Agenti</a></li><li class="l2"><a href="#il-server-mcp-di-easyisland">Il server MCP di EasyIsland</a></li><li class="l2"><a href="#il-log">Il log</a></li></ul></nav>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#messaggi-dagli-script">Messaggi dagli script</a></li><li class="l2"><a href="#domande-alla-chat">Domande alla chat</a></li><li class="l2"><a href="#aprire-le-impostazioni">Aprire le Impostazioni</a></li><li class="l2"><a href="#il-relay-degli-agenti">Il relay degli agenti</a></li><li class="l3"><a href="#un-tuo-strumento-in-agenti">Un tuo strumento in Agenti</a></li><li class="l2"><a href="#il-server-mcp-di-easyisland">Il server MCP di EasyIsland</a></li><li class="l2"><a href="#il-log">Il log</a></li></ul></nav>
 </div>
 <script src="../guida/guida.js"></script>
 </body>

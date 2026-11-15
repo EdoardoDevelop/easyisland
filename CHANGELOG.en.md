@@ -2,6 +2,15 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.48** — **The memory answers by itself.** Questions that look up something already noted («which vm does the Falchi
+pharmacy have?», «who is …?») get the memory's lines, at once and with no engine. **Search by meaning** can now run **on the
+PC**, with a model downloaded from Settings: it finds notes written with other words, and «🧠» under the answer says what
+it found. **👍 and 👎** under every answer: EasyIsland remembers the right lines, does not repeat the wrong ones and learns
+from a 👍 to an engine. **Only EasyIsland** in the engine menu, to use the chat with no engine and no tokens. **You can ask**
+suggests questions from the memory about the client in front of you, on a line that scrolls. `easyisland-hook ask` asks the
+chat from scripts and remote sessions. The island follows content that changes (no more cut bottom), and checks' warnings
+say «Warning», not «Error».
+
 **1.0.47** — **New island look**: a full-width search bar that is also a **calculator**, a side bar you open and close
 yourself, an **Overview** with the «Now» strip, one tile per integration and agent and your quick actions, a renewed chat
 field with commands (/) and context (@). Three new **styles** in Appearance → Style: Monolith, Titanium and Glass.

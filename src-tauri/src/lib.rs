@@ -15,6 +15,10 @@ mod antigravity;
 mod agent;
 mod memory_learn;
 mod memory_meaning;
+mod meaning_local;
+mod memory_answer;
+mod votes;
+mod memory_tips;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -931,6 +935,35 @@ fn recipes_forget() {
     recipes::forget();
 }
 
+/// 👍 / 👎 under an answer of the chat (votes.rs); `vote` 0 takes it back.
+/// Returns what EasyIsland learnt, said under the answer.
+#[tauri::command]
+async fn chat_vote(question: String, answer: String, engine: String, direct: bool, lines: Vec<String>, vote: i32) -> String {
+    votes::vote(&question, &answer, &engine, direct, lines, match vote { 1 => Some(true), -1 => Some(false), _ => None }).await
+}
+
+/// «Puoi chiedere:» from the memory (memory_tips.rs): questions about the
+/// pages the text in front of the user names, that the memory answers by itself.
+#[tauri::command]
+async fn chat_memory_tips(app: AppHandle, text: String, asked: Vec<String>) -> Vec<memory_tips::Tip> {
+    memory_tips::tips(&app, &text, &asked).await
+}
+
+#[tauri::command]
+fn votes_stats() -> serde_json::Value {
+    votes::stats()
+}
+
+#[tauri::command]
+async fn votes_check(app: AppHandle) -> serde_json::Value {
+    votes::check(&app).await
+}
+
+#[tauri::command]
+fn votes_forget() {
+    votes::forget();
+}
+
 /// Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs).
 #[tauri::command]
 fn router_stats() -> serde_json::Value {
@@ -940,6 +973,26 @@ fn router_stats() -> serde_json::Value {
 #[tauri::command]
 fn router_forget() {
     router::forget();
+}
+
+/// «Ricerca per significato» on this PC (meaning_local.rs): the model's state.
+#[tauri::command]
+fn meaning_local_status() -> meaning_local::Status {
+    meaning_local::status()
+}
+
+/// Downloads the model, after the click in Impostazioni; then the memory's
+/// lines get their vectors at once, not at the next question.
+#[tauri::command]
+async fn meaning_local_download(app: AppHandle) -> Result<(), String> {
+    meaning_local::download().await?;
+    tauri::async_runtime::spawn(async move { memory_meaning::prepare(&app).await });
+    Ok(())
+}
+
+#[tauri::command]
+fn meaning_local_remove() -> Result<(), String> {
+    meaning_local::remove()
 }
 
 /// «Esegui» under a command the chat offered (commands.rs): the user's click
@@ -1429,6 +1482,8 @@ async fn chat_send(
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
     let auto = auto.unwrap_or(false);
+    // What the meaning finds in this turn, for the mark under the answer.
+    memory_meaning::turn_start();
     let reply = if team == Some(true) {
         team::run(&app, chat.clone(), &sid, query, context, engine, auto, &on_text).await?
     } else {
@@ -1440,8 +1495,77 @@ async fn chat_send(
         chat.set_mode(None);
     }
     let note = if chat.fast() { claude_cli::fast_refused(std::sync::Arc::as_ptr(&chat) as usize) } else { None };
-    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat) })
+    Ok(IslandReply { text: reply.text, log: chat.log_id(), context: chat.take_context(), mode: chat.mode().unwrap_or_default(), note, plan: antigravity::take_plan(&chat), usage: chat.take_usage(), direct: router::was_direct(&chat), command: router::take_command(&chat), meaning: memory_meaning::take_found(), memory: router::take_memory(&chat) })
 }
+
+/// `easyisland-hook chiedi` (pipe.rs, 15 Nov 2026): a question to the island's
+/// chat from a script, a scheduled task or a WinRM session of this user. It is
+/// a turn as if typed in the island (smistatore, memory, recipes, engine), saved
+/// in the history with «Relay · » in front, so nothing happens out of sight;
+/// a permission still waits for the click on the island. `engine` empty = the
+/// default one; `conversation` = a relay conversation to go on with.
+pub(crate) async fn relay_ask(app: &AppHandle, question: &str, engine: Option<String>, conversation: Option<String>) -> serde_json::Value {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    let question = question.trim();
+    if question.is_empty() {
+        return serde_json::json!({ "ok": false, "error": t("Manca la domanda.") });
+    }
+    let engine = engine.map(|e| e.trim().to_lowercase()).filter(|e| !e.is_empty());
+    if let Some(e) = &engine {
+        if !relay_engines().contains(&e.as_str()) {
+            return serde_json::json!({ "ok": false, "error": tf("Motore sconosciuto: {e}. Motori: {list}.", &[("e", e), ("list", &relay_engines().join(", "))]) });
+        }
+    }
+    let sid = conversation
+        .filter(|c| c.starts_with("relay-"))
+        .unwrap_or_else(|| format!("relay-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+    let chats = app.state::<Chats>();
+    let chat = match chats.get(&sid) {
+        Ok(c) => c,
+        Err(e) => return serde_json::json!({ "ok": false, "error": e }),
+    };
+    if chat.effort().is_none() {
+        let fallback = app.state::<Shared>().settings.lock().unwrap().cli_effort.clone();
+        chat.set_effort(Some(fallback));
+    }
+    let started = std::time::Instant::now();
+    log::line(format!("relay: chiedi ({})", engine.as_deref().unwrap_or("motore predefinito")));
+    memory_meaning::turn_start();
+    let used = engine.clone().unwrap_or_else(|| app.state::<Shared>().settings.lock().unwrap().chat_engine.clone());
+    let reply = chat_turn(app, &chat, question.to_string(), None, engine, None, false, Channel::Island, &|_| {}).await;
+    let direct = router::was_direct(&chat);
+    let _ = router::take_command(&chat);
+    let lines = router::take_memory(&chat);
+    let usage = chat.take_usage();
+    let meaning: Vec<serde_json::Value> = memory_meaning::take_found().into_iter().map(|(l, s)| serde_json::json!({ "line": l, "score": s })).collect();
+    // The history shows where it came from.
+    chat_log::retitle_prefix(&chat, "Relay · ");
+    match reply {
+        Ok(r) => serde_json::json!({
+            "ok": true,
+            "text": r.text,
+            "direct": direct,
+            "engine": if direct { "easyisland".to_string() } else { used },
+            "conversation": sid,
+            "meaning": meaning,
+            "memory": lines,
+            "usage": usage,
+            "ms": started.elapsed().as_millis() as u64,
+        }),
+        Err(e) => serde_json::json!({ "ok": false, "error": e, "conversation": sid }),
+    }
+}
+
+/// The engines `chiedi --motore` takes (the chat's ids).
+fn relay_engines() -> &'static [&'static str] {
+    &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio", ONLY_EASY]
+}
+
+/// «Solo EasyIsland» (15 Nov 2026): the chat's «engine» that is none, picked in
+/// the chat's menu for a conversation. EasyIsland answers alone (commands,
+/// recipes, memory) or says it does not know, with «Chiedi al motore».
+pub(crate) const ONLY_EASY: &str = "easyisland";
 
 /// A turn of the island's chat, with the conversation's id in the history
 /// (chat_log.rs): the sidebar knows which entry is this open conversation.
@@ -1463,6 +1587,10 @@ struct IslandReply {
     direct: bool,
     /// A command offered with the answer (commands.rs): its «Esegui» button.
     command: Option<commands::Command>,
+    /// Memory lines found by meaning in this turn, with their score (memory_meaning.rs).
+    meaning: Vec<(String, f32)>,
+    /// The memory lines of an answer from the memory (router.rs), sent back with its 👍 / 👎.
+    memory: Vec<String>,
 }
 
 /// The island's conversations, open side by side (the chat's sidebar): each
@@ -1646,6 +1774,13 @@ fn light_restart(chat: &Chat) {
     chat.set_light_from(Some(used));
 }
 
+/// A short order of the island's chat (commands.rs), with the user's actions and profiles.
+fn island_command(shared: &Shared, query: &str) -> Option<commands::Command> {
+    let s = shared.settings.lock().unwrap();
+    let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
+    commands::parse(query, &s.actions, &profiles)
+}
+
 pub(crate) async fn chat_turn(
     app: &AppHandle,
     chat: &Chat,
@@ -1693,6 +1828,28 @@ pub(crate) async fn chat_turn(
         let mcp = if plain { Default::default() } else { s.mcp_servers.clone() };
         (e, model, cli_model, mcp, s.agent_tools && !plain, other, url, terminal)
     };
+    // «Solo EasyIsland»: no engine, not even to start one (votes.rs, router.rs).
+    if engine == ONLY_EASY && matches!(channel, Channel::Island | Channel::Telegram) {
+        let started = std::time::Instant::now();
+        let command = if channel == Channel::Island { island_command(&shared, &query) } else { None };
+        let text = match router::direct(app, chat, &query, command, true, agent).await {
+            router::Direct::Answer(text, _) => text,
+            _ => router::only_none(app, chat, &query).await,
+        };
+        if shared.settings.lock().unwrap().chat_history {
+            chat_log::record(chat, &engine, &query, &text, if telegram { "Telegram · " } else { "" });
+        }
+        router::record(router::Turn {
+            question: query.clone(),
+            engine: engine.clone(),
+            channel: channel_name(channel).into(),
+            how: "diretta".into(),
+            tools: vec![ONLY_EASY.into()],
+            ms: started.elapsed().as_millis() as u64,
+            ..Default::default()
+        });
+        return Ok(ChatReply { text });
+    }
     // The work folder, when one is chosen (workdir.rs): the engines may read it.
     let work = if plain { None } else { workdir::root(app) };
     // A different model is a different conversation too: start over (an
@@ -1731,14 +1888,8 @@ pub(crate) async fn chat_turn(
         let started = std::time::Instant::now();
         // A short order (commands.rs) gets its «Esegui» button: only in the
         // island, where the button is.
-        let command = if channel == Channel::Island {
-            let s = shared.settings.lock().unwrap();
-            let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
-            commands::parse(&query, &s.actions, &profiles)
-        } else {
-            None
-        };
-        match router::direct(app, chat, &query, command).await {
+        let command = if channel == Channel::Island { island_command(&shared, &query) } else { None };
+        match router::direct(app, chat, &query, command, false, true).await {
             router::Direct::Answer(text, tool) => {
                 if shared.settings.lock().unwrap().chat_history {
                     chat_log::record(chat, &engine, &query, &text, if telegram { "Telegram · " } else { "" });
@@ -1814,8 +1965,18 @@ pub(crate) async fn chat_turn(
     // What the memory knows about this question, looked up here with no model
     // (memory::related): often one memory_search step less, at every question.
     // «Ricerca per significato» (memory_meaning.rs), when a service is chosen: the closest lines join them.
-    let meaning = if remember && memory_tools && learns { memory_meaning::related(app, &asked).await } else { Vec::new() };
+    let (scored, meaning_engine) = if remember && memory_tools && learns { memory_meaning::related_scored(app, &asked).await } else { (Vec::new(), String::new()) };
+    let strong = scored.first().is_some_and(|(s, _)| *s >= memory_meaning::strong(&meaning_engine));
+    let meaning: Vec<String> = scored.into_iter().map(|(_, l)| l).collect();
     let related = if remember && memory_tools && learns { memory::related(&asked, fresh, &meaning) } else { None };
+    // Lines very close in meaning: the engine answers with them, a search only for what is missing
+    // (on the laptop Claude read the page and searched again for a line it had, 14 Nov 2026).
+    let related = match related {
+        Some(r) if strong => Some(format!("{r}{}", t("[Le righe qui sopra sono molto vicine alla domanda: se rispondono, rispondi con quelle senza cercare oltre nella memoria; memory_search o memory_page solo per ciò che manca.]
+
+"))),
+        r => r,
+    };
     let query = match &related {
         Some(r) => format!("{r}{query}"),
         None => query,
@@ -4915,7 +5076,15 @@ pub fn run() {
             recipes_count,
             recipes_forget,
             router_stats,
+            chat_vote,
+            chat_memory_tips,
+            votes_stats,
+            votes_check,
+            votes_forget,
             router_forget,
+            meaning_local_status,
+            meaning_local_download,
+            meaning_local_remove,
             chat_command_run,
             portals_list,
             portals_delete,

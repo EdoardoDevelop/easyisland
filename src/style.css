@@ -1601,6 +1601,10 @@ input[type="range"]::-webkit-slider-thumb {
   background: transparent;
 }
 .msg-act:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+/* 👍 / 👎 (votes.rs): grey until given. */
+.msg-act.vote { padding: 0 4px; filter: grayscale(1); opacity: 0.6; }
+.msg-act.vote:hover, .msg-act.vote.on { filter: none; opacity: 1; }
+.msg-act.vote.on { background: rgba(255, 255, 255, 0.12); }
 /* What the turn cost (Claude Code): small, after the actions. */
 .msg-usage {
   align-self: center;
@@ -1634,11 +1638,11 @@ input[type="range"]::-webkit-slider-thumb {
 /* "/" in the field: the commands, over it. */
 .slash-menu {
   position: absolute;
-  z-index: 3;
+  z-index: 5;
   left: max(16px, calc(84px * var(--bot-room, 1)));
   right: 16px;
   bottom: 58px;
-  max-height: 60%;
+  max-height: 55%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1666,15 +1670,31 @@ input[type="range"]::-webkit-slider-thumb {
 /* What can be asked about what is on screen (chat-tips.ts): chips over the field. */
 .chat-tips {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   padding: 3px 10px;
 }
 .chat-tips-label {
+  flex: none;
   font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font);
   color: var(--dim-2);
 }
+/* One line that scrolls sideways (wheel, ‹ ›, its thin bar). */
+.chat-tips-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.chat-tips-strip .chat-tip { flex: none; white-space: nowrap; }
+.chat-tip.arrow { flex: none; padding: 2px 7px; background: transparent; box-shadow: none; color: var(--dim-2); }
+.chat-tip.arrow:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.chat-tip.arrow:disabled { opacity: 0.3; cursor: default; }
 .chat-tip {
   padding: 2px 9px;
   border: 0;
@@ -1686,7 +1706,7 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 .chat-tip:hover { background: rgba(129, 140, 248, 0.26); }
-.chat-tip.close { background: transparent; box-shadow: none; color: var(--dim-2); padding: 2px 5px; }
+.chat-tip.close { flex: none; background: transparent; box-shadow: none; color: var(--dim-2); padding: 2px 5px; }
 /* «Cosa so fare»: the menu over the field, taller, with group titles. */
 .slash-menu.chat-help { max-height: 75%; }
 .chat-help .slash-item b { flex: 0 0 150px; }
@@ -1698,6 +1718,52 @@ input[type="range"]::-webkit-slider-thumb {
   letter-spacing: 0.02em;
   color: var(--dim-2);
 }
+
+/* Recent conversations above the composer on an empty chat. */
+.chat-recent {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: min(460px, calc(100% - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: opacity 0.14s ease;
+}
+.chat-recent.under-menu { opacity: 0; pointer-events: none; }
+.chat-recent-head {
+  padding: 0 4px 2px;
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+}
+.chat-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  font: 400 calc(12px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s, transform 0.14s;
+}
+.chat-recent-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.chat-recent-ico, .chat-recent-go { flex: 0 0 auto; display: inline-grid; place-items: center; color: var(--dim-3); }
+.chat-recent-go { opacity: 0; transform: translateX(-3px); transition: opacity 0.14s, transform 0.14s; }
+.chat-recent-item:hover .chat-recent-go { opacity: 1; transform: translateX(0); color: var(--ink); }
+.chat-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-recent-when { flex: none; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-3); font-variant-numeric: tabular-nums; }
 
 /* A line over the field: editing a question, a note saved, an error. */
 .chat-hint {
@@ -2535,6 +2601,11 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  /* Taller than the tallest island (MAX_ISLAND_H): it scrolls, never cut. */
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 .left-body > * { flex-shrink: 0; }
@@ -3862,7 +3933,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .zip-list::-webkit-scrollbar-button {
-  display: none;
+  display: none; width: 0; height: 0;
 }
 
 .zip-list::-webkit-scrollbar-thumb {
@@ -3935,7 +4006,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .files-body::-webkit-scrollbar { width: 6px; }
-.files-body::-webkit-scrollbar-button { display: none; }
+.files-body::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 .files-body::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(255, 255, 255, 0.18); }
 
 .files-head {
@@ -4039,7 +4110,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .files-list::-webkit-scrollbar-button {
-  display: none;
+  display: none; width: 0; height: 0;
 }
 
 .files-list::-webkit-scrollbar-thumb {
@@ -4281,7 +4352,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .diff-list::-webkit-scrollbar-button {
-  display: none;
+  display: none; width: 0; height: 0;
 }
 
 .diff-list::-webkit-scrollbar-thumb {
@@ -5092,6 +5163,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .summary-row.badge-approval { border-color: rgba(245, 165, 36, 0.6); }
 .summary-row.badge-error { border-color: rgba(244, 80, 94, 0.6); }
+.summary-row.badge-warn { border-color: rgba(245, 165, 36, 0.6); }
 .summary-row.badge-finished { border-color: rgba(34, 197, 94, 0.5); }
 /* In a group of the menu: a line along the bottom in the folder's colour, cut by the tile's corners. */
 .summary-row.in-group::after {
@@ -5114,7 +5186,8 @@ input[type="range"]::-webkit-slider-thumb {
 .summary-top > :first-child { flex: 0 0 auto; }
 .summary-name {
   flex: 1 1 auto;
-  min-width: 0;
+  /* The name keeps about six letters before the label shrinks. */
+  min-width: min(6em, max-content);
   font-size: calc(12.5px + var(--fs-up, 0px));
   font-weight: 600;
   white-space: nowrap;
@@ -6018,7 +6091,7 @@ html[data-scheme="light"] .rail-rename { background: #fff; }
 
 
 .rail-list::-webkit-scrollbar { width: 4px; }
-.rail-list::-webkit-scrollbar-button { display: none; }
+.rail-list::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 .rail-list::-webkit-scrollbar-thumb { border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
 .rail-list:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
 
@@ -7519,7 +7592,12 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 }
 .summary-ico-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c, #8e939c); display: block; }
 .summary-pill {
-  flex: 0 0 auto;
+  /* In a narrow card the label gives way before the name («M…» with «Errore», 15 Nov 2026). */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: calc(9.5px + var(--fs-up, 0px));
   font-weight: 600;
   padding: 1px 6px;
@@ -7529,6 +7607,7 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 }
 .summary-pill.approval { background: rgba(245, 165, 36, 0.18); color: var(--amber); }
 .summary-pill.error { background: rgba(244, 80, 94, 0.18); color: var(--red); }
+.summary-pill.warn { background: rgba(245, 165, 36, 0.18); color: var(--amber); }
 .summary-pill.finished { background: rgba(34, 197, 94, 0.16); color: var(--green); }
 .summary-pill.live { background: color-mix(in srgb, var(--c, #4cc2ff) 16%, transparent); color: var(--c, var(--ink)); }
 html[data-ui="classic"] .summary-ico,

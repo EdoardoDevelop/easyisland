@@ -68,6 +68,21 @@ When a question is always solved with the same read (the PC's status, your quick
 
 Direct answers also work when the period changes: if you asked «spese di settembre» and «spese di ottobre», for «spese di novembre» EasyIsland answers by itself with November's dates. The same for last month, week, today, yesterday and numbers («ticket 1234»).
 
+## Answers from the memory
+With **Search by meaning** on (Settings → Chat → Memory), to a question that only looks up something already noted («quale vm ha la farmacia Falchi?», «dove sono le password di Falchi?») EasyIsland answers by itself with the memory's lines, as they are written, under **📒 From the memory**. Without search by meaning the words are enough. It does so only when the line holds everything you named; for «why», «how», the state right now or something to do the engine answers. For the engine's answer press **⚡ Ask the engine**.
+
+## 👍 and 👎
+Under every answer of the chat there are **👍** and **👎**; pressed again, the vote goes. EasyIsland learns from the votes, on the PC and with no tokens:
+- **👍 to an answer from the memory**: similar questions get the same lines.
+- **👎 to an answer from the memory**: those lines are no longer the answer to similar questions; press **⚡ Ask the engine** for the engine's answer.
+- **👍 to an engine's answer** about something already noted: EasyIsland finds the memory lines the engine used and answers the similar question by itself. So it also learns words that differ from your notes («virtual machines» for «VM»).
+- **👎 to an engine's answer**: only counted. If something was missing, write it in a note.
+
+**Settings → Chat → Votes** shows the counts; **Try again** asks every voted question again of today's memory, with no engine, and tells you which ones changed answer.
+
+## Only EasyIsland
+In the chat's engine menu pick **📒 Only EasyIsland, no engine**: for that conversation no engine starts and nothing is spent. Commands, direct answers and the memory answer; when EasyIsland has no sure answer it shows the closest lines and **⚡ Ask the engine**, which sends that one question to the engine. It is the quickest way to train it with 👍 and 👎. Pick an engine in the same menu to go back to the engine's answers.
+
 ## Commands with no engine
 Short orders skip the engine: «apri Teams» (when it is one of your quick actions), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland answers at once with **▶ Run**: nothing starts until you press it. If you meant something else press **⚡ Ask the engine**.
 

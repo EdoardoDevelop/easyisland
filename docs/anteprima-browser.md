@@ -212,7 +212,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many`; `gruppi` (due gruppi nel menu, uno aperto e uno chiuso) |
 | `files` | il Vassoio | `fresh`: una zona appena aggiunta |
 | `approval` | il permesso con il tempo rimasto | — |
-| `chat` | la chat | `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi motore al lavoro, `pensa=squadra-fine` con la risposta controllata, `pensa=diretta` con una risposta diretta dello smistatore e «Chiedi al motore», `pensa=comando` con un comando e «Esegui») |
+| `chat` | la chat | `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi motore al lavoro, `pensa=squadra-fine` con la risposta controllata, `pensa=diretta` con una risposta diretta dello smistatore e «Chiedi al motore», `pensa=comando` con un comando e «Esegui», `pensa=significato` con le note trovate per significato sotto la risposta, `pensa=solo` con «Solo EasyIsland», una risposta dalla memoria e il 👍 dato) |
 | `clipboard` | gli appunti | `long` |
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |
@@ -273,7 +273,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 - `/?scene=daily&evening&ai&scheme=light`
 - `/?scene=meteo&activeIntegrations=integration_weather&sky=snow&night`
 - `/?scene=chat&terminal&auto&lang=en`
-- `/?scene=chat&tips=products` (suggerimenti sopra il campo: `products`, `login`, `page`, `pdf`, `portal`; svuota il campo per vederli)
+- `/?scene=chat&tips=products` (suggerimenti sopra il campo: `products`, `login`, `page`, `pdf`, `portal`, `memoria` per le domande dalla memoria; svuota il campo per vederli)
 - `/?anchorV=bottom&anchorH=left&iconSize=32&hoverStyle=bar`
 - `/settings.html?page=aspetto&tab=barra&lang=en`
 - `/?scene=fuzz&seed=3&steps=3000`

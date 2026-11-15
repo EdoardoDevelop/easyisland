@@ -68,6 +68,21 @@ Quando una domanda si risolve sempre con la stessa lettura (lo stato del PC, le 
 
 Le risposte dirette valgono anche quando cambia il periodo: se hai chiesto «spese di settembre» e «spese di ottobre», a «spese di novembre» EasyIsland risponde da solo con le date di novembre. Lo stesso per mese scorso, settimana, oggi, ieri e i numeri («ticket 1234»).
 
+## Risposte dalla memoria
+Con la **Ricerca per significato** accesa (Impostazioni → Chat → Memoria), a una domanda che cerca solo un dato già annotato («quale vm ha la farmacia Falchi?», «dove sono le password di Falchi?») EasyIsland risponde da solo con le righe della memoria, così come sono scritte, sotto **📒 Dalla memoria**. Senza la ricerca per significato bastano le parole. Lo fa solo quando la riga contiene tutto ciò che hai nominato; per «perché», «come», lo stato di adesso o qualcosa da fare risponde il motore. Se vuoi la risposta del motore premi **⚡ Chiedi al motore**.
+
+## 👍 e 👎
+Sotto ogni risposta della chat ci sono **👍** e **👎**; premuto di nuovo, il voto si toglie. EasyIsland impara dai voti, sul PC e senza token:
+- **👍 a una risposta dalla memoria**: alle domande simili risponde con le stesse righe.
+- **👎 a una risposta dalla memoria**: quelle righe non sono più la risposta alle domande simili; premi **⚡ Chiedi al motore** per la risposta del motore.
+- **👍 a una risposta del motore** su un dato già annotato: EasyIsland trova le righe della memoria che il motore ha usato e alla domanda simile risponde da solo. Così impara anche le parole diverse dalle tue note («macchine virtuali» per «VM»).
+- **👎 a una risposta del motore**: viene solo contato. Se mancava qualcosa, scrivilo in una nota.
+
+In **Impostazioni → Chat → Voti** vedi i conteggi; **Riprova** rifà tutte le domande votate sulla memoria di oggi, senza motore, e ti dice quali hanno cambiato risposta.
+
+## Solo EasyIsland
+Nel menu del motore della chat scegli **📒 Solo EasyIsland, senza motore**: per quella conversazione non parte nessun motore e non si consuma niente. Rispondono i comandi, le risposte dirette e la memoria; quando EasyIsland non ha una risposta sicura mostra le righe più vicine e **⚡ Chiedi al motore**, che manda quella sola domanda al motore. È il modo più rapido per allenarlo con 👍 e 👎. Scegli un motore nello stesso menu per tornare alle risposte del motore.
+
 ## Comandi senza motore
 Gli ordini brevi non passano dal motore: «apri Teams» (se è una tua azione rapida), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland risponde subito con **▶ Esegui**: niente parte finché non premi. Se intendevi altro premi **⚡ Chiedi al motore**.
 

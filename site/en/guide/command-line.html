@@ -25,7 +25,7 @@
 <header class="top">
 <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
 <a href="../../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
-<span class="badge">Guide · 1.0.46</span>
+<span class="badge">Guide · 1.0.47</span>
 <div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
 <nav class="links"><a href="../../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/riga-di-comando.html" hreflang="it">Italiano</a></nav>
 </header>
@@ -40,6 +40,13 @@
 <pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" notify "Backup" "Done in 4 minutes" --stato ok</code></pre>
 <div class="table"><table><thead><tr><th>Option</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--stato</code></td><td><code>ok</code>, <code>avviso</code> (warning), <code>errore</code> (error) or <code>info</code> (colour and sound)</td></tr><tr><td><code>--apri https://…</code></td><td>Adds a button with a link</td></tr><tr><td><code>--help</code></td><td>The help</td></tr></tbody></table></div>
 <p>It exits with <strong>0</strong> if the message arrived and <strong>2</strong> if EasyIsland isn't running, so a script never hangs. The profile's notification rules apply. In <strong>Settings → Notifications</strong> there's the ready-to-copy command and <strong>Try</strong>.</p>
+<h2 id="questions-to-the-chat"><a class="anchor" href="#questions-to-the-chat">#</a>Questions to the chat</h2>
+<p>A script, a scheduled task or a remote session (WinRM, always as your own user) can ask EasyIsland's chat a question and read the answer:</p>
+<pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" ask "which vm does the Falchi pharmacy have?"
+&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" ask "sum up today's news" --engine gemini</code></pre>
+<p>The question goes the same way as those typed in the island: direct answers, memory, recipes, engine. Under the answer a line says how it came (with no engine or with which engine, steps and tokens, notes found by meaning) and the conversation's id.</p>
+<div class="table"><table><thead><tr><th>Option</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--engine</code></td><td><code>subscription</code>, <code>api</code>, <code>opencode</code>, <code>antigravity</code>, <code>openrouter</code>, <code>openai</code>, <code>gemini</code>, <code>ollama</code>, <code>lmstudio</code>, <code>easyisland</code> (only EasyIsland, no engine); without it, the chat's default</td></tr><tr><td><code>--conversation relay-…</code></td><td>goes on with the same conversation</td></tr><tr><td><code>--json</code></td><td>the whole answer, for scripts</td></tr></tbody></table></div>
+<p>The conversation stays in the chat's history with <strong>Relay ·</strong> in front, so you see what was asked. If the engine wants to run or change something, the Allow/Deny card shows on the island and waits for your click: nothing is approved from the command. It works only on the PC and as your user, no network port; from outside there is Agent Chat.</p>
 <h2 id="opening-settings"><a class="anchor" href="#opening-settings">#</a>Opening Settings</h2>
 <pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\easyisland.exe" --settings</code></pre>
 <h2 id="the-agents-relay"><a class="anchor" href="#the-agents-relay">#</a>The agents' relay</h2>
@@ -58,9 +65,9 @@
 <h2 id="the-log"><a class="anchor" href="#the-log">#</a>The log</h2>
 <p><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code>: startup, hook events, permission decisions, chat turn and tool timings, check problems. It stays on your PC.</p>
 <div class="pager"><a class="prev" href="privacy.html"><small>Previous</small>Privacy and security</a><a class="next" href="troubleshooting.html"><small>Next</small>Troubleshooting</a></div>
-<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland 1.0.46 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/28-command-line.md">Edit this page on GitHub</a></footer>
+<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland 1.0.47 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/28-command-line.md">Edit this page on GitHub</a></footer>
 </main>
-<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#messages-from-scripts">Messages from scripts</a></li><li class="l2"><a href="#opening-settings">Opening Settings</a></li><li class="l2"><a href="#the-agents-relay">The agents' relay</a></li><li class="l3"><a href="#your-own-tool-in-agents">Your own tool in Agents</a></li><li class="l2"><a href="#easyisland-s-mcp-server">EasyIsland's MCP server</a></li><li class="l2"><a href="#the-log">The log</a></li></ul></nav>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#messages-from-scripts">Messages from scripts</a></li><li class="l2"><a href="#questions-to-the-chat">Questions to the chat</a></li><li class="l2"><a href="#opening-settings">Opening Settings</a></li><li class="l2"><a href="#the-agents-relay">The agents' relay</a></li><li class="l3"><a href="#your-own-tool-in-agents">Your own tool in Agents</a></li><li class="l2"><a href="#easyisland-s-mcp-server">EasyIsland's MCP server</a></li><li class="l2"><a href="#the-log">The log</a></li></ul></nav>
 </div>
 <script src="../../guida/guida.js"></script>
 </body>

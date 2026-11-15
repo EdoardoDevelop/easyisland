@@ -677,6 +677,7 @@ function showsSummary(): boolean {
 function taskPriorityScore(task: AgentTask): number {
   if (task.pillBadge === "approval") return 4;
   if (task.pillBadge === "error" || task.state === "error" || task.state === "ratelimit") return 3;
+  if (task.pillBadge === "warn") return 2;
   if (task.state !== "idle" && task.state !== "sleeping" && task.state !== "finished") return 2;
   if (task.pillBadge === "finished") return 1;
   return 0;
@@ -721,6 +722,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
       ? t("Richiede conferma")
       : tsk.pillBadge === "error"
       ? t("Errore")
+      : tsk.pillBadge === "warn"
+      ? t("Attenzione")
       : tsk.pillBadge === "finished"
       ? t("Pronto")
       : tsk.state !== "idle" && tsk.state !== "sleeping"

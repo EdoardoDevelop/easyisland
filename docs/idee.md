@@ -174,6 +174,14 @@ Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senz
 ## Memoria, seguiti
 - **Pulizia proposta:** `brain::check` segnala pagine doppie (alias, titoli, parole in comune) e relazioni ripetute con nomi diversi; il compito propone «unisci» con `task_ask` (la pagina unita va in archivio).
 
+## TextComposer: risposte dalla memoria scritte da un modello piccolo (15/11, per il futuro)
+Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scrive. Ingresso: domanda, estratti trovati, riferimenti; uscita: testo composto o «non riesco». Modello sostituibile senza toccare la ricerca.
+- **Primo compositore = oggi:** le righe così come sono (`memory_answer::shown`); è anche il ripiego a ogni errore.
+- **Poi un modello dentro EasyIsland** (Edoardo, 15/11: mai Ollama, LM Studio o servizi esterni per i modelli sul PC; es. Qwen2.5 0.5B Instruct, Apache 2.0): scaricato dopo un clic con SHA-256, eseguito dall'app, riusando `claude/modello-integrato` (llama-server in processo separato). La ricerca resta Potion (deciso il 15/11: altri modelli model2vec sono inglesi o peggiori; model2vec-rs dà gli stessi vettori con ~500 MB di RAM invece di ~25).
+- **Controllo:** ogni numero, IP, nome in maiuscolo o codice del testo deve stare negli estratti, se no si mostrano le righe; fonti sempre sotto, piegate.
+- **Risorse** (stime da misurare sul portatile con il modello dentro l'app, prima di unirlo): ~400 MB su disco, ~0,5–0,7 GB in memoria solo mentre scrive, 1–3 s di CPU. Solo sulle risposte dalla memoria, priorità bassa e max 2 core, scaricato subito dopo, tempo massimo 4 s, mai a batteria, sotto carico o in chiamata 3CX; spento di serie.
+- **Misura:** 👍/👎 (`votes.rs`) delle risposte composte contro le righe.
+
 ## Modello integrato (27/10, accantonato)
 Fatto nel branch `claude/modello-integrato` (non unito; passi in `docs/modello-integrato.md` del branch), manca la prova dal vivo. Per riprendere: aggiornare il branch con `claude/sviluppo`, verificare build di llama.cpp e hash dei modelli, provare.
 - `llama-server.exe` (CPU + Vulkan) scaricato con il primo modello, avviato nascosto solo quando serve e spento dopo minuti senza richieste; API compatibile OpenAI → riusa `openai.rs`. Processo separato (un crash del C++ non chiude l'isola); job object lo chiude con l'app.
@@ -206,3 +214,4 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 
 ## Smistatore: scelta del motore (14/11)
 Tappe 1, 2 e 4 fatte (`docs/chat.md` → Smistatore). Tappa 3: dal registro dei turni, un modello economico per le domande simili a quelle risolte bene con pochi passi e Claude per le altre; una riga in chat «risposto da …, perché simile a …», sempre cambiabile, e ogni cambio diventa un esempio. Prima servono settimane di registro.
+- Ricette per somiglianza (14/11): con il modello di `meaning_local.rs` le ricette si confrontano anche per significato, non solo per radici («spegni la musica» ≈ «metti in pausa»); soglia alta e «Esegui»/«Chiedi al motore» come oggi. Prima misurare sul registro dei turni quante domande ripetute le radici non riconoscono.

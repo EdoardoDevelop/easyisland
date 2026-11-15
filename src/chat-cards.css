@@ -129,7 +129,9 @@ html[data-chat-look="cards"] .chat-card .chat-side .history-item.on .history-tit
    pointer (always there, with its arrows, it was heavy). */
 html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu) { scrollbar-color: auto; scrollbar-width: auto; }
 html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar { width: 10px; height: 10px; }
-html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-button { display: none; }
+/* `display: none` alone left a white square at the end of the bar (15 Nov 2026): no size, no colour. */
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-button { display: none; width: 0; height: 0; background: transparent; }
+html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-corner { background: transparent; }
 html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-track { background: transparent; }
 html[data-chat-look="cards"] .chat-card :is(.history-rows, .chat-log, .engine-menu, .slash-menu)::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
@@ -261,6 +263,8 @@ html[data-chat-look="cards"] .chat-card .msg-act {
   color: var(--cc-faint);
 }
 html[data-chat-look="cards"] .chat-card .msg-act:hover { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .msg-act.vote { padding: 0 var(--cc-s1); }
+html[data-chat-look="cards"] .chat-card .msg-act.vote.on { background: var(--cc-soft); }
 html[data-chat-look="cards"] .chat-card .second-btn,
 html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .second-btn {
   height: 26px;
@@ -412,6 +416,9 @@ html[data-chat-look="cards"] .chat-card .chat-queue,
 html[data-chat-look="cards"] .chat-card .chat-hint { position: relative; z-index: 3; }
 /* The tips stand clear of the field, which rises over the conversation. */
 html[data-chat-look="cards"] .chat-card .chat-tips { position: relative; z-index: 4; margin-bottom: var(--cc-s5); }
+/* So does a notice («Imparato…», 15 Nov 2026: it went under «Progetto…»); under the tips, they keep the room. */
+html[data-chat-look="cards"] .chat-card .chat-hint { margin-bottom: var(--cc-s5); }
+html[data-chat-look="cards"] .chat-card .chat-tips:has(+ .chat-hint:not([style*="none"])) { margin-bottom: 0; }
 
 /* The Anteprima beside the chat: a card too, the page inside it with room around (island.ts paneInset). */
 html[data-chat-look="cards"] #preview-pane {
@@ -446,32 +453,72 @@ html[data-chat-look="cards"] .chat-card .chat-empty {
   pointer-events: none;
 }
 /* Under the picture: the last three conversations, to pick up again. */
-html[data-chat-look="cards"] .chat-card .chat-body.has-recent .chat-empty { height: calc(100% - 48px - 112px - 120px); }
+html[data-chat-look="cards"] .chat-card .chat-body.has-recent .chat-empty { height: calc(100% - 48px - 112px - 150px); }
 html[data-chat-look="cards"] .chat-card .chat-recent {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
-  width: min(360px, calc(100% - 2 * var(--cc-s5)));
+  width: min(460px, calc(100% - 2 * var(--cc-s5)));
   display: flex;
   flex-direction: column;
-  gap: var(--cc-s1);
+  gap: 5px;
+  transition: opacity 0.14s ease;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent.under-menu {
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-head {
+  padding: 0 4px 2px;
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cc-faint);
 }
 html[data-chat-look="cards"] .chat-card .chat-recent-item {
   display: flex;
-  align-items: baseline;
-  gap: var(--cc-s3);
-  padding: 6px var(--cc-s3);
-  border: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 8px var(--cc-s3);
+  border: 1px solid var(--cc-line);
   border-radius: var(--cc-r-item);
-  background: var(--cc-soft);
+  background: color-mix(in srgb, var(--cc-soft) 80%, transparent);
   font: 400 var(--cc-t-ui) var(--font);
   color: var(--cc-reply);
   text-align: left;
   cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s, transform 0.14s;
 }
-html[data-chat-look="cards"] .chat-card .chat-recent-item:hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover {
+  background: var(--cc-hover);
+  border-color: var(--cc-bar-focus);
+  color: var(--cc-ink);
+  transform: translateY(-1px);
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-ico {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  color: var(--cc-faint);
+  transition: color 0.14s;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover .chat-recent-ico { color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .chat-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html[data-chat-look="cards"] .chat-card .chat-recent-when { flex: none; font-size: var(--cc-t-small); color: var(--cc-faint); font-variant-numeric: tabular-nums; }
+html[data-chat-look="cards"] .chat-card .chat-recent-go {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  color: var(--cc-faint);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 0.14s, transform 0.14s, color 0.14s;
+}
+html[data-chat-look="cards"] .chat-card .chat-recent-item:hover .chat-recent-go {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--cc-ink);
+}
 /* «Vai in fondo»: a drawn arrow, centred. */
 html[data-chat-look="cards"] .chat-card .chat-jump { display: grid; place-items: center; }

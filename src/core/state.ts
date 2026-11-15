@@ -12,7 +12,8 @@ const WEATHER = "integration_weather";
 
 /** "agent": Codex, Gemini CLI or any tool that sends `easyisland_agent` (hooks.ts). */
 export type AgentSource = "claudeCode" | "n8n" | "agent";
-export type PillBadge = "approval" | "finished" | "error";
+/** "warn": a check's warning (rain soon, a disk filling up), amber; "error" only for a real error (15 Nov 2026). */
+export type PillBadge = "approval" | "finished" | "warn" | "error";
 
 export interface AgentTask {
   id: string;
@@ -449,6 +450,10 @@ export interface ChatSessionState {
   sid: string;
   history: ChatMessage[];
   engineOverride: ChatEngine | null;
+  /** «Solo EasyIsland»: no engine, EasyIsland answers alone (lib.rs ONLY_EASY). */
+  onlyEasy: boolean;
+  /** «Chiedi al motore» in «Solo EasyIsland»: the next question only goes to the engine. */
+  engineOnce: boolean;
   auto: boolean;
   /** Claude Code's mode in Modalità terminale besides «Automatica»: "" asks, "acceptEdits", "plan". */
   mode: string;
@@ -506,7 +511,7 @@ let chatSeq = 0;
 export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
-    history: [], engineOverride: null, auto: true, mode: "", model: null, agyModel: null, plan: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
+    history: [], engineOverride: null, onlyEasy: false, engineOnce: false, auto: true, mode: "", model: null, agyModel: null, plan: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
@@ -530,6 +535,12 @@ export interface ChatMessage {
   command?: ChatCommand;
   /** «Esegui» was pressed: the button goes. */
   commandDone?: boolean;
+  /** Memory lines found by meaning in this turn, with their score (memory_meaning.rs). */
+  meaning?: [string, number][];
+  /** The memory lines of an answer from the memory (router.rs), sent back with its vote. */
+  memory?: string[];
+  /** 👍 (1) or 👎 (-1) given to this answer (votes.rs). Never saved. */
+  vote?: 1 | -1;
 }
 
 /** commands.rs Command: the tool, its arguments, what it does in words. */
@@ -717,7 +728,7 @@ export interface Settings {
   tasksEngine: string;
   /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
   memoryEngine: string;
-  /** «Ricerca per significato» (memory_meaning.rs): openai, gemini, ollama, lmstudio; "" = off. */
+  /** «Ricerca per significato» (memory_meaning.rs): locale (meaning_local.rs), openai, gemini, openrouter, ollama, lmstudio; "" = off. */
   memoryMeaning?: string;
   /** Its model; "" = the service's usual one. */
   memoryMeaningModel?: string;

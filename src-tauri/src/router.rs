@@ -75,6 +75,8 @@ static LOG: Mutex<Option<Log>> = Mutex::new(None);
 static LAST_DIRECT: Mutex<Vec<(usize, String, Vec<String>)>> = Mutex::new(Vec::new());
 /// Conversations whose last reply was direct (chat_send tells the island).
 static WAS_DIRECT: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+/// The memory lines of a reply from the memory, per conversation, until chat_send takes them.
+static MEMORY: Mutex<Vec<(usize, Vec<String>)>> = Mutex::new(Vec::new());
 /// The command offered with a reply, per conversation, until chat_send takes it.
 static COMMANDS: Mutex<Vec<(usize, crate::commands::Command)>> = Mutex::new(Vec::new());
 
@@ -148,13 +150,15 @@ fn split(step: &str) -> (&str, &str) {
 }
 
 /// Tappa 2: the answer without an engine, when a recipe is sure of it.
-pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<crate::commands::Command>) -> Direct {
+/// `only` («Solo EasyIsland»): never to the engine, so a question asked again
+/// is answered again; `recipes`: the agent's tools are on (a recipe reads with them).
+pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<crate::commands::Command>, only: bool, recipes: bool) -> Direct {
     let k = key(chat);
     let last = {
         let mut g = LAST_DIRECT.lock().unwrap();
         g.iter().position(|(c, _, _)| *c == k).map(|i| g.remove(i))
     };
-    if let Some((_, q, steps)) = last {
+    if let Some((_, q, steps)) = last.filter(|_| !only) {
         if crate::recipes::same_question(&q, asked) {
             crate::recipes::no_direct(&steps);
             crate::log::line("smistatore: domanda ripetuta dopo una risposta diretta, al motore");
@@ -164,7 +168,7 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
     if let Some(c) = command {
         return offer(chat, asked, c);
     }
-    let Some((r, steps)) = crate::recipes::sure(asked) else { return Direct::None };
+    let Some((r, steps)) = crate::recipes::sure(asked).filter(|_| recipes) else { return from_memory(app, chat, asked, only).await };
     let Some(step) = steps.first() else { return Direct::None };
     let (tool, args) = split(step);
     if !READS.contains(&tool) {
@@ -196,6 +200,108 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
         ),
         tool.to_string(),
     )
+}
+
+/// The memory lines that answer this question, no engine: the ones voted (or
+/// learnt) for a similar question first (votes.rs), else memory_answer::pick
+/// without the lines voted 👎. With no meaning service, the words alone.
+pub async fn memory_lines(app: &AppHandle, question: &str) -> Vec<String> {
+    // The memory off (Impostazioni → Chat): nothing from it.
+    let remember = tauri::Manager::try_state::<crate::Shared>(app).is_some_and(|s| s.settings.lock().unwrap().chat_history);
+    if !remember || !crate::memory_answer::is_lookup(question) {
+        return Vec::new();
+    }
+    let (mut found, engine) = crate::memory_meaning::deep_scored(app, question).await;
+    let min = if found.is_empty() {
+        found = crate::memory_meaning::all_lines().await.into_iter().map(|l| (0.0, l)).collect();
+        0.0
+    } else {
+        crate::memory_meaning::answer_min(&engine)
+    };
+    let taught = crate::votes::taught(question, &|l| found.iter().any(|(_, x)| x == l));
+    if !taught.is_empty() {
+        return taught;
+    }
+    let rejected = crate::votes::rejected(question);
+    found.retain(|(_, l)| !rejected.contains(l));
+    crate::memory_answer::pick(question, &found, min)
+}
+
+/// «Risposte dalla memoria» (memory_answer.rs): a lookup the memory's lines
+/// answer for sure, shown as they are, no engine. Asked again, or «Chiedi al
+/// motore», the engine (the lines ride in front of it, as always).
+async fn from_memory(app: &AppHandle, chat: &Chat, asked: &str, only: bool) -> Direct {
+    let question = crate::recipes::bare_question(asked);
+    let lines = memory_lines(app, &question).await;
+    if lines.is_empty() {
+        return Direct::None;
+    }
+    let k = key(chat);
+    let body: String = lines.iter().map(|l| format!("- {}
+", crate::memory_answer::shown(l))).collect();
+    // The engine hears of it at the next question, as a preamble.
+    let note = tf("[Prima di questa domanda EasyIsland ha risposto da solo, dalla memoria, a «{q}» con:
+{a}]
+
+", &[("q", &question), ("a", &body)]);
+    let before = chat.take_preamble().unwrap_or_default();
+    chat.put_back_preamble(format!("{before}{note}"));
+    mark_direct(k, asked);
+    {
+        let mut m = MEMORY.lock().unwrap();
+        m.retain(|(x, _)| *x != k);
+        m.push((k, lines.clone()));
+    }
+    crate::log::line(format!("smistatore: risposta dalla memoria ({} righe)", lines.len()));
+    Direct::Answer(
+        format!("{}
+
+{body}
+📒 {}", t("Dalla memoria:"), if only { t("Risposta di EasyIsland dalla memoria, senza motore. «Chiedi al motore» per la risposta di un motore.") } else { t("Risposta di EasyIsland dalla memoria, senza motore. Per la risposta del motore riscrivi la domanda.") }),
+        "memoria".into(),
+    )
+}
+
+fn mark_direct(k: usize, asked: &str) {
+    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), Vec::new()));
+    let mut w = WAS_DIRECT.lock().unwrap();
+    if !w.contains(&k) {
+        w.push(k);
+    }
+}
+
+/// «Solo EasyIsland» with no answer of its own: the closest lines, and
+/// «Chiedi al motore» under it (the same question then goes to the engine).
+pub async fn only_none(app: &AppHandle, chat: &Chat, asked: &str) -> String {
+    let question = crate::recipes::bare_question(asked);
+    let (mut found, _) = crate::memory_meaning::deep_scored(app, &question).await;
+    if found.is_empty() {
+        found = crate::memory_meaning::all_lines().await.into_iter().map(|l| (0.0, l)).collect();
+    }
+    let rejected = crate::votes::rejected(&question);
+    found.retain(|(_, l)| !rejected.contains(l));
+    let near = crate::memory_answer::near(&question, &found, 3);
+    mark_direct(key(chat), asked);
+    crate::log::line(format!("smistatore: solo EasyIsland, nessuna risposta sicura ({} righe vicine)", near.len()));
+    if near.is_empty() {
+        return format!("📒 {}", t("Solo EasyIsland: nella memoria non trovo niente di sicuro su questo. «Chiedi al motore» per la risposta di un motore."));
+    }
+    let body: String = near.iter().map(|l| format!("- {}
+", crate::memory_answer::shown(l))).collect();
+    format!("{}
+
+{body}
+📒 {}", t("Non ho una risposta sicura dalla memoria. Le righe più vicine:"), t("Solo EasyIsland. «Chiedi al motore» per la risposta di un motore; se una di queste era la risposta, scrivilo in una nota con le parole della domanda."))
+}
+
+/// The memory lines of the last reply of this conversation (chat_send, once): for its 👍 / 👎.
+pub fn take_memory(chat: &Chat) -> Vec<String> {
+    let k = key(chat);
+    let mut g = MEMORY.lock().unwrap();
+    match g.iter().position(|(c, _)| *c == k) {
+        Some(i) => g.remove(i).1,
+        None => Vec::new(),
+    }
 }
 
 /// Tappa 1 of the 14 Nov ideas: a short order («apri Teams», «profilo

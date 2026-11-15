@@ -15,7 +15,7 @@ import { isPopped } from "../island/popout";
 import { TypeLine, foldSteps, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
-import { contextTips, helpGroups, pageKind, tipsKey, type Tip } from "./chat-tips";
+import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -155,6 +155,16 @@ function saveDraft(text: string) {
   } catch {
     /* storage off: the draft just does not survive */
   }
+}
+
+/** "🧠 2 per significato" under an answer: the memory lines the meaning found (memory_meaning.rs), on hover. */
+function meaningMark(found: [string, number][]): HTMLElement {
+  const lines = [t("Note trovate nella memoria per significato (con la vicinanza, da 0 a 1):")];
+  for (const [line, score] of found) {
+    const text = line.length > 140 ? `${line.slice(0, 140)}…` : line;
+    lines.push(`• ${text} (${score.toFixed(2).replace(".", ",")})`);
+  }
+  return h("span", { class: "msg-usage", title: lines.join("\n"), text: `🧠 ${t("{n} per significato", { n: found.length })}` });
 }
 
 /** "5 passi · 120k letti" under an answer of Claude Code; the tools and the light start on hover. */
@@ -382,6 +392,8 @@ export function buildPrompt(
   });
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
+  // Open, the tips over the field go (they would cover it); closed, they come back.
+  new MutationObserver(() => refreshTips(true)).observe(engineMenu, { attributes: true, attributeFilter: ["style"] });
   // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
   const sideBtn = h("button", { class: "history-btn side-btn", title: t("Mostra o nascondi le conversazioni (Ctrl+B)") }, svg(ICONS.sidebar, 14, { stroke: 1.8 })) as HTMLButtonElement;
   // The conversation's title, as the history knows it (its first question until then).
@@ -735,12 +747,25 @@ export function buildPrompt(
   recent.style.display = "none";
   let recentRead = 0;
   let recentBusy = false;
-  /** The recent conversations sit above the field and, when shown, the tips row. */
+  function placeMenuAboveComposer(panel: HTMLElement) {
+    const parent = panel.offsetParent as HTMLElement | null;
+    if (!parent || composer.offsetWidth <= 0) return;
+    panel.style.left = `${composer.offsetLeft}px`;
+    panel.style.right = "auto";
+    panel.style.width = `${composer.offsetWidth}px`;
+    panel.style.bottom = `${Math.max(58, parent.clientHeight - composer.offsetTop + 6)}px`;
+  }
+  /** The recent conversations sit above the composer and, when shown, the tips row. */
   function placeRecent() {
+    const body = recent.offsetParent as HTMLElement | null;
+    const base = body && composer.offsetWidth > 0 ? Math.max(0, body.clientHeight - composer.offsetTop) : composer.offsetHeight + 16;
     const tips = tipsRow.style.display !== "none" ? tipsRow.offsetHeight + 8 : 0;
-    recent.style.bottom = `${composer.offsetHeight + 32 + tips}px`;
+    recent.style.bottom = `${base + 14 + tips}px`;
+    if (slashMenu.style.display !== "none") placeMenuAboveComposer(slashMenu);
+    if (helpPanel.style.display !== "none") placeMenuAboveComposer(helpPanel);
   }
   function showRecent(on: boolean) {
+    recent.classList.toggle("under-menu", slashItems.length > 0 || helpPanel.style.display !== "none");
     if (!on || State.settings.chatHistory === false) {
       if (recent.style.display !== "none") recent.style.display = "none";
       recent.parentElement?.classList.remove("has-recent");
@@ -754,13 +779,23 @@ export function buildPrompt(
     void loadHistory("").then((list) => {
       recentRead = Date.now();
       const top = list.filter((c) => c.turns > 0 && c.id !== State.chat.logId).sort((a, b) => b.updated - a.updated).slice(0, 3);
-      recent.replaceChildren(...top.map((c) =>
-        h("button", { class: "chat-recent-item", title: c.title, onclick: () => void reopen(c.id) },
-          h("span", { class: "chat-recent-title", text: shortTitle(c.title) }),
-          h("span", { class: "chat-recent-when", text: when(c.updated) }))));
+      recent.replaceChildren(
+        ...(top.length
+          ? [
+              h("div", { class: "chat-recent-head", text: t("Riprendi") }),
+              ...top.map((c) =>
+                h("button", { class: "chat-recent-item", onclick: () => void reopen(c.id) },
+                  h("span", { class: "chat-recent-ico", "aria-hidden": "true" }, svg(ICONS.history, 13, { stroke: 1.9 })),
+                  h("span", { class: "chat-recent-title", text: shortTitle(c.title) }),
+                  h("span", { class: "chat-recent-when", text: when(c.updated) }),
+                  h("span", { class: "chat-recent-go", "aria-hidden": "true" }, svg(ICONS.chevronRight, 11, { stroke: 2 })))),
+            ]
+          : []),
+      );
       const shown = top.length > 0 && !State.chatHistory.length;
       recent.style.display = shown ? "" : "none";
       recent.parentElement?.classList.toggle("has-recent", shown);
+      if (shown) placeRecent();
     }).finally(() => { recentBusy = false; });
   }
   const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
@@ -912,7 +947,8 @@ export function buildPrompt(
   let tipsShown = "";
   let tipsClosed = "";
   function refreshTips(force = false) {
-    const quiet = input.value.trim() !== "" || State.chat.sending || slashItems.length > 0 || helpPanel.style.display !== "none" || State.settings.chatTips === false;
+    // A menu over the field (engine, folder) hides them: they would cover it.
+    const quiet = input.value.trim() !== "" || State.chat.sending || slashItems.length > 0 || helpPanel.style.display !== "none" || engineMenu.style.display !== "none" || State.settings.chatTips === false;
     if (quiet) {
       if (tipsRow.style.display !== "none") {
         tipsRow.style.display = "none";
@@ -925,10 +961,13 @@ export function buildPrompt(
     tipsAt = Date.now();
     void (async () => {
       const page = await pageKind();
-      const key = tipsKey(page);
-      const list = key === tipsClosed ? [] : await contextTips(page);
+      const questions = State.chatHistory.filter((m) => m.role === "user").map((m) => m.content);
+      const last = questions[questions.length - 1] ?? "";
+      const key = `${tipsKey(page)}|${last}`;
+      // The rules' tips, then the memory's (memory_tips.rs): at most eight, on a line that scrolls.
+      const list = key === tipsClosed ? [] : [...await contextTips(page), ...await memoryTips(tipsText(page, last), questions)].slice(0, 8);
       const shownKey = key + list.map((x) => x.label).join("|");
-      const show = list.length > 0 && input.value.trim() === "";
+      const show = list.length > 0 && input.value.trim() === "" && engineMenu.style.display === "none";
       if (shownKey !== tipsShown) {
         tipsShown = shownKey;
         const close = h("button", { class: "chat-tip close", text: "✕", title: t("Nascondi i suggerimenti finché non cambia la pagina") });
@@ -938,14 +977,33 @@ export function buildPrompt(
           placeRecent();
           onHeightChange();
         });
-        tipsRow.replaceChildren(
-          h("span", { class: "chat-tips-label", text: t("Puoi chiedere:") }),
+        // One line that scrolls sideways: the wheel, ‹ › and its bar (15 Nov 2026).
+        const strip = h("div", { class: "chat-tips-strip" },
           ...list.map((x) => {
             const b = h("button", { class: "chat-tip", text: x.label, title: x.prompt });
             b.addEventListener("click", () => useTip(x));
             return b;
-          }),
-          close);
+          }));
+        const prev = h("button", { class: "chat-tip arrow", text: "‹", title: t("Indietro") }) as HTMLButtonElement;
+        const next = h("button", { class: "chat-tip arrow", text: "›", title: t("Avanti") }) as HTMLButtonElement;
+        const arrows = () => {
+          const over = strip.scrollWidth > strip.clientWidth + 1;
+          prev.style.display = next.style.display = over ? "" : "none";
+          prev.disabled = strip.scrollLeft <= 0;
+          next.disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+        };
+        const by = (dir: number) => strip.scrollBy({ left: dir * Math.max(120, strip.clientWidth * 0.7), behavior: "smooth" });
+        prev.addEventListener("click", () => by(-1));
+        next.addEventListener("click", () => by(1));
+        strip.addEventListener("scroll", arrows, { passive: true });
+        strip.addEventListener("wheel", (e) => {
+          if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+          e.preventDefault();
+          strip.scrollLeft += e.deltaY;
+        }, { passive: false });
+        new ResizeObserver(arrows).observe(strip);
+        tipsRow.replaceChildren(h("span", { class: "chat-tips-label", text: t("Puoi chiedere:") }), prev, strip, next, close);
+        requestAnimationFrame(arrows);
       }
       if ((tipsRow.style.display !== "none") !== show) {
         tipsRow.style.display = show ? "" : "none";
@@ -959,6 +1017,7 @@ export function buildPrompt(
   function toggleHelp(open = helpPanel.style.display === "none") {
     if (!open) {
       helpPanel.style.display = "none";
+      recent.classList.toggle("under-menu", slashItems.length > 0);
       onHeightChange();
       return;
     }
@@ -976,13 +1035,11 @@ export function buildPrompt(
       }
     }
     helpPanel.append(h("div", { class: "engine-note", text: t("Scrivi «/» per i comandi, come /portali e /impara-portale. La guida completa: «Guida» in fondo alle Impostazioni.") }));
-    // Over the field and as wide as it (it is narrower than the island when wide).
-    helpPanel.style.left = `${bar.offsetLeft}px`;
-    helpPanel.style.right = "auto";
-    helpPanel.style.width = `${bar.offsetWidth}px`;
-    helpPanel.style.bottom = `${(bar.offsetParent as HTMLElement | null)?.clientHeight ? (bar.offsetParent as HTMLElement).clientHeight - bar.offsetTop + 8 : bar.offsetHeight + 16}px`;
+    // Over the entire composer (context bar + field) and matching its width.
     helpPanel.style.display = "";
+    placeMenuAboveComposer(helpPanel);
     tipsRow.style.display = "none";
+    recent.classList.add("under-menu");
     placeRecent();
     onHeightChange();
   }
@@ -1058,6 +1115,9 @@ export function buildPrompt(
 
     c.streamed = "";
     const engine = engineOf(c);
+    // «Solo EasyIsland»: no engine, but «Chiedi al motore» sends this one question to it.
+    const sent = c.onlyEasy && !c.engineOnce ? "easyisland" : engine;
+    c.engineOnce = false;
     try {
       // "Chiedi a questa sessione": a read-only copy of the session answers;
       // the next questions go on in that copy.
@@ -1067,7 +1127,7 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null, context: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
+        : await Bridge.chatSend(c.sid, asked, context, sent, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
           State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : engine === "antigravity" ? c.agyModel : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
@@ -1087,7 +1147,9 @@ export function buildPrompt(
       const usage = (reply as { usage?: TurnUsage | null }).usage ?? undefined;
       const direct = (reply as { direct?: boolean }).direct === true;
       const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine, usage, direct: direct || undefined, command });
+      const meaning = (reply as { meaning?: [string, number][] }).meaning;
+      const memory = (reply as { memory?: string[] }).memory;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
@@ -1265,6 +1327,8 @@ export function buildPrompt(
     if (u < 0) return;
     const question = list[u].content;
     const keep = list.slice(0, u);
+    // «Chiedi al motore» after an answer of «Solo EasyIsland»: this time the engine.
+    if (c.onlyEasy && list[list.length - 1]?.direct) c.engineOnce = true;
     c.history = keep;
     renderedCount = -1;
     await Bridge.chatRewind(c.sid, lines(keep));
@@ -1519,6 +1583,19 @@ export function buildPrompt(
     State.notify();
   }
 
+  /** 👍 / 👎 (votes.rs): pressed again, taken back. EasyIsland says what it learnt. */
+  async function giveVote(m: ChatMessage, index: number, v: 1 | -1) {
+    const q = State.chatHistory.slice(0, index).reverse().find((x) => x.role === "user");
+    if (!q) return;
+    const next = m.vote === v ? 0 : v;
+    m.vote = next || undefined;
+    renderedCount = -1;
+    Sound.play("blip");
+    State.notify();
+    const said = await Bridge.chatVote(q.content, m.content, m.engine ?? "", !!m.direct, m.memory ?? [], next);
+    if (said) flash(said);
+  }
+
   /** Copia under every message, Rigenera under the last answer, Modifica under a question. */
   function withActions(row: HTMLElement, m: ChatMessage, index: number, last: boolean): HTMLElement {
     const bar = h("div", { class: `msg-actions${last ? " last" : ""}` });
@@ -1547,6 +1624,12 @@ export function buildPrompt(
     if (own && m.role === "assistant" && !last) {
       bar.append(h("button", { class: "msg-act", title: t("Una conversazione nuova che parte da qui; questa resta nella cronologia"), text: `⑂ ${t("Dirama da qui")}`, onclick: () => void fork(index) }));
     }
+    if (!State.chatSession && m.role === "assistant" && !m.reviewer && !m.content.endsWith(`⏹ ${t("Fermato.")}`)) {
+      for (const [v, icon, hint] of [[1, "👍", t("Risposta giusta: EasyIsland se lo ricorda per le domande simili")], [-1, "👎", t("Risposta sbagliata: EasyIsland non la ripete per le domande simili")]] as [1 | -1, string, string][]) {
+        bar.append(h("button", { class: `msg-act vote${m.vote === v ? " on" : ""}`, title: hint, text: icon, onclick: () => void giveVote(m, index, v) }));
+      }
+    }
+    if (m.role === "assistant" && m.meaning?.length) bar.append(meaningMark(m.meaning));
     if (m.role === "assistant" && m.usage) bar.append(usageMark(m.usage));
     row.classList.add("with-actions");
     row.append(bar);
@@ -1972,10 +2055,13 @@ export function buildPrompt(
       slashMenu.append(row);
     });
     const show = slashItems.length > 0;
-    if ((slashMenu.style.display !== "none") !== show) {
+    const wasShown = slashMenu.style.display !== "none";
+    if (wasShown !== show) {
       slashMenu.style.display = show ? "" : "none";
       onHeightChange();
     }
+    if (show) placeMenuAboveComposer(slashMenu);
+    recent.classList.toggle("under-menu", show || helpPanel.style.display !== "none");
   }
 
   function pickSlash(i: number) {
@@ -2029,13 +2115,20 @@ export function buildPrompt(
     for (const e of list) {
       const label = engineLabel({ ...State.settings, chatEngine: e.id }) + (e.id === State.settings.chatEngine ? t(" (predefinito)") : "");
       engineMenu.append(h("button", {
-        class: `engine-item${e.id === State.chatEngine ? " on" : ""}`, title: e.hint, text: label,
+        class: `engine-item${e.id === State.chatEngine && !State.chat.onlyEasy ? " on" : ""}`, title: e.hint, text: label,
         onclick: () => pickEngine(e.id),
       }));
     }
+    // «Solo EasyIsland»: no engine, for zero tokens and to teach it with 👍 / 👎.
+    engineMenu.append(h("button", {
+      class: `engine-item${State.chat.onlyEasy ? " on" : ""}`,
+      title: t("Nessun motore: risponde solo EasyIsland, dalla memoria, con le ricette e i comandi; se non sa, mostra le righe più vicine e «Chiedi al motore». Zero token"),
+      text: `📒 ${t("Solo EasyIsland, senza motore")}`,
+      onclick: () => pickOnlyEasy(),
+    }));
     engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat. Predefinito, chiavi e modelli: Impostazioni → Chat") }));
     // Claude Code: how much it reasons (`--effort`), for this chat and the next ones.
-    if (State.chatEngine === "subscription") {
+    if (State.chatEngine === "subscription" && !State.chat.onlyEasy) {
       const now = effortOf(State.chat);
       engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Claude") }));
       for (const [id, label, hint] of efforts()) {
@@ -2070,7 +2163,7 @@ export function buildPrompt(
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
     // Antigravity: the same choices, with its own models (`agy models`).
-    if (State.chatEngine === "antigravity") {
+    if (State.chatEngine === "antigravity" && !State.chat.onlyEasy) {
       const now = effortOf(State.chat);
       engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
       for (const [id, label, hint] of efforts()) {
@@ -2192,11 +2285,30 @@ export function buildPrompt(
   /** Only for the conversation in progress: the default stays in Impostazioni → Chat. */
   function pickEngine(id: ChatEngine) {
     engineMenu.style.display = "none";
+    if (State.chat.onlyEasy && !State.chat.sending) {
+      // Back to an engine: the conversation goes on (EasyIsland's answers ride in front of it).
+      State.chat.onlyEasy = false;
+      if (id === State.chatEngine) {
+        State.notify();
+        return;
+      }
+    }
     if (id === State.chatEngine || State.chat.sending) return;
     // Another engine is another conversation (the backend starts over too).
     if (State.chatHistory.length) startOver();
     State.chatEngineOverride = id === State.settings.chatEngine ? null : id;
     State.notify();
+  }
+
+  /** «Solo EasyIsland» for this conversation: it goes on, with no engine from now. */
+  function pickOnlyEasy() {
+    engineMenu.style.display = "none";
+    if (State.chat.sending) return;
+    State.chat.onlyEasy = !State.chat.onlyEasy;
+    if (State.chat.onlyEasy) flash(`📒 ${t("Solo EasyIsland: nessun motore, zero token. Con 👍 e 👎 impara; «Chiedi al motore» per una risposta del motore.")}`);
+    Sound.play("blip");
+    State.notify();
+    input.focus();
   }
 
   /** "14:30" today, "8 ott" this year, "8 ott 2025" before. */
@@ -2602,7 +2714,9 @@ export function buildPrompt(
       c.window = null;
       c.attach = [];
       c.session = null;
-      c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
+      // A conversation of «Solo EasyIsland» reopens as such.
+      c.onlyEasy = got.engine === "easyisland";
+      c.engineOverride = got.engine === State.settings.chatEngine || c.onlyEasy || !CHAT_ENGINES.some((e) => e.id === got.engine) ? null : (got.engine as ChatEngine);
       c.folder = got.folder || null;
       c.auto = true;
       c.mode = "";
@@ -2771,6 +2885,7 @@ export function buildPrompt(
     const c = newChatSession();
     c.folder = p.folder || here.folder;
     c.engineOverride = here.engineOverride;
+    c.onlyEasy = here.onlyEasy;
     State.chats.push(c);
     void submit(p.prompt, c);
     flash(t("Nuova conversazione a parte: «{title}». La trovi nella barra laterale.", { title: p.title || p.prompt.slice(0, 40) }));
@@ -3128,7 +3243,9 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       }
 
       const effort = hasModes(State.chatEngine) ? efforts().find(([id]) => id && id === effortOf(State.chat))?.[1] : undefined;
-      engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
+      engineBtn.textContent = State.chat.onlyEasy
+        ? `📒 ${t("Solo EasyIsland")} ▾`
+        : `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })}${effort ? ` · ${effort.toLowerCase()}` : ""} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
       folderBtn.style.display = asked ? "none" : "";

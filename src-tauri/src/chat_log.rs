@@ -267,6 +267,18 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     });
 }
 
+/// The conversation of `chat` gets `prefix` in front of its title, once
+/// («Relay · » for `easyisland-hook chiedi`, lib.rs relay_ask).
+pub fn retitle_prefix(chat: &Chat, prefix: &str) {
+    let Some(id) = chat.log_id() else { return };
+    with_store(|s| {
+        if let Some(c) = s.list.iter_mut().find(|c| c.id == id && !c.title.starts_with(prefix)) {
+            c.title = format!("{prefix}{}", c.title);
+            s.save();
+        }
+    });
+}
+
 /// redact.rs scrub_once: the passwords of every conversation, learned first.
 pub fn learn_secrets() {
     with_store(|s| {
