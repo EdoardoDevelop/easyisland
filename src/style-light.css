@@ -3,6 +3,28 @@
 /* The browser preview's fake desktop keeps its own colour. */
 html.browser-preview[data-scheme="light"] body { background: var(--preview-bg, #dfe3e8); }
 
+html[data-scheme="light"] {
+  --search-line: linear-gradient(90deg,
+    transparent 0%,
+    rgba(2, 132, 199, 0.28) 6%,
+    #0284c7 20%,
+    #0891b2 32%,
+    #6366f1 47%,
+    #9333ea 57%,
+    #a855f7 63%,
+    #6366f1 72%,
+    #0284c7 82%,
+    rgba(2, 132, 199, 0.28) 94%,
+    transparent 100%);
+  --search-line-glow: drop-shadow(0 1px 4px rgba(124, 58, 237, 0.34)) drop-shadow(0 0 2px rgba(2, 132, 199, 0.3));
+}
+html[data-scheme="light"] .search-bar::after {
+  background: var(--search-line);
+  filter: var(--search-line-glow);
+  opacity: 0.58;
+}
+html[data-scheme="light"] .search-bar:focus-within::after { opacity: 1; }
+
 /* Modern themes (Windows 11 + Studio), light: the layers of light surfaces,
    and a high-contrast accent on light. */
 html:not([data-ui="classic"])[data-scheme="light"] {
@@ -57,12 +79,13 @@ html[data-scheme="light"] #island.search-only .search-bar:focus-within {
   color: #0b6fa3;
 }
 html[data-scheme="light"] #island.search-only .search-bar::after {
-  background: #0b6fa3;
-  height: 1.5px;
-  opacity: 0.72;
+  background: var(--search-line);
+  filter: var(--search-line-glow);
+  height: 2px;
+  opacity: 0.92;
 }
 html[data-scheme="light"] #island.search-only .search-bar:not(:focus-within)::after {
-  opacity: 0;
+  opacity: 0.58;
 }
 html[data-scheme="light"] #island.search-only .search-input { color: #12161f; }
 html[data-scheme="light"] #island.search-only .search-input::placeholder { color: #8c95a6; }
