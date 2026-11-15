@@ -456,6 +456,19 @@ export class Island {
     this.views = buildViews(actions, () => this.animateGeometry(false));
     this.viewsEl = h("div", { id: "views" });
     for (const v of this.views.values()) this.viewsEl.append(v.el);
+    // Content that grows or shrinks by itself, with no State.notify (a form's
+    // fields, the adapters read after it opened, data that arrived): measured
+    // again, at most once a frame and only open. Before, the island kept its
+    // height and cut the bottom (Modifica rete…, 15 Nov 2026).
+    let refitQueued = false;
+    new MutationObserver(() => {
+      if (refitQueued || State.mode !== "expanded") return;
+      refitQueued = true;
+      requestAnimationFrame(() => {
+        refitQueued = false;
+        this.refit();
+      });
+    }).observe(this.viewsEl, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["style", "class"] });
     this.search = buildSearch({
       openTask: (id) => {
         State.summary = false;
@@ -763,6 +776,17 @@ export class Island {
     const h = view.fitHeight();
     this.islandEl.style.setProperty("--extra-h", extra);
     return h;
+  }
+
+  /** The open view's content measured again: the island follows it. */
+  private refit() {
+    if (State.mode !== "expanded") return;
+    const fitH = this.measureFit();
+    const prev = this.fit;
+    if (prev.view !== State.view || Math.abs(prev.h - fitH) > 1) {
+      this.fit = { view: State.view, h: fitH };
+      this.animateGeometry(prev.view === State.view && fitH < prev.h);
+    }
   }
 
   private get searchShown(): boolean {
@@ -4396,14 +4420,7 @@ ${note}` : text };
 
     // Views that know how tall their content is make the island grow (or
     // shrink back) to show all of it.
-    if (expanded) {
-      const fitH = this.measureFit();
-      const prev = this.fit;
-      if (prev.view !== State.view || Math.abs(prev.h - fitH) > 1) {
-        this.fit = { view: State.view, h: fitH };
-        this.animateGeometry(prev.view === State.view && fitH < prev.h);
-      }
-    }
+    if (expanded) this.refit();
 
     // The chat is the only view with a text field, so it is the only time the
     // island is allowed to take keyboard focus.

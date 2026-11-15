@@ -45,7 +45,7 @@ function toggleRailCompact() {
   State.notify();
 }
 
-const BADGE: Record<string, string> = { approval: "#F5A524", finished: "#22C55E", error: "#F4505E" };
+const BADGE: Record<string, string> = { approval: "#F5A524", finished: "#22C55E", warn: "#F5A524", error: "#F4505E" };
 
 /** Views that belong to a section of the menu (the rest light up their task). */
 function sectionOf(view: IslandViewName): Section | null {

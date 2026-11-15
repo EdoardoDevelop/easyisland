@@ -2601,6 +2601,11 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  /* Taller than the tallest island (MAX_ISLAND_H): it scrolls, never cut. */
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 .left-body > * { flex-shrink: 0; }
@@ -5158,6 +5163,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .summary-row.badge-approval { border-color: rgba(245, 165, 36, 0.6); }
 .summary-row.badge-error { border-color: rgba(244, 80, 94, 0.6); }
+.summary-row.badge-warn { border-color: rgba(245, 165, 36, 0.6); }
 .summary-row.badge-finished { border-color: rgba(34, 197, 94, 0.5); }
 /* In a group of the menu: a line along the bottom in the folder's colour, cut by the tile's corners. */
 .summary-row.in-group::after {
@@ -5180,7 +5186,8 @@ input[type="range"]::-webkit-slider-thumb {
 .summary-top > :first-child { flex: 0 0 auto; }
 .summary-name {
   flex: 1 1 auto;
-  min-width: 0;
+  /* The name keeps about six letters before the label shrinks. */
+  min-width: min(6em, max-content);
   font-size: calc(12.5px + var(--fs-up, 0px));
   font-weight: 600;
   white-space: nowrap;
@@ -7585,7 +7592,12 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 }
 .summary-ico-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c, #8e939c); display: block; }
 .summary-pill {
-  flex: 0 0 auto;
+  /* In a narrow card the label gives way before the name («M…» with «Errore», 15 Nov 2026). */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: calc(9.5px + var(--fs-up, 0px));
   font-weight: 600;
   padding: 1px 6px;
@@ -7595,6 +7607,7 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 }
 .summary-pill.approval { background: rgba(245, 165, 36, 0.18); color: var(--amber); }
 .summary-pill.error { background: rgba(244, 80, 94, 0.18); color: var(--red); }
+.summary-pill.warn { background: rgba(245, 165, 36, 0.18); color: var(--amber); }
 .summary-pill.finished { background: rgba(34, 197, 94, 0.16); color: var(--green); }
 .summary-pill.live { background: color-mix(in srgb, var(--c, #4cc2ff) 16%, transparent); color: var(--c, var(--ink)); }
 html[data-ui="classic"] .summary-ico,

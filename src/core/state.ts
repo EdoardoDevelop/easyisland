@@ -12,7 +12,8 @@ const WEATHER = "integration_weather";
 
 /** "agent": Codex, Gemini CLI or any tool that sends `easyisland_agent` (hooks.ts). */
 export type AgentSource = "claudeCode" | "n8n" | "agent";
-export type PillBadge = "approval" | "finished" | "error";
+/** "warn": a check's warning (rain soon, a disk filling up), amber; "error" only for a real error (15 Nov 2026). */
+export type PillBadge = "approval" | "finished" | "warn" | "error";
 
 export interface AgentTask {
   id: string;
