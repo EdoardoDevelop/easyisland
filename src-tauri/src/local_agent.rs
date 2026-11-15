@@ -1,4 +1,5 @@
-// Internal Terminal mode loop for «Modello sul PC» (Edoardo, 15 Nov 2026):
+// Internal Terminal mode loop for «Modello sul PC», and since the same day for
+// OpenRouter, Ollama and LM Studio too (`ENGINES`) (Edoardo, 15 Nov 2026):
 // instead of routing llama-server through opencode (~11,000 tokens of system
 // instructions and tool schemas), EasyIsland drives the OpenAI chat-completions
 // tool loop directly with concise instructions and a focused tool set (<2,500
@@ -85,11 +86,19 @@ enum Decision {
     Refuse(String),
 }
 
-/// Runs one Modalità terminale turn for the `local` engine without opencode.
+/// The engines whose Modalità terminale is this loop, not opencode: the model
+/// on this PC, and the OpenAI-compatible services that take tools (Edoardo,
+/// 15 Nov 2026: «anche openrouter ollama lm studio dovrebbero utilizzare
+/// quello interno»). OpenAI, Gemini and the Claude API key stay on opencode.
+pub const ENGINES: &[&str] = &["local", "openrouter", "ollama", "lmstudio"];
+
+/// Runs one Modalità terminale turn for one of `ENGINES` without opencode.
 #[allow(clippy::too_many_arguments)]
 pub async fn send(
     app: &AppHandle,
     chat: &Chat,
+    engine: &str,
+    url: Option<&str>,
     model: &str,
     folder: &Path,
     query: String,
@@ -98,13 +107,35 @@ pub async fn send(
     telegram: bool,
     on_text: &(dyn Fn(&str) + Sync),
 ) -> Result<ChatReply, String> {
-    let lease = crate::local_model::ensure(model, crate::local_model::TERMINAL_CONTEXT).await?;
+    // Where the model is: our llama-server (its lease keeps it on for the
+    // turn), or the service's address with its key from the Credential Manager.
+    let provider = crate::openai::provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
+    let name = provider.name.to_string();
+    let (lease, base, key, wire_model) = if engine == "local" {
+        let l = crate::local_model::ensure(model, crate::local_model::TERMINAL_CONTEXT).await?;
+        let (b, k) = (l.base.clone(), l.key.clone());
+        (Some(l), b, k, "easyisland".to_string())
+    } else {
+        if model.trim().is_empty() {
+            return Err(tf("Scegli un modello di {name} nelle impostazioni (Chat).", &[("name", &name)]));
+        }
+        let base = crate::openai::base_url(engine, url)?;
+        let key = match provider.key {
+            Some(k) => crate::secrets::get(k).ok_or_else(|| tf("Manca la chiave di {name}. Apri le impostazioni.", &[("name", &name)]))?,
+            None => String::new(),
+        };
+        (None, base, key, model.trim().to_string())
+    };
     let chat_ptr = chat as *const Chat as usize;
+    let engine_owned = engine.to_string();
 
     let result = run_loop(
-        &lease.base,
-        &lease.key,
+        &base,
+        &key,
+        engine,
+        &name,
         model,
+        &wire_model,
         chat,
         folder,
         query,
@@ -112,8 +143,9 @@ pub async fn send(
         auto,
         true,
         on_text,
-        move |payload, exact_key| {
+        move |mut payload: Value, exact_key| {
             let app = app.clone();
+            payload["easyisland_engine"] = json!(engine_owned.clone());
             async move {
                 if has_always(chat_ptr, &exact_key) {
                     return Some("allow".to_string());
@@ -153,7 +185,10 @@ pub async fn send(
 async fn run_loop<FAsk, FutAsk, FEasy, FutEasy>(
     base: &str,
     key: &str,
+    engine: &str,
+    name: &str,
     model: &str,
+    wire_model: &str,
     chat: &Chat,
     folder: &Path,
     query: String,
@@ -197,7 +232,7 @@ where
     let mut tool_counts: Vec<(String, u32)> = Vec::new();
 
     for _round in 0..MAX_STEPS {
-        let v = post_completion(&client, base, key, &mut messages, &tools, model).await?;
+        let v = post_completion(&client, base, key, name, &mut messages, &tools, wire_model).await?;
         usage_steps += 1;
 
         let sent_chars: usize = messages.iter().map(|m| m.to_string().len()).sum();
@@ -221,13 +256,13 @@ where
                 true,
             ),
         };
-        crate::engine_usage::record("local", model, in_tok, out_tok, None, estimated);
+        crate::engine_usage::record(engine, model, in_tok, out_tok, None, estimated);
         total_read += in_tok;
         total_out += out_tok;
         peak = peak.max(in_tok);
 
         let Some(msg) = v.pointer("/choices/0/message") else {
-            return Err(t("Risposta inattesa dal modello sul PC.").into());
+            return Err(tf("Risposta inattesa da {p}.", &[("p", &name)]));
         };
         let tool_calls = msg.get("tool_calls").and_then(Value::as_array).filter(|a| !a.is_empty());
 
@@ -330,14 +365,15 @@ async fn post_completion(
     client: &reqwest::Client,
     base: &str,
     key: &str,
+    name: &str,
     messages: &mut Vec<Value>,
     tools: &[Value],
-    _model: &str,
+    model: &str,
 ) -> Result<Value, String> {
     let mut retried = false;
     loop {
         let body = json!({
-            "model": "easyisland",
+            "model": model,
             "messages": messages,
             "tools": tools,
             "tool_choice": "auto",
@@ -351,16 +387,16 @@ async fn post_completion(
         }
         let resp = req.send().await.map_err(|e| {
             if e.is_timeout() {
-                t("Il modello sul PC non ha risposto in tempo.").to_string()
+                tf("{p} non ha risposto in tempo.", &[("p", &name)])
             } else {
-                tf("Il modello sul PC si è fermato: {err}", &[("err", &e)])
+                tf("Errore di rete con {p}: {err}", &[("p", &name), ("err", &e)])
             }
         })?;
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
         if status.is_success() {
             return serde_json::from_str(&text)
-                .map_err(|e| tf("Risposta non valida dal modello sul PC: {err}", &[("err", &e)]));
+                .map_err(|e| tf("Risposta non valida da {p}: {err}", &[("p", &name), ("err", &e)]));
         }
         let why = serde_json::from_str::<Value>(&text)
             .ok()
@@ -369,13 +405,13 @@ async fn post_completion(
 
         if status == reqwest::StatusCode::BAD_REQUEST && !retried && shorten_older_tool_results(messages) {
             retried = true;
-            crate::log::line("modello sul PC: contesto pieno, accorcio i risultati più vecchi e riprovo");
+            crate::log::line(format!("terminale interno ({name}): contesto pieno, accorcio i risultati più vecchi e riprovo"));
             continue;
         }
         if status == reqwest::StatusCode::BAD_REQUEST {
             return Err(tf(
-                "Il contesto del modello sul PC è pieno (HTTP 400: {why}).",
-                &[("why", &why)],
+                "Il contesto di {p} è pieno (HTTP 400: {why}).",
+                &[("p", &name), ("why", &why)],
             ));
         }
         return Err(format!("HTTP {status}: {why}"));
@@ -1497,7 +1533,10 @@ mod tests {
             .block_on(run_loop(
                 &base,
                 "",
+                "local",
+                "Modello sul PC",
                 "qwen3.5-4b",
+                "easyisland",
                 &chat,
                 &root,
                 "Elenca i file".to_string(),
