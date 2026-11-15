@@ -18,6 +18,7 @@ mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
 mod votes;
+mod memory_tips;
 mod toolhint;
 mod pccheck;
 mod agent_settings;
@@ -939,6 +940,13 @@ fn recipes_forget() {
 #[tauri::command]
 async fn chat_vote(question: String, answer: String, engine: String, direct: bool, lines: Vec<String>, vote: i32) -> String {
     votes::vote(&question, &answer, &engine, direct, lines, match vote { 1 => Some(true), -1 => Some(false), _ => None }).await
+}
+
+/// «Puoi chiedere:» from the memory (memory_tips.rs): questions about the
+/// pages the text in front of the user names, that the memory answers by itself.
+#[tauri::command]
+async fn chat_memory_tips(app: AppHandle, text: String, asked: Vec<String>) -> Vec<memory_tips::Tip> {
+    memory_tips::tips(&app, &text, &asked).await
 }
 
 #[tauri::command]
@@ -5069,6 +5077,7 @@ pub fn run() {
             recipes_forget,
             router_stats,
             chat_vote,
+            chat_memory_tips,
             votes_stats,
             votes_check,
             votes_forget,

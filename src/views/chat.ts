@@ -15,7 +15,7 @@ import { isPopped } from "../island/popout";
 import { TypeLine, foldSteps, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
-import { contextTips, helpGroups, pageKind, tipsKey, type Tip } from "./chat-tips";
+import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -392,6 +392,8 @@ export function buildPrompt(
   });
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
+  // Open, the tips over the field go (they would cover it); closed, they come back.
+  new MutationObserver(() => refreshTips(true)).observe(engineMenu, { attributes: true, attributeFilter: ["style"] });
   // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
   const sideBtn = h("button", { class: "history-btn side-btn", title: t("Mostra o nascondi le conversazioni (Ctrl+B)") }, svg(ICONS.sidebar, 14, { stroke: 1.8 })) as HTMLButtonElement;
   // The conversation's title, as the history knows it (its first question until then).
@@ -945,7 +947,8 @@ export function buildPrompt(
   let tipsShown = "";
   let tipsClosed = "";
   function refreshTips(force = false) {
-    const quiet = input.value.trim() !== "" || State.chat.sending || slashItems.length > 0 || helpPanel.style.display !== "none" || State.settings.chatTips === false;
+    // A menu over the field (engine, folder) hides them: they would cover it.
+    const quiet = input.value.trim() !== "" || State.chat.sending || slashItems.length > 0 || helpPanel.style.display !== "none" || engineMenu.style.display !== "none" || State.settings.chatTips === false;
     if (quiet) {
       if (tipsRow.style.display !== "none") {
         tipsRow.style.display = "none";
@@ -958,10 +961,13 @@ export function buildPrompt(
     tipsAt = Date.now();
     void (async () => {
       const page = await pageKind();
-      const key = tipsKey(page);
-      const list = key === tipsClosed ? [] : await contextTips(page);
+      const questions = State.chatHistory.filter((m) => m.role === "user").map((m) => m.content);
+      const last = questions[questions.length - 1] ?? "";
+      const key = `${tipsKey(page)}|${last}`;
+      // The rules' tips, then the memory's (memory_tips.rs): at most eight, on a line that scrolls.
+      const list = key === tipsClosed ? [] : [...await contextTips(page), ...await memoryTips(tipsText(page, last), questions)].slice(0, 8);
       const shownKey = key + list.map((x) => x.label).join("|");
-      const show = list.length > 0 && input.value.trim() === "";
+      const show = list.length > 0 && input.value.trim() === "" && engineMenu.style.display === "none";
       if (shownKey !== tipsShown) {
         tipsShown = shownKey;
         const close = h("button", { class: "chat-tip close", text: "✕", title: t("Nascondi i suggerimenti finché non cambia la pagina") });
@@ -971,14 +977,33 @@ export function buildPrompt(
           placeRecent();
           onHeightChange();
         });
-        tipsRow.replaceChildren(
-          h("span", { class: "chat-tips-label", text: t("Puoi chiedere:") }),
+        // One line that scrolls sideways: the wheel, ‹ › and its bar (15 Nov 2026).
+        const strip = h("div", { class: "chat-tips-strip" },
           ...list.map((x) => {
             const b = h("button", { class: "chat-tip", text: x.label, title: x.prompt });
             b.addEventListener("click", () => useTip(x));
             return b;
-          }),
-          close);
+          }));
+        const prev = h("button", { class: "chat-tip arrow", text: "‹", title: t("Indietro") }) as HTMLButtonElement;
+        const next = h("button", { class: "chat-tip arrow", text: "›", title: t("Avanti") }) as HTMLButtonElement;
+        const arrows = () => {
+          const over = strip.scrollWidth > strip.clientWidth + 1;
+          prev.style.display = next.style.display = over ? "" : "none";
+          prev.disabled = strip.scrollLeft <= 0;
+          next.disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+        };
+        const by = (dir: number) => strip.scrollBy({ left: dir * Math.max(120, strip.clientWidth * 0.7), behavior: "smooth" });
+        prev.addEventListener("click", () => by(-1));
+        next.addEventListener("click", () => by(1));
+        strip.addEventListener("scroll", arrows, { passive: true });
+        strip.addEventListener("wheel", (e) => {
+          if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+          e.preventDefault();
+          strip.scrollLeft += e.deltaY;
+        }, { passive: false });
+        new ResizeObserver(arrows).observe(strip);
+        tipsRow.replaceChildren(h("span", { class: "chat-tips-label", text: t("Puoi chiedere:") }), prev, strip, next, close);
+        requestAnimationFrame(arrows);
       }
       if ((tipsRow.style.display !== "none") !== show) {
         tipsRow.style.display = show ? "" : "none";

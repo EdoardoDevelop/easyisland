@@ -767,6 +767,8 @@ export const Bridge = {
   recipesCount: () => call<number>("recipes_count"),
   recipesForget: () => call<void>("recipes_forget"),
   /** Impostazioni → Chat → «Smistatore»: the turn log's numbers (router.rs). */
+  /** «Puoi chiedere:» from the memory (memory_tips.rs): questions it answers by itself. */
+  chatMemoryTips: (text: string, asked: string[]) => call<{ label: string; prompt: string }[]>("chat_memory_tips", { text, asked }),
   /** 👍 (1), 👎 (-1) or taken back (0) under an answer (votes.rs): what EasyIsland learnt. */
   chatVote: (question: string, answer: string, engine: string, direct: boolean, lines: string[], vote: number) =>
     call<string>("chat_vote", { question, answer, engine, direct, lines, vote }),

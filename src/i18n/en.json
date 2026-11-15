@@ -5359,5 +5359,9 @@
   "le righe della memoria che ha usato il motore": "the memory lines the engine used",
   "Grazie, segnato.": "Thanks, noted.",
   "Segnato. Se manca qualcosa nella memoria, scrivilo in una nota: la prossima volta lo trovo.": "Noted. If something is missing from the memory, write it in a note: next time I will find it.",
-  "Risposta di EasyIsland dalla memoria, senza motore. «Chiedi al motore» per la risposta di un motore.": "EasyIsland's answer from the memory, with no engine. «Ask the engine» for an engine's answer."
+  "Risposta di EasyIsland dalla memoria, senza motore. «Chiedi al motore» per la risposta di un motore.": "EasyIsland's answer from the memory, with no engine. «Ask the engine» for an engine's answer.",
+  "Cosa so di {p}": "What I know of {p}",
+  "Cosa sai di {p}?": "What do you know about {p}?",
+  "{k} di {p}": "{k} of {p}",
+  "Che {k} ha {p}?": "Which {k} does {p} have?"
 }

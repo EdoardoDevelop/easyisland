@@ -1670,15 +1670,31 @@ input[type="range"]::-webkit-slider-thumb {
 /* What can be asked about what is on screen (chat-tips.ts): chips over the field. */
 .chat-tips {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   padding: 3px 10px;
 }
 .chat-tips-label {
+  flex: none;
   font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font);
   color: var(--dim-2);
 }
+/* One line that scrolls sideways (wheel, ‹ ›, its thin bar). */
+.chat-tips-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.chat-tips-strip .chat-tip { flex: none; white-space: nowrap; }
+.chat-tip.arrow { flex: none; padding: 2px 7px; background: transparent; box-shadow: none; color: var(--dim-2); }
+.chat-tip.arrow:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.chat-tip.arrow:disabled { opacity: 0.3; cursor: default; }
 .chat-tip {
   padding: 2px 9px;
   border: 0;
@@ -1690,7 +1706,7 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 .chat-tip:hover { background: rgba(129, 140, 248, 0.26); }
-.chat-tip.close { background: transparent; box-shadow: none; color: var(--dim-2); padding: 2px 5px; }
+.chat-tip.close { flex: none; background: transparent; box-shadow: none; color: var(--dim-2); padding: 2px 5px; }
 /* «Cosa so fare»: the menu over the field, taller, with group titles. */
 .slash-menu.chat-help { max-height: 75%; }
 .chat-help .slash-item b { flex: 0 0 150px; }
@@ -3912,7 +3928,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .zip-list::-webkit-scrollbar-button {
-  display: none;
+  display: none; width: 0; height: 0;
 }
 
 .zip-list::-webkit-scrollbar-thumb {
@@ -3985,7 +4001,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .files-body::-webkit-scrollbar { width: 6px; }
-.files-body::-webkit-scrollbar-button { display: none; }
+.files-body::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 .files-body::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(255, 255, 255, 0.18); }
 
 .files-head {
@@ -4089,7 +4105,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .files-list::-webkit-scrollbar-button {
-  display: none;
+  display: none; width: 0; height: 0;
 }
 
 .files-list::-webkit-scrollbar-thumb {
@@ -4331,7 +4347,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .diff-list::-webkit-scrollbar-button {
-  display: none;
+  display: none; width: 0; height: 0;
 }
 
 .diff-list::-webkit-scrollbar-thumb {
@@ -6068,7 +6084,7 @@ html[data-scheme="light"] .rail-rename { background: #fff; }
 
 
 .rail-list::-webkit-scrollbar { width: 4px; }
-.rail-list::-webkit-scrollbar-button { display: none; }
+.rail-list::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 .rail-list::-webkit-scrollbar-thumb { border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
 .rail-list:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
 

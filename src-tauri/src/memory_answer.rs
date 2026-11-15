@@ -43,7 +43,7 @@ const COMMON: &[&str] = &[
     "ed", "o", "a", "al", "allo", "alla", "ai", "agli", "alle", "è", "e'", "sono", "ha", "hanno", "ho", "hai", "c",
     "ci", "si", "mi", "ti", "ne", "non", "più", "mio", "mia", "miei", "mie", "tuo", "tua", "suo", "sua", "suoi", "loro",
     "nostro", "nostra", "questo", "questa", "quello", "quella", "l", "d", "un'", "chiama", "chiamano", "usa", "usano",
-    "c'è", "the", "a", "an", "of", "is", "are", "does", "do", "has", "have", "in", "on", "for", "to", "and", "or",
+    "c'è", "sai", "sa", "so", "you", "know", "about", "the", "a", "an", "of", "is", "are", "does", "do", "has", "have", "in", "on", "for", "to", "and", "or",
 ];
 
 const MAX_WORDS: usize = 14;
@@ -52,7 +52,7 @@ const MAX_LINES: usize = 2;
 /// A second line only this close in meaning to the first one.
 const SECOND_BELOW: f32 = 0.05;
 
-fn words(question: &str) -> Vec<String> {
+pub(crate) fn words(question: &str) -> Vec<String> {
     question
         .to_lowercase()
         .replace(['’', '\''], " ")
@@ -108,7 +108,7 @@ fn has_word(line_words: &[String], line: &str, w: &str) -> bool {
 }
 
 /// Lines that only hold the page together: a title, aliases, links, dates.
-fn structural(line: &str) -> bool {
+pub(crate) fn structural(line: &str) -> bool {
     let text = line.trim();
     let text = match text.strip_prefix("[[").and_then(|r| r.split_once("]]")) {
         Some((_, rest)) => rest.trim(),
@@ -196,6 +196,11 @@ pub fn shown(line: &str) -> String {
     } else {
         text
     }
+}
+
+/// A word that says nothing of what is asked about, nor asks.
+pub(crate) fn is_common(w: &str) -> bool {
+    COMMON.contains(&w) || ASKING.contains(&w) || NOT_LOOKUP.contains(&w)
 }
 
 /// The subjects of a question as a key, for the votes (votes.rs): «quale vm ha
