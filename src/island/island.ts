@@ -521,6 +521,17 @@ export class Island {
     this.header.field.append(this.search.el);
     this.rail = buildRail(actions);
     watchPresses(document);
+    // A click in any text field of the open island asks for the keyboard: after
+    // another app took the focus (onWindowBlurred makes the island non-activating
+    // again) the chat's field got the click but the keys went on to the other
+    // app (review of 16 Nov 2026). The other views asked one by one.
+    document.addEventListener("pointerdown", (e) => {
+      if (State.mode !== "expanded") return;
+      const field = (e.target as Element | null)?.closest?.("textarea, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=range]), [contenteditable=''], [contenteditable=true]");
+      // Only when the keys are elsewhere: activating brings the window forward
+      // with a tap of Alt, not to be done at every click while typing.
+      if (field && !document.hasFocus()) void Bridge.focusWindow(true);
+    }, true);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
     this.stripActions = {
