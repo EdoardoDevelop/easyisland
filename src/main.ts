@@ -6,6 +6,7 @@ import "./style.css";
 import "./style-windows.css";
 import "./style-studio.css";
 import "./style-light.css";
+import "./core/search-line.css";
 import "./chat-cards.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";

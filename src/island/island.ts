@@ -40,7 +40,7 @@ import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state"
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
-import { applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
+import { applySearchLine, applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
 
@@ -3390,6 +3390,7 @@ ${note}` : text };
     setFigure(t.figure);
     this.loadLogo(t.figure === "logo" ? t.logoStamp ?? 0 : -1);
     applyUiStyle(t.style, t.scheme, () => this.paintIsland());
+    applySearchLine(State.settings);
     applyFonts(t.fonts);
     this.paintIsland();
     this.applyBare();
@@ -4631,6 +4632,7 @@ ${note}` : text };
   /** Applies settings coming from Rust at boot. */
   applySettings() {
     applyMotion(State.settings);
+    applySearchLine(State.settings);
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;

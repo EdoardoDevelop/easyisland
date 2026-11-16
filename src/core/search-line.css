@@ -1,0 +1,312 @@
+/* Search-bar bottom accent line styles & animations across every theme (dark/light),
+   the standalone search bar (#island.search-only), and the Settings preview.
+   Controlled by <html data-search-line="…" data-search-line-mode="…"> (src/core/uistyle.ts). */
+
+:root {
+  --sl-line: var(--accent, #38bdf8);
+  --sl-glow: none;
+  --sl-wave-filter: drop-shadow(0 0 4px #59c8ff);
+  --sl-waves:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(194, 92, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(89, 200, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat;
+  --sl-wave-back: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat;
+}
+
+html[data-scheme="light"] {
+  --sl-wave-filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.55));
+  --sl-waves:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.85) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(2, 132, 199, 0.88) 50%, transparent) 0 0 / 30% 100% no-repeat;
+  --sl-wave-back: linear-gradient(90deg, transparent, rgba(2, 132, 199, 0.85) 50%, transparent) 0 0 / 30% 100% no-repeat;
+}
+
+/* ── Palette presets ──────────────────────────────────────────────────────── */
+
+/* 1. Onde classiche (precedente): accent + 3 travelling light waves. */
+html[data-search-line="waves"] {
+  --sl-line: var(--accent, #38bdf8);
+  --sl-glow: none;
+}
+html[data-ui="classic"][data-search-line="waves"],
+html[data-ui="editorial"][data-search-line="waves"],
+html[data-ui="titanium"][data-search-line="waves"] {
+  --sl-line: #59c8ff;
+}
+html[data-scheme="light"][data-search-line="waves"] {
+  --sl-line: var(--accent, #0b6fa3);
+}
+
+/* 2. Orizzonte ciano-viola (sfumatura con bagliore morbido). */
+html[data-search-line="horizon"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(56, 189, 248, 0.28) 6%, #38bdf8 20%, #22d3ee 32%,
+    #818cf8 47%, #a855f7 57%, #c084fc 63%, #818cf8 72%, #38bdf8 82%,
+    rgba(56, 189, 248, 0.28) 94%, transparent 100%);
+  --sl-glow: drop-shadow(0 1px 5px rgba(99, 102, 241, 0.45)) drop-shadow(0 0 2px rgba(56, 189, 248, 0.35));
+}
+html[data-scheme="light"][data-search-line="horizon"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(2, 132, 199, 0.28) 6%, #0284c7 20%, #0891b2 32%,
+    #6366f1 47%, #9333ea 57%, #a855f7 63%, #6366f1 72%, #0284c7 82%,
+    rgba(2, 132, 199, 0.28) 94%, transparent 100%);
+  --sl-glow: drop-shadow(0 1px 4px rgba(124, 58, 237, 0.34)) drop-shadow(0 0 2px rgba(2, 132, 199, 0.3));
+}
+
+/* 3. Cometa luminosa (fascio scorrevole avanti e indietro). */
+html[data-search-line="comet"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(56, 189, 248, 0.32) 15%, rgba(129, 140, 248, 0.48) 50%, rgba(168, 85, 247, 0.32) 85%, transparent 100%);
+  --sl-glow: drop-shadow(0 0 3px rgba(56, 189, 248, 0.35));
+  --sl-waves: linear-gradient(90deg, transparent 0%, #38bdf8 26%, #ffffff 50%, #c084fc 74%, transparent 100%) 0 0 / 28% 100% no-repeat;
+  --sl-wave-filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.8));
+}
+html[data-scheme="light"][data-search-line="comet"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(2, 132, 199, 0.28) 15%, rgba(99, 102, 241, 0.4) 50%, rgba(147, 51, 234, 0.28) 85%, transparent 100%);
+  --sl-waves: linear-gradient(90deg, transparent 0%, #0284c7 26%, #e0f2fe 50%, #9333ea 74%, transparent 100%) 0 0 / 28% 100% no-repeat;
+  --sl-wave-filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.55));
+}
+
+/* 4. Prisma continuo (gradiente scorrevole). */
+html[data-search-line="prism"] {
+  --sl-line: linear-gradient(90deg,
+    #22d3ee 0%, #38bdf8 18%, #818cf8 36%, #c084fc 54%, #f472b6 72%, #38bdf8 88%, #22d3ee 100%);
+  --sl-glow: drop-shadow(0 1px 5px rgba(168, 85, 247, 0.42));
+  --sl-waves: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72) 50%, transparent) 0 0 / 26% 100% no-repeat;
+  --sl-wave-filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.65));
+}
+html[data-scheme="light"][data-search-line="prism"] {
+  --sl-line: linear-gradient(90deg,
+    #0891b2 0%, #0284c7 18%, #6366f1 36%, #9333ea 54%, #db2777 72%, #0284c7 88%, #0891b2 100%);
+  --sl-glow: drop-shadow(0 1px 4px rgba(147, 51, 234, 0.34));
+  --sl-wave-filter: drop-shadow(0 0 3px rgba(219, 39, 119, 0.5));
+}
+
+/* 5. Smeraldo e ciano. */
+html[data-search-line="emerald"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(16, 185, 129, 0.28) 6%, #10b981 22%, #34d399 44%, #22d3ee 66%, #38bdf8 84%,
+    rgba(56, 189, 248, 0.28) 94%, transparent 100%);
+  --sl-glow: drop-shadow(0 1px 5px rgba(16, 185, 129, 0.45)) drop-shadow(0 0 2px rgba(34, 211, 238, 0.35));
+  --sl-waves:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.92) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.9) 50%, transparent) 0 0 / 30% 100% no-repeat;
+  --sl-wave-filter: drop-shadow(0 0 4px #34d399);
+}
+html[data-scheme="light"][data-search-line="emerald"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(5, 150, 105, 0.28) 6%, #059669 22%, #10b981 44%, #0891b2 66%, #0284c7 84%,
+    rgba(2, 132, 199, 0.28) 94%, transparent 100%);
+  --sl-glow: drop-shadow(0 1px 4px rgba(5, 150, 105, 0.36));
+  --sl-wave-filter: drop-shadow(0 0 3px #059669);
+}
+
+/* 6. Ambra e corallo. */
+html[data-search-line="amber"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(245, 158, 11, 0.28) 6%, #f59e0b 20%, #fb7185 48%, #e879f9 68%, #fb7185 84%,
+    rgba(245, 158, 11, 0.28) 94%, transparent 100%);
+  --sl-glow: drop-shadow(0 1px 5px rgba(251, 113, 133, 0.45)) drop-shadow(0 0 2px rgba(245, 158, 11, 0.35));
+  --sl-waves:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(251, 113, 133, 0.92) 50%, transparent) 0 0 / 30% 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.92) 50%, transparent) 0 0 / 30% 100% no-repeat;
+  --sl-wave-filter: drop-shadow(0 0 4px #f59e0b);
+}
+html[data-scheme="light"][data-search-line="amber"] {
+  --sl-line: linear-gradient(90deg,
+    transparent 0%, rgba(217, 119, 6, 0.28) 6%, #d97706 20%, #e11d48 48%, #c026d3 68%, #e11d48 84%,
+    rgba(217, 119, 6, 0.28) 94%, transparent 100%);
+  --sl-glow: drop-shadow(0 1px 4px rgba(225, 29, 72, 0.34));
+  --sl-wave-filter: drop-shadow(0 0 3px #d97706);
+}
+
+/* 7. Fissa (senza onde). */
+html[data-search-line="steady"] {
+  --sl-line: var(--accent, #38bdf8);
+  --sl-glow: none;
+}
+html[data-scheme="light"][data-search-line="steady"] {
+  --sl-line: var(--accent, #0b6fa3);
+}
+
+/* ── Geometry ─────────────────────────────────────────────────────────────── */
+
+.search-bar { position: relative; }
+
+.search-bar::before,
+.search-bar::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.search-bar::after {
+  background: var(--sl-line);
+  filter: var(--sl-glow);
+}
+
+.search-bar::before {
+  z-index: 1;
+  background: var(--sl-waves);
+  filter: var(--sl-wave-filter);
+}
+
+html:not([data-ui="classic"]) #island:not(.search-only) .search-bar::before,
+html:not([data-ui="classic"]) #island:not(.search-only) .search-bar::after,
+html:not([data-ui="classic"]) .search-bar.search-line-preview::before,
+html:not([data-ui="classic"]) .search-bar.search-line-preview::after {
+  left: -1px;
+  right: -1px;
+  border-radius: 0 0 4px 4px;
+}
+
+#island.search-only .search-bar::before,
+#island.search-only .search-bar::after {
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+}
+
+html[data-search-line="prism"] .search-bar::after {
+  background-size: 220% 100%;
+}
+
+html[data-search-line="steady"] .search-bar::before,
+html[data-search-line-mode="fade"] .search-bar::before {
+  display: none;
+}
+
+html[data-search-line="off"] .search-bar::before,
+html[data-search-line="off"] .search-bar::after {
+  display: none !important;
+}
+
+/* ── Animation modes: focus | loop | both | fade ─────────────────────────── */
+
+/* Focus & Exit (comportamento classico): si accende in focus con loop e rientra fuori focus. */
+html[data-search-line-mode="focus"] .search-bar:focus-within::after {
+  opacity: 1;
+}
+html[data-anim="ricche"][data-search-line-mode="focus"] .search-bar:focus-within::after {
+  animation: search-line-in 2.4s var(--ease-out, ease-out) both;
+}
+html[data-anim="ricche"][data-search-line-mode="focus"] .search-bar:focus-within::before {
+  opacity: 1;
+  animation: search-waves 7.8s linear infinite;
+}
+html[data-anim="ricche"][data-search-line-mode="focus"] .search-bar.line-out:not(:focus-within)::after {
+  opacity: 1;
+  animation: search-line-out 2.4s var(--ease-out, ease-out) both;
+}
+html[data-anim="ricche"][data-search-line-mode="focus"] .search-bar.line-out:not(:focus-within)::before {
+  opacity: 1;
+  background: var(--sl-wave-back);
+  animation: search-wave-back 2.4s var(--ease-out, ease-out) both;
+}
+html[data-anim="sobrie"][data-search-line-mode="focus"] .search-bar:focus-within::after {
+  animation: search-line-fade 0.18s ease-out both;
+}
+
+/* Loop continuo (in focus e fuori focus). */
+html[data-search-line-mode="loop"] .search-bar::after {
+  opacity: 0.48;
+}
+html[data-search-line-mode="loop"] .search-bar:focus-within::after {
+  opacity: 1;
+}
+html:not([data-anim="spente"])[data-search-line-mode="loop"] .search-bar::before {
+  opacity: 0.55;
+  animation: search-waves 8.5s linear infinite;
+}
+html:not([data-anim="spente"])[data-search-line-mode="loop"] .search-bar:focus-within::before {
+  opacity: 1;
+  animation: search-waves 5.8s linear infinite;
+}
+html:not([data-anim="spente"])[data-search-line-mode="loop"][data-search-line="prism"] .search-bar::after {
+  animation: search-prism 6.5s linear infinite;
+}
+html:not([data-anim="spente"])[data-search-line-mode="loop"][data-search-line="prism"] .search-bar:focus-within::after {
+  animation: search-prism 3.8s linear infinite;
+}
+
+/* Both: fissa tenue fuori focus, loop vivo in focus + onda di ritorno. */
+html[data-search-line-mode="both"] .search-bar::after {
+  opacity: 0.48;
+}
+html[data-search-line-mode="both"] .search-bar:focus-within::after {
+  opacity: 1;
+}
+html:not([data-anim="spente"])[data-search-line-mode="both"] .search-bar:focus-within::before {
+  opacity: 1;
+  animation: search-waves 7.2s linear infinite;
+}
+html:not([data-anim="spente"])[data-search-line-mode="both"] .search-bar.line-out:not(:focus-within)::before {
+  opacity: 1;
+  background: var(--sl-wave-back);
+  animation: search-wave-back 2.4s var(--ease-out, ease-out) both;
+}
+html:not([data-anim="spente"])[data-search-line-mode="both"][data-search-line="prism"] .search-bar:focus-within::after {
+  animation: search-prism 4.2s linear infinite;
+}
+
+/* Fade only (solo dissolvenza al focus, nessun loop). */
+html[data-search-line-mode="fade"] .search-bar:focus-within::after {
+  opacity: 1;
+}
+
+/* Per-style loop curves when waves are active (comet sweep, prism flow). */
+html:not([data-anim="spente"])[data-search-line="comet"][data-search-line-mode="focus"] .search-bar:focus-within::before,
+html:not([data-anim="spente"])[data-search-line="comet"][data-search-line-mode="both"] .search-bar:focus-within::before,
+html:not([data-anim="spente"])[data-search-line="comet"][data-search-line-mode="loop"] .search-bar:focus-within::before {
+  animation: search-comet 2.6s ease-in-out infinite alternate;
+}
+html:not([data-anim="spente"])[data-search-line="comet"][data-search-line-mode="loop"] .search-bar:not(:focus-within)::before {
+  animation: search-comet 4.2s ease-in-out infinite alternate;
+}
+html:not([data-anim="spente"])[data-search-line="prism"][data-search-line-mode="focus"] .search-bar:focus-within::after {
+  animation: search-line-in 2.4s var(--ease-out, ease-out) both, search-prism 4.2s linear infinite;
+}
+
+html[data-anim="spente"] .search-bar::before { display: none; }
+html[data-anim="spente"] .search-bar::after { animation: none !important; transition: none; }
+
+@keyframes search-line-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes search-waves {
+  0% { background-position: -35% 0, -35% 0, -35% 0; }
+  20% { background-position: 40% 0, 5% 0, -35% 0; }
+  45% { background-position: 135% 0, 40% 0, 5% 0; }
+  70% { background-position: 135% 0, 135% 0, 60% 0; }
+  90%, 100% { background-position: 135% 0, 135% 0, 135% 0; }
+}
+@keyframes search-line-out {
+  from { clip-path: inset(0 0 0 0); }
+  to { clip-path: inset(0 100% 0 0); }
+}
+@keyframes search-wave-back {
+  0% { opacity: 1; background-position: 120% 0; }
+  85% { opacity: 1; }
+  100% { opacity: 0; background-position: -20% 0; }
+}
+@keyframes search-comet {
+  from { background-position: -28% 0; }
+  to { background-position: 128% 0; }
+}
+@keyframes search-prism {
+  from { background-position: 0% 0; }
+  to { background-position: 220% 0; }
+}
+@keyframes search-line-fade { from { opacity: 0; } }

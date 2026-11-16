@@ -5681,5 +5681,21 @@
   "Luce": "Glow",
   "Colore 1": "Color 1",
   "Colore 2": "Color 2",
-  "Tinta": "Tint"
+  "Tinta": "Tint",
+  "Linea della barra": "Search bar line",
+  "Onde classiche (precedente)": "Classic waves (previous)",
+  "Orizzonte ciano-viola": "Cyan-violet horizon",
+  "Cometa luminosa": "Luminous comet",
+  "Prisma continuo": "Continuous prism",
+  "Smeraldo e ciano": "Emerald and cyan",
+  "Ambra e corallo": "Amber and coral",
+  "Fissa sul focus": "Steady on focus",
+  "Spenta": "Off",
+  "aspetto e colori della linea luminosa sotto le barre di ricerca su tutti i temi": "look and colours of the glowing line under the search bars across all themes",
+  "Quando si anima": "When it animates",
+  "In focus e in uscita": "On focus and exit",
+  "Sempre in loop (in focus e fuori focus)": "Always in loop (focused and unfocused)",
+  "Fissa fuori focus, in loop in focus": "Steady unfocused, loop on focus",
+  "Solo dissolvenza sul focus": "Fade on focus only",
+  "Clicca qui per provare in focus e fuori focus…": "Click here to test focus and unfocus…"
 }
