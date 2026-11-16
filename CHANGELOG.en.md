@@ -3,10 +3,12 @@
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
 **1.0.50** — **Renewed search bar** and all Settings pages reorganised with shared sub-tabs. Search can now also open as a
-dedicated bar centred on screen (`searchOnly`), in dark and light mode, focused immediately so you can type as soon as it
-opens. Fixed three Windows windowing and launch issues: no hidden window left in the taskbar when the island closes (also
-with «Island as an app»), clicking the character brings an open island back to the front when behind other windows, and
-launching programs from search now also opens Store apps, `.lnk`/`.url` shortcuts and Control Panel.
+dedicated bar centred on screen (`searchOnly`), in dark and light mode, with a cyan-violet-cyan gradient accent across all
+themes and automatic input focus so you can type as soon as it opens. The **fixed bar** adds new background modes
+(gradient, character glow, aurora, frosted glass with presets) and element designs (`Flat classic`, `Pills & telemetry`,
+`Compact minimal`). Fixed three Windows windowing and launch issues: no hidden window left in the taskbar when the island
+closes (also with «Island as an app»), clicking the character brings an open island back to the front when behind other
+windows, and launching programs from search now also opens Store apps, `.lnk`/`.url` shortcuts and Control Panel.
 
 **1.0.49** — **Model on this PC**: an AI model that runs inside EasyIsland, on the graphics card (NVIDIA, AMD or
 Intel), with nothing to install and nothing leaving the PC. In Settings → Chat EasyIsland tells which graphics card you

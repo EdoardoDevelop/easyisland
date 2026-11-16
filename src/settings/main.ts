@@ -12,6 +12,7 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 const LOGO_ID = LOGO_CHARACTER.id;
 import { type DoneItem, type LocalModelStatus, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
+import { BAR_BG_PRESETS, barBgCss, parseBarBg } from "../core/barbg";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -3950,20 +3951,93 @@ function languageRow(): HTMLElement {
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
 
-/** «Sfondo della barra»: the island's, none, or a colour of the user's. */
+/** «Sfondo della barra»: the island's, none, colour, gradient, character glow, aurora or frosted glass. */
 function barBackground(commit: () => void): HTMLElement {
-  const current = settings.fixedBarBackground ?? "";
-  const custom = /^#[0-9a-f]{6}$/i.test(current);
-  const picker = colorField(custom ? current : "", "#1f2937", (v) => { settings.fixedBarBackground = v; commit(); });
-  picker.style.display = custom ? "flex" : "none";
-  const choice = select([["", t("Come l'isola")], ["transparent", t("Trasparente")], ["color", t("Un colore")]],
-    custom ? "color" : current === "transparent" ? "transparent" : "",
-    (v) => {
-      picker.style.display = v === "color" ? "flex" : "none";
-      settings.fixedBarBackground = v === "color" ? (custom ? current : "#1f2937") : v;
-      commit();
-    });
-  return h("span", { style: "display:flex;align-items:center;gap:10px" }, choice, picker);
+  const presetsLabel = (name: string) => {
+    const map: Record<string, string> = {
+      "Notte blu": t("Notte blu"), "Viola profondo": t("Viola profondo"), "Grafite": t("Grafite"),
+      "Tramonto": t("Tramonto"), "Perla chiara": t("Perla chiara"),
+      "Ciano": t("Ciano"), "Viola": t("Viola"), "Smeraldo": t("Smeraldo"), "Ambra": t("Ambra"), "Rosa": t("Rosa"),
+      "Boreale": t("Boreale"), "Pastello chiaro": t("Pastello chiaro"),
+      "Vetro scuro": t("Vetro scuro"), "Vetro blu notte": t("Vetro blu notte"), "Vetro chiaro": t("Vetro chiaro"),
+    };
+    return map[name] ?? name;
+  };
+  const modeOf = () => {
+    const k = parseBarBg(settings.fixedBarBackground).kind;
+    return k === "island" ? "" : k;
+  };
+  const pickers = h("div", { class: "bar-bg-pickers" });
+  const presets = h("div", { class: "bar-bg-presets" });
+  const paintControls = () => {
+    const spec = parseBarBg(settings.fixedBarBackground);
+    pickers.replaceChildren();
+    presets.replaceChildren();
+    const addPick = (label: string, val: string, onChange: (c: string) => void) =>
+      pickers.append(h("span", { class: "bar-bg-pick" },
+        ...(label ? [h("span", { text: label })] : []),
+        colorField(val, val, onChange)));
+    if (spec.kind === "solid") {
+      addPick("", spec.color, (v) => { settings.fixedBarBackground = v; commit(); });
+    } else if (spec.kind === "gradient") {
+      addPick(t("Da"), spec.from, (v) => { settings.fixedBarBackground = `gradient:${v}:${spec.to}`; commit(); paintPresets(); });
+      addPick(t("A"), spec.to, (v) => { settings.fixedBarBackground = `gradient:${spec.from}:${v}`; commit(); paintPresets(); });
+    } else if (spec.kind === "glow") {
+      addPick(t("Sfondo"), spec.base, (v) => { settings.fixedBarBackground = `glow:${v}:${spec.light}`; commit(); paintPresets(); });
+      addPick(t("Luce"), spec.light, (v) => { settings.fixedBarBackground = `glow:${spec.base}:${v}`; commit(); paintPresets(); });
+    } else if (spec.kind === "aurora") {
+      addPick(t("Sfondo"), spec.base, (v) => { settings.fixedBarBackground = `aurora:${v}:${spec.a}:${spec.b}`; commit(); paintPresets(); });
+      addPick(t("Colore 1"), spec.a, (v) => { settings.fixedBarBackground = `aurora:${spec.base}:${v}:${spec.b}`; commit(); paintPresets(); });
+      addPick(t("Colore 2"), spec.b, (v) => { settings.fixedBarBackground = `aurora:${spec.base}:${spec.a}:${v}`; commit(); paintPresets(); });
+    } else if (spec.kind === "glass") {
+      addPick(t("Tinta"), spec.base, (v) => { settings.fixedBarBackground = `glass:${v}`; commit(); paintPresets(); });
+    }
+    paintPresets();
+  };
+  const paintPresets = () => {
+    presets.replaceChildren();
+    const m = modeOf();
+    if (m !== "gradient" && m !== "glow" && m !== "aurora" && m !== "glass") {
+      presets.style.display = "none";
+      return;
+    }
+    presets.style.display = "flex";
+    const cur = (settings.fixedBarBackground ?? "").toLowerCase();
+    for (const p of BAR_BG_PRESETS[m]) {
+      const label = presetsLabel(p.label);
+      const sw = h("button", {
+        type: "button",
+        class: `bar-bg-swatch${cur === p.value ? " on" : ""}`,
+        title: label,
+        "aria-label": label,
+        onclick: () => { settings.fixedBarBackground = p.value; commit(); paintControls(); },
+      });
+      sw.style.background = barBgCss(parseBarBg(p.value), { slot: settings.fixedBarSlot ?? "center" });
+      presets.append(sw);
+    }
+  };
+  const choice = select([
+    ["", t("Come l'isola")],
+    ["transparent", t("Trasparente")],
+    ["solid", t("Un colore")],
+    ["gradient", t("Gradiente")],
+    ["glow", t("Luce intorno al personaggio")],
+    ["aurora", t("Aurora")],
+    ["glass", t("Vetro satinato")],
+  ], modeOf(), (v) => {
+    const cur = parseBarBg(settings.fixedBarBackground);
+    settings.fixedBarBackground = v === "" ? ""
+      : v === "transparent" ? "transparent"
+      : v === "solid" ? (cur.kind === "solid" ? cur.color : "#1f2937")
+      : v === "gradient" ? (cur.kind === "gradient" ? `gradient:${cur.from}:${cur.to}` : BAR_BG_PRESETS.gradient[0].value)
+      : v === "glow" ? (cur.kind === "glow" ? `glow:${cur.base}:${cur.light}` : BAR_BG_PRESETS.glow[0].value)
+      : v === "aurora" ? (cur.kind === "aurora" ? `aurora:${cur.base}:${cur.a}:${cur.b}` : BAR_BG_PRESETS.aurora[0].value)
+      : (cur.kind === "glass" ? `glass:${cur.base}` : BAR_BG_PRESETS.glass[0].value);
+    commit();
+    paintControls();
+  });
+  paintControls();
+  return h("div", { class: "bar-bg-wrap" }, h("div", { class: "bar-bg-top" }, choice, pickers), presets);
 }
 
 /**
@@ -3983,12 +4057,30 @@ function barLookRows(commit: () => void): HTMLElement[] {
       : t("Windows sfoca ciò che sta dietro la barra; si vede con l'opacità sotto il 100%");
   };
   paintBlur();
+  const designNote = h("span", { class: "hint note" });
+  const paintDesign = () => {
+    const d = look().design ?? "classic";
+    designNote.textContent = d === "pills"
+      ? t("capsule morbide intorno ai widget, etichette CPU/RAM con mini-barre, musica discreta e meteo esteso")
+      : d === "compact"
+      ? t("barra essenziale: finestra attiva in rilievo al centro, musica a riposo ridotta all'icona e metriche compatte")
+      : t("elementi piatti sulla barra, senza bordi intorno ai widget");
+  };
+  paintDesign();
   return [
     h("div", { class: "row bar-row" },
       h("label", { text: t("Stile") }),
       select([["band", t("Una fascia intera")], ["islands", t("Isolette: un'isola per area")]], look().style ?? "band",
         (v) => { set("style", v); paintBlur(); }),
       h("span", { class: "hint note", text: t("con le isolette ogni area (inizio, centro, fine) ha il suo sfondo e in mezzo si vede il desktop") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Aspetto elementi") }),
+      select([
+        ["classic", t("Classico piatto")],
+        ["pills", t("Pillole e telemetria")],
+        ["compact", t("Compatto minimale")],
+      ], look().design ?? "classic", (v) => { set("design", v); paintDesign(); }),
+      designNote),
     h("div", { class: "row bar-row" },
       h("label", { text: t("Opacità dello sfondo") }),
       slider(10, 100, 5, look().opacity ?? 100, "%", (v) => set("opacity", v))),

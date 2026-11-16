@@ -1,6 +1,7 @@
 // Entry point: boot the bridge, wire the island, start the greeting.
 
 import { barFont } from "./core/fonts";
+import { barBgInk, parseBarBg } from "./core/barbg";
 import "./style.css";
 import "./style-windows.css";
 import "./style-studio.css";
@@ -386,13 +387,10 @@ function linkCharacterWindow(island: Island) {
  * user's colour with dark or light text, whichever reads better on it.
  */
 function barPaint(choice: string, islandBg: string, islandInk: string): { background: string; ink: string } {
-  if (choice === "transparent") return { background: "transparent", ink: islandInk };
-  const m = /^#([0-9a-f]{6})$/i.exec(choice);
-  if (!m) return { background: islandBg, ink: islandInk };
-  const n = parseInt(m[1], 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b > 150;
-  return { background: choice, ink: light ? "#16181d" : "#f5f6f8" };
+  const spec = parseBarBg(choice);
+  if (spec.kind === "transparent") return { background: "transparent", ink: islandInk };
+  if (spec.kind === "island") return { background: islandBg, ink: islandInk };
+  return { background: choice, ink: barBgInk(spec, islandInk) };
 }
 
 void main();

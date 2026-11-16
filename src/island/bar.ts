@@ -17,7 +17,7 @@ import { renderActionIcon } from "../views/action-icons";
 import { taskIcon } from "../views/rail";
 import { unreadNews } from "../views/news";
 import { appName } from "./context";
-import { State, type BarAct, type BarItem, type BarSys } from "../core/state";
+import { State, type BarAct, type BarItem, type BarSys, type FixedBarDesign } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 import { locale, t } from "../core/i18n";
 import type { BarButton, BarPiece } from "../core/link";
@@ -183,7 +183,9 @@ function clockText(it: BarItem): Record<string, string> {
 }
 
 /** What a system element shows now: its placeholders, the icon, the tooltip, how it looks. */
-function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon: string; tip: string; dim?: boolean } {
+type SysValue = { v: Record<string, string>; icon: string; tip: string; dim?: boolean; label?: string; pct?: number; wide?: boolean };
+
+function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue {
   const s = State.barSys;
   const k = BAR_KINDS[kind];
   const pct = (n: number) => `${Math.round(n)}%`;
@@ -219,15 +221,16 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
       return { v: { down, up, value: `↓ ${down} ↑ ${up}` }, icon: n?.wifi ? "i:wifi" : k.icon, tip: `${t("Rete")}: ↓ ${down} · ↑ ${up}` };
     }
     case "cpu": {
-      const v = typeof s.cpu === "number" ? pct(s.cpu) : "—";
-      return { v: { cpu: v, value: v }, icon: k.icon, tip: `${t("Processore")}: ${v}` };
+      const raw = typeof s.cpu === "number" ? s.cpu : undefined;
+      const v = raw !== undefined ? pct(raw) : "—";
+      return { v: { cpu: v, value: v }, icon: k.icon, tip: `${t("Processore")}: ${v}`, label: "CPU", pct: raw };
     }
     case "ram": {
       const r = s.ram;
       const v = r ? pct(r.percent) : "—";
       const used = r ? bytes(r.used) : "—";
       const total = r ? bytes(r.total) : "—";
-      return { v: { ram: v, used, total, value: v }, icon: k.icon, tip: `${t("Memoria")}: ${v} · ${used} / ${total}` };
+      return { v: { ram: v, used, total, value: v }, icon: k.icon, tip: `${t("Memoria")}: ${v} · ${used} / ${total}`, label: "RAM", pct: r?.percent };
     }
     case "disk": {
       const drive = (it.opts?.drive || "C").toUpperCase();
@@ -241,8 +244,9 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
       };
     }
     case "gpu": {
-      const v = typeof s.gpu === "number" ? pct(s.gpu) : "—";
-      return { v: { gpu: v, value: v }, icon: k.icon, tip: `${t("Scheda video")}: ${v}` };
+      const raw = typeof s.gpu === "number" ? s.gpu : undefined;
+      const v = raw !== undefined ? pct(raw) : "—";
+      return { v: { gpu: v, value: v }, icon: k.icon, tip: `${t("Scheda video")}: ${v}`, label: "GPU", pct: raw };
     }
     case "lang": {
       const l = s.lang;
@@ -276,19 +280,20 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
       const title = full.length > max ? `${full.slice(0, max - 1)}…` : full;
       const app = w?.name ?? "";
       const icon = w?.icon?.startsWith("data:image/png;base64,") ? w.icon : k.icon;
-      return { v: { title, app, value: title || app }, icon, tip: [app, full].filter(Boolean).join(" — ") };
+      return { v: { title, app, value: title || app }, icon, tip: [app, full].filter(Boolean).join(" — "), wide: true };
     }
     case "weather": {
       const w = State.weatherNow;
-      return { v: { temp: w.temp, value: w.temp || "—" }, icon: skyIcon(w.sky), tip: w.temp ? `${t("Meteo")}: ${w.temp}` : t("Meteo: attiva l'integrazione Meteo"), dim: !w.temp };
+      return { v: { temp: w.temp, value: w.temp || "—" }, icon: skyIcon(w.sky), tip: w.temp ? `${t("Meteo")}: ${w.temp}` : t("Meteo: attiva l'integrazione Meteo"), dim: !w.temp, wide: true };
     }
     case "music": {
       const d = media();
       const title = typeof d.title === "string" ? d.title : "";
       const artist = typeof d.artist === "string" ? d.artist : "";
+      const idleValue = design === "classic" ? t("Niente in riproduzione") : "";
       return {
-        v: { title, artist, value: title || t("Niente in riproduzione") }, icon: k.icon,
-        tip: d.active ? [title, artist].filter(Boolean).join(" — ") : t("Niente in riproduzione"), dim: !d.playing,
+        v: { title, artist, value: title || idleValue }, icon: k.icon,
+        tip: d.active ? [title, artist].filter(Boolean).join(" — ") : t("Niente in riproduzione"), dim: !d.playing, wide: !!title,
       };
     }
     case "vscode": {
@@ -401,8 +406,29 @@ export function musicButtons(): { icon: string; label: string; cmd: string }[] {
  * the list, or first beside the character when the user did not place it.
  * `appBar` is the bar of the app in use, for its own element.
  */
+function decorateSys(el: HTMLElement, sv: SysValue, it: BarItem, kind: string, design: FixedBarDesign) {
+  if (design === "classic") return;
+  if (sv.wide) el.classList.add("bar-wide");
+  if (kind === "music" && media().playing) {
+    el.prepend(h("span", { class: "bar-eq", "aria-hidden": "true" }, h("span"), h("span"), h("span")));
+  }
+  if (it.opts?.format || (it.show ?? "both") === "icon") return;
+  if (sv.label) {
+    const label = h("span", { class: "bar-klabel", text: sv.label });
+    const textEl = el.querySelector(".bar-text");
+    if (textEl) textEl.before(label);
+    else el.append(label);
+  }
+  if (design === "pills" && typeof sv.pct === "number" && !it.opts?.graph) {
+    const pct = Math.max(0, Math.min(100, Math.round(sv.pct)));
+    const cls = sv.pct >= 90 ? "bar-meter-fill crit" : sv.pct >= 75 ? "bar-meter-fill high" : "bar-meter-fill";
+    el.append(h("span", { class: "bar-meter", "aria-hidden": "true" }, h("span", { class: cls, "data-pct": String(pct) })));
+  }
+}
+
 export function barPieces(strip: StripItem | null, appBar: StripItem | null = null): BarPiece[] {
   const out: BarPiece[] = [];
+  const design: FixedBarDesign = State.settings.fixedBarLook?.design ?? "classic";
   const items = State.settings.fixedBarItems ?? [];
   if (strip && !items.some((x) => x.id === "strip")) out.push(stripPiece(strip, State.settings.fixedBarSlot ?? "center"));
   for (const it of items) {
@@ -416,13 +442,14 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       if (!BAR_KINDS[kind]) continue;
       // The bar of the app in use: nothing when the program in front has no actions.
       if (kind === "appbar" && !appBar?.buttons.length) continue;
-      const sv = sysValues(kind, it);
+      const sv = sysValues(kind, it, design);
       const el = h("span", { class: `bar-item bar-sys${sv.dim ? " dim" : ""}` });
       // A program's own icon (the window title) is a picture; the others are drawn.
       const icon = () => sv.icon.startsWith("data:image/png")
         ? h("img", { class: "bar-app-icon", src: sv.icon, alt: "" })
         : renderActionIcon(sv.icon, 15);
       compose(el, formatOf(it, key), icon, sv.v, true);
+      decorateSys(el, sv, it, kind, design);
       if (it.opts?.graph && BAR_KINDS[kind].graph) {
         const g = graph(kind);
         if (g) el.append(g);
@@ -436,7 +463,10 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       const task = State.tasks.find((x) => x.isIntegration && x.id === it.id.slice(5));
       if (!task) continue;
       const { value, level } = valueOf(task.id);
-      const el = h("span", { class: "bar-item" });
+      const extraCls = design !== "classic"
+        ? `${task.id.includes("weather") ? " bar-wide" : ""}${!value && task.id.includes("clipboard") ? " bar-idle-compact" : ""}`
+        : "";
+      const el = h("span", { class: `bar-item${extraCls}` });
       compose(el, formatOf(it, key), () => taskIcon(task), { value: value || task.name, name: task.name });
       out.push({ key, area, html: el.outerHTML, title: tip || (value ? `${task.name} — ${value}` : task.name), tone: level });
     } else if (it.id.startsWith("action:")) {

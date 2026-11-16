@@ -55,7 +55,8 @@
          character under the mouse: the window grows past the band meanwhile
          (bar_grow), and everything stays --t tall against the screen edge. */
       #band { position: absolute; left: 0; top: 0; width: 100%; display: none; overflow: visible; pointer-events: none; }
-      #band path { fill: var(--bar-bg, transparent); transition: d 0.36s cubic-bezier(0.22, 1, 0.36, 1); }
+      #band path { fill: var(--bar-bg, transparent); transition: d 0.36s cubic-bezier(0.22, 1, 0.36, 1); pointer-events: none; }
+      #bandFx, #bandSheen { fill: none; }
       body.bar #band { display: block; }
       body.bar.bottom #band { top: auto; bottom: 0; transform: scaleY(-1); }
       .area { position: absolute; top: 0; height: var(--t, 100%); display: none; align-items: center; gap: var(--gap, 4px); box-sizing: border-box; }
@@ -126,10 +127,113 @@
       .bar-strip-btn.light { background: var(--ink, #fff); color: #111; }
       .bar-strip-btn.green { background: #22C55E; color: #fff; }
       .bar-strip-btn.red { background: #F4505E; color: #fff; }
+      /* Fixed bar design variants (src/settings/main.ts → barLookRows → design). */
+      body.bar-pills:not(.islands):not(.see-through) #bandBase,
+      body.bar-compact:not(.islands):not(.see-through) #bandBase {
+        stroke: color-mix(in srgb, var(--ink, #fff) 13%, transparent);
+        stroke-width: 1px;
+      }
+      body.bar-pills .bar-btn:has(.bar-wide),
+      body.bar-compact .bar-btn:has(.bar-wide) { max-width: calc(390px * var(--s, 1)); }
+      .bar-klabel {
+        font-size: calc(9.5px * var(--s, 1) * var(--ts, 1)); font-weight: 600;
+        letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.56; line-height: 1;
+      }
+      .bar-meter {
+        width: calc(34px * var(--s, 1)); height: calc(6px * var(--s, 1)); border-radius: 999px;
+        background: color-mix(in srgb, var(--ink, #fff) 7%, transparent);
+        border: 1px solid color-mix(in srgb, var(--ink, #fff) 22%, transparent);
+        overflow: hidden; flex: none; margin-left: 3px; box-sizing: border-box;
+      }
+      .bar-meter-fill { display: block; width: 0%; height: 100%; border-radius: 0; background: #38BDF8; transition: width 0.25s ease, background 0.2s ease; }
+      .bar-meter-fill.high { background: #F5A524; }
+      .bar-meter-fill.crit { background: #F4505E; }
+      .bar-eq { display: inline-flex; align-items: flex-end; gap: 1.5px; height: calc(10px * var(--s, 1)); flex: none; }
+      .bar-eq span { width: calc(2px * var(--s, 1)); border-radius: 1px; background: #22C55E; height: 40%; animation: bar-eq 0.9s ease-in-out infinite; }
+      .bar-eq span:nth-child(2) { animation-delay: 0.2s; height: 95%; }
+      .bar-eq span:nth-child(3) { animation-delay: 0.4s; height: 65%; }
+      @keyframes bar-eq {
+        0%, 100% { transform: scaleY(0.45); }
+        50% { transform: scaleY(1); }
+      }
+      /* Proposal A: pills & telemetry. */
+      body.bar-pills .bar-btn {
+        background: color-mix(in srgb, var(--ink, #fff) 6%, transparent);
+        border: 1px solid color-mix(in srgb, var(--ink, #fff) 10%, transparent);
+        border-radius: calc(9px * var(--s, 1));
+        padding: calc(3px * var(--s, 1)) calc(9px * var(--s, 1));
+        transition: background 0.14s ease, border-color 0.14s ease;
+      }
+      body.bar-pills .bar-btn:hover {
+        background: color-mix(in srgb, var(--ink, #fff) 13%, transparent);
+        border-color: color-mix(in srgb, var(--ink, #fff) 20%, transparent);
+      }
+      body.bar-pills .bar-btn:has(.bar-item.dim) {
+        background: color-mix(in srgb, var(--ink, #fff) 3%, transparent);
+        border-color: color-mix(in srgb, var(--ink, #fff) 6%, transparent);
+      }
+      body.bar-pills .bar-btn:has(.bar-strip) {
+        background: color-mix(in srgb, #4EA8FF 12%, transparent);
+        border-color: color-mix(in srgb, #4EA8FF 26%, transparent);
+      }
+      body.bar-pills .bar-btn:has(.bar-strip[data-tone="approval"]) {
+        background: color-mix(in srgb, #F5A524 12%, transparent);
+        border-color: color-mix(in srgb, #F5A524 28%, transparent);
+      }
+      body.bar-pills .bar-btn:has(.bar-strip[data-tone="call"]) {
+        background: color-mix(in srgb, #22C55E 12%, transparent);
+        border-color: color-mix(in srgb, #22C55E 28%, transparent);
+      }
+      body.bar-pills .bar-btn:has(.bar-strip[data-tone="live"]) {
+        background: color-mix(in srgb, #F4505E 12%, transparent);
+        border-color: color-mix(in srgb, #F4505E 28%, transparent);
+      }
+      body.bar-pills.islands .bar-btn {
+        background: color-mix(in srgb, var(--ink, #fff) 5%, transparent);
+        border-color: color-mix(in srgb, var(--ink, #fff) 8%, transparent);
+      }
+      body.bar-pills .bar-action { border-left: 2.5px solid var(--action, transparent); padding-left: 6px; }
+      /* Proposal C: compact minimal with raised center capsule. */
+      body.bar-compact .bar-btn {
+        padding: calc(2.5px * var(--s, 1)) calc(7px * var(--s, 1));
+        border-radius: calc(8px * var(--s, 1));
+        border: 1px solid transparent;
+        transition: background 0.14s ease, border-color 0.14s ease;
+      }
+      body.bar-compact .bar-btn:hover {
+        background: color-mix(in srgb, var(--ink, #fff) 10%, transparent);
+        border-color: color-mix(in srgb, var(--ink, #fff) 12%, transparent);
+      }
+      body.bar-compact .bar-item { gap: 5px; }
+      body.bar-compact .bar-idle-compact .bar-text { display: none; }
+      body.bar-compact #a-center .bar-btn[data-key^="sys:title"],
+      body.bar-compact #a-center .bar-btn[data-key="sys:appbar"],
+      body.bar-compact #a-center .bar-btn:has(.bar-strip) {
+        background: color-mix(in srgb, var(--ink, #fff) 7%, transparent);
+        border-color: color-mix(in srgb, var(--ink, #fff) 13%, transparent);
+        border-radius: 999px;
+        padding: calc(3px * var(--s, 1)) calc(12px * var(--s, 1));
+      }
+      body.bar-compact #a-center .bar-btn[data-key^="sys:title"]:hover,
+      body.bar-compact #a-center .bar-btn[data-key="sys:appbar"]:hover,
+      body.bar-compact #a-center .bar-btn:has(.bar-strip):hover {
+        background: color-mix(in srgb, var(--ink, #fff) 13%, transparent);
+        border-color: color-mix(in srgb, var(--ink, #fff) 22%, transparent);
+      }
     </style>
   </head>
   <body>
-    <svg id="band"><path /></svg>
+    <svg id="band">
+      <defs>
+        <linearGradient id="bandBaseGrad" x1="0%" y1="0%" x2="100%" y2="0%"></linearGradient>
+        <radialGradient id="bandFxGrad" cx="50%" cy="50%" r="36%"></radialGradient>
+        <linearGradient id="bandAuroraGrad" x1="0%" y1="0%" x2="100%" y2="100%"></linearGradient>
+        <linearGradient id="bandSheenGrad" x1="0%" y1="0%" x2="0%" y2="100%"></linearGradient>
+      </defs>
+      <path id="bandBase" />
+      <path id="bandFx" />
+      <path id="bandSheen" />
+    </svg>
     <div id="a-start" class="area"></div>
     <div id="a-center" class="area"></div>
     <div id="a-end" class="area"></div>

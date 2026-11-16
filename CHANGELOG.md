@@ -4,10 +4,12 @@ Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime
 
 **1.0.50** — **Barra di ricerca rinnovata** e tutte le schede delle Impostazioni riordinate con sotto-schede condivise.
 La ricerca ora può aprirsi anche come barra dedicata al centro dello schermo (`searchOnly`), in modalità scura e chiara, con
-il fuoco subito nel campo per scrivere appena si apre. Sistemati tre comportamenti su Windows: niente più finestra nascosta
-nella barra delle applicazioni quando l'isola si richiude (anche con «Come un'app»), un clic sul personaggio riporta in
-primo piano l'isola se è aperta dietro altre finestre, e l'avvio dalla ricerca ora apre anche app Store, collegamenti
-`.lnk`/`.url` e il Pannello di controllo.
+sfumatura inferiore ciano-viola-ciano su tutti i temi e il fuoco subito nel campo per scrivere appena si apre. Nella **barra
+fissa** arrivano nuovi sfondi (gradiente, luce intorno al personaggio, aurora, vetro satinato con anteprime) e gli stili degli
+elementi (`Classico piatto`, `Pillole e telemetria`, `Compatto minimale`). Sistemati tre comportamenti su Windows: niente più
+finestra nascosta nella barra delle applicazioni quando l'isola si richiude (anche con «Come un'app»), un clic sul personaggio
+riporta in primo piano l'isola se è aperta dietro altre finestre, e l'avvio dalla ricerca ora apre anche app Store,
+collegamenti `.lnk`/`.url` e il Pannello di controllo.
 
 **1.0.49** — **Modello sul PC**: un modello di intelligenza artificiale che gira dentro EasyIsland, sulla scheda grafica
 (NVIDIA, AMD o Intel), senza programmi da installare e senza che niente esca dal PC. In Impostazioni → Chat EasyIsland
