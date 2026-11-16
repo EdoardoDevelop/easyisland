@@ -880,54 +880,70 @@ pub fn prepare_search_focus(app: &AppHandle) {
     }
 }
 
-/// Unlocks Windows foreground activation and gives keyboard focus to the island window.
+/// Unlocks Windows foreground activation and gives keyboard focus to the island window and its webview.
 pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
     set_activating(win, true);
-    let Some(hwnd) = hwnd_of(win) else { return };
-    unsafe {
-        use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
-        use windows::Win32::UI::Input::KeyboardAndMouse::{
-            GetAsyncKeyState, SendInput, SetFocus, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
-            VK_CONTROL, VK_MENU,
-        };
-        use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
-
-        let fg = GetForegroundWindow();
-        if fg != hwnd {
-            let cur_tid = GetCurrentThreadId();
-            let fg_tid = if !fg.0.is_null() {
-                GetWindowThreadProcessId(fg, None)
-            } else {
-                0
+    let app_handle = app.clone();
+    let win_clone = win.clone();
+    let run = move || {
+        let Some(hwnd) = hwnd_of(&win_clone) else { return };
+        unsafe {
+            use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+            use windows::Win32::UI::Input::KeyboardAndMouse::{
+                SendInput, SetFocus, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
             };
-            let attached = fg_tid != 0 && fg_tid != cur_tid && AttachThreadInput(cur_tid, fg_tid, true).as_bool();
-            let _ = SetForegroundWindow(hwnd);
-            let _ = BringWindowToTop(hwnd);
-            let _ = SetFocus(Some(hwnd));
-            if attached {
-                let _ = AttachThreadInput(cur_tid, fg_tid, false);
-            }
-            let ctrl_held = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
-            if GetForegroundWindow() != hwnd && !ctrl_held {
-                let key = |flags| INPUT {
-                    r#type: INPUT_KEYBOARD,
-                    Anonymous: INPUT_0 {
-                        ki: KEYBDINPUT { wVk: VK_MENU, dwFlags: flags, ..Default::default() },
-                    },
+            use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
+
+            let fg = GetForegroundWindow();
+            if fg != hwnd {
+                let cur_tid = GetCurrentThreadId();
+                let fg_tid = if !fg.0.is_null() {
+                    GetWindowThreadProcessId(fg, None)
+                } else {
+                    0
                 };
-                let _ = SendInput(
-                    &[key(Default::default()), key(KEYEVENTF_KEYUP)],
-                    std::mem::size_of::<INPUT>() as i32,
-                );
+                let attached = fg_tid != 0 && fg_tid != cur_tid && AttachThreadInput(cur_tid, fg_tid, true).as_bool();
                 let _ = SetForegroundWindow(hwnd);
                 let _ = BringWindowToTop(hwnd);
                 let _ = SetFocus(Some(hwnd));
+                if attached {
+                    let _ = AttachThreadInput(cur_tid, fg_tid, false);
+                }
+                if GetForegroundWindow() != hwnd {
+                    let key = |flags| INPUT {
+                        r#type: INPUT_KEYBOARD,
+                        Anonymous: INPUT_0 {
+                            ki: KEYBDINPUT { wVk: VK_MENU, dwFlags: flags, ..Default::default() },
+                        },
+                    };
+                    let _ = SendInput(
+                        &[key(Default::default()), key(KEYEVENTF_KEYUP)],
+                        std::mem::size_of::<INPUT>() as i32,
+                    );
+                    let _ = SetForegroundWindow(hwnd);
+                    let _ = BringWindowToTop(hwnd);
+                    let _ = SetFocus(Some(hwnd));
+                }
             }
         }
-    }
-    let _ = win.set_focus();
-    if !app_mode() {
-        raise_over_taskbar(app);
+        let _ = win_clone.set_focus();
+        if let Some(wv) = page(&app_handle) {
+            let _ = wv.set_focus();
+        }
+        if !app_mode() {
+            raise_over_taskbar(&app_handle);
+        }
+        let _ = app_handle.emit_to(WINDOW_LABEL, "island-focused", ());
+    };
+    let on_win_thread = hwnd_of(win)
+        .map(|hwnd| unsafe {
+            GetWindowThreadProcessId(hwnd, None) == windows::Win32::System::Threading::GetCurrentThreadId()
+        })
+        .unwrap_or(false);
+    if on_win_thread {
+        run();
+    } else {
+        let _ = app.run_on_main_thread(run);
     }
 }
 
@@ -1258,6 +1274,9 @@ pub fn apply_app_mode(app: &AppHandle, on: bool) {
     } else {
         // Just pinned with a click on it: it is the active window now.
         let _ = win.set_focus();
+        if let Some(wv) = page(app) {
+            let _ = wv.set_focus();
+        }
     }
     crate::log::line(format!("island as an app: {on}"));
 }
