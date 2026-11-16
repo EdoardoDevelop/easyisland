@@ -11,6 +11,24 @@ import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { Ticker } from "./ticker";
 import { State, canAskSession, canOpen, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion, type EngineUsage } from "../core/state";
 import type { IslandViewName } from "../core/layout";
+import type { BotStateName } from "../core/layout";
+
+/** A task's state in words, for «Adesso» and the tiles (never «working», «ratelimit»). */
+function stateWord(state: BotStateName): string {
+  switch (state) {
+    case "idle": return "";
+    case "sleeping": return t("A riposo");
+    case "finished": return t("Ha finito");
+    case "searching": return t("Cerca…");
+    case "thinking": return t("Sta pensando");
+    case "working": return t("Al lavoro");
+    case "ratelimit": return t("Limite raggiunto");
+    case "error": return t("Errore");
+    case "question": return t("Domanda");
+    case "approval": return t("Richiede conferma");
+    default: return "";
+  }
+}
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
@@ -701,7 +719,7 @@ function renderSummary(actions: ViewActions): HTMLElement {
 
   const nowStrip = prioritized.length ? h("div", { class: "now-strip" }, ...prioritized.map(({ task, score }) => {
     const label = pillLabel(task);
-    const status = task.steps.length ? task.steps[task.steps.length - 1] : task.state;
+    const status = task.steps.length ? task.steps[task.steps.length - 1] : stateWord(task.state);
     const urgent = score >= 3;
     const cardBtn = h(
       "button",
@@ -717,7 +735,7 @@ function renderSummary(actions: ViewActions): HTMLElement {
   const grid = h("div", { class: "summary" });
   for (const tsk of visible) {
     const label = pillLabel(tsk);
-    const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : tsk.state === "idle" ? "" : tsk.state;
+    const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : stateWord(tsk.state);
     const stateText = tsk.pillBadge === "approval"
       ? t("Richiede conferma")
       : tsk.pillBadge === "error"
