@@ -122,19 +122,7 @@ pub fn find(question: &str, today: i64) -> Option<Period> {
     // span a recipe cannot fill; one of them would answer only half (review
     // of 16 Nov 2026). The engine's.
     let months: Vec<i64> = MONTHS.iter().enumerate().filter(|(_, names)| names.iter().any(|n| has(n))).map(|(i, _)| i as i64 + 1).collect();
-    let years: Vec<i64> = w
-        .iter()
-        .enumerate()
-        .filter_map(|(i, a)| a.parse::<i64>().ok().filter(|n| (1990..=2100).contains(n)).map(|n| (i, n)))
-        // A year only next to a month or after a word that says so: «ticket 2045» is a ticket.
-        .filter(|(i, _)| {
-            let before = i.checked_sub(1).and_then(|j| w.get(j)).map(String::as_str).unwrap_or("");
-            let after = w.get(i + 1).map(String::as_str).unwrap_or("");
-            let month_word = |x: &str| MONTHS.iter().any(|names| names.contains(&x));
-            month_word(before) || month_word(after) || YEAR_BEFORE.contains(&before)
-        })
-        .map(|(_, n)| n)
-        .collect();
+    let years = years_in(&w);
     if months.len() > 1 || years.iter().any(|y| *y != years[0]) {
         return None;
     }
@@ -177,7 +165,28 @@ pub fn find(question: &str, today: i64) -> Option<Period> {
 }
 
 /// Words before a number that make it a year («nel 2025», «anno 2024»).
-const YEAR_BEFORE: &[&str] = &["nel", "del", "dal", "al", "anno", "year", "in", "of", "since"];
+const YEAR_BEFORE: &[&str] = &["nel", "del", "dal", "al", "il", "per", "entro", "anno", "year", "in", "of", "since"];
+
+/// The numbers of the words that are years: next to a month or after a word
+/// that says so; «ticket 2045» is a ticket (review of 16 Nov 2026).
+fn years_in(w: &[String]) -> Vec<i64> {
+    w.iter()
+        .enumerate()
+        .filter_map(|(i, a)| a.parse::<i64>().ok().filter(|n| (1990..=2100).contains(n)).map(|n| (i, n)))
+        .filter(|(i, _)| {
+            let before = i.checked_sub(1).and_then(|j| w.get(j)).map(String::as_str).unwrap_or("");
+            let after = w.get(i + 1).map(String::as_str).unwrap_or("");
+            let month_word = |x: &str| MONTHS.iter().any(|names| names.contains(&x));
+            month_word(before) || month_word(after) || YEAR_BEFORE.contains(&before)
+        })
+        .map(|(_, n)| n)
+        .collect()
+}
+
+/// The years a question names as years (recipes.rs `numbers` leaves them out).
+pub fn years(question: &str) -> Vec<i64> {
+    years_in(&words(question))
+}
 
 /// Is this word only part of a period («novembre», «scorso», «2026»)?
 pub fn is_period_word(word: &str) -> bool {
@@ -227,6 +236,9 @@ mod tests {
         assert_eq!(find("fatture del 2025", now).unwrap().span, Span::Year);
         assert_eq!(find("spese di ottobre 2025", now).unwrap().start, "2025-10-01");
         assert!(find("may I see the tickets?", now).is_none());
+        assert_eq!(find("fatture per il 2025", now).unwrap().span, Span::Year);
+        assert_eq!(years("stato ticket 2045"), Vec::<i64>::new());
+        assert_eq!(years("spese di ottobre 2025"), vec![2025]);
         assert!(is_period_word("Novembre") && is_period_word("2026") && !is_period_word("spese"));
     }
 }

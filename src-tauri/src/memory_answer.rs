@@ -118,14 +118,6 @@ fn same_word(a: &str, b: &str) -> bool {
     shared >= 5 && shared + 2 >= na.max(nb)
 }
 
-/// The line names every subject of the question (its page's title counts):
-/// what `pick` asks of a line, asked of the lines voted 👍 too (votes.rs `taught`).
-pub fn names_all(question: &str, line: &str) -> bool {
-    let subjects = subjects(question);
-    let low = line.to_lowercase();
-    let lw = words(&low);
-    !subjects.is_empty() && subjects.iter().all(|s| has_word(&lw, &low, s))
-}
 
 /// Lines that only hold the page together: a title, aliases, links, dates.
 pub(crate) fn structural(line: &str) -> bool {
@@ -230,15 +222,27 @@ pub fn key(question: &str) -> Vec<String> {
     let mut k: Vec<String> = subjects(question)
         .into_iter()
         .map(|w| {
-            // A long word without its last vowels: «farmacia» and «farmacie»
+            // A long word without its ending, as `same_word` reads it:
+            // «farmacia»/«farmacie», «fabbrica»/«fabbriche», «server»/«servers»
             // share the key, «contratto» and «controller» do not.
             let w: String = w.chars().map(fold).collect();
-            if w.chars().count() >= 6 { w.trim_end_matches(['a', 'e', 'i', 'o', 'u']).to_string() } else { w }
+            if w.chars().count() >= 6 { stem(&w) } else { w }
         })
         .collect();
     k.sort();
     k.dedup();
     k
+}
+
+/// A long word's key: without its last vowels, a plural «s», the «h» of
+/// «-che»/«-ghi».
+fn stem(w: &str) -> String {
+    let mut s = w.trim_end_matches(['a', 'e', 'i', 'o', 'u']);
+    s = s.strip_suffix('s').unwrap_or(s);
+    if s.ends_with("ch") || s.ends_with("gh") {
+        s = s.strip_suffix('h').unwrap_or(s);
+    }
+    s.to_string()
 }
 
 fn fold(c: char) -> char {
@@ -337,13 +341,15 @@ mod tests {
         // Same start, another word (review of 16 Nov 2026): not the same subject.
         assert!(!similar("che contratto ha Rossi?", "che controller ha Rossi?"));
         assert!(similar("quale farmacia ha Rossi?", "quali farmacie ha Rossi?"));
+        assert!(similar("quali fabbriche ha Rossi?", "che fabbrica ha Rossi?"));
+        assert!(similar("che elenchi ha Rossi?", "che elenco ha Rossi?"));
         let ctl = "[[rossi]] controller UniFi in sala server".to_string();
-        assert!(!names_all("che contratto ha Rossi?", &ctl));
-        assert!(names_all("che controller ha Rossi?", &ctl));
         assert!(pick("che contratto ha Rossi?", &[(0.5, ctl.clone())], 0.0).is_empty());
+        assert_eq!(pick("che controller ha Rossi?", &[(0.5, ctl.clone())], 0.0), vec![ctl.clone()]);
         let central = "[[bianchi]] centrale telefonica 3CX".to_string();
-        assert!(!names_all("che centralino ha Bianchi?", &central));
-        assert!(names_all("quali stampanti ha Bianchi?", "[[bianchi]] stampante HP in reception"));
+        assert!(pick("che centralino ha Bianchi?", &[(0.5, central)], 0.0).is_empty());
+        let printer = "[[bianchi]] stampante HP in reception".to_string();
+        assert_eq!(pick("quali stampanti ha Bianchi?", &[(0.5, printer.clone())], 0.0), vec![printer]);
         // «teams» is not inside «TeamSystem» (on the laptop, 15 Nov 2026).
         let ts = vec![(0.3, "[[listino]] Marche ricorrenti: UniFi, Synology, TeamSystem".to_string())];
         assert!(super::near("apri teams", &ts, 3).is_empty());

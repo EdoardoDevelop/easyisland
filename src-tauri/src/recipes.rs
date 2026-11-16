@@ -350,11 +350,13 @@ pub fn steps_for(r: &Recipe, question: &str) -> Option<Vec<String>> {
 }
 
 /// The numbers a question gives (two digits or more), without the year of
-/// its period.
+/// its period: «ticket 2045» keeps 2045, «spese del 2025» does not.
 fn numbers(question: &str) -> Vec<String> {
+    let years = crate::periods::years(question);
     let mut out: Vec<String> = Vec::new();
     for w in question.split(|c: char| !c.is_ascii_digit()) {
-        if w.len() < 2 || crate::periods::is_period_word(w) || out.iter().any(|x| x == w) {
+        let a_year = w.parse::<i64>().is_ok_and(|n| years.contains(&n));
+        if w.len() < 2 || a_year || out.iter().any(|x| x == w) {
             continue;
         }
         out.push(w.to_string());

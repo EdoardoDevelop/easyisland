@@ -2869,6 +2869,8 @@ fn chat_history_rename(id: String, title: String) {
 fn chat_rewind(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
     let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
+    // «Chiedi al motore» under a command offered: the same question then goes to the engine.
+    router::rewound(&chat);
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
 }

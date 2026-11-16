@@ -123,9 +123,11 @@ pub fn taught(question: &str, present: &dyn Fn(&str) -> bool) -> Vec<String> {
             .iter()
             .rev()
             .filter(|v| v.up && !v.lines.is_empty() && crate::memory_answer::similar(&v.question, question))
-            // Still lines that name what is asked: a 👍 on «che controller ha
-            // Rossi?» never answers «che contratto ha Rossi?».
-            .map(|v| v.lines.iter().filter(|l| present(l) && !rejected.contains(*l) && crate::memory_answer::names_all(question, l)).cloned().collect::<Vec<_>>())
+            // (A 👍 on «che controller ha Rossi?» never reaches «che contratto
+            // ha Rossi?»: their keys differ, memory_answer::key. The lines are
+            // not checked against the question's words: those learnt from an
+            // engine's answer do not have them, that is why they are taught.)
+            .map(|v| v.lines.iter().filter(|l| present(l) && !rejected.contains(*l)).cloned().collect::<Vec<_>>())
             .find(|l| !l.is_empty())
             .unwrap_or_default()
     })
