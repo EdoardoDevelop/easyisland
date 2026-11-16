@@ -11,6 +11,7 @@
 // fixed set of words, or a colour checked against #rrggbb.
 
 import { barThickness, type Settings } from "../core/state";
+import { barBgInk, hexLuma, parseBarBg } from "../core/barbg";
 import { characters } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { setCharacter } from "../character/character";
@@ -279,12 +280,34 @@ function spot(s: Settings, v = s.anchorV, hz = s.anchorH): { x: number; y: numbe
   return { x, y };
 }
 
-/** The fixed bar's fill: the island's, none (a dashed outline) or the user's colour. */
-function barFill(s: Settings, p: Paint): { attrs: string; ink: string } {
-  const bg = s.fixedBarBackground ?? "";
-  if (bg === "transparent") return { attrs: `fill="none" stroke="${p.ink}" stroke-opacity="0.35" stroke-dasharray="2 2" stroke-width="0.6"`, ink: "#ffffff" };
-  if (HEX.test(bg)) return { attrs: `fill="${bg}"`, ink: luma(bg) > 150 ? "#16181d" : "#f5f6f8" };
-  return { attrs: `fill="${p.island}" fill-opacity="${p.alpha}"`, ink: p.ink };
+/** The fixed bar's fill (including gradient/glow/aurora/glass defs) and readable text ink. */
+function barFill(s: Settings, p: Paint, id = "barbg"): { defs: string; attrs: string; extra?: string; ink: string } {
+  const spec = parseBarBg(s.fixedBarBackground ?? "");
+  const ink = barBgInk(spec, spec.kind === "transparent" ? "#ffffff" : p.ink);
+  if (spec.kind === "transparent") {
+    return { defs: "", attrs: `fill="none" stroke="${p.ink}" stroke-opacity="0.35" stroke-dasharray="2 2" stroke-width="0.6"`, ink };
+  }
+  if (spec.kind === "solid") return { defs: "", attrs: `fill="${spec.color}"`, ink };
+  if (spec.kind === "gradient") {
+    const defs = `<defs><linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${spec.from}"/><stop offset="100%" stop-color="${spec.to}"/></linearGradient></defs>`;
+    return { defs, attrs: `fill="url(#${id})"`, ink };
+  }
+  if (spec.kind === "glow") {
+    const slot = s.fixedBarSlot ?? "center";
+    const cx = slot === "start" ? "16%" : slot === "end" ? "84%" : "50%";
+    const defs = `<defs><radialGradient id="${id}-g" cx="${cx}" cy="50%" r="36%"><stop offset="0%" stop-color="${spec.light}" stop-opacity="0.55"/><stop offset="65%" stop-color="${spec.light}" stop-opacity="0.12"/><stop offset="100%" stop-color="${spec.light}" stop-opacity="0"/></radialGradient></defs>`;
+    return { defs, attrs: `fill="${spec.base}"`, extra: `fill="url(#${id}-g)"`, ink };
+  }
+  if (spec.kind === "aurora") {
+    const defs = `<defs><linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${spec.base}"/><stop offset="30%" stop-color="${spec.a}" stop-opacity="0.55"/><stop offset="68%" stop-color="${spec.b}" stop-opacity="0.5"/><stop offset="100%" stop-color="${spec.base}"/></linearGradient></defs>`;
+    return { defs, attrs: `fill="${spec.base}"`, extra: `fill="url(#${id})"`, ink };
+  }
+  if (spec.kind === "glass") {
+    const light = hexLuma(spec.base) > 150;
+    const defs = `<defs><linearGradient id="${id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffffff" stop-opacity="${light ? 0.65 : 0.22}"/><stop offset="50%" stop-color="#ffffff" stop-opacity="0.03"/><stop offset="100%" stop-color="#000000" stop-opacity="0.18"/></linearGradient></defs>`;
+    return { defs, attrs: `fill="${spec.base}" fill-opacity="${light ? 0.85 : 0.8}"`, extra: `fill="url(#${id})"`, ink };
+  }
+  return { defs: "", attrs: `fill="${p.island}" fill-opacity="${p.alpha}"`, ink: p.ink };
 }
 
 /** The elements of the fixed bar in their areas, as small pills; returns the markup. */
@@ -407,18 +430,19 @@ export function picture(kind: PicKind, s: Settings): string {
         const at = spot(s);
         return svg(screen() + taskbar() + compact(p, at.x, at.y, s));
       }
-      const f = barFill(s, p);
+      const f = barFill(s, p, "pic-bar");
       const y = edge === "top" ? 0 : 80;
       const app = edge === "top" ? `<rect class="p-app" x="6" y="12" width="148" height="77" rx="2"/>` : `<rect class="p-app" x="6" y="4" width="148" height="74" rx="2"/>`;
-      const band = edge === "top"
-        ? `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" ${f.attrs}/>`
-        : `<rect x="0" y="${y}" width="160" height="10" ${f.attrs}/>`;
-      return svg(`<rect class="p-scr" width="160" height="100" rx="7"/>` + app + taskbar() + band +
+      const shape = (extraAttrs: string) => edge === "top"
+        ? `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" ${extraAttrs}/>`
+        : `<rect x="0" y="${y}" width="160" height="10" ${extraAttrs}/>`;
+      return svg(f.defs + `<rect class="p-scr" width="160" height="100" rx="7"/>` + app + taskbar() +
+        shape(f.attrs) + (f.extra ? shape(f.extra) : "") +
         barItems(s, y, 10, f.ink, 0.8) + chr(p, barCharX(s, 0.8, 10), y + 5, 3.8));
     }
     case "barSlot":
     case "barBg": {
-      const f = barFill(s, p);
+      const f = barFill(s, p, `pic-${kind}`);
       const wall = kind === "barBg"
         ? `<rect width="160" height="100" rx="7" fill="#0EA5E9"/><path d="M0 60 Q40 30 80 55 T160 45 V93 a7 7 0 0 1 -7 7 H7 a7 7 0 0 1 -7 -7 Z" fill="#22C55E"/><circle cx="128" cy="70" r="16" fill="#FACC15"/>`
         : `<rect class="p-scr" width="160" height="100" rx="7"/>`;
@@ -426,7 +450,9 @@ export function picture(kind: PicKind, s: Settings): string {
       const bh = clamp(barThickness(s) * 0.45, 11, 44);
       const by = 49 - bh / 2;
       const k = bh / 18;
-      return svg(wall + `<rect x="0" y="${n1(by)}" width="160" height="${n1(bh)}" ${f.attrs}/>` +
+      return svg(f.defs + wall +
+        `<rect x="0" y="${n1(by)}" width="160" height="${n1(bh)}" ${f.attrs}/>` +
+        (f.extra ? `<rect x="0" y="${n1(by)}" width="160" height="${n1(bh)}" ${f.extra}/>` : "") +
         barItems(s, by, bh, f.ink, k) + chr(p, barCharX(s, k, bh), 49, bh * 0.38));
     }
     case "rest": {

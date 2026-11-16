@@ -179,8 +179,12 @@ export interface BarOpts {
  * (band only), room from the sides (a floating bar), text size, room between
  * elements, and hiding by itself until the mouse comes (appbar.rs).
  */
+export type FixedBarDesign = "classic" | "pills" | "compact";
+
 export interface FixedBarLook {
   style?: "band" | "islands";
+  /** Visual styling of bar elements: flat classic, refined pills (A), or compact minimal (C). */
+  design?: FixedBarDesign;
   /** Background opacity, 10–100 %. */
   opacity?: number;
   blur?: boolean;

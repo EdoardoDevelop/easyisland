@@ -10,6 +10,7 @@ import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../c
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
 import { addFaces } from "../core/fonts";
+import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -191,6 +192,7 @@ function lookOf(b: BarLook) {
   const num = (v: number | undefined, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, typeof v === "number" && Number.isFinite(v) ? v : d));
   return {
     islands: l.style === "islands",
+    design: l.design === "pills" || l.design === "compact" ? l.design : "classic",
     opacity: num(l.opacity, 100, 10, 100),
     margin: num(l.margin, 0, 0, 400),
     text: num(l.text, 100, 80, 150) / 100,
@@ -215,7 +217,7 @@ function layBar() {
   if (!bar) {
     float.style.cssText = "";
     setGrown(false);
-    document.body.classList.remove("islands", "see-through", "bottom");
+    document.body.classList.remove("islands", "see-through", "bottom", "bar-pills", "bar-compact");
     return;
   }
   const look = lookOf(bar);
@@ -229,11 +231,15 @@ function layBar() {
   if (font?.weight) document.body.style.setProperty("--bar-weight", String(font.weight));
   const m = look.margin;
   // The background: the band between the margins, or behind each area (islands).
-  const see = bar.background === "transparent" || look.opacity < 50;
-  const bg = bar.background === "transparent" ? "transparent" : `color-mix(in srgb, ${bar.background} ${look.opacity}%, transparent)`;
-  document.body.style.setProperty("--bar-bg", bg);
+  const spec = parseBarBg(bar.background);
+  const see = spec.kind === "transparent" || look.opacity < 50;
+  document.body.style.setProperty("--bar-bg", barBgCss(spec, { opacity: look.opacity, slot: bar.slot, fallbackBg: bar.background }));
+  document.body.style.setProperty("--bar-op", String(look.opacity / 100));
+  paintBandLayers(bar, look.margin, look.opacity / 100);
   document.body.classList.toggle("see-through", see);
   document.body.classList.toggle("islands", look.islands);
+  document.body.classList.toggle("bar-pills", look.design === "pills");
+  document.body.classList.toggle("bar-compact", look.design === "compact");
   document.body.classList.toggle("bottom", bar.edge === "bottom");
   // The band's shadow is a window of its own (barshadow.rs); each island has its own here.
   document.body.classList.toggle("shadow", look.shadow);
@@ -288,10 +294,96 @@ function bandPath(p: number): string {
   ].join(" ");
 }
 
+/** Updates gradient definitions and visibility of the SVG band fill/effect layers. */
+function paintBandLayers(b: BarLook, margin: number, op: number) {
+  const base = document.getElementById("bandBase") as SVGPathElement | null;
+  const fx = document.getElementById("bandFx") as SVGPathElement | null;
+  const sheen = document.getElementById("bandSheen") as SVGPathElement | null;
+  if (!base) return;
+  const spec = parseBarBg(b.background);
+  const stops = (id: string, list: { o: string; c: string; a?: number }[]) => {
+    const g = document.getElementById(id);
+    if (!g) return;
+    g.replaceChildren(...list.map((s) => {
+      const st = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+      st.setAttribute("offset", s.o);
+      st.setAttribute("stop-color", s.c);
+      if (s.a !== undefined) st.setAttribute("stop-opacity", String(s.a));
+      return st;
+    }));
+  };
+  if (fx) { fx.style.display = "none"; fx.style.opacity = String(op); }
+  if (sheen) { sheen.style.display = "none"; sheen.style.opacity = String(op); }
+  base.style.fillOpacity = spec.kind === "transparent" ? "0" : String(op);
+  if (spec.kind === "transparent") {
+    base.style.fill = "transparent";
+  } else if (spec.kind === "solid" || spec.kind === "island") {
+    base.style.fill = spec.kind === "solid" ? spec.color : b.background;
+  } else if (spec.kind === "gradient") {
+    stops("bandBaseGrad", [{ o: "0%", c: spec.from }, { o: "100%", c: spec.to }]);
+    base.style.fill = "url(#bandBaseGrad)";
+  } else if (spec.kind === "glow") {
+    base.style.fill = spec.base;
+    const fxGrad = document.getElementById("bandFxGrad");
+    const t = b.thickness;
+    const W = window.innerWidth;
+    const cx = b.slot === "start" ? margin + 8 + t / 2 : b.slot === "end" ? W - margin - 8 - t / 2 : W / 2;
+    const r = Math.max(140, t * 4.5);
+    fxGrad?.setAttribute("gradientUnits", "userSpaceOnUse");
+    fxGrad?.setAttribute("cx", String(cx));
+    fxGrad?.setAttribute("fx", String(cx));
+    fxGrad?.setAttribute("cy", String(t / 2));
+    fxGrad?.setAttribute("fy", String(t / 2));
+    fxGrad?.setAttribute("r", String(r));
+    stops("bandFxGrad", [
+      { o: "0%", c: spec.light, a: 0.48 },
+      { o: "40%", c: spec.light, a: 0.2 },
+      { o: "75%", c: spec.light, a: 0.05 },
+      { o: "100%", c: spec.light, a: 0 },
+    ]);
+    if (fx) { fx.style.fill = "url(#bandFxGrad)"; fx.style.display = ""; }
+  } else if (spec.kind === "aurora") {
+    const light = hexLuma(spec.base) > 150;
+    const peak = light ? 0.28 : 0.34;
+    stops("bandBaseGrad", [{ o: "0%", c: spec.base }, { o: "50%", c: spec.base }, { o: "100%", c: spec.base }]);
+    base.style.fill = spec.base;
+    stops("bandAuroraGrad", [
+      { o: "0%", c: spec.base, a: 0 },
+      { o: "22%", c: spec.a, a: peak },
+      { o: "55%", c: spec.b, a: peak * 0.85 },
+      { o: "82%", c: spec.a, a: peak * 0.45 },
+      { o: "100%", c: spec.base, a: 0 },
+    ]);
+    if (fx) { fx.style.fill = "url(#bandAuroraGrad)"; fx.style.display = ""; }
+    if (sheen) {
+      stops("bandSheenGrad", [
+        { o: "0%", c: "#ffffff", a: light ? 0.35 : 0.1 },
+        { o: "50%", c: "#ffffff", a: 0.02 },
+        { o: "100%", c: "#000000", a: light ? 0.02 : 0.15 },
+      ]);
+      sheen.style.fill = "url(#bandSheenGrad)";
+      sheen.style.display = "";
+    }
+  } else if (spec.kind === "glass") {
+    const light = hexLuma(spec.base) > 150;
+    base.style.fill = spec.base;
+    base.style.fillOpacity = String(Math.max(0.12, op * (light ? 0.86 : 0.8)));
+    if (sheen) {
+      stops("bandSheenGrad", [
+        { o: "0%", c: "#ffffff", a: light ? 0.65 : 0.18 },
+        { o: "42%", c: "#ffffff", a: light ? 0.18 : 0.04 },
+        { o: "100%", c: "#000000", a: light ? 0.03 : 0.18 },
+      ]);
+      sheen.style.fill = "url(#bandSheenGrad)";
+      sheen.style.display = "";
+    }
+  }
+}
+
 /** The band drawn as it is now: swollen or not. */
 function paintBand() {
-  const path = document.querySelector<SVGPathElement>("#band path");
-  if (path) path.style.d = `path("${bandPath(grown ? 1 : 0)}")`;
+  const d = `path("${bandPath(grown ? 1 : 0)}")`;
+  document.querySelectorAll<SVGPathElement>("#band path").forEach((p) => { p.style.d = d; });
 }
 
 /**
@@ -420,6 +512,10 @@ function layAreas(b: BarLook) {
     btn.title = p.title;
     // Built by the island with the DOM (src/island/bar.ts): icons and escaped text only.
     btn.innerHTML = p.html;
+    // Set fill widths via CSSOM so strict style-src CSP hashes cannot strip inline style="width:...".
+    btn.querySelectorAll<HTMLElement>(".bar-meter-fill[data-pct]").forEach((m) => {
+      m.style.width = `${m.dataset.pct}%`;
+    });
     areas[p.area]?.append(btn);
   }
   fitAreas();
