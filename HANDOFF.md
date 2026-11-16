@@ -60,6 +60,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 16/11 — Blocco all'avvio della 1.0.50 (ramo `claude/barra-ricerca`)
+La 1.0.50 si bloccava all'avvio: `WindowEvent::Focused` arriva dentro `Webview::set_focus` (`apply_app_mode`, `activate_window`), che tiene il lock `window_id` della webview, e l'`emit_to` sincrono di `island-focused`/`island-blurred` lo riprendeva sul thread principale. Ora gli emit partono da `async_runtime::spawn` (`lib.rs`). Trovato con i thread della build con simboli; 6 riavvii puliti. Da fare: 1.0.51.
+
 ### 16/11 — Versione 1.0.50
 Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su schermo, tema scuro e chiaro, fuoco automatico WebView2 sul thread principale in `island::activate_window` anche dopo clic sul desktop), la scelta dell'aspetto della riga di ricerca (`search-line.css`, `searchBarLine`: `waves`/`horizon`/`comet`/`prism`/`emerald`/`amber`/`steady`/`off`; `searchBarLineMode`: `focus`/`loop`/`both`/`fade` con anteprima in Impostazioni → Aspetto → Isola aperta), i nuovi sfondi (`gradient`/`glow`/`aurora`/`glass` in `barbg.ts`) e stili elementi (`classic`/`pills`/`compact`) della barra fissa, tutte le schede delle Impostazioni riordinate con sotto-schede condivise e tre fix Windows (chiusura pulita senza finestra nascosta, clic sul personaggio che riporta in primo piano l'isola coperta, avvio di app Store, collegamenti `.lnk`/`.url` e Pannello di controllo). Smoke completo «nessun errore» (91 prove), `npm run build` (`5380 testi, 0 senza inglese`), test Rust 575 + 38.
 
@@ -72,10 +75,3 @@ Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida
 
 ### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
 Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.
-
-
-### 15/11 — Versione 1.0.48
-Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.
-
-
-
