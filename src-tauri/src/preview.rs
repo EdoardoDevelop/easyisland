@@ -794,17 +794,9 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
                 emit_tabs(app);
             }
         })
-        // A link that wants a new window opens in a new tab instead.
-        .on_new_window(|url, _| {
-            let target = url.to_string();
-            if let Some(app) = APP.get() {
-                let app = app.clone();
-                std::thread::spawn(move || {
-                    let _ = open(&app, &target, Place::NewTab, true);
-                });
-            }
-            tauri::webview::NewWindowResponse::Deny
-        });
+        // A link with target=_blank opens in a new tab; a real popup
+        // (window.open with a size, or blank) gets a window of its own.
+        .on_new_window(|url, features| new_window(url, features));
     if let Some(dir) = crate::webview_dir() {
         b = b.data_directory(dir);
     }
@@ -814,6 +806,91 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
     devtools_and_console(&w, id);
     let _ = app;
     Ok(w)
+}
+
+// ── Popups (window.open) ─────────────────────────────────────────────────────
+
+/// Label prefix of the popups a page opens: not in the capabilities, so they
+/// never reach EasyIsland's commands, like the tabs' browsers.
+const POPUP: &str = "anteprima-popup-";
+
+/// Popup or tab: a popup is what a page opens with `window.open` giving a
+/// size (sign-in with Google/Microsoft, payment pages, "open in a window") or
+/// a blank page it then writes into. A plain link with target=_blank has
+/// neither and opens in a new tab, as before.
+fn is_popup(url: &str, sized: bool) -> bool {
+    sized || url.is_empty() || url == "about:blank"
+}
+
+/// WebView2 asks for a new window (from a tab's browser or from a popup).
+/// Runs on the main thread (wry dispatches it after the event), where the
+/// popup window can be built; nothing here emits.
+fn new_window(url: tauri::Url, features: tauri::webview::NewWindowFeatures) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    let target = url.to_string();
+    let Some(app) = APP.get().cloned() else {
+        return tauri::webview::NewWindowResponse::Deny;
+    };
+    if !is_popup(&target, features.size().is_some()) {
+        std::thread::spawn(move || {
+            let _ = open(&app, &target, Place::NewTab, true);
+        });
+        return tauri::webview::NewWindowResponse::Deny;
+    }
+    match make_popup(&app, &url, features) {
+        Ok(window) => tauri::webview::NewWindowResponse::Create { window },
+        Err(e) => {
+            crate::log::line(format!("anteprima: popup non aperto: {e}"));
+            tauri::webview::NewWindowResponse::Deny
+        }
+    }
+}
+
+/// The popup: a window of its own owned by the Anteprima's (above it, closed
+/// with it), with the opener's WebView2 environment, so the same cookies and
+/// sign-ins, and `window.opener` kept (WebView2's SetNewWindow). The page
+/// loads the URL itself; `window.close()` destroys it (wry).
+fn make_popup(app: &AppHandle, url: &tauri::Url, features: tauri::webview::NewWindowFeatures) -> Result<tauri::WebviewWindow, String> {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    let label = format!("{POPUP}{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    let (w, h) = features.size().map(|s| (s.width.max(200.0), s.height.max(150.0))).unwrap_or((520.0, 640.0));
+    let place = features.position().is_none();
+    let mut b = tauri::WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse::<tauri::Url>().map_err(|e| e.to_string())?))
+        .title(t("Anteprima"))
+        .inner_size(w, h)
+        .min_inner_size(200.0, 150.0)
+        .resizable(true)
+        .decorations(true)
+        .skip_taskbar(false)
+        .window_features(features)
+        .disable_drag_drop_handler()
+        .on_navigation(|u| matches!(u.scheme(), "http" | "https" | "about" | "data" | "blob"))
+        .on_new_window(|url, features| new_window(url, features))
+        .on_document_title_changed(|w, title| {
+            let title: String = title.trim().chars().take(120).collect();
+            if !title.is_empty() && title != "about:blank" {
+                let _ = w.set_title(&title);
+            }
+        });
+    if let Some(owner) = host(app) {
+        if let Ok(hwnd) = owner.hwnd() {
+            b = b.owner_raw(hwnd);
+        }
+        // No position from the page: centred on the Anteprima.
+        if place {
+            if let (Ok(pos), Ok(size), Ok(scale)) = (owner.outer_position(), owner.outer_size(), owner.scale_factor()) {
+                let (ox, oy) = (pos.x as f64 / scale, pos.y as f64 / scale);
+                let (ow, oh) = (size.width as f64 / scale, size.height as f64 / scale);
+                b = b.position(ox + ((ow - w) / 2.0).max(0.0), oy + ((oh - h) / 2.0).max(0.0));
+            }
+        }
+    } else if place {
+        b = b.center();
+    }
+    let window = b.build().map_err(|e| e.to_string())?;
+    // Only the site's name in the log: a sign-in URL carries codes and tokens.
+    crate::log::line(format!("anteprima: popup aperto ({}) {}", label, url.host_str().unwrap_or(url.scheme())));
+    Ok(window)
 }
 
 // ── WebView2: DevTools protocol ──────────────────────────────────────────────
@@ -2693,6 +2770,14 @@ fn cut(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn popups_only_with_a_size_or_blank() {
+        assert!(!is_popup("https://example.com/", false));
+        assert!(is_popup("https://accounts.google.com/o/oauth2", true));
+        assert!(is_popup("about:blank", false));
+        assert!(is_popup("", false));
+    }
 
     #[test]
     fn after_a_click_only_what_changed() {
