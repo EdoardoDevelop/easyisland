@@ -157,11 +157,26 @@ function saveSide(open: boolean) {
 
 /** The text being written survives a restart of EasyIsland (only this one, on this PC). */
 const DRAFT_KEY = "easyisland.chatDraft";
+/** The messages still in line when EasyIsland closed: back in the field at the next start, never lost. */
+const QUEUE_KEY = "easyisland.chatQueue";
 function loadDraft(): string {
   try {
-    return localStorage.getItem(DRAFT_KEY) ?? "";
+    const draft = localStorage.getItem(DRAFT_KEY) ?? "";
+    const queued: unknown = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]");
+    localStorage.removeItem(QUEUE_KEY);
+    const waiting = Array.isArray(queued) ? queued.filter((q): q is string => typeof q === "string" && q.trim() !== "") : [];
+    return [draft, ...waiting].filter((x) => x.trim()).join("\n\n");
   } catch {
     return "";
+  }
+}
+/** Every open conversation's queue, as it is now (renderQueue). */
+function saveQueues(all: string[]) {
+  try {
+    if (all.length) localStorage.setItem(QUEUE_KEY, JSON.stringify(all));
+    else localStorage.removeItem(QUEUE_KEY);
+  } catch {
+    /* storage off: the queue just does not survive */
   }
 }
 function saveDraft(text: string) {
@@ -1341,7 +1356,15 @@ export function buildPrompt(
     onHeightChange();
   }
 
+  let savedQueues = "";
   function renderQueue() {
+    // Every conversation's line, also the ones not on screen: saved when it changes.
+    const all = State.chats.flatMap((x) => x.queue);
+    const allKey = all.join("\u0000");
+    if (allKey !== savedQueues) {
+      savedQueues = allKey;
+      saveQueues(all);
+    }
     const c = State.chat;
     const key = `${c.sid}|${c.sending ? 1 : 0}|${c.queue.join("\u0000")}`;
     if (key === queueKey) return;
