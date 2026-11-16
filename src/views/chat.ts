@@ -33,16 +33,14 @@ export function setHistoryDemo(list: ChatSummary[]) {
 }
 
 /**
- * A conversation's title as shown: its first line, a file path reduced to the
- * file's name, at most ~70 characters cut on a word. The full one goes in title=.
- */
-/**
  * `text` without the part `cut` already shown above a message taken into the
  * turn. The reply grows at its end; where it changed before (the task list),
  * it goes back to the last paragraph they share; nothing shared: all of it.
  */
 function afterCut(text: string, cut: string): string {
   if (!cut) return text;
+  text = text.trimStart();
+  cut = cut.trimStart();
   if (text.startsWith(cut)) return text.slice(cut.length).replace(/^\s+/, "");
   let n = 0;
   while (n < text.length && n < cut.length && text[n] === cut[n]) n++;
@@ -50,6 +48,10 @@ function afterCut(text: string, cut: string): string {
   return at > 0 ? text.slice(at).replace(/^\s+/, "") : text;
 }
 
+/**
+ * A conversation's title as shown: its first line, a file path reduced to the
+ * file's name, at most ~70 characters cut on a word. The full one goes in title=.
+ */
 function shortTitle(text: string): string {
   const line = (text.split("\n").find((l) => l.trim()) ?? "").trim();
   const named = line.replace(/(?:[A-Za-z]:\\|\\\\|~?\/)[^\s"'«»<>|]*[\\/]([^\s\\/"'«»<>|]+)/g, "$1");
@@ -943,6 +945,11 @@ export function buildPrompt(
       if (m.steered && last?.role === "user") last.content += `\n\n↪ ${m.content}`;
       else if (m.part) part += `${m.content}\n\n`;
       else {
+        // A turn that ended in an error left its reply so far: it stays in that turn.
+        if (part && m.role === "user") {
+          out.push({ role: "assistant", content: part.trim() });
+          part = "";
+        }
         out.push({ role: m.role, content: m.role === "assistant" ? part + m.content : m.content });
         if (m.role === "assistant") part = "";
       }
@@ -1269,6 +1276,8 @@ export function buildPrompt(
     if (canSteer(c)) {
       void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
         if (ok && c.sending) steered(c, text);
+        // The turn ended meanwhile (its queue already went on): this one goes now.
+        else if (!c.sending) void submit(text, c);
         else {
           // No turn to join after all: it stops and this one goes first.
           c.queue.unshift(text);
