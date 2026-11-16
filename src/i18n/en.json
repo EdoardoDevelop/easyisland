@@ -4280,6 +4280,7 @@
   "in attesa": "waiting",
   "Invia subito": "Send now",
   "Ferma la risposta e manda subito questo messaggio": "Stop the reply and send this message now",
+  "Claude lo legge subito, senza fermare il lavoro in corso": "Claude reads it now, without stopping the work in progress",
   "Manda subito questo messaggio": "Send this message now",
   "Rimetti il messaggio nel campo": "Put the message back in the field",
   "Togli dalla coda": "Remove from the queue",

@@ -501,6 +501,11 @@ export interface ChatSessionState {
   sending: boolean;
   stopping: boolean;
   streamed: string;
+  /**
+   * The reply as shown when a message joined the turn («Invia subito», Claude
+   * Code): that part already stands above the message; only what follows shows.
+   */
+  streamCut: string;
   /** An answer came while another conversation was on screen. */
   unread: boolean;
   /** The field's text while another conversation is on screen. */
@@ -519,7 +524,7 @@ export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
     history: [], engineOverride: null, onlyEasy: false, engineOnce: false, auto: true, mode: "", model: null, agyModel: null, plan: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
-    session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
+    session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", streamCut: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
 }
@@ -532,6 +537,10 @@ export interface ChatMessage {
   engine?: string;
   /** A second opinion: the name of the engine that gave it. */
   reviewer?: string;
+  /** Written while the turn went on and taken into it («Invia subito»): a question of its own under the reply so far. */
+  steered?: boolean;
+  /** The reply written before such a message: the turn goes on in the next answer. */
+  part?: boolean;
   /** A file added to this question (pasted or dropped during the conversation). */
   file?: string;
   /** What the turn cost (Claude Code): shown small under the answer. */

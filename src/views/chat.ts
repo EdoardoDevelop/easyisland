@@ -36,6 +36,20 @@ export function setHistoryDemo(list: ChatSummary[]) {
  * A conversation's title as shown: its first line, a file path reduced to the
  * file's name, at most ~70 characters cut on a word. The full one goes in title=.
  */
+/**
+ * `text` without the part `cut` already shown above a message taken into the
+ * turn. The reply grows at its end; where it changed before (the task list),
+ * it goes back to the last paragraph they share; nothing shared: all of it.
+ */
+function afterCut(text: string, cut: string): string {
+  if (!cut) return text;
+  if (text.startsWith(cut)) return text.slice(cut.length).replace(/^\s+/, "");
+  let n = 0;
+  while (n < text.length && n < cut.length && text[n] === cut[n]) n++;
+  const at = text.lastIndexOf("\n\n", n);
+  return at > 0 ? text.slice(at).replace(/^\s+/, "") : text;
+}
+
 function shortTitle(text: string): string {
   const line = (text.split("\n").find((l) => l.trim()) ?? "").trim();
   const named = line.replace(/(?:[A-Za-z]:\\|\\\\|~?\/)[^\s"'«»<>|]*[\\/]([^\s\\/"'«»<>|]+)/g, "$1");
@@ -920,7 +934,21 @@ export function buildPrompt(
 
   /** What the conversation was so far, as chat_log.rs keeps it. */
   function lines(list: ChatMessage[]) {
-    return list.map((m) => ({ role: m.role, content: m.content }));
+    // A message taken into a turn joins its question («↪», chat_log::steered),
+    // and the reply before it joins the rest of the answer.
+    const out: { role: ChatMessage["role"]; content: string }[] = [];
+    let part = "";
+    for (const m of list) {
+      const last = out[out.length - 1];
+      if (m.steered && last?.role === "user") last.content += `\n\n↪ ${m.content}`;
+      else if (m.part) part += `${m.content}\n\n`;
+      else {
+        out.push({ role: m.role, content: m.role === "assistant" ? part + m.content : m.content });
+        if (m.role === "assistant") part = "";
+      }
+    }
+    if (part) out.push({ role: "assistant", content: part.trim() });
+    return out;
   }
 
   function setInput(text: string) {
@@ -1114,6 +1142,7 @@ export function buildPrompt(
     }
 
     c.streamed = "";
+    c.streamCut = "";
     const engine = engineOf(c);
     // «Solo EasyIsland»: no engine, but «Chiedi al motore» sends this one question to it.
     const sent = c.onlyEasy && !c.engineOnce ? "easyisland" : engine;
@@ -1149,13 +1178,13 @@ export function buildPrompt(
       const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
       const meaning = (reply as { meaning?: [string, number][] }).meaning;
       const memory = (reply as { memory?: string[] }).memory;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
+      c.history.push({ id: nextId++, role: "assistant", content: afterCut(reply.text, c.streamCut), engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
       takeReplyHook()?.(null);
       if (c.stopping) {
-        const soFar = c.streamed.trim();
+        const soFar = afterCut(c.streamed.trim(), c.streamCut).trim();
         c.history.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}` });
         Sound.play("blip");
         return;
@@ -1173,6 +1202,7 @@ export function buildPrompt(
       c.sending = false;
       c.stopping = false;
       c.streamed = "";
+      c.streamCut = "";
       c.working = false;
       c.teamRows = [];
       c.at = Date.now();
@@ -1199,21 +1229,7 @@ export function buildPrompt(
     const text = input.value.trim();
     if (!text) return;
     setInput("");
-    // Claude Code takes it into the turn it is in, between two steps (as in Claude Desktop); else the queue.
-    if (c.sending && !c.session && !c.team && engineOf(c) === "subscription") {
-      void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
-        const question = [...c.history].reverse().find((m) => m.role === "user");
-        if (ok && c.sending && question) {
-          question.content += `\n\n↪ ${text}`;
-          renderedCount = -1;
-          flash(t("Aggiunto al lavoro in corso: Claude ne tiene conto subito."));
-        } else c.queue.push(text);
-        Sound.play("blip");
-        State.notify();
-        onHeightChange();
-      });
-      return;
-    }
+    // As in Claude Desktop: it waits in line, and «Invia subito» on its row has it read now.
     c.queue.push(text);
     Sound.play("blip");
     State.notify();
@@ -1221,13 +1237,50 @@ export function buildPrompt(
     input.focus();
   }
 
-  /** «Invia subito»: the reply stops and this one goes first. */
+  /** Claude Code in a turn of its own (not a read-only session copy, not a team) takes a message into it. */
+  function canSteer(c: ChatSessionState) {
+    return c.sending && !c.session && !c.team && engineOf(c) === "subscription";
+  }
+
+  /**
+   * A message taken into the turn: the reply so far stays above it, the
+   * message is a question of its own under it, and the turn goes on below
+   * (as in Claude Desktop), never added to the question before.
+   */
+  function steered(c: ChatSessionState, text: string) {
+    const body = splitStatus(c.streamed).body.trim();
+    const before = afterCut(body, c.streamCut).trim();
+    if (before) c.history.push({ id: nextId++, role: "assistant", content: before, part: true });
+    c.history.push({ id: nextId++, role: "user", content: text, steered: true });
+    if (body) c.streamCut = body;
+    renderedCount = -1;
+  }
+
+  /** «Invia subito»: Claude Code reads it now in the turn; the other engines stop and this one goes first. */
   function sendNow(i: number) {
     const c = State.chat;
     const [text] = c.queue.splice(i, 1);
     if (text == null) return;
     if (!c.sending) {
       void submit(text, c);
+      return;
+    }
+    // Claude Code reads it between two steps of the turn in progress, with no stop.
+    if (canSteer(c)) {
+      void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
+        if (ok && c.sending) steered(c, text);
+        else {
+          // No turn to join after all: it stops and this one goes first.
+          c.queue.unshift(text);
+          if (c.sending && !c.stopping) {
+            c.stopping = true;
+            void Bridge.chatStop(c.sid);
+          }
+        }
+        Sound.play("blip");
+        State.notify();
+        onHeightChange();
+      });
       return;
     }
     c.queue.unshift(text);
@@ -1281,7 +1334,7 @@ export function buildPrompt(
       h("span", { class: "chat-queued-tag", text: t("in attesa") }),
       h("span", { class: "chat-queued-text", text, title: text }),
       h("button", { class: "chat-queued-btn now", text: t("Invia subito"),
-        title: c.sending ? t("Ferma la risposta e manda subito questo messaggio") : t("Manda subito questo messaggio"),
+        title: !c.sending ? t("Manda subito questo messaggio") : canSteer(c) ? t("Claude lo legge subito, senza fermare il lavoro in corso") : t("Ferma la risposta e manda subito questo messaggio"),
         onclick: () => sendNow(i) }),
       h("button", { class: "chat-queued-btn", text: t("Modifica"), title: t("Rimetti il messaggio nel campo"),
         onclick: () => {
@@ -2706,7 +2759,10 @@ export function buildPrompt(
     const c = reuse ? State.chat : openNew();
     try {
       const got = await Bridge.chatHistoryOpen(c.sid, id);
-      c.history = got.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
+      c.history = got.lines.flatMap((l): ChatMessage[] => l.role !== "user"
+        ? [{ id: nextId++, role: l.role, content: l.content }]
+        // The messages taken into that turn, each a question of its own again.
+        : l.content.split("\n\n↪ ").map((content, i) => ({ id: nextId++, role: "user" as const, content, steered: i > 0 || undefined })));
       c.logId = id;
       // Claude Code's session resumed: its context at once, read from the session's file.
       c.context = got.context ?? null;
@@ -3344,7 +3400,9 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         toBottom();
       }
       // The growing reply: only its bubble is redrawn.
-      const { body, status } = splitStatus(streamed);
+      const split = splitStatus(streamed);
+      const status = split.status;
+      const body = afterCut(split.body, State.chat.streamCut);
       if (streamEl && streamEl.dataset.len !== String(body.length)) {
         streamEl.dataset.len = String(body.length);
         streamEl.style.display = body ? "" : "none";
