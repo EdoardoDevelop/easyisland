@@ -38,7 +38,8 @@ const MONTHS: &[&[&str]] = &[
     &["febbraio", "february"],
     &["marzo", "march"],
     &["aprile", "april"],
-    &["maggio", "may"],
+    // Not «may»: an English question says it for anything else.
+    &["maggio"],
     &["giugno", "june"],
     &["luglio", "july"],
     &["agosto", "august"],
@@ -117,14 +118,31 @@ pub fn find(question: &str, today: i64) -> Option<Period> {
     let has = |x: &str| w.iter().any(|a| a == x);
     let pair = |a: &str, b: &[&str]| w.windows(2).any(|p| (p[0] == a && b.contains(&p[1].as_str())) || (b.contains(&p[0].as_str()) && p[1] == a));
     let (ty, tm, _) = civil_from_days(today);
-    let year_word = w.iter().filter_map(|a| a.parse::<i64>().ok()).find(|n| (1990..=2100).contains(n));
+    // Two months, or two years («da ottobre a novembre», «2025 e 2026»): a
+    // span a recipe cannot fill; one of them would answer only half (review
+    // of 16 Nov 2026). The engine's.
+    let months: Vec<i64> = MONTHS.iter().enumerate().filter(|(_, names)| names.iter().any(|n| has(n))).map(|(i, _)| i as i64 + 1).collect();
+    let years: Vec<i64> = w
+        .iter()
+        .enumerate()
+        .filter_map(|(i, a)| a.parse::<i64>().ok().filter(|n| (1990..=2100).contains(n)).map(|n| (i, n)))
+        // A year only next to a month or after a word that says so: «ticket 2045» is a ticket.
+        .filter(|(i, _)| {
+            let before = i.checked_sub(1).and_then(|j| w.get(j)).map(String::as_str).unwrap_or("");
+            let after = w.get(i + 1).map(String::as_str).unwrap_or("");
+            let month_word = |x: &str| MONTHS.iter().any(|names| names.contains(&x));
+            month_word(before) || month_word(after) || YEAR_BEFORE.contains(&before)
+        })
+        .map(|(_, n)| n)
+        .collect();
+    if months.len() > 1 || years.iter().any(|y| *y != years[0]) {
+        return None;
+    }
+    let year_word = years.first().copied();
     // A month by name, with its year or the last one that had it.
-    for (i, names) in MONTHS.iter().enumerate() {
-        if names.iter().any(|n| has(n)) {
-            let m = i as i64 + 1;
-            let y = year_word.unwrap_or(if m > tm { ty - 1 } else { ty });
-            return Some(month(y, m));
-        }
+    if let Some(&m) = months.first() {
+        let y = year_word.unwrap_or(if m > tm { ty - 1 } else { ty });
+        return Some(month(y, m));
     }
     if has("oggi") || has("today") {
         return Some(make(Span::Day, today, today));
@@ -157,6 +175,9 @@ pub fn find(question: &str, today: i64) -> Option<Period> {
     }
     year_word.map(year)
 }
+
+/// Words before a number that make it a year («nel 2025», «anno 2024»).
+const YEAR_BEFORE: &[&str] = &["nel", "del", "dal", "al", "anno", "year", "in", "of", "since"];
 
 /// Is this word only part of a period («novembre», «scorso», «2026»)?
 pub fn is_period_word(word: &str) -> bool {
@@ -197,6 +218,15 @@ mod tests {
         assert_eq!(find("il mese scorso", day(2026, 1, 5)).unwrap().start, "2025-12-01");
         assert_eq!(find("fatture dell'anno scorso", now).unwrap().span, Span::Year);
         assert!(find("stato del computer", now).is_none());
+        // Two months, two years, a number that is not a year: none (review of 16 Nov 2026).
+        assert!(find("spese da ottobre a novembre", now).is_none());
+        assert!(find("spese ottobre novembre", now).is_none());
+        assert!(find("fatture del 2024 e del 2025", now).is_none());
+        assert!(find("ticket 2045", now).is_none());
+        assert_eq!(find("ticket 2045 di ottobre", now).unwrap().start, "2026-10-01");
+        assert_eq!(find("fatture del 2025", now).unwrap().span, Span::Year);
+        assert_eq!(find("spese di ottobre 2025", now).unwrap().start, "2025-10-01");
+        assert!(find("may I see the tickets?", now).is_none());
         assert!(is_period_word("Novembre") && is_period_word("2026") && !is_period_word("spese"));
     }
 }
