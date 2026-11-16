@@ -1703,7 +1703,7 @@ export function buildPrompt(
     }
     if (own && last && m.role === "assistant" && m.command && !m.commandDone) {
       const cmd = m.command;
-      const run = h("button", { class: "msg-act msg-run", title: cmd.label, text: `▶︎ ${t("Esegui")}` }) as HTMLButtonElement;
+      const run = h("button", { class: "msg-act msg-run", title: `${cmd.label} (${t("Invio")})`, text: `▶︎ ${t("Esegui")}` }) as HTMLButtonElement;
       run.addEventListener("click", () => void runCommand(m, cmd, run));
       bar.append(run);
     }
@@ -3210,6 +3210,15 @@ export function buildPrompt(
         enqueue();
         if (k.ctrlKey) sendNow(State.chat.queue.length - 1);
         return;
+      }
+      // Empty field under a command the chat offered: Enter is «▶ Esegui» (Edoardo,
+      // 16 Nov 2026). Still a gesture of the user's, on that one button.
+      if (!typed && !State.chat.sending) {
+        const run = log.querySelector<HTMLButtonElement>(".msg-actions.last .msg-run");
+        if (run && !run.disabled) {
+          run.click();
+          return;
+        }
       }
       // A calculation: Enter copies the result, Ctrl+Enter still asks Claude.
       if (calcResult != null && !k.ctrlKey) void copyCalc();
