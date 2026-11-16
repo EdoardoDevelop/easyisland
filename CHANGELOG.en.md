@@ -2,6 +2,9 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.51** — **Fix for the startup freeze** of 1.0.50: after closing it or restarting the PC, EasyIsland froze
+right after starting.
+
 **1.0.50** — **Renewed search bar** and all Settings pages reorganised with shared sub-tabs. Search can now also open as a
 dedicated bar centred on screen (`searchOnly`), in dark and light mode, with a selectable bottom line style across all themes
 (original focus waves, cyan-violet-cyan gradient, comet, prism, emerald, amber, steady or off) and configurable animation
