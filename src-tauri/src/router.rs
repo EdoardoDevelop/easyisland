@@ -159,7 +159,7 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
         g.iter().position(|(c, _, _)| *c == k).map(|i| g.remove(i))
     };
     if let Some((_, q, steps)) = last.filter(|_| !only) {
-        if crate::recipes::same_question(&q, asked) {
+        if asked_again(&q, asked, &steps) {
             crate::recipes::no_direct(&steps);
             crate::log::line("smistatore: domanda ripetuta dopo una risposta diretta, al motore");
             return Direct::Refused;
@@ -329,13 +329,25 @@ pub fn take_memory(chat: &Chat) -> Vec<String> {
     }
 }
 
+/// The question after a direct answer asks the same again (so the engine's
+/// turn). After an answer from the memory (no steps) the same things asked:
+/// «quale ip ha Falchi?» after «quale vm ha Falchi?» is another question
+/// (same_question drops «vm» and «ip»; review of 16 Nov 2026).
+fn asked_again(before: &str, asked: &str, steps: &[String]) -> bool {
+    if steps.is_empty() {
+        crate::memory_answer::similar(&crate::recipes::bare_question(before), &crate::recipes::bare_question(asked))
+    } else {
+        crate::recipes::same_question(before, asked)
+    }
+}
+
 /// Tappa 1 of the 14 Nov ideas: a short order («apri Teams», «profilo
 /// Ufficio», «pausa») gets its button at once, no engine; nothing runs until
-/// the user presses «Esegui» (chat_command_run). Written again, or «Chiedi al
-/// motore», it goes to the engine like a direct answer.
-fn offer(chat: &Chat, asked: &str, c: crate::commands::Command) -> Direct {
+/// the user presses «Esegui» (chat_command_run). Written again it gets its
+/// button again («pausa» twice is two pauses, not a question rewritten: not in
+/// LAST_DIRECT, review of 16 Nov 2026); «Chiedi al motore» sends it to the engine.
+fn offer(chat: &Chat, _asked: &str, c: crate::commands::Command) -> Direct {
     let k = key(chat);
-    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), Vec::new()));
     {
         let mut w = WAS_DIRECT.lock().unwrap();
         if !w.contains(&k) {
@@ -518,6 +530,17 @@ mod tests {
         assert_eq!(s["direct"], 1);
         assert_eq!(s["refused"], 1);
         assert_eq!(s["saved"], 20_000);
+    }
+
+    #[test]
+    fn repeated_after_memory_means_the_same_things() {
+        // After the memory: the same subjects again → the engine; another subject → not.
+        assert!(asked_again("quale vm ha Falchi?", "che VM ha falchi", &[]));
+        assert!(!asked_again("quale vm ha Falchi?", "quale ip ha Falchi?", &[]));
+        assert!(!asked_again("che pc ha la comunale 2?", "che pc ha la comunale 3?", &[]));
+        // After a recipe: as before.
+        let steps = vec!["pc_check".to_string()];
+        assert!(asked_again("stato del computer", "Stato del computer?", &steps));
     }
 
     #[test]
