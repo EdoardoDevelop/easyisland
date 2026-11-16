@@ -582,7 +582,6 @@ fn focus_window(app: AppHandle, focused: bool) {
         let collapsed = app.state::<Shared>().gate.collapsed.load(Ordering::Relaxed);
         if !collapsed && win.is_visible().unwrap_or(false) {
             island::activate_window(&app, &win);
-            let _ = app.emit_to(island::WINDOW_LABEL, "island-focused", ());
         }
     }
 }
@@ -5545,6 +5544,14 @@ pub fn run() {
                     // Once Win32/WebView2 grants keyboard focus, tell the front end so it can place the caret cleanly.
                     tauri::WindowEvent::Focused(true) => {
                         let _ = closing.emit_to(island::WINDOW_LABEL, "island-focused", ());
+                    }
+                    // When another window or the desktop takes focus, stop pending auto-focus immediately.
+                    tauri::WindowEvent::Focused(false) => {
+                        island::set_want_focus(false);
+                        if let Some(win_ref) = island::window(&closing) {
+                            island::set_activating(&win_ref, false);
+                        }
+                        let _ = closing.emit_to(island::WINDOW_LABEL, "island-blurred", ());
                     }
                     _ => {}
                 });

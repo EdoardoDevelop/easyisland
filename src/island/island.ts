@@ -2059,10 +2059,10 @@ ${note}` : text };
     // (N / Y / S on a card, arrows, Ctrl+N, Ctrl+P — see onIslandKey).
     if (State.mode === "expanded" && (name === "open" || name === "search" || name === "pending" || name === "nextPill")) {
       this.keyboard = true;
-      void Bridge.focusWindow(true);
       if (name === "open" || name === "search") {
-        if (State.searchOnly) this.search.focus();
         this.focusSearchSoon();
+      } else {
+        void Bridge.focusWindow(true);
       }
     }
   }
@@ -3705,6 +3705,13 @@ ${note}` : text };
     this.search.focusInputOnly();
   }
 
+  /** Called when another window or the desktop takes keyboard focus away from the island. */
+  onWindowBlurred() {
+    this.keyboard = false;
+    this.clearFocusTimers();
+    this.search.blur();
+  }
+
   /**
    * The search bar takes the keyboard. Only when the user opened the island,
    * never for an alert (it would steal the keys from the app being typed in),
@@ -3712,14 +3719,22 @@ ${note}` : text };
    */
   private focusSearchSoon() {
     this.clearFocusTimers();
+    let activated = false;
     const attempt = () => {
       if (State.mode !== "expanded" || !this.searchShown || State.pendingApproval) return;
       this.search.el.style.display = "";
       this.keyboard = true;
-      this.search.focus();
+      if (!activated) {
+        activated = true;
+        this.search.focus();
+      } else if (!document.hasFocus()) {
+        void Bridge.focusWindow(true);
+      } else {
+        this.search.focusInputOnly();
+      }
     };
     attempt();
-    for (const ms of [50, 140, 280]) {
+    for (const ms of [80, 200]) {
       this.focusTimers.push(window.setTimeout(attempt, ms));
     }
   }
