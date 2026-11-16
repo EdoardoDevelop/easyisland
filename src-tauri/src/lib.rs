@@ -5548,9 +5548,6 @@ pub fn run() {
                     // When another window or the desktop takes focus, stop pending auto-focus immediately.
                     tauri::WindowEvent::Focused(false) => {
                         island::set_want_focus(false);
-                        if let Some(win_ref) = island::window(&closing) {
-                            island::set_activating(&win_ref, false);
-                        }
                         let _ = closing.emit_to(island::WINDOW_LABEL, "island-blurred", ());
                     }
                     _ => {}
