@@ -659,7 +659,12 @@ export function buildPrompt(
   });
   const slashQuickBtn = h("button", { class: "auto-btn tool-quick", text: "/", title: t("Comandi (/)") }) as HTMLButtonElement;
   slashQuickBtn.addEventListener("click", () => {
-    if (!input.value.startsWith("/")) setInput(`/${input.value}`);
+    // What is already written waits aside: it comes back after the command
+    // (or with Esc), never glued behind a «/» (review of 16 Nov 2026).
+    if (!input.value.startsWith("/")) {
+      slashStash = input.value.trim() ? input.value : null;
+      setInput("/");
+    }
     slashSel = 0;
     updateSlash();
     input.focus();
@@ -686,6 +691,8 @@ export function buildPrompt(
   slashMenu.style.display = "none";
   let slashItems: Slash[] = [];
   let slashSel = 0;
+  /** The text the «/» button set aside, back after the command or with Esc. */
+  let slashStash: string | null = null;
   // What can be done with what is on screen (chat-tips.ts): chips that write the request in the field.
   const tipsRow = h("div", { class: "chat-tips" });
   tipsRow.style.display = "none";
@@ -2089,6 +2096,8 @@ export function buildPrompt(
   /** The menu over the field while a command ("/") or an "@" is being typed. */
   function updateSlash() {
     subMenu = null;
+    // The «/» was deleted by hand: what it set aside stays where it is.
+    if (!input.value.startsWith("/")) slashStash = null;
     const m = /^\/(\S*)$/.exec(input.value);
     const at = /(?:^|\s)@(\S*)$/.exec(input.value);
     slashItems = State.chatSession ? []
@@ -2137,13 +2146,16 @@ export function buildPrompt(
       c.run("");
       return;
     }
+    const stash = slashStash;
+    slashStash = null;
     if (c.arg) {
-      setInput(`/${c.name} `);
+      setInput(`/${c.name} ${stash ?? ""}`);
       input.focus();
       return;
     }
     setInput("");
     c.run("");
+    if (stash) setInput(stash);
   }
 
   /** Claude Code with its login, asked once per run (it starts a process). */
@@ -3137,8 +3149,11 @@ export function buildPrompt(
         return;
       }
       if (k.key === "Escape") {
-        if (menuPrefix === "/") setInput("");
-        else {
+        // Esc closes the menu; the field keeps what was written (or gets back what «/» set aside).
+        if (slashStash != null) {
+          setInput(slashStash);
+          slashStash = null;
+        } else {
           subMenu = null;
           slashItems = [];
           renderMenu();
