@@ -52,6 +52,8 @@ export class Stage {
   private ctx = this.canvas.getContext("2d")!;
   private view: View | null = null;
   private frame = 0;
+  /** The last time something asked for a frame (the mouse, a click, data): the idle motion lasts IDLE_MS after it. */
+  private active = 0;
   private w = 0;
   private h = 0;
   private dragging: { x: number; y: number; moved: boolean } | null = null;
@@ -72,6 +74,8 @@ export class Stage {
       this.dragging = { x: e.clientX, y: e.clientY, moved: false };
     });
     this.canvas.addEventListener("pointermove", (e) => {
+      // The mouse on the map: its idle motion goes on (it stops IDLE_MS after the last move).
+      if (!this.frame) this.wake();
       const p = this.point(e);
       if (this.dragging) {
         const dx = e.clientX - this.dragging.x;
@@ -203,6 +207,11 @@ export class Stage {
    * the animations are short, so this costs nothing at rest.
    */
   wake() {
+    this.active = performance.now();
+    this.schedule();
+  }
+
+  private schedule() {
     if (this.frame) return;
     if (document.hidden) {
       this.frame = window.setTimeout(() => this.tick(performance.now()), 100);
@@ -229,12 +238,17 @@ export class Stage {
     if (this.refit) {
       this.refit = false;
       this.view.reset();
-      this.wake();
+      this.schedule();
       return;
     }
-    if (more) this.wake();
+    // A view that always moves (the idle animations) stops a while after the
+    // last touch: at rest the map drew 60 frames a second for hours (review of 16 Nov 2026).
+    if (more && performance.now() - this.active < IDLE_MS) this.schedule();
   }
 }
+
+/** How long the map keeps moving by itself after the last touch. */
+const IDLE_MS = 20_000;
 
 /** Pan and zoom of a 2D drawing: world → screen is (x * k + tx, y * k + ty). */
 export class Camera {

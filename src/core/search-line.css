@@ -278,6 +278,12 @@ html:not([data-anim="spente"])[data-search-line="prism"][data-search-line-mode="
   animation: search-line-in 2.4s var(--ease-out, ease-out) both, search-prism 4.2s linear infinite;
 }
 
+/* «Sobrie» (and Windows «Riduci animazioni», which turns «ricche» into it):
+   the line plays once and then stands still, never in a loop for hours
+   (review of 16 Nov 2026). */
+html[data-anim="sobrie"] .search-bar::before,
+html[data-anim="sobrie"] .search-bar::after { animation-iteration-count: 1 !important; }
+
 html[data-anim="spente"] .search-bar::before { display: none; }
 html[data-anim="spente"] .search-bar::after { animation: none !important; transition: none; }
 
