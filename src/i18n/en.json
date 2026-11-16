@@ -5700,5 +5700,7 @@
   "Sempre in loop (in focus e fuori focus)": "Always in loop (focused and unfocused)",
   "Fissa fuori focus, in loop in focus": "Steady unfocused, loop on focus",
   "Solo dissolvenza sul focus": "Fade on focus only",
-  "Clicca qui per provare in focus e fuori focus…": "Click here to test focus and unfocus…"
+  "Clicca qui per provare in focus e fuori focus…": "Click here to test focus and unfocus…",
+  "Il modello sul PC sta rispondendo a un'altra richiesta: riprova tra poco.": "The model on this PC is answering another request: try again shortly.",
+  "Il modello sta rispondendo: eliminalo quando ha finito.": "The model is answering: delete it when it has finished."
 }

@@ -814,6 +814,10 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
 /// never reach EasyIsland's commands, like the tabs' browsers.
 const POPUP: &str = "anteprima-popup-";
 
+/// Popups open at once: a page that calls window.open in a loop gets no more
+/// (review of 16 Nov 2026); a sign-in needs one or two.
+const MAX_POPUPS: usize = 5;
+
 /// Popup or tab: a popup is what a page opens with `window.open` giving a
 /// size (sign-in with Google/Microsoft, payment pages, "open in a window") or
 /// a blank page it then writes into. A plain link with target=_blank has
@@ -834,6 +838,11 @@ fn new_window(url: tauri::Url, features: tauri::webview::NewWindowFeatures) -> t
         std::thread::spawn(move || {
             let _ = open(&app, &target, Place::NewTab, true);
         });
+        return tauri::webview::NewWindowResponse::Deny;
+    }
+    let open_now = app.webview_windows().keys().filter(|l| l.starts_with(POPUP)).count();
+    if open_now >= MAX_POPUPS {
+        crate::log::line(format!("anteprima: popup rifiutato, già {open_now} aperti ({})", url.host_str().unwrap_or(url.scheme())));
         return tauri::webview::NewWindowResponse::Deny;
     }
     match make_popup(&app, &url, features) {

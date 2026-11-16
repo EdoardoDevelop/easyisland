@@ -704,6 +704,9 @@ pub fn delete(id: &str) -> Result<(), String> {
     {
         let mut s = SERVER.lock().unwrap();
         if s.as_ref().is_some_and(|s| s.path == path) {
+            if s.as_ref().is_some_and(|s| s.busy > 0) {
+                return Err(t("Il modello sta rispondendo: eliminalo quando ha finito.").into());
+            }
             *s = None;
         }
     }
@@ -862,7 +865,14 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
                 return Ok(lease(sv));
             }
         }
-        // Another model, or it died: away with it.
+        // Another model, or it died: away with it, but never under a turn
+        // that is using it (review of 16 Nov 2026: that turn failed with a
+        // network error nobody understood).
+        if let Some(sv) = s.as_mut() {
+            if sv.busy > 0 && matches!(sv.child.try_wait(), Ok(None)) {
+                return Err(t("Il modello sul PC sta rispondendo a un'altra richiesta: riprova tra poco.").into());
+            }
+        }
         *s = None;
     }
     let exe = server_exe().ok_or(t("Il motore del modello sul PC non è scaricato: Impostazioni → Chat → Modello sul PC."))?;
@@ -1061,16 +1071,34 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
         }
         s.engine_models.get("local").cloned().unwrap_or_default()
     };
-    model_path(&model).ok()?;
+    let path = model_path(&model).ok()?;
     server_exe()?;
+    // Only with the server already up: loading the model takes up to
+    // START_TIMEOUT, and the answer from the memory must not wait for it
+    // (review of 16 Nov 2026). The first time the lines go as they are and the
+    // model loads meanwhile, for the next one.
+    if !running(&path) {
+        if STARTING.try_lock().is_ok() {
+            let model = model.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = ensure(&model, 0).await {
+                    crate::log::line(format!("modello sul PC: non caricato per le risposte dalla memoria ({e})"));
+                }
+            });
+        }
+        crate::log::line("modello sul PC: si carica, questa risposta dalla memoria resta con le righe".to_string());
+        return None;
+    }
     let listed: String = lines.iter().map(|l| format!("- {}\n", crate::memory_answer::shown(l))).collect();
     let messages = json!([
         { "role": "system", "content": t("Rispondi alla domanda in italiano, in una o due frasi brevi, usando solo le righe date. Copia nomi, numeri, indirizzi IP e codici esattamente come sono scritti. Non aggiungere niente che non sia nelle righe. Se le righe non rispondono alla domanda, scrivi solo: NO") },
         { "role": "user", "content": tf("Righe:\n{lines}\nDomanda: {q}", &[("lines", &listed), ("q", &question)]) },
     ]);
     let started = Instant::now();
-    // The first time the model loads: a little longer, then the lines.
-    let (text, _) = match complete(&model, messages, 200, Duration::from_secs(20)).await {
+    let composed = tokio::time::timeout(Duration::from_secs(25), complete(&model, messages, 200, Duration::from_secs(20)))
+        .await
+        .unwrap_or_else(|_| Err(t("Il modello sul PC non ha risposto in tempo.").to_string()));
+    let (text, _) = match composed {
         Ok(r) => r,
         Err(e) => {
             crate::log::line(format!("modello sul PC: risposta dalla memoria non composta ({e})"));
@@ -1093,6 +1121,11 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
     }
     crate::log::line(format!("modello sul PC: risposta dalla memoria composta in {ms} ms"));
     Some((text, display_name(&model)))
+}
+
+/// The server is up with this model's file.
+fn running(path: &Path) -> bool {
+    SERVER.lock().unwrap_or_else(|e| e.into_inner()).as_mut().is_some_and(|s| s.path == path && matches!(s.child.try_wait(), Ok(None)))
 }
 
 /// "Spegni ora", and when the engine or the model changes.
