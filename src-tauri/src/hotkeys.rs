@@ -135,6 +135,9 @@ pub fn spawn(app: AppHandle) {
                 WM_HOTKEY => {
                     let idx = msg.wParam.0 as usize;
                     if let Some(name) = registered.get(idx.wrapping_sub(1)).filter(|n| !n.is_empty()) {
+                        if matches!(name.as_str(), "open" | "ask" | "pending" | "nextPill") {
+                            crate::island::prepare_search_focus(&app);
+                        }
                         let _ = app.emit_to(crate::island::WINDOW_LABEL, "hotkey", name.clone());
                     }
                 }

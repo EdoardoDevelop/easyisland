@@ -164,6 +164,7 @@ export interface BootInfo {
   screen: { x: number; y: number; width: number; height: number; scale: number };
   version: string;
   hookPath: string;
+  openSearch?: boolean;
 }
 
 /** A newer EasyIsland on GitHub. */

@@ -213,6 +213,14 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
+    // `easyisland-hook search` / `cerca`: opens the standalone search bar immediately.
+    if event == "EasyIslandSearch" {
+        let _ = pipe.disconnect();
+        crate::island::prepare_search_focus(&app);
+        let _ = app.emit_to(WINDOW_LABEL, "hotkey", "search");
+        return;
+    }
+
     crate::automations::on_hook(&event, &payload);
     if event != "PermissionRequest" {
         log::line(format!("hook {event}"));
