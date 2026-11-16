@@ -206,6 +206,16 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
 /// learnt) for a similar question first (votes.rs), else memory_answer::pick
 /// without the lines voted 👎. With no meaning service, the words alone.
 pub async fn memory_lines(app: &AppHandle, question: &str) -> Vec<String> {
+    lines_from_memory(app, question, true).await
+}
+
+/// The same lines without the votes: «Riprova» (votes.rs `check`) tests the
+/// memory, not the votes again.
+pub async fn memory_lines_unvoted(app: &AppHandle, question: &str) -> Vec<String> {
+    lines_from_memory(app, question, false).await
+}
+
+async fn lines_from_memory(app: &AppHandle, question: &str, voted: bool) -> Vec<String> {
     // The memory off (Impostazioni → Chat): nothing from it.
     let remember = tauri::Manager::try_state::<crate::Shared>(app).is_some_and(|s| s.settings.lock().unwrap().chat_history);
     if !remember || !crate::memory_answer::is_lookup(question) {
@@ -218,12 +228,14 @@ pub async fn memory_lines(app: &AppHandle, question: &str) -> Vec<String> {
     } else {
         crate::memory_meaning::answer_min(&engine)
     };
-    let taught = crate::votes::taught(question, &|l| found.iter().any(|(_, x)| x == l));
-    if !taught.is_empty() {
-        return taught;
+    if voted {
+        let taught = crate::votes::taught(question, &|l| found.iter().any(|(_, x)| x == l));
+        if !taught.is_empty() {
+            return taught;
+        }
+        let rejected = crate::votes::rejected(question);
+        found.retain(|(_, l)| !rejected.contains(l));
     }
-    let rejected = crate::votes::rejected(question);
-    found.retain(|(_, l)| !rejected.contains(l));
     crate::memory_answer::pick(question, &found, min)
 }
 
