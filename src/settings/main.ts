@@ -15,11 +15,12 @@ import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickne
 import { BAR_BG_PRESETS, barBgCss, parseBarBg } from "../core/barbg";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
-import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
+import { h, clear, hasMark, svg, TAB_ICONS } from "../views/dom";
+import { ICONS } from "../views/icons";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { N_, language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
-import { applyUiStyle, uiStyle, type UiStyle } from "../core/uistyle";
+import { applySearchLine, applyUiStyle, uiStyle, type SearchBarLine, type SearchBarLineMode, type UiStyle } from "../core/uistyle";
 import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type FontPick } from "../core/fonts";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
@@ -28,6 +29,7 @@ import { freshPicks, proposalsAnswer, proposalsBox, setAll, type ProposalPicks }
 import "./settings-windows.css";
 import "./settings-studio.css";
 import "./settings-light.css";
+import "../core/search-line.css";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
@@ -3712,11 +3714,64 @@ function appearanceSections(): HTMLElement[] {
             h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
           ),
         ),
-        pictured("search", h("div", { class: "row" },
-          h("label", { text: t("Campo in alto") }),
-          toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
-          h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
-        )),
+        pictured("search",
+          h("div", { class: "row" },
+            h("label", { text: t("Campo in alto") }),
+            toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
+            h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Linea della barra") }),
+            select<SearchBarLine>([
+              ["waves", t("Onde classiche (precedente)")],
+              ["horizon", t("Orizzonte ciano-viola")],
+              ["comet", t("Cometa luminosa")],
+              ["prism", t("Prisma continuo")],
+              ["emerald", t("Smeraldo e ciano")],
+              ["amber", t("Ambra e corallo")],
+              ["steady", t("Fissa sul focus")],
+              ["off", t("Spenta")],
+            ], (settings.searchBarLine ?? "waves") as SearchBarLine, (v) => {
+              settings.searchBarLine = v;
+              applySearchLine(settings);
+              commit();
+            }),
+            h("span", { class: "hint note", text: t("aspetto e colori della linea luminosa sotto le barre di ricerca su tutti i temi") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Quando si anima") }),
+            select<SearchBarLineMode>([
+              ["focus", t("In focus e in uscita")],
+              ["loop", t("Sempre in loop (in focus e fuori focus)")],
+              ["both", t("Fissa fuori focus, in loop in focus")],
+              ["fade", t("Solo dissolvenza sul focus")],
+            ], (settings.searchBarLineMode ?? "focus") as SearchBarLineMode, (v) => {
+              settings.searchBarLineMode = v;
+              applySearchLine(settings);
+              commit();
+            }),
+            (() => {
+              const previewInput = h("input", {
+                type: "text",
+                class: "search-line-preview-input",
+                placeholder: t("Clicca qui per provare in focus e fuori focus…"),
+              }) as HTMLInputElement;
+              const previewBar = h("div", { class: "search-bar search-line-preview" },
+                svg(ICONS.search, 13), previewInput);
+              let outTimer = 0;
+              previewInput.addEventListener("focus", () => {
+                window.clearTimeout(outTimer);
+                previewBar.classList.remove("line-out");
+              });
+              previewInput.addEventListener("blur", () => {
+                previewBar.classList.add("line-out");
+                window.clearTimeout(outTimer);
+                outTimer = window.setTimeout(() => previewBar.classList.remove("line-out"), 2500);
+              });
+              return previewBar;
+            })(),
+          ),
+        ),
         pictured("app", h("div", { class: "row" },
           h("label", { text: t("Come un'app") }),
           toggle(settings.islandApp ?? false, (v) => { settings.islandApp = v; commit(); }),
@@ -7254,6 +7309,7 @@ async function main() {
   // ?animations=sobrie: the motion (motion.ts).
   for (const k of ["animations"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
   applyUiStyle(settings.theme.style, settings.theme.scheme);
+  applySearchLine(settings);
   applyFonts(settings.theme.fonts);
   applyMotion(settings);
   watchWindow(document.body, (name, run) => void onEvent(name, run));
@@ -7339,6 +7395,7 @@ async function main() {
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
     applyUiStyle(settings.theme.style, settings.theme.scheme);
+    applySearchLine(settings);
     applyFonts(settings.theme.fonts);
     applyMotion(settings);
     // The echo of a save made here (Rust may tidy a value) is taken without

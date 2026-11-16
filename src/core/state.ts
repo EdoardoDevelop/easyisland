@@ -699,6 +699,10 @@ export interface Settings {
   lockOrder: boolean;
   /** The one field in the open island's top bar (src/views/search.ts). */
   searchBar: boolean;
+  /** Bottom accent line style for search bars (src/core/search-line.css). */
+  searchBarLine?: "waves" | "horizon" | "comet" | "prism" | "emerald" | "amber" | "steady" | "off";
+  /** Animation behaviour of the search bar line: focus/out, continuous loop, both, or fade only. */
+  searchBarLineMode?: "focus" | "loop" | "both" | "fade";
   /** The character at the head of the open island's menu (src/views/rail.ts). */
   menuCharacter: "large" | "medium" | "small";
   /** The character's bubble in the top bar: what is going on. */
@@ -1426,6 +1430,8 @@ export const DEFAULT_SETTINGS: Settings = {
   tabOrder: [],
   lockOrder: false,
   searchBar: true,
+  searchBarLine: "waves",
+  searchBarLineMode: "focus",
   menuCharacter: "large",
   characterBubble: true,
   weeklyRecap: true,

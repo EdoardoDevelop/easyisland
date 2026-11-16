@@ -431,6 +431,8 @@ pub const PROFILE_KEYS: &[&str] = &[
     "soundEnabled",
     "soundVolume",
     "autoCloseInterval",
+    "searchBarLine",
+    "searchBarLineMode",
     "theme",
     "notify",
     "reactions",
@@ -685,6 +687,12 @@ pub struct Settings {
     /// The one field in the open island's top bar (integrations, actions, programs, the chat).
     #[serde(default = "default_true")]
     pub search_bar: bool,
+    /// Visual style of the search bar's bottom accent line (src/core/search-line.css).
+    #[serde(default = "default_search_bar_line")]
+    pub search_bar_line: String,
+    /// Animation behaviour of that line: "focus" | "loop" | "both" | "fade".
+    #[serde(default = "default_search_bar_line_mode")]
+    pub search_bar_line_mode: String,
     /// The character at the head of the open island's menu: "large", "medium", "small".
     #[serde(default = "default_menu_character")]
     pub menu_character: String,
@@ -1153,6 +1161,14 @@ fn default_menu_character() -> String {
     "large".into()
 }
 
+fn default_search_bar_line() -> String {
+    "waves".into()
+}
+
+fn default_search_bar_line_mode() -> String {
+    "focus".into()
+}
+
 fn default_island_place() -> String {
     "character".into()
 }
@@ -1246,6 +1262,8 @@ impl Default for Settings {
             tab_order: Vec::new(),
             lock_order: false,
             search_bar: true,
+            search_bar_line: default_search_bar_line(),
+            search_bar_line_mode: default_search_bar_line_mode(),
             menu_character: default_menu_character(),
             character_bubble: true,
             weekly_recap: true,

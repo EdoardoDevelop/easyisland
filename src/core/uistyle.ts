@@ -9,6 +9,19 @@
 import { Bridge } from "./bridge";
 
 export type UiStyle = "windows" | "classic" | "monolith" | "titanium" | "editorial";
+export type SearchBarLine = "waves" | "horizon" | "comet" | "prism" | "emerald" | "amber" | "steady" | "off";
+export type SearchBarLineMode = "focus" | "loop" | "both" | "fade";
+
+const SEARCH_LINES: ReadonlySet<string> = new Set(["waves", "horizon", "comet", "prism", "emerald", "amber", "steady", "off"]);
+const SEARCH_LINE_MODES: ReadonlySet<string> = new Set(["focus", "loop", "both", "fade"]);
+
+/** Applies the chosen search-bar bottom line style and animation mode onto <html>. */
+export function applySearchLine(s?: { searchBarLine?: string; searchBarLineMode?: string }, doc: Document = document): void {
+  const line = s?.searchBarLine && SEARCH_LINES.has(s.searchBarLine) ? s.searchBarLine : "waves";
+  const mode = s?.searchBarLineMode && SEARCH_LINE_MODES.has(s.searchBarLineMode) ? s.searchBarLineMode : "focus";
+  doc.documentElement.dataset.searchLine = line;
+  doc.documentElement.dataset.searchLineMode = mode;
+}
 
 const STUDIO_STYLES: ReadonlySet<UiStyle> = new Set<UiStyle>(["monolith", "titanium", "editorial"]);
 
