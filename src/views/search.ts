@@ -445,9 +445,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
   const focusInput = () => {
     const active = document.activeElement;
     if (active && active !== input && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
-    if (document.activeElement !== input) {
-      input.focus({ preventScroll: true });
-    }
+    input.focus({ preventScroll: true });
     loadApps();
   };
   // The island's window takes no keys until asked (as for the ⚡ search field).
