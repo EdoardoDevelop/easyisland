@@ -1181,6 +1181,12 @@ fn exec_search_text(folder: &Path, root: &Path, text: &str, ext: Option<&str>) -
         let mut children: Vec<PathBuf> = Vec::new();
         for entry in rd.flatten() {
             let p = entry.path();
+            // Never where keys live (.env, .pem, .ssh…) and never through a
+            // link or junction, which can lead outside the folder (review of
+            // 16 Nov 2026: the check stood only on the starting folder).
+            if is_secret_path(&p) || entry.file_type().map_or(true, |ft| ft.is_symlink()) {
+                continue;
+            }
             if entry.file_type().is_ok_and(|ft| ft.is_dir()) {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if !is_skipped_dir(&name) {
@@ -1429,6 +1435,11 @@ mod tests {
         std::fs::write(root.join("src/many.txt"), many).unwrap();
         let capped = exec_search_text(&root, &root.join("src"), "match", Some("txt")).unwrap();
         assert_eq!(capped.lines().count(), MAX_SEARCH_HITS);
+
+        // Where keys live is never read, even inside the folder.
+        std::fs::write(root.join(".env"), "HELLO_KEY=segreto\n").unwrap();
+        let found = exec_search_text(&root, &root, "hello", None).unwrap();
+        assert!(!found.contains("segreto"), "{found}");
 
         let _ = std::fs::remove_dir_all(&root);
     }
