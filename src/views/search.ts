@@ -444,13 +444,19 @@ export function buildSearch(actions: SearchActions): SearchHost {
 
   const focusInput = () => {
     const active = document.activeElement;
-    if (active && active !== input && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
+    if (active === input) return;
+    if (active && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
     input.focus({ preventScroll: true });
     loadApps();
   };
   // The island's window takes no keys until asked (as for the ⚡ search field).
-  input.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
-  input.addEventListener("focus", () => { void Bridge.focusWindow(true); loadApps(); });
+  input.addEventListener("pointerdown", () => {
+    if (!document.hasFocus()) void Bridge.focusWindow(true);
+  });
+  input.addEventListener("focus", () => {
+    loadApps();
+    if (!document.hasFocus()) void Bridge.focusWindow(true);
+  });
   window.addEventListener("focus", () => {
     const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
     if (!allow) return;
@@ -504,10 +510,12 @@ export function buildSearch(actions: SearchActions): SearchHost {
     },
     focus() {
       focusInput();
-      void Bridge.focusWindow(true).then(() => {
-        const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
-        if (allow) focusInput();
-      });
+      if (!document.hasFocus()) {
+        void Bridge.focusWindow(true).then(() => {
+          const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
+          if (allow) focusInput();
+        });
+      }
     },
     blur() {
       if (document.activeElement === input) input.blur();

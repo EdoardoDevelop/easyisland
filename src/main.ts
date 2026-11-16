@@ -185,6 +185,7 @@ async function main() {
 
   await onEvent<string>("hotkey", (name) => void island.onHotkey(name));
   await onEvent<null>("island-focused", () => island.onWindowFocused());
+  await onEvent<null>("island-blurred", () => island.onWindowBlurred());
   // An automation reached a quick action that needs the island (a script
   // asking for confirmation, a question to Claude).
   // A habit worth an automation: offered once, with Crea / Non ora / No, mai.

@@ -886,16 +886,25 @@ pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
     let app_handle = app.clone();
     let win_clone = win.clone();
     let run = move || {
+        if !wants_focus() {
+            return;
+        }
         let Some(hwnd) = hwnd_of(&win_clone) else { return };
-        unsafe {
+        let gained_fg = unsafe {
             use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
             use windows::Win32::UI::Input::KeyboardAndMouse::{
-                SendInput, SetFocus, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
+                GetFocus, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
             };
-            use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
+            use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, IsChild, SetForegroundWindow};
 
             let fg = GetForegroundWindow();
-            if fg != hwnd {
+            let focus = GetFocus();
+            let webview_focused = !focus.0.is_null() && (focus == hwnd || IsChild(hwnd, focus).as_bool());
+            if fg == hwnd && webview_focused {
+                return;
+            }
+            let was_fg = fg == hwnd;
+            if !was_fg {
                 let cur_tid = GetCurrentThreadId();
                 let fg_tid = if !fg.0.is_null() {
                     GetWindowThreadProcessId(fg, None)
@@ -905,7 +914,6 @@ pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
                 let attached = fg_tid != 0 && fg_tid != cur_tid && AttachThreadInput(cur_tid, fg_tid, true).as_bool();
                 let _ = SetForegroundWindow(hwnd);
                 let _ = BringWindowToTop(hwnd);
-                let _ = SetFocus(Some(hwnd));
                 if attached {
                     let _ = AttachThreadInput(cur_tid, fg_tid, false);
                 }
@@ -922,18 +930,21 @@ pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
                     );
                     let _ = SetForegroundWindow(hwnd);
                     let _ = BringWindowToTop(hwnd);
-                    let _ = SetFocus(Some(hwnd));
                 }
             }
-        }
-        let _ = win_clone.set_focus();
+            !was_fg
+        };
         if let Some(wv) = page(&app_handle) {
             let _ = wv.set_focus();
+        } else {
+            let _ = win_clone.set_focus();
         }
         if !app_mode() {
             raise_over_taskbar(&app_handle);
         }
-        let _ = app_handle.emit_to(WINDOW_LABEL, "island-focused", ());
+        if gained_fg {
+            let _ = app_handle.emit_to(WINDOW_LABEL, "island-focused", ());
+        }
     };
     let on_win_thread = hwnd_of(win)
         .map(|hwnd| unsafe {
@@ -1271,12 +1282,11 @@ pub fn apply_app_mode(app: &AppHandle, on: bool) {
         make_non_activating(&win);
     } else if wants_focus() {
         activate_window(app, &win);
+    } else if let Some(wv) = page(app) {
+        // Just pinned with a click on it: keep focus inside the webview instead of bouncing it.
+        let _ = wv.set_focus();
     } else {
-        // Just pinned with a click on it: it is the active window now.
         let _ = win.set_focus();
-        if let Some(wv) = page(app) {
-            let _ = wv.set_focus();
-        }
     }
     crate::log::line(format!("island as an app: {on}"));
 }
