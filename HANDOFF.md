@@ -60,6 +60,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 16/11 — Anteprima: popup veri; chat: coda come Claude Desktop
+Anteprima (`preview.rs` `new_window`/`make_popup`): `window.open` con dimensioni o pagina vuota apre una finestra `anteprima-popup-N` dell'Anteprima con lo stesso ambiente WebView2 e `window.opener` (accessi Google/Microsoft, pagamenti), `window.close()` la chiude; i link `target=_blank` restano schede. Chat (`src/views/chat.ts`): quello che si scrive mentre risponde va sempre in coda; «Invia subito» con Claude Code lo fa leggere nel turno senza fermarlo, come domanda a sé sotto la risposta fin lì (`steered`/`part`, `streamCut`/`afterCut`), in cronologia resta «↪» sulla domanda e si ridivide alla riapertura.
+
 ### 16/11 — Versione 1.0.51: blocco all'avvio della 1.0.50
 La 1.0.50 si bloccava all'avvio: `WindowEvent::Focused` arriva dentro `Webview::set_focus` (`apply_app_mode`, `activate_window`), che tiene il lock `window_id` della webview, e l'`emit_to` sincrono di `island-focused`/`island-blurred` lo riprendeva sul thread principale. Ora gli emit partono da `async_runtime::spawn` (`lib.rs`). Trovato con i thread della build con simboli; 6 riavvii puliti. Smoke completo «nessun errore» (91 prove), test Rust 575 + 38.
 
@@ -71,7 +74,3 @@ Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo
 
 ### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
 Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.
-
-
-### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
-Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.

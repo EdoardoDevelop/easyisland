@@ -930,3 +930,6 @@ A un messaggio generico risponde un solo motore: il capo del primo EasyIsland ch
 
 ### 15/11 — Versione 1.0.48
 Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.
+
+### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
+Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.
