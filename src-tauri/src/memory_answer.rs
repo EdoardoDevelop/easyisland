@@ -9,9 +9,9 @@
 // and only when it is safe:
 //   - the question looks something up: short, with a question word, no action
 //     to do (fai, manda, apri…), nothing live («adesso», «stato») nor a why/how;
-//   - the best line is very close in meaning (`DIRECT_MIN`) and names something
-//     of the question (a name, a device: a word of the question that is not a
-//     common one);
+//   - a line names every subject of the question (a name, a device: a word of
+//     the question that is not a common one); the meaning only orders the
+//     lines (`memory_meaning::answer_min`);
 // else the engine, as before. «⚡ Chiedi al motore», or the same question
 // again, sends it to the engine (router.rs, as the other direct answers).
 
@@ -93,8 +93,10 @@ fn subjects(question: &str) -> Vec<String> {
 }
 
 /// The word is in the line: whole for a short one («ip» not in «tipo»,
-/// «teams» not in «TeamSystem»), by its first five letters for a long one
-/// («farmacie» / «farmacia»).
+/// «teams» not in «TeamSystem»); a long one also with another ending, at most
+/// its last two letters («farmacie» / «farmacia», «stampante» / «stampanti»),
+/// never by a shared start alone («contratto» is not «controller», «centralino»
+/// is not «centrale»: review of 16 Nov 2026).
 fn has_word(line_words: &[String], line: &str, w: &str) -> bool {
     let n = w.chars().count();
     if n <= 5 {
@@ -103,8 +105,26 @@ fn has_word(line_words: &[String], line: &str, w: &str) -> bool {
     if line.contains(w) {
         return true;
     }
-    let stem: String = w.chars().take(5).collect();
-    n >= 6 && line_words.iter().any(|x| x.starts_with(&stem))
+    line_words.iter().any(|x| same_word(w, x))
+}
+
+/// Two long words that differ only in their last two letters at most.
+fn same_word(a: &str, b: &str) -> bool {
+    let (na, nb) = (a.chars().count(), b.chars().count());
+    if na < 6 || nb < 6 {
+        return false;
+    }
+    let shared = a.chars().zip(b.chars()).take_while(|(x, y)| x == y).count();
+    shared >= 5 && shared + 2 >= na.max(nb)
+}
+
+/// The line names every subject of the question (its page's title counts):
+/// what `pick` asks of a line, asked of the lines voted 👍 too (votes.rs `taught`).
+pub fn names_all(question: &str, line: &str) -> bool {
+    let subjects = subjects(question);
+    let low = line.to_lowercase();
+    let lw = words(&low);
+    !subjects.is_empty() && subjects.iter().all(|s| has_word(&lw, &low, s))
 }
 
 /// Lines that only hold the page together: a title, aliases, links, dates.
@@ -210,8 +230,10 @@ pub fn key(question: &str) -> Vec<String> {
     let mut k: Vec<String> = subjects(question)
         .into_iter()
         .map(|w| {
+            // A long word without its last vowels: «farmacia» and «farmacie»
+            // share the key, «contratto» and «controller» do not.
             let w: String = w.chars().map(fold).collect();
-            if w.chars().count() >= 6 { w.chars().take(5).collect() } else { w }
+            if w.chars().count() >= 6 { w.trim_end_matches(['a', 'e', 'i', 'o', 'u']).to_string() } else { w }
         })
         .collect();
     k.sort();
@@ -312,6 +334,16 @@ mod tests {
         assert!(used_lines("perché il backup di Falchi non parte?", answer, &lines).is_empty());
         let near = near("che switch ha falchi?", &[(0.3, lines[1].clone()), (0.2, lines[2].clone())], 3);
         assert_eq!(near, vec![lines[1].clone()]);
+        // Same start, another word (review of 16 Nov 2026): not the same subject.
+        assert!(!similar("che contratto ha Rossi?", "che controller ha Rossi?"));
+        assert!(similar("quale farmacia ha Rossi?", "quali farmacie ha Rossi?"));
+        let ctl = "[[rossi]] controller UniFi in sala server".to_string();
+        assert!(!names_all("che contratto ha Rossi?", &ctl));
+        assert!(names_all("che controller ha Rossi?", &ctl));
+        assert!(pick("che contratto ha Rossi?", &[(0.5, ctl.clone())], 0.0).is_empty());
+        let central = "[[bianchi]] centrale telefonica 3CX".to_string();
+        assert!(!names_all("che centralino ha Bianchi?", &central));
+        assert!(names_all("quali stampanti ha Bianchi?", "[[bianchi]] stampante HP in reception"));
         // «teams» is not inside «TeamSystem» (on the laptop, 15 Nov 2026).
         let ts = vec![(0.3, "[[listino]] Marche ricorrenti: UniFi, Synology, TeamSystem".to_string())];
         assert!(super::near("apri teams", &ts, 3).is_empty());
