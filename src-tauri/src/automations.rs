@@ -346,6 +346,9 @@ fn uses_ctx(template: &str, ctx: &Ctx) -> bool {
 const SHELLS: &[&str] = &[
     "cmd", "powershell", "pwsh", "wscript", "cscript", "mshta", "bash", "wsl", "sh", "rundll32", "regsvr32", "python",
     "pythonw", "py", "node", "conhost", "wt",
+    // Programs that run or fetch what they are given (review of 16 Nov 2026).
+    "msiexec", "certutil", "bitsadmin", "forfiles", "schtasks", "mmc", "hh", "explorer", "ssh", "git", "start",
+    "runas", "pcalua", "installutil", "msbuild", "regasm", "regsvcs", "cmstp", "odbcconf", "msxsl", "wmic",
 ];
 
 /// Files that would run if opened: an automation never opens one it was handed

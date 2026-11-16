@@ -1245,6 +1245,9 @@ export function buildPrompt(
       void refreshHistory();
       // What was written meanwhile goes now, the first in line.
       const next = c.queue.shift();
+      // Saved here too: with the chat not on screen renderQueue does not run,
+      // and a message already sent came back in the field at the next start.
+      saveQueues(State.chats.flatMap((x) => x.queue));
       if (next != null && State.chats.includes(c)) {
         State.notify();
         window.setTimeout(() => void submit(next, c), 0);

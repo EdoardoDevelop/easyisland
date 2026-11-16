@@ -702,6 +702,21 @@ fn inside_folder(folder: &Path, candidate: &Path) -> bool {
     b_comps.iter().zip(t_comps.iter()).all(|(a, b)| component_eq(a, b))
 }
 
+/// The path with links and junctions followed (without Windows' `\\?\`);
+/// as it is when it does not exist yet or cannot be read.
+fn real_path(path: &Path) -> PathBuf {
+    match std::fs::canonicalize(path) {
+        Ok(p) => {
+            let s = p.to_string_lossy();
+            match s.strip_prefix(r"\\?\UNC\") {
+                Some(rest) => PathBuf::from(format!(r"\\{rest}")),
+                None => s.strip_prefix(r"\\?\").map(PathBuf::from).unwrap_or_else(|| p.clone()),
+            }
+        }
+        Err(_) => path.to_path_buf(),
+    }
+}
+
 fn is_secret_path(path: &Path) -> bool {
     crate::opencode::secret_place(&path.to_string_lossy())
 }
@@ -731,7 +746,13 @@ fn needs_ask(
         "read_file" | "list_dir" | "search_text" => {
             let raw = input.get("path").and_then(Value::as_str).unwrap_or("");
             let resolved = resolve_path(folder, raw);
-            let safe = inside_folder(folder, &resolved) && !is_secret_path(&resolved);
+            // Where it really is: a link or junction inside the folder may
+            // lead to .ssh or another drive (review of 16 Nov 2026).
+            let real = real_path(&resolved);
+            let safe = inside_folder(folder, &resolved)
+                && inside_folder(&real_path(folder), &real)
+                && !is_secret_path(&resolved)
+                && !is_secret_path(&real);
             if safe {
                 Decision::Run
             } else if read_only_chat {

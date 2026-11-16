@@ -75,7 +75,8 @@ export class Stage {
     });
     this.canvas.addEventListener("pointermove", (e) => {
       // The mouse on the map: its idle motion goes on (it stops IDLE_MS after the last move).
-      if (!this.frame) this.wake();
+      this.active = performance.now();
+      if (!this.frame) this.schedule();
       const p = this.point(e);
       if (this.dragging) {
         const dx = e.clientX - this.dragging.x;
