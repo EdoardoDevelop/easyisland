@@ -1077,7 +1077,7 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
     // START_TIMEOUT, and the answer from the memory must not wait for it
     // (review of 16 Nov 2026). The first time the lines go as they are and the
     // model loads meanwhile, for the next one.
-    if !running(&path) {
+    if !running(&path, use_gpu().await) {
         if STARTING.try_lock().is_ok() {
             let model = model.clone();
             tauri::async_runtime::spawn(async move {
@@ -1123,9 +1123,10 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
     Some((text, display_name(&model)))
 }
 
-/// The server is up with this model's file.
-fn running(path: &Path) -> bool {
-    SERVER.lock().unwrap_or_else(|e| e.into_inner()).as_mut().is_some_and(|s| s.path == path && matches!(s.child.try_wait(), Ok(None)))
+/// The server is up with this model's file, where `ensure` wants it (graphics
+/// card or not): else `ensure` would start it again inside compose's 25 s.
+fn running(path: &Path, gpu: bool) -> bool {
+    SERVER.lock().unwrap_or_else(|e| e.into_inner()).as_mut().is_some_and(|s| s.path == path && s.gpu == gpu && matches!(s.child.try_wait(), Ok(None)))
 }
 
 /// "Spegni ora", and when the engine or the model changes.

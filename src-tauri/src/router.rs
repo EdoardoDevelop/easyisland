@@ -160,7 +160,9 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
     };
     if let Some((_, q, steps)) = last.filter(|_| !only) {
         if asked_again(&q, asked, &steps) {
-            crate::recipes::no_direct(&steps);
+            if steps.iter().all(|s| !s.starts_with('@')) {
+                crate::recipes::no_direct(&steps);
+            }
             crate::log::line("smistatore: domanda ripetuta dopo una risposta diretta, al motore");
             return Direct::Refused;
         }
@@ -329,11 +331,36 @@ pub fn take_memory(chat: &Chat) -> Vec<String> {
     }
 }
 
+/// LAST_DIRECT marks: a command offered, and that offer taken back by
+/// «Chiedi al motore» / Rigenera (the chat rewound).
+const OFFERED: &str = "@offerta";
+const TO_ENGINE: &str = "@motore";
+
+/// The chat went back before its last question (chat_rewind: «Chiedi al
+/// motore», Rigenera, a question edited): a command offered there sends the
+/// same question, asked again, to the engine.
+pub fn rewound(chat: &Chat) {
+    let k = key(chat);
+    for (c, _, steps) in LAST_DIRECT.lock().unwrap_or_else(|e| e.into_inner()).iter_mut() {
+        if *c == k && steps.first().is_some_and(|s| s == OFFERED) {
+            *steps = vec![TO_ENGINE.to_string()];
+        }
+    }
+}
+
 /// The question after a direct answer asks the same again (so the engine's
 /// turn). After an answer from the memory (no steps) the same things asked:
 /// «quale ip ha Falchi?» after «quale vm ha Falchi?» is another question
 /// (same_question drops «vm» and «ip»; review of 16 Nov 2026).
 fn asked_again(before: &str, asked: &str, steps: &[String]) -> bool {
+    // A command offered: written again it is offered again («pausa» twice);
+    // after «Chiedi al motore» (rewound) the same question goes to the engine.
+    if steps.first().is_some_and(|s| s == OFFERED) {
+        return false;
+    }
+    if steps.first().is_some_and(|s| s == TO_ENGINE) {
+        return crate::recipes::same_question(before, asked);
+    }
     if steps.is_empty() {
         crate::memory_answer::similar(&crate::recipes::bare_question(before), &crate::recipes::bare_question(asked))
     } else {
@@ -344,10 +371,12 @@ fn asked_again(before: &str, asked: &str, steps: &[String]) -> bool {
 /// Tappa 1 of the 14 Nov ideas: a short order («apri Teams», «profilo
 /// Ufficio», «pausa») gets its button at once, no engine; nothing runs until
 /// the user presses «Esegui» (chat_command_run). Written again it gets its
-/// button again («pausa» twice is two pauses, not a question rewritten: not in
-/// LAST_DIRECT, review of 16 Nov 2026); «Chiedi al motore» sends it to the engine.
-fn offer(chat: &Chat, _asked: &str, c: crate::commands::Command) -> Direct {
+/// button again («pausa» twice is two pauses, not a question rewritten,
+/// review of 16 Nov 2026); «Chiedi al motore» (the chat rewound, then the same
+/// question: `rewound`) sends it to the engine.
+fn offer(chat: &Chat, asked: &str, c: crate::commands::Command) -> Direct {
     let k = key(chat);
+    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), vec![OFFERED.to_string()]));
     {
         let mut w = WAS_DIRECT.lock().unwrap();
         if !w.contains(&k) {
@@ -541,6 +570,10 @@ mod tests {
         // After a recipe: as before.
         let steps = vec!["pc_check".to_string()];
         assert!(asked_again("stato del computer", "Stato del computer?", &steps));
+        // A command: written again, offered again; after «Chiedi al motore», the engine.
+        assert!(!asked_again("pausa", "pausa", &[OFFERED.to_string()]));
+        assert!(asked_again("pausa", "pausa", &[TO_ENGINE.to_string()]));
+        assert!(!asked_again("pausa", "apri teams", &[TO_ENGINE.to_string()]));
     }
 
     #[test]
