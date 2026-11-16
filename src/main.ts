@@ -183,6 +183,7 @@ async function main() {
   void Bridge.presenceState().then((why) => { if (why) island.setPresence(true, why); });
 
   await onEvent<string>("hotkey", (name) => void island.onHotkey(name));
+  await onEvent<null>("island-focused", () => island.onWindowFocused());
   // An automation reached a quick action that needs the island (a script
   // asking for confirmation, a question to Claude).
   // A habit worth an automation: offered once, with Crea / Non ora / No, mai.
@@ -245,6 +246,7 @@ async function main() {
 
   linkCharacterWindow(island);
   island.launch();
+  if (boot?.openSearch) void island.onHotkey("search");
   // Monday from 8:00: last week's recap, once the greeting is over.
   window.setTimeout(() => void Recap.check(island), 12_000);
   // The morning and end-of-day recap: after the weekly one, then at its hours.

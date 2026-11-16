@@ -180,6 +180,18 @@ pub struct Shared {
     pub gate: Arc<PollGate>,
 }
 
+static OPEN_SEARCH_ON_BOOT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn is_search_arg(argv: &[String]) -> bool {
+    argv.iter().any(|a| {
+        let s = a.trim();
+        s.eq_ignore_ascii_case("/search")
+            || s.eq_ignore_ascii_case("--search")
+            || s.eq_ignore_ascii_case("/cerca")
+            || s.eq_ignore_ascii_case("--cerca")
+    })
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BootInfo {
@@ -187,6 +199,7 @@ pub struct BootInfo {
     screen: ScreenInfo,
     version: String,
     hook_path: String,
+    open_search: bool,
 }
 
 #[tauri::command]
@@ -204,6 +217,7 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         screen,
         version: env!("CARGO_PKG_VERSION").to_string(),
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
+        open_search: OPEN_SEARCH_ON_BOOT.swap(false, Ordering::Relaxed),
     }
 }
 
@@ -568,6 +582,7 @@ fn focus_window(app: AppHandle, focused: bool) {
         let collapsed = app.state::<Shared>().gate.collapsed.load(Ordering::Relaxed);
         if !collapsed && win.is_visible().unwrap_or(false) {
             island::activate_window(&app, &win);
+            let _ = app.emit_to(island::WINDOW_LABEL, "island-focused", ());
         }
     }
 }
@@ -5012,10 +5027,19 @@ pub fn run() {
     settings::apply_pending_secrets(&mut loaded);
     let gate = Arc::new(PollGate::new());
 
+    let launch_args: Vec<String> = std::env::args().skip(1).collect();
+    if is_search_arg(&launch_args) || jumplist::requested(&launch_args).as_deref() == Some("search") {
+        OPEN_SEARCH_ON_BOOT.store(true, Ordering::Relaxed);
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // `easyisland.exe /search` or `--search` or `--do search` opens the standalone search bar.
+            if is_search_arg(&argv) || jumplist::requested(&argv).as_deref() == Some("search") {
+                island::prepare_search_focus(app);
+                let _ = app.emit_to(island::WINDOW_LABEL, "hotkey", "search");
             // `easyisland.exe --settings` opens the settings window (a shortcut can use it).
-            if argv.iter().any(|a| a == "--settings") {
+            } else if argv.iter().any(|a| a == "--settings") {
                 show_settings_window(app);
             } else if let Some(what) = jumplist::requested(&argv).filter(|w| w != "open") {
                 // An entry of the taskbar menu (jumplist.rs): handled like its hotkey.
@@ -5518,6 +5542,10 @@ pub fn run() {
                     }
                     // Dragged, moved to another screen or resized: the resting character follows.
                     tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => sync_character(&closing),
+                    // Once Win32/WebView2 grants keyboard focus, tell the front end so it can place the caret cleanly.
+                    tauri::WindowEvent::Focused(true) => {
+                        let _ = closing.emit_to(island::WINDOW_LABEL, "island-focused", ());
+                    }
                     _ => {}
                 });
                 island::make_non_activating(&win);

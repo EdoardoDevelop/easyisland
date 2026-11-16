@@ -868,6 +868,18 @@ fn is_obscured(app: &AppHandle) -> bool {
     false
 }
 
+/// Prepares the island window to take keyboard focus cleanly from a hotkey, CLI flag, or hook.
+pub fn prepare_search_focus(app: &AppHandle) {
+    set_want_focus(true);
+    unsafe {
+        let _ = windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow(u32::MAX);
+    }
+    if let Some(win) = window(app) {
+        let _ = win.unminimize();
+        set_activating(&win, true);
+    }
+}
+
 /// Unlocks Windows foreground activation and gives keyboard focus to the island window.
 pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
     set_activating(win, true);
@@ -875,7 +887,8 @@ pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
     unsafe {
         use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
         use windows::Win32::UI::Input::KeyboardAndMouse::{
-            SendInput, SetFocus, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU,
+            GetAsyncKeyState, SendInput, SetFocus, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
+            VK_CONTROL, VK_MENU,
         };
         use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
 
@@ -894,7 +907,8 @@ pub fn activate_window(app: &AppHandle, win: &tauri::Window) {
             if attached {
                 let _ = AttachThreadInput(cur_tid, fg_tid, false);
             }
-            if GetForegroundWindow() != hwnd {
+            let ctrl_held = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
+            if GetForegroundWindow() != hwnd && !ctrl_held {
                 let key = |flags| INPUT {
                     r#type: INPUT_KEYBOARD,
                     Anonymous: INPUT_0 {

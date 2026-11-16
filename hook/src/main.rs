@@ -18,6 +18,9 @@
 //! `easyisland-hook notify …` is the other job: any script, scheduled task or n8n
 //! flow can put a message on the island (see `notify`). It never reads stdin.
 //!
+//! `easyisland-hook search` (or `cerca`) opens EasyIsland's search bar right
+//! away from a terminal or launcher shortcut. It never reads stdin.
+//!
 //! `easyisland-hook mcp` is the third: EasyIsland's tools as an MCP server for
 //! the app's own chat (see `mcp.rs`).
 //!
@@ -97,6 +100,10 @@ fn main() {
     // Before anything reads stdin: from a console that would wait forever.
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));
+    }
+    // Open the island's standalone search bar immediately (`easyisland-hook search`).
+    if matches!(std::env::args().nth(1).as_deref(), Some("search" | "cerca")) {
+        std::process::exit(search(std::env::args().skip(2).collect()));
     }
     // A question to the island's chat from a script or a WinRM session (`ask`).
     if matches!(std::env::args().nth(1).as_deref(), Some("chiedi" | "ask")) {
@@ -389,19 +396,43 @@ fn notify(args: Vec<String>) -> i32 {
         "level": level,
         "url": url,
     });
-    let line = format!("{payload}
-");
-    let (tx, rx) = mpsc::channel::<bool>();
-    std::thread::spawn(move || {
-        let ok = connect().is_some_and(|mut pipe| pipe.write_all(line.as_bytes()).is_ok() && pipe.flush().is_ok());
-        let _ = tx.send(ok);
-    });
-    if rx.recv_timeout(FIRE_AND_FORGET_BUDGET).unwrap_or(false) {
+    if send_fire_and_forget(payload) {
         0
     } else {
         eprintln!("EasyIsland non è in esecuzione: il messaggio non è stato mostrato.");
         2
     }
+}
+
+const SEARCH_USAGE: &str = "Uso: easyisland-hook search
+
+Apre subito la barra di ricerca di EasyIsland al centro dello schermo.
+
+Esce con 0 se ha inviato il comando, 2 se EasyIsland non è in esecuzione.";
+
+fn search(args: Vec<String>) -> i32 {
+    if args.iter().any(|a| matches!(a.as_str(), "-h" | "--help" | "/?")) {
+        println!("{SEARCH_USAGE}");
+        return 0;
+    }
+    let payload = serde_json::json!({ "hook_event_name": "EasyIslandSearch" });
+    if send_fire_and_forget(payload) {
+        0
+    } else {
+        eprintln!("EasyIsland non è in esecuzione.");
+        2
+    }
+}
+
+/// Writes one JSON line over the EasyIsland pipe with a bounded deadline.
+fn send_fire_and_forget(payload: serde_json::Value) -> bool {
+    let line = format!("{payload}\n");
+    let (tx, rx) = mpsc::channel::<bool>();
+    std::thread::spawn(move || {
+        let ok = connect().is_some_and(|mut pipe| pipe.write_all(line.as_bytes()).is_ok() && pipe.flush().is_ok());
+        let _ = tx.send(ok);
+    });
+    rx.recv_timeout(FIRE_AND_FORGET_BUDGET).unwrap_or(false)
 }
 
 const ASK_USAGE: &str = "Uso: easyisland-hook chiedi \"domanda\" [opzioni]

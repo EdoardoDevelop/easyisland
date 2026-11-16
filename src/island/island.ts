@@ -255,6 +255,7 @@ export class Island {
   private lastSearchH = 0;
   /** Hovering the compact island for `openDelay` seconds opens it. */
   private hoverOpenTimer: number | null = null;
+  private focusTimers: number[] = [];
 
   // Bot hover → love (IslandWindowController.botHoverIn)
   private botHovering = false;
@@ -514,6 +515,7 @@ export class Island {
       },
       onDone: () => this.collapse(true),
       onEscape: () => this.collapse(true),
+      canAutoFocus: () => State.mode === "expanded" && this.searchShown && !State.pendingApproval && (this.keyboard || State.searchOnly),
     });
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
@@ -691,6 +693,8 @@ export class Island {
       State.keptByItself = false;
       this.fsm.keepOpen = false;
       this.keyboard = false;
+      this.clearFocusTimers();
+      this.search.blur();
       void Bridge.focusWindow(false);
     }
     if (mode !== "expanded") {
@@ -1973,7 +1977,14 @@ ${note}` : text };
   /** A global shortcut was pressed (from src-tauri/src/hotkeys.rs). */
   async onHotkey(name: string) {
     Sound.resume();
-    if (name === "open") {
+    if (name === "search") {
+      State.searchOnly = true;
+      State.summary = false;
+      this.lastSearchH = 0;
+      this.openedByUser = true;
+      this.setView("overview");
+      this.openedByUser = false;
+    } else if (name === "open") {
       // Pressed again with the island open: it closes (a waiting request stays, see collapse).
       if (State.mode === "expanded") {
         this.collapse(State.searchOnly);
@@ -2046,10 +2057,10 @@ ${note}` : text };
     }
     // Opened from the keyboard: the island takes the keys until it closes
     // (N / Y / S on a card, arrows, Ctrl+N, Ctrl+P — see onIslandKey).
-    if (State.mode === "expanded" && (name === "open" || name === "pending" || name === "nextPill")) {
+    if (State.mode === "expanded" && (name === "open" || name === "search" || name === "pending" || name === "nextPill")) {
       this.keyboard = true;
       void Bridge.focusWindow(true);
-      if (name === "open") {
+      if (name === "open" || name === "search") {
         if (State.searchOnly) this.search.focus();
         this.focusSearchSoon();
       }
@@ -3646,9 +3657,11 @@ ${note}` : text };
   private openByUser() {
     State.searchOnly = false;
     this.openedByUser = true;
+    this.keyboard = true;
     this.fsm.click();
     this.openedByUser = false;
     this.stayIfAsked();
+    this.focusSearchSoon();
   }
 
   /** Impostazioni → "Resta aperta quando la apro io": 📌 on by itself. */
@@ -3678,12 +3691,26 @@ ${note}` : text };
     State.notify();
   }
 
+  private clearFocusTimers() {
+    for (const id of this.focusTimers) window.clearTimeout(id);
+    this.focusTimers = [];
+  }
+
+  /** Called when Win32/WebView2 grants keyboard focus to the island window. */
+  onWindowFocused() {
+    if (State.mode !== "expanded" || !this.searchShown || State.pendingApproval) return;
+    if (!this.keyboard && !State.searchOnly) return;
+    this.search.el.style.display = "";
+    this.search.focusInputOnly();
+  }
+
   /**
    * The search bar takes the keyboard. Only when the user opened the island,
    * never for an alert (it would steal the keys from the app being typed in),
    * and not over a request waiting for its N / Y keys.
    */
   private focusSearchSoon() {
+    this.clearFocusTimers();
     const attempt = () => {
       if (State.mode !== "expanded" || !this.searchShown || State.pendingApproval) return;
       this.search.el.style.display = "";
@@ -3691,8 +3718,9 @@ ${note}` : text };
       this.search.focus();
     };
     attempt();
-    window.setTimeout(attempt, 60);
-    window.setTimeout(attempt, 160);
+    for (const ms of [50, 140, 280]) {
+      this.focusTimers.push(window.setTimeout(attempt, ms));
+    }
   }
 
   private cancelHoverOpen() {

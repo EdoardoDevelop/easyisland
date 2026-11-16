@@ -43,6 +43,8 @@ export interface SearchActions {
   onDone?: () => void;
   /** Escape pressed while the search field is already empty. */
   onEscape?: () => void;
+  /** Whether the host expects auto-focus on the search field when the window activates. */
+  canAutoFocus?: () => boolean;
 }
 
 interface Hit {
@@ -84,6 +86,10 @@ export interface SearchHost {
   sync(): void;
   /** Takes the keyboard: the island was opened by the user. */
   focus(): void;
+  /** Places the caret in the input without re-invoking window activation. */
+  focusInputOnly(): void;
+  /** Clears DOM focus when the island closes so reopening always re-focuses cleanly. */
+  blur(): void;
   /** Empties the field and hides the results (a tab was chosen). */
   close(): void;
 }
@@ -436,15 +442,21 @@ export function buildSearch(actions: SearchActions): SearchHost {
     input.focus({ preventScroll: true });
   });
 
+  const focusInput = () => {
+    const active = document.activeElement;
+    if (active && active !== input && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
+    if (document.activeElement !== input) {
+      input.focus({ preventScroll: true });
+    }
+    loadApps();
+  };
   // The island's window takes no keys until asked (as for the ⚡ search field).
   input.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
   input.addEventListener("focus", () => { void Bridge.focusWindow(true); loadApps(); });
   window.addEventListener("focus", () => {
-    if (State.mode !== "expanded" || State.view !== "overview" || State.pendingApproval) return;
-    const active = document.activeElement;
-    if (active && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
-    input.focus({ preventScroll: true });
-    loadApps();
+    const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
+    if (!allow) return;
+    focusInput();
   });
   input.addEventListener("input", () => refresh());
   input.addEventListener("keydown", (e) => {
@@ -489,14 +501,18 @@ export function buildSearch(actions: SearchActions): SearchHost {
       // The island closed: start again empty next time.
       if (State.mode !== "expanded" && input.value) reset(true);
     },
+    focusInputOnly() {
+      focusInput();
+    },
     focus() {
-      input.focus({ preventScroll: true });
-      loadApps();
+      focusInput();
       void Bridge.focusWindow(true).then(() => {
-        if (State.mode === "expanded" && !State.pendingApproval) {
-          input.focus({ preventScroll: true });
-        }
+        const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
+        if (allow) focusInput();
       });
+    },
+    blur() {
+      if (document.activeElement === input) input.blur();
     },
     close() {
       if (input.value) reset(true);
