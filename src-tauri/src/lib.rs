@@ -5542,13 +5542,24 @@ pub fn run() {
                     // Dragged, moved to another screen or resized: the resting character follows.
                     tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => sync_character(&closing),
                     // Once Win32/WebView2 grants keyboard focus, tell the front end so it can place the caret cleanly.
+                    // Emitted a moment later, off this handler: the focus event arrives
+                    // inside `Webview::set_focus` (apply_app_mode, activate_window), which
+                    // holds the webview's `window_id` lock, and an emit to that webview
+                    // takes it again. Emitted here, the main thread waited on itself and
+                    // EasyIsland froze at start (1.0.50, Edoardo, 16 Nov 2026).
                     tauri::WindowEvent::Focused(true) => {
-                        let _ = closing.emit_to(island::WINDOW_LABEL, "island-focused", ());
+                        let h = closing.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let _ = h.emit_to(island::WINDOW_LABEL, "island-focused", ());
+                        });
                     }
                     // When another window or the desktop takes focus, stop pending auto-focus immediately.
                     tauri::WindowEvent::Focused(false) => {
                         island::set_want_focus(false);
-                        let _ = closing.emit_to(island::WINDOW_LABEL, "island-blurred", ());
+                        let h = closing.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let _ = h.emit_to(island::WINDOW_LABEL, "island-blurred", ());
+                        });
                     }
                     _ => {}
                 });

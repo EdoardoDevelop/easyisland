@@ -927,3 +927,6 @@ A un messaggio generico risponde un solo motore: il capo del primo EasyIsland ch
 
 ### 6 ottobre 2026 — handoff ridotto
 - `HANDOFF.md` ridotto al minimo per riprendere il lavoro; la versione completa (roadmap 6.1–6.6, analisi 3CX, idee del 2 ottobre, registro dal 1° al 6 ottobre) era in `HANDOFF-archivio.md` (ora `docs/archivio/HANDOFF-fino-al-6-ottobre.md`), non più aggiornata.
+
+### 15/11 — Versione 1.0.48
+Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.

@@ -74,6 +74,7 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.51** — fixes the **freeze at startup** of 1.0.50 (after closing it or restarting the PC).
 - **1.0.50** — **renewed search bar** centred on screen (`searchOnly`, dark and light) with automatic input focus, Settings pages reorganised with shared sub-tabs, clean taskbar state on close, bringing a hidden open island to front from the character, and launching Store apps, shortcuts and Control Panel from search.
 - **1.0.49** — **a model on your PC**, inside EasyIsland and on the graphics card: recommended for your PC, with a speed test; chat, terminal mode and answers from the memory with nothing to install.
 - **1.0.48** — **the memory answers by itself** with no engine; search by meaning on the PC; **👍 / 👎** that teach it, «Only EasyIsland» with no tokens; questions suggested from the memory.

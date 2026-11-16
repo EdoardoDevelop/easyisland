@@ -2,6 +2,9 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.51** — **Correzione del blocco all'avvio** della 1.0.50: dopo la chiusura o un riavvio del PC EasyIsland
+restava bloccata appena partita.
+
 **1.0.50** — **Barra di ricerca rinnovata** e tutte le schede delle Impostazioni riordinate con sotto-schede condivise.
 La ricerca ora può aprirsi anche come barra dedicata al centro dello schermo (`searchOnly`), in modalità scura e chiara, con
 sfumatura inferiore scegliibile su tutti i temi (onde originali sul focus, sfumatura ciano-viola-ciano, cometa, prisma,
