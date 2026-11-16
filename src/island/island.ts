@@ -3710,6 +3710,9 @@ ${note}` : text };
     this.keyboard = false;
     this.clearFocusTimers();
     this.search.blur();
+    if (State.mode === "expanded" && !State.appWindow) {
+      void Bridge.focusWindow(false);
+    }
   }
 
   /**
