@@ -765,6 +765,9 @@ export const Bridge = {
   /** The field at the top: the nodes of the map (brain.rs find_nodes). */
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
   quickAnswer: (question: string) => call<QuickAnswer | null>("quick_answer", { question }),
+  /** The notices' window (notices_window.rs): `height` of toasts, placed by `place`; or hidden. */
+  noticesShow: (height: number, place: string) => call<void>("notices_show", { height, place }),
+  noticesHide: () => call<void>("notices_hide"),
   /** A node's name and card, for a new chat (brain.rs node_brief). */
   memoryNodeBrief: (id: string) => call<[string, string] | null>("memory_node_brief", { id }),
   /** A page found there: the memory window with it selected. */

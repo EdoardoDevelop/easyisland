@@ -5624,6 +5624,23 @@ function notifySection(): HTMLElement {
         (v) => { settings.notify = v; void save(); },
       ),
     ),
+    h("div", { class: "row" },
+      h("label", { text: t("Avvisi") }),
+      choice(
+        [
+          ["isola", t("In una finestra sotto l'isola")],
+          ["alto-destra", t("In alto a destra")],
+          ["basso-destra", t("In basso a destra")],
+          ["dentro", t("Nell'isola (come prima)")],
+        ],
+        settings.noticesPlace ?? "isola",
+        (v) => { settings.noticesPlace = v; void save(); },
+      ),
+      moreHint(
+        t("Avvisi, download, fine degli agenti e riepiloghi in una piccola finestra che non apre l'isola e non prende la tastiera."),
+        t("Gli avvisi compaiono in una piccola finestra sempre davanti, che non prende la tastiera e non apre né cambia l'isola: puoi continuare a lavorare dentro l'isola. Un clic sull'avviso apre l'isola su quella cosa. Restano un po' e spariscono da soli (gli errori finché non li chiudi; il mouse sopra ferma il tempo). Permessi e domande restano nell'isola e nella striscia, perché aspettano il tuo clic. «Sotto l'isola»: sotto l'isola a riposo, di fianco quando è aperta."),
+      ),
+    ),
   );
 }
 

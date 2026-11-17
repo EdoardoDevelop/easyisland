@@ -43,6 +43,8 @@ import { locale, t } from "../core/i18n";
 import { applySearchLine, applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
+import * as Notices from "../notices/notices";
+import { momentHeadline } from "../views/moment";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -134,6 +136,11 @@ function paneTermTop(pane: HTMLElement, r: DOMRect): number {
   if (!term || term.style.display === "none") return r.bottom;
   return term.getBoundingClientRect().top;
 }
+
+/** Views that go to the notices' window when it is on (notices.ts) instead of opening the island. */
+const TOASTED: ReadonlySet<IslandViewName> = new Set<IslandViewName>(["notify", "moment", "recap", "daily"]);
+const LEVEL_ICON: Record<string, string> = { ok: "✅", info: "ℹ️", warn: "⚠️", error: "⛔" };
+const MOMENT_ICON: Record<string, string> = { download: "⬇️", tray: "📥", recording: "🎙️", error: "🐞", server: "🌐", call: "📞", ticket: "🎫", agentchat: "💬" };
 
 export class Island {
   readonly fsm = new IslandStateMachine();
@@ -1101,6 +1108,13 @@ export class Island {
 
   /** Alert from the hook server: open on this view. Pinned alerts never auto-close. */
   alert(view: IslandViewName) {
+    // A notice, a proposal, the recap or the day: in the notices' window, the
+    // island stays as it is (Edoardo, 17 Nov 2026). A card of Claude Code with
+    // choices waits for an answer: the island, as before.
+    if (TOASTED.has(view) && Notices.windowed() && !(view === "moment" && State.moment?.kind === "card")) {
+      this.toastFor(view);
+      return;
+    }
     this.fsm.pinned = State.isPinned;
     this.fsm.forceHome();
     this.expand(view);
@@ -2163,6 +2177,42 @@ ${note}` : text };
     if (State.quiet && State.mode !== "hidden" && !State.isPinned && !State.pendingApproval) this.fsm.forceHidden();
     if (!State.quiet) this.keepCompactUp();
     State.notify();
+  }
+
+  /** The toast for a view that would have opened the island (notices.ts); a click opens it there. */
+  private toastFor(view: IslandViewName) {
+    const open = () => {
+      this.fsm.pinned = State.isPinned;
+      this.fsm.forceHome();
+      this.expand(view);
+    };
+    switch (view) {
+      case "notify": {
+        const n = State.notice;
+        if (!n) return;
+        const actions: { label: string; run: () => void }[] = [];
+        if (n.install) actions.push({ label: t("Installa"), run: () => void this.installUpdate() });
+        else if (n.url) actions.push({ label: t("Apri"), run: () => void Bridge.openUrl(n.url) });
+        // A proposal with its own buttons (Crea / Non ora): those are in the island's card.
+        Notices.push({ key: n.install ? "update" : undefined, icon: LEVEL_ICON[n.level] ?? "ℹ️", title: n.title, text: n.text, level: n.level, actions, open });
+        return;
+      }
+      case "moment": {
+        const m = State.moment;
+        if (!m) return;
+        const [title, text] = momentHeadline(m);
+        Notices.push({ key: m.kind === "download" ? "download" : undefined, icon: MOMENT_ICON[m.kind] ?? "✨", title, text, level: "info", actions: [{ label: t("Apri"), run: open }], open });
+        return;
+      }
+      case "recap":
+        Notices.push({ key: "recap", icon: "🗓️", title: t("Il riepilogo della settimana è pronto."), level: "info", actions: [{ label: t("Apri"), run: open }], open });
+        return;
+      case "daily":
+        Notices.push({ key: "daily", icon: "☀️", title: t("Il punto della giornata è pronto."), level: "info", actions: [{ label: t("Apri"), run: open }], open });
+        return;
+      default:
+        open();
+    }
   }
 
   /** A message from `easyisland-hook notify` (any script, task or flow). */

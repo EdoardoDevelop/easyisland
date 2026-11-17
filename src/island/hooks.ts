@@ -17,6 +17,7 @@ import { t, tn } from "../core/i18n";
 import { plainText } from "../core/markdown";
 import { quickApproval } from "../views/strip";
 import { isReversible, toolWords } from "../core/permits";
+import * as Notices from "../notices/notices";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -1146,6 +1147,15 @@ function handle(island: Island, payload: HookPayload) {
           return;
         }
         Sound.play("finish");
+        // In the notices' window: a toast, the island stays on what it shows (notices.ts).
+        if (Notices.windowed() && !quietNow()) {
+          const name = State.tasks.find((x) => x.id === tid)?.name ?? projectName;
+          Notices.push({ key: `finished:${tid}`, icon: "✅", title: t("{name} ha finito.", { name }), level: "ok",
+            open: () => { State.setFocus(tid); island.alert("finished"); } });
+          if (State.focusId !== tid) State.setPillBadge(tid, "finished");
+          State.notify();
+          return;
+        }
         if (!quietNow()) State.setFocus(tid);
         surface("finished", true);
         State.notify();
@@ -1162,7 +1172,12 @@ function handle(island: Island, payload: HookPayload) {
       if (State.reaction("agentError") !== "show") State.setPillBadge(tid, "error");
       else {
         Sound.play("error");
-        if (focused) surface("error", true);
+        if (Notices.windowed() && !quietNow()) {
+          const name = State.tasks.find((x) => x.id === tid)?.name ?? projectName;
+          Notices.push({ key: `error:${tid}`, icon: "⛔", title: t("{name} si è fermato con un errore.", { name }), level: "error",
+            open: () => { State.setFocus(tid); island.alert("error"); } });
+          State.setPillBadge(tid, "error");
+        } else if (focused) surface("error", true);
         else State.setPillBadge(tid, "error");
       }
       break;

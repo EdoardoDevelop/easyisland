@@ -761,6 +761,8 @@ export interface Settings {
   quickAnswers?: string;
   /** The Anteprima opens by itself on a file the chat creates or edits; off by default. */
   previewEdits?: boolean;
+  /** Where notices go (notices.ts): "isola" (default), "alto-destra", "basso-destra", "dentro" (in the island). */
+  noticesPlace?: string;
   /** The model on the graphics card when there is a fitting one. */
   localGpu?: boolean;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */

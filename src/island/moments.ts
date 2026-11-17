@@ -12,6 +12,7 @@ import { onEvent, Bridge } from "../core/bridge";
 import type { IslandViewName } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State, type Moment } from "../core/state";
+import * as Notices from "../notices/notices";
 
 /** What the moments need from the island. */
 export interface MomentHost {
@@ -146,7 +147,8 @@ export function handleMoment(host: MomentHost, raw: unknown) {
     if (m.kind === "card") answerCard(m.id, null, "hidden");
     return;
   }
-  if (!free()) {
+  // In the notices' window a proposal covers nothing: at once (notices.ts).
+  if (!free() && !(Notices.windowed() && m.kind !== "card")) {
     void Bridge.log(`moment ${m.kind}: waiting, the island is busy (${State.mode} ${State.view})`);
     // Only the latest waits: an older card of Claude Code gets its answer now.
     if (pending?.m.kind === "card") answerCard(pending.m.id, null, "replaced");

@@ -960,6 +960,11 @@ pub struct Settings {
     /// "permissions" (only Claude Code permission requests).
     #[serde(default = "default_notify")]
     pub notify: String,
+    /// Where notices go (notices_window.rs, Edoardo 17 Nov 2026): "isola" in
+    /// their own window under the island (beside it when open), "alto-destra",
+    /// "basso-destra", or "dentro" (in the island, as before).
+    #[serde(default = "default_notices_place")]
+    pub notices_place: String,
     /// How the character takes each situation ("agentFinished", "agentError",
     /// "agentLimit", or a check's pill id): "show", "quiet" or "off". Missing = "show".
     /// The front end owns the meaning (src/core/state.ts `reactionKey`).
@@ -1251,6 +1256,10 @@ fn default_model() -> String {
     crate::claude::DEFAULT_MODEL.to_string()
 }
 
+fn default_notices_place() -> String {
+    "isola".into()
+}
+
 fn default_quick_answers() -> String {
     "potion".into()
 }
@@ -1366,6 +1375,7 @@ impl Default for Settings {
             alerts_open: true,
             theme: Theme::default(),
             notify: default_notify(),
+            notices_place: default_notices_place(),
             reactions: Map::new(),
             actions: Vec::new(),
             widgets: Vec::new(),
