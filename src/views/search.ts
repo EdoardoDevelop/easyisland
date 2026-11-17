@@ -263,6 +263,8 @@ export function buildSearch(actions: SearchActions): SearchHost {
       h("div", { class: "search-answer-acts" },
         h("button", { type: "button", class: "search-answer-btn", text: t("Copia"),
           onclick: () => { void navigator.clipboard.writeText(a.text).then(() => Sound.play("finish")).catch(() => {}); } }),
+        ...(a.node ? [h("button", { type: "button", class: "search-answer-btn", text: t("Apri la pagina"),
+          onclick: () => { const id = a.node!; reset(true); input.blur(); void Bridge.memoryWindowSelect(id); } })] : []),
         h("button", { type: "button", class: "search-answer-btn", text: t("Chiedi alla chat"),
           onclick: () => { reset(true); input.blur(); actions.ask(typed); } })),
     );

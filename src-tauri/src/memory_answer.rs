@@ -46,6 +46,54 @@ const COMMON: &[&str] = &[
     "c'è", "sai", "sa", "so", "you", "know", "about", "the", "a", "an", "of", "is", "are", "does", "do", "has", "have", "in", "on", "for", "to", "and", "or",
 ];
 
+/// The words of a search that say what it is about: no punctuation («proxmox?»,
+/// «l'ip»), no question words («come», «quale»), no common ones («di», «da»).
+/// None left (a question of common words only): its words as they are.
+/// 17 Nov 2026: «come cambiare ip di proxmox da shell?» found nothing in the
+/// island's search, though the page had the procedure (brain::find_nodes).
+pub(crate) fn search_words(query: &str) -> Vec<String> {
+    let all = words(query);
+    let kept: Vec<String> = all
+        .iter()
+        .filter(|w| !ASKING.contains(&w.as_str()) && !COMMON.contains(&w.as_str()) && !QUESTION.contains(&w.as_str()))
+        .cloned()
+        .collect();
+    if kept.is_empty() { all } else { kept }
+}
+
+/// Question words that are not ASKING (they ask «how», «why»).
+const QUESTION: &[&str] = &["come", "perché", "perche", "why", "how", "posso", "puoi", "devo", "bisogna", "si", "fa", "fare"];
+
+/// The part of a word that its other forms share: «cambiare», «cambio», «cambia»
+/// → «cambi»; «modificare», «modifica» → «modific». Short words stay whole.
+pub(crate) fn root(w: &str) -> String {
+    let n = w.chars().count();
+    if n < 6 {
+        return w.to_string();
+    }
+    w.chars().take(5.max(n - 3)).collect()
+}
+
+/// The roots a word stands for: its own, and for the verbs of changing a
+/// setting all of them («modificare l'ip» is the section «Cambiare l'IP»).
+pub(crate) fn roots(w: &str) -> Vec<String> {
+    const CHANGE: &[&str] = &["cambi", "modific", "impost", "configur", "sett", "aggiorn"];
+    let r = root(w);
+    if CHANGE.iter().any(|c| r.starts_with(c) || (r.len() >= 4 && c.starts_with(r.as_str()))) {
+        return CHANGE.iter().map(|c| c.to_string()).collect();
+    }
+    vec![r]
+}
+
+/// A question that asks how to do something («come cambiare l'ip del proxmox?»):
+/// its answer is a procedure, a section of a page (quick_answer.rs).
+pub fn is_procedure(question: &str) -> bool {
+    let low = question.trim().to_lowercase();
+    let w = words(&low);
+    (w.first().is_some_and(|x| x == "come" || x == "how") && !low.contains("come si chiama") && (3..=MAX_WORDS).contains(&w.len()))
+        || low.starts_with("procedura per ")
+}
+
 const MAX_WORDS: usize = 14;
 /// At most this many lines, as good as the best one (same page, same words).
 const MAX_LINES: usize = 2;
@@ -424,6 +472,17 @@ mod tests {
                 println!("  → {}", shown(l).chars().take(150).collect::<String>());
             }
         }
+    }
+
+    #[test]
+    fn search_words_and_their_roots() {
+        assert_eq!(search_words("come cambiare ip di proxmox da shell?"), ["cambiare", "ip", "proxmox", "shell"]);
+        assert_eq!(search_words("come si cambia l'ip del proxmox?"), ["cambia", "ip", "proxmox"]);
+        assert_eq!(search_words("di da"), ["di", "da"]);
+        assert_eq!((root("cambiare"), root("cambio"), root("modificare")), ("cambi".to_string(), "cambi".to_string(), "modific".to_string()));
+        assert!(root("modifica").starts_with("modific") || "modifica".starts_with(&root("modificare")));
+        assert!(is_procedure("come cambiare ip di proxmox da shell?") && is_procedure("Procedura per cambiare l'ip"));
+        assert!(!is_procedure("come si chiama il server di Falchi?") && !is_procedure("quali vm ha Falchi?") && !is_procedure("come?"));
     }
 
     #[test]

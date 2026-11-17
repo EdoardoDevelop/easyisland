@@ -32,13 +32,40 @@ pub struct QuickAnswer {
     pub sources: Vec<String>,
     /// Who wrote it: «Potion», or the model's name.
     pub by: String,
+    /// The memory's page it comes from, when it is one section of it (a
+    /// procedure): the node of the Mappa («p:proxmox», «lavoro|p:proxmox»).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node: Option<String>,
 }
 
 /// The answer to a question typed in the search, if the memory has one.
 pub async fn answer(app: &AppHandle, question: &str) -> Option<QuickAnswer> {
     let question = question.trim();
     let how = app.try_state::<crate::Shared>()?.settings.lock().unwrap().quick_answers.clone();
-    if how == "off" || question.chars().count() < 6 || !crate::memory_answer::is_lookup(question) {
+    if how == "off" || question.chars().count() < 6 {
+        return None;
+    }
+    // «come cambiare l'ip del proxmox?»: the section of a page that says how (17 Nov
+    // 2026: the procedure was in the memory, the search answered nothing).
+    if crate::memory_answer::is_procedure(question) {
+        let other = crate::memshare::source(app);
+        let q = question.to_string();
+        let found = tauri::async_runtime::spawn_blocking(move || {
+            let mut pages: Vec<(String, crate::brain::Page, Option<String>)> = crate::brain::pages().into_iter().map(|p| (format!("p:{}", p.slug), p, None)).collect();
+            if let Some(pc) = other {
+                for p in crate::brain::pages_in(&crate::memshare::copy_dir(&pc).join("pagine")) {
+                    pages.push((format!("{pc}|p:{}", p.slug), p, Some(pc.clone())));
+                }
+            }
+            procedure(&q, &pages)
+        })
+        .await
+        .ok()
+        .flatten();
+        crate::log::line(format!("risposta rapida: procedura {}", if found.is_some() { "trovata" } else { "non trovata" }));
+        return found;
+    }
+    if !crate::memory_answer::is_lookup(question) {
         return None;
     }
     let mut lines = crate::router::memory_lines(app, question).await;
@@ -62,7 +89,7 @@ pub async fn answer(app: &AppHandle, question: &str) -> Option<QuickAnswer> {
         Some(pc) => format!("{} ({pc})", source_of(l)),
         None => source_of(l),
     }).collect();
-    let plain = QuickAnswer { text: shown.join("\n"), lines: shown.clone(), sources, by: "Potion".into() };
+    let plain = QuickAnswer { text: shown.join("\n"), lines: shown.clone(), sources, by: "Potion".into(), node: None };
     let written = match how.as_str() {
         "local" => crate::local_model::compose(app, question, &lines).await,
         e if ENGINES.contains(&e) => by_engine(app, e, question, &lines).await,
@@ -73,6 +100,75 @@ pub async fn answer(app: &AppHandle, question: &str) -> Option<QuickAnswer> {
         Some((text, by)) => QuickAnswer { text, by, ..plain },
         None => plain,
     })
+}
+
+/// The most lines of a procedure shown in the search (the page has the rest).
+const PROCEDURE_LINES: usize = 14;
+
+/// The section («## …») of a page that answers a how-to question: every word
+/// that matters in the page's name, the section's title or its text, and at
+/// least two of them (or the only one) in the title. The best title wins.
+/// None: no answer, as for the lookups (a wrong one is worse).
+fn procedure(question: &str, pages: &[(String, crate::brain::Page, Option<String>)]) -> Option<QuickAnswer> {
+    use crate::brain::fold;
+    let words: Vec<String> = crate::memory_answer::search_words(question).iter().map(|w| fold(w)).collect();
+    if words.is_empty() {
+        return None;
+    }
+    let has = |hay: &str, w: &String| {
+        let hay_words: Vec<&str> = hay.split(|c: char| !c.is_alphanumeric()).filter(|x| !x.is_empty()).collect();
+        // A short word whole («ip» not in «tipo»); a long one by its root.
+        if w.chars().count() < 6 { hay_words.contains(&w.as_str()) } else { crate::memory_answer::roots(w).iter().any(|r| hay.contains(r.as_str())) }
+    };
+    let need = words.len().min(2);
+    let mut best: Option<(usize, QuickAnswer)> = None;
+    for (node, page, pc) in pages {
+        let names = fold(&format!("{} {}", page.title, page.aliases.join(" ")));
+        for (title, body) in sections(&page.body) {
+            let head = fold(&title);
+            let text = fold(&body.join("\n"));
+            if !words.iter().all(|w| has(&head, w) || has(&names, w) || has(&text, w)) {
+                continue;
+            }
+            let in_title = words.iter().filter(|w| has(&head, w)).count();
+            let in_names = words.iter().filter(|w| has(&names, w)).count();
+            if in_title + in_names.min(1) < need || in_title == 0 {
+                continue;
+            }
+            let score = in_title * 2 + in_names;
+            if best.as_ref().is_some_and(|(s, _)| *s >= score) {
+                continue;
+            }
+            let lines: Vec<String> = body.iter().take(PROCEDURE_LINES).cloned().collect();
+            let more = body.len() > PROCEDURE_LINES;
+            let mut text = format!("{title}\n{}", lines.join("\n"));
+            if more {
+                text.push_str(&format!("\n{}", t("… il resto nella pagina.")));
+            }
+            let source = match pc {
+                Some(pc) => format!("{} ({pc})", page.title),
+                None => page.title.clone(),
+            };
+            best = Some((score, QuickAnswer { text, lines, sources: vec![source], by: "Potion".into(), node: Some(node.clone()) }));
+        }
+    }
+    best.map(|(_, a)| a)
+}
+
+/// The «## » sections of a page's text: (title, its lines without the empty ones).
+fn sections(body: &str) -> Vec<(String, Vec<String>)> {
+    let mut out: Vec<(String, Vec<String>)> = Vec::new();
+    for line in body.lines() {
+        if let Some(title) = line.trim().strip_prefix("## ") {
+            out.push((title.trim().to_string(), Vec::new()));
+        } else if let Some((_, lines)) = out.last_mut() {
+            let l = line.trim();
+            if !l.is_empty() {
+                lines.push(l.to_string());
+            }
+        }
+    }
+    out
 }
 
 /// The lines of a copy of another PC's memory, as the meaning's corpus
@@ -201,6 +297,42 @@ mod tests {
             println!("\n«{q}» consultazione={} → {} righe", crate::memory_answer::is_lookup(q), found.len());
             for l in &found {
                 println!("  → {} [{}]", crate::memory_answer::shown(l).chars().take(160).collect::<String>(), source_of(l));
+            }
+        }
+    }
+
+    fn page(title: &str, aliases: &[&str], body: &str) -> crate::brain::Page {
+        crate::brain::Page { slug: crate::brain::fold(title), title: title.into(), source: String::new(), updated: String::new(), summary: String::new(), aliases: aliases.iter().map(|a| a.to_string()).collect(), body: body.into(), links: Vec::new() }
+    }
+
+    #[test]
+    fn a_procedure_is_the_section_whose_title_has_the_words() {
+        let body = "Hypervisor delle farmacie.\n\n## Cambiare l'IP del Proxmox (host fisico, nodo singolo)\nFarlo dalla console locale: si chiude anche la Shell web.\n1. Backup: cp /etc/network/interfaces …\n2. vmbr0: address NUOVOIP/24\n\n## Cambiare l'IP del PBS (VM, oggi in DHCP)\n1. Backup\n2. inet static\n\n## Attenzione\n- fingerprint";
+        let pages = vec![("p:proxmox".to_string(), page("Proxmox", &["PVE", "PBS"], body), None)];
+        let a = procedure("come cambiare ip di proxmox da shell?", &pages).unwrap();
+        assert!(a.text.starts_with("Cambiare l'IP del Proxmox") && a.text.contains("vmbr0") && !a.text.contains("inet static"));
+        assert_eq!((a.node.as_deref(), a.sources[0].as_str()), (Some("p:proxmox"), "Proxmox"));
+        let pbs = procedure("come si cambia l'ip del pbs?", &pages).unwrap();
+        assert!(pbs.text.starts_with("Cambiare l'IP del PBS"));
+        // Another verb of changing: the same section.
+        assert!(procedure("come modificare ip proxmox", &pages).unwrap().text.starts_with("Cambiare l'IP del Proxmox"));
+        // Nothing in the titles, or a word nowhere: no answer.
+        assert!(procedure("come si installa una stampante?", &pages).is_none());
+        assert!(procedure("come cambiare ip del firewall?", &pages).is_none());
+    }
+
+    /// On the real page, read only:
+    /// EI_PAGE=…\proxmox.md cargo test quick_answer -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn procedures_on_a_real_page() {
+        let path = std::path::PathBuf::from(std::env::var("EI_PAGE").unwrap());
+        let dir = path.parent().unwrap();
+        let pages: Vec<_> = crate::brain::pages_in(dir).into_iter().map(|p| (format!("p:{}", p.slug), p, None)).collect();
+        for q in ["come cambiare ip di proxmox da shell?", "come si cambia l'ip del proxmox?", "come cambio l'ip del pbs", "come modificare ip proxmox", "come installo una stampante?"] {
+            match procedure(q, &pages) {
+                Some(a) => println!("\n«{q}» → {} ({} righe)\n  {}", a.sources[0], a.lines.len(), a.text.lines().take(3).collect::<Vec<_>>().join("\n  ")),
+                None => println!("\n«{q}» → niente"),
             }
         }
     }

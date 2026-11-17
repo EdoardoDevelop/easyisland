@@ -927,7 +927,8 @@ fn page_words(p: &Page) -> PageWords {
 /// on this PC and in the copies of the others, whatever the map shows. Those
 /// with them in their names first, then pages, notes, sources, archived notes.
 pub fn find_nodes(query: &str, max: usize, other: Option<String>) -> Vec<PageHit> {
-    let words: Vec<String> = query.split_whitespace().map(fold).filter(|w| !w.is_empty()).collect();
+    // The words that say what it is about (17 Nov 2026: «come …» and «proxmox?» found nothing).
+    let words: Vec<String> = crate::memory_answer::search_words(query).iter().map(|w| fold(w)).filter(|w| !w.is_empty()).collect();
     if words.is_empty() {
         return Vec::new();
     }
@@ -976,9 +977,11 @@ fn rank_nodes(nodes: &[Node], pages_by_id: &HashMap<String, PageWords>, words: &
         let page = pages_by_id.get(&n.id);
         let names = format!("{} {}", fold(&n.label), page.map(|p| p.names.as_str()).unwrap_or_default());
         let text = page.map(|p| p.text.clone()).unwrap_or_else(|| fold(&n.text));
-        let rank = if words.iter().all(|w| names.contains(w.as_str())) {
+        // A word, or its root for a long one («cambio» finds «cambiare»).
+        let has = |hay: &str, w: &String| hay.contains(w.as_str()) || crate::memory_answer::roots(w).iter().any(|r| hay.contains(r.as_str()));
+        let rank = if words.iter().all(|w| has(&names, w)) {
             0
-        } else if words.iter().all(|w| names.contains(w.as_str()) || text.contains(w.as_str())) {
+        } else if words.iter().all(|w| has(&names, w) || has(&text, w)) {
             1
         } else {
             continue;

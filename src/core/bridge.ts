@@ -1051,6 +1051,8 @@ export interface QuickAnswer {
   sources: string[];
   /** «Potion» or the model that wrote it. */
   by: string;
+  /** A procedure: the page of the Mappa it is a section of («p:proxmox»). */
+  node?: string;
 }
 
 export interface MemoryHit {
