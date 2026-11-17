@@ -897,7 +897,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_snapshot",
-            "La pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la leggono i lettori di schermo: titoli, testi, link, pulsanti e campi in righe rientrate, ognuno con un riferimento [ref=e5] da passare a preview_click e preview_type. Il modo migliore per capire e usare una pagina; con una finestra in primo piano si vede solo quella. I riferimenti restano validi finché l'elemento è nella pagina.",
+            "La pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la leggono i lettori di schermo: titoli, testi, link, pulsanti e campi in righe rientrate, ognuno con un riferimento [ref=e5] da passare a preview_click e preview_type. Il modo migliore per capire e usare una pagina; con una finestra in primo piano si vede solo quella. Gli iframe dello stesso sito (iLO, iDRAC, console di gestione) si leggono dentro: [frame=f1] e riferimenti come f1e5, usabili come gli altri da click, type, act, find, wait; quelli di un altro sito no. I riferimenti restano validi finché l'elemento è nella pagina.",
             json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
             true,
         ),

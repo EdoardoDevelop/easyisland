@@ -1316,7 +1316,7 @@ async fn mouse(app: &AppHandle, id: u32, kind: &'static str, x: f64, y: f64, but
 /// viewport, after bringing it into view), found like preview_click finds it.
 async fn point_of(app: &AppHandle, id: u32, target: &Value, guard: bool) -> Result<(f64, f64, String), String> {
     let script = format!(
-        "({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }}, false, {guard})"
+        "{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); const o = window.__eiOff(el); return [r.left + r.width / 2 + o[0], r.top + r.height / 2 + o[1]]; }}, false, {guard})"
     );
     let raw = eval(app, id, &script).await?;
     let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
@@ -1615,16 +1615,18 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     _ => Err(tf("Il file non si può leggere come testo ({k}).", &[("k", &f.kind)])),
                 };
             }
-            let script = r#"(() => {
-  const t = document.body ? document.body.innerText : "";
-  const links = Array.from(document.querySelectorAll("a[href]")).slice(0, 60).map(a => (a.innerText || "").trim().slice(0, 60) + " → " + a.href).filter(l => !l.startsWith(" →"));
-  const fields = Array.from(document.querySelectorAll("input, textarea, select, button")).slice(0, 60).map(e => {
+            let script = format!("{FRAMES}{READ}");
+            const READ: &str = r#"(() => {
+  const docs = window.__eiDocs();
+  const t = docs.map((x) => (x.frame ? "\n[frame " + x.frame + "]\n" : "") + (x.doc.body ? x.doc.body.innerText : "")).join("\n");
+  const links = docs.flatMap((x) => Array.from(x.doc.querySelectorAll("a[href]"))).slice(0, 60).map(a => (a.innerText || "").trim().slice(0, 60) + " → " + a.href).filter(l => !l.startsWith(" →"));
+  const fields = docs.flatMap((x) => Array.from(x.doc.querySelectorAll("input, textarea, select, button"))).slice(0, 60).map(e => {
     const label = e.getAttribute("aria-label") || e.getAttribute("placeholder") || e.getAttribute("name") || e.id || (e.innerText || "").trim().slice(0, 40);
     return e.tagName.toLowerCase() + (e.type ? "[" + e.type + "]" : "") + " " + label;
   });
   return { title: document.title, url: location.href, text: t, links, fields };
 })()"#;
-            let raw = eval(app, tb.id, script).await?;
+            let raw = eval(app, tb.id, &script).await?;
             let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
             let mut out = format!(
                 "{}\n{}\n\n{}",
@@ -1646,7 +1648,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 // In CSS pixels (× scale): what preview_act's x, y mean. A zone: one element.
                 let zone = match target_of(args, "") {
                     Some(target) => {
-                        let script = format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + scrollX, r.top + scrollY, r.width, r.height]; }}, false, false)");
+                        let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); const r = el.getBoundingClientRect(); const o = window.__eiOff(el); return [r.left + o[0] + scrollX, r.top + o[1] + scrollY, r.width, r.height]; }}, false, false)");
                         let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                         if let Some(e) = v.get("error").and_then(Value::as_str) {
                             return Err(e.to_string());
@@ -1819,7 +1821,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             if q.trim().is_empty() {
                 return Err(t("Manca query: il testo da cercare nella pagina.").into());
             }
-            let raw = eval(app, tb.id, &format!("({FIND_ALL})({})", json!(q))).await?;
+            let raw = eval(app, tb.id, &format!("{FRAMES}({FIND_ALL})({})", json!(q))).await?;
             let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
             let lines: Vec<&str> = v.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
             if lines.is_empty() {
@@ -1864,9 +1866,9 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 return Ok(format!("{waited}\n\n{page}"));
             }
             // «changed»: the page's text (with its frames of the same site) as it is now.
-            let before = if changed { eval(app, tb.id, &format!("({WAIT})({})", json!({ "hash": true }))).await.ok().map(|h| h.trim().trim_matches('"').to_string()) } else { None };
+            let before = if changed { eval(app, tb.id, &format!("{FRAMES}({WAIT})({})", json!({ "hash": true }))).await.ok().map(|h| h.trim().trim_matches('"').to_string()) } else { None };
             let q = json!({ "text": s("text"), "gone": s("text_gone"), "selector": s("selector"), "before": before });
-            let script = format!("({WAIT})({q})");
+            let script = format!("{FRAMES}({WAIT})({q})");
             loop {
                 // During a navigation the page does not answer: tried again.
                 if let Ok(raw) = eval(app, tb.id, &script).await {
@@ -1922,12 +1924,12 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let tb = tab_for(&s("tab"))?;
             let target = json!({ "ref": s("ref"), "selector": s("selector"), "text": s("text_match") });
             let script = if name == "preview_click" {
-                format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
+                format!("{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
             } else {
                 let value = json!(s("text"));
                 let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(false);
                 format!(
-                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
+                    "{FRAMES}({FIND})({target}, (el) => {{ el.focus(); const W = el.ownerDocument.defaultView; const proto = el instanceof W.HTMLTextAreaElement ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof W.HTMLInputElement || el instanceof W.HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
                 )
             };
             let raw = eval(app, tb.id, &script).await?;
@@ -2014,7 +2016,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     }
                     // On an element: focused first (and guarded: Invio on «Acquista» is a click).
                     if let Some(target) = at("") {
-                        let script = format!("({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
+                        let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
                         let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                         if let Some(e) = v.get("error").and_then(Value::as_str) {
                             return Err(e.to_string());
@@ -2028,7 +2030,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 "type_keys" => {
                     // As typed on the keyboard: for search boxes that suggest while you write.
                     let target = at("").ok_or_else(|| t("Manca il campo: ref, selector o text_match.").to_string())?;
-                    let script = format!("({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
+                    let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
                     let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                     if let Some(e) = v.get("error").and_then(Value::as_str) {
                         return Err(e.to_string());
@@ -2043,7 +2045,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                         "select" => format!("if (el.tagName !== 'SELECT') return 'not-select'; const w = String({want}).trim().toLowerCase(); const o = Array.from(el.options).find((o) => o.value.toLowerCase() === w || o.text.trim().toLowerCase() === w) || Array.from(el.options).find((o) => o.text.toLowerCase().includes(w)); if (!o) return 'no-option'; el.value = o.value; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); return o.text;"),
                         _ => format!("const on = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true'; if (on !== {}) el.click(); return 'ok';", action == "check"),
                     };
-                    let script = format!("({FIND})({target}, (el) => {{ {body} }}, false, true)");
+                    let script = format!("{FRAMES}({FIND})({target}, (el) => {{ {body} }}, false, true)");
                     let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                     if let Some(e) = v.get("error").and_then(Value::as_str) {
                         return Err(e.to_string());
@@ -2173,7 +2175,7 @@ pub(crate) async fn extract_found(app: &AppHandle, id: u32, args: &Value) -> Res
     if let Some(v) = args.get("items").and_then(Value::as_str).filter(|v| !v.trim().is_empty()) {
         opts["items"] = json!(v);
     }
-    let v = eval_async(app, id, &format!("({EXTRACT})({opts})")).await?;
+    let v = eval_async(app, id, &format!("{FRAMES}({EXTRACT})({opts})")).await?;
     match v.get("error").and_then(Value::as_str) {
         Some("cross") => return Err(t("url deve essere dello stesso sito della scheda (apri prima quel sito).").into()),
         Some("status") => return Err(tf("Il sito ha risposto {s}.", &[("s", &v.get("status").map(Value::to_string).unwrap_or_default())])),
@@ -2290,7 +2292,7 @@ fn changes(before: &str, now: &str) -> Option<String> {
 
 /// The page as the chat reads it: roles, names and a ref for each control.
 async fn page_snapshot(app: &AppHandle, id: u32) -> Result<String, String> {
-    let raw = eval(app, id, &format!("({SNAPSHOT})()")).await?;
+    let raw = eval(app, id, &format!("{FRAMES}({SNAPSHOT})()")).await?;
     let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
     let mut out = format!(
         "{}\n{}\n",
@@ -2319,6 +2321,45 @@ async fn settle(app: &AppHandle, id: u32) {
     }
 }
 
+/// Frames of the same site (17 Nov 2026: iLO and iDRAC have all their pages
+/// in one): put once on the page's window, used by every script here.
+/// `__eiDocs` the page and its readable frames (a frame of another site gives
+/// no document: not read), `__eiFrameId` f1, f2… per frame (the prefix of its
+/// refs, f1e5), `__eiOff` where a frame's element is on the page (clicks and
+/// zones in the page's pixels). The guard on carts and payments looks at the
+/// element, so it holds inside a frame too; a frame of the same site is the
+/// same site for the permissions.
+const FRAMES: &str = r#"(() => {
+  if (window.__eiDocs) return;
+  const def = (k, v) => Object.defineProperty(window, k, { value: v, enumerable: false });
+  const ids = new WeakMap();
+  let n = 0;
+  def("__eiFrameId", (f) => { let id = ids.get(f); if (!id) { id = "f" + (++n); ids.set(f, id); } return id; });
+  def("__eiDocOf", (f) => { try { const d = f.contentDocument; return d && d.body ? d : null; } catch (e) { return null; } });
+  def("__eiDocs", () => {
+    const out = [{ doc: document, frame: "" }];
+    const seen = new Set([document]);
+    for (let i = 0; i < out.length && out.length < 12; i++) {
+      for (const f of out[i].doc.querySelectorAll("iframe, frame")) {
+        const d = window.__eiDocOf(f);
+        if (d && !seen.has(d)) { seen.add(d); out.push({ doc: d, frame: window.__eiFrameId(f) }); }
+      }
+    }
+    return out;
+  });
+  def("__eiPrefix", (el) => { const v = el.ownerDocument && el.ownerDocument.defaultView; return v && v !== window && v.frameElement ? window.__eiFrameId(v.frameElement) : ""; });
+  def("__eiOff", (el) => {
+    let x = 0, y = 0;
+    let v = el.ownerDocument && el.ownerDocument.defaultView;
+    while (v && v !== window && v.frameElement) {
+      const f = v.frameElement; const r = f.getBoundingClientRect();
+      x += r.left + f.clientLeft; y += r.top + f.clientTop;
+      v = v.parent;
+    }
+    return [x, y];
+  });
+})();"#;
+
 /// The page's tree, as screen readers see it: one line per landmark, heading,
 /// control or text, indented. Controls get a ref (e1, e2…) that stays the same
 /// for the same element while the page lives, so an old ref never points at
@@ -2327,10 +2368,10 @@ async fn settle(app: &AppHandle, id: u32) {
 const SNAPSHOT: &str = r#"() => {
   if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
   const R = window.__eiRefs;
-  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = window.__eiPrefix(el) + "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
   const shown = (el) => {
     if (el.getAttribute("aria-hidden") === "true" || el.hidden) return false;
-    const s = getComputedStyle(el);
+    const s = el.ownerDocument.defaultView.getComputedStyle(el);
     if (s.display === "none" || s.visibility === "hidden" || s.opacity === "0") return false;
     return el.getClientRects().length > 0 || s.display === "contents";
   };
@@ -2354,12 +2395,12 @@ const SNAPSHOT: &str = r#"() => {
     if (/^h[1-6]$/.test(tag)) return "heading";
     if (tag === "img") return el.getAttribute("alt") ? "img" : "";
     if (el.getAttribute("contenteditable") === "true" || el.getAttribute("contenteditable") === "") return "textbox";
-    return { nav: "navigation", main: "main", header: "banner", footer: "contentinfo", form: "form", dialog: "dialog", aside: "complementary", table: "table", iframe: "iframe" }[tag] || "";
+    return { nav: "navigation", main: "main", header: "banner", footer: "contentinfo", form: "form", dialog: "dialog", aside: "complementary", table: "table", iframe: "iframe", frame: "iframe" }[tag] || "";
   };
   const CONTROL = new Set(["link", "button", "textbox", "searchbox", "checkbox", "radio", "slider", "combobox", "listbox", "tab", "menuitem", "switch", "option", "menuitemcheckbox", "menuitemradio", "spinbutton", "treeitem"]);
   const nameOf = (el) => {
     const by = el.getAttribute("aria-labelledby");
-    if (by) { const t = by.split(/\s+/).map((i) => document.getElementById(i)).filter(Boolean).map((e) => e.innerText).join(" "); if (t.trim()) return clip(t, 80); }
+    if (by) { const t = by.split(/\s+/).map((i) => el.ownerDocument.getElementById(i)).filter(Boolean).map((e) => e.innerText).join(" "); if (t.trim()) return clip(t, 80); }
     const direct = el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.getAttribute("alt") || "";
     if (direct.trim()) return clip(direct, 80);
     const tag = el.tagName;
@@ -2400,7 +2441,14 @@ const SNAPSHOT: &str = r#"() => {
       }
       if (role === "heading") { lines.push(pad + "- heading " + JSON.stringify(clip(el.innerText, 120)) + " [level=" + (el.getAttribute("aria-level") || tag.slice(1)) + "]"); continue; }
       if (role === "img") { lines.push(pad + "- img " + JSON.stringify(nameOf(el))); continue; }
-      if (role === "iframe") { lines.push(pad + "- iframe " + JSON.stringify(clip(el.getAttribute("title") || el.src, 80)) + " (contenuto non letto)"); continue; }
+      if (role === "iframe") {
+        const d = window.__eiDocOf(el);
+        const name = JSON.stringify(clip(el.getAttribute("title") || el.getAttribute("name") || el.src, 80));
+        if (!d) { lines.push(pad + "- iframe " + name + " (altro sito: contenuto non letto)"); continue; }
+        lines.push(pad + "- iframe " + name + " [frame=" + window.__eiFrameId(el) + "]:");
+        walk(d.body, depth + 1);
+        continue;
+      }
       let inner = depth;
       if (role) { lines.push(pad + "- " + role + (el.getAttribute("aria-label") ? " " + JSON.stringify(clip(el.getAttribute("aria-label"), 60)) : "") + ":"); inner = depth + 1; }
       walk(el.shadowRoot || el, inner);
@@ -2418,15 +2466,16 @@ const SNAPSHOT: &str = r#"() => {
 const FIND_ALL: &str = r#"(q) => {
   if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
   const R = window.__eiRefs;
-  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = window.__eiPrefix(el) + "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
   const clip = (t, n) => { t = (t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
   const want = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = (el) => { const s = getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0; };
+  const shown = (el) => { const s = el.ownerDocument.defaultView.getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0; };
   const nameOf = (el) => clip(el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.innerText || el.value || el.getAttribute("placeholder") || el.getAttribute("title") || el.getAttribute("alt") || "", 100);
   const has = (t) => { t = t.toLowerCase(); return want.every((w) => t.includes(w)); };
   const roleOf = (el) => el.getAttribute("role") || ({ A: "link", BUTTON: "button", INPUT: "textbox", TEXTAREA: "textbox", SELECT: "combobox", IMG: "img", H1: "heading", H2: "heading", H3: "heading", H4: "heading", H5: "heading", H6: "heading" }[el.tagName] || "text");
-  const under = (el) => { let e = el; while (e && e !== document.body) { let p = e.previousElementSibling; while (p) { if (/^H[1-6]$/.test(p.tagName)) return clip(p.innerText, 50); p = p.previousElementSibling; } e = e.parentElement; } return ""; };
-  const controls = Array.from(document.querySelectorAll("a[href], button, input:not([type=hidden]), textarea, select, img[alt], h1, h2, h3, h4, h5, h6, [role], label, summary"));
+  const under = (el) => { let e = el; while (e && e !== e.ownerDocument.body) { let p = e.previousElementSibling; while (p) { if (/^H[1-6]$/.test(p.tagName)) return clip(p.innerText, 50); p = p.previousElementSibling; } e = e.parentElement; } return ""; };
+  const docs = window.__eiDocs().map((x) => x.doc);
+  const controls = docs.flatMap((d) => Array.from(d.querySelectorAll("a[href], button, input:not([type=hidden]), textarea, select, img[alt], h1, h2, h3, h4, h5, h6, [role], label, summary")));
   const out = [];
   const seen = new Set();
   for (const el of controls) {
@@ -2440,7 +2489,8 @@ const FIND_ALL: &str = r#"(q) => {
   }
   // Plain text too (a price, a code), as its smallest block.
   if (out.length < 25) {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (const d of docs) {
+    const walker = d.createTreeWalker(d.body, NodeFilter.SHOW_TEXT);
     let n;
     while ((n = walker.nextNode()) && out.length < 25) {
       const el = n.parentElement;
@@ -2449,6 +2499,7 @@ const FIND_ALL: &str = r#"(q) => {
       if (seen.has(block)) continue;
       seen.add(block);
       out.push("- text " + JSON.stringify(clip(block.innerText, 160)) + " [ref=" + refOf(block) + "]");
+    }
     }
   }
   return out;
@@ -2631,7 +2682,7 @@ const EXTRACT: &str = r#"async (o) => {
     if (j != null) fromJson(j, "json");
     else html(new DOMParser().parseFromString(text, "text/html"));
   } else {
-    html(document);
+    for (const x of window.__eiDocs()) html(x.doc);
     fromDataLayer();
     for (const b of o.bodies || []) { let j = null; try { j = JSON.parse(b); } catch (e) {} if (j != null) fromJson(j, "rete"); }
   }
@@ -2753,7 +2804,8 @@ const LOGIN: &str = r#"(user, pass, submit) => {
 
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.
 const WAIT: &str = r#"(q) => {
-  const body = document.body ? document.body.innerText : "";
+  const docs = window.__eiDocs().map((x) => x.doc);
+  const body = docs.map((d) => (d.body ? d.body.innerText : "")).join("\n");
   if (q.hash || q.before != null) {
     let h = 0;
     for (let i = 0; i < body.length; i++) h = (h * 31 + body.charCodeAt(i)) | 0;
@@ -2763,7 +2815,7 @@ const WAIT: &str = r#"(q) => {
   }
   if (q.text && !body.includes(q.text)) return false;
   if (q.gone && body.includes(q.gone)) return false;
-  try { if (q.selector && !document.querySelector(q.selector)) return false; } catch (e) { return false; }
+  try { if (q.selector && !docs.some((d) => d.querySelector(q.selector))) return false; } catch (e) { return false; }
   return document.readyState !== "loading";
 }"#;
 
@@ -2810,10 +2862,11 @@ const FIND: &str = r#"(q, act, typing, guard) => {
     el = w && w.deref();
     if (!el || !el.isConnected) return { error: "Il riferimento " + q.ref + " non è più nella pagina: rifai preview_snapshot." };
   }
-  try { if (!el && q.selector) el = document.querySelector(q.selector); } catch (e) { return { error: "Selettore non valido: " + q.selector }; }
+  const docs = window.__eiDocs().map((x) => x.doc);
+  try { if (!el && q.selector) for (const d of docs) { el = d.querySelector(q.selector); if (el) break; } } catch (e) { return { error: "Selettore non valido: " + q.selector }; }
   if (!el && q.text) {
     const want = q.text.trim().toLowerCase();
-    const all = Array.from(document.querySelectorAll("a, button, input, textarea, select, label, summary, [role=button], [role=link], [role=tab], [role=menuitem], [onclick], [contenteditable=true]"));
+    const all = docs.flatMap((d) => Array.from(d.querySelectorAll("a, button, input, textarea, select, label, summary, [role=button], [role=link], [role=tab], [role=menuitem], [onclick], [contenteditable=true]")));
     const name = (e) => [e.innerText, e.value, e.getAttribute("aria-label"), e.getAttribute("placeholder"), e.getAttribute("title"), e.getAttribute("name")].filter(Boolean).join(" ").trim().toLowerCase();
     el = all.find((e) => name(e) === want) || all.find((e) => name(e).includes(want));
     if (el && el.tagName === "LABEL" && el.control) el = el.control;
