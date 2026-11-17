@@ -60,6 +60,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Chat: allegati senza testo, lingua, tempo dei lavori in background, rifiuti dell'Automatica, costo nel log
+- Solo allegati: partono con «Guarda l'allegato.». Ogni messaggio a Claude Code ricorda la lingua (dopo una skill in inglese rispondeva in inglese).
+- «In background»: «da N min» e, dopo 10 min, «A che punto è?». Rifiuti del classificatore in «Automatica» spiegati in italiano (`auto_denied`).
+- Log di Claude Code: costo e secondi del modello del turno, non i totali del processo, una riga per risultato. Dalla giornata del portatile; ricerca/procedure e Modello sul PC li fa l'altra sessione.
+
 ### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
 - La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
 - Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
@@ -74,7 +79,4 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 17/11 — Chat: «In background» non copre più la riga del motore
 Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciavano quello spazio. Ora lo tiene l'ultima riga mostrata sopra il campo (`chat-cards.css`). Un lavoro finito esce dalla lista anche con il solo `task_notification` (`claude_cli.rs` `Progress::feed`). Scene `chat&background=1`, `&coda`.
-
-### 17/11 — Risposte rapide nella ricerca dell'isola
-Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
 

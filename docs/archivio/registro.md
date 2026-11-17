@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 — Risposte rapide nella ricerca dell'isola
+Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
+
 ### 17/11 — Anteprima: attesa lunga, iframe dello stesso sito, foto come immagine
 Il 16/11 sul portatile l'aggiornamento dell'iLO è costato un turno di 25 minuti (46 attese inventate, 38 foto + 38 letture, 3,44 $). Ora:
 - `preview_wait` aspetta fino a 10 minuti controllando nell'app, con `changed` o come pausa, e «Ferma» la interrompe;

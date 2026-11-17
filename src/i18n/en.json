@@ -5728,5 +5728,12 @@
   "Spenta, il file creato o modificato resta un collegamento nella risposta: un clic lo mostra nell'Anteprima con le modifiche evidenziate. Accesa, l'Anteprima si apre da sola; se la chiudi, non si riapre da sola finché non apri tu qualcosa. Le pagine che il motore apre con i suoi strumenti si aprono comunque.": "Off, the file created or edited stays a link in the reply: a click shows it in the Anteprima with the changes highlighted. On, the Anteprima opens by itself; if you close it, it does not open again by itself until you open something. Pages the engine opens with its own tools open anyway.",
   "Apri la pagina": "Open the page",
   "… il resto nella pagina.": "… the rest is in the page.",
-  "Il modello sul PC è lento su questo PC: la risposta arriva, ma può volerci più di un minuto. Un modello più piccolo, o la scheda grafica se c'è, risponde prima.": "The model on this PC is slow here: the answer is coming, but it may take more than a minute. A smaller model, or the graphics card if there is one, answers sooner."
+  "Il modello sul PC è lento su questo PC: la risposta arriva, ma può volerci più di un minuto. Un modello più piccolo, o la scheda grafica se c'è, risponde prima.": "The model on this PC is slow here: the answer is coming, but it may take more than a minute. A smaller model, or the graphics card if there is one, answers sooner.",
+  "Guarda l'allegato.": "Look at the attachment.",
+  "[Rispondi nella lingua in cui scrivo, anche dopo skill, file o pagine in un'altra lingua.]": "[Reply in the language I write in, also after skills, files or pages in another language.]",
+  "A che punto è il lavoro in background «{name}» (id {id})? Guarda il suo output e dimmelo.": "How far along is the background job «{name}» (id {id})? Look at its output and tell me.",
+  "da {n} min": "{n} min",
+  "A che punto è?": "How far along?",
+  "Chiedi a che punto è questo lavoro": "Ask how far along this job is",
+  "Claude Code non ha fatto questo passo da solo in «Automatica»: lo ha giudicato delicato. Chiedilo esplicitamente nella chat, o passa a «Manuale» per approvarlo tu.": "Claude Code did not take this step on its own in «Automatic»: it judged it sensitive. Ask for it explicitly in the chat, or switch to «Manual» to approve it yourself."
 }
