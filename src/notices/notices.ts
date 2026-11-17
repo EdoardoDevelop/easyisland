@@ -44,6 +44,8 @@ const toasts: Shown[] = [];
 let win: Window | null = null;
 let opening = false;
 let hovered = false;
+/** Draws waiting for the new window's page (100 ms apart). */
+let bodyTries = 0;
 
 /** In their own window (Impostazioni → Notifiche → «Avvisi»), unless «Nell'isola». */
 export function windowed(): boolean {
@@ -175,7 +177,14 @@ async function draw() {
   } catch {
     return;
   }
-  if (!doc.body) return;
+  // Just made, its blank page has no body yet: drawn again in a moment
+  // (17 Nov 2026: the first notice, «Prova» in Impostazioni, never showed).
+  if (!doc.body) {
+    if (bodyTries++ < 20) window.setTimeout(() => void draw(), 100);
+    else void Bridge.log("avvisi: la pagina della finestra non è pronta").catch(() => {});
+    return;
+  }
+  bodyTries = 0;
   let box = doc.getElementById("notices");
   if (!box) {
     dress(doc, t("Avvisi"));
