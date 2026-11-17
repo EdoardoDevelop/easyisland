@@ -27,7 +27,8 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
-import { buildSearch, type SearchHost } from "../views/search";
+import { buildSearch, type SearchActions, type SearchHost } from "../views/search";
+import { toggleSearchWindow } from "./search-window";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, isRailCompact, railBotSize, renameGroup } from "../views/rail";
 import * as MenuGroups from "../core/menu-groups";
@@ -181,6 +182,8 @@ export class Island {
 
   private header!: ViewHost & { field: HTMLElement };
   private search!: SearchHost;
+  /** What a search result does (the island's field and the search's own window, search-window.ts). */
+  private searchActions!: SearchActions;
   /** Set while the user's own hover or click opens the island (openByUser). */
   private openedByUser = false;
   private views!: Map<IslandViewName, ViewHost>;
@@ -472,7 +475,7 @@ export class Island {
         this.refit();
       });
     }).observe(this.viewsEl, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["style", "class"] });
-    this.search = buildSearch({
+    const searchActions: SearchActions = {
       openTask: (id) => {
         State.summary = false;
         State.setFocus(id);
@@ -516,7 +519,9 @@ export class Island {
       onDone: () => this.collapse(true),
       onEscape: () => this.collapse(true),
       canAutoFocus: () => State.mode === "expanded" && this.searchShown && !State.pendingApproval && (this.keyboard || State.searchOnly),
-    });
+    };
+    this.searchActions = searchActions;
+    this.search = buildSearch(searchActions);
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
     this.rail = buildRail(actions);
@@ -1991,6 +1996,8 @@ ${note}` : text };
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "search") {
+      // In its own window: the island stays as it is (Edoardo, 17 Nov 2026).
+      if (await toggleSearchWindow(this.searchActions)) return;
       State.searchOnly = true;
       State.summary = false;
       this.lastSearchH = 0;
@@ -2010,6 +2017,7 @@ ${note}` : text };
         State.summary = true;
         this.setView(pending);
       } else {
+        if (await toggleSearchWindow(this.searchActions)) return;
         State.searchOnly = true;
         State.summary = false;
         this.lastSearchH = 0;
