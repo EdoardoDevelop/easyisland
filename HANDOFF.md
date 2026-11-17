@@ -60,6 +60,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 sera — Controlli grafici nelle integrazioni personali
+Cinque tipi nuovi nella lista fissa: `slider`, `switch`, `segmented`, `progress`, `stat` (`custom.rs` `check_control`).
+- `onChange` esegue solo azioni `save`/`http`/`notice`: subito al clic, lo slider dopo 600 ms. Accanto ✓/✕, e con un errore il campo torna indietro.
+- Barra e numero hanno soglie ambra e rosso.
+- Scena `custom&controlli` (`&errore`). `docs/integrazioni.md`, guida 24.
+
 ### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
 - La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
 - Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
@@ -76,7 +82,4 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 17/11 — Chat staccata che perde il fuoco; Antigravity Desktop
 - Il clic nel campo della chat staccata, girato alla pagina dell'isola, la portava avanti: ora `focusWindow(true, from)` ignora le richieste da altre finestre (`inIslandPage`, senza `instanceof`: altro realm).
 - Le sessioni di Antigravity hanno l'host `antigravity`: niente isola a fine comando con Desktop in primo piano, e «Apri Antigravity» porta avanti Desktop o il terminale (`apps::open_session`).
-
-### 17/11 — Chat: «In background» non copre più la riga del motore
-Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciavano quello spazio. Ora lo tiene l'ultima riga mostrata sopra il campo (`chat-cards.css`). Un lavoro finito esce dalla lista anche con il solo `task_notification` (`claude_cli.rs` `Progress::feed`). Scene `chat&background=1`, `&coda`.
 

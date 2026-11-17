@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 — Chat: «In background» non copre più la riga del motore
+Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciavano quello spazio. Ora lo tiene l'ultima riga mostrata sopra il campo (`chat-cards.css`). Un lavoro finito esce dalla lista anche con il solo `task_notification` (`claude_cli.rs` `Progress::feed`). Scene `chat&background=1`, `&coda`.
+
 ### 17/11 — Risposte rapide nella ricerca dell'isola
 Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
 

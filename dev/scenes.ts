@@ -1477,11 +1477,30 @@ export async function runScene(island: Island, scene: string) {
         const before = Bridge.customFetch;
         Bridge.customFetch = async (id: string, source: string) => (id === "ttspeak" ? { status: 200, ok: true, data } : before(id, source));
       }
+      // &controlli: the graphic controls (17 Nov 2026), a slider and a switch with an
+      // http action (&errore: the service says no, the value goes back), segmented, a bar, a number.
+      if (new URLSearchParams(location.search).has("controlli")) {
+        State.customs.push({
+          id: "sala", name: "Sala riunioni", icon: "🎛️", color: "#38BDF8", description: "Luci, audio e stato della sala", enabled: true,
+          fields: [
+            field({ id: "luci", label: "Luci accese", kind: "switch", default: "true", onChange: "Applica" }),
+            field({ id: "volume", label: "Volume", kind: "slider", min: 0, max: 100, step: 5, unit: "%", default: "40", onChange: "Applica" }),
+            field({ id: "velocita", label: "Velocità voce", kind: "slider", min: 0.5, max: 2, step: 0.05, unit: "x", default: "1.05" }),
+            field({ id: "modo", label: "Modo", kind: "segmented", options: ["Auto", "Presentazione", "Video", "Spento"], default: "Auto", onChange: "Applica" }),
+            field({ id: "usato", label: "Disco usato (GB)", kind: "number", default: "412" }),
+            field({ id: "disco", label: "Disco", kind: "progress", formula: "usato/500*100", unit: "%", warn: 80, bad: 95 }),
+            field({ id: "libero", label: "Spazio libero", kind: "stat", formula: "500-usato", unit: "GB", warn: 100, bad: 50 }),
+          ],
+          template: "", actions: [{ label: "Applica", kind: "http", method: "POST", url: "https://sala.example.com/api", body: "{\"luci\": {{luci}}, \"volume\": {{volume}}, \"modo\": \"{{modo}}\"}" }],
+        } as unknown as (typeof State.customs)[number]);
+        const fails = new URLSearchParams(location.search).has("errore");
+        Bridge.customHttp = async () => (fails ? { status: 503, ok: false, data: "servizio non raggiungibile" } : { status: 200, ok: true, data: { ok: true } });
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
       const q = new URLSearchParams(location.search);
-      State.setFocus(q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
+      State.setFocus(q.has("controlli") ? "custom:sala" : q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

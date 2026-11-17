@@ -63,7 +63,10 @@ function today(): string {
 function initial(f: CustomField): unknown {
   switch (f.kind) {
     case "checkbox":
+    case "switch":
       return f.default === "true";
+    case "slider":
+      return f.default ? num(f.default) : f.min ?? 0;
     case "multiselect":
       return f.default ? f.default.split(",").map((x) => x.trim()).filter(Boolean) : [];
     case "rows":
@@ -128,8 +131,29 @@ export function withComputed(c: Custom, values: Record<string, unknown>): Record
     });
   }
   for (const f of c.fields) if (f.kind === "computed") all[f.id] = evalFormula(f.formula, all, c.fields);
+  // The bar and the big number: their formula, after the computed fields it may read.
+  for (const f of c.fields) if (f.kind === "progress" || f.kind === "stat") all[f.id] = evalFormula(f.formula, all, c.fields);
   return all;
 }
+
+/** progress, stat: "" (fine), "warn" or "bad", by the thresholds; bad below warn: the lower the worse. */
+export function levelOf(f: { warn?: number; bad?: number }, n: number | null): "" | "warn" | "bad" {
+  if (n == null || (f.warn == null && f.bad == null)) return "";
+  const lowerWorse = f.warn != null && f.bad != null && f.bad < f.warn;
+  if (lowerWorse) return n <= f.bad! ? "bad" : n <= f.warn! ? "warn" : "";
+  if (f.bad != null && n >= f.bad) return "bad";
+  return f.warn != null && n >= f.warn ? "warn" : "";
+}
+
+/** A number of a control with its unit: «1,25 x», «82 %». */
+export function withUnit(n: number | null, unit?: string): string {
+  if (n == null) return "—";
+  const text = n.toLocaleString("it-IT", { maximumFractionDigits: 3 });
+  return unit ? `${text} ${unit}` : text;
+}
+
+/** How a control's change went (onChange), by integration and field: kept over the card's redraws. */
+const controlState = new Map<string, { ok: boolean | null; text: string }>();
 
 /** showIf: any formula ("urgente", "pagamento=Bonifico", "totale > 1000 e non urgente"). Empty: always. */
 export function visible(f: CustomField, values: Record<string, unknown>): boolean {
@@ -164,8 +188,15 @@ function shown(kind: string, v: unknown): string {
       return n == null ? String(v) : `${(n * 100).toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`;
     }
     case "checkbox":
+    case "switch":
     case "yesno":
       return truthy(v as Val) ? t("Sì") : t("No");
+    case "slider":
+    case "progress":
+    case "stat": {
+      const n = toNumber(v);
+      return n == null ? String(v) : n.toLocaleString("it-IT", { maximumFractionDigits: 3 });
+    }
     case "date": {
       const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
       return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v);
@@ -625,13 +656,40 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
   }
 
   // ── The form ──
+  /**
+   * A control changed and has an action (onChange): it runs with the record's
+   * values; a ✓ or ✕ beside it, and on an error the value goes back to before
+   * (review of 17 Nov 2026: with an http action every change is a request).
+   */
+  async function changed(f: CustomField, before: unknown) {
+    const a = c!.actions.find((x) => x.label.trim() === (f.onChange ?? "").trim());
+    if (!a) return;
+    const key = `${c!.id}:${f.id}`;
+    controlState.set(key, { ok: null, text: t("In corso…") });
+    paint();
+    const ok = await run(a, 0);
+    if (!ok) d.values[f.id] = before;
+    controlState.set(key, { ok, text: ok ? t("Fatto") : (d.note?.text ?? t("Non riuscito: tornato al valore di prima.")) });
+    paint();
+  }
+
+  /** The mark beside a control with an action: … / ✓ / ✕ with what went wrong. */
+  function controlMark(f: CustomField): HTMLElement | null {
+    if (!f.onChange) return null;
+    const s = controlState.get(`${c!.id}:${f.id}`);
+    if (!s) return null;
+    return h("span", { class: `custom-ctl-state ${s.ok == null ? "busy" : s.ok ? "ok" : "bad"}`, title: s.text, text: s.ok == null ? "…" : s.ok ? "✓" : "✕" });
+  }
+
   function formView(): HTMLElement {
     const box = h("div", { class: "custom-form" });
     const computed: { f: CustomField; out: HTMLElement }[] = [];
+    const gauges: { f: CustomField; el: HTMLElement }[] = [];
     const conditional: { f: CustomField; row: HTMLElement }[] = [];
     const refresh = () => {
       const all = withComputed(c!, d.values);
       for (const { f, out } of computed) out.textContent = shown(formatOf(f), all[f.id]) || "—";
+      for (const { f, el } of gauges) paintGauge(f, el, toNumber(all[f.id]));
       box.querySelectorAll<HTMLElement>("[data-cell]").forEach((el) => {
         const [table, i, col] = (el.dataset.cell ?? "").split("|");
         const rows = all[table] as Row[] | undefined;
@@ -656,6 +714,85 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           const el = h("input", { type: "checkbox", class: "custom-check" }) as HTMLInputElement;
           el.checked = d.values[f.id] === true;
           el.addEventListener("change", () => (d.values[f.id] = el.checked));
+          control = el;
+          break;
+        }
+        case "switch": {
+          // On/off; with an action, it runs at the click.
+          const before = d.values[f.id] === true;
+          const el = h("button", { type: "button", class: before ? "custom-switch on" : "custom-switch", role: "switch", "aria-checked": String(before), "aria-label": f.label, title: f.help },
+            h("span", { class: "custom-switch-knob" })) as HTMLButtonElement;
+          el.addEventListener("click", () => {
+            const on = d.values[f.id] !== true;
+            d.values[f.id] = on;
+            el.classList.toggle("on", on);
+            el.setAttribute("aria-checked", String(on));
+            refresh();
+            if (f.onChange) void changed(f, before);
+          });
+          control = h("div", { class: "custom-ctl" }, el, controlMark(f) ?? "");
+          break;
+        }
+        case "slider": {
+          const min = f.min ?? 0;
+          const max = f.max ?? 100;
+          const before = toNumber(d.values[f.id]) ?? min;
+          const el = h("input", { type: "range", class: "custom-range", min: String(min), max: String(max), step: String(f.step ?? (max - min) / 100), "aria-label": f.label, title: f.help }) as HTMLInputElement;
+          el.value = String(before);
+          const out = h("span", { class: "custom-range-value", text: withUnit(before, f.unit) });
+          // With an action: 600 ms after the last move (mouse or arrows), once.
+          let timer = 0;
+          el.addEventListener("input", () => {
+            const n = Number(el.value);
+            d.values[f.id] = n;
+            out.textContent = withUnit(n, f.unit);
+            if (!f.onChange) return;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => void changed(f, before), 600);
+          });
+          hold(el);
+          control = h("div", { class: "custom-ctl" }, el, out, controlMark(f) ?? "");
+          break;
+        }
+        case "segmented": {
+          // Buttons to pick one; arrows move; with an action, it runs at the click.
+          const before = String(d.values[f.id] ?? "");
+          const group = h("div", { class: "custom-seg", role: "radiogroup", "aria-label": f.label });
+          const pickIt = (o: string) => {
+            if (String(d.values[f.id] ?? "") === o) return;
+            d.values[f.id] = o;
+            group.querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
+              const on = b.dataset.value === o;
+              b.classList.toggle("on", on);
+              b.setAttribute("aria-checked", String(on));
+              b.tabIndex = on ? 0 : -1;
+            });
+            refresh();
+            if (f.onChange) void changed(f, before);
+          };
+          f.options.forEach((o, i) => {
+            const on = before === o;
+            const b = h("button", { type: "button", class: on ? "custom-seg-btn on" : "custom-seg-btn", role: "radio", "aria-checked": String(on), text: o, tabindex: on || (!before && i === 0) ? "0" : "-1" }) as HTMLButtonElement;
+            b.dataset.value = o;
+            b.addEventListener("click", () => pickIt(o));
+            b.addEventListener("keydown", (e) => {
+              const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+              if (!step) return;
+              e.preventDefault();
+              const next = f.options[(i + step + f.options.length) % f.options.length];
+              pickIt(next);
+              group.querySelector<HTMLButtonElement>(`button[data-value="${CSS.escape(next)}"]`)?.focus();
+            });
+            group.append(b);
+          });
+          control = h("div", { class: "custom-ctl" }, group, controlMark(f) ?? "");
+          break;
+        }
+        case "progress":
+        case "stat": {
+          // Only shows: the bar or the big number of its formula, coloured by the thresholds.
+          const el = h("div", { class: f.kind === "progress" ? "custom-gauge" : "custom-stat", title: f.help });
+          gauges.push({ f, el });
           control = el;
           break;
         }
@@ -789,7 +926,7 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
           control = el;
         }
       }
-      const wide = f.kind === "rows" || f.kind === "textarea" || (f.kind === "file" && !!d.values[f.id]);
+      const wide = f.kind === "rows" || f.kind === "textarea" || (f.kind === "file" && !!d.values[f.id]) || (f.kind === "segmented" && f.options.length > 3);
       const row = h("div", { class: wide ? "custom-row wide" : "custom-row" }, label, control);
       if (f.showIf) conditional.push({ f, row });
       box.append(row);
@@ -1143,6 +1280,28 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
       say(String(e).replace(/^Error:\s*/, ""), false);
       return false;
     }
+  }
+
+  /** progress: the bar and its number; stat: the big number. */
+  function paintGauge(f: CustomField, el: HTMLElement, n: number | null) {
+    const level = levelOf(f, n);
+    el.className = `${f.kind === "progress" ? "custom-gauge" : "custom-stat"}${level ? ` ${level}` : ""}`;
+    if (f.kind === "stat") {
+      el.textContent = withUnit(n, f.unit);
+      return;
+    }
+    const min = f.min ?? 0;
+    const max = f.max ?? 100;
+    const share = n == null ? 0 : Math.max(0, Math.min(1, (n - min) / (max - min)));
+    clear(el);
+    el.append(
+      h("span", { class: "custom-gauge-track" }, h("span", { class: "custom-gauge-fill", style: `width:${(share * 100).toFixed(1)}%` })),
+      h("span", { class: "custom-gauge-value", text: withUnit(n, f.unit) }),
+    );
+    el.setAttribute("role", "meter");
+    el.setAttribute("aria-valuemin", String(min));
+    el.setAttribute("aria-valuemax", String(max));
+    if (n != null) el.setAttribute("aria-valuenow", String(n));
   }
 
   // ── The records saved ──

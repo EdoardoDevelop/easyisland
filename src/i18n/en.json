@@ -5735,5 +5735,13 @@
   "da {n} min": "{n} min",
   "A che punto è?": "How far along?",
   "Chiedi a che punto è questo lavoro": "Ask how far along this job is",
-  "Claude Code non ha fatto questo passo da solo in «Automatica»: lo ha giudicato delicato. Chiedilo esplicitamente nella chat, o passa a «Manuale» per approvarlo tu.": "Claude Code did not take this step on its own in «Automatic»: it judged it sensitive. Ask for it explicitly in the chat, or switch to «Manual» to approve it yourself."
+  "Claude Code non ha fatto questo passo da solo in «Automatica»: lo ha giudicato delicato. Chiedilo esplicitamente nella chat, o passa a «Manuale» per approvarlo tu.": "Claude Code did not take this step on its own in «Automatic»: it judged it sensitive. Ask for it explicitly in the chat, or switch to «Manual» to approve it yourself.",
+  "In corso…": "In progress…",
+  "Non riuscito: tornato al valore di prima.": "Failed: back to the previous value.",
+  "Campo «{l}»: min deve essere minore di max.": "Field «{l}»: min must be less than max.",
+  "Campo «{l}»: segmented vuole options da 2 a 6 scelte; con di più usa select.": "Field «{l}»: segmented wants options with 2 to 6 choices; with more use select.",
+  "Campo «{l}»: formula che dà il numero da mostrare, es. usato/totale*100.": "Field «{l}»: a formula giving the number to show, e.g. usato/totale*100.",
+  "Campo «{l}»: onChange solo su slider, switch e segmented.": "Field «{l}»: onChange only on slider, switch and segmented.",
+  "Campo «{l}»: onChange può eseguire solo azioni save, http o notice, non «{a}» ({k}): quella resta un pulsante.": "Field «{l}»: onChange can only run save, http or notice actions, not «{a}» ({k}): that stays a button.",
+  "Campo «{l}»: onChange, la label di un'azione di questa integrazione.": "Field «{l}»: onChange, the label of an action of this integration."
 }

@@ -2154,6 +2154,17 @@ export interface CustomField extends CustomLink {
   optionsFrom?: CustomOptionsFrom;
   /** file: what can be picked, "audio" or "mp3,wav" (custom.rs accept_extensions). */
   accept?: string;
+  /** slider, progress: the range; slider: the step. */
+  min?: number;
+  max?: number;
+  step?: number;
+  /** slider, progress, stat: what the number is in («x», «%»). */
+  unit?: string;
+  /** progress, stat: from here amber, from here red (bad below warn: the lower the worse). */
+  warn?: number;
+  bad?: number;
+  /** slider, switch, segmented: the action (label) run when it changes: save, http or notice. */
+  onChange?: string;
 }
 export interface CustomOptionsFrom {
   source: string;
