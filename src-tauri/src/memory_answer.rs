@@ -77,7 +77,7 @@ pub(crate) fn root(w: &str) -> String {
 /// The roots a word stands for: its own, and for the verbs of changing a
 /// setting all of them («modificare l'ip» is the section «Cambiare l'IP»).
 pub(crate) fn roots(w: &str) -> Vec<String> {
-    const CHANGE: &[&str] = &["cambi", "modific", "impost", "configur", "sett", "aggiorn"];
+    const CHANGE: &[&str] = &["cambi", "modific", "impost", "configur", "setta", "aggiorn"];
     let r = root(w);
     if CHANGE.iter().any(|c| r.starts_with(c) || (r.len() >= 4 && c.starts_with(r.as_str()))) {
         return CHANGE.iter().map(|c| c.to_string()).collect();
@@ -482,6 +482,9 @@ mod tests {
         assert_eq!((root("cambiare"), root("cambio"), root("modificare")), ("cambi".to_string(), "cambi".to_string(), "modific".to_string()));
         assert!(root("modifica").starts_with("modific") || "modifica".starts_with(&root("modificare")));
         assert!(is_procedure("come cambiare ip di proxmox da shell?") && is_procedure("Procedura per cambiare l'ip"));
+        // A month is not a verb of changing («sett» took «settembre» for «settare»).
+        assert_eq!(roots("settembre"), vec![root("settembre")]);
+        assert!(roots("settare").contains(&"cambi".to_string()));
         assert!(!is_procedure("come si chiama il server di Falchi?") && !is_procedure("quali vm ha Falchi?") && !is_procedure("come?"));
     }
 
