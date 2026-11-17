@@ -417,9 +417,9 @@ async fn run(
     // else the skipped commands.
     if !crate::hooks::status_for(crate::hooks::Target::Antigravity).installed {
         if auto_not_taken(mode, progress.mode.as_deref()) && chat.first_auto_notice() {
-            final_text.push_str(&format!("\n\n> {}", t("«Automatica» con Antigravity: la sua modalità automatica non è ancora attiva, quindi lavora nel modo normale e salta i comandi che chiederebbero il permesso. Installa i suoi hook in Impostazioni → Agenti di codice → Antigravity: con gli hook EasyIsland li fa passare da sé.")));
+            final_text.push_str(&format!("\n\n> {}", t("Mancano gli hook di Antigravity: senza, anche in «Automatica» salta i comandi (la sua modalità automatica non è ancora attiva). Installali in Impostazioni → Agenti di codice → Antigravity: con gli hook EasyIsland fa passare i comandi da sé.")));
         } else if denied > 0 {
-            final_text.push_str(&format!("\n\n> {}", t("Antigravity ha saltato dei comandi perché non poteva chiederti il permesso: installa i suoi hook in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.")));
+            final_text.push_str(&format!("\n\n> {}", t("Mancano gli hook di Antigravity: ha saltato dei comandi perché non poteva chiederti il permesso. Installali in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.")));
         }
     }
     // The steps stay above the answer, as they were shown.

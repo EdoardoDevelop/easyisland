@@ -155,7 +155,7 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
   let known = initial != null;
   const head = h("div", { class: "agent-head" });
   const detail = h("div", { class: "agent-detail" });
-  const el = h("div", { class: "agent" }, head, h("div", { class: "hint", text: T.what }), detail);
+  const el = h("div", { class: "agent", "data-item": `agent-${tool}` }, head, h("div", { class: "hint", text: T.what }), detail);
 
   function badge(): HTMLElement {
     if (!known) return h("span", { class: "agent-state", text: "…" });

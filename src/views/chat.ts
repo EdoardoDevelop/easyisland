@@ -1728,6 +1728,10 @@ export function buildPrompt(
       run.addEventListener("click", () => void runCommand(m, cmd, run));
       bar.append(run);
     }
+    // Antigravity without its hooks (antigravity.rs): straight to where they are installed.
+    if (m.role === "assistant" && /Agenti di codice → Antigravity|Coding agents → Antigravity/.test(m.content)) {
+      bar.append(h("button", { class: "msg-act", text: `🔌 ${t("Installa gli hook di Antigravity")}`, onclick: () => void Bridge.openSettingsAt("claude", "agent-antigravity") }));
+    }
     if (own && last && m.role === "assistant" && m.direct) {
       // The same question again goes to the engine, and that recipe stops answering by itself (router.rs).
       bar.append(h("button", { class: "msg-act", title: t("EasyIsland ha risposto da solo con i dati delle domande simili: chiedi al motore, e per questo tipo di domanda risponderà sempre il motore"), text: `⚡ ${t("Chiedi al motore")}`, onclick: () => void regenerate() }));
