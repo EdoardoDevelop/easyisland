@@ -1602,7 +1602,10 @@ export async function runScene(island: Island, scene: string) {
           .map((n) => ({ id: n.id, title: n.label, gist: n.kind === "page" ? n.text.split("\n")[0] : "", kind: n.kind as "page" | "note", origin: "" })),
         chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
         // A quick answer (quick_answer.rs) to a question: ?q=quali vm ha la farmacia falchi&ai shows one written by a model.
-        quickAnswer: async (question: string) => /\b(vm|macchine)\b/i.test(question) && /falchi/i.test(question)
+        // ?q=come cambiare ip a proxmox: a procedure, the section of a page, with `code`.
+        quickAnswer: async (question: string) => /^come\b/i.test(question) && /proxmox/i.test(question)
+          ? { text: "Cambiare l'IP del Proxmox (host fisico, nodo singolo)\nFarlo dalla console locale: cambiando l'IP si chiudono SSH e la Shell web.\n1. Backup: `cp /etc/network/interfaces /etc/network/interfaces.bak-ip`\n2. `/etc/network/interfaces`, blocco `vmbr0`: `address NUOVOIP/24` e `gateway GW`\n3. Applica: `ifreload -a` (oppure riavvio).", lines: [], sources: ["Proxmox"], by: "Potion", node: "p:proxmox" }
+          : /\b(vm|macchine)\b/i.test(question) && /falchi/i.test(question)
           ? (new URLSearchParams(location.search).has("ai")
             ? { text: "La Farmacia Falchi ha quattro VM: FALCHI-DC (4 GB), WINFARM (20 GB), POLLER (2 GB) e PBS (2 GB, IP 192.168.0.221).", lines: ["Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB", "2026-11-14: PBS ha IP 192.168.0.221"], sources: ["Farmacia Falchi", "nota"], by: "OpenRouter · openai/gpt-5.6-luna-pro" }
             : { text: "Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB\n2026-11-14: PBS ha IP 192.168.0.221", lines: ["Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB", "2026-11-14: PBS ha IP 192.168.0.221"], sources: ["Farmacia Falchi", "nota"], by: "Potion" })

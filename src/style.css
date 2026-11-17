@@ -5628,6 +5628,7 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 @media (prefers-reduced-motion: reduce) { .search-answer.on { animation: none; } }
 .search-answer-head { display: flex; align-items: center; gap: 6px; color: #7dd3fc; font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font); letter-spacing: 0.02em; }
 .search-answer-text { margin-top: 5px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; font: 500 calc(12.5px + var(--fs-up, 0px)) / 1.45 var(--font); user-select: text; }
+.search-answer-title { font-weight: 700; }
 .search-answer-src { margin-top: 6px; color: var(--dim-3); font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); }
 .search-answer-src summary { cursor: pointer; }
 .search-answer-line { margin-top: 3px; padding-left: 8px; border-left: 2px solid rgba(255, 255, 255, 0.12); white-space: pre-wrap; overflow-wrap: anywhere; }

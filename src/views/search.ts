@@ -23,6 +23,7 @@ import { Model } from "../memory/data";
 import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type QuickAnswer, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
 import { t, tn } from "../core/i18n";
+import { inline, plainText } from "../core/markdown";
 
 export interface SearchActions {
   openTask(id: string): void;
@@ -256,13 +257,19 @@ export function buildSearch(actions: SearchActions): SearchHost {
       h("div", { class: "search-answer-head" },
         svg(ICONS.memory, 12, { stroke: 1.8 }),
         h("span", { text: written ? t("Risposta rapida · scritta da {by}", { by: a.by }) : t("Risposta rapida dalla memoria") })),
-      h("div", { class: "search-answer-text", text: a.text }),
+      // Line by line, with `code`, **bold** and links as in the chat (17 Nov 2026:
+      // the procedure's commands showed their backticks). A procedure's title in bold.
+      h("div", { class: "search-answer-text md" }, ...a.text.split("\n").map((l, i) => {
+        const line = h("div", { class: i === 0 && a.node ? "search-answer-title" : "" });
+        line.append(...inline(l, { openUrl: (url) => void Bridge.openUrl(url) }));
+        return line;
+      })),
       written
         ? h("details", { class: "search-answer-src" }, h("summary", { text: t("Fonti: {from}", { from }) }), ...a.lines.map((l) => h("div", { class: "search-answer-line", text: l })))
         : h("div", { class: "search-answer-src", text: t("Fonti: {from}", { from }) }),
       h("div", { class: "search-answer-acts" },
         h("button", { type: "button", class: "search-answer-btn", text: t("Copia"),
-          onclick: () => { void navigator.clipboard.writeText(a.text).then(() => Sound.play("finish")).catch(() => {}); } }),
+          onclick: () => { void navigator.clipboard.writeText(plainText(a.text)).then(() => Sound.play("finish")).catch(() => {}); } }),
         ...(a.node ? [h("button", { type: "button", class: "search-answer-btn", text: t("Apri la pagina"),
           onclick: () => { const id = a.node!; reset(true); input.blur(); void Bridge.memoryWindowSelect(id); } })] : []),
         h("button", { type: "button", class: "search-answer-btn", text: t("Chiedi alla chat"),
