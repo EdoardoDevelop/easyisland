@@ -738,6 +738,7 @@ fn notify_test(app: AppHandle) {
 
             "level": "ok",
             "url": "",
+            "test": true,
         }),
     );
 }

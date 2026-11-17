@@ -942,6 +942,7 @@ function handle(island: Island, payload: HookPayload) {
       text: str("text"),
       level: level === "ok" || level === "warn" || level === "error" ? level : "info",
       url: str("url"),
+      test: p.test === true,
     });
     return;
   }

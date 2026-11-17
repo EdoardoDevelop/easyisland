@@ -345,6 +345,8 @@ export interface Notice {
   suggestionAccept?: string;
   /** An entry of «Cosa ho fatto» done without a click (permits.rs): Annulla on the card. */
   did?: string;
+  /** «Prova» in Impostazioni: shown whatever «Il personaggio si fa vedere per» says. */
+  test?: boolean;
 }
 
 /** A proposal at the right moment (src-tauri/src/moments.rs, src/island/moments.ts). */

@@ -2261,9 +2261,11 @@ ${note}` : text };
     const important = n.level === "error" || n.level === "warn";
     // Same rules as everything else: in front of a client or over a full-screen
     // app only problems may show, and "solo permessi" means just that.
-    if (State.settings.notify === "permissions") return;
-    if (State.settings.notify === "alerts" && !important) return;
-    if (State.quiet && !important) return;
+    // «Prova» in Impostazioni always shows (17 Nov 2026: with «Solo richieste
+    // di permesso» it did nothing and looked broken).
+    if (!n.test && State.settings.notify === "permissions") return;
+    if (!n.test && State.settings.notify === "alerts" && !important) return;
+    if (!n.test && State.quiet && !important) return;
     State.notice = n;
     Sound.play(n.level === "error" ? "error" : n.level === "warn" ? "question" : n.level === "ok" ? "finish" : "blip");
     if (State.quiet) return; // a problem in front of a client: the sound is off anyway, no card either
