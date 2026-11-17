@@ -440,7 +440,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
 
   const search = notion.search ?? (notion.search = h("input", {
     class: "nc-input notion-search", placeholder: t("Cerca in Notion…"), spellcheck: "false",
-    onpointerdown: () => void Bridge.focusWindow(true),
+    onpointerdown: (e: Event) => void Bridge.focusWindow(true, e),
     oninput: (e: Event) => { notion.query = (e.target as HTMLInputElement).value; notionSearchSoon(); },
     onkeydown: (e: Event) => {
       const k = e as KeyboardEvent;
@@ -543,7 +543,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     const area = notion.noteArea ?? (notion.noteArea = h("textarea", {
       class: "nc-input notion-note-area", rows: "3", spellcheck: "true",
       placeholder: t("Scrivi la nota… (Ctrl+Invio per salvare)"),
-      onpointerdown: () => void Bridge.focusWindow(true),
+      onpointerdown: (e: Event) => void Bridge.focusWindow(true, e),
       onkeydown: (e: Event) => {
         const k = e as KeyboardEvent;
         if (k.key === "Enter" && (k.ctrlKey || k.metaKey)) { k.preventDefault(); void saveNote(); }
@@ -582,7 +582,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
   const taskBox = () => {
     const input = notion.taskInput ?? (notion.taskInput = h("input", {
       class: "nc-input", type: "text", spellcheck: "true", placeholder: t("Cosa c'è da fare? (Invio per salvare)"),
-      onpointerdown: () => void Bridge.focusWindow(true),
+      onpointerdown: (e: Event) => void Bridge.focusWindow(true, e),
       onkeydown: (e: Event) => {
         const k = e as KeyboardEvent;
         if (k.key === "Enter") { k.preventDefault(); void saveTask(); }

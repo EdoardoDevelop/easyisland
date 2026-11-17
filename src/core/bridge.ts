@@ -215,6 +215,17 @@ export interface DayText {
   busy: boolean;
 }
 
+/**
+ * An event or element of the island's own page (not of a popped-out window).
+ * No `instanceof`: a popped-out window is another realm, its elements are not
+ * this page's Node (tried 17 Nov 2026: they passed as the island's).
+ */
+export function inIslandPage(from: Event | Node): boolean {
+  const node = ("type" in from && "target" in from ? from.target : from) as Node | null;
+  if (!node || typeof node.nodeType !== "number") return true;
+  return node === document || node.ownerDocument === document;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -236,7 +247,14 @@ export const Bridge = {
     call<void>("set_island_rect", { x, y, width, height }),
 
   /** Give the window keyboard focus (chat field) and take it away again. */
-  focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
+  /**
+   * The island's window takes (true) or leaves the keyboard. `from`: the
+   * click or field asking; one in another window (a view popped out,
+   * popout.ts) never brings the island forward (17 Nov 2026: a click in the
+   * popped-out chat's field raised the island and took the keys).
+   */
+  focusWindow: (focused: boolean, from?: Event | Node | null) =>
+    focused && from && !inIslandPage(from) ? Promise.resolve(null) : call<void>("focus_window", { focused }),
   /** 📌 on: the open island as an ordinary app window (taskbar, not always on top). island.rs → set_app_mode. */
   setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
   /** Click on the character: the open island behind another window comes forward (true); in front, false. island.rs → to_front. */

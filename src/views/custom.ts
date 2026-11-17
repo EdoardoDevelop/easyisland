@@ -559,7 +559,7 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
   const hold = (el: HTMLElement) => {
     el.addEventListener("focus", () => {
       hooks.holdOpen(true);
-      void Bridge.focusWindow(true);
+      void Bridge.focusWindow(true, el);
     });
     el.addEventListener("blur", () => hooks.holdOpen(false));
   };

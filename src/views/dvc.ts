@@ -434,7 +434,7 @@ function appendList(el: HTMLElement, b: DvcBrowse) {
 /** The view, the same element at every rebuild of the card. */
 export function dvcView(): HTMLElement {
   if (!dv.el) {
-    dv.el = h("div", { class: "dvc-view", onpointerdown: () => void Bridge.focusWindow(true) });
+    dv.el = h("div", { class: "dvc-view", onpointerdown: (e: Event) => void Bridge.focusWindow(true, e) });
     void go(dv.path);
   } else if (!dv.form) {
     // A sync may have changed the folder: read it again (from the saved list).

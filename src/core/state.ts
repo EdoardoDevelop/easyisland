@@ -329,7 +329,7 @@ export const MAX_DIFFS = 50;
 export const DIFF_TTL_MS = 60 * 60 * 1000;
 
 /** The Claude desktop app, VS Code, Cursor, Windows Terminal, or any other console. */
-export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode" | "compiti";
+export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode" | "antigravity" | "compiti";
 
 /** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
 export interface Notice {
@@ -385,6 +385,7 @@ export function sessionOpenLabel(host: SessionHost | null | undefined): string {
     case "vscode": return t("Apri VS Code");
     case "cursor": return t("Apri Cursor");
     case "opencode": return t("Apri opencode");
+    case "antigravity": return t("Apri Antigravity");
     default: return t("Apri terminale");
   }
 }

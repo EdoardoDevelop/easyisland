@@ -73,8 +73,8 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
   const suggest = h("div", { class: "qa-suggest" });
   // Search across every action, folders included.
   const search = h("input", { type: "text", class: "qa-search", placeholder: t("Cerca un'azione"), spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
-  search.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
-  search.addEventListener("focus", () => void Bridge.focusWindow(true));
+  search.addEventListener("pointerdown", () => void Bridge.focusWindow(true, search));
+  search.addEventListener("focus", () => void Bridge.focusWindow(true, search));
   search.addEventListener("input", () => { key = ""; State.notify(); });
   search.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && search.value) { e.stopPropagation(); search.value = ""; key = ""; State.notify(); }

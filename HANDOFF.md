@@ -60,6 +60,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Chat staccata che perde il fuoco; Antigravity Desktop
+- Il clic nel campo della chat staccata, girato alla pagina dell'isola, la portava avanti: ora `focusWindow(true, from)` ignora le richieste da altre finestre (`inIslandPage`, senza `instanceof`: altro realm).
+- Le sessioni di Antigravity hanno l'host `antigravity`: niente isola a fine comando con Desktop in primo piano, e «Apri Antigravity» porta avanti Desktop o il terminale (`apps::open_session`).
+
 ### 17/11 — Chat: «In background» non copre più la riga del motore
 Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciavano quello spazio. Ora lo tiene l'ultima riga mostrata sopra il campo (`chat-cards.css`). Un lavoro finito esce dalla lista anche con il solo `task_notification` (`claude_cli.rs` `Progress::feed`). Scene `chat&background=1`, `&coda`.
 
@@ -80,11 +84,4 @@ Sul portatile il turno finiva senza testo: in `--print` agy nega da sé ogni con
 - l'avviso dice cosa è successo (senza hook, o un passo negato).
 
 Provato dal vivo: la regola, e il `deny` del PreToolUse che blocca in `always-proceed` (`docs/chat.md`, `docs/agenti.md`). Non provato tutto il giro con l'isola: `docs/prove-dal-vivo.md`.
-
-### 17/11 — Antigravity: impegno suo, nuovo tentativo, Automatica, meno memoria
-Sul portatile «puoi vedere le skill di claude?» falliva in 4 s: a `gemini-4-hydrogen-high` arrivava `--effort medium` di Claude Code e agy 1.5.9 rifiuta la coppia. Ora:
-- Antigravity ha il suo impegno (`agyEffort`, `Chat::agy_effort`); niente `--effort` con il «Predefinito del modello» o con l'impegno nel nome del modello;
-- se agy rifiuta la coppia, un nuovo tentativo senza `--effort` e poi un errore in italiano;
-- senza i suoi hook, un avviso che «Automatica» non è la sua (`init` → `permission_mode`);
-- ai motori con strumenti propri diversi da Claude Code arrivano solo le righe di significato forti (`docs/chat.md`).
 

@@ -530,7 +530,9 @@ export class Island {
       const field = (e.target as Element | null)?.closest?.("textarea, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=range]), [contenteditable=''], [contenteditable=true]");
       // Only when the keys are elsewhere: activating brings the window forward
       // with a tap of Alt, not to be done at every click while typing.
-      if (field && !document.hasFocus()) void Bridge.focusWindow(true);
+      // A field of a popped-out window (its clicks are told to this page, popout.ts
+      // forward) is not the island's: that window keeps the keyboard.
+      if (field && !document.hasFocus()) void Bridge.focusWindow(true, field);
     }, true);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
