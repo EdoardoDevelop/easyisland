@@ -19,6 +19,7 @@ mod meaning_local;
 mod memory_answer;
 mod quick_answer;
 mod search_window;
+mod notices_window;
 mod votes;
 mod memory_tips;
 mod local_model;
@@ -2528,6 +2529,9 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
     let kind = NEXT_KIND.lock().unwrap_or_else(|e| e.into_inner()).take();
     if kind.as_deref() == Some("ricerca") {
         return own_window(search_window::build(app, features));
+    }
+    if kind.as_deref() == Some("avvisi") {
+        return own_window(notices_window::build(app, features));
     }
     let label = format!("staccata-{}", NEXT.fetch_add(1, Ordering::Relaxed));
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
@@ -5322,6 +5326,8 @@ pub fn run() {
             search_window::search_window_show,
             search_window::search_window_fit,
             search_window::search_window_hide,
+            notices_window::notices_show,
+            notices_window::notices_hide,
             popout_title,
             popout_chat,
             popout_close,

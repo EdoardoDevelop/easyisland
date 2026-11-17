@@ -16,13 +16,16 @@ pub const WIDTH: f64 = 340.0;
 /// Room from the screen's edges and from the island (logical px).
 const MARGIN: f64 = 12.0;
 
-/// The name popout_window gave it (`staccata-N`), once made.
+/// Its name, once made.
 static LABEL: Mutex<Option<String>> = Mutex::new(None);
+/// A new name each time it is made again (a window just closed may still hold the old one).
+static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
 
 /// Made by popout_window (lib.rs) when the island asked for the notices'
-/// window (Bridge.popoutKind("notices") before window.open).
-pub fn build(app: &AppHandle, label: &str, features: tauri::webview::NewWindowFeatures) -> tauri::Result<tauri::WebviewWindow> {
-    let built = WebviewWindowBuilder::new(app, label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
+/// window (Bridge.popoutKind("avvisi") right before window.open).
+pub fn build(app: &AppHandle, features: tauri::webview::NewWindowFeatures) -> tauri::Result<tauri::WebviewWindow> {
+    let label = format!("avvisi-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
         .window_features(features)
         .title("EasyIsland")
         .inner_size(WIDTH, 120.0)
@@ -38,7 +41,7 @@ pub fn build(app: &AppHandle, label: &str, features: tauri::webview::NewWindowFe
         .visible(false)
         .build()?;
     crate::island::make_non_activating(&built.as_ref().window());
-    *LABEL.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.to_string());
+    *LABEL.lock().unwrap_or_else(|e| e.into_inner()) = Some(label);
     Ok(built)
 }
 

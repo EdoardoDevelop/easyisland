@@ -6,7 +6,7 @@
 // opens the island on that thing (the user asked), its buttons do their action.
 // Permissions and questions stay in the island (never approved without its card).
 
-import { Bridge } from "../core/bridge";
+import { Bridge, IS_TAURI } from "../core/bridge";
 import { t } from "../core/i18n";
 import { State } from "../core/state";
 import { dress } from "../island/popout";
@@ -47,7 +47,8 @@ let hovered = false;
 
 /** In their own window (Impostazioni → Notifiche → «Avvisi»), unless «Nell'isola». */
 export function windowed(): boolean {
-  return (State.settings.noticesPlace ?? "isola") !== "dentro";
+  // In the browser's preview the scenes of the cards (moment, daily, recap) keep them in the island.
+  return (State.settings.noticesPlace ?? (IS_TAURI ? "isola" : "dentro")) !== "dentro";
 }
 
 /** A new toast; the same key replaces the one on screen. */
@@ -105,7 +106,7 @@ async function ensure(): Promise<Window | null> {
   opening = true;
   try {
     // popout_window (lib.rs) makes this one a notices' window (notices_window.rs).
-    await Bridge.popoutKind("notices");
+    await Bridge.popoutKind("avvisi");
     const w = window.open("", "easyisland-notices", "popup,width=340,height=120");
     if (!w) {
       void Bridge.log("avvisi: window.open rifiutata, restano nell'isola").catch(() => {});
@@ -123,7 +124,38 @@ async function ensure(): Promise<Window | null> {
 }
 
 /** The toasts in the window, and the window sized and placed (or hidden). */
+/** The browser's preview (npm run dev): no window, the toasts in a corner of the page. */
+function drawInPage() {
+  let box = document.getElementById("notices");
+  if (!box) {
+    const style = document.createElement("style");
+    style.textContent = NOTICES_CSS.replace(/html, body \{[^}]*\}/, "") + "#notices { position: fixed; top: 12px; right: 12px; width: 340px; z-index: 99; }";
+    document.head.append(style);
+    box = document.createElement("div");
+    box.id = "notices";
+    box.addEventListener("mouseenter", () => hover(true));
+    box.addEventListener("mouseleave", () => hover(false));
+    document.body.append(box);
+  }
+  box.replaceChildren(...toasts.slice(0, MAX).map((s) => card(document, s)));
+  const more = toasts.length - MAX;
+  if (more > 0) box.append(moreButton(document, more));
+}
+
+function moreButton(doc: Document, more: number): HTMLElement {
+  const tail = doc.createElement("button");
+  tail.type = "button";
+  tail.className = "notice-more";
+  tail.textContent = t("+{n} altri · chiudi tutti", { n: more });
+  tail.addEventListener("click", () => clearAll());
+  return tail;
+}
+
 async function draw() {
+  if (!IS_TAURI) {
+    drawInPage();
+    return;
+  }
   if (!toasts.length) {
     if (win && !win.closed) {
       try {
@@ -158,14 +190,7 @@ async function draw() {
   }
   box.replaceChildren(...toasts.slice(0, MAX).map((s) => card(doc, s)));
   const more = toasts.length - MAX;
-  if (more > 0) {
-    const tail = doc.createElement("button");
-    tail.type = "button";
-    tail.className = "notice-more";
-    tail.textContent = t("+{n} altri · chiudi tutti", { n: more });
-    tail.addEventListener("click", () => clearAll());
-    box.append(tail);
-  }
+  if (more > 0) box.append(moreButton(doc, more));
   const height = Math.ceil(box.getBoundingClientRect().height) + 4;
   void Bridge.noticesShow(height, State.settings.noticesPlace ?? "isola");
 }

@@ -17,6 +17,7 @@ import { Recap } from "../src/island/recap";
 import { Daily } from "../src/island/daily";
 import { handleMoment } from "../src/island/moments";
 import { setHistoryDemo } from "../src/views/chat";
+import * as Notices from "../src/notices/notices";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -1504,6 +1505,20 @@ export async function runScene(island: Island, scene: string) {
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);
+      break;
+    }
+    case "avvisi": {
+      // The notices' window (notices.ts, 17 Nov 2026): the island open on the
+      // overview stays there; the toasts come aside (in the preview, in a corner).
+      State.settings.noticesPlace = "isola";
+      State.isPinned = true;
+      island.alert("overview");
+      await wait(600);
+      island.showUpdate("1.0.52", "1.0.51");
+      handleMoment({ alert: (v: Parameters<typeof island.alert>[0]) => island.alert(v), collapse: () => {}, holdOpen: () => {} }, { kind: "download", name: "Offerta Rossi.pdf", path: "C:/Users/Edoardo/Downloads/Offerta Rossi.pdf", size: 245000 });
+      Notices.push({ key: "finished:x", icon: "✅", title: "EasyIsland ha finito.", level: "ok", open: () => {} });
+      Notices.push({ key: "error:y", icon: "⛔", title: "Sito clienti si è fermato con un errore.", level: "error", open: () => {} });
+      await wait(800);
       break;
     }
     case "compiti": {
