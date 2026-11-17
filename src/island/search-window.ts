@@ -21,6 +21,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 let search: SearchHost | null = null;
 let win: Window | null = null;
 let shown = false;
+/** The window had the keyboard since it was shown: only then does losing it close the search. */
+let focused = false;
 let watch = 0;
 
 function alive(): boolean {
@@ -64,10 +66,13 @@ function lay() {
   // Another window took the keys (a click elsewhere): the search goes, as Esc does.
   win.addEventListener("blur", () => {
     window.setTimeout(() => {
-      if (shown && alive() && !win!.document.hasFocus()) hide();
+      if (shown && focused && alive() && !win!.document.hasFocus()) hide();
     }, 150);
   });
-  win.addEventListener("focus", () => search?.focusInputOnly());
+  win.addEventListener("focus", () => {
+    focused = true;
+    search?.focusInputOnly();
+  });
   win.addEventListener("pagehide", () => {
     // The page goes and takes the handlers of what is in it: the search waits here, laid again in the next one.
     if (search) holder().append(search.el);
@@ -155,6 +160,7 @@ export async function toggleSearchWindow(base: SearchActions): Promise<boolean> 
   const ok = await Bridge.searchWindowShow(height()).catch(() => false);
   if (!ok) return false;
   shown = true;
+  focused = false;
   search.focus();
   // Every second while shown: the page WebView2 may swap, the island's theme.
   window.clearInterval(watch);

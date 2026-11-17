@@ -64,8 +64,46 @@ pub fn search_window_show(app: AppHandle, height: f64) -> bool {
     place(&app, &win, height);
     let _ = win.show();
     let _ = win.set_always_on_top(true);
-    let _ = win.set_focus();
+    // Windows lets a background process bring a window forward only with a
+    // little help (as island::activate_window): without it the keys stayed in
+    // the app in front and the search, never focused, closed at once (17 Nov 2026).
+    let w = win.clone();
+    let _ = app.run_on_main_thread(move || {
+        bring_forward(&w);
+        let _ = w.set_focus();
+    });
     true
+}
+
+/// The window in front with the keyboard, also when another app has it.
+fn bring_forward(win: &WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU};
+    use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow};
+    let Ok(raw) = win.hwnd() else { return };
+    let hwnd = HWND(raw.0);
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg == hwnd {
+            return;
+        }
+        let cur = GetCurrentThreadId();
+        let other = if fg.0.is_null() { 0 } else { GetWindowThreadProcessId(fg, None) };
+        let attached = other != 0 && other != cur && AttachThreadInput(cur, other, true).as_bool();
+        let _ = SetForegroundWindow(hwnd);
+        let _ = BringWindowToTop(hwnd);
+        if attached {
+            let _ = AttachThreadInput(cur, other, false);
+        }
+        if GetForegroundWindow() != hwnd {
+            // A tap of Alt: Windows then allows the change of foreground window.
+            let key = |flags| INPUT { r#type: INPUT_KEYBOARD, Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: VK_MENU, dwFlags: flags, ..Default::default() } } };
+            let _ = SendInput(&[key(Default::default()), key(KEYEVENTF_KEYUP)], std::mem::size_of::<INPUT>() as i32);
+            let _ = SetForegroundWindow(hwnd);
+            let _ = BringWindowToTop(hwnd);
+        }
+    }
 }
 
 /// As tall as its results (logical px); its top stays where it is.
