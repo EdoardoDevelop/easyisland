@@ -60,6 +60,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
+- I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
+- L'Anteprima si apre da sola sui file della chat solo con `previewEdits` (spenta di serie), mai dopo una chiusura a mano.
+
 ### 17/11 — Chat staccata che perde il fuoco; Antigravity Desktop
 - Il clic nel campo della chat staccata, girato alla pagina dell'isola, la portava avanti: ora `focusWindow(true, from)` ignora le richieste da altre finestre (`inIslandPage`, senza `instanceof`: altro realm).
 - Le sessioni di Antigravity hanno l'host `antigravity`: niente isola a fine comando con Desktop in primo piano, e «Apri Antigravity» porta avanti Desktop o il terminale (`apps::open_session`).
@@ -77,11 +81,4 @@ Il 16/11 sul portatile l'aggiornamento dell'iLO è costato un turno di 25 minuti
 - `sync` gira uno alla volta.
 
 Prova degli script in Edge: `scripts/anteprima-frame.mjs`. Dal vivo nell'app: `docs/prove-dal-vivo.md`.
-
-### 17/11 — Antigravity: permessi nella chat (`--settings`), Nega che ferma, avvisi giusti
-Sul portatile il turno finiva senza testo: in `--print` agy nega da sé ogni conferma (`easyisland/skill_list`), anche con gli hook. Ora:
-- ogni turno ha `--settings` di sessione con `mcp(easyisland/*)`; con gli hook anche `always-proceed`, e ogni azione chiede nell'isola (nessuna risposta = Nega; in Automatica passa ciò che non è delicato, `permits::agy_auto`);
-- l'avviso dice cosa è successo (senza hook, o un passo negato).
-
-Provato dal vivo: la regola, e il `deny` del PreToolUse che blocca in `always-proceed` (`docs/chat.md`, `docs/agenti.md`). Non provato tutto il giro con l'isola: `docs/prove-dal-vivo.md`.
 

@@ -2241,10 +2241,11 @@ ${note}` : text };
       return {
         title: target.split(/[\\/]/).filter(Boolean).pop() ?? target,
         items: [
-          { label: t("Apri"), run: () => chatPathAction(path, "open") },
+          // The path as found (chatpaths.rs): a relative one is in the chat's folders, not where Rust would look alone.
+          { label: t("Apri"), run: () => chatPathAction(target, "open") },
           ...(!dir && canPreview(target) ? [{ label: t("Anteprima"), run: () => chatPathAction(target, "preview") }] : []),
-          ...(!dir ? [{ label: t("Scarica"), run: () => chatPathAction(path, "download") }] : []),
-          { label: t("Apri percorso"), run: () => chatPathAction(path, "reveal") },
+          ...(!dir ? [{ label: t("Scarica"), run: () => chatPathAction(target, "download") }] : []),
+          { label: t("Apri percorso"), run: () => chatPathAction(target, "reveal") },
           { label: t("Copia percorso"), sep: true, run: () => void navigator.clipboard.writeText(target).catch(() => undefined) },
         ],
       };

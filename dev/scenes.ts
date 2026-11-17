@@ -280,6 +280,20 @@ export async function runScene(island: Island, scene: string) {
           { id: 2, role: "assistant", content: "È il file delle impostazioni di **Windows Terminal**." },
         ];
       }
+      // ?percorsi: relative paths in a reply (17 Nov 2026), found as chatpaths.rs does
+      // (the folder above the chat's «…\WORK»); a missing bare one stays plain text.
+      if (new URLSearchParams(location.search).has("percorsi")) {
+        const found = "C:\\Users\\Edoardo\\OneDrive - Easytech SRL\\WORK\\Cardinalini\\FreePBX\\export-freepbx211-3cx.sh";
+        Object.assign(Bridge, {
+          pathsInfo: async (paths: string[]) => paths.map((path) => /export-freepbx211-3cx\.sh$/.test(path.replace(/[.:]+$/, ""))
+            ? { path, resolved: found, kind: "file", line: null }
+            : { path, resolved: path, kind: "missing", line: null }),
+        });
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Mi prepari lo script per esportare la rubrica da FreePBX?" },
+          { id: 2, role: "assistant", content: "Fatto. Lo script è in `WORK\\Cardinalini\\FreePBX\\export-freepbx211-3cx.sh`.\n\nL'ho salvato anche come WORK\\Cardinalini\\FreePBX\\export-freepbx211-3cx.sh. Il vecchio WORK\\Cardinalini\\vecchio\\export.sh non c'è più.", engine: "subscription" },
+        ];
+      }
       // ?background: work Claude Code left running (claude_cli.rs follow), listed under the conversation.
       if (new URLSearchParams(location.search).has("background")) {
         State.chatHistory = [

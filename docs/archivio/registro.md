@@ -2,6 +2,13 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 — Antigravity: permessi nella chat (`--settings`), Nega che ferma, avvisi giusti
+Sul portatile il turno finiva senza testo: in `--print` agy nega da sé ogni conferma (`easyisland/skill_list`), anche con gli hook. Ora:
+- ogni turno ha `--settings` di sessione con `mcp(easyisland/*)`; con gli hook anche `always-proceed`, e ogni azione chiede nell'isola (nessuna risposta = Nega; in Automatica passa ciò che non è delicato, `permits::agy_auto`);
+- l'avviso dice cosa è successo (senza hook, o un passo negato).
+
+Provato dal vivo: la regola, e il `deny` del PreToolUse che blocca in `always-proceed` (`docs/chat.md`, `docs/agenti.md`). Non provato tutto il giro con l'isola: `docs/prove-dal-vivo.md`.
+
 ### 17/11 — Antigravity: impegno suo, nuovo tentativo, Automatica, meno memoria
 Sul portatile «puoi vedere le skill di claude?» falliva in 4 s: a `gemini-4-hydrogen-high` arrivava `--effort medium` di Claude Code e agy 1.5.9 rifiuta la coppia. Ora:
 - Antigravity ha il suo impegno (`agyEffort`, `Chat::agy_effort`); niente `--effort` con il «Predefinito del modello» o con l'impegno nel nome del modello;

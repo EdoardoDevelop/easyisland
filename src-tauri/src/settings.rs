@@ -1049,6 +1049,12 @@ pub struct Settings {
     /// terminale» edits open in the preview window.
     #[serde(default = "default_true")]
     pub chat_preview: bool,
+    /// The Anteprima opens by itself on a file the chat creates or edits
+    /// (preview::touched). Off by default (Edoardo, 17 Nov 2026: «quando la chat
+    /// crea uno script non mi deve necessariamente aprire l'anteprima»): the
+    /// file is a link in the reply, a click shows it.
+    #[serde(default)]
+    pub preview_edits: bool,
     /// The picture of an empty chat (src/views/chat-empty.ts): "ezzy" (default),
     /// "isola", "onde", "stelle", "aurora", "rete", "nessuna".
     #[serde(default = "default_chat_empty_art")]
@@ -1388,6 +1394,7 @@ impl Default for Settings {
             chat_team_check: true,
             chat_folder: String::new(),
             chat_preview: true,
+            preview_edits: false,
             chat_empty_art: default_chat_empty_art(),
             chat_tips: true,
             chat_light: true,

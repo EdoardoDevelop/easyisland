@@ -759,6 +759,8 @@ export interface Settings {
   localCompose?: boolean;
   /** Quick answers in the island's search: "potion" (default), "off", "local" or an engine (quick_answer.rs). */
   quickAnswers?: string;
+  /** The Anteprima opens by itself on a file the chat creates or edits; off by default. */
+  previewEdits?: boolean;
   /** The model on the graphics card when there is a fitting one. */
   localGpu?: boolean;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */

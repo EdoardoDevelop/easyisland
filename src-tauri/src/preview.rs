@@ -1448,6 +1448,14 @@ fn key(path: &str) -> String {
 /// «Modalità terminale» is about to change a file (a step of Claude Code or
 /// opencode): its text now is the «Modifiche» baseline, and the file opens in
 /// the preview when the user wants it.
+/// The user closed the Anteprima (its ✕, or the chat's button): files the chat
+/// edits do not open it again until the user opens something (lib.rs).
+static CLOSED_BY_USER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn closed_by_user(closed: bool) {
+    CLOSED_BY_USER.store(closed, std::sync::atomic::Ordering::Relaxed);
+}
+
 pub fn touched(path: &str) {
     let Some(app) = APP.get() else { return };
     let full = resolve_path(app, path);
@@ -1470,8 +1478,13 @@ pub fn touched(path: &str) {
             }
         }
     }
-    let wanted = app.try_state::<crate::Shared>().map(|sh| sh.settings.lock().unwrap().chat_preview).unwrap_or(false);
-    if !wanted {
+    // By itself only when asked (Impostazioni → Chat), and never after the user
+    // closed it, until they open something in it again.
+    let wanted = app.try_state::<crate::Shared>().is_some_and(|sh| {
+        let s = sh.settings.lock().unwrap();
+        s.chat_preview && s.preview_edits
+    });
+    if !wanted || CLOSED_BY_USER.load(std::sync::atomic::Ordering::Relaxed) {
         return;
     }
     // The edit happens after the permission: open once the file is there.

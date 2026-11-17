@@ -9,7 +9,7 @@ L'**Anteprima** è una finestra con le schede, come un piccolo browser, che sta 
 ## Come si apre
 - **Un link in un messaggio della chat**: si apre nell'Anteprima. Con **Ctrl+clic** va invece nel browser di Windows.
 - **Un file citato dalla chat** (per esempio `src/app.ts` o `C:\Progetti\sito\README.md`): è sottolineato a puntini, un clic lo apre. I percorsi relativi partono dalla cartella della chat (Impostazioni → Chat → Cartella di lavoro).
-- **Da sola, con la Modalità terminale**: quando la chat modifica un file, il file compare nell'Anteprima con le modifiche evidenziate, senza rubarti la finestra.
+- **Dai file della chat**: quando la chat crea o modifica un file, il percorso nella risposta diventa un collegamento; un clic lo mostra nell'Anteprima con le modifiche evidenziate (tasto destro: Apri, Scarica, Apri percorso, Copia percorso). Se vuoi che l'Anteprima si apra **da sola**, accendi Impostazioni → Chat → «Apri da sola i file della chat»; se poi la chiudi, non si riapre finché non apri tu qualcosa.
 - **Il pulsante con la finestra** nella testata della chat (con la Modalità terminale accesa).
 - **Un server di sviluppo appena partito**: la card nell'isola ha il pulsante **Anteprima**. Anche **+** nell'Anteprima elenca i server in ascolto su questo PC.
 - **Trascinando un file** sulla finestra, o scrivendo un indirizzo o un percorso nella barra.

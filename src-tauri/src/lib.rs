@@ -4341,11 +4341,13 @@ pub(crate) fn webview_dir() -> Option<std::path::PathBuf> {
 #[tauri::command]
 async fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
     let place = if new_tab.unwrap_or(false) { preview::Place::NewTab } else { preview::Place::Reuse };
+    preview::closed_by_user(false);
     preview::open(&app, &target, place, true)
 }
 
 #[tauri::command]
 async fn preview_show(app: AppHandle) -> Result<(), String> {
+    preview::closed_by_user(false);
     preview::show(&app, true)
 }
 
@@ -4368,6 +4370,7 @@ async fn preview_pane(app: AppHandle, x: f64, y: f64, w: f64, h: f64) {
 
 #[tauri::command]
 async fn preview_hide(app: AppHandle) {
+    preview::closed_by_user(true);
     preview::close_window(&app);
 }
 

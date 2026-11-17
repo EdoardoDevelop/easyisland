@@ -1004,7 +1004,13 @@ function terminalSections(): HTMLElement[] {
         (v) => { settings.chatPreview = v !== "off"; settings.previewDocked = v === "docked"; void save(); }),
       moreHint(
         t("Apre link, pagine web e file modificati dalla chat accanto all'isola o in una finestra dedicata."),
-        t("I link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser."))));
+        t("I link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero; i file che la modalità terminale modifica si vedono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser."))),
+    h("div", { class: "row" },
+      h("label", { text: t("Apri da sola i file della chat") }),
+      toggle(settings.previewEdits === true, (v) => { settings.previewEdits = v; void save(); }),
+      moreHint(
+        t("Quando la chat crea o modifica un file, l'Anteprima si apre da sola per mostrarlo."),
+        t("Spenta, il file creato o modificato resta un collegamento nella risposta: un clic lo mostra nell'Anteprima con le modifiche evidenziate. Accesa, l'Anteprima si apre da sola; se la chiudi, non si riapre da sola finché non apri tu qualcosa. Le pagine che il motore apre con i suoi strumenti si aprono comunque."))));
 
   const routingSection = h("section", {},
     h("h2", {}, h("span", { text: t("Risposte rapide, ricette e portali") })),

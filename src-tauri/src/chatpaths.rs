@@ -56,13 +56,51 @@ fn split_line(s: &str) -> (&str, Option<u32>) {
 
 fn info(app: &AppHandle, raw: &str, base: Option<&str>) -> PathInfo {
     let (path, line) = split_line(raw.trim());
-    // Relative to the folder picked for the conversation, when there is one.
-    let resolved = match base {
-        Some(b) if std::path::Path::new(path).is_relative() && !path.starts_with('~') => PathBuf::from(b).join(path),
-        _ => crate::preview::resolve_path(app, path),
+    let path = path.trim_end_matches(['.', ',', ';', ':']);
+    let tried = candidates(path, base, crate::workdir::root(app), std::env::var_os("USERPROFILE").map(PathBuf::from), || crate::preview::resolve_path(app, path));
+    // The first that is there; none: the first, shown as missing.
+    let found = tried.iter().map(|p| (p, kind_of(p))).find(|(_, k)| *k != "missing");
+    let (resolved, kind) = match found {
+        Some((p, k)) => (p.clone(), k),
+        None => (tried.first().cloned().unwrap_or_default(), "missing"),
     };
-    let kind = kind_of(&resolved);
     PathInfo { path: raw.to_string(), resolved: resolved.to_string_lossy().into_owned(), kind, line }
+}
+
+/// Where a path of a reply may be, in order. Absolute or «~\…»: itself.
+/// Relative: the chat's folder, the work folder (Impostazioni → Chat), each
+/// with its two parents, then the user's folder (17 Nov 2026: «WORK\Cardinalini\…»
+/// was relative to the folder above the chat's «…\WORK», and the chat had none:
+/// no link, no Apri, no Copia).
+fn candidates(path: &str, base: Option<&str>, work: Option<PathBuf>, home: Option<PathBuf>, plain: impl FnOnce() -> PathBuf) -> Vec<PathBuf> {
+    if !Path::new(path).is_relative() || path.starts_with('~') {
+        return vec![plain()];
+    }
+    let mut out: Vec<PathBuf> = Vec::new();
+    let mut add = |dir: &Path| {
+        for d in dir.ancestors().take(3) {
+            let p = d.join(path);
+            if !out.contains(&p) {
+                out.push(p);
+            }
+        }
+    };
+    if let Some(b) = base.filter(|b| !b.trim().is_empty()) {
+        add(Path::new(b));
+    }
+    if let Some(w) = work {
+        add(&w);
+    }
+    if let Some(h) = home {
+        let p = h.join(path);
+        if !out.contains(&p) {
+            out.push(p);
+        }
+    }
+    if out.is_empty() {
+        out.push(plain());
+    }
+    out
 }
 
 fn local_kind(p: &Path) -> &'static str {
@@ -173,8 +211,8 @@ fn free_name(dir: &Path, file: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{network_of, split_line};
-    use std::path::Path;
+    use super::{candidates, network_of, split_line};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn network_paths_are_told_apart() {
@@ -195,6 +233,27 @@ mod tests {
         let again = std::time::Instant::now();
         assert_eq!(super::kind_of(p), "missing");
         assert!(again.elapsed() < std::time::Duration::from_millis(50));
+    }
+
+    #[test]
+    fn relative_paths_are_looked_for_in_the_folders_of_the_chat() {
+        let dir = std::env::temp_dir().join(format!("ei-paths-{}", std::process::id()));
+        let file = dir.join("WORK").join("Cardinalini").join("export.sh");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, "echo").unwrap();
+        // The chat in «…\WORK», the path starting from the folder above it.
+        let work = dir.join("WORK");
+        let tried = candidates("WORK\\Cardinalini\\export.sh", None, Some(work.clone()), None, PathBuf::new);
+        assert_eq!(tried.first(), Some(&work.join("WORK\\Cardinalini\\export.sh")));
+        assert!(tried.contains(&dir.join("WORK\\Cardinalini\\export.sh")));
+        assert_eq!(tried.iter().find(|p| p.is_file()), Some(&dir.join("WORK\\Cardinalini\\export.sh")));
+        // The chat's own folder first, then the work folder, then home.
+        let t = candidates("a.txt", Some("C:\\x\\y"), Some(PathBuf::from("D:\\w")), Some(PathBuf::from("C:\\Users\\e")), PathBuf::new);
+        assert_eq!(t[0], PathBuf::from("C:\\x\\y\\a.txt"));
+        assert!(t.iter().position(|p| p == &PathBuf::from("D:\\w\\a.txt")) < t.iter().position(|p| p == &PathBuf::from("C:\\Users\\e\\a.txt")));
+        // Absolute: itself.
+        assert_eq!(candidates("C:\\a\\b.txt", Some("D:\\x"), None, None, || PathBuf::from("C:\\a\\b.txt")), vec![PathBuf::from("C:\\a\\b.txt")]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

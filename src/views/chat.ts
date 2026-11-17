@@ -286,6 +286,13 @@ async function checkPaths(root: HTMLElement) {
   for (const e of els) {
     const info = pathSeen.get(key(e.dataset.path ?? ""))?.info;
     if (!info) continue;
+    // A bare relative path that is not there: back to plain text (markdown.ts).
+    if (info.kind === "missing" && e.dataset.bare) {
+      e.classList.remove("md-path");
+      delete e.dataset.path;
+      e.removeAttribute("title");
+      continue;
+    }
     e.dataset.kind = info.kind;
     e.dataset.resolved = info.resolved;
     e.classList.toggle("md-missing", info.kind === "missing");
@@ -322,7 +329,8 @@ export function openChatPath(path: string, el: HTMLElement | null, direct = fals
   if (el?.classList.contains("md-missing")) return;
   const target = el?.dataset.resolved || path;
   if (el?.dataset.kind === "dir" || direct || State.settings.chatPreview === false || !canPreview(target)) {
-    chatPathAction(path, "open");
+    // The path as found (a relative one, in the chat's folders: chatpaths.rs).
+    chatPathAction(target, "open");
     return;
   }
   chatPathAction(target, "preview");
