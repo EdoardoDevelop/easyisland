@@ -94,6 +94,11 @@ Funzioni verificate solo con test o anteprima. Togli una voce quando è provata;
 - [ ] **Registra:** chiamata Teams o 3CX con microfono e audio PC in sincrono; schermo con audio per minuti (fluido, cursore, audio allineato); punto rosso con Stop; card con Nel Vassoio; «davanti al cliente» non scatta per noi; 4K esce a 1920 px. Trascinare il personaggio su una finestra la sceglie; finestra coperta, spostata, chiusa (file resta); «Foto nel Vassoio».
 - [ ] **Appunti e Media** (Ctrl+V, immagini da varie app, Spotify/browser), **calcolatrice**, **ZIP**.
 - [ ] **Anteprima** (26–27/10): link e file dalla chat, server di sviluppo dalla card e da «+»; Desktop/Tablet/Telefono, ☀/☾, console con errore, Strumenti per sviluppatori; HTML e PDF; file modificato dalla Modalità terminale con «Modifiche»; file trascinato sulla finestra; chiudi e riapri (schede uguali, nessun processo); dalla chat `preview_read`, `preview_screenshot`, `preview_console`, `preview_click` con Consenti/Nega. Nell'isola: pagine cliccabili e scrivibili; `preview_snapshot` su un sito vero, clic per ref, `preview_wait`, `preview_network` con 404, riga di contesto con Anteprima aperta.
+  - 17/11, sull'iLO o su una pagina con un iframe dello stesso sito:
+    - lo snapshot mostra `[frame=f1]` e i clic per ref `f1e…` colpiscono;
+    - un `preview_wait` con `minutes` e `text` aspetta senza passi e «Ferma» lo interrompe;
+    - la foto arriva come immagine (niente «Legge» dopo);
+    - nel log nessun «already exists».
 
 ## Integrazioni
 - [ ] **Telegram** (17/10), con un bot vero:

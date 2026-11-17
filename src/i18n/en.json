@@ -4982,7 +4982,6 @@
   "({n} caratteri: custom_get con part \"all\" per leggerlo)": "({n} characters: custom_get with part \"all\" to read it)",
   "Nessun template.": "No template.",
   "Tasto sconosciuto: {k}": "Unknown key: {k}",
-  "Elemento non trovato nella pagina.": "Element not found on the page.",
   "Manca l'elemento: ref, selector o text_match.": "The element is missing: ref, selector or text_match.",
   "Pagina scorsa.": "Page scrolled.",
   "Azione sconosciuta: {a}": "Unknown action: {a}",
@@ -5006,7 +5005,6 @@
   "Cerca nella pagina": "Searches the page",
   "Manca steps: un elenco di passi { tool, … }.": "steps is missing: a list of steps { tool, … }.",
   "Al massimo {n} passi per volta.": "At most {n} steps at a time.",
-  "Passo {n}: strumento non ammesso qui: «{t}».": "Step {n}: tool not allowed here: “{t}”.",
   "ERRORE:": "ERROR:",
   "Fermo al passo {n} di {tot}.": "Stopped at step {n} of {tot}.",
   "Pronto.": "Ready.",
@@ -5713,5 +5711,7 @@
   "fino a": "up to",
   "che sparisca «{t}»": "until «{t}» goes away",
   "che la pagina cambi": "until the page changes",
-  "Schermata della scheda {id}: {p} (PNG). Se non è già qui come immagine, leggila da quel file.": "Screenshot of tab {id}: {p} (PNG). If it is not already here as an image, read it from that file."
+  "Schermata della scheda {id}: {p} (PNG). Se non è già qui come immagine, leggila da quel file.": "Screenshot of tab {id}: {p} (PNG). If it is not already here as an image, read it from that file.",
+  "Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find.": "Element not found on the page: if it changed (reloaded, another screen), look at it again with preview_snapshot or preview_find.",
+  "Passo {n}: strumento non ammesso qui: «{t}». Si possono usare: {list}.": "Step {n}: tool not allowed here: «{t}». These can be used: {list}."
 }

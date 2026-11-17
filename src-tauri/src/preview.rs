@@ -57,7 +57,7 @@ const MAX_READ: usize = 30_000;
 const MAX_STEPS: usize = 15;
 const STEP_TOOLS: &[&str] = &[
     "preview_open", "preview_find", "preview_wait", "preview_scroll", "preview_act", "preview_click", "preview_type",
-    "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract",
+    "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract", "preview_screenshot",
 ];
 /// Steps whose whole answer is kept even in the middle: what they read is the point.
 const READS: &[&str] = &["preview_find", "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract"];
@@ -1350,7 +1350,7 @@ async fn point_of(app: &AppHandle, id: u32, target: &Value, guard: bool) -> Resu
     if let Some(e) = v.get("error").and_then(Value::as_str) {
         return Err(e.to_string());
     }
-    let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina.").to_string())?;
+    let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find.").to_string())?;
     let n = |i: usize| p.get(i).and_then(Value::as_f64).unwrap_or(0.0);
     Ok((n(0), n(1), v.get("what").and_then(Value::as_str).unwrap_or_default().to_string()))
 }
@@ -1755,7 +1755,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             for (i, step) in steps.iter().enumerate() {
                 let tool_name = step.get("tool").and_then(Value::as_str).unwrap_or_default().trim().to_string();
                 if !STEP_TOOLS.contains(&tool_name.as_str()) {
-                    return Err(tf("Passo {n}: strumento non ammesso qui: «{t}».", &[("n", &(i + 1).to_string()), ("t", &tool_name)]));
+                    return Err(tf("Passo {n}: strumento non ammesso qui: «{t}». Si possono usare: {list}.", &[("n", &(i + 1).to_string()), ("t", &tool_name), ("list", &STEP_TOOLS.join(", "))]));
                 }
                 let mut a = step.clone();
                 if let Some(obj) = a.as_object_mut() {
@@ -2936,7 +2936,7 @@ const FIND: &str = r#"(q, act, typing, guard) => {
     el = all.find((e) => name(e) === want) || all.find((e) => name(e).includes(want));
     if (el && el.tagName === "LABEL" && el.control) el = el.control;
   }
-  if (!el) return { error: "Elemento non trovato nella pagina." };
+  if (!el) return { error: "Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find." };
   if (typing && (el.type === "password" || /cc-|card|cvc|iban/i.test(el.getAttribute("autocomplete") || "") || /card|cvc|cvv|iban/i.test(el.name || ""))) return { error: "Password e dati di pagamento li scrive l'utente." };
   const what = ((el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.tagName) + "").trim().slice(0, 60);
   if (guard) {

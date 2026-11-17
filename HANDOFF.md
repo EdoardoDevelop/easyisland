@@ -60,6 +60,14 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Anteprima: attesa lunga, iframe dello stesso sito, foto come immagine
+Il 16/11 sul portatile l'aggiornamento dell'iLO è costato un turno di 25 minuti (46 attese inventate, 38 foto + 38 letture, 3,44 $). Ora:
+- `preview_wait` aspetta fino a 10 minuti controllando nell'app, con `changed` o come pausa, e «Ferma» la interrompe;
+- gli iframe dello stesso sito si leggono e si usano (ref `f1e5`); la foto torna come immagine MCP;
+- `sync` gira uno alla volta.
+
+Prova degli script in Edge: `scripts/anteprima-frame.mjs`. Dal vivo nell'app: `docs/prove-dal-vivo.md`.
+
 ### 17/11 — Antigravity: permessi nella chat (`--settings`), Nega che ferma, avvisi giusti
 Sul portatile il turno finiva senza testo: in `--print` agy nega da sé ogni conferma (`easyisland/skill_list`), anche con gli hook. Ora:
 - ogni turno ha `--settings` di sessione con `mcp(easyisland/*)`; con gli hook anche `always-proceed`, e ogni azione chiede nell'isola (nessuna risposta = Nega; in Automatica passa ciò che non è delicato, `permits::agy_auto`);
@@ -79,7 +87,4 @@ Anteprima (`preview.rs` `new_window`/`make_popup`): `window.open` con dimensioni
 
 ### 16/11 — Versione 1.0.51: blocco all'avvio della 1.0.50
 La 1.0.50 si bloccava all'avvio: `WindowEvent::Focused` arriva dentro `Webview::set_focus` (`apply_app_mode`, `activate_window`), che tiene il lock `window_id` della webview, e l'`emit_to` sincrono di `island-focused`/`island-blurred` lo riprendeva sul thread principale. Ora gli emit partono da `async_runtime::spawn` (`lib.rs`). Trovato con i thread della build con simboli; 6 riavvii puliti. Smoke completo «nessun errore» (91 prove), test Rust 575 + 38.
-
-### 16/11 — Versione 1.0.50
-Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su schermo, tema scuro e chiaro, fuoco automatico WebView2 sul thread principale in `island::activate_window` anche dopo clic sul desktop), la scelta dell'aspetto della riga di ricerca (`search-line.css`, `searchBarLine`: `waves`/`horizon`/`comet`/`prism`/`emerald`/`amber`/`steady`/`off`; `searchBarLineMode`: `focus`/`loop`/`both`/`fade` con anteprima in Impostazioni → Aspetto → Isola aperta), i nuovi sfondi (`gradient`/`glow`/`aurora`/`glass` in `barbg.ts`) e stili elementi (`classic`/`pills`/`compact`) della barra fissa, tutte le schede delle Impostazioni riordinate con sotto-schede condivise e tre fix Windows (chiusura pulita senza finestra nascosta, clic sul personaggio che riporta in primo piano l'isola coperta, avvio di app Store, collegamenti `.lnk`/`.url` e Pannello di controllo). Smoke completo «nessun errore» (91 prove), `npm run build` (`5380 testi, 0 senza inglese`), test Rust 575 + 38.
 

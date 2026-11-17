@@ -903,7 +903,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_steps",
-            "Più passi nell'Anteprima in una chiamata sola, uno dopo l'altro, fermandosi al primo errore: steps è un elenco di { tool, …argomenti } con tool fra preview_open, preview_find, preview_wait, preview_scroll, preview_act, preview_click, preview_type, preview_read, preview_snapshot, preview_network, preview_console, preview_extract (al massimo 15; tab vale per tutti). Dei passi in mezzo torna una riga (intero chi legge: find, read, snapshot, network, console, extract), dell'ultimo tutto. Esempio: apri la ricerca, scrivi, Invio, aspetta i risultati, estrai. Molti meno giri e token. L'utente conferma una volta per tutti i passi.",
+            "Più passi nell'Anteprima in una chiamata sola, uno dopo l'altro, fermandosi al primo errore: steps è un elenco di { tool, …argomenti } con tool fra preview_open, preview_find, preview_wait, preview_scroll, preview_act, preview_click, preview_type, preview_read, preview_snapshot, preview_network, preview_console, preview_extract, preview_screenshot (al massimo 15; tab vale per tutti; la foto ha senso come ultimo passo e torna come immagine). Dei passi in mezzo torna una riga (intero chi legge: find, read, snapshot, network, console, extract), dell'ultimo tutto. Esempio: apri la ricerca, scrivi, Invio, aspetta i risultati, estrai. Molti meno giri e token. L'utente conferma una volta per tutti i passi.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
                 "steps": { "type": "array", "items": { "type": "object" } }
