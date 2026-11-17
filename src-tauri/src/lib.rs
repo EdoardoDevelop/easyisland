@@ -18,6 +18,7 @@ mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
 mod quick_answer;
+mod search_window;
 mod votes;
 mod memory_tips;
 mod local_model;
@@ -2522,6 +2523,12 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
     if url != "about:blank" {
         return tauri::webview::NewWindowResponse::Deny;
     }
+    // A window of its own kind (popout_kind just before window.open): the
+    // search's (search_window.rs) or the notices' (notices_window.rs).
+    let kind = NEXT_KIND.lock().unwrap_or_else(|e| e.into_inner()).take();
+    if kind.as_deref() == Some("ricerca") {
+        return own_window(search_window::build(app, features));
+    }
     let label = format!("staccata-{}", NEXT.fetch_add(1, Ordering::Relaxed));
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
         .window_features(features)
@@ -2585,6 +2592,20 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
     }
 }
 
+/// A window of its own kind made (or not) for window.open: its name for popout_take.
+fn own_window(made: tauri::Result<tauri::WebviewWindow>) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    match made {
+        Ok(window) => {
+            *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(window.label().to_string());
+            tauri::webview::NewWindowResponse::Create { window }
+        }
+        Err(e) => {
+            log::line(format!("finestra: {e}"));
+            tauri::webview::NewWindowResponse::Deny
+        }
+    }
+}
+
 /// The last window popout_window made: the island asks for its name right
 /// after window.open (popout_take) and uses that name from then on.
 static LAST_POPOUT: Mutex<Option<String>> = Mutex::new(None);
@@ -2598,6 +2619,16 @@ fn popout_find(app: &AppHandle, name: &str) -> Option<tauri::Window> {
         return None;
     }
     app.get_window(name)
+}
+
+/// What the next `window.open("", …)` of the island is for: "ricerca" (the
+/// search on its own, search_window.rs), "avvisi" (notices_window.rs); none =
+/// a view popped out (popout_window). Taken by the next window made.
+static NEXT_KIND: Mutex<Option<String>> = Mutex::new(None);
+
+#[tauri::command]
+fn popout_kind(kind: String) {
+    *NEXT_KIND.lock().unwrap_or_else(|e| e.into_inner()) = Some(kind);
 }
 
 /// The name of the window window.open has just made (popout.ts).
@@ -5287,6 +5318,10 @@ pub fn run() {
             memory_graph,
             popout_focus,
             popout_take,
+            popout_kind,
+            search_window::search_window_show,
+            search_window::search_window_fit,
+            search_window::search_window_hide,
             popout_title,
             popout_chat,
             popout_close,

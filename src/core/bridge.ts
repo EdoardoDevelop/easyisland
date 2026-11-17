@@ -691,6 +691,12 @@ export const Bridge = {
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
   popoutFocus: (window: string) => call<void>("popout_focus", { window }),
   popoutTake: () => call<string | null>("popout_take"),
+  /** The next window.open is a window of its own kind: "ricerca" (search_window.rs), "avvisi" (notices_window.rs). */
+  popoutKind: (kind: "ricerca" | "avvisi") => call<void>("popout_kind", { kind }),
+  /** The search on its own: shown `height` (logical px) tall where the mouse is, with the keyboard; false when its window is not there. */
+  searchWindowShow: (height: number) => call<boolean>("search_window_show", { height }),
+  searchWindowFit: (height: number) => call<void>("search_window_fit", { height }),
+  searchWindowHide: () => call<void>("search_window_hide"),
   popoutTitle: (window: string, title: string) => call<void>("popout_title", { window, title }),
   popoutChat: (window: string | null) => call<void>("popout_chat", { window }),
   popoutClose: (window: string) => call<void>("popout_close", { window }),

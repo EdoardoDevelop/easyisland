@@ -1,0 +1,94 @@
+// The search on its own (the search shortcut), in a window of its own: the
+// island stays as it is, open on its view or closed (Edoardo, 17 Nov 2026:
+// «se l'isola è aperta e avvio la ricerca non si dovrebbe chiudere l'isola»).
+// Like the popped-out views (popout.ts) the window is a blank page the
+// island's page draws the search into (src/island/search-window.ts): state,
+// results and actions stay in the island, nothing runs twice. Made once, then
+// shown and hidden; hidden it costs nothing (no frames are drawn).
+
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+pub const LABEL: &str = "ricerca";
+/// Its width (logical px), as the search-only island's.
+const WIDTH: f64 = 640.0;
+
+/// The window `window.open` asks for when the island opens the search's
+/// (lib.rs popout_window, after popout_kind("ricerca")): no frame, transparent,
+/// in front, out of the taskbar, hidden until placed.
+pub fn build(app: &AppHandle, features: tauri::webview::NewWindowFeatures) -> tauri::Result<WebviewWindow> {
+    WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External("about:blank".parse().expect("about:blank")))
+        .window_features(features)
+        .title("EasyIsland")
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .build()
+}
+
+/// The search window's place: centred on the screen of the mouse, its top a
+/// quarter down the work area (it grows down as results come, never jumps).
+fn place(app: &AppHandle, win: &WebviewWindow, height: f64) {
+    let at = crate::island::cursor_physical();
+    let monitors = app.available_monitors().unwrap_or_default();
+    let monitor = at
+        .and_then(|(x, y)| {
+            monitors.iter().find(|m| {
+                let (p, s) = (m.position(), m.size());
+                x >= p.x as f64 && y >= p.y as f64 && x < p.x as f64 + s.width as f64 && y < p.y as f64 + s.height as f64
+            })
+        })
+        .cloned()
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let Some(m) = monitor else { return };
+    let scale = m.scale_factor();
+    let area = m.work_area();
+    let w = (WIDTH * scale).round().min(area.size.width as f64) as u32;
+    let most = (area.size.height as f64 * 0.7).max(120.0);
+    let h = (height.max(54.0) * scale).round().min(most) as u32;
+    let x = area.position.x + (area.size.width as i32 - w as i32) / 2;
+    let y = area.position.y + area.size.height as i32 / 4;
+    let _ = win.set_size(PhysicalSize::new(w, h));
+    let _ = win.set_position(PhysicalPosition::new(x, y));
+}
+
+/// Shown where the mouse is, `height` (logical px) tall, with the keyboard.
+#[tauri::command]
+pub fn search_window_show(app: AppHandle, height: f64) -> bool {
+    let Some(win) = app.get_webview_window(LABEL) else { return false };
+    place(&app, &win, height);
+    let _ = win.show();
+    let _ = win.set_always_on_top(true);
+    let _ = win.set_focus();
+    true
+}
+
+/// As tall as its results (logical px); its top stays where it is.
+#[tauri::command]
+pub fn search_window_fit(app: AppHandle, height: f64) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let Ok(size) = win.inner_size() else { return };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let most = win
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|m| (m.work_area().size.height as f64 * 0.7).max(120.0))
+        .unwrap_or(800.0);
+    let h = (height.max(54.0) * scale).round().min(most) as u32;
+    if h != size.height {
+        let _ = win.set_size(PhysicalSize::new(size.width, h));
+    }
+}
+
+#[tauri::command]
+pub fn search_window_hide(app: AppHandle) {
+    if let Some(win) = app.get_webview_window(LABEL) {
+        let _ = win.hide();
+    }
+}
