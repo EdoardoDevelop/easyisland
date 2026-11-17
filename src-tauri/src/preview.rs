@@ -1839,10 +1839,34 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_wait" => {
             let tb = tab_for(&s("tab"))?;
-            let secs = args.get("timeout").and_then(Value::as_u64).unwrap_or(10).clamp(1, 30);
-            let q = json!({ "text": s("text"), "gone": s("text_gone"), "selector": s("selector") });
-            let script = format!("({WAIT})({q})");
+            let changed = args.get("changed").and_then(Value::as_bool).unwrap_or(false);
+            let pause = s("text").is_empty() && s("text_gone").is_empty() && s("selector").is_empty() && !changed;
+            let secs = wait_seconds(args);
+            // A long wait (a firmware, a reboot, a download: 16 Nov 2026 the
+            // engine waited for invented words 46 times in 25 minutes) is
+            // checked here every few seconds, with no step of the model.
+            let every = Duration::from_millis(if secs > 30 { 2500 } else { 300 });
+            let stops = WAIT_STOPS.load(std::sync::atomic::Ordering::Relaxed);
+            let stopped = || WAIT_STOPS.load(std::sync::atomic::Ordering::Relaxed) != stops;
             let until = std::time::Instant::now() + Duration::from_secs(secs);
+            if pause {
+                while std::time::Instant::now() < until {
+                    if stopped() {
+                        return Err(t("Attesa interrotta.").into());
+                    }
+                    tokio::time::sleep(every.min(until.saturating_duration_since(std::time::Instant::now()))).await;
+                }
+                if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
+                    return Ok(tf("Aspettato {t}.", &[("t", &span(secs))]));
+                }
+                let waited = tf("Aspettato {t}.", &[("t", &span(secs))]);
+                let page = page_view(app, tb.id).await?;
+                return Ok(format!("{waited}\n\n{page}"));
+            }
+            // «changed»: the page's text (with its frames of the same site) as it is now.
+            let before = if changed { eval(app, tb.id, &format!("({WAIT})({})", json!({ "hash": true }))).await.ok().map(|h| h.trim().trim_matches('"').to_string()) } else { None };
+            let q = json!({ "text": s("text"), "gone": s("text_gone"), "selector": s("selector"), "before": before });
+            let script = format!("({WAIT})({q})");
             loop {
                 // During a navigation the page does not answer: tried again.
                 if let Ok(raw) = eval(app, tb.id, &script).await {
@@ -1850,10 +1874,13 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                         break;
                     }
                 }
-                if std::time::Instant::now() >= until {
-                    return Err(tf("Non è successo entro {s} secondi.", &[("s", &secs.to_string())]));
+                if stopped() {
+                    return Err(t("Attesa interrotta.").into());
                 }
-                tokio::time::sleep(Duration::from_millis(300)).await;
+                if std::time::Instant::now() >= until {
+                    return Err(tf("Non è successo entro {t}.", &[("t", &span(secs))]));
+                }
+                tokio::time::sleep(every).await;
             }
             if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
                 return Ok(t("Pronto.").into());
@@ -2727,11 +2754,49 @@ const LOGIN: &str = r#"(user, pass, submit) => {
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.
 const WAIT: &str = r#"(q) => {
   const body = document.body ? document.body.innerText : "";
+  if (q.hash || q.before != null) {
+    let h = 0;
+    for (let i = 0; i < body.length; i++) h = (h * 31 + body.charCodeAt(i)) | 0;
+    const now = String(h) + ":" + body.length;
+    if (q.hash) return now;
+    if (now === q.before) return false;
+  }
   if (q.text && !body.includes(q.text)) return false;
   if (q.gone && body.includes(q.gone)) return false;
   try { if (q.selector && !document.querySelector(q.selector)) return false; } catch (e) { return false; }
   return document.readyState !== "loading";
 }"#;
+
+/// How long preview_wait waits: `minutes` (up to 10) or `timeout` in seconds
+/// (up to 600); 10 seconds when neither is given.
+fn wait_seconds(args: &Value) -> u64 {
+    if let Some(m) = args.get("minutes").and_then(Value::as_f64).filter(|m| *m > 0.0) {
+        return ((m * 60.0).round() as u64).clamp(1, MAX_WAIT);
+    }
+    args.get("timeout").and_then(Value::as_u64).unwrap_or(10).clamp(1, MAX_WAIT)
+}
+
+/// The longest wait: an update or a reboot of a server takes minutes. Under
+/// easyisland-hook's `CALL_BUDGET` (mcp.rs).
+const MAX_WAIT: u64 = 600;
+
+/// «Ferma» on a turn: the waits running stop (lib.rs chat_stop, stop_turn,
+/// stop_task_turn). One count for all of them: a wait of another conversation
+/// stops too, and the engine can wait again.
+static WAIT_STOPS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn stop_waits() {
+    WAIT_STOPS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// «45 secondi», «3 minuti», «2 min 30 s».
+fn span(secs: u64) -> String {
+    match (secs / 60, secs % 60) {
+        (0, s) => tf("{n} secondi", &[("n", &s.to_string())]),
+        (m, 0) => tf("{n} minuti", &[("n", &m.to_string())]),
+        (m, s) => tf("{m} min {s} s", &[("m", &m.to_string()), ("s", &s.to_string())]),
+    }
+}
 
 /// Finds the element of preview_click / preview_type: a ref of preview_snapshot,
 /// a CSS selector, or the visible text (or label, placeholder, value) of a
@@ -2853,6 +2918,13 @@ mod tests {
 
     #[test]
     fn targets_from_the_arguments() {
+        // preview_wait: minutes or seconds, never past 10 minutes.
+        assert_eq!(wait_seconds(&json!({})), 10);
+        assert_eq!(wait_seconds(&json!({ "minutes": 2.5 })), 150);
+        assert_eq!(wait_seconds(&json!({ "minutes": 60 })), 600);
+        assert_eq!(wait_seconds(&json!({ "timeout": 90 })), 90);
+        assert_eq!(wait_seconds(&json!({ "timeout": 0 })), 1);
+        assert_eq!((span(45).as_str(), span(180).as_str(), span(150).as_str()), ("45 secondi", "3 minuti", "2 min 30 s"));
         let a = json!({ "ref": "e3", "to_selector": "#b", "x": 10, "y": 20.5 });
         assert_eq!(target_of(&a, "").unwrap()["ref"], "e3");
         assert_eq!(target_of(&a, "to_").unwrap()["selector"], "#b");

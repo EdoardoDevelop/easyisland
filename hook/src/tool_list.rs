@@ -936,13 +936,15 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_wait",
-            "Aspetta (timeout: secondi, al massimo 30, di solito 10) che nella pagina dell'Anteprima compaia text, sparisca text_gone o ci sia selector (CSS), poi torna la pagina come preview_snapshot. Da usare dopo un'azione che carica qualcosa.",
+            "Aspetta nella pagina dell'Anteprima che compaia text, sparisca text_gone, ci sia selector (CSS) o, con changed true, che la pagina cambi; poi torna la pagina come preview_snapshot. Senza condizioni è una pausa. Quanto: timeout in secondi (di solito 10) o minutes, al massimo 10 minuti; EasyIsland controlla da solo ogni pochi secondi. Per un lavoro lungo (aggiornamento di firmware, riavvio, download, installazione) UNA chiamata con minutes e il testo atteso (es. text \"Complete\", text_gone \"In progress\", o changed), mai chiamate brevi ripetute né testi inventati per aspettare. «Ferma» la interrompe.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
                 "text": { "type": "string" },
                 "text_gone": { "type": "string" },
                 "selector": { "type": "string" },
+                "changed": { "type": "boolean" },
                 "timeout": { "type": "integer" },
+                "minutes": { "type": "number" },
                 "quiet": { "type": "boolean" }
             } }),
             true,

@@ -16,8 +16,9 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-/// A quick action may run a script for up to 5 minutes; past this we give up.
-const CALL_BUDGET: Duration = Duration::from_secs(330);
+/// A quick action may run a script for up to 5 minutes and preview_wait wait
+/// up to 10 (preview.rs MAX_WAIT); past this we give up.
+const CALL_BUDGET: Duration = Duration::from_secs(630);
 const PROTOCOL: &str = "2025-06-18";
 
 use crate::tool_list::tools;

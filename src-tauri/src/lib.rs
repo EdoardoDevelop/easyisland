@@ -1749,6 +1749,7 @@ impl Channel {
 /// Stops the turn of the running task (tasks.rs).
 pub(crate) fn stop_task_turn() {
     STOP[Channel::Task.slot()].notify_waiters();
+    preview::stop_waits();
 }
 
 /// What a stopped turn answers (telegram.rs and the chat recognise it).
@@ -1759,6 +1760,7 @@ pub(crate) fn stopped_text() -> String {
 pub(crate) fn stop_turn(telegram: bool) {
     log::line(if telegram { "chat: turno di Telegram fermato" } else { "chat: turno fermato" });
     STOP[usize::from(telegram)].notify_waiters();
+    preview::stop_waits();
 }
 
 /// Whichever comes first: the turn or "Ferma" (then the turn is dropped).
@@ -1804,6 +1806,7 @@ fn chat_stop(chats: State<'_, Chats>, sid: String) {
     log::line("chat: turno fermato");
     if let Some(c) = chats.find(&sid) {
         c.stop.notify_waiters();
+        preview::stop_waits();
         // Also what it left in the background (claude_cli::follow).
         claude_cli::stop_background(std::sync::Arc::as_ptr(&c) as usize);
     }

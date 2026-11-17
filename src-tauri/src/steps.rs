@@ -94,7 +94,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "preview_open" => t("Apre nell'Anteprima"),
         "preview_read" => t("Legge l'Anteprima"),
         "preview_snapshot" => t("Guarda la pagina nell'Anteprima"),
-        "preview_wait" => t("Aspetta che la pagina sia pronta"),
+        "preview_wait" => t("Aspetta nella pagina"),
         "preview_network" => t("Controlla le richieste della pagina"),
         "preview_screenshot" => t("Fotografa l'Anteprima"),
         "preview_console" => t("Legge la console della pagina"),
@@ -127,6 +127,27 @@ fn subject(input: &Value) -> String {
     out.replace('`', "'")
 }
 
+/// preview_wait in words: how long, and for what («fino a 10 min · Complete»).
+fn wait_what(input: &Value) -> String {
+    let secs = match input.get("minutes").and_then(Value::as_f64).filter(|m| *m > 0.0) {
+        Some(m) => (m * 60.0).round() as u64,
+        None => input.get("timeout").and_then(Value::as_u64).unwrap_or(10),
+    }
+    .clamp(1, 600);
+    let time = if secs >= 60 && secs % 60 == 0 { format!("{} min", secs / 60) } else if secs >= 60 { format!("{} min {} s", secs / 60, secs % 60) } else { format!("{secs} s") };
+    let s = |k: &str| input.get(k).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
+    let cond = s("text").map(|v| format!("«{v}»"))
+        .or_else(|| s("text_gone").map(|v| crate::i18n::tf("che sparisca «{t}»", &[("t", &v)])))
+        .or_else(|| s("selector").map(String::from))
+        .or_else(|| input.get("changed").and_then(Value::as_bool).filter(|c| *c).map(|_| t("che la pagina cambi").to_string()));
+    let mut out = match cond {
+        Some(c) => format!("{} {time} · {}", t("fino a"), c.chars().take(60).collect::<String>()),
+        None => time,
+    };
+    out = out.replace('`', "'");
+    out
+}
+
 fn line(label: &str, what: &str) -> String {
     if what.is_empty() { format!("> ⚙ {label}") } else { format!("> ⚙ {label} · `{what}`") }
 }
@@ -135,7 +156,10 @@ fn line(label: &str, what: &str) -> String {
 /// unknown). EasyIsland's in words; any other as its name, its server and
 /// what it was asked.
 pub fn mcp(server: &str, tool: &str, input: &Value) -> String {
-    let what = subject(input);
+    let mut what = subject(input);
+    if tool == "preview_wait" {
+        what = wait_what(input);
+    }
     if let Some(p) = phrase(tool).filter(|_| server.is_empty() || server.eq_ignore_ascii_case("easyisland")) {
         return line(p, &what);
     }
@@ -159,6 +183,8 @@ mod tests {
         assert_eq!(mcp("easyisland", "memory_search", &json!({ "query": "fatture Rossi" })), "> ⚙ Cerca nella memoria · `fatture Rossi`");
         assert_eq!(mcp("easyisland", "task_step", &json!({ "index": 2, "done": true })), "> ⚙ Segna un passo del compito come fatto");
         assert_eq!(mcp("Notion notion", "notion-search", &json!({ "query": "verbali" })), "> ⚙ notion search (Notion notion) · `verbali`");
+        assert_eq!(mcp("easyisland", "preview_wait", &json!({ "minutes": 10, "text": "Complete" })), "> ⚙ Aspetta nella pagina · `fino a 10 min · «Complete»`");
+        assert_eq!(mcp("easyisland", "preview_wait", &json!({ "timeout": 45 })), "> ⚙ Aspetta nella pagina · `45 s`");
         let long = "a".repeat(100);
         assert!(mcp("", "skill_read", &json!({ "name": long })).ends_with("…`"));
     }
