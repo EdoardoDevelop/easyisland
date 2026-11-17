@@ -1643,7 +1643,8 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_screenshot" => {
             let tb = tab_for(&s("tab"))?;
-            let scale = args.get("scale").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 1.0);
+            let asked = args.get("scale").and_then(Value::as_f64).map(|v| v.clamp(0.1, 1.0));
+            let mut scale = asked.unwrap_or(1.0);
             let png = if tb.browser && app.get_webview(&web_label(tb.id)).is_some() {
                 // In CSS pixels (× scale): what preview_act's x, y mean. A zone: one element.
                 let zone = match target_of(args, "") {
@@ -1659,6 +1660,10 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 };
                 let n = |i: usize| zone.as_ref().and_then(|z| z.get(i)).and_then(Value::as_f64).unwrap_or(0.0);
                 let (w, h) = (n(2).max(1.0).min(4000.0), n(3).max(1.0).min(4000.0));
+                // Sent to the engine as an image: no wider than SHOT_WIDTH unless a scale was asked.
+                if asked.is_none() && w > SHOT_WIDTH {
+                    scale = (SHOT_WIDTH / w).clamp(0.1, 1.0);
+                }
                 let v = cdp_on(app, tb.id, "Page.captureScreenshot", json!({ "format": "png", "clip": { "x": n(0), "y": n(1), "width": w, "height": h, "scale": scale } })).await?;
                 let data = v.get("data").and_then(Value::as_str).ok_or_else(|| t("Schermata non riuscita.").to_string())?;
                 crate::backup::base64_decode(data).ok_or_else(|| t("Schermata non riuscita.").to_string())?
@@ -1666,9 +1671,13 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 screenshot_of(app, tb.id).await?
             };
             let path = std::env::temp_dir().join(format!("easyisland-anteprima-{}.png", crate::memory::stamp().replace([':', ' '], "-")));
+            // The image goes back with the answer (easyisland-hook mcp: one step, not
+            // a file to read after); the file stays for the engines that cannot take it.
+            keep_shot(&path.display().to_string(), crate::claude::base64_for(&png));
             std::fs::write(&path, png).map_err(|e| e.to_string())?;
+            let scale = (scale * 100.0).round() / 100.0;
             let note = if tb.browser && (scale - 1.0).abs() > f64::EPSILON { tf(" Rimpicciolita a {s}: per preview_act dividi x e y dell'immagine per {s}.", &[("s", &format!("{scale}"))]) } else { String::new() };
-            Ok(tf("Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]) + &note)
+            Ok(tf("Schermata della scheda {id}: {p} (PNG). Se non è già qui come immagine, leggila da quel file.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]) + &note)
         }
         "preview_console" => {
             let tb = tab_for(&s("tab"))?;
@@ -2819,6 +2828,35 @@ const WAIT: &str = r#"(q) => {
   return document.readyState !== "loading";
 }"#;
 
+/// The widest screenshot sent as an image without a scale asked: as the
+/// desktop view (DESKTOP_W), no more.
+const SHOT_WIDTH: f64 = 1280.0;
+/// Larger than this, the image is not sent: the file is there.
+const SHOT_MAX_B64: usize = 4_000_000;
+
+/// The last screenshots (path, PNG in base64), until agent::call takes them.
+static SHOTS: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
+
+fn keep_shot(path: &str, b64: String) {
+    let mut all = SHOTS.lock().unwrap();
+    all.retain(|(p, _)| p != path);
+    if b64.len() <= SHOT_MAX_B64 {
+        all.push((path.to_string(), b64));
+    }
+    // Taken only by an MCP answer: the in-app engines read the file.
+    while all.len() > 3 {
+        all.remove(0);
+    }
+}
+
+/// The screenshot named in a tool's answer (preview_screenshot, or the last step
+/// of preview_steps), once: the PNG in base64.
+pub fn take_shot(text: &str) -> Option<String> {
+    let mut all = SHOTS.lock().unwrap();
+    let i = all.iter().rposition(|(p, _)| text.contains(p.as_str()))?;
+    Some(all.remove(i).1)
+}
+
 /// How long preview_wait waits: `minutes` (up to 10) or `timeout` in seconds
 /// (up to 600); 10 seconds when neither is given.
 fn wait_seconds(args: &Value) -> u64 {
@@ -2971,6 +3009,12 @@ mod tests {
 
     #[test]
     fn targets_from_the_arguments() {
+        // A screenshot goes back once, by the path in the answer.
+        keep_shot("C:\\t\\a.png", "QUJD".into());
+        assert_eq!(take_shot("Schermata: C:\\t\\a.png (PNG)").as_deref(), Some("QUJD"));
+        assert!(take_shot("Schermata: C:\\t\\a.png (PNG)").is_none());
+        keep_shot("C:\\t\\big.png", "A".repeat(SHOT_MAX_B64 + 1));
+        assert!(take_shot("C:\\t\\big.png").is_none());
         // preview_wait: minutes or seconds, never past 10 minutes.
         assert_eq!(wait_seconds(&json!({})), 10);
         assert_eq!(wait_seconds(&json!({ "minutes": 2.5 })), 150);

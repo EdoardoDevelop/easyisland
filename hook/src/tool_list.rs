@@ -963,7 +963,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_screenshot",
-            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine. Solo per controllare l'aspetto: per leggere usa preview_find, preview_read o preview_extract. Con ref, selector o text_match fotografa solo quell'elemento; scale (0.1–1) la rimpicciolisce e costa meno. I pixel dell'immagine (a scale 1) sono gli x, y di preview_act.",
+            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: l'immagine torna subito nella risposta (non serve leggere il file), con il percorso per chi non la vede. Solo per controllare l'aspetto: per leggere usa preview_find, preview_read o preview_extract. Con ref, selector o text_match fotografa solo quell'elemento; scale (0.1–1) la rimpicciolisce e costa meno. I pixel dell'immagine (a scale 1) sono gli x, y di preview_act.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
                 "ref": { "type": "string" },

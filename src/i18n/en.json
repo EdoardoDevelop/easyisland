@@ -3572,7 +3572,6 @@
   "È un'immagine: usa preview_screenshot.": "It is an image: use preview_screenshot.",
   "Il file non si può leggere come testo ({k}).": "The file cannot be read as text ({k}).",
   "Campi e pulsanti": "Fields and buttons",
-  "Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.": "Screenshot of tab {id} saved in {p} (PNG): read it as an image.",
   "La console è vuota.": "The console is empty.",
   "Vista: {p} {w}×{h}, colori {s}.": "View: {p} {w}×{h}, colours {s}.",
   "della pagina": "the page's own",
@@ -5713,5 +5712,6 @@
   "Aspetta nella pagina": "Waits in the page",
   "fino a": "up to",
   "che sparisca «{t}»": "until «{t}» goes away",
-  "che la pagina cambi": "until the page changes"
+  "che la pagina cambi": "until the page changes",
+  "Schermata della scheda {id}: {p} (PNG). Se non è già qui come immagine, leggila da quel file.": "Screenshot of tab {id}: {p} (PNG). If it is not already here as an image, read it from that file."
 }

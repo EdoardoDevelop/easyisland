@@ -65,8 +65,17 @@ fn read_only_tools() -> Vec<&'static str> {
     tools().into_iter().filter(|t| t.3).map(|t| t.0).collect()
 }
 
-/// Asks the app to run one tool. Ok(text) or Err(message for the model).
-fn call_app(tool: &str, arguments: &Value) -> Result<String, String> {
+/// What a tool answers: its text, and an image first when there is one (a
+/// screenshot of the Anteprima: seen in the same step, not read from a file).
+fn content(text: String, image: Option<(String, String)>) -> Value {
+    match image {
+        Some((data, mime)) => json!([{ "type": "image", "data": data, "mimeType": mime }, { "type": "text", "text": text }]),
+        None => json!([{ "type": "text", "text": text }]),
+    }
+}
+
+/// Asks the app to run one tool. Ok(text, image) or Err(message for the model).
+fn call_app(tool: &str, arguments: &Value) -> Result<(String, Option<(String, String)>), String> {
     let line = format!(
         "{}\n",
         json!({ "hook_event_name": "EasyIslandTool", "tool": tool, "arguments": arguments })
@@ -103,7 +112,10 @@ fn call_app(tool: &str, arguments: &Value) -> Result<String, String> {
     let v: Value = serde_json::from_str(&reply).map_err(|_| "Risposta non valida da EasyIsland.".to_string())?;
     let text = v.get("text").and_then(Value::as_str).unwrap_or_default().to_string();
     if v.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        Ok(text)
+        let image = v.get("image").and_then(Value::as_str).filter(|d| !d.is_empty()).map(|d| {
+            (d.to_string(), v.get("mime").and_then(Value::as_str).unwrap_or("image/png").to_string())
+        });
+        Ok((text, image))
     } else {
         Err(if text.is_empty() { "Errore sconosciuto.".into() } else { text })
     }
@@ -163,11 +175,11 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 return Some(error(id, -32602, &format!("Strumento sconosciuto: {name}")));
             }
             let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
-            let (text, is_error) = match call_app(name, &args) {
-                Ok(t) => (t, false),
-                Err(e) => (e, true),
+            let (text, image, is_error) = match call_app(name, &args) {
+                Ok((t, image)) => (t, image, false),
+                Err(e) => (e, None, true),
             };
-            result(id, json!({ "content": [{ "type": "text", "text": text }], "isError": is_error }))
+            result(id, json!({ "content": content(text, image), "isError": is_error }))
         }
         _ => error(id, -32601, &format!("Metodo non supportato: {method}")),
     })
@@ -203,6 +215,15 @@ pub fn serve() -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_screenshot_comes_as_an_image_then_its_text() {
+        let c = content("Schermata: C:/t/a.png".into(), Some(("QUJD".into(), "image/png".into())));
+        assert_eq!(c[0]["type"], "image");
+        assert_eq!((c[0]["data"].as_str(), c[0]["mimeType"].as_str()), (Some("QUJD"), Some("image/png")));
+        assert_eq!(c[1]["text"], "Schermata: C:/t/a.png");
+        assert_eq!(content("solo testo".into(), None).as_array().map(Vec::len), Some(1));
+    }
 
     #[test]
     fn lists_tools_and_answers_initialize() {
