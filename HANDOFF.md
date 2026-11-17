@@ -60,6 +60,13 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Antigravity: permessi nella chat (`--settings`), Nega che ferma, avvisi giusti
+Sul portatile il turno finiva senza testo: in `--print` agy nega da sé ogni conferma (`easyisland/skill_list`), anche con gli hook. Ora:
+- ogni turno ha `--settings` di sessione con `mcp(easyisland/*)`; con gli hook anche `always-proceed`, e ogni azione chiede nell'isola (nessuna risposta = Nega; in Automatica passa ciò che non è delicato, `permits::agy_auto`);
+- l'avviso dice cosa è successo (senza hook, o un passo negato).
+
+Provato dal vivo: la regola, e il `deny` del PreToolUse che blocca in `always-proceed` (`docs/chat.md`, `docs/agenti.md`). Non provato tutto il giro con l'isola: `docs/prove-dal-vivo.md`.
+
 ### 17/11 — Antigravity: impegno suo, nuovo tentativo, Automatica, meno memoria
 Sul portatile «puoi vedere le skill di claude?» falliva in 4 s: a `gemini-4-hydrogen-high` arrivava `--effort medium` di Claude Code e agy 1.5.9 rifiuta la coppia. Ora:
 - Antigravity ha il suo impegno (`agyEffort`, `Chat::agy_effort`); niente `--effort` con il «Predefinito del modello» o con l'impegno nel nome del modello;
@@ -75,7 +82,4 @@ La 1.0.50 si bloccava all'avvio: `WindowEvent::Focused` arriva dentro `Webview::
 
 ### 16/11 — Versione 1.0.50
 Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su schermo, tema scuro e chiaro, fuoco automatico WebView2 sul thread principale in `island::activate_window` anche dopo clic sul desktop), la scelta dell'aspetto della riga di ricerca (`search-line.css`, `searchBarLine`: `waves`/`horizon`/`comet`/`prism`/`emerald`/`amber`/`steady`/`off`; `searchBarLineMode`: `focus`/`loop`/`both`/`fade` con anteprima in Impostazioni → Aspetto → Isola aperta), i nuovi sfondi (`gradient`/`glow`/`aurora`/`glass` in `barbg.ts`) e stili elementi (`classic`/`pills`/`compact`) della barra fissa, tutte le schede delle Impostazioni riordinate con sotto-schede condivise e tre fix Windows (chiusura pulita senza finestra nascosta, clic sul personaggio che riporta in primo piano l'isola coperta, avvio di app Store, collegamenti `.lnk`/`.url` e Pannello di controllo). Smoke completo «nessun errore» (91 prove), `npm run build` (`5380 testi, 0 senza inglese`), test Rust 575 + 38.
-
-### 15/11 — Versione 1.0.49
-Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo della scheda grafica e modello consigliato, Modalità terminale interna, risposte dalla memoria scritte dal modello) e le sotto-schede di Impostazioni → Chat e motori. Smoke completo «nessun errore» (91 prove), test Rust 574 + 38.
 

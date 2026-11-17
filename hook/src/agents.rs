@@ -175,9 +175,16 @@ fn gemini(map: &mut Map<String, Value>) {
 /// without asking), so the island shows them and lets them go.
 const ANTIGRAVITY_ASKS: &[&str] = &["ask_permission"];
 /// In EasyIsland's own chat with Antigravity (`EASYISLAND_AGY_CHAT`,
-/// antigravity.rs) the island is the only place to answer: commands and MCP
-/// tools ask too, except in «Automatica» (`EASYISLAND_AGY_AUTO`).
-const ANTIGRAVITY_CHAT_ASKS: &[&str] = &["run_command", "call_mcp_tool", "ask_permission"];
+/// antigravity.rs) the island is the only place to answer, and agy runs in
+/// `always-proceed` (17 Nov 2026: in `--print` it cannot ask, it denies): every
+/// tool asks the island, except these that only look or wait. The island lets
+/// through with no card the reads outside the places of keys (`permits::chat_read`)
+/// and, in «Automatica» (`EASYISLAND_AGY_AUTO` → `easyisland_auto`), what is not
+/// delicate (`permits::agy_auto`).
+const ANTIGRAVITY_CHAT_FREE: &[&str] = &[
+    "search_web", "read_url_content", "command_status", "wait", "wait_5_seconds", "finish", "ask_question",
+    "list_permissions", "list_resources", "list_plugin_accounts", "search_marketplace",
+];
 
 /// Antigravity → Claude Code's events, fields and tool names.
 fn antigravity(map: &mut Map<String, Value>) {
@@ -204,7 +211,7 @@ fn antigravity(map: &mut Map<String, Value>) {
             "replace_file_content" | "multi_replace_file_content" => ("Edit".to_string(), json!({
                 "file_path": arg(&["TargetFile", "targetFile", "AbsolutePath", "FilePath"]),
             })),
-            "view_file" => ("Read".to_string(), json!({ "file_path": arg(&["AbsolutePath", "absolutePath", "TargetFile", "FilePath"]) })),
+            "view_file" | "read_file" => ("Read".to_string(), json!({ "file_path": arg(&["AbsolutePath", "absolutePath", "TargetFile", "FilePath", "Path", "path"]) })),
             "list_dir" => ("LS".to_string(), json!({ "path": arg(&["DirectoryPath", "directoryPath", "Path"]) })),
             "grep_search" => ("Grep".to_string(), json!({ "pattern": arg(&["Query", "query", "Pattern"]), "path": arg(&["SearchPath", "searchPath"]) })),
             "find_by_name" => ("Glob".to_string(), json!({ "pattern": arg(&["Pattern", "pattern"]), "path": arg(&["SearchDirectory", "searchDirectory"]) })),
@@ -221,7 +228,17 @@ fn antigravity(map: &mut Map<String, Value>) {
         map.insert("tool_input".into(), input);
     }
     match event.as_str() {
-        "PreToolUse" if antigravity_asks(&tool, std::env::var_os("EASYISLAND_AGY_CHAT").is_some() && std::env::var_os("EASYISLAND_AGY_AUTO").is_none()) => set_event(map, "PermissionRequest"),
+        "PreToolUse" if antigravity_asks(&tool, std::env::var_os("EASYISLAND_AGY_CHAT").is_some()) => {
+            set_event(map, "PermissionRequest");
+            if std::env::var_os("EASYISLAND_AGY_CHAT").is_some() {
+                if std::env::var_os("EASYISLAND_AGY_AUTO").is_some() {
+                    map.insert("easyisland_auto".into(), Value::Bool(true));
+                }
+                if std::env::var_os("EASYISLAND_AGY_EDITS").is_some() {
+                    map.insert("easyisland_edits".into(), Value::Bool(true));
+                }
+            }
+        }
         "PostToolUse" => {
             if let Some(err) = map.get("error").and_then(Value::as_str).filter(|e| !e.is_empty()).map(String::from) {
                 map.insert("tool_response".into(), json!({ "stderr": err }));
@@ -237,13 +254,19 @@ fn antigravity(map: &mut Map<String, Value>) {
 }
 
 fn antigravity_asks(tool: &str, own_chat: bool) -> bool {
-    if own_chat { ANTIGRAVITY_CHAT_ASKS } else { ANTIGRAVITY_ASKS }.contains(&tool)
+    if own_chat { !tool.is_empty() && !ANTIGRAVITY_CHAT_FREE.contains(&tool) } else { ANTIGRAVITY_ASKS.contains(&tool) }
 }
 
 /// What Antigravity reads back on stdout, whatever happened: it validates the
 /// JSON, and `decision` is required on PreToolUse and Stop. `answer` is the
 /// island's (none: no answer in time, or not asked).
 pub fn antigravity_output(event: &str, answer: Option<&str>) -> String {
+    // EasyIsland's own chat: agy runs in `always-proceed`, so no answer
+    // (island closed, no click within the time) must not let it through.
+    let answer = match answer {
+        None if event == "PermissionRequest" && std::env::var_os("EASYISLAND_AGY_CHAT").is_some() => Some("deny"),
+        a => a,
+    };
     match event {
         "PermissionRequest" => match answer.map(str::trim) {
             Some("allow") | Some("always") => r#"{"decision":"auto_approve"}"#.into(),
@@ -738,6 +761,13 @@ mod tests {
         assert_eq!(ask["hook_event_name"], "PermissionRequest");
         assert!(!ask.contains_key("cwd"));
         assert!(antigravity_asks("run_command", true) && !antigravity_asks("run_command", false));
+        // In the chat everything asks but what only looks or waits; outside, only its own question.
+        assert!(antigravity_asks("write_to_file", true) && antigravity_asks("execute_browser_javascript", true));
+        assert!(!antigravity_asks("search_web", true) && !antigravity_asks("wait", true) && !antigravity_asks("", true));
+        assert!(!antigravity_asks("write_to_file", false) && antigravity_asks("ask_permission", false));
+        let mut read = json!({ "hook_event_name": "PreToolUse", "toolCall": { "name": "read_file", "args": { "Path": "c:/b.txt" } } }).as_object().unwrap().clone();
+        normalize(Some("antigravity"), &mut read);
+        assert_eq!((read["tool_name"].as_str(), read["tool_input"]["file_path"].as_str()), (Some("Read"), Some("c:/b.txt")));
         assert_eq!(antigravity_output("PermissionRequest", Some("allow")), r#"{"decision":"auto_approve"}"#);
         assert_eq!(antigravity_output("PermissionRequest", Some("deny")), r#"{"decision":"deny","reason":"Negato da EasyIsland"}"#);
         assert_eq!(antigravity_output("PermissionRequest", None), r#"{"decision":"allow"}"#);

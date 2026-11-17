@@ -131,11 +131,46 @@ pub fn chat_read(payload: &Value) -> bool {
     let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
     let input = payload.get("tool_input");
     // Commands keep Consenti / Nega, even the ones that only look (CLAUDE.md).
-    if !matches!(tool, "Read" | "Grep" | "Glob") {
+    if !matches!(tool, "Read" | "Grep" | "Glob" | "LS") {
         return false;
     }
     let places: Vec<&str> = ["file_path", "path", "pattern", "glob"].iter().filter_map(|k| input.and_then(|i| i.get(*k)).and_then(Value::as_str)).collect();
     !places.is_empty() && places.iter().all(|p| !crate::opencode::secret_place(p))
+}
+
+/// Antigravity in the chat's «Automatica» (`easyisland_auto`, set by
+/// easyisland-hook; «Accetta modifiche», `easyisland_edits`: only the file
+/// edits): agy runs every tool, so the island decides here what is
+/// not delicate, as for opencode (`opencode::auto_ok`): a command that is not
+/// delicate, a file edit or read outside the places of keys, an MCP tool that
+/// does not send, delete or run elsewhere. The rest keeps its card (CLAUDE.md).
+pub fn agy_auto(payload: &Value) -> bool {
+    let flag = |k: &str| payload.get(k).and_then(Value::as_bool) == Some(true);
+    if !flag("easyisland_chat") {
+        return false;
+    }
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).unwrap_or_default();
+    // «Accetta modifiche»: the file edits, outside the places of keys.
+    if flag("easyisland_edits") && matches!(tool, "Edit" | "Write") {
+        let p = text("file_path");
+        return !p.is_empty() && !crate::opencode::secret_place(p);
+    }
+    if !flag("easyisland_auto") {
+        return false;
+    }
+    match tool {
+        "Bash" => {
+            let c = text("command");
+            !c.trim().is_empty() && !crate::opencode::delicate(c) && !crate::opencode::secret_place(c)
+        }
+        "Edit" | "Write" | "Read" => {
+            let p = text("file_path");
+            !p.is_empty() && !crate::opencode::secret_place(p)
+        }
+        t if t.starts_with("mcp__") => !delicate_tool(t),
+        _ => false,
+    }
 }
 
 /// preview_steps whose steps all only read (open, find, wait, scroll, read…):
@@ -278,6 +313,11 @@ pub fn allowed_now(app: &AppHandle, payload: &Value) -> bool {
     if chat_read(payload) {
         let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
         crate::log::line(format!("permessi: {tool} consentito senza chiedere (solo lettura)"));
+        return true;
+    }
+    if agy_auto(payload) {
+        let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+        crate::log::line(format!("permessi: {tool} di Antigravity consentito in «Automatica»"));
         return true;
     }
     // «Sempre» already clicked for this, in this session (Claude Code's own rule, kept here).
@@ -443,6 +483,25 @@ mod tests {
         assert!(!steps_only_read(&p(json!([]))));
         assert!(!steps_only_read(&p(json!([{ "tool": "preview_steps" }]))));
         assert!(!steps_only_read(&json!({ "tool_name": "mcp__easyisland__preview_find", "tool_input": {} })));
+    }
+
+    #[test]
+    fn antigravity_automatica_lets_through_only_what_is_not_delicate() {
+        let p = |tool: &str, input: Value, auto: bool| json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": true, "easyisland_auto": auto });
+        assert!(agy_auto(&p("Bash", json!({ "command": "git status" }), true)));
+        assert!(!agy_auto(&p("Bash", json!({ "command": "Remove-Item x -Recurse" }), true)));
+        assert!(!agy_auto(&p("Bash", json!({ "command": "type C:/Users/x/.ssh/id_rsa" }), true)));
+        assert!(agy_auto(&p("Write", json!({ "file_path": "c:/w/a.txt" }), true)));
+        assert!(agy_auto(&p("mcp__easyisland__skill_list", json!({}), true)));
+        assert!(!agy_auto(&p("mcp__easyisland__mail_send", json!({}), true)));
+        assert!(!agy_auto(&p("execute_browser_javascript", json!({}), true)));
+        // Manuale: nothing without a card; «Accetta modifiche»: only the edits.
+        assert!(!agy_auto(&p("Bash", json!({ "command": "git status" }), false)));
+        let edits = |tool: &str, input: Value| agy_auto(&json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": true, "easyisland_edits": true }));
+        assert!(edits("Edit", json!({ "file_path": "c:/w/a.rs" })));
+        assert!(!edits("Bash", json!({ "command": "git status" })));
+        // Not the chat's: never.
+        assert!(!agy_auto(&json!({ "tool_name": "Bash", "tool_input": { "command": "git status" }, "easyisland_auto": true })));
     }
 
     #[test]

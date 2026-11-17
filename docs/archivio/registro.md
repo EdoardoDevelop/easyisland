@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 15/11 — Versione 1.0.49
+Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo della scheda grafica e modello consigliato, Modalità terminale interna, risposte dalla memoria scritte dal modello) e le sotto-schede di Impostazioni → Chat e motori. Smoke completo «nessun errore» (91 prove), test Rust 574 + 38.
+
 ### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
 Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.
 
