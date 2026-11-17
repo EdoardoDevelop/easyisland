@@ -1530,7 +1530,14 @@ async fn chat_send(
     chat.set_mode(mode);
     // The effort picked in the chat, else the last one picked (Impostazioni keeps it).
     let fallback = app.state::<Shared>().settings.lock().unwrap().cli_effort.clone();
-    chat.set_effort(effort.filter(|e| !e.is_empty()).or(Some(fallback)));
+    // Antigravity has its own effort ("" = the model's own): never Claude Code's.
+    let agy = engine.as_deref() == Some("antigravity")
+        || (engine.is_none() && app.state::<Shared>().settings.lock().unwrap().chat_engine == "antigravity");
+    if agy {
+        chat.set_agy_effort(Some(effort.unwrap_or_default()));
+    } else {
+        chat.set_effort(effort.filter(|e| !e.is_empty()).or(Some(fallback)));
+    }
     // Work Claude Code leaves in the background (claude_cli::follow): its list
     // under the conversation, its answers in it when they come, with a notice.
     {
@@ -1881,6 +1888,9 @@ pub(crate) async fn chat_turn(
     if chat.effort().is_none() {
         chat.set_effort(Some(shared.settings.lock().unwrap().cli_effort.clone()));
     }
+    if chat.agy_effort().is_none() {
+        chat.set_agy_effort(Some(shared.settings.lock().unwrap().agy_effort.clone()));
+    }
     // Agent Chat with «Letture libere»: opencode reads outside its folder and runs
     // read-only commands without the island; writing, running, sending still ask.
     let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
@@ -2048,8 +2058,19 @@ pub(crate) async fn chat_turn(
     // (memory::related): often one memory_search step less, at every question.
     // «Ricerca per significato» (memory_meaning.rs), when a service is chosen: the closest lines join them.
     let (scored, meaning_engine) = if remember && memory_tools && learns { memory_meaning::related_scored(app, &asked).await } else { (Vec::new(), String::new()) };
-    let strong = scored.first().is_some_and(|(s, _)| *s >= memory_meaning::strong(&meaning_engine));
-    let meaning: Vec<String> = scored.into_iter().map(|(_, l)| l).collect();
+    let strong_at = memory_meaning::strong(&meaning_engine);
+    let strong = scored.first().is_some_and(|(s, _)| *s >= strong_at);
+    // Engines with tools of their own other than Claude Code (Antigravity,
+    // opencode, the terminal of the others): only the lines very close in
+    // meaning; they search the rest with memory_search. On the laptop four
+    // lines at 0.42–0.50 went with «puoi vedere le skill di claude?» (17 Nov
+    // 2026). Claude Code keeps them all, as it uses them well.
+    let few = has_tools && engine != "subscription";
+    let before = scored.len();
+    let meaning: Vec<String> = scored.into_iter().filter(|(s, _)| !few || *s >= strong_at).map(|(_, l)| l).collect();
+    if meaning.len() < before {
+        log::line(format!("significato: {} righe vicine non passate a {engine} (sotto {strong_at:.2})", before - meaning.len()));
+    }
     let related = if remember && memory_tools && learns { memory::related(&asked, fresh, &meaning) } else { None };
     // Lines very close in meaning: the engine answers with them, a search only for what is missing
     // (on the laptop Claude read the page and searched again for a line it had, 14 Nov 2026).

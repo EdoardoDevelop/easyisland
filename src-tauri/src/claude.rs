@@ -182,6 +182,9 @@ pub struct Chat {
     on_working: Mutex<Option<OnWorking>>,
     /// Claude Code's effort for this conversation (`--effort`); None = its own.
     effort: Mutex<Option<String>>,
+    /// Antigravity's effort for this conversation: None = not set yet (the
+    /// settings' one is used), Some("") = the model's own (no `--effort`).
+    agy_effort: Mutex<Option<String>>,
     /// «Ferma» on this conversation of the island (each one has its own, lib.rs `chat_stop`).
     pub(crate) stop: tokio::sync::Notify,
     /// Reads only, and asks nobody (team.rs): what is not allowed is refused.
@@ -357,6 +360,15 @@ impl Chat {
 
     pub(crate) fn effort(&self) -> Option<String> {
         self.effort.lock().unwrap().clone()
+    }
+
+    /// Antigravity's effort (antigravity.rs): its own, never Claude Code's.
+    pub(crate) fn set_agy_effort(&self, effort: Option<String>) {
+        *self.agy_effort.lock().unwrap() = effort.map(|e| if EFFORTS.contains(&e.as_str()) { e } else { String::new() });
+    }
+
+    pub(crate) fn agy_effort(&self) -> Option<String> {
+        self.agy_effort.lock().unwrap().clone()
     }
 
     pub(crate) fn set_folder(&self, folder: Option<String>) {

@@ -493,6 +493,8 @@ export interface ChatSessionState {
   folder: string | null;
   /** Claude Code's effort for it; null = the one of the settings. */
   effort: string | null;
+  /** Antigravity's effort for it, apart from Claude Code's; null = the one of the settings, "" = the model's own. */
+  agyEffort?: string | null;
   /** Tokens in the engine's context after the last turn and its size (0 = unknown); null = it does not say. */
   context: [number, number] | null;
   /** Its id in the history (chat_log.rs), once an answer saved it. */
@@ -784,6 +786,8 @@ export interface Settings {
   cliModel: string;
   /** Claude Code's effort (low…max), the last one picked in the chat; "" = its own. */
   cliEffort?: string;
+  /** Antigravity's effort, the last one picked in the chat; "" = the model's own. Never Claude Code's. */
+  agyEffort?: string;
   /** Where the island sits; content opens aligned to that side. */
   anchorV: AnchorV;
   anchorH: AnchorH;

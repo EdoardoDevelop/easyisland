@@ -60,6 +60,13 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Antigravity: impegno suo, nuovo tentativo, Automatica, meno memoria
+Sul portatile «puoi vedere le skill di claude?» falliva in 4 s: a `gemini-4-hydrogen-high` arrivava `--effort medium` di Claude Code e agy 1.5.9 rifiuta la coppia. Ora:
+- Antigravity ha il suo impegno (`agyEffort`, `Chat::agy_effort`); niente `--effort` con il «Predefinito del modello» o con l'impegno nel nome del modello;
+- se agy rifiuta la coppia, un nuovo tentativo senza `--effort` e poi un errore in italiano;
+- senza i suoi hook, un avviso che «Automatica» non è la sua (`init` → `permission_mode`);
+- ai motori con strumenti propri diversi da Claude Code arrivano solo le righe di significato forti (`docs/chat.md`).
+
 ### 16/11 — Anteprima: popup veri; chat: coda come Claude Desktop
 Anteprima (`preview.rs` `new_window`/`make_popup`): `window.open` con dimensioni o pagina vuota apre una finestra `anteprima-popup-N` dell'Anteprima con lo stesso ambiente WebView2 e `window.opener` (accessi Google/Microsoft, pagamenti), `window.close()` la chiude; i link `target=_blank` restano schede. Chat (`src/views/chat.ts`): quello che si scrive mentre risponde va sempre in coda; «Invia subito» con Claude Code lo fa leggere nel turno senza fermarlo, come domanda a sé sotto la risposta fin lì (`steered`/`part`, `streamCut`/`afterCut`), in cronologia resta «↪» sulla domanda e si ridivide alla riapertura.
 
@@ -72,5 +79,3 @@ Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su
 ### 15/11 — Versione 1.0.49
 Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo della scheda grafica e modello consigliato, Modalità terminale interna, risposte dalla memoria scritte dal modello) e le sotto-schede di Impostazioni → Chat e motori. Smoke completo «nessun errore» (91 prove), test Rust 574 + 38.
 
-### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
-Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.

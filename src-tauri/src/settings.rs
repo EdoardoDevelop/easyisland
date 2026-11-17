@@ -802,6 +802,10 @@ pub struct Settings {
     /// xhigh, max); "" = Claude Code's own. Picked in the chat's engine menu.
     #[serde(default)]
     pub cli_effort: String,
+    /// Effort for Antigravity (`--effort`), apart from Claude Code's; "" = the
+    /// model's own. Not sent with a model whose name has it (`-high`…).
+    #[serde(default)]
+    pub agy_effort: String,
     /// Model chosen for each OpenAI-compatible engine (openai.rs): engine → model id.
     #[serde(default)]
     pub engine_models: std::collections::BTreeMap<String, String>,
@@ -1299,6 +1303,7 @@ impl Default for Settings {
             chat_engine: default_chat_engine(),
             cli_model: String::new(),
             cli_effort: String::new(),
+            agy_effort: String::new(),
             engine_models: Default::default(),
             engine_urls: Default::default(),
             anchor_v: default_anchor_v(),

@@ -1185,7 +1185,7 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null, context: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, sent, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
+        : await Bridge.chatSend(c.sid, asked, context, sent, c.auto && State.settings.chatTerminal === true, c.folder, c.team, engine === "antigravity" ? (c.agyEffort ?? State.settings.agyEffort ?? "") : c.effort ?? (State.settings.cliEffort || null),
           State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : engine === "antigravity" ? c.agyModel : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
@@ -2264,14 +2264,15 @@ export function buildPrompt(
     }
     // Antigravity: the same choices, with its own models (`agy models`).
     if (State.chatEngine === "antigravity" && !State.chat.onlyEasy) {
-      const now = effortOf(State.chat);
+      const now = effortOf(State.chat, "antigravity");
       engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
       for (const [id, label, hint] of efforts()) {
         engineMenu.append(h("button", {
-          class: `engine-item${id === now ? " on" : ""}`, title: hint, text: id ? label : t("Predefinito del modello"),
-          onclick: () => pickEffort(id),
+          class: `engine-item${id === now ? " on" : ""}`, title: id ? hint : t("Quello del modello scelto"), text: id ? label : t("Predefinito del modello"),
+          onclick: () => pickEffort(id, "antigravity"),
         }));
       }
+      engineMenu.append(h("div", { class: "engine-note", text: t("Solo per Antigravity, separato da quello di Claude. Un modello con l'impegno nel nome (…-high) usa sempre quello.") }));
       const model = State.chat.agyModel ?? "";
       engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Antigravity") }));
       const pick = (id: string, label: string) => h("button", {
@@ -2309,15 +2310,21 @@ export function buildPrompt(
     ];
   }
 
-  function effortOf(c: ChatSessionState): string {
-    return c.effort ?? State.settings.cliEffort ?? "";
+  /** The chat's effort for that engine: Antigravity has its own, apart from Claude Code's. */
+  function effortOf(c: ChatSessionState, engine = State.chatEngine): string {
+    return engine === "antigravity" ? c.agyEffort ?? State.settings.agyEffort ?? "" : c.effort ?? State.settings.cliEffort ?? "";
   }
 
-  /** For this chat, and remembered for the next ones. */
-  function pickEffort(id: string) {
+  /** For this chat, and remembered for the next ones (each engine its own). */
+  function pickEffort(id: string, engine = "subscription") {
     engineMenu.style.display = "none";
-    State.chat.effort = id;
-    State.settings.cliEffort = id;
+    if (engine === "antigravity") {
+      State.chat.agyEffort = id;
+      State.settings.agyEffort = id;
+    } else {
+      State.chat.effort = id;
+      State.settings.cliEffort = id;
+    }
     void Bridge.saveSettings(State.settings);
     State.notify();
   }

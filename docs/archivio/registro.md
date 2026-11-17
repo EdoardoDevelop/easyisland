@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
+Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.
+
 ### 15/11 — Voti 👍/👎 e «Solo EasyIsland» (ramo `claude/voti-solo-easyisland`, da `claude/sviluppo`)
 Edoardo: like/dislike alle risposte e una chat senza motori per allenare EasyIsland. Fatto `votes.rs` (voti cifrati; 👍/👎 sulle righe della memoria, 👍 a un motore insegna le righe usate; «Riprova» come prove di regressione) e la voce «Solo EasyIsland» nel menu dei motori (`lib.rs` `ONLY_EASY`, `router::only_none`). Risposte dalla memoria anche senza servizio di significato (solo parole). `claude/risposte-memoria` unito in `claude/sviluppo` (avanti veloce). Poi: «Puoi chiedere» con domande dalla memoria sulle pagine che si hanno davanti (solo quelle a cui risponde da solo), nascosto sotto i menu; quadratino bianco della barra di scorrimento della chat tolto. Ricerca per significato fino a 50.000 righe (portatile: 1.200), vettori in `significato.bin` binario (34 ms e 13 MB a 50.000; il JSON si converte da solo); niente database vettoriale. Isola rimisurata quando il contenuto cambia da solo (fondo tagliato in Modifica rete… e altre schede). Avvisi dei controlli (pioggia, disco) con «Attenzione» giallo invece di «Errore»; nella Panoramica il nome non si taglia più per l'etichetta.
 
