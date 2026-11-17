@@ -5544,7 +5544,8 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 #search.open .search-results, #search.closing .search-results { display: flex; flex-direction: column; }
 #search.closing .search-results { animation: sky-panel-out 0.24s var(--ease-out, ease-out) forwards; }
 @keyframes sky-panel-out { 60% { opacity: 1; } to { opacity: 0; } }
-.search-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.search-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.search-list { flex: 0 0 auto; }
 /* The memory around what was found (constellation.ts). */
 .sky {
   flex: 0 0 auto;
@@ -5622,7 +5623,7 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   color: var(--dim-3);
 }
 /* The quick answer from the memory, above the results (search.ts drawAnswer). */
-.search-answer { display: none; flex: 0 0 auto; max-height: 62%; overflow-y: auto; margin: 2px 2px 6px; padding: 9px 11px 8px; border-radius: 11px; background: rgba(56, 189, 248, 0.08); box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.24); }
+.search-answer { display: none; margin: 2px 2px 6px; padding: 9px 11px 8px; border-radius: 11px; background: rgba(56, 189, 248, 0.08); box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.24); }
 .search-answer.on { display: block; animation: search-answer-in 0.18s var(--ease-out, ease-out); }
 @keyframes search-answer-in { from { opacity: 0; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .search-answer.on { animation: none; } }
@@ -6263,14 +6264,15 @@ html[data-scheme="light"] .rail-rename { background: #fff; }
 #island.search-only .search-list {
   padding: 6px 8px;
 }
-#island.search-only .search-list::-webkit-scrollbar { width: 4px; }
-#island.search-only .search-list::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-#island.search-only .search-list::-webkit-scrollbar-track { background: transparent; }
-#island.search-only .search-list::-webkit-scrollbar-thumb {
+#island.search-only .search-answer { margin: 8px 8px 0; }
+#island.search-only .search-scroll::-webkit-scrollbar { width: 4px; }
+#island.search-only .search-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+#island.search-only .search-scroll::-webkit-scrollbar-track { background: transparent; }
+#island.search-only .search-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
 }
-#island.search-only .search-list:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.26); }
+#island.search-only .search-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.26); }
 #island.search-only .search-hit {
   position: relative;
   padding: 7px 10px 7px 14px;

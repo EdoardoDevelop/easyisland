@@ -127,7 +127,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
   );
   // The quick answer: above the results, never one of them.
   const answerBox = h("div", { class: "search-answer" });
-  const results = h("div", { class: "search-results" }, sky.el, answerBox, list, foot);
+  // The quick answer and the results scroll together; the keys stay in view
+  // (17 Nov 2026: a long procedure scrolled on its own and hid the results).
+  const scroller = h("div", { class: "search-scroll" }, answerBox, list);
+  const results = h("div", { class: "search-results" }, sky.el, scroller, foot);
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input, countPill, clearBtn, escHint);
   // Click anywhere inside the search bar in search-only mode (except action buttons) keeps focus in the input.
   bar.addEventListener("mousedown", (e) => {
@@ -547,7 +550,8 @@ export function buildSearch(actions: SearchActions): SearchHost {
     get open() { return el.classList.contains("open"); },
     resultsHeight() {
       if (!el.classList.contains("open")) return 0;
-      const listH = list.scrollHeight;
+      // The list and the quick answer above it.
+      const listH = scroller.scrollHeight;
       const skyH = sky.shown ? 178 : 0;
       if (State.searchOnly) {
         const skyBlock = sky.shown ? skyH + 16 : 0;
