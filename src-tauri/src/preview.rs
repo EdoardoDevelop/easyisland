@@ -1445,9 +1445,6 @@ fn key(path: &str) -> String {
     path.replace('/', "\\").to_lowercase()
 }
 
-/// «Modalità terminale» is about to change a file (a step of Claude Code or
-/// opencode): its text now is the «Modifiche» baseline, and the file opens in
-/// the preview when the user wants it.
 /// The user closed the Anteprima (its ✕, or the chat's button): files the chat
 /// edits do not open it again until the user opens something (lib.rs).
 static CLOSED_BY_USER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -1456,6 +1453,9 @@ pub fn closed_by_user(closed: bool) {
     CLOSED_BY_USER.store(closed, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// «Modalità terminale» is about to change a file (a step of Claude Code or
+/// opencode): its text now is the «Modifiche» baseline, and the file opens in
+/// the preview when the user wants it.
 pub fn touched(path: &str) {
     let Some(app) = APP.get() else { return };
     let full = resolve_path(app, path);
