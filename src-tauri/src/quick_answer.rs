@@ -57,7 +57,7 @@ pub async fn answer(app: &AppHandle, question: &str) -> Option<QuickAnswer> {
                     pages.push((format!("{pc}|p:{}", p.slug), p, Some(pc.clone())));
                 }
             }
-            procedure(&q, &pages)
+            procedure(&q, &pages, potion)
         })
         .await
         .ok()
@@ -105,11 +105,30 @@ pub async fn answer(app: &AppHandle, question: &str) -> Option<QuickAnswer> {
 /// The most lines of a procedure shown in the search (the page has the rest).
 const PROCEDURE_LINES: usize = 14;
 
-/// The section («## …») of a page that answers a how-to question: every word
-/// that matters in the page's name, the section's title or its text, and at
-/// least two of them (or the only one) in the title. The best title wins.
+/// How close (Potion) a section must be to a how-to question when its words
+/// alone do not find it. Measured on the laptop's proxmox.md (17 Nov 2026): the
+/// right sections 0.49–0.57, unrelated questions 0.28–0.37; a question in quite
+/// other words («rimetto l'indirizzo del server di virtualizzazione») only 0.32–0.35,
+/// too close to the unrelated ones to answer it.
+const PROCEDURE_MEANING: f32 = 0.5;
+
+/// Potion's vectors for `texts`, when its model is on this PC.
+fn potion(texts: &[String]) -> Option<Vec<Vec<f32>>> {
+    if !crate::meaning_local::ready() {
+        return None;
+    }
+    crate::meaning_local::embed(texts).ok()
+}
+
+/// The section («## …») of a page that answers a how-to question.
+/// - By the words: every word that matters in the page's name, the section's
+///   title or its text, and at least two of them (or the only one) in the title.
+/// - With Potion (`embed`, its model on this PC): among those, the closest in
+///   meaning; with none, a section that has at least one of the words (in its
+///   title, or half of them anywhere) and is at least `PROCEDURE_MEANING` close.
+///
 /// None: no answer, as for the lookups (a wrong one is worse).
-fn procedure(question: &str, pages: &[(String, crate::brain::Page, Option<String>)]) -> Option<QuickAnswer> {
+fn procedure(question: &str, pages: &[(String, crate::brain::Page, Option<String>)], embed: impl Fn(&[String]) -> Option<Vec<Vec<f32>>>) -> Option<QuickAnswer> {
     use crate::brain::fold;
     let words: Vec<String> = crate::memory_answer::search_words(question).iter().map(|w| fold(w)).collect();
     if words.is_empty() {
@@ -121,38 +140,62 @@ fn procedure(question: &str, pages: &[(String, crate::brain::Page, Option<String
         if w.chars().count() < 6 { hay_words.contains(&w.as_str()) } else { crate::memory_answer::roots(w).iter().any(|r| hay.contains(r.as_str())) }
     };
     let need = words.len().min(2);
-    let mut best: Option<(usize, QuickAnswer)> = None;
-    for (node, page, pc) in pages {
+    // (score by the words, or None when only Potion may take it; page; section)
+    let mut found: Vec<(Option<usize>, usize, String, Vec<String>)> = Vec::new();
+    for (i, (_, page, _)) in pages.iter().enumerate() {
         let names = fold(&format!("{} {}", page.title, page.aliases.join(" ")));
         for (title, body) in sections(&page.body) {
             let head = fold(&title);
             let text = fold(&body.join("\n"));
-            if !words.iter().all(|w| has(&head, w) || has(&names, w) || has(&text, w)) {
-                continue;
-            }
             let in_title = words.iter().filter(|w| has(&head, w)).count();
             let in_names = words.iter().filter(|w| has(&names, w)).count();
-            if in_title + in_names.min(1) < need || in_title == 0 {
-                continue;
+            let anywhere = words.iter().filter(|w| has(&head, w) || has(&names, w) || has(&text, w)).count();
+            let by_words = anywhere == words.len() && in_title > 0 && in_title + in_names.min(1) >= need;
+            if by_words {
+                found.push((Some(in_title * 2 + in_names), i, title, body));
+            } else if in_title > 0 || anywhere * 2 >= words.len() {
+                found.push((None, i, title, body));
             }
-            let score = in_title * 2 + in_names;
-            if best.as_ref().is_some_and(|(s, _)| *s >= score) {
-                continue;
-            }
-            let lines: Vec<String> = body.iter().take(PROCEDURE_LINES).cloned().collect();
-            let more = body.len() > PROCEDURE_LINES;
-            let mut text = format!("{title}\n{}", lines.join("\n"));
-            if more {
-                text.push_str(&format!("\n{}", t("… il resto nella pagina.")));
-            }
-            let source = match pc {
-                Some(pc) => format!("{} ({pc})", page.title),
-                None => page.title.clone(),
-            };
-            best = Some((score, QuickAnswer { text, lines, sources: vec![source], by: "Potion".into(), node: Some(node.clone()) }));
         }
     }
-    best.map(|(_, a)| a)
+    if found.is_empty() {
+        return None;
+    }
+    // Potion: the question and each section (page, title, first lines) side by side.
+    let mut texts = vec![question.to_string()];
+    texts.extend(found.iter().map(|(_, i, title, body)| format!("{}: {title}. {}", pages[*i].1.title, body.iter().take(3).cloned().collect::<Vec<_>>().join(" "))));
+    let close: Option<Vec<f32>> = embed(&texts).and_then(|v| {
+        let (q, rest) = v.split_first()?;
+        Some(rest.iter().map(|s| if q.is_empty() || s.is_empty() { 0.0 } else { q.iter().zip(s).map(|(a, b)| a * b).sum() }).collect())
+    });
+    let pick = match &close {
+        // The words found some: the best by the words, the closest among equals.
+        // None: the closest that is close enough.
+        Some(c) => {
+            let top = found.iter().filter_map(|f| f.0).max();
+            let best = |keep: &dyn Fn(Option<usize>) -> bool| found.iter().enumerate().filter(|(_, f)| keep(f.0)).max_by(|a, b| c[a.0].total_cmp(&c[b.0])).map(|(k, _)| k);
+            match top {
+                Some(t) => best(&|s| s == Some(t)),
+                None => best(&|s| s.is_none()).filter(|&k| c[k] >= PROCEDURE_MEANING),
+            }
+        }
+        None => found.iter().enumerate().filter_map(|(k, f)| f.0.map(|s| (k, s))).max_by_key(|&(k, s)| (s, std::cmp::Reverse(k))).map(|(k, _)| k),
+    }?;
+    if let Some(c) = &close {
+        crate::log::line(format!("risposta rapida: sezione vicina {:.2} (Potion)", c[pick]));
+    }
+    let (_, i, title, body) = &found[pick];
+    let (node, page, pc) = &pages[*i];
+    let lines: Vec<String> = body.iter().take(PROCEDURE_LINES).cloned().collect();
+    let mut text = format!("{title}\n{}", lines.join("\n"));
+    if body.len() > PROCEDURE_LINES {
+        text.push_str(&format!("\n{}", t("… il resto nella pagina.")));
+    }
+    let source = match pc {
+        Some(pc) => format!("{} ({pc})", page.title),
+        None => page.title.clone(),
+    };
+    Some(QuickAnswer { text, lines, sources: vec![source], by: "Potion".into(), node: Some(node.clone()) })
 }
 
 /// The «## » sections of a page's text: (title, its lines without the empty ones).
@@ -309,16 +352,22 @@ mod tests {
     fn a_procedure_is_the_section_whose_title_has_the_words() {
         let body = "Hypervisor delle farmacie.\n\n## Cambiare l'IP del Proxmox (host fisico, nodo singolo)\nFarlo dalla console locale: si chiude anche la Shell web.\n1. Backup: cp /etc/network/interfaces …\n2. vmbr0: address NUOVOIP/24\n\n## Cambiare l'IP del PBS (VM, oggi in DHCP)\n1. Backup\n2. inet static\n\n## Attenzione\n- fingerprint";
         let pages = vec![("p:proxmox".to_string(), page("Proxmox", &["PVE", "PBS"], body), None)];
-        let a = procedure("come cambiare ip di proxmox da shell?", &pages).unwrap();
+        let a = procedure("come cambiare ip di proxmox da shell?", &pages, |_| None).unwrap();
         assert!(a.text.starts_with("Cambiare l'IP del Proxmox") && a.text.contains("vmbr0") && !a.text.contains("inet static"));
         assert_eq!((a.node.as_deref(), a.sources[0].as_str()), (Some("p:proxmox"), "Proxmox"));
-        let pbs = procedure("come si cambia l'ip del pbs?", &pages).unwrap();
+        let pbs = procedure("come si cambia l'ip del pbs?", &pages, |_| None).unwrap();
         assert!(pbs.text.starts_with("Cambiare l'IP del PBS"));
         // Another verb of changing: the same section.
-        assert!(procedure("come modificare ip proxmox", &pages).unwrap().text.starts_with("Cambiare l'IP del Proxmox"));
+        assert!(procedure("come modificare ip proxmox", &pages, |_| None).unwrap().text.starts_with("Cambiare l'IP del Proxmox"));
         // Nothing in the titles, or a word nowhere: no answer.
-        assert!(procedure("come si installa una stampante?", &pages).is_none());
-        assert!(procedure("come cambiare ip del firewall?", &pages).is_none());
+        assert!(procedure("come si installa una stampante?", &pages, |_| None).is_none());
+        assert!(procedure("come cambiare ip del firewall?", &pages, |_| None).is_none());
+        // With Potion: a section the words alone miss, if close enough; never one far off.
+        let near = |close: f32| move |t: &[String]| Some(t.iter().enumerate().map(|(i, x)| if i == 0 { vec![1.0, 0.0] } else if x.contains("PBS") { vec![close, (1.0 - close * close).sqrt()] } else { vec![0.1, 0.99] }).collect());
+        assert!(procedure("come rimetto l'indirizzo del pbs?", &pages, near(0.8)).unwrap().text.starts_with("Cambiare l'IP del PBS"));
+        assert!(procedure("come rimetto l'indirizzo del pbs?", &pages, near(0.3)).is_none());
+        // The words found one: Potion picks among those, never a far one instead.
+        assert!(procedure("come cambiare ip di proxmox?", &pages, near(0.9)).unwrap().text.starts_with("Cambiare l'IP del Proxmox"));
     }
 
     /// On the real page, read only:
@@ -329,8 +378,9 @@ mod tests {
         let path = std::path::PathBuf::from(std::env::var("EI_PAGE").unwrap());
         let dir = path.parent().unwrap();
         let pages: Vec<_> = crate::brain::pages_in(dir).into_iter().map(|p| (format!("p:{}", p.slug), p, None)).collect();
-        for q in ["come cambiare ip di proxmox da shell?", "come si cambia l'ip del proxmox?", "come cambio l'ip del pbs", "come modificare ip proxmox", "come installo una stampante?"] {
-            match procedure(q, &pages) {
+        // EI_MEANING_DIR=%LOCALAPPDATA%\EasyIsland\significato-locale: Potion as in the app.
+        for q in ["come cambiare ip di proxmox da shell?", "come si cambia l'ip del proxmox?", "come cambio l'ip del pbs", "come modificare ip proxmox", "come rimetto l'indirizzo del server di virtualizzazione?", "come cambio l'indirizzo dell'hypervisor?", "come configuro la rete del pve?", "come installo una stampante?", "come faccio il backup delle vm?", "come cambio la password di windows?"] {
+            match procedure(q, &pages, potion) {
                 Some(a) => println!("\n«{q}» → {} ({} righe)\n  {}", a.sources[0], a.lines.len(), a.text.lines().take(3).collect::<Vec<_>>().join("\n  ")),
                 None => println!("\n«{q}» → niente"),
             }
