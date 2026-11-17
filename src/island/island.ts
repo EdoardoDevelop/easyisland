@@ -28,7 +28,7 @@ import { USC, UploadSeq } from "../upload/sequence";
 import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
 import { buildSearch, type SearchActions, type SearchHost } from "../views/search";
-import { toggleSearchWindow } from "./search-window";
+import { hide as hideSearchWindow, searchWindowShown, toggleSearchWindow } from "./search-window";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, isRailCompact, railBotSize, renameGroup } from "../views/rail";
 import * as MenuGroups from "../core/menu-groups";
@@ -2020,7 +2020,16 @@ ${note}` : text };
       this.setView("overview");
       this.openedByUser = false;
     } else if (name === "open") {
-      // Pressed again with the island open: it closes (a waiting request stays, see collapse).
+      // The search's window open: the shortcut closes it, the island stays as it is.
+      if (searchWindowShown()) {
+        hideSearchWindow();
+        return;
+      }
+      // The island open on a view: the search opens in its window over it, the
+      // island stays open (Edoardo, 17 Nov 2026: «se apro la scorciatoia mentre
+      // l'isola è aperta si chiude l'isola»). Esc or ✕ close the island.
+      if (State.mode === "expanded" && !State.searchOnly && (await toggleSearchWindow(this.searchActions))) return;
+      // The island's own search-only mode (no window): pressed again, it closes.
       if (State.mode === "expanded") {
         this.collapse(State.searchOnly);
         return;
