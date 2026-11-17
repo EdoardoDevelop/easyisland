@@ -60,6 +60,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
+- La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
+- Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
+
 ### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
 - I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
 - L'Anteprima si apre da sola sui file della chat solo con `previewEdits` (spenta di serie), mai dopo una chiusura a mano.
@@ -73,12 +77,4 @@ Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciava
 
 ### 17/11 — Risposte rapide nella ricerca dell'isola
 Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
-
-### 17/11 — Anteprima: attesa lunga, iframe dello stesso sito, foto come immagine
-Il 16/11 sul portatile l'aggiornamento dell'iLO è costato un turno di 25 minuti (46 attese inventate, 38 foto + 38 letture, 3,44 $). Ora:
-- `preview_wait` aspetta fino a 10 minuti controllando nell'app, con `changed` o come pausa, e «Ferma» la interrompe;
-- gli iframe dello stesso sito si leggono e si usano (ref `f1e5`); la foto torna come immagine MCP;
-- `sync` gira uno alla volta.
-
-Prova degli script in Edge: `scripts/anteprima-frame.mjs`. Dal vivo nell'app: `docs/prove-dal-vivo.md`.
 

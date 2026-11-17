@@ -28,6 +28,8 @@ use crate::i18n::{t, tf};
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const MAX_STEPS: usize = 25;
+/// The model on this PC with nothing for this long: a line in the chat says it is slow.
+const SLOW_AFTER: std::time::Duration = std::time::Duration::from_secs(30);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(240);
 const MAX_OUTPUT_CHARS: usize = 20_000;
 const OVERFLOW_TOOL_CHARS: usize = 1_500;
@@ -231,8 +233,26 @@ where
     let mut peak: u64 = 0;
     let mut tool_counts: Vec<(String, u32)> = Vec::new();
 
+    let mut told_slow = false;
     for _round in 0..MAX_STEPS {
-        let v = post_completion(&client, base, key, name, &mut messages, &tools, wire_model).await?;
+        // The model on this PC, slow here (17 Nov 2026 on the laptop: 103 s to
+        // the first text): after 30 s with nothing, a line says so; it goes on.
+        let v = {
+            let mut call = std::pin::pin!(post_completion(&client, base, key, name, &mut messages, &tools, wire_model));
+            match tokio::time::timeout(SLOW_AFTER, &mut call).await {
+                Ok(r) => r?,
+                Err(_) => {
+                    if engine == "local" && !told_slow {
+                        told_slow = true;
+                        crate::log::line("terminale interno: il modello sul PC non risponde da 30 s".to_string());
+                        let mut shown = steps_shown.clone();
+                        shown.push(format!("> ⏳ {}", t("Il modello sul PC è lento su questo PC: la risposta arriva, ma può volerci più di un minuto. Un modello più piccolo, o la scheda grafica se c'è, risponde prima.")));
+                        on_text(&shown.join("\n\n"));
+                    }
+                    call.await?
+                }
+            }
+        };
         usage_steps += 1;
 
         let sent_chars: usize = messages.iter().map(|m| m.to_string().len()).sum();

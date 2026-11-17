@@ -305,8 +305,13 @@ pub fn init(app: &AppHandle) {
 /// On the graphics card: the setting allows it and llama.cpp sees one.
 async fn use_gpu() -> bool {
     let allowed = APP.get().and_then(|a| a.try_state::<crate::Shared>()).map_or(true, |s| s.settings.lock().unwrap().local_gpu);
-    allowed && !devices().await.is_empty()
+    allowed && !GPU_CRASHED.load(std::sync::atomic::Ordering::Relaxed) && !devices().await.is_empty()
 }
+
+/// The model crashed starting on the graphics card (17 Nov 2026 on the laptop:
+/// Gemma 4 E2B, 0xc0000409 on the Radeon 840M): the processor until «Spegni
+/// ora», a change of model or of «Scheda grafica» (stop), not a crash at every question.
+static GPU_CRASHED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A catalog model's file is there and as big as it should be (a cut or
 /// mixed file is not a model).
@@ -853,6 +858,40 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
     let path = model_path(model)?;
     let _one = STARTING.lock().await;
     let gpu = use_gpu().await;
+    match start(model, &path, min_context, gpu).await {
+        // Out at once on the graphics card: once more on the processor.
+        Err(Start::Crashed(e)) if gpu => {
+            GPU_CRASHED.store(true, std::sync::atomic::Ordering::Relaxed);
+            crate::log::line("modello sul PC: chiuso all'avvio sulla scheda grafica, riprovo sul processore".to_string());
+            start(model, &path, min_context, false).await.map_err(|f| match f {
+                Start::Crashed(e2) | Start::Other(e2) => if e2.is_empty() { e } else { e2 },
+            })
+        }
+        Err(Start::Crashed(e) | Start::Other(e)) => Err(e),
+        Ok(l) => Ok(l),
+    }
+}
+
+/// Why `start` failed: the process went out at once (a crash), or anything else.
+enum Start {
+    Crashed(String),
+    Other(String),
+}
+
+impl From<String> for Start {
+    fn from(e: String) -> Self {
+        Start::Other(e)
+    }
+}
+
+impl From<&str> for Start {
+    fn from(e: &str) -> Self {
+        Start::Other(e.to_string())
+    }
+}
+
+async fn start(model: &str, path: &Path, min_context: u32, gpu: bool) -> Result<Lease, Start> {
+    let path = path.to_path_buf();
     let hw = hardware_cached();
     let context = context_for(&hw, &path, gpu);
     if context < min_context {
@@ -870,7 +909,7 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
         // network error nobody understood).
         if let Some(sv) = s.as_mut() {
             if sv.busy > 0 && matches!(sv.child.try_wait(), Ok(None)) {
-                return Err(t("Il modello sul PC sta rispondendo a un'altra richiesta: riprova tra poco.").into());
+                return Err(t("Il modello sul PC sta rispondendo a un'altra richiesta: riprova tra poco.").to_string().into());
             }
         }
         *s = None;
@@ -910,11 +949,11 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
         if let Ok(Some(status)) = child.try_wait() {
             let tail = log_tail();
             crate::log::line(format!("modello sul PC: uscito all'avvio ({status})"));
-            return Err(if tail.is_empty() {
+            return Err(Start::Crashed(if tail.is_empty() {
                 t("Il modello sul PC si è chiuso all'avvio.").to_string()
             } else {
                 tf("Il modello sul PC si è chiuso all'avvio:\n{tail}", &[("tail", &tail)])
-            });
+            }));
         }
         if let Ok(r) = client.get(format!("http://127.0.0.1:{port}/health")).send().await {
             if r.status().is_success() {
@@ -922,7 +961,7 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
             }
         }
         if started.elapsed() >= START_TIMEOUT {
-            return Err(t("Il modello sul PC non si è avviato in 3 minuti: il PC potrebbe non avere abbastanza memoria per questo modello.").into());
+            return Err(t("Il modello sul PC non si è avviato in 3 minuti: il PC potrebbe non avere abbastanza memoria per questo modello.").to_string().into());
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
@@ -1132,6 +1171,8 @@ fn running(path: &Path, gpu: bool) -> bool {
 /// "Spegni ora", and when the engine or the model changes.
 pub fn stop() {
     *SERVER.lock().unwrap() = None;
+    // «Spegni ora», another model or «Scheda grafica» changed: the card is tried again.
+    GPU_CRASHED.store(false, std::sync::atomic::Ordering::Relaxed);
 }
 
 #[cfg(test)]
