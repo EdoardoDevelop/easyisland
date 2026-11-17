@@ -60,14 +60,14 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
+- La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
+- Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
+
 ### 17/11 — Chat: allegati senza testo, lingua, tempo dei lavori in background, rifiuti dell'Automatica, costo nel log
 - Solo allegati: partono con «Guarda l'allegato.». Ogni messaggio a Claude Code ricorda la lingua (dopo una skill in inglese rispondeva in inglese).
 - «In background»: «da N min» e, dopo 10 min, «A che punto è?». Rifiuti del classificatore in «Automatica» spiegati in italiano (`auto_denied`).
 - Log di Claude Code: costo e secondi del modello del turno, non i totali del processo, una riga per risultato. Dalla giornata del portatile; ricerca/procedure e Modello sul PC li fa l'altra sessione.
-
-### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
-- La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
-- Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
 
 ### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
 - I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
