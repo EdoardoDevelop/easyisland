@@ -37,6 +37,24 @@ export function setHistoryDemo(list: ChatSummary[]) {
  * turn. The reply grows at its end; where it changed before (the task list),
  * it goes back to the last paragraph they share; nothing shared: all of it.
  */
+/** An Antigravity slug as model and effort: `gemini-4-hydrogen-high` → [`gemini-4-hydrogen`, `high`]. */
+export function splitAgy(id: string): [string, string] {
+  const at = id.lastIndexOf("-");
+  const last = at > 0 ? id.slice(at + 1) : "";
+  return ["low", "medium", "high", "xhigh", "max"].includes(last) ? [id.slice(0, at), last] : [id, ""];
+}
+
+/** A readable name for a slug without the effort: `claude-opus-5-5` → «Claude Opus 5.5». */
+export function agyLabel(base: string): string {
+  const out: string[] = [];
+  for (const w of base.split("-").filter(Boolean)) {
+    const prev = out.length ? out[out.length - 1] : "";
+    if (/^\d+$/.test(w) && /^[\d.]+$/.test(prev)) out[out.length - 1] = `${prev}.${w}`;
+    else out.push(/^[a-z]{1,3}$/.test(w) && !["pro"].includes(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1));
+  }
+  return out.join(" ");
+}
+
 function afterCut(text: string, cut: string): string {
   if (!cut) return text;
   text = text.trimStart();
@@ -2262,37 +2280,86 @@ export function buildPrompt(
       }
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
-    // Antigravity: the same choices, with its own models (`agy models`).
+    // Antigravity: effort and model as Claude's. Its models carry the effort in
+    // their name (`gemini-4-hydrogen-high`): the menu shows each model once and
+    // its efforts apart, and the pair becomes the slug again.
     if (State.chatEngine === "antigravity" && !State.chat.onlyEasy) {
-      const now = effortOf(State.chat, "antigravity");
-      engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
-      for (const [id, label, hint] of efforts()) {
-        engineMenu.append(h("button", {
-          class: `engine-item${id === now ? " on" : ""}`, title: id ? hint : t("Quello del modello scelto"), text: id ? label : t("Predefinito del modello"),
-          onclick: () => pickEffort(id, "antigravity"),
-        }));
-      }
-      engineMenu.append(h("div", { class: "engine-note", text: t("Solo per Antigravity, separato da quello di Claude. Un modello con l'impegno nel nome (…-high) usa sempre quello.") }));
-      const model = State.chat.agyModel ?? "";
-      engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Antigravity") }));
-      const pick = (id: string, label: string) => h("button", {
-        class: `engine-item${id === model ? " on" : ""}`, text: label,
-        onclick: () => { State.chat.agyModel = id || null; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
-      });
-      engineMenu.append(pick("", t("Quello delle Impostazioni")));
-      const list = h("div", { class: "engine-models" });
-      engineMenu.append(list);
+      const effortBox = h("div", { class: "engine-models" });
+      const modelBox = h("div", { class: "engine-models" });
+      engineMenu.append(
+        h("div", { class: "engine-head", text: t("Impegno di Antigravity") }), effortBox,
+        h("div", { class: "engine-note", text: t("Più impegno: risposte più ragionate, ma più lente e più consumo. Solo per Antigravity, separato da quello di Claude.") }),
+        h("div", { class: "engine-head", text: t("Modello di Antigravity") }), modelBox,
+        h("div", { class: "engine-note", text: t("Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.") }),
+      );
+      const done = (model: string | null) => { State.chat.agyModel = model; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); };
       agyModels ??= Promise.resolve(Bridge.chatModels("antigravity", null)).then((l) => (l ?? []).map((m) => m.id)).catch(() => { agyModels = null; return []; });
       void agyModels.then((ids) => {
-        list.replaceChildren(...(ids.length ? ids.map((id) => pick(id, id)) : [h("div", { class: "engine-note", text: t("Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.") })]));
+        const groups = agyGroups(ids);
+        const chosen = State.chat.agyModel ?? "";
+        const current = chosen || State.settings.engineModels?.antigravity || "";
+        const [base, effort] = splitAgy(current);
+        const group = groups.get(base);
+        // Effort: the ones of the model in use; with no model, agy's own `--effort`.
+        if (group && group.efforts.length) {
+          for (const [id, label, hint] of efforts().filter(([id]) => group.efforts.includes(id))) {
+            effortBox.append(h("button", {
+              class: `engine-item${id === effort ? " on" : ""}`, title: hint, text: label,
+              onclick: () => { State.settings.agyEffort = id; void Bridge.saveSettings(State.settings); done(`${base}-${id}`); },
+            }));
+          }
+        } else if (!current) {
+          const now = effortOf(State.chat, "antigravity");
+          for (const [id, label, hint] of efforts()) {
+            effortBox.append(h("button", {
+              class: `engine-item${id === now ? " on" : ""}`, title: id ? hint : t("Quello del modello scelto"), text: id ? label : t("Predefinito del modello"),
+              onclick: () => pickEffort(id, "antigravity"),
+            }));
+          }
+        } else {
+          effortBox.append(h("div", { class: "engine-note", text: t("Questo modello ha un impegno solo.") }));
+        }
+        // Model: each once; it keeps the effort picked, if it has it.
+        modelBox.append(h("button", {
+          class: `engine-item${chosen ? "" : " on"}`, text: t("Quello delle Impostazioni"), onclick: () => done(null),
+        }));
+        for (const [b, g] of groups) {
+          modelBox.append(h("button", {
+            class: `engine-item${chosen && b === base ? " on" : ""}`, text: g.label,
+            onclick: () => done(agySlug(b, g.efforts, effort || State.settings.agyEffort || "")),
+          }));
+        }
+        if (!groups.size) modelBox.append(h("div", { class: "engine-note", text: t("Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.") }));
       });
-      engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.") }));
     }
     engineMenu.style.display = "";
   }
 
   /** Antigravity's models, read once per run (`agy models` takes a few seconds). */
   let agyModels: Promise<string[]> | null = null;
+
+  /** Antigravity's models by name without the effort, with the efforts each has. */
+  function agyGroups(ids: string[]): Map<string, { label: string; efforts: string[] }> {
+    const groups = new Map<string, { label: string; efforts: string[] }>();
+    for (const id of ids) {
+      const [base, effort] = splitAgy(id);
+      const g = groups.get(base) ?? { label: agyLabel(base), efforts: [] };
+      if (effort && !g.efforts.includes(effort)) g.efforts.push(effort);
+      groups.set(base, g);
+    }
+    const order = efforts().map(([id]) => id);
+    for (const g of groups.values()) g.efforts.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return groups;
+  }
+
+  /** The slug for a model and an effort: the one asked if it has it, else the closest. */
+  function agySlug(base: string, have: string[], want: string): string {
+    if (!have.length) return base;
+    const order = efforts().map(([id]) => id);
+    const at = order.indexOf(want || "medium");
+    const best = have.reduce((a, b) => Math.abs(order.indexOf(b) - at) < Math.abs(order.indexOf(a) - at) ? b : a);
+    return `${base}-${best}`;
+  }
 
   /** Engines with Claude Code's modes and effort: Claude Code and Antigravity. */
   function hasModes(engine: string): boolean {

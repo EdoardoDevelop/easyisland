@@ -5693,7 +5693,6 @@
   "Smeraldo e ciano": "Emerald and cyan",
   "Ambra e corallo": "Amber and coral",
   "Fissa sul focus": "Steady on focus",
-  "Spenta": "Off",
   "aspetto e colori della linea luminosa sotto le barre di ricerca su tutti i temi": "look and colours of the glowing line under the search bars across all themes",
   "Quando si anima": "When it animates",
   "In focus e in uscita": "On focus and exit",
@@ -5706,5 +5705,6 @@
   "Antigravity non accetta il modello «{model}» con questo impegno: cambia modello o impegno dal menu del motore (in alto nella chat).": "Antigravity does not accept the model «{model}» with this effort: change the model or the effort from the engine menu (at the top of the chat).",
   "«Automatica» con Antigravity: la sua modalità automatica non è ancora attiva, quindi lavora nel modo normale e salta i comandi che chiederebbero il permesso. Installa i suoi hook in Impostazioni → Agenti di codice → Antigravity: con gli hook EasyIsland li fa passare da sé.": "«Automatic» with Antigravity: its own automatic mode is not active yet, so it works in its normal mode and skips the commands that would ask for permission. Install its hooks in Settings → Coding agents → Antigravity: with the hooks EasyIsland lets them through itself.",
   "Quello del modello scelto": "The one of the chosen model",
-  "Solo per Antigravity, separato da quello di Claude. Un modello con l'impegno nel nome (…-high) usa sempre quello.": "Only for Antigravity, separate from Claude's. A model with the effort in its name (…-high) always uses that one."
+  "Più impegno: risposte più ragionate, ma più lente e più consumo. Solo per Antigravity, separato da quello di Claude.": "More effort: more reasoned answers, but slower and with more usage. Only for Antigravity, separate from Claude's.",
+  "Questo modello ha un impegno solo.": "This model has a single effort."
 }
