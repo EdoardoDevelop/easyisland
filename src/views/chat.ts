@@ -2305,10 +2305,11 @@ export function buildPrompt(
           for (const [id, label, hint] of efforts().filter(([id]) => group.efforts.includes(id))) {
             effortBox.append(h("button", {
               class: `engine-item${id === effort ? " on" : ""}`, title: hint, text: label,
-              onclick: () => { State.settings.agyEffort = id; void Bridge.saveSettings(State.settings); done(`${base}-${id}`); },
+              onclick: () => { State.chat.agyEffort = id; State.settings.agyEffort = id; void Bridge.saveSettings(State.settings); done(`${base}-${id}`); },
             }));
           }
-        } else if (!current) {
+        } else {
+          // No model, a model without levels in its name, or no list: agy's own `--effort`.
           const now = effortOf(State.chat, "antigravity");
           for (const [id, label, hint] of efforts()) {
             effortBox.append(h("button", {
@@ -2316,8 +2317,6 @@ export function buildPrompt(
               onclick: () => pickEffort(id, "antigravity"),
             }));
           }
-        } else {
-          effortBox.append(h("div", { class: "engine-note", text: t("Questo modello ha un impegno solo.") }));
         }
         // Model: each once; it keeps the effort picked, if it has it.
         modelBox.append(h("button", {
@@ -2379,7 +2378,9 @@ export function buildPrompt(
 
   /** The chat's effort for that engine: Antigravity has its own, apart from Claude Code's. */
   function effortOf(c: ChatSessionState, engine = State.chatEngine): string {
-    return engine === "antigravity" ? c.agyEffort ?? State.settings.agyEffort ?? "" : c.effort ?? State.settings.cliEffort ?? "";
+    // Antigravity: a model with the level in its name has that one (agy drops `--effort`).
+    if (engine === "antigravity") return splitAgy(c.agyModel ?? State.settings.engineModels?.antigravity ?? "")[1] || (c.agyEffort ?? State.settings.agyEffort ?? "");
+    return c.effort ?? State.settings.cliEffort ?? "";
   }
 
   /** For this chat, and remembered for the next ones (each engine its own). */
