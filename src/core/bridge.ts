@@ -746,6 +746,7 @@ export const Bridge = {
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
   /** The field at the top: the nodes of the map (brain.rs find_nodes). */
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
+  quickAnswer: (question: string) => call<QuickAnswer | null>("quick_answer", { question }),
   /** A node's name and card, for a new chat (brain.rs node_brief). */
   memoryNodeBrief: (id: string) => call<[string, string] | null>("memory_node_brief", { id }),
   /** A page found there: the memory window with it selected. */
@@ -1022,6 +1023,18 @@ export interface MemoryInfo {
 
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
 /** A memory page found from the field at the top (brain.rs PageHit). */
+/** An answer from the memory to a question typed in the search (quick_answer.rs). */
+export interface QuickAnswer {
+  /** Written by a model, or the memory's lines themselves. */
+  text: string;
+  /** The lines it comes from, as shown. */
+  lines: string[];
+  /** Where each line is from: a page's title or «nota». */
+  sources: string[];
+  /** «Potion» or the model that wrote it. */
+  by: string;
+}
+
 export interface MemoryHit {
   /** The memory window's node, "p:<slug>" or "lavoro|p:<slug>". */
   id: string;

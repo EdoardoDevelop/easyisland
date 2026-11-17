@@ -1039,7 +1039,7 @@ fn facts(text: &str) -> Vec<String> {
 }
 
 /// The composed answer keeps to the lines: every fact it names is in them.
-fn faithful(answer: &str, lines: &[String]) -> bool {
+pub(crate) fn faithful(answer: &str, lines: &[String]) -> bool {
     let joined = lines.join("\n");
     let known = facts(&joined);
     let source = joined.to_lowercase();
@@ -1049,7 +1049,7 @@ fn faithful(answer: &str, lines: &[String]) -> bool {
 
 /// A composed answer says more than a name and is not one of the lines copied
 /// (Qwen 3.5 0.8B on the laptop answered «Farmacia Falchi», 15 Nov 2026).
-fn useful(answer: &str, lines: &[String]) -> bool {
+pub(crate) fn useful(answer: &str, lines: &[String]) -> bool {
     let plain = |t: &str| t.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
     let a = plain(answer);
     answer.split_whitespace().count() >= 5 && !lines.iter().any(|l| {

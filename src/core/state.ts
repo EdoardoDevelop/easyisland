@@ -756,6 +756,8 @@ export interface Settings {
   memoryMeaningModel?: string;
   /** «Modello sul PC» writes the answers from the memory (local_model.rs); off = the lines as they are. */
   localCompose?: boolean;
+  /** Quick answers in the island's search: "potion" (default), "off", "local" or an engine (quick_answer.rs). */
+  quickAnswers?: string;
   /** The model on the graphics card when there is a fitting one. */
   localGpu?: boolean;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */

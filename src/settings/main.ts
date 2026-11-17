@@ -2558,6 +2558,17 @@ function memoryRow(): HTMLElement {
     settings.memoryMeaningModel = meaningModel.value.trim();
     void save();
   });
+  // «Risposte rapide nella ricerca» (quick_answer.rs): who writes the answer above the results.
+  const quickEngines: [string, string][] = [
+    ["potion", t("Potion: le righe della memoria, senza IA")],
+    ["local", t("Modello sul PC")],
+    ["api", t("Claude (chiave API)")],
+    ["openrouter", "OpenRouter"],
+    ["openai", "OpenAI"],
+    ["gemini", "Gemini"],
+    ["off", t("Spente")],
+  ];
+  const quick = choice(quickEngines, settings.quickAnswers ?? "potion", (v) => { settings.quickAnswers = v; void save(); });
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Memoria dopo la risposta") }),
@@ -2570,6 +2581,10 @@ function memoryRow(): HTMLElement {
         t("Trova note con parole diverse ma stesso senso («server» → «NAS»)."),
         t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («server» trova una nota sul «NAS»): ogni riga diventa una volta un vettore e prima di ogni domanda, e in ogni ricerca della chat, arrivano le più vicine. «EasyIsland, su questo PC» lo fa da sola con un modello scaricato qui sotto: niente chiave, niente rete, la memoria resta sul PC. Con OpenAI, Gemini o OpenRouter le righe escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)."))),
     localRow,
+    h("div", { class: "row" }, h("label", { text: t("Risposte rapide nella ricerca") }), quick,
+      moreHint(
+        t("Una domanda nella ricerca dell'isola («quali vm ha la farmacia Falchi?») ha la risposta sopra i risultati."),
+        t("Quando smetti di scrivere una domanda nella ricerca dell'isola, EasyIsland cerca nella memoria le righe che rispondono di sicuro (Potion, come le risposte dirette della chat) e le mostra sopra i risultati, con le fonti; se non è sicuro non mostra niente e resta «Chiedi alla chat». Invio fa quello di sempre. Con «Modello sul PC» le righe diventano una frase solo se il modello è già acceso. Con Claude, OpenRouter, OpenAI o Gemini le righe trovate escono dal PC verso quel servizio (mai righe con chiavi o password) e si usa il modello scelto per la chat; se nomina qualcosa che nelle righe non c'è, o non risponde entro 12 secondi, si vedono le righe."))),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
       moreHint(
         t("Organizza pagine, collegamenti e riassunti nei file .md della memoria (va bene un motore gratuito)."),

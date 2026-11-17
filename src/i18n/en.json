@@ -5713,5 +5713,13 @@
   "che la pagina cambi": "until the page changes",
   "Schermata della scheda {id}: {p} (PNG). Se non è già qui come immagine, leggila da quel file.": "Screenshot of tab {id}: {p} (PNG). If it is not already here as an image, read it from that file.",
   "Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find.": "Element not found on the page: if it changed (reloaded, another screen), look at it again with preview_snapshot or preview_find.",
-  "Passo {n}: strumento non ammesso qui: «{t}». Si possono usare: {list}.": "Step {n}: tool not allowed here: «{t}». These can be used: {list}."
+  "Passo {n}: strumento non ammesso qui: «{t}». Si possono usare: {list}.": "Step {n}: tool not allowed here: «{t}». These can be used: {list}.",
+  "Potion: le righe della memoria, senza IA": "Potion: the memory's lines, no AI",
+  "Risposte rapide nella ricerca": "Quick answers in the search",
+  "Una domanda nella ricerca dell'isola («quali vm ha la farmacia Falchi?») ha la risposta sopra i risultati.": "A question in the island's search («which VMs does the Falchi pharmacy have?») gets its answer above the results.",
+  "Quando smetti di scrivere una domanda nella ricerca dell'isola, EasyIsland cerca nella memoria le righe che rispondono di sicuro (Potion, come le risposte dirette della chat) e le mostra sopra i risultati, con le fonti; se non è sicuro non mostra niente e resta «Chiedi alla chat». Invio fa quello di sempre. Con «Modello sul PC» le righe diventano una frase solo se il modello è già acceso. Con Claude, OpenRouter, OpenAI o Gemini le righe trovate escono dal PC verso quel servizio (mai righe con chiavi o password) e si usa il modello scelto per la chat; se nomina qualcosa che nelle righe non c'è, o non risponde entro 12 secondi, si vedono le righe.": "When you stop typing a question in the island's search, EasyIsland looks in the memory for the lines that surely answer it (Potion, like the chat's direct answers) and shows them above the results, with their sources; if it is not sure it shows nothing and «Ask the chat» stays. Enter does what it always does. With «Model on this PC» the lines become a sentence only if the model is already on. With Claude, OpenRouter, OpenAI or Gemini the lines found leave the PC for that service (never lines with keys or passwords) and the model chosen for the chat is used; if it names something the lines do not have, or does not answer within 12 seconds, the lines are shown.",
+  "Risposta rapida · scritta da {by}": "Quick answer · written by {by}",
+  "Risposta rapida dalla memoria": "Quick answer from the memory",
+  "Fonti: {from}": "Sources: {from}",
+  "nota": "note"
 }

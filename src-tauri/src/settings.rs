@@ -757,6 +757,11 @@ pub struct Settings {
     /// (TextComposer) with the model of `engine_models.local`; off = the lines as they are.
     #[serde(default)]
     pub local_compose: bool,
+    /// Quick answers in the island's search (quick_answer.rs): "potion" (the
+    /// memory's lines as they are, no model), "off", "local" (the model on this
+    /// PC) or an engine of quick_answer::ENGINES.
+    #[serde(default = "default_quick_answers")]
+    pub quick_answers: String,
     /// The model on the graphics card (Vulkan) when there is a fitting one.
     #[serde(default = "default_true")]
     pub local_gpu: bool,
@@ -1240,6 +1245,10 @@ fn default_model() -> String {
     crate::claude::DEFAULT_MODEL.to_string()
 }
 
+fn default_quick_answers() -> String {
+    "potion".into()
+}
+
 fn default_chat_engine() -> String {
     "subscription".into()
 }
@@ -1287,6 +1296,7 @@ impl Default for Settings {
             memory_meaning: String::new(),
             memory_meaning_model: String::new(),
             local_compose: false,
+            quick_answers: default_quick_answers(),
             local_gpu: true,
             remember_now: true,
             memory_claude_code: true,

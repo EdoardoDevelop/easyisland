@@ -1564,6 +1564,12 @@ export async function runScene(island: Island, scene: string) {
           .slice(0, 8)
           .map((n) => ({ id: n.id, title: n.label, gist: n.kind === "page" ? n.text.split("\n")[0] : "", kind: n.kind as "page" | "note", origin: "" })),
         chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
+        // A quick answer (quick_answer.rs) to a question: ?q=quali vm ha la farmacia falchi&ai shows one written by a model.
+        quickAnswer: async (question: string) => /\b(vm|macchine)\b/i.test(question) && /falchi/i.test(question)
+          ? (new URLSearchParams(location.search).has("ai")
+            ? { text: "La Farmacia Falchi ha quattro VM: FALCHI-DC (4 GB), WINFARM (20 GB), POLLER (2 GB) e PBS (2 GB, IP 192.168.0.221).", lines: ["Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB", "2026-11-14: PBS ha IP 192.168.0.221"], sources: ["Farmacia Falchi", "nota"], by: "OpenRouter · openai/gpt-5.6-luna-pro" }
+            : { text: "Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB\n2026-11-14: PBS ha IP 192.168.0.221", lines: ["Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB", "2026-11-14: PBS ha IP 192.168.0.221"], sources: ["Farmacia Falchi", "nota"], by: "Potion" })
+          : null,
         zammadSearch: async () => [
           { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
           { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },

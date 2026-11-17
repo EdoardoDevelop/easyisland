@@ -152,6 +152,21 @@ Finestra `anteprima` con schede di file e pagine web; guida `docs/guida/10-antep
 - **`preview_login`** (`LOGIN`, `dvc::web_login`): utente e password di una voce di Devolutions Cloud nel modulo della pagina, anche in due pagine; rifiutato se l'indirizzo della voce è di un altro sito (`same_site`); password mai al motore né nel log; delicato (`permits::delicate_tool`), chiede anche in «Automatica».
 - **`preview_save_images`:** fino a 20 foto nel Vassoio (`files::ingest`), con la pagina come referer; se il sito le nega, `fetch` dalla pagina dello stesso sito con la sessione. Solo `image/*`, ≤ 15 MB.
 
+## Risposte rapide nella ricerca dell'isola (`quick_answer.rs`, 17/11)
+Edoardo: «quali vm ha la farmacia Falchi?» scritto nella ricerca dell'isola deve avere la risposta diretta, con Potion o con un'IA scelta.
+- **Quando:** `search.ts` `askQuick`, 600 ms dopo l'ultimo tasto, almeno 6 caratteri, una volta per testo. Se il testo cambia la risposta si scarta. Senza ricerca aperta non parte nulla.
+- **Cosa:** solo le domande di consultazione (`memory_answer::is_lookup`). Le righe sono quelle della risposta diretta della chat (`router::memory_lines`: Potion `deep_scored`, soglia `answer_min`, voti 👍/👎).
+  - Se qui non c'è niente di sicuro, la copia della memoria dell'altro PC (`memshare::source`, `copy_lines`), per parole (`pick` senza soglia), con il PC nelle fonti. Sul PC dell'ufficio Falchi è solo nella copia del portatile.
+  - Nessuna riga sicura = nessuna risposta: resta «Chiedi alla chat».
+- **Chi scrive** (`quickAnswers`, Impostazioni → Chat → «Risposte rapide nella ricerca»):
+  - `potion` di serie, le righe come sono;
+  - `local`, `local_model::compose`, solo con il server già acceso;
+  - `api`, `openrouter`, `openai` o `gemini`, con il modello scelto per la chat, lo stesso prompt di compose e 12 s al massimo.
+  - Il controllo `faithful`/`useful` vale per ogni modello: se nomina qualcosa che nelle righe non c'è, si mostrano le righe.
+  - Mai Ollama o LM Studio (decisione del 15/11), mai Claude Code (lento). Righe con chiavi o password (`secret_like`) mai a un motore esterno.
+- **Come si vede:** un riquadro sopra l'elenco (`.search-answer`) con «Risposta rapida dalla memoria» o «… scritta da X», il testo, le fonti (piegate se scritta da un modello), «Copia» e «Chiedi alla chat». Non è un risultato: Invio e la selezione restano come prima.
+- Nel browser: `?scene=search&q=quali vm ha la farmacia falchi` (`&ai` per quella scritta). Prova sulla copia vera, in sola lettura: test ignorato `answers_from_a_real_copy` (`EI_COPY`).
+
 ## Portali dei fornitori (`portals.rs`, 12/11)
 Ricette insegnate dall'utente, mai nel codice né nel repo: `%APPDATA%\…\portali.json` (`config_dir`), non cifrato (nessun segreto). Campi: `search_url` con `{q}`, `json`, `items`, `fields`, `selectors`, `login`, `dvc_entry` (solo il nome della voce), `vat_included`, `notes`, esito dell'ultima ricerca.
 - `portal_save` (chiede) salva solo se `test_query` trova prodotti; `portal_search` apre ogni portale in una scheda sua dietro quella dell'utente (`preview::load_behind`, riusata), estrae con `preview::extract` e dice se serve l'accesso (`asks_login`) o se va riaddestrato; `portal_list`.

@@ -4,7 +4,10 @@
 // the day of today or tomorrow (asked to the chat, `day_prompt` in telegram.rs),
 // and, as the user stops typing, the memory's pages (brain.rs), the past
 // conversations (chat_log.rs) and Zammad's tickets (zammad.rs, when it is on);
-// last the chat, asked what was typed. The results cover the views while
+// last the chat, asked what was typed. A question the memory answers for sure
+// gets its answer above the results, as the user stops typing (quick_answer.rs,
+// Impostazioni → Chat → «Risposte rapide»): not a result, so Enter and the
+// selection stay as they are. The results cover the views while
 // there is something typed; Enter opens the selected one, Ctrl+Enter asks the
 // chat, Esc clears.
 
@@ -17,7 +20,7 @@ import { calculate, formatResult, plainResult } from "../core/calc";
 import { Sound } from "../core/sound";
 import { Constellation } from "./constellation";
 import { Model } from "../memory/data";
-import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
+import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type QuickAnswer, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
 import { t, tn } from "../core/i18n";
 
@@ -121,7 +124,9 @@ export function buildSearch(actions: SearchActions): SearchHost {
     ),
     h("span", { class: "search-foot-item" }, kbd("Esc"), " ", t("pulisci")),
   );
-  const results = h("div", { class: "search-results" }, sky.el, list, foot);
+  // The quick answer: above the results, never one of them.
+  const answerBox = h("div", { class: "search-answer" });
+  const results = h("div", { class: "search-results" }, sky.el, answerBox, list, foot);
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input, countPill, clearBtn, escHint);
   // Click anywhere inside the search bar in search-only mode (except action buttons) keeps focus in the input.
   bar.addEventListener("mousedown", (e) => {
@@ -222,6 +227,45 @@ export function buildSearch(actions: SearchActions): SearchHost {
         void Bridge.threecxContacts(q).then((contacts) => { if (more.q === q && contacts?.length) { more.contacts = contacts.filter((c) => c.numbers.length); show(); } }).catch(() => {});
       }
     }, 400);
+  };
+
+  // The answer from the memory for the words typed: once per text, after a pause, dropped if the text changes.
+  let quick: { q: string; ans: QuickAnswer | null } = { q: "", ans: null };
+  let quickTimer = 0;
+  const askQuick = (q: string) => {
+    window.clearTimeout(quickTimer);
+    if ((State.settings.quickAnswers ?? "potion") === "off" || q.length < 6 || quick.q === q) return;
+    quickTimer = window.setTimeout(() => {
+      quick = { q, ans: null };
+      void Bridge.quickAnswer(q).then((ans) => {
+        if (quick.q !== q) return;
+        quick.ans = ans ?? null;
+        if (input.value.trim() === q) { drawAnswer(); actions.onLayout?.(); }
+      }).catch(() => {});
+    }, 600);
+  };
+  const drawAnswer = () => {
+    clear(answerBox);
+    const typed = input.value.trim();
+    const a = typed && quick.q === typed ? quick.ans : null;
+    answerBox.classList.toggle("on", !!a);
+    if (!a) return;
+    const from = [...new Set(a.sources)].join(" · ");
+    const written = a.by !== "Potion";
+    answerBox.append(
+      h("div", { class: "search-answer-head" },
+        svg(ICONS.memory, 12, { stroke: 1.8 }),
+        h("span", { text: written ? t("Risposta rapida · scritta da {by}", { by: a.by }) : t("Risposta rapida dalla memoria") })),
+      h("div", { class: "search-answer-text", text: a.text }),
+      written
+        ? h("details", { class: "search-answer-src" }, h("summary", { text: t("Fonti: {from}", { from }) }), ...a.lines.map((l) => h("div", { class: "search-answer-line", text: l })))
+        : h("div", { class: "search-answer-src", text: t("Fonti: {from}", { from }) }),
+      h("div", { class: "search-answer-acts" },
+        h("button", { type: "button", class: "search-answer-btn", text: t("Copia"),
+          onclick: () => { void navigator.clipboard.writeText(a.text).then(() => Sound.play("finish")).catch(() => {}); } }),
+        h("button", { type: "button", class: "search-answer-btn", text: t("Chiedi alla chat"),
+          onclick: () => { reset(true); input.blur(); actions.ask(typed); } })),
+    );
   };
 
   const askNotion = (q: string) => {
@@ -375,6 +419,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       h("span", { class: "search-kind", text: KIND_LABEL[hit.kind] })));
     });
     countPill.textContent = hits.length ? tn("{n} risultato", "{n} risultati", hits.length, { n: hits.length }) : "";
+    drawAnswer();
     showSky();
   };
 
@@ -397,6 +442,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
         askNotion(raw);
         askRdm(raw);
         askMore(raw);
+        askQuick(raw);
       }
     } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
@@ -408,6 +454,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     }
     clear(list);
     countPill.textContent = "";
+    drawAnswer();
     memory = null;
     memoryAsked = false;
     // The stars go back into the middle before the panel leaves.

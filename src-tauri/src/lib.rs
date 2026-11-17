@@ -17,6 +17,7 @@ mod memory_learn;
 mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
+mod quick_answer;
 mod votes;
 mod memory_tips;
 mod local_model;
@@ -2772,6 +2773,13 @@ fn memory_window_open(app: AppHandle) {
     show_memory_window(&app);
 }
 
+/// The search of the island: the answer from the memory to a question, if
+/// it has a sure one (quick_answer.rs; Impostazioni → Chat).
+#[tauri::command]
+async fn quick_answer(app: AppHandle, question: String) -> Option<quick_answer::QuickAnswer> {
+    quick_answer::answer(&app, &question).await
+}
+
 /// The field at the top of the island: memory pages with these words.
 #[tauri::command]
 async fn memory_find(app: AppHandle, query: String) -> Vec<brain::PageHit> {
@@ -5289,6 +5297,7 @@ pub fn run() {
             memory_note_add,
             chat_history_search,
             memory_find,
+            quick_answer,
             memory_node_brief,
             memory_window_select,
             zammad_search,
