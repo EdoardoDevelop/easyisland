@@ -8,7 +8,7 @@
 // other views (main.ts DashHost). DOM, plus one canvas for the nucleus that
 // moves only while the window is visible and in front, at 30 fps at most.
 
-import { t } from "../core/i18n";
+import { t, tn } from "../core/i18n";
 
 import { h, clear, svg } from "../views/dom";
 import { GROUP_COLORS, KIND_COLOR, alpha, freshness, kindName, shortDate, type MemGraph, type MemNode, type Model, type NodeKind } from "./data";
@@ -66,6 +66,17 @@ const days = (date: string) => {
 };
 const isNote = (n: MemNode) => n.kind === "note" || n.kind === "old";
 const isPage = (n: MemNode) => n.kind === "page" || n.kind === "missing";
+/**
+ * A line of the chat diary (brain.rs: «motore · domanda → risposta»): the
+ * question is what the chat was about; the engine goes small at the end.
+ */
+function diaryLine(text: string): { title: string; engine: string } {
+  const m = /^([^·\n]{1,40}?) · ([\s\S]*)$/.exec(text);
+  const rest = m ? m[2] : text;
+  const question = rest.split(" → ")[0].trim();
+  return { title: question || rest, engine: m ? m[1].trim() : "" };
+}
+
 /** Short labels for the feed's tags. */
 const TAG: Partial<Record<NodeKind, string>> = { note: t("nota"), page: t("pagina"), source: t("fonte"), day: t("chat") };
 const LANE_KIND: Record<string, NodeKind> = { note: "note", page: "page", diary: "day", source: "source" };
@@ -106,8 +117,9 @@ export class Dashboard {
       tip: (text, sub, x, y) => this.showTip(text, sub, x, y),
       feedRows: () => this.feedRows(stage),
     });
-    stage.append(this.tip);
-    const coreBox = h("div", { class: "dash-box dash-core" }, stage, h("div", { class: "dash-floats" }, this.filtersBox, this.weekBox), this.coreNumber);
+    const floats = h("div", { class: "dash-floats" }, this.filtersBox, this.weekBox);
+    stage.append(this.tip, floats);
+    const coreBox = h("div", { class: "dash-box dash-core" }, stage, this.coreNumber);
     const stagesBox = h("div", { class: "dash-box dash-stages" },
       h("div", { class: "dash-label" }, h("span", { text: t("tappe") }), h("span", { text: t("fonti → controllo") })),
       this.stages);
@@ -121,7 +133,13 @@ export class Dashboard {
     this.el.append(head, feedBox, coreBox, stagesBox, tokensBox, termBox, cmpBox);
     new ResizeObserver(() => {
       const w = coreBox.getBoundingClientRect().width;
-      coreBox.classList.toggle("narrow", w > 0 && w < 640);
+      const narrow = w > 0 && w < 640;
+      coreBox.classList.toggle("narrow", narrow);
+      // Narrow: the small boxes go under the nucleus, out of its stage.
+      if (narrow && floats.parentElement === stage) coreBox.insertBefore(floats, this.coreNumber);
+      if (!narrow && floats.parentElement !== stage) stage.append(floats);
+      // Low: «Questa settimana» gives its room to the filters (its numbers are also on top).
+      coreBox.classList.toggle("short", !narrow && stage.getBoundingClientRect().height < 430);
     }).observe(coreBox);
   }
 
@@ -163,7 +181,7 @@ export class Dashboard {
       this.numbers.append(b);
     };
     const things = g.nodes.filter((n) => n.kind !== "day" && n.kind !== "missing");
-    big(things.length, t("pagine · note · fonti"), t("{n} collegamenti", { n: g.edges.length }), t("Apri il grafo"), () => this.host.openSet([]));
+    big(things.length, t("pagine · note · fonti"), tn("{n} collegamento", "{n} collegamenti", g.edges.length), t("Apri il grafo"), () => this.host.openSet([]));
     big(fresh.length, t("nuove in 7 giorni"), fresh.length ? t("ultima: {d}", { d: shortDate(fresh.map((n) => n.date).sort().pop() ?? "") }) : t("niente di nuovo"),
       t("Clic per vederle nel grafo"), () => this.host.openSet(fresh.map((n) => n.id)), "accent");
     big(g.inbox.length, t("da leggere"), g.inbox.length ? (g.inbox[0] ?? "") : t("cartella vuota"), t("Apri la cartella dei file da far imparare"), () => this.host.openInbox(), g.inbox.length ? "warn" : "");
@@ -179,10 +197,11 @@ export class Dashboard {
     const events = [...s.model.g.events].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
     for (const e of events) {
       const kind = LANE_KIND[e.lane] ?? "note";
+      const { title, engine } = e.lane === "diary" ? diaryLine(e.text) : { title: e.text, engine: "" };
       const row = h("button", { class: "dash-feed-row", title: e.text, disabled: !e.node || !s.model.byId.has(e.node) },
         h("span", { class: "dash-feed-date", text: shortDate(e.date) }),
         h("span", { class: "dash-tag", style: `--tag:${KIND_COLOR[kind]}`, text: TAG[kind] ?? kindName(kind) }),
-        h("span", { class: "dash-feed-text", text: e.text }));
+        h("span", { class: "dash-feed-text" }, h("span", { text: title }), engine ? h("small", { text: engine }) : ""));
       row.addEventListener("click", () => this.host.open(e.node));
       this.feed.append(row);
     }
@@ -235,13 +254,13 @@ export class Dashboard {
     clear(this.coreNumber);
     const b = h("button", { class: `dash-core-big ${todo ? "" : "ok"}`, title: todo ? t("Le note sole nel grafo") : "" },
       h("b", { text: String(todo) }),
-      h("span", { text: todo ? t("da sistemare · su {n} cose", { n: g.nodes.length }) : t("niente da sistemare") })) as HTMLButtonElement;
+      h("span", { text: todo ? tn("da sistemare · su {n} cosa", "da sistemare · su {n} cose", g.nodes.length) : t("niente da sistemare") })) as HTMLButtonElement;
     b.addEventListener("click", () => this.host.openSet([...lonely, ...missing].map((n) => n.id)));
     const bar = h("div", { class: "dash-bar two" }, h("i", { style: `width:${(share * 100).toFixed(1)}%` }), h("em", { style: `width:${((1 - share) * 100).toFixed(1)}%` }));
     this.coreNumber.append(b, bar, h("div", { class: "dash-bar-legend" },
-      h("span", { text: t("{n} note collegate", { n: linked }) }),
-      h("span", { class: lonely.length ? "bad" : "", text: t("{n} sole", { n: lonely.length }) }),
-      h("span", { text: t("{n} pagine da scrivere", { n: missing.length }) }),
+      h("span", { text: tn("{n} nota collegata", "{n} note collegate", linked) }),
+      h("span", { class: lonely.length ? "bad" : "", text: tn("{n} sola", "{n} sole", lonely.length) }),
+      h("span", { text: tn("{n} pagina da scrivere", "{n} pagine da scrivere", missing.length) }),
       h("span", { text: t("{n} da controllare", { n: g.check.length }) })));
 
     // Top right: the filters of every view, the legend as switches.
@@ -334,10 +353,10 @@ export class Dashboard {
     stage({ icon: LINE.source, color: "#22c55e", name: t("Fonti lette"), sub: t("file già imparati"), value: String(sources), bar: sources / Math.max(1, sources + g.inbox.length),
       open: sources ? () => this.host.openSet(g.nodes.filter((n) => n.kind === "source").map((n) => n.id)) : undefined,
       empty: sources ? "" : t("Nessun file letto finora.") });
-    stage({ icon: LINE.page, color: "#7c9cff", name: t("Pagine"), sub: missing ? t("{n} citate ma da scrivere", { n: missing }) : t("tutte scritte"), value: `${pages} / ${pages + missing}`, bar: pages / Math.max(1, pages + missing), hot: hot === 2,
+    stage({ icon: LINE.page, color: "#7c9cff", name: t("Pagine"), sub: missing ? tn("{n} citata ma da scrivere", "{n} citate ma da scrivere", missing) : t("tutte scritte"), value: `${pages} / ${pages + missing}`, bar: pages / Math.max(1, pages + missing), hot: hot === 2,
       open: missing ? () => this.host.openSet(g.nodes.filter((n) => n.kind === "missing").map((n) => n.id)) : undefined,
       empty: pages ? "" : t("Le pagine nascono dai file letti o quando chiedi alla chat di scriverne una.") });
-    stage({ icon: LINE.link, color: "#c084fc", name: t("Collegate"), sub: t("{n} legami scritti o dall'IA", { n: aiLinks }), value: `${notes.length - lonely} / ${notes.length}`, bar: notes.length ? (notes.length - lonely) / notes.length : 1, hot: hot === 3,
+    stage({ icon: LINE.link, color: "#c084fc", name: t("Collegate"), sub: tn("{n} legame scritto o dall'IA", "{n} legami scritti o dall'IA", aiLinks), value: `${notes.length - lonely} / ${notes.length}`, bar: notes.length ? (notes.length - lonely) / notes.length : 1, hot: hot === 3,
       button: s.noLink ? undefined : [t("Collega con l'IA"), () => this.host.link()],
       empty: notes.length ? "" : t("Ancora nessuna nota da collegare.") });
     stage({ icon: LINE.check, color: g.check.length ? "#fb7185" : "#2dd4bf", name: t("Controllo"), sub: g.check.length ? t("cose da sistemare") : t("niente da sistemare"), value: String(g.check.length), bar: g.check.length ? Math.min(1, g.check.length / 10) : 1, hot: hot === 4,
@@ -354,7 +373,7 @@ export class Dashboard {
       .slice(0, 28);
     for (const { n, links } of pages) {
       const color = s.colours === "group" ? s.model.groupColor(n.id) ?? KIND_COLOR[n.kind] : KIND_COLOR[n.kind];
-      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, style: `--tone:${color}`, title: n.kind === "missing" ? t("Citata ma non ancora scritta") : t("{n} collegamenti", { n: links }) },
+      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, style: `--tone:${color}`, title: n.kind === "missing" ? t("Citata ma non ancora scritta") : tn("{n} collegamento", "{n} collegamenti", links) },
         h("span", { text: n.label }), h("small", { text: String(links) }), h("em", { text: n.kind === "missing" ? "!" : "✓" })) as HTMLButtonElement;
       b.addEventListener("click", () => this.host.open(n.id));
       this.tokens.append(b);
@@ -378,12 +397,12 @@ export class Dashboard {
       const per = Math.max(1, Math.ceil(items.length / 180));
       const sorted = [...items].sort((a, b) => a.kind.localeCompare(b.kind));
       for (let i = 0; i < sorted.length; i += per) dots.append(h("i", { style: `background:${KIND_COLOR[sorted[i].kind]}` }));
-      for (let i = Math.ceil(sorted.length / per); i < 60; i++) dots.append(h("i", { class: "off" }));
+      for (let i = Math.ceil(sorted.length / per); i < 90; i++) dots.append(h("i", { class: "off" }));
       card.append(
         h("div", { class: "dash-period-head" }, h("span", { text: `% ${name}` }), h("small", { text: s.period === p ? t("attivo") : "" })),
         dots,
         h("b", { text: String(items.length) }),
-        h("span", { class: "dash-period-sub", text: t("{a} note · {b} pagine", { a: notes, b: pages }) }),
+        h("span", { class: "dash-period-sub", text: `${tn("{n} nota", "{n} note", notes)} · ${tn("{n} pagina", "{n} pagine", pages)}` }),
         h("div", { class: "dash-slider" }, h("i", { style: `width:${all.length ? (items.length / all.length) * 100 : 0}%` })));
       card.addEventListener("click", () => this.host.setPeriod(p));
       this.periods.append(card);
@@ -431,12 +450,12 @@ export class Dashboard {
   private greet(s: DashState) {
     const g = s.model.g;
     const count = (k: NodeKind) => g.nodes.filter((n) => n.kind === k).length;
-    this.log(t("memoria letta · {p} pagine · {n} note · {s} fonti · {e} collegamenti", { p: count("page"), n: count("note"), s: count("source"), e: g.edges.length }));
+    this.log([t("memoria letta"), tn("{n} pagina", "{n} pagine", count("page")), tn("{n} nota", "{n} note", count("note")), tn("{n} fonte", "{n} fonti", count("source")), tn("{n} collegamento", "{n} collegamenti", g.edges.length)].join(" · "));
     const groups = s.model.groups().groups;
     if (groups.length) this.log(t("gruppi · {list}", { list: groups.slice(0, 5).map((x) => x.name).join(" · ") }));
     if (g.inbox.length) this.log(t("da leggere · {list}", { list: g.inbox.slice(0, 4).join(" · ") }));
     const lonely = s.model.lonely().length;
-    if (lonely) this.log(t("{n} note sole · «Collega con l'IA» le lega alle pagine", { n: lonely }));
+    if (lonely) this.log(tn("{n} nota sola · «Collega con l'IA» la lega alle pagine", "{n} note sole · «Collega con l'IA» le lega alle pagine", lonely));
     for (const c of g.check.slice(0, 2)) this.log(t("controllo · {c}", { c }));
     this.log(t("in ascolto · qui scrivo quando la chat legge o scrive la memoria"));
   }
@@ -477,8 +496,10 @@ class Nucleus {
   private h = 0;
   private parts: Particle[] = [];
   private shown: { x: number; y: number; r: number; id: string }[] = [];
-  private arcs: { a0: number; a1: number; lead: string; name: string; size: number; color: string }[] = [];
+  private arcs: { a0: number; a1: number; lead: string; name: string; size: number; color: string; parts?: { size: number; color: string }[] }[] = [];
   private fresh = 0;
+  /** How many groups the memory has (the arcs put the small ones together). */
+  private groupCount = 0;
   /** Faint points that give the sphere its body, more when the memory is small. */
   private dust: { x: number; y: number; z: number; color: string }[] = [];
   private model: Model | null = null;
@@ -502,7 +523,7 @@ class Nucleus {
         const n = this.model?.byId.get(hit.id);
         this.host.tip(n?.label ?? "", n ? [kindName(n.kind), shortDate(n.date)].filter(Boolean).join(" · ") : "", p.x, p.y);
       } else if (hit?.lead) {
-        this.host.tip(hit.name ?? "", t("gruppo · {n} cose · clic per vederlo", { n: hit.size ?? 0 }), p.x, p.y);
+        this.host.tip(hit.name ?? "", tn("gruppo · {n} cosa · clic per vederlo", "gruppo · {n} cose · clic per vederlo", hit.size ?? 0), p.x, p.y);
       } else this.host.tip(null);
       const id = hit?.id ?? null;
       if (id !== this.hover) this.hover = id;
@@ -586,15 +607,25 @@ class Nucleus {
       };
     });
     // The rings: one arc per group, as long as the group.
-    // At most 12 arcs (the colours repeat after that); they share the whole ring.
-    const ringed = groups.slice(0, 12);
+    // The arcs fill the whole ring: the 11 biggest groups, the rest together in «altri».
+    this.groupCount = groups.length;
+    const leadOf = (members: string[]) => members.map((id) => model.byId.get(id)).filter((n): n is MemNode => !!n && isPage(n)).sort((x, y) => y.weight - x.weight)[0]?.id ?? members[0];
+    const big = groups.length > 12 ? groups.slice(0, 11) : groups;
+    const rest = groups.slice(big.length);
+    const ringed: { name: string; members: string[]; color: string; parts?: { size: number; color: string }[] }[] =
+      big.map((g) => ({ name: g.name, members: g.members, color: g.color ?? GROUP_COLORS[0] }));
+    if (rest.length) {
+      ringed.push({
+        name: tn("{n} altro gruppo", "altri {n} gruppi", rest.length), members: rest.flatMap((g) => g.members), color: "#8b93a3",
+        parts: rest.map((g) => ({ size: g.members.length, color: g.color ?? GROUP_COLORS[0] })),
+      });
+    }
     const total = ringed.reduce((s, g) => s + g.members.length, 0) || 1;
     const gap = ringed.length > 1 ? 0.035 : 0;
     let a = -Math.PI / 2;
     this.arcs = ringed.map((g) => {
       const span = (g.members.length / total) * (Math.PI * 2 - gap * ringed.length);
-      const lead = g.members.map((id) => model.byId.get(id)).filter((n): n is MemNode => !!n && isPage(n)).sort((x, y) => y.weight - x.weight)[0]?.id ?? g.members[0];
-      const arc = { a0: a, a1: a + span, lead, name: g.name, size: g.members.length, color: g.color ?? GROUP_COLORS[0] };
+      const arc = { a0: a, a1: a + span, lead: leadOf(g.members), name: g.name, size: g.members.length, color: g.color, parts: g.parts };
       a += span + gap;
       return arc;
     });
@@ -724,12 +755,22 @@ class Nucleus {
     ctx.stroke();
     ctx.lineWidth = 3;
     for (const a of this.arcs) {
-      ctx.strokeStyle = a.color;
       ctx.globalAlpha = this.hover === a.lead ? 1 : 0.85;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R * 1.16, a.a0, a.a1);
-      ctx.stroke();
+      // «Altri gruppi»: thinner, each small group in its colour.
+      const pieces = a.parts ?? [{ size: a.size, color: a.color }];
+      const sum = pieces.reduce((s, p) => s + p.size, 0) || 1;
+      ctx.lineWidth = a.parts ? 2 : 3;
+      let at = a.a0;
+      for (const p of pieces) {
+        const end = at + ((a.a1 - a.a0) * p.size) / sum;
+        ctx.strokeStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * 1.16, at, end);
+        ctx.stroke();
+        at = end;
+      }
     }
+    ctx.lineWidth = 3;
     ctx.globalAlpha = 1;
     ctx.lineWidth = 1;
     ctx.strokeStyle = ink(0.22);
@@ -796,7 +837,7 @@ class Nucleus {
     }
 
     // The chip on top: how many groups.
-    const chip = this.arcs.length ? t("{n} gruppi", { n: this.arcs.length }) : t("nessun gruppo ancora");
+    const chip = this.groupCount ? tn("{n} gruppo", "{n} gruppi", this.groupCount) : t("nessun gruppo ancora");
     ctx.font = `600 11px ${MONO}`;
     const cw = ctx.measureText(chip).width + 20;
     const chipY = cy - R * 1.27 - 12;

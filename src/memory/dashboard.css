@@ -12,7 +12,7 @@
   overflow: auto;
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr) 300px;
-  grid-template-rows: max-content minmax(540px, 1fr) minmax(170px, max-content) max-content;
+  grid-template-rows: max-content minmax(400px, 1fr) max-content max-content;
   grid-template-areas:
     "top top top"
     "feed core stages"
@@ -40,7 +40,8 @@
 .dash-feed { grid-area: feed; display: flex; flex-direction: column; padding: 10px 0 0; }
 .dash-core { grid-area: core; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
 .dash-stages { grid-area: stages; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
-.dash-tokens { grid-area: tokens; overflow: auto; }
+/* Its list scrolls inside: a long one must not stretch the rows of the log and the periods. */
+.dash-tokens { grid-area: tokens; overflow: auto; contain: size; }
 .dash-term { grid-area: term; display: flex; flex-direction: column; padding: 0; }
 .dash-compare { grid-area: cmp; padding: 10px; }
 
@@ -200,10 +201,31 @@
 }
 
 .dash-feed-text {
-  overflow: hidden;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   color: var(--dim);
+}
+
+.dash-feed-text span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dash-feed-text small {
+  flex: 0 1 auto;
+  max-width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: auto;
+  font-size: 9.5px;
+  color: var(--dim-2);
+  opacity: 0.8;
 }
 
 .dash-tag {
@@ -549,6 +571,10 @@ html[data-scheme="light"] .dash-tag {
   overflow: visible;
 }
 
+.dash-core.short .dash-week {
+  display: none;
+}
+
 /* ── Stages ── */
 
 .dash-stage {
@@ -721,13 +747,13 @@ html[data-scheme="light"] .dash-tag {
 
 .dash-term-lines {
   flex: 1;
-  min-height: 120px;
-  max-height: 240px;
+  min-height: 96px;
+  max-height: 136px;
   overflow: auto;
   padding: 8px 12px;
   font-family: var(--mono);
   font-size: 11.5px;
-  line-height: 1.65;
+  line-height: 1.55;
   color: var(--dim);
   scrollbar-width: thin;
 }
@@ -762,8 +788,8 @@ html[data-scheme="light"] .dash-tag {
 
 .dash-period {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 5px;
+  padding: 8px 12px;
   border: 1px solid var(--stroke);
   border-radius: var(--r-card);
   background: transparent;
@@ -787,9 +813,9 @@ html[data-scheme="light"] .dash-tag {
 
 .dash-dots {
   display: grid;
-  grid-template-columns: repeat(20, 1fr);
+  grid-template-columns: repeat(30, 1fr);
   gap: 3px;
-  min-height: 40px;
+  min-height: 20px;
 }
 
 .dash-dots i {
@@ -804,7 +830,7 @@ html[data-scheme="light"] .dash-tag {
 
 .dash-period > b {
   font-family: var(--mono);
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
 }
 
@@ -885,12 +911,10 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
       "term term"
       "cmp cmp";
   }
-  .dash-stages {
+  .dash-stages-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  }
-  .dash-stages .dash-label {
-    grid-column: 1 / -1;
+    gap: 8px;
   }
   .dash-tokens-list {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -929,4 +953,15 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
 .dash-tokens-list .dash-empty.wide {
   grid-column: 1 / -1;
   padding: 6px 0 0;
+}
+
+/* The engine of a chat line, only where the column has room (always in the row's tooltip). */
+.dash-feed {
+  container-type: inline-size;
+}
+
+@container (max-width: 300px) {
+  .dash-feed-text small {
+    display: none;
+  }
 }
