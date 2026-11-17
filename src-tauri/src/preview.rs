@@ -690,8 +690,35 @@ pub fn set_view(app: &AppHandle, preset: &str, width: u32, height: u32, scheme: 
 // ── The browser layer ────────────────────────────────────────────────────────
 
 /// Places the active tab's browser on the content area (making it the first
-/// time), hides the others. Called after every change.
+/// time), hides the others. Called after every change, from several threads:
+/// one at a time (16 Nov 2026: two at once both found no browser and the
+/// second failed with «a webview with label anteprima-web-N already exists»,
+/// 23 times on the laptop). A call while one runs is not lost: the running one
+/// goes round once more. No lock held: a call from inside cannot hang, and the
+/// rounds are counted: one that always asks for another cannot spin.
 fn sync(app: &AppHandle) {
+    use std::sync::atomic::Ordering::SeqCst;
+    static RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    static AGAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    AGAIN.store(true, SeqCst);
+    for _ in 0..4 {
+        if RUNNING.swap(true, SeqCst) {
+            return;
+        }
+        let mut rounds = 0;
+        while rounds < 4 && AGAIN.swap(false, SeqCst) {
+            sync_once(app);
+            rounds += 1;
+        }
+        RUNNING.store(false, SeqCst);
+        // Asked while it was finishing: round again, unless another call took it.
+        if !AGAIN.load(SeqCst) {
+            return;
+        }
+    }
+}
+
+fn sync_once(app: &AppHandle) {
     let Some(win) = host(app) else { return };
     let (tabs, active, rect, covered, view, origin, shown) = {
         let s = state();
