@@ -189,7 +189,7 @@ export class Stage {
     this.wake();
   }
 
-  show(view: View) {
+  show(view: View | null) {
     this.view = view;
     this.hovered = null;
     this.touched = false;

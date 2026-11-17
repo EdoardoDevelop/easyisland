@@ -102,6 +102,19 @@ At the top, «View» picks the drawing; beside it the filters:
 
 If you receive another PC's memory (**Memory shared between two PCs**, in Integrations), the top bar shows **This PC**, the other PC's name and **All**: pick which memory to see, or both together; in **All** the other PC's things carry its name. The other PC's copy is read only: new notes go into this PC's memory.
 
+### Overview
+![The memory overview](../media/memoria-panoramica.png)
+
+The window opens on the **Overview**: the whole memory on one screen, with the real data and every piece clickable.
+- At the top four numbers: pages, notes and sources with the links; the new things of the last 7 days; the files to read; the lone notes. A click shows them in the graph (the files to read open the folder).
+- On the left the **latest**: notes, pages, sources and chat days, newest on top; when the chat reads or writes the memory the line shows up at once.
+- In the middle the **nucleus**: every note and page is a point, coloured by group or kind; around it the groups' arcs (a click opens Bubbles on that group) and the freshness line. Below, how many things are to fix: lone notes, pages to write, checks.
+- Over the nucleus the **filters** (kinds, only sure links, colours), which apply to every view, and the week's numbers.
+- On the right the **stages**: to read, sources read, pages, linked, check, with **Read now**, **Link with AI** and **Check**. The first stage with work to do is highlighted.
+- Below, the **most linked pages** as chips, the memory's **log** writing line by line and three periods to compare (last month, 3 months, always): a click picks the period for every view.
+
+A click on a point, a line or a chip opens the Graph on that thing; **← Overview** brings you back. The other views all stay, in the menus beside it.
+
 ### Graph
 ![The memory graph](../media/memoria-grafo.png)
 

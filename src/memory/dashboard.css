@@ -1,0 +1,967 @@
+/* «Panoramica» (dashboard.ts): a dense board of boxes that touch, on the
+   window's tokens (memory.css), dark and light. Monospace for labels and
+   numbers, the window's sans for titles. */
+
+.dash {
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --dash-line: var(--stroke);
+  --dash-box: var(--stage);
+  --dash-faint: color-mix(in srgb, var(--ink) 4%, transparent);
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr) 300px;
+  grid-template-rows: max-content minmax(400px, 1fr) max-content max-content;
+  grid-template-areas:
+    "top top top"
+    "feed core stages"
+    "term term tokens"
+    "cmp cmp tokens";
+  gap: 1px;
+  background: var(--dash-line);
+  color: var(--ink);
+  font-family: var(--font);
+}
+
+.dash[hidden] {
+  display: none;
+}
+
+.dash-box {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--dash-box);
+  padding: 12px 14px;
+}
+
+.dash-top { grid-area: top; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 10px 16px; }
+.dash-feed { grid-area: feed; display: flex; flex-direction: column; padding: 10px 0 0; }
+.dash-core { grid-area: core; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.dash-stages { grid-area: stages; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+/* Its list scrolls inside: a long one must not stretch the rows of the log and the periods. */
+.dash-tokens { grid-area: tokens; overflow: auto; contain: size; }
+.dash-term { grid-area: term; display: flex; flex-direction: column; padding: 0; }
+.dash-compare { grid-area: cmp; padding: 10px; }
+
+.dash button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Labels: small monospace caps. */
+.dash-label,
+.dash-kicker,
+.dash-float-head span,
+.dash-period-head {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.dash-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px 8px;
+}
+
+.dash-stages .dash-label,
+.dash-tokens .dash-label {
+  padding: 0 0 4px;
+}
+
+.dash-live-dot::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #22c55e;
+  vertical-align: 1px;
+}
+
+/* ── Top ── */
+
+.dash-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  margin-right: auto;
+}
+
+.dash-title b {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dash-status {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--warn);
+}
+
+.dash-status.ok {
+  color: #22c55e;
+}
+
+.dash-numbers {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dash-number {
+  display: grid;
+  justify-items: end;
+  min-width: 120px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  cursor: pointer;
+  text-align: right;
+}
+
+.dash-number:hover {
+  background: var(--control-hover);
+}
+
+.dash-number b {
+  font-family: var(--mono);
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.dash-number span {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.dash-number small {
+  max-width: 170px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-number.accent b { color: var(--accent); }
+.dash-number.warn b { color: #f5a524; }
+.dash-number.bad b { color: #fb7185; }
+
+/* ── Feed ── */
+
+.dash-feed-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.dash-feed-row {
+  display: grid;
+  grid-template-columns: 44px auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 3px 14px;
+  border: 0;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-feed-row:disabled {
+  cursor: default;
+}
+
+.dash-feed-row:not(:disabled):hover {
+  background: var(--control-hover);
+}
+
+.dash-feed-row.live {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  animation: dash-in 0.4s ease-out;
+}
+
+.dash-feed-date {
+  color: var(--dim-2);
+}
+
+.dash-feed-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--dim);
+}
+
+.dash-feed-text span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-feed-text small {
+  flex: 0 1 auto;
+  max-width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: auto;
+  font-size: 9.5px;
+  color: var(--dim-2);
+  opacity: 0.8;
+}
+
+.dash-tag {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tag) 18%, transparent);
+  color: var(--tag);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+html[data-scheme="light"] .dash-tag {
+  color: color-mix(in srgb, var(--tag) 60%, #000);
+}
+
+/* ── Nucleus ── */
+
+.dash-core-stage {
+  position: relative;
+  flex: 1;
+  min-height: 300px;
+}
+
+.dash-core-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dash-core-stage canvas.pointing {
+  cursor: pointer;
+}
+
+.dash-tip {
+  position: absolute;
+  z-index: 3;
+  display: none;
+  max-width: 280px;
+  padding: 6px 9px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-ctl);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.dash-tip small {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-core-number {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 0 24px 16px;
+}
+
+.dash-core-big {
+  display: grid;
+  justify-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dash-core-big b {
+  font-family: var(--mono);
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 700;
+  color: #fb923c;
+}
+
+.dash-core-big.ok b {
+  color: #22c55e;
+}
+
+.dash-core-big span {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.dash-core-number .dash-bar {
+  width: min(360px, 90%);
+}
+
+.dash-bar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-bar-legend .bad {
+  color: #fb7185;
+}
+
+.dash-bar {
+  display: flex;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--dash-faint);
+}
+
+.dash-bar i {
+  display: block;
+  height: 100%;
+  background: var(--tone, var(--accent));
+}
+
+.dash-bar.two i {
+  background: #c084fc;
+}
+
+.dash-bar.two em {
+  display: block;
+  height: 100%;
+  background: #fb7185;
+}
+
+/* Small boxes over the nucleus. */
+.dash-float {
+  width: 224px;
+  padding: 10px 12px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(6px);
+  font-size: 12px;
+}
+
+/* Over the nucleus, on its right: the filters on top, this week under them. */
+.dash-floats {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.dash-floats .dash-float {
+  position: relative;
+}
+
+.dash-float-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dash-float-head b {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dash-float-head span {
+  font-size: 9px;
+  text-align: right;
+}
+
+.dash-switches {
+  display: grid;
+  gap: 2px;
+}
+
+.dash-switch,
+.dash-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-switch:hover,
+.dash-check:hover {
+  background: var(--control-hover);
+}
+
+.dash-switch i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dash-switch span {
+  flex: 1;
+}
+
+/* The switch itself: a small track with a knob. */
+.dash-switch em {
+  position: relative;
+  width: 24px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--stroke-strong);
+  transition: background 0.15s;
+}
+
+.dash-switch em::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 0.15s;
+}
+
+.dash-switch[aria-checked="true"] em {
+  background: var(--accent);
+}
+
+.dash-switch[aria-checked="true"] em::after {
+  transform: translateX(12px);
+  background: var(--on-accent);
+}
+
+.dash-switch[aria-checked="false"] span {
+  color: var(--dim-2);
+  text-decoration: line-through;
+}
+
+.dash-check {
+  margin-top: 4px;
+}
+
+.dash-check em {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: 3px;
+}
+
+.dash-check[aria-checked="true"] em {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--card);
+}
+
+.dash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.dash-seg {
+  display: flex;
+  padding: 2px;
+  border-radius: var(--r-ctl);
+  background: var(--dash-faint);
+}
+
+.dash-seg button {
+  padding: 2px 7px;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.dash-seg button.on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--stroke-strong);
+}
+
+.dash-mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 6px;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.dash-mini b {
+  color: var(--ink);
+}
+
+.dash-mini .dash-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+}
+
+/* Narrow nucleus: the small boxes go under it, side by side. */
+.dash-core.narrow .dash-floats {
+  position: static;
+  flex-direction: row;
+  flex-wrap: wrap;
+  max-height: none;
+  margin: 0 12px 10px;
+}
+
+.dash-core.narrow .dash-float {
+  flex: 1 1 200px;
+  width: auto;
+  backdrop-filter: none;
+}
+
+.dash-core.narrow {
+  overflow: visible;
+}
+
+.dash-core.short .dash-week {
+  display: none;
+}
+
+/* ── Stages ── */
+
+.dash-stage {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-card);
+}
+
+.dash-stage.opens {
+  cursor: pointer;
+}
+
+.dash-stage.opens:hover {
+  background: var(--control-hover);
+}
+
+.dash-stage.hot {
+  border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+}
+
+.dash-stage-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 80%, #fff 20%), color-mix(in srgb, var(--tone) 70%, #000 30%));
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 14px color-mix(in srgb, var(--tone) 30%, transparent);
+}
+
+.dash-stage-words {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-stage-words b {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dash-stage-words small {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-stage-value {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--tone) 75%, var(--ink));
+}
+
+.dash-stage .dash-bar {
+  margin-top: 3px;
+}
+
+.dash-btn {
+  justify-self: start;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--tone) 60%, transparent);
+  border-radius: var(--r-ctl);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.dash-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tone) 26%, transparent);
+}
+
+.dash-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Tokens ── */
+
+.dash-tokens-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.dash-token {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-token:hover {
+  background: color-mix(in srgb, var(--tone) 22%, transparent);
+}
+
+.dash-token span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-token small {
+  color: var(--dim-2);
+}
+
+.dash-token em {
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--tone);
+  color: #000;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.dash-token.missing {
+  border-style: dashed;
+}
+
+.dash-token.missing em {
+  background: transparent;
+  color: #f5a524;
+  box-shadow: inset 0 0 0 1px #f5a524;
+}
+
+/* ── Log ── */
+
+.dash-term-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dash-line);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim-2);
+}
+
+.dash-term-head i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fb7185;
+}
+
+.dash-term-head i:nth-child(2) { background: #f5a524; }
+.dash-term-head i:nth-child(3) { background: #22c55e; margin-right: 6px; }
+
+.dash-term-lines {
+  flex: 1;
+  min-height: 96px;
+  max-height: 136px;
+  overflow: auto;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--dim);
+  scrollbar-width: thin;
+}
+
+.dash-term-line {
+  display: flex;
+  gap: 8px;
+}
+
+.dash-term-line:last-child {
+  color: var(--ink);
+}
+
+.dash-term-line:last-child span:last-child::after {
+  content: "▍";
+  margin-left: 2px;
+  color: var(--accent);
+  animation: dash-blink 1s steps(1) infinite;
+}
+
+.dash-prompt {
+  color: var(--accent);
+}
+
+/* ── Periods ── */
+
+.dash-periods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dash-period {
+  display: grid;
+  gap: 5px;
+  padding: 8px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-card);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-period:hover {
+  background: var(--control-hover);
+}
+
+.dash-period.on {
+  border-color: #fb923c;
+  box-shadow: inset 0 0 0 1px #fb923c;
+}
+
+.dash-period-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dash-dots {
+  display: grid;
+  grid-template-columns: repeat(30, 1fr);
+  gap: 3px;
+  min-height: 20px;
+}
+
+.dash-dots i {
+  aspect-ratio: 1;
+  max-width: 5px;
+  border-radius: 50%;
+}
+
+.dash-dots i.off {
+  background: var(--dash-faint);
+}
+
+.dash-period > b {
+  font-family: var(--mono);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.dash-period-sub {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-slider {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--dash-faint);
+}
+
+.dash-slider i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  background: #fb923c;
+}
+
+.dash-slider i::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+/* Empty states: the box stays, with what will come there. */
+.dash-empty {
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dim-2);
+}
+
+.dash-empty.small {
+  padding: 4px 0 0;
+  font-size: 11px;
+}
+
+@keyframes dash-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+@keyframes dash-blink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-feed-row.live,
+  .dash-term-line:last-child span:last-child::after {
+    animation: none;
+  }
+}
+
+html[data-motion="reduced"] .dash-feed-row.live,
+html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
+  animation: none;
+}
+
+/* Under ~1000 px the right column goes below. */
+@media (max-width: 1000px) {
+  .dash {
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: max-content minmax(480px, max-content) repeat(4, max-content);
+    grid-template-areas:
+      "top top"
+      "feed core"
+      "stages stages"
+      "tokens tokens"
+      "term term"
+      "cmp cmp";
+  }
+  .dash-stages-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+  }
+  .dash-tokens-list {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dash {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: max-content;
+    grid-template-areas: "top" "core" "feed" "stages" "tokens" "term" "cmp";
+  }
+  .dash-feed {
+    max-height: 260px;
+  }
+  .dash-periods {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dash-number {
+    min-width: 0;
+  }
+}
+
+/* The window with the dashboard on: it takes the whole place of stage and panel. */
+.mem-main.dash-on > .mem-stage,
+.mem-main.dash-on > .mem-panel {
+  display: none;
+}
+
+.mem-main.dash-on {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.dash-tokens-list .dash-empty.wide {
+  grid-column: 1 / -1;
+  padding: 6px 0 0;
+}
+
+/* The engine of a chat line, only where the column has room (always in the row's tooltip). */
+.dash-feed {
+  container-type: inline-size;
+}
+
+@container (max-width: 300px) {
+  .dash-feed-text small {
+    display: none;
+  }
+}

@@ -31,10 +31,12 @@ import { TimelineView } from "./timeline";
 import { MatrixView } from "./matrix";
 import { TreemapView } from "./treemap";
 import { HealthView } from "./health";
+import { Dashboard } from "./dashboard";
 
-type Tab = "timeline" | "graph" | "graph3d" | "galaxy" | "neural" | "bubbles" | "sunburst" | "mind" | "concept" | "stream" | "sankey" | "matrix" | "treemap" | "health";
+type Tab = "dashboard" | ViewTab;
+type ViewTab = "timeline" | "graph" | "graph3d" | "galaxy" | "neural" | "bubbles" | "sunburst" | "mind" | "concept" | "stream" | "sankey" | "matrix" | "treemap" | "health";
 
-const TABS: { id: Tab; name: string; group: string; hint: string }[] = [
+const TABS: { id: ViewTab; name: string; group: string; hint: string }[] = [
   { id: "graph", name: t("Grafo"), group: "Grafi", hint: t("Ogni pagina, nota, fonte e giorno di chat, uniti dai collegamenti (tratteggiati quelli solo stimati). Clic per vedere, rotellina per lo zoom, doppio clic su un nodo per mettere a fuoco lui e i vicini, sullo sfondo per vedere tutto.") },
   { id: "graph3d", name: t("Grafo 3D"), group: "Grafi", hint: t("Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.") },
   { id: "galaxy", name: t("Galassia"), group: "Grafi", hint: t("Ogni gruppo è una galassia del suo colore: le pagine nel nucleo, le note lungo i bracci. Le note nuove brillano; cercando si accende la scia fra le stelle trovate.") },
@@ -52,7 +54,7 @@ const TABS: { id: Tab; name: string; group: string; hint: string }[] = [
 ];
 
 const mindView = new MindMapView();
-const views: Record<Tab, View> = {
+const views: Record<ViewTab, View> = {
   timeline: new TimelineView(),
   graph: new GraphView(),
   graph3d: new Graph3DView(),
@@ -68,7 +70,7 @@ const views: Record<Tab, View> = {
   treemap: new TreemapView(),
   health: new HealthView(),
 };
-const TAB_IDS = new Set<string>(TABS.map((x) => x.id));
+const TAB_IDS = new Set<string>(["dashboard", ...TABS.map((x) => x.id)]);
 const NO_ZOOM_TABS = new Set<Tab>(["matrix", "treemap", "health", "sankey"]);
 
 /** Filters over every view, remembered on this PC. */
@@ -121,7 +123,7 @@ const LINE = {
   inbox: "M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20M4 13.5 6.5 5h11l2.5 8.5V19H4z",
   sidebar: "M4 5h16v14H4zM14.5 5v14",
 };
-const VIEW_ICON: Record<Tab, string> = {
+const VIEW_ICON: Record<ViewTab, string> = {
   graph: "M6 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm12 2a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-6 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM7.6 6.2l8.8 1m-9.6.6 4.4 9.6m5.6-9.6-4.2 9.6",
   graph3d: "M12 3.5 19.5 8v8L12 20.5 4.5 16V8zm0 0v8.5m0 0 7.5 4M12 12 4.5 16",
   galaxy: "M12 12m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0M12 4c5 0 8.5 3.5 8.5 8s-3.5 8-8.5 8c-4.5 0-8-3-8-7 0-3.5 2.5-6 6-6 3 0 5 2 5 4.5",
@@ -150,6 +152,16 @@ const GROUPS: { id: string; label: string; icon: string }[] = [
 const viewPills = h("div", { class: "mem-cats", role: "menubar", "aria-label": t("Come disegnare la memoria") });
 const catMenus = new Map<string, { wrap: HTMLElement; btn: HTMLButtonElement; label: HTMLElement; menu: HTMLElement }>();
 const viewMenuItems = new Map<Tab, HTMLButtonElement>();
+// «Panoramica» first (dashboard.ts): the window opens there; «← Panoramica» after a click from it.
+const dashLabel = h("span", { text: t("Panoramica") });
+const dashPill = h("button", { class: "mem-cat-btn mem-dash-pill", title: t("Il cruscotto della memoria: numeri, ultimi arrivi, gruppi, lavori da fare") },
+  icon("M4 4.5h7v7H4zM13 4.5h7v4h-7zM13 10.5h7v9h-7zM4 13.5h7v6H4z", 14), dashLabel) as HTMLButtonElement;
+dashPill.addEventListener("click", () => show("dashboard"));
+viewPills.append(dashPill);
+/** The user came into a view from the dashboard: the way back is in sight. */
+let fromDash = false;
+/** Nodes lit in the views after a click on the dashboard (new this week, lonely notes…). */
+let focusSet: Set<string> | null = null;
 
 function closeCatMenus(except?: string) {
   for (const [gid, c] of catMenus) {
@@ -347,14 +359,16 @@ function renderLegend() {
     const off = filters.hidden.includes(kind);
     const b = h("button", { class: off ? "off" : "", title: off ? t("Mostra di nuovo") : t("Nascondi questo tipo"), "aria-pressed": String(!off) },
       h("i", { style: `background:${KIND_COLOR[kind]}` }), h("span", { text: kindName(kind) }));
-    b.addEventListener("click", () => {
-      filters.hidden = off ? filters.hidden.filter((k) => k !== kind) : [...filters.hidden, kind];
-      saveFilters();
-      renderLegend();
-      applyFilters();
-    });
+    b.addEventListener("click", () => toggleKind(kind));
     legend.append(b);
   }
+}
+/** A kind hidden from every view, or shown again (the legend, the dashboard's switches). */
+function toggleKind(kind: NodeKind) {
+  filters.hidden = filters.hidden.includes(kind) ? filters.hidden.filter((k) => k !== kind) : [...filters.hidden, kind];
+  saveFilters();
+  renderLegend();
+  applyFilters();
 }
 renderLegend();
 const clearWatch = new ResizeObserver(() => keepClear());
@@ -389,17 +403,66 @@ const stage = new Stage(stageBox, {
 });
 stageBox.append(legend, zoomDock, mindHud, hint, empty, tip);
 
+// ── The dashboard («Panoramica», dashboard.ts) ───────────────────────────────
+
+/** From the dashboard into a view: the way back stays in the pill. */
+function into(view: ViewTab) {
+  fromDash = true;
+  show(view);
+}
+const dash = new Dashboard({
+  open: (id) => {
+    focusSet = null;
+    into("graph");
+    select(id);
+  },
+  openSet: (ids) => {
+    focusSet = ids.length ? new Set(ids) : null;
+    selected = null;
+    into("graph");
+    select(null);
+  },
+  openGroup: (lead) => {
+    focusSet = null;
+    into("bubbles");
+    select(lead);
+  },
+  openInbox: () => void Bridge.memoryNodeOpen("inbox").catch(fail),
+  read: () => readBtn.click(),
+  link: () => linkBtn.click(),
+  check: () => checkBtn.click(),
+  setPeriod: (p) => {
+    periodPick.value = p;
+    periodPick.dispatchEvent(new Event("change"));
+  },
+  toggleKind: (kind) => toggleKind(kind),
+  setSure: (on) => {
+    sureBox.checked = on;
+    sureBox.dispatchEvent(new Event("change"));
+  },
+  setColours: (c) => {
+    colourPick.value = c;
+    colourPick.dispatchEvent(new Event("change"));
+  },
+});
+mainWrap.append(dash.el);
+dash.show(false);
+
+/** The dashboard drawn again with the memory and the filters of now. */
+function pushDash() {
+  if (!model || !full || tab !== "dashboard") return;
+  dash.update({
+    model, full, period: filters.period, hidden: filters.hidden, sure: filters.sure, colours: filters.colours,
+    copy: !!source && source !== "*", noLink: source === "*" || source === CLAUDE_CODE,
+  });
+}
+
 function remembered(): Tab {
   // ?tab=… (screenshots, smoke) wins.
   const asked = new URLSearchParams(location.search).get("tab");
   if (asked && TAB_IDS.has(asked)) return asked as Tab;
-  try {
-    const v = localStorage.getItem("easyisland.memory.tab");
-    if (v && TAB_IDS.has(v)) return v as Tab;
-  } catch {
-    /* no storage */
-  }
-  return "graph";
+  // The window opens on the dashboard (Edoardo, 17 Nov 2026); the views are a click away.
+  return "dashboard";
 }
 
 function rememberedSource(): string {
@@ -457,7 +520,7 @@ function show(next: Tab) {
   } catch {
     /* no storage */
   }
-  const activeTab = TABS.find((x) => x.id === next)!;
+  const activeTab = TABS.find((x) => x.id === next) ?? { id: next, name: t("Panoramica"), group: "", hint: "" };
   for (const g of GROUPS) {
     const c = catMenus.get(g.id)!;
     const isHere = activeTab.group === g.id;
@@ -466,12 +529,28 @@ function show(next: Tab) {
   }
   for (const [id, item] of viewMenuItems) item.classList.toggle("on", id === next);
   hintText.textContent = activeTab.hint;
+  if (next !== "dashboard" && hint.hidden && !hinted) showHint(true);
   infoBtn.title = activeTab.hint;
   legend.style.display = next === "timeline" || next === "stream" || next === "sankey" || next === "health" ? "none" : "flex";
   zoomDock.hidden = NO_ZOOM_TABS.has(next);
   mindHud.hidden = next !== "mind";
   renderMindCrumb();
   keepClear();
+  const onDash = next === "dashboard";
+  dashPill.classList.toggle("on", onDash);
+  dashLabel.textContent = !onDash && fromDash ? t("← Panoramica") : t("Panoramica");
+  mainWrap.classList.toggle("dash-on", onDash);
+  dash.show(onDash);
+  if (onDash) {
+    fromDash = false;
+    focusSet = null;
+    for (const x of [legend, zoomDock, mindHud, hint]) x.hidden = true;
+    stage.show(null);
+    pushDash();
+    showEmpty();
+    return;
+  }
+  legend.hidden = false;
   const view = views[next];
   view.setSelected(selected);
   stage.show(view);
@@ -537,6 +616,11 @@ function select(id: string | null) {
 // ── The panel ────────────────────────────────────────────────────────────────
 
 const feedback = h("div", { class: "mem-feedback" });
+
+// What the panel says (a job started, the links made, an error) goes in the dashboard's log too.
+new MutationObserver(() => {
+  if (tab === "dashboard" && feedback.textContent) dash.log(feedback.textContent);
+}).observe(feedback, { childList: true, characterData: true, subtree: true });
 
 function clearPath() {
   pathFrom = null;
@@ -642,9 +726,14 @@ function renderPanel() {
     open.addEventListener("click", () => void Bridge.memoryNodeOpen(n.id).catch(fail));
     row.append(open);
   }
-  const back = h("button", { text: t("Panoramica") }) as HTMLButtonElement;
+  const back = h("button", { text: t("Riepilogo"), title: t("Il riepilogo della memoria in questo pannello") }) as HTMLButtonElement;
   back.addEventListener("click", () => select(null));
   row.append(back);
+  if (fromDash) {
+    const toDash = h("button", { text: t("← Panoramica") }) as HTMLButtonElement;
+    toDash.addEventListener("click", () => show("dashboard"));
+    row.append(toDash);
+  }
   panel.append(row, feedback);
 }
 
@@ -864,6 +953,9 @@ async function load() {
     stage.wake();
     loadedAt = Date.now();
     if (selected) select(selected);
+    // A page asked from the island: shown in the graph, not behind the dashboard.
+    if (asked && selected === asked && tab === "dashboard") into("graph");
+    pushDash();
     document.documentElement.dataset.ready = "1";
   } catch (e) {
     // A drawing error must not pass for an empty memory.
@@ -906,6 +998,7 @@ function applyFilters() {
   showEmpty();
   renderPanel();
   stage.wake();
+  pushDash();
 }
 
 periodPick.addEventListener("change", () => { filters.period = periodPick.value as Filters["period"]; saveFilters(); applyFilters(); });
@@ -914,6 +1007,7 @@ colourPick.addEventListener("change", () => {
   saveFilters();
   for (const v of Object.values(views)) v.setColouring?.(filters.colours);
   stage.wake();
+  pushDash();
 });
 sureBox.addEventListener("change", () => { filters.sure = sureBox.checked; saveFilters(); applyFilters(); });
 for (const v of Object.values(views)) v.setColouring?.(filters.colours);
@@ -921,6 +1015,8 @@ for (const v of Object.values(views)) v.setColouring?.(filters.colours);
 function applySearch() {
   const ids = query.trim() && model
     ? model.matches(query)
+    : !selected && focusSet && model
+      ? focusSet
     : !selected && overviewBucket && model
       ? new Set(model.g.nodes.filter((n) => n.kind === overviewBucket).map((n) => n.id))
       : null;
@@ -1026,6 +1122,7 @@ void onEvent<{ kind: "read" | "write"; text: string }>("memory-activity", (p) =>
   }
   for (const v of Object.values(views)) v.activity?.(ids, p.kind);
   stage.wake();
+  dash.activity(p.kind, p.text, ids);
 });
 
 // Fresh data when the window is opened again or comes back to the front.

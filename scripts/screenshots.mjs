@@ -116,6 +116,7 @@ const SHOTS = {
       document.querySelectorAll(".fl-template")[2]?.click();` },
   "settings-compiti": { url: "/settings.html?page=compiti", page: { w: 980, h: 720 } },
   // The memory window (src/memory/), on its made-up memory.
+  "memoria-panoramica": { url: "/memoria.html", page: { w: 1400, h: 1000 }, wait: 5000 },
   "memoria-grafo": { url: "/memoria.html?tab=graph&select=p:studio-rossi", page: { w: 1180, h: 760 }, wait: 5000 },
   "memoria-mappa": { url: "/memoria.html?tab=mind&select=p:studio-rossi", page: { w: 1180, h: 760 }, wait: 5000 },
   "memoria-concetti": { url: "/memoria.html?tab=concept", page: { w: 1180, h: 760 } },
