@@ -293,9 +293,6 @@ fn effort_flag(model: &str, effort: Option<&str>) -> Option<String> {
     (!in_name).then(|| e.to_string())
 }
 
-/// Conversations already told that «Automatica» is not Antigravity's own yet.
-static TOLD_AUTO: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(Vec::new());
-
 /// One run of agy for the turn.
 #[allow(clippy::too_many_arguments)]
 async fn run(
@@ -420,13 +417,8 @@ async fn run(
     // «Automatica» asked, but agy works in its usual mode (its own `auto` is
     // off in agy 1.5.9): without its hooks it skips what it would ask. Once
     // per conversation.
-    if auto_not_taken(mode, progress.mode.as_deref()) && !crate::hooks::status_for(crate::hooks::Target::Antigravity).installed {
-        let key = chat as *const Chat as usize;
-        let mut told = TOLD_AUTO.lock().unwrap();
-        if !told.contains(&key) {
-            told.push(key);
-            final_text.push_str(&format!("\n\n> {}", t("«Automatica» con Antigravity: la sua modalità automatica non è ancora attiva, quindi lavora nel modo normale e salta i comandi che chiederebbero il permesso. Installa i suoi hook in Impostazioni → Agenti di codice → Antigravity: con gli hook EasyIsland li fa passare da sé.")));
-        }
+    if auto_not_taken(mode, progress.mode.as_deref()) && !crate::hooks::status_for(crate::hooks::Target::Antigravity).installed && chat.first_auto_notice() {
+        final_text.push_str(&format!("\n\n> {}", t("«Automatica» con Antigravity: la sua modalità automatica non è ancora attiva, quindi lavora nel modo normale e salta i comandi che chiederebbero il permesso. Installa i suoi hook in Impostazioni → Agenti di codice → Antigravity: con gli hook EasyIsland li fa passare da sé.")));
     }
     // The steps stay above the answer, as they were shown.
     let text = if progress.shown.trim().is_empty() { final_text } else if progress.answer.trim().is_empty() && !final_text.is_empty() {
@@ -510,6 +502,14 @@ mod tests {
         assert!(!auto_not_taken(Some("auto"), Some("auto")));
         assert!(!auto_not_taken(None, p.mode.as_deref()));
         assert!(!auto_not_taken(Some("auto"), None));
+    }
+
+    #[test]
+    fn the_automatica_notice_once_per_conversation() {
+        let (a, b) = (Chat::default(), Chat::default());
+        assert!(a.first_auto_notice());
+        assert!(!a.first_auto_notice());
+        assert!(b.first_auto_notice());
     }
 
     #[test]

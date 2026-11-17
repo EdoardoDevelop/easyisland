@@ -185,6 +185,8 @@ pub struct Chat {
     /// Antigravity's effort for this conversation: None = not set yet (the
     /// settings' one is used), Some("") = the model's own (no `--effort`).
     agy_effort: Mutex<Option<String>>,
+    /// Antigravity: told already that «Automatica» is not its own yet.
+    told_auto: std::sync::atomic::AtomicBool,
     /// «Ferma» on this conversation of the island (each one has its own, lib.rs `chat_stop`).
     pub(crate) stop: tokio::sync::Notify,
     /// Reads only, and asks nobody (team.rs): what is not allowed is refused.
@@ -369,6 +371,11 @@ impl Chat {
 
     pub(crate) fn agy_effort(&self) -> Option<String> {
         self.agy_effort.lock().unwrap().clone()
+    }
+
+    /// True the first time only: a notice said once per conversation.
+    pub(crate) fn first_auto_notice(&self) -> bool {
+        !self.told_auto.swap(true, std::sync::atomic::Ordering::Relaxed)
     }
 
     pub(crate) fn set_folder(&self, folder: Option<String>) {
