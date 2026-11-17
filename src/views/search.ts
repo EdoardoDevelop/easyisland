@@ -49,6 +49,13 @@ export interface SearchActions {
   onEscape?: () => void;
   /** Whether the host expects auto-focus on the search field when the window activates. */
   canAutoFocus?: () => boolean;
+  /**
+   * The search on its own in its window (search-window.ts): always «search
+   * only», whatever the island does; its window, not the island's, takes the keys.
+   */
+  only?: boolean;
+  /** Asks for the keyboard for the window the search is in (the island's when unset). */
+  takeFocus?: () => void;
 }
 
 interface Hit {
@@ -99,6 +106,11 @@ export interface SearchHost {
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
+  /** The search on its own: in its window, or the island in search-only mode. */
+  const only = () => actions.only ?? State.searchOnly;
+  /** The page the search is in now (its own window's, or the island's). */
+  const doc = () => el.ownerDocument;
+  const takeFocus = () => (actions.takeFocus ? actions.takeFocus() : void Bridge.focusWindow(true));
   const input = h("input", { type: "text", class: "search-input", placeholder: t("Chiedi, cerca o avvia…"),
     spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
   const kbd = (label: string) => h("span", { class: "search-kbd" }, label);
@@ -134,7 +146,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input, countPill, clearBtn, escHint);
   // Click anywhere inside the search bar in search-only mode (except action buttons) keeps focus in the input.
   bar.addEventListener("mousedown", (e) => {
-    if (State.searchOnly && e.target !== input && !(e.target as Element | null)?.closest("button")) {
+    if (only() && e.target !== input && !(e.target as Element | null)?.closest("button")) {
       e.preventDefault();
       input.focus({ preventScroll: true });
     }
@@ -198,13 +210,13 @@ export function buildSearch(actions: SearchActions): SearchHost {
   sky.onPick = (id) => {
     picked = id;
     showSky();
-    if (State.searchOnly) input.focus({ preventScroll: true });
+    if (only()) input.focus({ preventScroll: true });
   };
   sky.onOpen = (id) => {
     reset(true);
     input.blur();
     void Bridge.memoryWindowSelect(id);
-    if (State.searchOnly) actions.onDone?.();
+    if (only()) actions.onDone?.();
   };
   sky.onChat = (id) => {
     const title = memory?.byId.get(id)?.label ?? "";
@@ -305,7 +317,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     icon: () => svg(ICONS.bubble, 13), run: () => actions.ask(text) });
 
   const doneIfSearchOnly = () => {
-    if (State.searchOnly) actions.onDone?.();
+    if (only()) actions.onDone?.();
   };
 
   // The words typed, searched with Google in the default browser.
@@ -502,21 +514,22 @@ export function buildSearch(actions: SearchActions): SearchHost {
   });
 
   const focusInput = () => {
-    const active = document.activeElement;
+    const active = doc().activeElement;
     if (active === input) return;
-    if (active && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
+    if (active && active !== doc().body && active !== doc().documentElement && active.matches("input, textarea, [contenteditable]")) return;
     input.focus({ preventScroll: true });
     loadApps();
   };
   // The island's window takes no keys until asked (as for the ⚡ search field).
   input.addEventListener("pointerdown", () => {
-    if (!document.hasFocus()) void Bridge.focusWindow(true);
+    if (!doc().hasFocus()) takeFocus();
   });
   input.addEventListener("focus", () => {
     loadApps();
-    if (!document.hasFocus()) void Bridge.focusWindow(true);
+    if (!doc().hasFocus()) takeFocus();
   });
-  window.addEventListener("focus", () => {
+  // The island's window coming forward; the search's own window does this itself.
+  if (!actions.only) window.addEventListener("focus", () => {
     const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
     if (!allow) return;
     focusInput();
@@ -526,9 +539,9 @@ export function buildSearch(actions: SearchActions): SearchHost {
     if (e.key === "Escape") {
       e.stopPropagation();
       if (input.value) reset();
-      else if (State.searchOnly) actions.onEscape?.();
+      else if (only()) actions.onEscape?.();
       else input.blur();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp" || (State.searchOnly && e.key === "Tab" && hits.length)) {
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp" || (only() && e.key === "Tab" && hits.length)) {
       e.preventDefault();
       if (!hits.length) return;
       const forward = e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey);
@@ -553,7 +566,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       // The list and the quick answer above it.
       const listH = scroller.scrollHeight;
       const skyH = sky.shown ? 178 : 0;
-      if (State.searchOnly) {
+      if (only()) {
         const skyBlock = sky.shown ? skyH + 16 : 0;
         const raw = 2 + skyBlock + listH + 30;
         return sky.shown ? Math.max(384, raw) : raw;
@@ -562,15 +575,17 @@ export function buildSearch(actions: SearchActions): SearchHost {
       return sky.shown ? Math.max(324, raw) : raw;
     },
     sync() {
-      // The island closed: start again empty next time.
-      if (State.mode !== "expanded" && input.value) reset(true);
+      // The island closed: start again empty next time (not the search's own window).
+      if (!actions.only && State.mode !== "expanded" && input.value) reset(true);
     },
     focusInputOnly() {
       focusInput();
     },
     focus() {
       focusInput();
-      if (!document.hasFocus()) {
+      if (actions.takeFocus) {
+        if (!doc().hasFocus()) actions.takeFocus();
+      } else if (!document.hasFocus()) {
         void Bridge.focusWindow(true).then(() => {
           const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
           if (allow) focusInput();
@@ -578,7 +593,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       }
     },
     blur() {
-      if (document.activeElement === input) input.blur();
+      if (doc().activeElement === input) input.blur();
     },
     close() {
       if (input.value) reset(true);
