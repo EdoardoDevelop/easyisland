@@ -37,7 +37,8 @@ import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { canPreview, chatPathAction, chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
-import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
+import type { ApprovalInfo, Moment, Notice, QuickAction, Settings } from "../core/state";
+import { answerCard } from "./moments";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
@@ -2205,13 +2206,9 @@ ${note}` : text };
         Notices.push({ key: n.install ? "update" : undefined, icon: LEVEL_ICON[n.level] ?? "ℹ️", title: n.title, text: n.text, level: n.level, actions, open });
         return;
       }
-      case "moment": {
-        const m = State.moment;
-        if (!m) return;
-        const [title, text] = momentHeadline(m);
-        Notices.push({ key: m.kind === "download" ? "download" : undefined, icon: MOMENT_ICON[m.kind] ?? "✨", title, text, level: "info", actions: [{ label: t("Apri"), run: open }], open });
+      case "moment":
+        if (State.moment) this.toastMoment(State.moment);
         return;
-      }
       case "recap":
         Notices.push({ key: "recap", icon: "🗓️", title: t("Il riepilogo della settimana è pronto."), level: "info", actions: [{ label: t("Apri"), run: open }], open });
         return;
@@ -2221,6 +2218,33 @@ ${note}` : text };
       default:
         open();
     }
+  }
+
+  /**
+   * A moment (download, tray, error copied…) as a toast (moments.ts): State.moment
+   * changes only when the island opens on it, so a card of Claude Code waiting
+   * in the island keeps its place.
+   */
+  toastMoment(m: Moment) {
+    const open = () => {
+      if (State.moment?.kind === "card" && State.moment !== m) answerCard(State.moment.id, null, "replaced");
+      State.moment = m;
+      this.fsm.pinned = State.isPinned;
+      this.fsm.forceHome();
+      this.expand("moment");
+    };
+    const [title, text] = momentHeadline(m);
+    // A file: open it or its folder from the toast; the rest (Chiedi, the
+    // file's actions, Spiega e correggi, Annota, Prepara) in the island's card.
+    const actions: { label: string; run: () => void }[] =
+      m.kind === "download" || m.kind === "tray" || m.kind === "recording"
+        ? [
+            { label: t("Apri"), run: () => void Bridge.fileOpen(m.path, false).catch(() => {}) },
+            { label: t("Mostra nella cartella"), run: () => void Bridge.fileOpen(m.path, true).catch(() => {}) },
+            { label: t("Altro…"), run: open },
+          ]
+        : [{ label: t("Apri"), run: open }];
+    Notices.push({ key: m.kind === "download" ? "download" : undefined, icon: MOMENT_ICON[m.kind] ?? "✨", title, text, level: "info", actions, open });
   }
 
   /** A message from `easyisland-hook notify` (any script, task or flow). */

@@ -20,6 +20,8 @@ export interface MomentHost {
   collapse(): void;
   /** A question from Claude Code keeps the island open until it is answered. */
   holdOpen(on: boolean): void;
+  /** In the notices' window (notices.ts): the moment as a toast, the island untouched. */
+  toast?(m: Moment): void;
 }
 
 /** Views a proposal may replace; anything else is the user busy with something. */
@@ -116,6 +118,8 @@ const WAIT_MS = 60_000;
 const RETRY_MS = 2000;
 /** When the last proposal showed (a burst of downloads plays one sound). */
 let lastShown = 0;
+/** The kind of the last moment shown as a toast (a burst of downloads: one sound). */
+let lastToast = "";
 
 /** The card waiting for a click, if the one on screen is from Claude Code. */
 function waitingCard(): string | null {
@@ -147,8 +151,19 @@ export function handleMoment(host: MomentHost, raw: unknown) {
     if (m.kind === "card") answerCard(m.id, null, "hidden");
     return;
   }
-  // In the notices' window a proposal covers nothing: at once (notices.ts).
-  if (!free() && !(Notices.windowed() && m.kind !== "card")) {
+  // In the notices' window a proposal covers nothing: at once, and the island
+  // (a card of Claude Code waiting there, the view) stays as it is (notices.ts).
+  if (host.toast && Notices.windowed() && m.kind !== "card") {
+    // Many files downloaded together: one sound.
+    const burst = m.kind === "download" && lastToast === "download" && Date.now() - lastShown < 5000;
+    lastShown = Date.now();
+    lastToast = m.kind;
+    if (!burst) Sound.play("blip");
+    host.toast(m);
+    void Bridge.log(`moment ${m.kind}: toast`);
+    return;
+  }
+  if (!free()) {
     void Bridge.log(`moment ${m.kind}: waiting, the island is busy (${State.mode} ${State.view})`);
     // Only the latest waits: an older card of Claude Code gets its answer now.
     if (pending?.m.kind === "card") answerCard(pending.m.id, null, "replaced");

@@ -1515,7 +1515,7 @@ export async function runScene(island: Island, scene: string) {
       island.alert("overview");
       await wait(600);
       island.showUpdate("1.0.52", "1.0.51");
-      handleMoment({ alert: (v: Parameters<typeof island.alert>[0]) => island.alert(v), collapse: () => {}, holdOpen: () => {} }, { kind: "download", name: "Offerta Rossi.pdf", path: "C:/Users/Edoardo/Downloads/Offerta Rossi.pdf", size: 245000 });
+      handleMoment({ alert: (v: Parameters<typeof island.alert>[0]) => island.alert(v), collapse: () => {}, holdOpen: () => {}, toast: (m) => island.toastMoment(m) }, { kind: "download", name: "Offerta Rossi.pdf", path: "C:/Users/Edoardo/Downloads/Offerta Rossi.pdf", size: 245000 });
       Notices.push({ key: "finished:x", icon: "✅", title: "EasyIsland ha finito.", level: "ok", open: () => {} });
       Notices.push({ key: "error:y", icon: "⛔", title: "Sito clienti si è fermato con un errore.", level: "error", open: () => {} });
       await wait(800);

@@ -244,6 +244,7 @@ async function main() {
     alert: (v) => island.alert(v),
     collapse: () => island.collapse(),
     holdOpen: (on) => island.setPinned(on),
+    toast: (m) => island.toastMoment(m),
   });
 
   linkCharacterWindow(island);
