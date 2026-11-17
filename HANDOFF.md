@@ -60,6 +60,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Chat: allegati senza testo, lingua, tempo dei lavori in background, rifiuti dell'Automatica, costo nel log
+- Solo allegati: partono con «Guarda l'allegato.». Ogni messaggio a Claude Code ricorda la lingua (dopo una skill in inglese rispondeva in inglese).
+- «In background»: «da N min» e, dopo 10 min, «A che punto è?». Rifiuti del classificatore in «Automatica» spiegati in italiano (`auto_denied`).
+- Log di Claude Code: costo e secondi del modello del turno, non i totali del processo, una riga per risultato. Dalla giornata del portatile; ricerca/procedure e Modello sul PC li fa l'altra sessione.
+
 ### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
 - I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
 - L'Anteprima si apre da sola sui file della chat solo con `previewEdits` (spenta di serie), mai dopo una chiusura a mano.
@@ -73,12 +78,3 @@ Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciava
 
 ### 17/11 — Risposte rapide nella ricerca dell'isola
 Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
-
-### 17/11 — Anteprima: attesa lunga, iframe dello stesso sito, foto come immagine
-Il 16/11 sul portatile l'aggiornamento dell'iLO è costato un turno di 25 minuti (46 attese inventate, 38 foto + 38 letture, 3,44 $). Ora:
-- `preview_wait` aspetta fino a 10 minuti controllando nell'app, con `changed` o come pausa, e «Ferma» la interrompe;
-- gli iframe dello stesso sito si leggono e si usano (ref `f1e5`); la foto torna come immagine MCP;
-- `sync` gira uno alla volta.
-
-Prova degli script in Edge: `scripts/anteprima-frame.mjs`. Dal vivo nell'app: `docs/prove-dal-vivo.md`.
-

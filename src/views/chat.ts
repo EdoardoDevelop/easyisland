@@ -1132,9 +1132,11 @@ export function buildPrompt(
 
   async function submit(override?: string, target?: ChatSessionState) {
     const raw = override ?? input.value;
-    const query = raw.trim();
     // The conversation on screen now (or the one whose queue goes on): the answer goes to it even if another one is shown by then.
     const c = target ?? State.chat;
+    // Only an attachment (a screenshot pasted): it goes with a few words of its
+    // own (17 Nov 2026: «.» or «?» typed just to send an image, 11 times).
+    const query = raw.trim() || (override == null && c.attach.length ? t("Guarda l'allegato.") : "");
     if (!query || c.sending) return;
     if (override == null && runSlash(query)) return;
     if (override == null) setInput("");
@@ -1351,16 +1353,38 @@ export function buildPrompt(
     State.notify();
   }
 
+  /** When each background job was first seen (its id), for «da 12 min». */
+  const bgSince = new Map<string, number>();
+  let bgTimer = 0;
   function renderBackground() {
     const c = State.chat;
-    const key = `${c.sid}|${c.stopping ? 1 : 0}|${c.background.map((b) => b.id + b.description).join("\u0000")}`;
+    const now = Date.now();
+    for (const b of c.background) if (!bgSince.has(b.id)) bgSince.set(b.id, now);
+    const minutes = (b: { id: string }) => Math.floor((now - (bgSince.get(b.id) ?? now)) / 60_000);
+    // Once a minute while there is work, for the time shown; none without (CPU ~0).
+    if (c.background.length && !bgTimer) bgTimer = window.setInterval(renderBackground, 60_000);
+    else if (!c.background.length && bgTimer) {
+      window.clearInterval(bgTimer);
+      bgTimer = 0;
+    }
+    const key = `${c.sid}|${c.stopping ? 1 : 0}|${c.background.map((b) => b.id + b.description + minutes(b)).join("\u0000")}`;
     if (key === bgKey) return;
     bgKey = key;
     const kindOf = (b: { kind: string }) => (b.kind.includes("agent") ? t("agente") : b.kind.includes("bash") || b.kind.includes("shell") ? t("comando") : t("lavoro"));
+    // How long it runs and, past 10 minutes, a click to ask how far it got
+    // (17 Nov 2026: a job ended unseen, «credo che ti sei bloccato» 23 min later).
+    const ask = (b: { id: string; description: string }) => {
+      const q = t("A che punto è il lavoro in background «{name}» (id {id})? Guarda il suo output e dimmelo.", { name: b.description || b.id, id: b.id });
+      if (c.sending) c.queue.push(q);
+      else void submit(q, c);
+      State.notify();
+    };
     const rows = c.background.map((b) => h("div", { class: "chat-queued" },
       h("span", { class: "chat-bg-dot" }),
       h("span", { class: "chat-queued-tag", text: kindOf(b) }),
       h("span", { class: "chat-queued-text", text: b.description || b.id, title: b.description || b.id }),
+      minutes(b) >= 1 ? h("span", { class: "chat-bg-time", text: t("da {n} min", { n: minutes(b) }) }) : null,
+      minutes(b) >= 10 ? h("button", { class: "chat-queued-btn", text: t("A che punto è?"), title: t("Chiedi a che punto è questo lavoro"), onclick: () => ask(b) }) : null,
       h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiedi di fermare solo questo lavoro"),
         onclick: () => {
           const ask = t("Ferma il lavoro in background «{name}» (id {id}) con TaskStop e dimmi a che punto era.", { name: b.description || b.id, id: b.id });
@@ -1422,7 +1446,7 @@ export function buildPrompt(
   /** The button: «Ferma» while it answers with an empty field, else «Invia» (in the queue while it answers). */
   function updateSendBtn() {
     const c = State.chat;
-    const stopMode = (c.sending || c.working) && !c.session && !input.value.trim();
+    const stopMode = (c.sending || c.working) && !c.session && !input.value.trim() && !(c.working && !c.sending && c.attach.length);
     const mode = stopMode ? "stop" : "send";
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
@@ -3198,7 +3222,7 @@ export function buildPrompt(
     // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").
     const c = State.chat;
     // Writing on its own after background work: «Ferma» stops it (a message goes in as usual).
-    if (c.working && !c.sending && !input.value.trim()) {
+    if (c.working && !c.sending && !input.value.trim() && !c.attach.length) {
       c.working = false;
       c.streamed = "";
       c.background = [];
@@ -3303,7 +3327,7 @@ export function buildPrompt(
       }
       // Empty field under a command the chat offered: Enter is «▶ Esegui» (Edoardo,
       // 16 Nov 2026). Still a gesture of the user's, on that one button.
-      if (!typed && !State.chat.sending) {
+      if (!typed && !State.chat.sending && !State.chat.attach.length) {
         const run = log.querySelector<HTMLButtonElement>(".msg-actions.last .msg-run");
         if (run && !run.disabled) {
           run.click();

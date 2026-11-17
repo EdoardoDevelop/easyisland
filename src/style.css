@@ -1268,6 +1268,13 @@ input[type="range"]::-webkit-slider-thumb {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* «da 12 min» on a background job. */
+.chat-bg-time {
+  flex: 0 0 auto;
+  font-size: calc(10px + var(--fs-up, 0px));
+  opacity: 0.6;
+  white-space: nowrap;
+}
 .chat-queued-btn {
   flex: 0 0 auto;
   padding: 2px 7px;
