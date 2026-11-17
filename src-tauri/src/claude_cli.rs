@@ -633,6 +633,17 @@ impl Progress {
             self.tasks_changed = true;
             return false;
         }
+        // A job that ended leaves the list even if the new list does not come
+        // (17 Nov 2026: «Wait for Windows setup…» stayed in «In background»).
+        if v.get("subtype").and_then(Value::as_str) == Some("task_notification") {
+            let ended = matches!(v.get("status").and_then(Value::as_str), Some("completed" | "failed" | "killed" | "stopped" | "error" | "cancelled"));
+            let id = v.get("task_id").and_then(Value::as_str).unwrap_or_default();
+            if ended && !id.is_empty() && self.tasks.iter().any(|t| t.id == id) {
+                self.tasks.retain(|t| t.id != id);
+                self.tasks_changed = true;
+            }
+            return false;
+        }
         // Claude Code reports how much it reasons, not the text: the island
         // shows its waiting phrases meanwhile.
         if v.get("subtype").and_then(Value::as_str) == Some("thinking_tokens") {
@@ -2512,6 +2523,11 @@ mod tests {
         p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[{"task_id":"b1","task_type":"local_bash"}]}"#);
         assert_eq!(p.tasks, vec![crate::claude::BgTask { id: "b1".into(), kind: "local_bash".into(), description: String::new() }]);
         p.feed(r#"{"type":"system","subtype":"task_notification","task_id":"b1","status":"completed"}"#);
+        // Ended: out of the list at once, without waiting for the next list.
+        assert!(p.tasks.is_empty() && p.tasks_changed);
+        p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[{"task_id":"b2","task_type":"local_bash"}]}"#);
+        p.feed(r#"{"type":"system","subtype":"task_notification","task_id":"b2","status":"running"}"#);
+        assert_eq!(p.tasks.len(), 1);
         assert_eq!(super::thousands(12345), "12.345");
         p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[]}"#);
         assert!(p.tasks.is_empty());

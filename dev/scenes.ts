@@ -286,11 +286,15 @@ export async function runScene(island: Island, scene: string) {
           { id: 1, role: "user", content: "Analizza tutte le offerte in C:\\Users\\Edoardo\\OneDrive\\WORK\\Offerte PDF e aggiorna i clienti in memoria." },
           { id: 2, role: "assistant", content: "> ⚙ Legge · `Offerte PDF`\n\n> ⚙ Sotto-agente · `Riassumi offerte gruppo 1`\n\n> ⚙ Sotto-agente · `Riassumi offerte gruppo 2`\n\nSono 62 offerte: le leggono due agenti in parallelo. Quando finiscono aggiorno la pagina «Clienti Easytech» e ti scrivo qui." },
         ];
-        State.chat.background = [
-          { id: "a538bd76", kind: "local_agent", description: "Riassumi offerte gruppo 1" },
-          { id: "a9cb7fb4", kind: "local_agent", description: "Riassumi offerte gruppo 2" },
-          { id: "be7uhb2w", kind: "local_bash", description: "Estrae il testo dei PDF in una cartella temporanea" },
-        ];
+        // background=1: one long command, as on 17 Nov 2026 (it went under the engine's row); &coda: a message waiting too.
+        State.chat.background = new URLSearchParams(location.search).get("background") === "1"
+          ? [{ id: "bq1x9z", kind: "local_bash", description: "Wait for Windows setup to finish and verify VM is reachable over RDP and WinRM before continuing" }]
+          : [
+            { id: "a538bd76", kind: "local_agent", description: "Riassumi offerte gruppo 1" },
+            { id: "a9cb7fb4", kind: "local_agent", description: "Riassumi offerte gruppo 2" },
+            { id: "be7uhb2w", kind: "local_bash", description: "Estrae il testo dei PDF in una cartella temporanea" },
+          ];
+        if (new URLSearchParams(location.search).has("coda")) State.chat.queue = ["Quando hai finito controlla anche il backup"];
       }
       // ?history: the sidebar with earlier conversations; three of them open:
       // the one on screen, one answering in the background, one answered while away.

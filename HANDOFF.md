@@ -60,6 +60,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 17/11 — Chat: «In background» non copre più la riga del motore
+Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciavano quello spazio. Ora lo tiene l'ultima riga mostrata sopra il campo (`chat-cards.css`). Un lavoro finito esce dalla lista anche con il solo `task_notification` (`claude_cli.rs` `Progress::feed`). Scene `chat&background=1`, `&coda`.
+
 ### 17/11 — Risposte rapide nella ricerca dell'isola
 Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
 
@@ -84,7 +87,4 @@ Sul portatile «puoi vedere le skill di claude?» falliva in 4 s: a `gemini-4-hy
 - se agy rifiuta la coppia, un nuovo tentativo senza `--effort` e poi un errore in italiano;
 - senza i suoi hook, un avviso che «Automatica» non è la sua (`init` → `permission_mode`);
 - ai motori con strumenti propri diversi da Claude Code arrivano solo le righe di significato forti (`docs/chat.md`).
-
-### 16/11 — Anteprima: popup veri; chat: coda come Claude Desktop
-Anteprima (`preview.rs` `new_window`/`make_popup`): `window.open` con dimensioni o pagina vuota apre una finestra `anteprima-popup-N` dell'Anteprima con lo stesso ambiente WebView2 e `window.opener` (accessi Google/Microsoft, pagamenti), `window.close()` la chiude; i link `target=_blank` restano schede. Chat (`src/views/chat.ts`): quello che si scrive mentre risponde va sempre in coda; «Invia subito» con Claude Code lo fa leggere nel turno senza fermarlo, come domanda a sé sotto la risposta fin lì (`steered`/`part`, `streamCut`/`afterCut`), in cronologia resta «↪» sulla domanda e si ridivide alla riapertura.
 

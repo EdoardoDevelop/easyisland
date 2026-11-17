@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 16/11 — Anteprima: popup veri; chat: coda come Claude Desktop
+Anteprima (`preview.rs` `new_window`/`make_popup`): `window.open` con dimensioni o pagina vuota apre una finestra `anteprima-popup-N` dell'Anteprima con lo stesso ambiente WebView2 e `window.opener` (accessi Google/Microsoft, pagamenti), `window.close()` la chiude; i link `target=_blank` restano schede. Chat (`src/views/chat.ts`): quello che si scrive mentre risponde va sempre in coda; «Invia subito» con Claude Code lo fa leggere nel turno senza fermarlo, come domanda a sé sotto la risposta fin lì (`steered`/`part`, `streamCut`/`afterCut`), in cronologia resta «↪» sulla domanda e si ridivide alla riapertura.
+
 ### 16/11 — Versione 1.0.51: blocco all'avvio della 1.0.50
 La 1.0.50 si bloccava all'avvio: `WindowEvent::Focused` arriva dentro `Webview::set_focus` (`apply_app_mode`, `activate_window`), che tiene il lock `window_id` della webview, e l'`emit_to` sincrono di `island-focused`/`island-blurred` lo riprendeva sul thread principale. Ora gli emit partono da `async_runtime::spawn` (`lib.rs`). Trovato con i thread della build con simboli; 6 riavvii puliti. Smoke completo «nessun errore» (91 prove), test Rust 575 + 38.
 
