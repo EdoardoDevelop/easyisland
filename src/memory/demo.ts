@@ -20,7 +20,25 @@ export function demoGraph(source = ""): MemGraph {
     mine.events.push(...other.events);
     mine.events.sort((a, b) => a.date.localeCompare(b.date));
   }
+  // ?few: a memory just begun (a page and three notes), to see the empty states.
+  if (new URLSearchParams(location.search).has("few")) return tiny(g);
   return { ...g, sources: [OTHER] };
+}
+
+/** A page and its first three notes, nothing to read or check, no other PC. */
+function tiny(g: MemGraph): MemGraph {
+  const page = g.nodes.find((n) => n.kind === "page");
+  const notes = g.nodes.filter((n) => n.kind === "note").slice(0, 3);
+  const keep = new Set([page, ...notes].filter((n): n is MemNode => !!n).map((n) => n.id));
+  return {
+    ...g,
+    nodes: g.nodes.filter((n) => keep.has(n.id)),
+    edges: g.edges.filter((e) => keep.has(e.from) && keep.has(e.to)),
+    events: g.events.filter((e) => keep.has(e.node)),
+    check: [],
+    inbox: [],
+    sources: [],
+  };
 }
 
 /** The other PC's memory, with its ids as brain.rs tags them. */

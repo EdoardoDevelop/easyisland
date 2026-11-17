@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
+- I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
+- L'Anteprima si apre da sola sui file della chat solo con `previewEdits` (spenta di serie), mai dopo una chiusura a mano.
+
 ### 17/11 — Chat staccata che perde il fuoco; Antigravity Desktop
 - Il clic nel campo della chat staccata, girato alla pagina dell'isola, la portava avanti: ora `focusWindow(true, from)` ignora le richieste da altre finestre (`inIslandPage`, senza `instanceof`: altro realm).
 - Le sessioni di Antigravity hanno l'host `antigravity`: niente isola a fine comando con Desktop in primo piano, e «Apri Antigravity» porta avanti Desktop o il terminale (`apps::open_session`).

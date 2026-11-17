@@ -102,6 +102,19 @@ In alto, «Vista» sceglie il disegno; accanto i filtri:
 
 Se ricevi la memoria di un altro PC (**Memoria condivisa fra due PC**, in Integrazioni), in alto compaiono **Questo PC**, il nome dell'altro PC e **Tutte**: scegli quale memoria vedere, o tutte e due insieme; in **Tutte** le cose dell'altro PC hanno il suo nome accanto. La copia dell'altro PC si guarda soltanto: le note nuove vanno nella memoria di questo PC.
 
+### Panoramica
+![La Panoramica della memoria](../media/memoria-panoramica.png)
+
+La finestra si apre sulla **Panoramica**: tutta la memoria in una schermata, con i dati veri e ogni pezzo cliccabile.
+- In alto quattro numeri: pagine, note e fonti con i collegamenti; le cose nuove degli ultimi 7 giorni; i file da leggere; le note sole. Un clic le mostra nel grafo (i file da leggere aprono la cartella).
+- A sinistra gli **ultimi arrivi**: note, pagine, fonti e giorni di chat, i più recenti in alto; quando la chat legge o scrive la memoria la riga compare subito.
+- Al centro il **nucleo**: ogni nota e pagina è un punto, colorato per gruppo o per tipo; intorno gli archi dei gruppi (un clic apre le Bolle su quel gruppo) e la linea della freschezza. Sotto, quante cose sono da sistemare: note sole, pagine da scrivere, controlli.
+- Sopra il nucleo i **filtri** (tipi, solo collegamenti sicuri, colori), che valgono per tutte le viste, e i numeri della settimana.
+- A destra le **tappe**: da leggere, fonti lette, pagine, collegate, controllo, con **Leggi adesso**, **Collega con l'IA** e **Controlla**. È evidenziata la prima tappa con del lavoro da fare.
+- Sotto, le **pagine più collegate** come gettoni, il **registro** della memoria che scrive riga per riga e tre periodi a confronto (ultimo mese, 3 mesi, sempre): un clic sceglie il periodo per tutte le viste.
+
+Un clic su un punto, una riga o un gettone apre il Grafo su quella cosa; **← Panoramica** riporta qui. Le altre viste restano tutte, nelle tendine accanto.
+
 ### Grafo
 ![Il grafo della memoria](../media/memoria-grafo.png)
 
