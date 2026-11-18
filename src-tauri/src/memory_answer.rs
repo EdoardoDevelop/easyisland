@@ -90,8 +90,12 @@ pub(crate) fn roots(w: &str) -> Vec<String> {
 pub fn is_procedure(question: &str) -> bool {
     let low = question.trim().to_lowercase();
     let w = words(&low);
+    // «come cambiare…», «procedura per…», or a verb first: «cambiare ip proxmox?»
+    // (18 Nov 2026: written without «come», the procedure had no answer).
+    let verb_first = w.first().is_some_and(|x| x.chars().count() >= 5 && ["are", "ere", "ire"].iter().any(|e| x.ends_with(e))) && (2..=MAX_WORDS).contains(&w.len());
     (w.first().is_some_and(|x| x == "come" || x == "how") && !low.contains("come si chiama") && (3..=MAX_WORDS).contains(&w.len()))
         || low.starts_with("procedura per ")
+        || verb_first
 }
 
 const MAX_WORDS: usize = 14;
@@ -482,6 +486,7 @@ mod tests {
         assert_eq!((root("cambiare"), root("cambio"), root("modificare")), ("cambi".to_string(), "cambi".to_string(), "modific".to_string()));
         assert!(root("modifica").starts_with("modific") || "modifica".starts_with(&root("modificare")));
         assert!(is_procedure("come cambiare ip di proxmox da shell?") && is_procedure("Procedura per cambiare l'ip"));
+        assert!(is_procedure("cambiare ip proxmox?") && is_procedure("installare stampante rossi") && !is_procedure("proxmox falchi"));
         // A month is not a verb of changing («sett» took «settembre» for «settare»).
         assert_eq!(roots("settembre"), vec![root("settembre")]);
         assert!(roots("settare").contains(&"cambi".to_string()));

@@ -564,7 +564,11 @@ export function buildSearch(actions: SearchActions): SearchHost {
     resultsHeight() {
       if (!el.classList.contains("open")) return 0;
       // The list and the quick answer above it.
-      const listH = scroller.scrollHeight;
+      // Measured on what is in it, not on the scroller: in the search's own
+      // window the scroller fills the window, and the window never shrank
+      // (18 Nov 2026: a short list in a window two thirds of the screen tall).
+      const box = (e: HTMLElement) => e.offsetHeight ? e.offsetHeight + 14 : 0;
+      const listH = box(answerBox) + list.scrollHeight;
       const skyH = sky.shown ? 178 : 0;
       if (only()) {
         const skyBlock = sky.shown ? skyH + 16 : 0;
