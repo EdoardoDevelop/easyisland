@@ -65,6 +65,8 @@ const dv = {
   shown: new Map<string, string>(),
   shownTimers: new Map<string, number>(),
   revealing: "",
+  copiedKey: "",
+  copiedTimer: 0,
   form: null as Form | null,
   preview: null as string[] | null,
   result: null as DvcOutcome | null,
@@ -270,6 +272,9 @@ async function copyPassword(e: DvcItem, row: number | null) {
     const secs = await Bridge.dvcCopyPassword(e.vault, e.id, row);
     recordDvcRecent(e);
     Sound.play("blip");
+    dv.copiedKey = `${e.id}|${row ?? ""}`;
+    window.clearTimeout(dv.copiedTimer);
+    dv.copiedTimer = window.setTimeout(() => { dv.copiedKey = ""; draw(); }, 2500);
     dvcSay(t("Password negli appunti: si svuotano tra {s} secondi.", { s: secs }));
     dv.onHeaderSync?.();
   } catch (err) {
@@ -414,10 +419,6 @@ function isConnection(e: DvcItem): boolean {
   return e.kind !== "Group" && !e.kind.startsWith("Credential");
 }
 
-function canCopyPassword(e: DvcItem): boolean {
-  return e.kind !== "Group" && e.cred !== "PasswordList";
-}
-
 function btn(text: string, onclick: () => void, title = ""): HTMLElement {
   return h("button", { class: "link-btn", text, title, onclick: (ev: Event) => { ev.stopPropagation(); onclick(); } });
 }
@@ -504,7 +505,6 @@ function detailPane(): HTMLElement {
   const info = kindInfo(e.kind, e.cred);
   const pinned = isPinnedRef(e.id, e.vault);
   const conn = isConnection(e);
-  const hasPw = canCopyPassword(e);
   const vaultName = dv.browse?.vaults.find((v) => v.id === e.vault)?.name ?? "";
 
   pane.append(h("div", { class: "rdm-detail-bar" },
@@ -521,7 +521,7 @@ function detailPane(): HTMLElement {
 
   const pwKey = `${e.id}|`;
   const shownPw = dv.shown.get(pwKey);
-  const hasSecret = typeof d === "object" && d ? d.length > 0 : hasPw;
+  const justCopied = dv.copiedKey === pwKey;
 
   pane.append(h("div", { class: "rdm-detail-actions" },
     conn ? h("button", {
@@ -530,17 +530,6 @@ function detailPane(): HTMLElement {
       title: t("Apri in RDM (Alt+O)"),
       onclick: () => void openInRdm(e),
     }, svg(ICONS.arrowUpRight, 13, { stroke: 1.9 }), h("span", { text: t("Apri") })) : null,
-    hasSecret ? h("button", {
-      class: conn ? "rdm-big-btn" : "rdm-big-btn primary",
-      "data-act": "copy-pw",
-      title: t("Copia password negli appunti privati per 30s (Alt+P)"),
-      onclick: () => void copyPassword(e, null),
-    }, svg(ICONS.rdmKey, 13, { stroke: 1.8 }), h("span", { text: t("Copia password (30 s)") })) : null,
-    hasSecret ? h("button", {
-      class: shownPw ? "rdm-big-btn on" : "rdm-big-btn",
-      title: shownPw ? t("Nascondi la password") : t("Mostra la password (per 30 secondi)"),
-      onclick: () => void toggleShown(e, null),
-    }, svg(shownPw ? ICONS.eyeOff : ICONS.eye, 13, { stroke: 1.7 }), h("span", { text: dv.revealing === pwKey ? "…" : (shownPw ? t("Nascondi") : t("Mostra")) })) : null,
     h("button", {
       class: pinned ? "rdm-big-btn on" : "rdm-big-btn",
       title: pinned ? t("Togli dai preferiti") : t("Aggiungi ai preferiti"),
@@ -548,16 +537,22 @@ function detailPane(): HTMLElement {
     }, svg(ICONS.star, 13), h("span", { text: t("Preferito") }))));
 
   if (!d || typeof d === "string") {
+    const previewKv = h("div", { class: "rdm-kv-list" });
+    if (e.host) {
+      previewKv.append(h("div", { class: "rdm-kv-row" },
+        h("span", { class: "rdm-kv-k", text: t("Host") }),
+        h("b", { class: "rdm-kv-v", text: e.host })));
+    }
+    if (e.user) {
+      previewKv.append(h("div", { class: "rdm-kv-row" },
+        h("span", { class: "rdm-kv-k", text: t("Utente") }),
+        h("b", { class: "rdm-kv-v", text: e.user })));
+    }
+    if (previewKv.childElementCount) pane.append(previewKv);
     pane.append(typeof d === "string" && d !== t("Leggo…")
       ? h("div", { class: "notion-note bad", text: d })
-      : rdmSkelRows(3));
+      : rdmSkelRows(2));
     return pane;
-  }
-
-  if (shownPw) {
-    pane.append(h("div", { class: "rdm-revealed-box" },
-      h("span", { class: "rdm-kicker", text: t("Password") }),
-      h("code", { class: "dvc-pw shown", text: shownPw })));
   }
 
   const kv = h("div", { class: "rdm-kv-list" });
@@ -579,9 +574,33 @@ function detailPane(): HTMLElement {
       }, svg(opts.onAct ? ICONS.chevronRight : ICONS.copy, 12, { stroke: 1.8 }))));
   };
 
+  const addPwRow = () => {
+    if (!(d.length > 0)) return;
+    kv.append(h("div", { class: shownPw ? "rdm-kv-row is-pw is-revealed" : "rdm-kv-row is-pw" },
+      h("span", { class: "rdm-kv-k", text: t("Password") }),
+      h("div", { class: "rdm-pw-val" },
+        shownPw
+          ? h("code", { class: "dvc-pw shown", text: shownPw })
+          : h("span", { class: "rdm-pw-mask", text: "••••••••" })),
+      h("div", { class: "rdm-pw-acts" },
+        h("button", {
+          class: shownPw ? "rdm-pw-eye on" : "rdm-pw-eye",
+          title: shownPw ? t("Nascondi la password") : t("Mostra la password (per 30 secondi)"),
+          onclick: (ev: Event) => { ev.stopPropagation(); void toggleShown(e, null); },
+        }, svg(shownPw ? ICONS.eyeOff : ICONS.eye, 13, { stroke: 1.7 })),
+        h("button", {
+          class: justCopied ? "rdm-pw-copy is-copied" : (conn ? "rdm-pw-copy" : "rdm-pw-copy primary"),
+          "data-act": "copy-pw",
+          title: t("Copia password negli appunti privati per 30s (Alt+P)"),
+          onclick: (ev: Event) => { ev.stopPropagation(); void copyPassword(e, null); },
+        }, svg(justCopied ? ICONS.check : ICONS.rdmKey, 12, { stroke: 1.9 }),
+        h("span", { text: justCopied ? t("Copiata ✓") : t("Copia (30 s)") })))));
+  };
+
   addKv(t("Host"), d.host);
   addKv(t("Indirizzo"), d.url ?? "");
   addKv(t("Utente"), d.user, { act: "copy-user", tip: t("Copia utente (Alt+U)") });
+  addPwRow();
   addKv(t("Dominio"), d.domain);
   addKv(t("Cartella"), d.folder, {
     tip: t("Apri cartella"),
@@ -606,19 +625,49 @@ function detailPane(): HTMLElement {
     d.rows.forEach((r, i) => {
       const rKey = `${e.id}|${i}`;
       const rShown = dv.shown.get(rKey);
-      const who = [r.domain ? `${r.domain}\\${r.user}` : r.user, r.host].filter(Boolean).join(" · ");
-      listWrap.append(h("div", { class: "dvc-row" },
+      const rCopied = dv.copiedKey === rKey;
+      const fullUser = r.domain ? `${r.domain}\\${r.user}` : r.user;
+      const rowEl = h("div", { class: "dvc-row" },
         h("div", { class: "dvc-row-head" },
           h("b", { text: r.name || "—" }),
-          who ? h("span", { text: who }) : null),
-        rShown ? h("code", { class: "dvc-pw shown", text: rShown }) : null,
-        h("div", { class: "dvc-row-btns" },
-          r.user ? rdmHoverBtn(t("Utente"), ICONS.user, t("Copia"), () => {
-            recordDvcRecent(e);
-            void rdmCopyText(r.user, t("Utente copiato: {u}", { u: r.user }), dvcSay);
-          }) : null,
-          r.length ? rdmHoverBtn(rShown ? t("Nascondi") : t("Mostra"), rShown ? ICONS.eyeOff : ICONS.eye, t("Mostra la password (per 30 secondi)"), () => void toggleShown(e, i)) : null,
-          r.length ? rdmHoverBtn(t("Copia (30 s)"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, i), { primary: true }) : h("small", { text: t("senza password") }))));
+          r.host ? h("span", { text: r.host }) : null));
+
+      if (fullUser) {
+        rowEl.append(h("div", { class: "dvc-sub-line" },
+          h("span", { class: "dvc-sub-k", text: t("Utente") }),
+          h("b", { class: "dvc-sub-v", text: fullUser }),
+          h("button", {
+            class: "rdm-kv-copy",
+            title: t("Copia utente"),
+            onclick: (ev: Event) => {
+              ev.stopPropagation();
+              recordDvcRecent(e);
+              void rdmCopyText(fullUser, t("Utente copiato: {u}", { u: fullUser }), dvcSay);
+            },
+          }, svg(ICONS.copy, 12, { stroke: 1.8 }))));
+      }
+
+      if (r.length > 0) {
+        rowEl.append(h("div", { class: rShown ? "dvc-sub-line is-pw is-revealed" : "dvc-sub-line is-pw" },
+          h("span", { class: "dvc-sub-k", text: t("Password") }),
+          rShown
+            ? h("code", { class: "dvc-pw shown dvc-sub-v", text: rShown })
+            : h("span", { class: "rdm-pw-mask dvc-sub-v", text: "••••••••" }),
+          h("div", { class: "rdm-pw-acts" },
+            h("button", {
+              class: rShown ? "rdm-pw-eye on" : "rdm-pw-eye",
+              title: rShown ? t("Nascondi la password") : t("Mostra la password (per 30 secondi)"),
+              onclick: (ev: Event) => { ev.stopPropagation(); void toggleShown(e, i); },
+            }, svg(rShown ? ICONS.eyeOff : ICONS.eye, 12, { stroke: 1.7 })),
+            h("button", {
+              class: rCopied ? "rdm-pw-copy is-copied" : "rdm-pw-copy primary",
+              title: t("Copia password negli appunti privati per 30s"),
+              onclick: (ev: Event) => { ev.stopPropagation(); void copyPassword(e, i); },
+            }, svg(rCopied ? ICONS.check : ICONS.rdmKey, 11, { stroke: 1.9 }),
+            h("span", { text: rCopied ? t("Copiata ✓") : t("Copia (30 s)") })))));
+      }
+
+      listWrap.append(rowEl);
     });
     pane.append(listWrap);
   }
@@ -631,7 +680,8 @@ function flatEntryRow(e: DvcItem, opts: { showFolder?: boolean; prefix?: string 
   const navKey = `${opts.prefix ?? "e"}:${e.vault}:${e.id}`;
   const isActive = dv.activeKey === navKey;
   const conn = isConnection(e);
-  const hasPw = canCopyPassword(e);
+  const cachedDetail = dv.details.get(e.id);
+  const hasConfirmedPw = typeof cachedDetail === "object" && cachedDetail !== null && cachedDetail.length > 0;
   const userText = (e.user ?? "").trim();
   const folderText = opts.showFolder ? rdmFolderTail(e.folder, 2) : "";
   const subParts = [e.host, userText, folderText].filter(Boolean);
@@ -659,8 +709,8 @@ function flatEntryRow(e: DvcItem, opts: { showFolder?: boolean; prefix?: string 
       ...(q ? renderHighlight(subParts.join(" · "), q) : [subParts.join(" · ")])) : null),
   h("div", { class: "rdm-row-acts" },
     conn ? rdmHoverBtn(t("Apri"), ICONS.arrowUpRight, t("Apri in RDM (Alt+O)"), () => void openInRdm(e), { primary: true, act: "open" }) : null,
-    hasPw ? rdmHoverBtn(t("Password"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, null), { primary: !conn, act: "copy-pw" }) : null,
-    !conn && (userText || hasPw) ? rdmHoverBtn(t("Utente"), ICONS.user, t("Copia utente (Alt+U)"), () => void copyUser(e), { act: "copy-user" }) : null));
+    hasConfirmedPw ? rdmHoverBtn(t("Password"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, null), { primary: !conn, act: "copy-pw" }) : null,
+    userText ? rdmHoverBtn(t("Utente"), ICONS.user, t("Copia utente (Alt+U)"), () => void copyUser(e), { act: "copy-user" }) : null));
 }
 
 function flatFolderRow(vault: string, f: { name: string; path: string; count: number }, prefix = "f"): HTMLElement {
@@ -779,12 +829,12 @@ function tieInlineBar(): HTMLElement | null {
     btn(t("Annulla"), () => { dv.tieOpen = false; draw(); }));
 }
 
-function buildNarrowStrip(b: DvcBrowse): HTMLElement {
-  const strip = h("div", { class: "rdm-narrow-strip" });
+function buildNarrowStrip(b: DvcBrowse): HTMLElement | null {
   const pins = getDvcPins();
   const recs = getDvcRecents();
-  const vaultName = b.vaults.find((v) => v.id === b.vault)?.name ?? "Cloud";
+  if (b.vaults.length <= 1 && !pins.length && !recs.length) return null;
 
+  const strip = h("div", { class: "rdm-narrow-strip" });
   if (b.vaults.length > 1) {
     for (const v of b.vaults) {
       strip.append(h("button", {
@@ -796,7 +846,7 @@ function buildNarrowStrip(b: DvcBrowse): HTMLElement {
   strip.append(h("button", {
     class: dv.filter === "browse" ? "rdm-pill on" : "rdm-pill",
     onclick: () => dvcSetFilter("browse"),
-  }, h("span", { text: b.path ? rdmFolderTail(b.path, 1) : vaultName })));
+  }, svg(ICONS.rdmFolder, 10, { stroke: 1.8 }), h("span", { text: t("Cartelle") })));
   if (pins.length) {
     strip.append(h("button", {
       class: dv.filter === "pins" ? "rdm-pill on" : "rdm-pill",
@@ -816,7 +866,8 @@ function buildCenterList(b: DvcBrowse): HTMLElement {
   const center = h("div", { class: "rdm-center" });
   const q = dv.searchQuery.trim();
 
-  if (!q) center.append(buildNarrowStrip(b));
+  const narrowStrip = !q ? buildNarrowStrip(b) : null;
+  if (narrowStrip) center.append(narrowStrip);
 
   const tieBar = tieInlineBar();
   if (tieBar) center.append(tieBar);

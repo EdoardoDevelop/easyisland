@@ -707,12 +707,12 @@ function renderLocalWorkspace(ws: HTMLElement, canList: boolean, listError: stri
   const listEl = h("div", { class: "rdm-flat-list" });
   const fail = (err: unknown) => sayLocal(String(err).replace(/^Error:\s*/, ""));
 
-  // Compact narrow filter pills
-  if (!q) {
+  // Compact narrow filter pills when there are pins/recents to switch
+  if (!q && (cfgPins.length || recents.length)) {
     center.append(h("div", { class: "rdm-narrow-strip" },
       h("button", { class: rdm.localScope === "all" ? "rdm-pill on" : "rdm-pill", onclick: () => { rdm.localScope = "all"; rdm.redraw?.(); } }, h("span", { text: t("Tutto") })),
-      h("button", { class: rdm.localScope === "pins" ? "rdm-pill on" : "rdm-pill", onclick: () => { rdm.localScope = "pins"; rdm.redraw?.(); } }, h("span", { text: `${t("Preferiti")} · ${cfgPins.length}` })),
-      h("button", { class: rdm.localScope === "recents" ? "rdm-pill on" : "rdm-pill", onclick: () => { rdm.localScope = "recents"; rdm.redraw?.(); } }, h("span", { text: `${t("Recenti")} · ${recents.length}` }))));
+      cfgPins.length ? h("button", { class: rdm.localScope === "pins" ? "rdm-pill on" : "rdm-pill", onclick: () => { rdm.localScope = "pins"; rdm.redraw?.(); } }, h("span", { text: `${t("Preferiti")} · ${cfgPins.length}` })) : null,
+      recents.length ? h("button", { class: rdm.localScope === "recents" ? "rdm-pill on" : "rdm-pill", onclick: () => { rdm.localScope = "recents"; rdm.redraw?.(); } }, h("span", { text: `${t("Recenti")} · ${recents.length}` })) : null));
   }
 
   if (q) {

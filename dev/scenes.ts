@@ -938,8 +938,8 @@ export async function runScene(island: Island, scene: string) {
             const e = items.find((x) => x.id === eid);
             return e?.cred === "PasswordList"
               ? { name: e.name, kind: "Credential", cred: "PasswordList", folder: e.folder, host: "", user: "", domain: "", length: 0, description: "",
-                rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 10, description: "" }] }
-              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", url: e?.kind === "WebBrowser" ? e.host : "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
+                rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 0, description: "" }] }
+              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", url: e?.kind === "WebBrowser" ? e.host : "", user: e?.user ?? "", domain: "", length: e?.kind === "WebBrowser" || e?.kind === "VPN" ? 0 : 16, description: "Accesso amministrativo", rows: [] };
           },
           dvcCopyPassword: async () => { await wait(200); return 30; },
           dvcReveal: async () => { await wait(200); return "Fa1ch1!2026"; },

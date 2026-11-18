@@ -5924,5 +5924,8 @@
   "connessioni": "connections",
   "preferiti": "favorites",
   "recenti": "recents",
-  "aggiornato": "updated"
+  "aggiornato": "updated",
+  "Copiata ✓": "Copied ✓",
+  "Copia utente": "Copy username",
+  "Copia password negli appunti privati per 30s": "Copy password to private clipboard for 30s"
 }
