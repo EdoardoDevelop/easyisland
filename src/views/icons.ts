@@ -114,6 +114,20 @@ export const ICONS = {
   bellOff: "M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15L6 16.5zM10 20.5h4M4 4l16 16",
   // delete.left — the keypad's backspace (drawn with a stroke)
   backspace: "M9 5.5h10.5v13H9L3.5 12 9 5.5zM12 9.5l5 5M17 9.5l-5 5",
+  // Remote Desktop Manager & Devolutions Cloud (drawn with stroke 1.7)
+  rdmRdp: "M3.5 5h17a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 20h6M12 17v3M7.5 9.5l3 2-3 2M12.5 13.5h4",
+  rdmWeb: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 12h17M12 3c2.8 2.5 4.2 5.5 4.2 9s-1.4 6.5-4.2 9c-2.8-2.5-4.2-5.5-4.2-9S9.2 5.5 12 3z",
+  rdmKey: "M15.5 4.5a4 4 0 1 1-2.8 6.8L5 19v2h2.5v-2h2v-2h2l1.4-1.4",
+  rdmList: "M5 6h14M5 10.5h8.5M5 15h6.5M14.5 14a2.5 2.5 0 0 1 5 0v1.5h1v4.5h-7v-4.5h1V14z",
+  rdmFolder: "M3.5 6.5A1.5 1.5 0 0 1 5 5h4.5l2 2H19a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5v-11z",
+  rdmVpn: "M12 3.2 19 6v5.5c0 4.5-3 8-7 9.5-4-1.5-7-5-7-9.5V6l7-2.8zM9.5 11.5a2.5 2.5 0 0 1 5 0v1.5h1v3.5h-7V13h1v-1.5z",
+  rdmVnc: "M3.5 5.5h11v8h-11zM9.5 10.5h11v8h-11z",
+  rdmFtp: "M4.5 6h15v4.5h-15zM4.5 13.5h15V18h-15zM7.5 8.2h.01M7.5 15.7h.01",
+  eye: "M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z",
+  eyeOff: "M3 3l18 18M10.2 6.2A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-3.2 3.8M6.2 8.2A16 16 0 0 0 2.5 12s3.5 6 9.5 6c1.4 0 2.7-.3 3.9-.8",
+  cloud: "M7 18.5h10.2a3.8 3.8 0 0 0 .6-7.5 5 5 0 0 0-9.6-1.4A3.6 3.6 0 0 0 7 18.5z",
+  chevronDown: "M5.5 9 12 15.5 18.5 9",
+  user: "M12 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM5.5 19.5c0-3 2.9-5 6.5-5s6.5 2 6.5 5",
 } as const;
 
 /** Line glyphs (draw with a 1.6 stroke) for the integrations with no brand logo,

@@ -163,3 +163,40 @@ html[data-scheme="light"] .custom-gauge-track { background: rgba(15, 23, 42, 0.1
 html[data-scheme="light"] .custom-gauge.warn, html[data-scheme="light"] .custom-stat.warn { --g: #d97706; }
 html[data-scheme="light"] .custom-stat.warn { color: #b45309; }
 html[data-scheme="light"] .custom-stat.bad { color: #dc2626; }
+
+/* RDM & Devolutions Cloud (style.css .rdm-*, .dvc-*): sharp contrast on light. */
+html[data-scheme="light"] .rdm-kind { color: #9a3412; background: rgba(232, 84, 42, 0.14); }
+html[data-scheme="light"] .rdm-kind.tone-rdp { color: #1d4ed8; background: rgba(59, 130, 246, 0.14); }
+html[data-scheme="light"] .rdm-kind.tone-ssh { color: #047857; background: rgba(16, 185, 129, 0.14); }
+html[data-scheme="light"] .rdm-kind.tone-web { color: #0369a1; background: rgba(14, 165, 233, 0.14); }
+html[data-scheme="light"] .rdm-kind.tone-vpn { color: #6d28d9; background: rgba(139, 92, 246, 0.14); }
+html[data-scheme="light"] .rdm-kind.tone-vnc { color: #be185d; background: rgba(236, 72, 153, 0.14); }
+html[data-scheme="light"] .rdm-kind.tone-ftp { color: #b45309; background: rgba(245, 158, 11, 0.16); }
+html[data-scheme="light"] .rdm-kind.tone-cred { color: #a16207; background: rgba(250, 204, 21, 0.22); }
+html[data-scheme="light"] .rdm-kind.tone-list { color: #c2410c; background: rgba(232, 84, 42, 0.15); }
+html[data-scheme="light"] .rdm-kind.tone-folder { color: #b45309; background: rgba(245, 158, 11, 0.16); }
+html[data-scheme="light"] .rdm-icon-chip { color: #c2410c; background: rgba(232, 84, 42, 0.12); }
+html[data-scheme="light"] .rdm-icon-chip.tone-rdp { color: #1d4ed8; background: rgba(59, 130, 246, 0.12); }
+html[data-scheme="light"] .rdm-icon-chip.tone-ssh { color: #047857; background: rgba(16, 185, 129, 0.12); }
+html[data-scheme="light"] .rdm-icon-chip.tone-web { color: #0369a1; background: rgba(14, 165, 233, 0.12); }
+html[data-scheme="light"] .rdm-icon-chip.tone-vpn { color: #6d28d9; background: rgba(139, 92, 246, 0.12); }
+html[data-scheme="light"] .rdm-icon-chip.tone-vnc { color: #be185d; background: rgba(236, 72, 153, 0.12); }
+html[data-scheme="light"] .rdm-icon-chip.tone-ftp { color: #b45309; background: rgba(245, 158, 11, 0.14); }
+html[data-scheme="light"] .rdm-icon-chip.tone-cred { color: #a16207; background: rgba(250, 204, 21, 0.18); }
+html[data-scheme="light"] .rdm-icon-chip.tone-list { color: #c2410c; background: rgba(232, 84, 42, 0.14); }
+html[data-scheme="light"] .rdm-icon-chip.tone-folder { color: #b45309; background: rgba(245, 158, 11, 0.14); }
+html[data-scheme="light"] .rdm-entry-card { background: rgba(15, 23, 42, 0.035); border-color: rgba(15, 23, 42, 0.08); }
+html[data-scheme="light"] .rdm-entry-card:hover { background: rgba(15, 23, 42, 0.06); border-color: rgba(15, 23, 42, 0.14); }
+html[data-scheme="light"] .rdm-folder-card { background: rgba(15, 23, 42, 0.03); border-color: rgba(15, 23, 42, 0.07); }
+html[data-scheme="light"] .rdm-folder-card:hover { background: rgba(15, 23, 42, 0.055); }
+html[data-scheme="light"] .rdm-entry-meta { color: #475569; }
+html[data-scheme="light"] .rdm-meta-chip { background: rgba(15, 23, 42, 0.06); color: #0f172a; }
+html[data-scheme="light"] .rdm-act-btn { border-color: rgba(15, 23, 42, 0.12); background: rgba(255, 255, 255, 0.7); color: #334155; }
+html[data-scheme="light"] .rdm-act-btn:hover { background: #ffffff; color: #0f172a; border-color: rgba(15, 23, 42, 0.22); }
+html[data-scheme="light"] .rdm-act-btn.primary { background: rgba(232, 84, 42, 0.13); border-color: rgba(232, 84, 42, 0.42); color: #b93815; }
+html[data-scheme="light"] .rdm-act-btn.primary:hover { background: #e8542a; color: #ffffff; }
+html[data-scheme="light"] .rdm-act-btn.on { color: #b45309; border-color: rgba(217, 119, 6, 0.45); background: rgba(245, 158, 11, 0.15); }
+html[data-scheme="light"] .rdm-tie-badge { background: rgba(232, 84, 42, 0.14); color: #9a3412; }
+html[data-scheme="light"] .dvc-pane { background: rgba(255, 255, 255, 0.85); }
+html[data-scheme="light"] .dvc-crumb-btn { background: rgba(15, 23, 42, 0.06); color: #475569; }
+html[data-scheme="light"] .dvc-crumb-btn:hover, html[data-scheme="light"] .dvc-crumb-btn.on { background: rgba(15, 23, 42, 0.11); color: #0f172a; }
