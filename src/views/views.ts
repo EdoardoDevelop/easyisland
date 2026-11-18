@@ -52,6 +52,7 @@ import { Sound } from "../core/sound";
 import { softphoneVersion } from "../core/softphone";
 import { THREECX } from "./threecx";
 import { ZAMMAD, zammadKey } from "./zammad";
+import { RDM, rdmKey } from "./rdm";
 import { AGENTCHAT, agentchatKey } from "./agentchat";
 import { t } from "../core/i18n";
 
@@ -557,8 +558,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       } else if (task) {
         const info = State.integrations[task.id];
-        // Zammad's card redraws itself (zammad.ts): a ticket open is never rebuilt under the caret.
-        const key = task.id === ZAMMAD ? `~${zammadKey()}` : [
+        // Zammad's and RDM's cards redraw themselves: never rebuilt under the caret.
+        const key = task.id === ZAMMAD ? `~${zammadKey()}` : task.id === RDM ? `~${rdmKey()}` : [
           task.id, detailOpen, task.state, task.steps.join("|"),
           info?.loaded, info?.error, info?.configured,
           // A Notion page open in the card redraws itself (notionpage.ts): not rebuilt while typing.
@@ -651,7 +652,7 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
       }
       const info = State.integrations[task.id];
       // As the island's card (buildOverview): rebuilt only when what it shows changes.
-      const key = task.id === ZAMMAD ? `~${zammadKey()}` : [
+      const key = task.id === ZAMMAD ? `~${zammadKey()}` : task.id === RDM ? `~${rdmKey()}` : [
         task.id, detailOpen, task.state, task.steps.join("|"),
         info?.loaded, info?.error, info?.configured,
         task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),
