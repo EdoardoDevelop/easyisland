@@ -208,3 +208,41 @@ html[data-scheme="light"] .rdm-kv-k { color: #64748b; }
 html[data-scheme="light"] .rdm-tree-rail,
 html[data-scheme="light"] .rdm-center,
 html[data-scheme="light"] .rdm-detail-pane { background: var(--card-flat, #ffffff); }
+
+/* Zammad Ticket (style.css .zm-*): high-contrast tokens on light. */
+html[data-scheme="light"] .zm-card {
+  --zm-line: rgba(15, 23, 42, 0.10);
+  --zm-hair: rgba(15, 23, 42, 0.06);
+  --zm-faint: rgba(15, 23, 42, 0.03);
+  --zm-hover: rgba(15, 23, 42, 0.045);
+}
+html[data-scheme="light"] .zm-row.is-open { background: rgba(217, 119, 6, 0.10); }
+html[data-scheme="light"] .zm-tab b { background: rgba(15, 23, 42, 0.08); }
+html[data-scheme="light"] .zm-tab.on { background: rgba(217, 119, 6, 0.14); border-color: rgba(217, 119, 6, 0.55); }
+html[data-scheme="light"] .zm-state.new { background: rgba(2, 132, 199, 0.14); color: #0369a1; }
+html[data-scheme="light"] .zm-state.open { background: rgba(217, 119, 6, 0.16); color: #92400e; }
+html[data-scheme="light"] .zm-state.pending { background: rgba(124, 58, 237, 0.14); color: #5b21b6; }
+html[data-scheme="light"] .zm-state.closed { background: rgba(22, 163, 74, 0.14); color: #166534; }
+html[data-scheme="light"] .zm-free { color: #b45309; }
+html[data-scheme="light"] .zm-me { color: #15803d; }
+html[data-scheme="light"] .zm-info-chip { background: #ffffff; color: #334155; }
+html[data-scheme="light"] .zm-info-chip.is-copied { background: rgba(22, 163, 74, 0.12); border-color: rgba(22, 163, 74, 0.42); color: #15803d; }
+html[data-scheme="light"] .zm-tag-chip { background: rgba(217, 119, 6, 0.14); color: #92400e; }
+html[data-scheme="light"] .zm-select,
+html[data-scheme="light"] .zm-date { background: #ffffff; color: #0f172a; color-scheme: light; }
+html[data-scheme="light"] .zm-prop.is-dirty > span,
+html[data-scheme="light"] .zm-dirty-note { color: #b45309; }
+html[data-scheme="light"] .zm-saved { color: #15803d; }
+html[data-scheme="light"] .zm-saved.wait { color: #b45309; }
+html[data-scheme="light"] .zm-saved.bad { color: #dc2626; }
+html[data-scheme="light"] .zm-advice { background: rgba(245, 158, 11, 0.10); border-color: rgba(217, 119, 6, 0.30); }
+html[data-scheme="light"] .zm-advice-title { color: #92400e; }
+html[data-scheme="light"] .zm-msg { background: #ffffff; }
+html[data-scheme="light"] .zm-msg.agent { background: rgba(245, 158, 11, 0.10); border-color: rgba(217, 119, 6, 0.30); }
+html[data-scheme="light"] .zm-msg.internal { background: rgba(250, 204, 21, 0.14); border-color: rgba(202, 138, 4, 0.45); }
+html[data-scheme="light"] .zm-note-tag { background: rgba(217, 119, 6, 0.18); color: #92400e; }
+html[data-scheme="light"] .zm-att-card { background: #ffffff; }
+html[data-scheme="light"] .zm-att-dl { background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.40); color: #92400e; }
+html[data-scheme="light"] .zm-att-dl:hover { background: #d97706; color: #ffffff; }
+html[data-scheme="light"] .zm-att-dl.saved { background: rgba(22, 163, 74, 0.12); border-color: rgba(22, 163, 74, 0.42); color: #15803d; }
+html[data-scheme="light"] .zm-inline-img { background: #f8fafc; }

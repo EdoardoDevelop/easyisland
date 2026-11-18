@@ -1007,18 +1007,56 @@ export async function runScene(island: Island, scene: string) {
       };
       const detail = {
         id: 12, number: "31012", title: "VPN non si collega dallo smart working", url: "https://help.example.it/#ticket/zoom/12",
-        customer: "Anna Bianchi", org: "Farmacia Falchi", group: "Assistenza", state_id: 2, priority_id: 3, owner_id: 4,
+        customer: "Anna Bianchi", customer_email: "anna.bianchi@falchi.example.it", customer_phone: "+39 02 9845 1120",
+        org: "Farmacia Falchi", group: "Assistenza", tags: ["VPN", "L2TP", "Urgente"],
+        state_id: 2, priority_id: 3, owner_id: 4,
         created: ago(60 * 5), updated: ago(12), pending: "", states, priorities, owners, me: 4, reply_to: "anna.bianchi@falchi.example.it",
         articles: [
-          { id: 1, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(60 * 5), subject: "VPN",
-            text: "Buongiorno,\nda stamattina il client VPN dal portatile di casa resta su «Connessione in corso» e poi va in errore 809.\nIeri funzionava. Potete controllare?\n\nGrazie,\nAnna", files: ["errore-vpn.png"] },
-          { id: 2, from: "Edoardo", to: "", sender: "Agent", kind: "note", internal: true, at: ago(60 * 4), subject: "",
-            text: "Il firewall è stato aggiornato ieri sera: probabilmente la regola L2TP è sparita. Controllo.", files: [] },
-          { id: 3, from: "Edoardo <assistenza@example.it>", to: "anna.bianchi@falchi.example.it", sender: "Agent", kind: "email", internal: false, at: ago(60 * 3), subject: "VPN",
-            text: "Buongiorno Anna,\nstiamo verificando la configurazione del firewall. Le scrivo appena ho novità.", files: [] },
-          { id: 4, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(12), subject: "Re: VPN",
-            text: "Grazie! Mi serve entro le 15 per la riunione.", files: [] },
+          { id: 1, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", cc: "direzione@falchi.example.it",
+            sender: "Customer", kind: "email", internal: false, at: ago(60 * 5), subject: "VPN",
+            text: "Buongiorno,\nda stamattina il client VPN dal portatile di casa resta su «Connessione in corso» e poi va in errore 809.\n[[img:101]]\nIeri funzionava. Allego anche i log della diagnostica.\n\nGrazie,\nAnna",
+            attachments: [
+              { id: 101, name: "errore-vpn-809.png", size: 48200, mime: "image/png", inline: true },
+              { id: 102, name: "log-connessione.txt", size: 14680, mime: "text/plain", inline: false },
+              { id: 103, name: "diagnostica-rete.pdf", size: 245760, mime: "application/pdf", inline: false },
+            ],
+            files: ["log-connessione.txt", "diagnostica-rete.pdf"] },
+          { id: 2, from: "Edoardo", to: "", cc: "", sender: "Agent", kind: "note", internal: true, at: ago(60 * 4), subject: "",
+            text: "Il firewall è stato aggiornato ieri sera: probabilmente la regola L2TP è sparita. Controllo su RDM.", attachments: [], files: [] },
+          { id: 3, from: "Edoardo <assistenza@example.it>", to: "anna.bianchi@falchi.example.it", cc: "", sender: "Agent", kind: "email", internal: false, at: ago(60 * 3), subject: "VPN",
+            text: "Buongiorno Anna,\nstiamo verificando la configurazione del firewall. Le scrivo appena ho novità.", attachments: [], files: [] },
+          { id: 4, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", cc: "", sender: "Customer", kind: "email", internal: false, at: ago(12), subject: "Re: VPN",
+            text: "Grazie! Mi serve entro le 15 per la riunione.\n[immagine]", attachments: [], files: [] },
         ],
+      };
+      // Tiny real PNG generated via canvas in browser preview (pure client-side, zero network).
+      const mockInlinePng = () => {
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = 320;
+          cv.height = 112;
+          const ctx = cv.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#161a24";
+            ctx.fillRect(0, 0, 320, 112);
+            ctx.fillStyle = "#232938";
+            ctx.fillRect(0, 0, 320, 26);
+            ctx.fillStyle = "#f4505e";
+            ctx.beginPath(); ctx.arc(14, 13, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#e5e7eb";
+            ctx.font = "600 11px Segoe UI, sans-serif";
+            ctx.fillText("Connessione VPN — Errore 809", 28, 17);
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "11px Consolas, monospace";
+            ctx.fillText("Impossibile stabilire la connessione al server.", 14, 52);
+            ctx.fillStyle = "#f59e0b";
+            ctx.fillText("Porta UDP 500/4500 non raggiungibile", 14, 72);
+            ctx.fillStyle = "#64748b";
+            ctx.fillText("Gateway: vpn.falchi.it", 14, 92);
+            return cv.toDataURL("image/png");
+          }
+        } catch {}
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAEklEQVR42mP8z8AARAwMjIwwBgAE/gH+w9z/swAAAABJRU5ErkJggg==";
       };
       Object.assign(Bridge, {
         zammadTickets: async (view: string | null) => {
@@ -1035,14 +1073,27 @@ export async function runScene(island: Island, scene: string) {
         },
         zammadTicket: async () => { await wait(150); return { ...detail }; },
         zammadSet: async (_id: number, field: "state_id" | "owner_id" | "priority_id", value: number) => {
-          await wait(300);
+          await wait(250);
           Object.assign(detail, { [field]: value });
           return { ...detail };
         },
+        zammadSave: async (_id: number, changes: { state_id?: number | null; owner_id?: number | null; priority_id?: number | null; pending?: string | null }) => {
+          await wait(280);
+          if (changes.state_id != null) detail.state_id = changes.state_id;
+          if (changes.owner_id != null) detail.owner_id = changes.owner_id;
+          if (changes.priority_id != null) detail.priority_id = changes.priority_id;
+          if (changes.pending != null) detail.pending = changes.pending;
+          return { ...detail };
+        },
+        zammadImage: async () => { await wait(120); return mockInlinePng(); },
+        zammadAttachmentSave: async (_t: number, _a: number, _id: number, name: string) => {
+          await wait(180);
+          return `C:\\Users\\Edoardo\\Downloads\\${name}`;
+        },
         zammadReply: async (_id: number, text: string, email: boolean) => {
-          await wait(300);
-          detail.articles.push({ id: detail.articles.length + 1, from: "Edoardo", to: email ? detail.reply_to : "", sender: "Agent", kind: email ? "email" : "note",
-            internal: !email, at: new Date().toISOString(), subject: "", text, files: [] });
+          await wait(250);
+          detail.articles.push({ id: detail.articles.length + 1, from: "Edoardo", to: email ? detail.reply_to : "", cc: "", sender: "Agent", kind: email ? "email" : "note",
+            internal: !email, at: new Date().toISOString(), subject: "", text, attachments: [], files: [] });
           return { ...detail, articles: [...detail.articles] };
         },
         widgetRefresh: async () => {},

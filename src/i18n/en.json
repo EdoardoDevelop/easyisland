@@ -5931,5 +5931,22 @@
   "[immagine]": "[image]",
   "Zammad ha risposto {s}": "Zammad answered {s}",
   "File troppo grande: aprilo in Zammad": "File too large: open it in Zammad",
-  "Non è un'immagine": "Not an image"
+  "Non è un'immagine": "Not an image",
+  "Data promemoria non valida.": "Invalid reminder date.",
+  "Salvato in Download: {n}": "Saved to Downloads: {n}",
+  "ZAMMAD · HELPDESK": "ZAMMAD · HELPDESK",
+  "Copia email: {e}": "Copy email: {e}",
+  "Copia telefono: {p}": "Copy phone: {p}",
+  "Seleziona un ticket": "Select a ticket",
+  "Frecce ↑ ↓ per scorrere i ticket, Invio per aprire i messaggi completi e rispondere.": "Use ↑ ↓ to navigate tickets, Enter to open full messages and reply.",
+  "Apri in Zammad": "Open in Zammad",
+  "Clicca per ingrandire: {n}": "Click to enlarge: {n}",
+  "Carico immagine {n}…": "Loading image {n}…",
+  "Immagine remota bloccata per proteggere la privacy": "Remote image blocked to protect privacy",
+  "Scarica in Download e mostra in Esplora file": "Download to Downloads and show in Explorer",
+  "Nota interna": "Internal note",
+  "Rispondi al cliente": "Reply to customer",
+  "tuoi": "yours",
+  "liberi": "unassigned",
+  "escalation": "escalated"
 }
