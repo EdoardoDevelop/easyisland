@@ -765,6 +765,8 @@ export interface Settings {
   previewEdits?: boolean;
   /** Where notices go (notices.ts): "isola" (default), "alto-destra", "basso-destra", "dentro" (in the island). */
   noticesPlace?: string;
+  /** Where the search on its own opens (search_window.rs): "centro" (default), "alto", "basso". */
+  searchPlace?: string;
   /** The model on the graphics card when there is a fitting one. */
   localGpu?: boolean;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */

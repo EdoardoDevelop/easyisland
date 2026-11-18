@@ -5849,5 +5849,7 @@
   "altri {n} gruppi": "{n} other groups",
   "{n} gruppo": "{n} group",
   "Cerca (la ricerca da sola)": "Search (the search on its own)",
-  "Cerca: apre la ricerca nella sua finestra, l'isola resta com'è": "Search: opens the search in its own window, the island stays as it is"
+  "Cerca: apre la ricerca nella sua finestra, l'isola resta com'è": "Search: opens the search in its own window, the island stays as it is",
+  "Ricerca da sola": "Search on its own",
+  "dove si apre la ricerca della scorciatoia e del pulsante «Cerca» della barra, nella sua finestra": "where the search from the shortcut and the bar's «Search» button opens, in its own window"
 }

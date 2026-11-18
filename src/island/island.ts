@@ -645,7 +645,9 @@ export class Island {
           // With the fixed bar there is no compact view to go back to: closing,
           // the end of the greeting and a quiet launch go straight to hidden,
           // or a small character showed for a moment.
-          if ((from !== "hidden" || this.quietLaunch) && barEdge(State.settings) && !this.fsm.held()) {
+          // Never from hidden either (18 Nov 2026: the compact island with the
+          // agent's line showed under the bar now and then, a reveal from hidden).
+          if (barEdge(State.settings) && !this.fsm.held()) {
             if (from === "greeting") this.greeting.interrupt();
             this.quietLaunch = false;
             this.setMode("hidden");

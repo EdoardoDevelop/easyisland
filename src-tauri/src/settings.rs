@@ -965,6 +965,10 @@ pub struct Settings {
     /// "basso-destra", or "dentro" (in the island, as before).
     #[serde(default = "default_notices_place")]
     pub notices_place: String,
+    /// Where the search on its own opens (search_window.rs, Edoardo 18 Nov
+    /// 2026): "centro" (default, centred and growing both ways), "alto", "basso".
+    #[serde(default = "default_search_place")]
+    pub search_place: String,
     /// How the character takes each situation ("agentFinished", "agentError",
     /// "agentLimit", or a check's pill id): "show", "quiet" or "off". Missing = "show".
     /// The front end owns the meaning (src/core/state.ts `reactionKey`).
@@ -1260,6 +1264,10 @@ fn default_notices_place() -> String {
     "isola".into()
 }
 
+fn default_search_place() -> String {
+    "centro".into()
+}
+
 fn default_quick_answers() -> String {
     "potion".into()
 }
@@ -1376,6 +1384,7 @@ impl Default for Settings {
             theme: Theme::default(),
             notify: default_notify(),
             notices_place: default_notices_place(),
+            search_place: default_search_place(),
             reactions: Map::new(),
             actions: Vec::new(),
             widgets: Vec::new(),

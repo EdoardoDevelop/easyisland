@@ -31,8 +31,23 @@ pub fn build(app: &AppHandle, features: tauri::webview::NewWindowFeatures) -> ta
         .build()
 }
 
-/// The search window's place: centred on the screen of the mouse, its top a
-/// quarter down the work area (it grows down as results come, never jumps).
+/// Where on the work area (y, physical): "alto" a little under the top edge,
+/// "basso" a little over the bottom one (it grows upward), "centro" centred
+/// (Edoardo, 18 Nov 2026: «dammi la possibilità di decidere dove mettere la ricerca»).
+fn top_of(place: &str, area_y: i32, area_h: i32, h: i32) -> i32 {
+    let margin = area_h / 12;
+    match place {
+        "alto" => area_y + margin,
+        "basso" => area_y + area_h - h - margin,
+        _ => area_y + (area_h - h) / 2,
+    }
+}
+
+fn place_setting(app: &AppHandle) -> String {
+    app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().search_place.clone()).unwrap_or_default()
+}
+
+/// The search window's place on the screen of the mouse (Impostazioni → «Ricerca da sola»).
 fn place(app: &AppHandle, win: &WebviewWindow, height: f64) {
     let at = crate::island::cursor_physical();
     let monitors = app.available_monitors().unwrap_or_default();
@@ -52,7 +67,7 @@ fn place(app: &AppHandle, win: &WebviewWindow, height: f64) {
     let most = (area.size.height as f64 * 0.7).max(120.0);
     let h = (height.max(54.0) * scale).round().min(most) as u32;
     let x = area.position.x + (area.size.width as i32 - w as i32) / 2;
-    let y = area.position.y + area.size.height as i32 / 4;
+    let y = top_of(&place_setting(app), area.position.y, area.size.height as i32, h as i32);
     let _ = win.set_size(PhysicalSize::new(w, h));
     let _ = win.set_position(PhysicalPosition::new(x, y));
 }
@@ -106,22 +121,25 @@ fn bring_forward(win: &WebviewWindow) {
     }
 }
 
-/// As tall as its results (logical px); its top stays where it is.
+/// As tall as its results (logical px), kept at its place: centred, against
+/// the top or against the bottom.
 #[tauri::command]
 pub fn search_window_fit(app: AppHandle, height: f64) {
     let Some(win) = app.get_webview_window(LABEL) else { return };
     let Ok(size) = win.inner_size() else { return };
+    let Ok(pos) = win.outer_position() else { return };
     let scale = win.scale_factor().unwrap_or(1.0);
-    let most = win
-        .current_monitor()
-        .ok()
-        .flatten()
-        .map(|m| (m.work_area().size.height as f64 * 0.7).max(120.0))
-        .unwrap_or(800.0);
+    let Some(m) = win.current_monitor().ok().flatten() else { return };
+    let area = m.work_area();
+    let most = (area.size.height as f64 * 0.7).max(120.0);
     let h = (height.max(54.0) * scale).round().min(most) as u32;
-    if h != size.height {
-        let _ = win.set_size(PhysicalSize::new(size.width, h));
+    if h == size.height {
+        return;
     }
+    let y = top_of(&place_setting(&app), area.position.y, area.size.height as i32, h as i32);
+    // Size and place together: no frame at the old place with the new size.
+    let _ = win.set_position(PhysicalPosition::new(pos.x, y));
+    let _ = win.set_size(PhysicalSize::new(size.width, h));
 }
 
 #[tauri::command]

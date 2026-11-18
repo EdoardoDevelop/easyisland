@@ -3742,6 +3742,15 @@ function appearanceSections(): HTMLElement[] {
             h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
           ),
           h("div", { class: "row" },
+            h("label", { text: t("Ricerca da sola") }),
+            choice([
+              ["alto", t("In alto")],
+              ["centro", t("Al centro")],
+              ["basso", t("In basso")],
+            ], settings.searchPlace ?? "centro", (v) => { settings.searchPlace = v; commit(); }),
+            h("span", { class: "hint note", text: t("dove si apre la ricerca della scorciatoia e del pulsante «Cerca» della barra, nella sua finestra") }),
+          ),
+          h("div", { class: "row" },
             h("label", { text: t("Linea della barra") }),
             select<SearchBarLine>([
               ["waves", t("Onde classiche (precedente)")],
