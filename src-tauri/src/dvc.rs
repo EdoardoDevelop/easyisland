@@ -33,7 +33,7 @@ use crate::rdm::{guid, run, PRELUDE, READ_TIMEOUT};
 pub const CLIP_SECONDS: u64 = 30;
 
 /// Connects with the identity from the environment, then forgets it.
-const CONNECT: &str = "$u = $env:EASYISLAND_DVC_URL; $k = $env:EASYISLAND_DVC_KEY; $s = $env:EASYISLAND_DVC_SECRET\n$env:EASYISLAND_DVC_KEY = $null; $env:EASYISLAND_DVC_SECRET = $null\nConnect-HubAccount -Url $u -ApplicationKey $k -ApplicationSecret $s | Out-Null\n$s = $null; $k = $null\n";
+pub(crate) const CONNECT: &str = "$u = $env:EASYISLAND_DVC_URL; $k = $env:EASYISLAND_DVC_KEY; $s = $env:EASYISLAND_DVC_SECRET\n$env:EASYISLAND_DVC_KEY = $null; $env:EASYISLAND_DVC_SECRET = $null\nConnect-HubAccount -Url $u -ApplicationKey $k -ApplicationSecret $s | Out-Null\n$s = $null; $k = $null\n";
 
 /// Every vault but the System Vault, and every entry of each (no secrets).
 const READ: &str = r#"$vaults = @(Get-HubVault | Where-Object { $_.Name -ne 'System Vault' })
@@ -170,6 +170,11 @@ ConvertTo-Json -InputObject ([pscustomobject]@{ id = $newId; rows = $rows }) -Co
 // ── Connection and the list ───────────────────────────────────────────────────
 
 /// Address, key and secret from the Credential Manager.
+/// The identity, for the ready process (dvc_live.rs).
+pub(crate) fn identity_pub() -> Result<(String, String, String), String> {
+    identity()
+}
+
 fn identity() -> Result<(String, String, String), String> {
     let url = crate::secrets::get("dvc-url").unwrap_or_default().trim().trim_end_matches('/').to_string();
     if !url.starts_with("https://") {
@@ -197,6 +202,26 @@ async fn hub(script: &str, env: &[(&str, &str)]) -> Result<String, String> {
     let mut all: Vec<(&str, &str)> = vec![("EASYISLAND_DVC_URL", &url), ("EASYISLAND_DVC_KEY", &key), ("EASYISLAND_DVC_SECRET", &secret)];
     all.extend_from_slice(env);
     run(&format!("{PRELUDE}{CONNECT}{script}"), &all, READ_TIMEOUT).await.map_err(|e| hub_problem(&e))
+}
+
+/// A read at a click (details, a password): in the ready process
+/// (dvc_live.rs), which is signed in already; if that fails, in a process of
+/// its own as before. `env`: ids only (checked by `known`), set as $env:… in
+/// front of the script.
+async fn read(script: &str, env: &[(&str, &str)]) -> Result<String, String> {
+    let quoted = |v: &str| format!("'{}'", v.replace('\'', "''"));
+    let head: String = env.iter().map(|(k, v)| format!("$env:{k} = {}\n", quoted(v))).collect();
+    let clear: String = env.iter().map(|(k, _)| format!("$env:{k} = $null\n")).collect();
+    let at = std::time::Instant::now();
+    match crate::dvc_live::run(&format!("{head}try {{\n{script}\n}} finally {{\n{clear}}}")).await {
+        Ok(out) => {
+            crate::log::line(format!("dvc: lettura dalla connessione pronta in {} ms", at.elapsed().as_millis()));
+            Ok(out)
+        }
+        // The script itself failed (no such entry, no permission): its error, as before.
+        Err(e) if e.starts_with("RDM: ") => Err(hub_problem(&e)),
+        Err(_) => hub(script, env).await,
+    }
 }
 
 /// RDM's wording of an error, for the cloud.
@@ -545,7 +570,7 @@ fn known(vault: &str, id: &str) -> Result<Item, String> {
 /// Name, user, domain, host, description, the password's length; a list's rows likewise.
 pub async fn details(vault: &str, id: &str) -> Result<Value, String> {
     known(vault, id)?;
-    let out = hub(&format!("{CREDS}{DETAILS}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id)]).await?;
+    let out = read(&format!("{CREDS}{DETAILS}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id)]).await?;
     serde_json::from_str(out.trim()).map_err(|_| t("Risposta di Devolutions Cloud non leggibile.").to_string())
 }
 
@@ -553,7 +578,7 @@ pub async fn details(vault: &str, id: &str) -> Result<Value, String> {
 async fn password_of(vault: &str, id: &str, row: Option<usize>) -> Result<(Item, String), String> {
     let item = known(vault, id)?;
     let row_s = row.map(|r| r.to_string()).unwrap_or_default();
-    let out = hub(&format!("{CREDS}{PASSWORD}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id), ("EASYISLAND_DVC_ROW", &row_s)]).await?;
+    let out = read(&format!("{CREDS}{PASSWORD}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id), ("EASYISLAND_DVC_ROW", &row_s)]).await?;
     let secret = serde_json::from_str::<Value>(out.trim())
         .ok()
         .and_then(|v| v.get("p")?.as_str().map(str::to_string))

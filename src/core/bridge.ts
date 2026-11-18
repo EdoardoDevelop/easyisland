@@ -615,6 +615,8 @@ export const Bridge = {
   rdmOpen: (entry: RdmEntry) => callOrThrow<void>("rdm_open", { entry }),
   /** An entry used without opening it (a cloud credential copied): first in rdmRecent. */
   rdmRecentAdd: (entry: RdmEntry) => call<void>("rdm_recent_add", { entry }),
+  /** The Devolutions Cloud card opened: sign in now, so details and passwords come at once (dvc_live.rs). */
+  dvcWarm: () => call<void>("dvc_warm"),
   rdmEdit: (id: string) => callOrThrow<void>("rdm_edit", { id }),
   rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
   rdmQuick: (kind: "RDP" | "SSH" | "VNC", host: string) => callOrThrow<void>("rdm_quick", { kind, host }),

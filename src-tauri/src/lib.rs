@@ -19,6 +19,7 @@ mod meaning_local;
 mod memory_answer;
 mod quick_answer;
 mod search_window;
+mod dvc_live;
 mod notices_window;
 mod votes;
 mod memory_tips;
@@ -1213,6 +1214,12 @@ fn rdm_recent_add(app: AppHandle, shared: State<'_, Shared>, entry: settings::Rd
     };
     let _ = settings::save(&snapshot);
     let _ = app.emit("settings-changed", &snapshot);
+}
+
+/// The Devolutions Cloud card opened: the ready connection signs in now (dvc_live.rs).
+#[tauri::command]
+async fn dvc_warm() {
+    dvc_live::warm().await;
 }
 
 /// "Modifica in RDM": its properties open in RDM.
@@ -5499,6 +5506,7 @@ pub fn run() {
             rdm_by_host,
             rdm_open,
             rdm_recent_add,
+            dvc_warm,
             rdm_edit,
             rdm_filter,
             rdm_quick,
