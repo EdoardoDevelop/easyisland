@@ -2905,6 +2905,24 @@ async fn zammad_set(id: i64, field: String, value: i64, pending: Option<String>)
     zammad::set(id, &field, value, pending).await
 }
 
+/// The Zammad card: «Salva» with the changed selects together.
+#[tauri::command]
+async fn zammad_save(id: i64, state_id: Option<i64>, owner_id: Option<i64>, priority_id: Option<i64>, pending: Option<String>) -> Result<zammad::TicketDetail, String> {
+    zammad::save(id, state_id, owner_id, priority_id, pending).await
+}
+
+/// The Zammad card: an image inside a message (a data: address, raster images only).
+#[tauri::command]
+async fn zammad_image(ticket: i64, article: i64, id: i64) -> Result<String, String> {
+    zammad::image(ticket, article, id).await
+}
+
+/// The Zammad card: «Scarica» on a file of a message (Downloads, shown in Explorer).
+#[tauri::command]
+async fn zammad_attachment_save(ticket: i64, article: i64, id: i64, name: String) -> Result<String, String> {
+    zammad::save_attachment(ticket, article, id, &name).await
+}
+
 /// The Zammad card: an internal note, or a reply by email after the second click.
 #[tauri::command]
 async fn zammad_reply(id: i64, text: String, email: bool) -> Result<zammad::TicketDetail, String> {
@@ -5371,6 +5389,9 @@ pub fn run() {
             zammad_ticket,
             zammad_set,
             zammad_reply,
+            zammad_save,
+            zammad_image,
+            zammad_attachment_save,
             talk_toggle,
             talk_cancel,
             talk_speak,

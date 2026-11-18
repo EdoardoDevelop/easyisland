@@ -631,12 +631,26 @@ pub async fn tickets(view: Option<String>) -> Result<TicketList, String> {
     Ok(TicketList { tickets: rows(&data, &z.base, &m.states, &m.priorities), overviews, view, me: m.me })
 }
 
+/// A file of a message. `inline`: an image shown inside the text (a
+/// `[[img:ID]]` line of `text`), not listed again under it.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Attachment {
+    pub id: i64,
+    pub name: String,
+    pub size: i64,
+    pub mime: String,
+    pub inline: bool,
+}
+
 /// A message of the ticket.
 #[derive(Debug, serde::Serialize)]
 pub struct Article {
     pub id: i64,
     pub from: String,
     pub to: String,
+    pub cc: String,
+    /// Every file, images in the text included (`inline`).
+    pub attachments: Vec<Attachment>,
     /// Customer, Agent or System.
     pub sender: String,
     /// email, note, phone, web…
@@ -655,7 +669,11 @@ pub struct TicketDetail {
     pub title: String,
     pub url: String,
     pub customer: String,
+    pub customer_email: String,
+    pub customer_phone: String,
     pub org: String,
+    /// Zammad's tags of the ticket.
+    pub tags: Vec<String>,
     pub group: String,
     pub state_id: i64,
     pub priority_id: i64,
@@ -681,14 +699,20 @@ fn articles(list: &Value) -> Vec<Article> {
         .filter_map(|a| {
             let s = |k: &str| a.get(k).and_then(Value::as_str).unwrap_or_default().trim().to_string();
             let body = s("body");
-            let text = if s("content_type").contains("html") { crate::brain::html_text(&body) } else { body };
-            let files = a.get("attachments").and_then(Value::as_array).into_iter().flatten()
-                .filter_map(|f| f.get("filename")?.as_str().map(str::to_string))
-                .collect();
+            let raw_files: Vec<Value> = a.get("attachments").and_then(Value::as_array).cloned().unwrap_or_default();
+            let mut attachments: Vec<Attachment> = raw_files.iter().filter_map(attachment_of).collect();
+            let text = if s("content_type").contains("html") {
+                crate::brain::html_text(&images_as_marks(&body, &raw_files, &mut attachments))
+            } else {
+                body
+            };
+            let files = attachments.iter().filter(|f| !f.inline).map(|f| f.name.clone()).collect();
             Some(Article {
                 id: a.get("id")?.as_i64()?,
                 from: s("from"),
                 to: s("to"),
+                cc: s("cc"),
+                attachments,
                 sender: s("sender"),
                 kind: s("type"),
                 internal: a.get("internal").and_then(Value::as_bool) == Some(true),
@@ -701,6 +725,127 @@ fn articles(list: &Value) -> Vec<Article> {
         .collect();
     out.sort_by_key(|a| a.id);
     out
+}
+
+/// One file of an article as Zammad lists it.
+fn attachment_of(f: &Value) -> Option<Attachment> {
+    let pref = |k: &str| f.pointer(&format!("/preferences/{k}")).and_then(Value::as_str).unwrap_or_default().to_string();
+    let mime = [pref("Content-Type"), pref("Mime-Type")].into_iter().find(|m| !m.is_empty()).unwrap_or_default();
+    Some(Attachment {
+        id: f.get("id")?.as_i64()?,
+        name: f.get("filename").and_then(Value::as_str).unwrap_or("file").to_string(),
+        size: f.get("size").and_then(|s| s.as_i64().or_else(|| s.as_str()?.parse().ok())).unwrap_or(0),
+        mime: mime.split(';').next().unwrap_or_default().trim().to_lowercase(),
+        inline: false,
+    })
+}
+
+/// The `src` of an `<img …>` tag (lower-cased tag in `low`, original in `tag`).
+fn img_src(tag: &str) -> String {
+    let low = tag.to_lowercase();
+    let Some(at) = low.find("src=") else { return String::new() };
+    let rest = tag.get(at + 4..).unwrap_or_default();
+    let (quote, rest) = match rest.chars().next() {
+        Some(q @ ('"' | '\'')) => (Some(q), rest.get(1..).unwrap_or_default()),
+        _ => (None, rest),
+    };
+    let end = match quote {
+        Some(q) => rest.find(q),
+        None => rest.find(|c: char| c.is_whitespace() || c == '>'),
+    }
+    .unwrap_or(rest.len());
+    rest.get(..end).unwrap_or_default().trim().replace("&amp;", "&")
+}
+
+/// The article's HTML with each image replaced by a line `[[img:ID]]` (its
+/// attachment, marked inline) or «[immagine]» when it is not one of its files
+/// (a remote image is never loaded: it would tell the sender the mail was read).
+fn images_as_marks(html: &str, raw_files: &[Value], files: &mut [Attachment]) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    loop {
+        let low = rest.to_lowercase();
+        let Some(start) = low.find("<img") else { break };
+        let end = low.get(start..).and_then(|s| s.find('>')).map(|e| start + e + 1).unwrap_or(rest.len());
+        out.push_str(rest.get(..start).unwrap_or_default());
+        let src = img_src(rest.get(start..end).unwrap_or_default());
+        let id = if let Some(cid) = src.strip_prefix("cid:") {
+            raw_files.iter().find_map(|f| {
+                let c = f.pointer("/preferences/Content-ID").and_then(Value::as_str)?.trim().trim_matches(['<', '>']);
+                (c == cid.trim()).then(|| f.get("id")?.as_i64()).flatten()
+            })
+        } else if src.contains("/ticket_attachment/") {
+            src.split('?').next().unwrap_or_default().rsplit('/').next().and_then(|s| s.parse::<i64>().ok())
+        } else {
+            None
+        };
+        match id.and_then(|id| files.iter_mut().find(|f| f.id == id)) {
+            Some(f) => {
+                f.inline = true;
+                out.push_str(&format!("<br>[[img:{}]]<br>", f.id));
+            }
+            None => out.push_str(&format!("<br>{}<br>", t("[immagine]"))),
+        }
+        rest = rest.get(end..).unwrap_or_default();
+    }
+    out.push_str(rest);
+    out
+}
+
+/// A file of an article, read with the token: (mime, bytes). At most MAX_FILE.
+async fn attachment_bytes(ticket: i64, article: i64, id: i64) -> Result<(String, Vec<u8>), String> {
+    const MAX_FILE: usize = 25 * 1024 * 1024;
+    let z = Conn::open()?;
+    let resp = z
+        .c
+        .get(format!("{}/api/v1/ticket_attachment/{ticket}/{article}/{id}", z.base))
+        .header("Authorization", format!("Token token={}", z.token))
+        .send()
+        .await
+        .map_err(|e| tf("Zammad non raggiungibile: {e}", &[("e", &e)]))?;
+    let status = resp.status().as_u16();
+    if !(200..300).contains(&status) {
+        return Err(tf("Zammad ha risposto {s}", &[("s", &status.to_string())]));
+    }
+    let mime = resp.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or_default()
+        .split(';').next().unwrap_or_default().trim().to_lowercase();
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+    if bytes.len() > MAX_FILE {
+        return Err(t("File troppo grande: aprilo in Zammad").into());
+    }
+    Ok((mime, bytes.to_vec()))
+}
+
+/// An image of a message, to show it in the card: a data: address.
+pub async fn image(ticket: i64, article: i64, id: i64) -> Result<String, String> {
+    let (mime, bytes) = attachment_bytes(ticket, article, id).await?;
+    // Only raster images: an SVG can carry scripts.
+    if !["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp", "image/bmp"].contains(&mime.as_str()) {
+        return Err(t("Non è un'immagine").into());
+    }
+    Ok(format!("data:{mime};base64,{}", crate::claude::base64_for(&bytes)))
+}
+
+/// «Scarica» on a file: a copy in Downloads, shown selected in Explorer (never run).
+pub async fn save_attachment(ticket: i64, article: i64, id: i64, name: &str) -> Result<String, String> {
+    let (_, bytes) = attachment_bytes(ticket, article, id).await?;
+    let dir = crate::downloads::downloads_dir().ok_or_else(|| t("Cartella Download non trovata.").to_string())?;
+    let path = std::path::Path::new(name);
+    let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
+    // safe_name gives the name without its extension.
+    let ext: String = ext.chars().filter(|c| c.is_ascii_alphanumeric()).take(10).collect();
+    let stem = crate::custom::safe_name(name, &ext);
+    let stem = if stem.trim().is_empty() { format!("allegato-{id}") } else { stem };
+    let dot = if ext.is_empty() { String::new() } else { format!(".{ext}") };
+    let first = dir.join(format!("{stem}{dot}"));
+    let to = if first.exists() {
+        (2..1000).map(|n| dir.join(format!("{stem} ({n}){dot}"))).find(|p| !p.exists()).unwrap_or(first)
+    } else {
+        first
+    };
+    std::fs::write(&to, &bytes).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e.to_string())]))?;
+    let _ = crate::reveal_in_explorer(&to);
+    Ok(to.to_string_lossy().into_owned())
 }
 
 /// The address of a reply by email: the customer's last message (reply-to, else from).
@@ -804,13 +949,23 @@ pub async fn ticket(id: i64) -> Result<TicketDetail, String> {
         .and_then(|o| all.pointer(&format!("/assets/Organization/{o}/name"))?.as_str().map(str::to_string))
         .unwrap_or_default();
     let group_name = all.pointer(&format!("/assets/Group/{group}/name")).and_then(Value::as_str).unwrap_or_default().to_string();
+    let user_field = |k: &str| customer_id
+        .and_then(|c| all.pointer(&format!("/assets/User/{c}/{k}"))?.as_str().map(|x| x.trim().to_string()))
+        .unwrap_or_default();
+    let phone = [user_field("phone"), user_field("mobile")].into_iter().find(|p| !p.is_empty()).unwrap_or_default();
+    let tags: Vec<String> = z.get(&format!("/api/v1/tags?object=Ticket&o_id={id}")).await.ok()
+        .and_then(|v| v.get("tags").and_then(Value::as_array).cloned())
+        .unwrap_or_default().iter().filter_map(|x| x.as_str().map(str::to_string)).collect();
     Ok(TicketDetail {
         id,
         number: s("number"),
         title: if s("title").is_empty() { t("(senza titolo)").to_string() } else { s("title") },
         url: format!("{}/#ticket/zoom/{id}", z.base),
         customer: person(&all, customer_id),
+        customer_email: user_field("email"),
+        customer_phone: phone,
         org,
+        tags,
         group: group_name,
         state_id: n("state_id"),
         priority_id: n("priority_id"),
@@ -838,6 +993,26 @@ pub async fn set(id: i64, field: &str, value: i64, pending: Option<String>) -> R
         body["pending_time"] = Value::String(p);
     }
     z.send(reqwest::Method::PUT, &format!("/api/v1/tickets/{id}"), &body).await?;
+    ticket(id).await
+}
+
+/// «Salva» of the card: the changed selects in one go (Zammad checks them together,
+/// e.g. a pending state with its date). Only state, owner and priority.
+pub async fn save(id: i64, state_id: Option<i64>, owner_id: Option<i64>, priority_id: Option<i64>, pending: Option<String>) -> Result<TicketDetail, String> {
+    let mut body = serde_json::Map::new();
+    for (k, v) in [("state_id", state_id), ("owner_id", owner_id), ("priority_id", priority_id)] {
+        if let Some(v) = v.filter(|v| *v > 0) {
+            body.insert(k.into(), v.into());
+        }
+    }
+    if let Some(p) = pending.filter(|p| !p.trim().is_empty()) {
+        body.insert("pending_time".into(), Value::String(p));
+    }
+    if body.is_empty() {
+        return ticket(id).await;
+    }
+    let z = Conn::open()?;
+    z.send(reqwest::Method::PUT, &format!("/api/v1/tickets/{id}"), &Value::Object(body)).await?;
     ticket(id).await
 }
 
@@ -1035,7 +1210,7 @@ mod tests {
     fn conversation_owners_and_states() {
         let raw = json!([
             {"id": 30, "from": "Agente", "sender": "Agent", "type": "note", "internal": true, "body": "provo io", "content_type": "text/plain"},
-            {"id": 21, "from": "Anna <anna@rossi.it>", "reply_to": "help@rossi.it", "sender": "Customer", "type": "email", "body": "<p>Non stampa</p><p>grazie</p>", "content_type": "text/html", "attachments": [{"filename": "foto.jpg"}]}
+            {"id": 21, "from": "Anna <anna@rossi.it>", "reply_to": "help@rossi.it", "sender": "Customer", "type": "email", "body": "<p>Non stampa</p><p>grazie</p>", "content_type": "text/html", "attachments": [{"id": 5, "filename": "foto.jpg"}]}
         ]);
         let list = articles(&raw);
         assert_eq!(list.iter().map(|a| a.id).collect::<Vec<_>>(), vec![21, 30]);
@@ -1058,6 +1233,25 @@ mod tests {
         ];
         assert_eq!(states_allowed(&all, &st, 1).iter().map(|o| o.id).collect::<Vec<_>>(), vec![1, 2, 4]);
         assert_eq!(states_allowed(&json!({}), &st, 2).iter().map(|o| o.id).collect::<Vec<_>>(), vec![1, 2, 4]);
+    }
+
+    #[test]
+    fn images_become_lines_of_their_files() {
+        let files = vec![
+            json!({"id": 7, "filename": "screen.png", "size": "1200", "preferences": {"Content-Type": "image/png", "Content-ID": "<img1@x>"}}),
+            json!({"id": 8, "filename": "log.txt", "size": 10, "preferences": {"Mime-Type": "text/plain"}}),
+            json!({"id": 9, "filename": "foto.jpg", "size": 5, "preferences": {"Content-Type": "image/jpeg"}}),
+        ];
+        let mut atts: Vec<super::Attachment> = files.iter().filter_map(super::attachment_of).collect();
+        let html = r#"<p>Ecco</p><IMG SRC="cid:img1@x" alt=x><img src='/api/v1/ticket_attachment/1/2/9?view=inline'><img src="https://tracker.example/p.gif">fine"#;
+        let text = crate::brain::html_text(&super::images_as_marks(html, &files, &mut atts));
+        assert_eq!(text, "Ecco
+[[img:7]]
+[[img:9]]
+[immagine]
+fine");
+        assert!(atts[0].inline && !atts[1].inline && atts[2].inline);
+        assert_eq!((atts[0].size, atts[0].mime.as_str(), atts[1].mime.as_str()), (1200, "image/png", "text/plain"));
     }
 
     #[test]

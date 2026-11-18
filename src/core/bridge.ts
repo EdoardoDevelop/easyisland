@@ -797,6 +797,14 @@ export const Bridge = {
   /** A select of the ticket: state (with the reminder when pending), owner, priority. */
   zammadSet: (id: number, field: "state_id" | "owner_id" | "priority_id", value: number, pending: string | null) =>
     callOrThrow<ZammadTicket>("zammad_set", { id, field, value, pending }),
+  /** «Salva» of the card: the changed selects together (null = unchanged). */
+  zammadSave: (id: number, changes: { state_id?: number | null; owner_id?: number | null; priority_id?: number | null; pending?: string | null }) =>
+    callOrThrow<ZammadTicket>("zammad_save", { id, stateId: changes.state_id ?? null, ownerId: changes.owner_id ?? null, priorityId: changes.priority_id ?? null, pending: changes.pending ?? null }),
+  /** An image of a message as a data: address (raster images only). */
+  zammadImage: (ticket: number, article: number, id: number) => callOrThrow<string>("zammad_image", { ticket, article, id }),
+  /** «Scarica» on a file: copied into Downloads and shown in Explorer; returns where. */
+  zammadAttachmentSave: (ticket: number, article: number, id: number, name: string) =>
+    callOrThrow<string>("zammad_attachment_save", { ticket, article, id, name }),
   /** An internal note, or (`email`) a reply Zammad sends to the customer. */
   zammadReply: (id: number, text: string, email: boolean) => callOrThrow<ZammadTicket>("zammad_reply", { id, text, email }),
   /** «Parla» (talk.rs): starts listening or ends the question; true = listening now. */
@@ -1128,8 +1136,22 @@ export interface ZammadArticle {
   internal: boolean;
   at: string;
   subject: string;
+  /** Plain text; an image inside it is a line of its own `[[img:ID]]` (an attachment with `inline`). */
   text: string;
+  cc: string;
+  /** Every file; `inline` ones are the images of the text. Show one with zammadImage, save with zammadAttachmentSave. */
+  attachments: ZammadAttachment[];
+  /** Names of the files that are not inline images (older field). */
   files: string[];
+}
+
+/** A file of a Zammad message (zammad.rs Attachment). */
+export interface ZammadAttachment {
+  id: number;
+  name: string;
+  size: number;
+  mime: string;
+  inline: boolean;
 }
 
 /** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
@@ -1162,7 +1184,9 @@ export interface TicketAdvice {
 
 export interface ZammadTicket {
   id: number; number: string; title: string; url: string;
-  customer: string; org: string; group: string;
+  customer: string; customer_email: string; customer_phone: string; org: string; group: string;
+  /** Zammad's tags of the ticket. */
+  tags: string[];
   state_id: number; priority_id: number; owner_id: number;
   created: string; updated: string; pending: string;
   states: ZammadOpt[]; priorities: ZammadOpt[]; owners: ZammadOpt[];
