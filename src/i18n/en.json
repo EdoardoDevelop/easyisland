@@ -5847,5 +5847,7 @@
   "gruppo · {n} cosa · clic per vederlo": "group · {n} thing · click to see it",
   "{n} altro gruppo": "{n} other group",
   "altri {n} gruppi": "{n} other groups",
-  "{n} gruppo": "{n} group"
+  "{n} gruppo": "{n} group",
+  "Cerca (la ricerca da sola)": "Search (the search on its own)",
+  "Cerca: apre la ricerca nella sua finestra, l'isola resta com'è": "Search: opens the search in its own window, the island stays as it is"
 }

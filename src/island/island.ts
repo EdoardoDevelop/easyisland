@@ -3562,6 +3562,11 @@ ${note}` : text };
     const it = barItemOf(key);
     if (!it) return;
     const kind = barKind(it.id);
+    // «Cerca» in the bar: the search in its own window, opened or closed (Edoardo, 18 Nov 2026).
+    if (it.id === "sys:search" && button === "left") {
+      void this.onHotkey("search");
+      return;
+    }
     if (button === "up" || button === "down") {
       if (kind && barWheels(it)) this.barWheel(it.id.slice(4), button === "up" ? 1 : -1);
       return;
