@@ -1195,6 +1195,14 @@ fn rdm_by_host(host: String) -> Vec<rdm::Entry> {
 #[tauri::command]
 fn rdm_open(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) -> Result<(), String> {
     rdm::open(&entry.id)?;
+    rdm_recent_add(app, shared, entry);
+    Ok(())
+}
+
+/// An entry used from the card without opening it (a credential of
+/// Devolutions Cloud whose user or password was copied): first in the recent ones.
+#[tauri::command]
+fn rdm_recent_add(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) {
     let snapshot = {
         let mut s = shared.settings.lock().unwrap();
         let recent = &mut s.integration_config.rdm_recent;
@@ -1205,7 +1213,6 @@ fn rdm_open(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) 
     };
     let _ = settings::save(&snapshot);
     let _ = app.emit("settings-changed", &snapshot);
-    Ok(())
 }
 
 /// "Modifica in RDM": its properties open in RDM.
@@ -5491,6 +5498,7 @@ pub fn run() {
             rdm_search,
             rdm_by_host,
             rdm_open,
+            rdm_recent_add,
             rdm_edit,
             rdm_filter,
             rdm_quick,

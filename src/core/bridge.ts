@@ -613,6 +613,8 @@ export const Bridge = {
   dvcNewPasswordList: (a: { vault: string; folder: string; name: string; source: string; recurse: boolean; confirm: boolean }) =>
     callOrThrow<DvcOutcome>("dvc_new_password_list", a),
   rdmOpen: (entry: RdmEntry) => callOrThrow<void>("rdm_open", { entry }),
+  /** An entry used without opening it (a cloud credential copied): first in rdmRecent. */
+  rdmRecentAdd: (entry: RdmEntry) => call<void>("rdm_recent_add", { entry }),
   rdmEdit: (id: string) => callOrThrow<void>("rdm_edit", { id }),
   rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
   rdmQuick: (kind: "RDP" | "SSH" | "VNC", host: string) => callOrThrow<void>("rdm_quick", { kind, host }),
@@ -1277,6 +1279,10 @@ export interface RdmEntry {
   host: string;
   /** RDM's connection type ("RDPConfigured", "SSHShell"…). */
   kind: string;
+  /** A Devolutions Cloud entry: its vault (absent = RDM's own list). */
+  vault?: string;
+  user?: string;
+  cred?: string;
 }
 
 /** Impostazioni → Remote Desktop Manager: what is installed (rdm.rs Status). */

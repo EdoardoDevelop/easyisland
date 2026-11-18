@@ -45,7 +45,9 @@ $list = @(foreach ($v in $vaults) {
     $path = [string]$c.Group
     $folder = if ($kind -eq 'Group') { ($path -split '\\' | Select-Object -SkipLast 1) -join '\' } else { $path }
     $h = if ($c.Host) { [string]$c.Host } elseif ($c.Url) { [string]$c.Url } else { '' }
-    [pscustomobject]@{ id = [string]$c.ID; name = [string]$c.Name; kind = $kind; folder = $folder; path = $path; host = $h; user = [string]$c.Credentials.UserName; cred = [string]$c.Credentials.CredentialType; vault = $vid }
+    $u = [string]$c.Credentials.UserName
+    if (-not $u) { foreach ($x in @($c.RDP.UserName, $c.Terminal.Username, $c.Web.UserName, $c.HostUserName)) { if ($x) { $u = [string]$x; break } } }
+    [pscustomobject]@{ id = [string]$c.ID; name = [string]$c.Name; kind = $kind; folder = $folder; path = $path; host = $h; user = $u; cred = [string]$c.Credentials.CredentialType; vault = $vid }
   }
 })
 ConvertTo-Json -InputObject ([pscustomobject]@{ vaults = @($vaults | ForEach-Object { [pscustomobject]@{ id = [string]$_.Id; name = [string]$_.Name } }); entries = $list }) -Compress -Depth 4"#;
@@ -379,7 +381,7 @@ pub fn search(query: &str, limit: usize) -> Vec<Item> {
         })
         .collect();
     found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase())));
-    found.into_iter().take(limit.clamp(1, 50)).map(|(_, e)| e.clone()).collect()
+    found.into_iter().take(limit.clamp(1, 100)).map(|(_, e)| e.clone()).collect()
 }
 
 /// For the card and the settings: on, how many entries, vaults, when, the error.

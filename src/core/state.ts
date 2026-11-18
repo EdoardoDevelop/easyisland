@@ -1092,6 +1092,11 @@ export interface RdmRef {
   group: string;
   host: string;
   kind: string;
+  /** A Devolutions Cloud entry: its vault (absent = RDM's own list). */
+  vault?: string;
+  user?: string;
+  /** Its credential kind (Default, PasswordList…), for a cloud entry. */
+  cred?: string;
 }
 
 /** A view of the Notion tasks (settings.rs NotionView, notion.rs view_filter). */

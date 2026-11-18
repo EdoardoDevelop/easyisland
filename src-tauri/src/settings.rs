@@ -236,6 +236,14 @@ pub struct RdmRef {
     pub host: String,
     #[serde(default)]
     pub kind: String,
+    /// A Devolutions Cloud entry: its vault (empty = RDM's own list; 18 Nov 2026).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub vault: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub user: String,
+    /// Its credential kind (Default, PasswordList…), for a cloud entry.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub cred: String,
 }
 
 /// A folder of a Devolutions Cloud vault (dvc.rs), tied to a customer.
