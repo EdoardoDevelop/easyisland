@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 — Chat: allegati senza testo, lingua, tempo dei lavori in background, rifiuti dell'Automatica, costo nel log
+- Solo allegati: partono con «Guarda l'allegato.». Ogni messaggio a Claude Code ricorda la lingua (dopo una skill in inglese rispondeva in inglese).
+- «In background»: «da N min» e, dopo 10 min, «A che punto è?». Rifiuti del classificatore in «Automatica» spiegati in italiano (`auto_denied`).
+- Log di Claude Code: costo e secondi del modello del turno, non i totali del processo, una riga per risultato. Dalla giornata del portatile; ricerca/procedure e Modello sul PC li fa l'altra sessione.
+
 ### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
 - I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
 - L'Anteprima si apre da sola sui file della chat solo con `previewEdits` (spenta di serie), mai dopo una chiusura a mano.

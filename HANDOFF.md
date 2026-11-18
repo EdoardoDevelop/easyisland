@@ -62,6 +62,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 18/11 — Panoramica: ricerca e linee vere
+La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.
+
 ### 17/11 sera — Panoramica della Mappa della memoria
 La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
 - Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.
@@ -81,9 +84,4 @@ Cinque tipi nuovi nella lista fissa: `slider`, `switch`, `segmented`, `progress`
 ### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
 - La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
 - Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
-
-### 17/11 — Chat: allegati senza testo, lingua, tempo dei lavori in background, rifiuti dell'Automatica, costo nel log
-- Solo allegati: partono con «Guarda l'allegato.». Ogni messaggio a Claude Code ricorda la lingua (dopo una skill in inglese rispondeva in inglese).
-- «In background»: «da N min» e, dopo 10 min, «A che punto è?». Rifiuti del classificatore in «Automatica» spiegati in italiano (`auto_denied`).
-- Log di Claude Code: costo e secondi del modello del turno, non i totali del processo, una riga per risultato. Dalla giornata del portatile; ricerca/procedure e Modello sul PC li fa l'altra sessione.
 

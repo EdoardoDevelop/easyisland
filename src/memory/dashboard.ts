@@ -99,13 +99,18 @@ export class Dashboard {
   private term = h("div", { class: "dash-term-lines", role: "log", "aria-live": "polite" });
   private periods = h("div", { class: "dash-periods" });
   private tip = h("div", { class: "dash-tip" });
+  /** What the field at the top found (null: no search), and its words. */
+  private found: Set<string> | null = null;
+  private query = "";
+  private searchNote = h("div", { class: "dash-search-note", hidden: "" });
 
   constructor(private host: DashHost) {
     const head = h("div", { class: "dash-box dash-top" },
       h("div", { class: "dash-title" },
         h("span", { class: "dash-kicker", text: t("memoria") }),
         h("b", { text: t("Panoramica") }),
-        this.status),
+        this.status,
+        this.searchNote),
       this.numbers);
     const feedBox = h("div", { class: "dash-box dash-feed" },
       h("div", { class: "dash-label" }, h("span", { text: t("ultimi arrivi") }), h("span", { class: "dash-live-dot", text: t("dal vivo") })),
@@ -116,7 +121,16 @@ export class Dashboard {
       group: (lead) => host.openGroup(lead),
       tip: (text, sub, x, y) => this.showTip(text, sub, x, y),
       feedRows: () => this.feedRows(stage),
+      hoverNode: (id) => this.lightRow(id),
     });
+    // The lines follow the rows when the column scrolls.
+    this.feed.addEventListener("scroll", () => this.core.wake(), { passive: true });
+    // A row under the mouse lights its line and its particle.
+    this.feed.addEventListener("pointerover", (e) => {
+      const row = (e.target as HTMLElement).closest<HTMLElement>(".dash-feed-row");
+      this.core.setHoverRow(row?.dataset.node || null);
+    });
+    this.feed.addEventListener("pointerleave", () => this.core.setHoverRow(null));
     const floats = h("div", { class: "dash-floats" }, this.filtersBox, this.weekBox);
     stage.append(this.tip, floats);
     const coreBox = h("div", { class: "dash-box dash-core" }, stage, this.coreNumber);
@@ -152,14 +166,57 @@ export class Dashboard {
   update(s: DashState) {
     const first = !this.state;
     this.state = s;
-    this.core.setData(s.model, s.colours);
+    this.core.setData(s.model, s.colours, new Set(this.feedEvents(s).map((e) => this.nodeOf(s, e)).filter(Boolean)));
     this.renderTop(s);
     this.renderFeed(s);
     this.renderCore(s);
     this.renderStages(s);
     this.renderTokens(s);
     this.renderPeriods(s);
+    this.applySearch();
     if (first) this.greet(s);
+  }
+
+  /**
+   * The field at the top (main.ts applySearch): the nucleus lights what it
+   * found and dims the rest, the feed and the chips keep only what matches,
+   * the count under the title. Null: everything as before.
+   */
+  setSearch(ids: Set<string> | null, query: string) {
+    this.found = ids;
+    this.query = query.trim();
+    this.applySearch();
+  }
+
+  private applySearch() {
+    const ids = this.found;
+    const words = this.query.toLowerCase().split(/\s+/).filter(Boolean);
+    this.core.setMatch(ids);
+    const hit = (el: HTMLElement) => {
+      if (!ids) return true;
+      const id = el.dataset.node;
+      if (id && ids.has(id)) return true;
+      const text = (el.title || el.textContent || "").toLowerCase();
+      return words.length > 0 && words.every((w) => text.includes(w));
+    };
+    for (const el of this.feed.querySelectorAll<HTMLElement>(".dash-feed-row")) el.hidden = !hit(el);
+    for (const el of this.tokens.querySelectorAll<HTMLElement>(".dash-token")) el.hidden = !hit(el);
+    this.el.classList.toggle("searching", !!ids);
+    this.searchNote.hidden = !ids;
+    if (ids) {
+      this.searchNote.textContent = ids.size
+        ? `${tn("«{q}»: {n} risultato", "«{q}»: {n} risultati", ids.size, { q: this.query })} · ${t("Invio apre il primo nel grafo")}`
+        : t("«{q}»: niente nella memoria", { q: this.query });
+      this.searchNote.classList.toggle("none", !ids.size);
+    }
+    this.core.wake();
+  }
+
+  /** A particle under the mouse: its row in the feed lights up (and comes into view when it is near). */
+  private lightRow(id: string | null) {
+    for (const el of this.feed.querySelectorAll<HTMLElement>(".dash-feed-row.lit")) el.classList.remove("lit");
+    if (!id) return;
+    for (const el of this.feed.querySelectorAll<HTMLElement>(".dash-feed-row")) if (el.dataset.node === id) el.classList.add("lit");
   }
 
   // ── Top ──────────────────────────────────────────────────────────────────
@@ -194,15 +251,16 @@ export class Dashboard {
   private renderFeed(s: DashState) {
     clear(this.feed);
     this.feed.append(...this.live);
-    const events = [...s.model.g.events].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
+    const events = this.feedEvents(s);
     for (const e of events) {
       const kind = LANE_KIND[e.lane] ?? "note";
       const { title, engine } = e.lane === "diary" ? diaryLine(e.text) : { title: e.text, engine: "" };
-      const row = h("button", { class: "dash-feed-row", title: e.text, disabled: !e.node || !s.model.byId.has(e.node) },
+      const node = this.nodeOf(s, e);
+      const row = h("button", { class: "dash-feed-row", title: e.text, disabled: !node, "data-node": node },
         h("span", { class: "dash-feed-date", text: shortDate(e.date) }),
         h("span", { class: "dash-tag", style: `--tag:${KIND_COLOR[kind]}`, text: TAG[kind] ?? kindName(kind) }),
         h("span", { class: "dash-feed-text" }, h("span", { text: title }), engine ? h("small", { text: engine }) : ""));
-      row.addEventListener("click", () => this.host.open(e.node));
+      row.addEventListener("click", () => this.host.open(node));
       this.feed.append(row);
     }
     // A memory just begun: what will come here, under the few rows there are.
@@ -212,18 +270,38 @@ export class Dashboard {
     this.core.wake();
   }
 
-  /** The top of the feed rows, in the nucleus' coordinates: its lines start there. */
-  private feedRows(stage: HTMLElement): number[] {
+  /** The newest events, as the feed shows them. */
+  private feedEvents(s: DashState) {
+    return [...s.model.g.events].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
+  }
+
+  /**
+   * The node an event is about: its own, or for a line of the chat diary the
+   * day of chat (brain.rs `d:<giorno>`, only the days that name a page), in
+   * «Tutte» with the other PC's tag. "" when there is none in this view.
+   */
+  private nodeOf(s: DashState, e: { node: string; lane: string; date: string }): string {
+    if (e.node) return s.model.byId.has(e.node) ? e.node : "";
+    if (e.lane !== "diary") return "";
+    const day = `d:${e.date.slice(0, 10)}`;
+    return s.model.byId.has(day) ? day : "";
+  }
+
+  /** The feed's rows in sight, in the nucleus' coordinates, with their node: the lines start there. */
+  private feedRows(stage: HTMLElement): { y: number; id: string }[] {
     const at = stage.getBoundingClientRect();
     const box = this.feed.getBoundingClientRect();
-    const ys: number[] = [];
-    for (const r of this.feed.children) {
-      const b = (r as HTMLElement).getBoundingClientRect();
-      if (b.bottom < box.top || b.top > box.bottom) continue;
-      ys.push(b.top + b.height / 2 - at.top);
-      if (ys.length >= 16) break;
+    const rows: { y: number; id: string }[] = [];
+    for (const r of this.feed.querySelectorAll<HTMLElement>(".dash-feed-row")) {
+      if (r.hidden) continue;
+      const b = r.getBoundingClientRect();
+      // Only the rows fully in sight of the column, and beside the nucleus.
+      if (b.top < box.top - 1 || b.bottom > box.bottom + 1) continue;
+      const y = b.top + b.height / 2 - at.top;
+      if (y < 0 || y > at.height) continue;
+      rows.push({ y, id: r.dataset.node ?? "" });
     }
-    return ys;
+    return rows;
   }
 
   /** The memory read or written elsewhere (memory-activity): on top of the feed, in the log, and a pulse in the nucleus. */
@@ -373,7 +451,7 @@ export class Dashboard {
       .slice(0, 28);
     for (const { n, links } of pages) {
       const color = s.colours === "group" ? s.model.groupColor(n.id) ?? KIND_COLOR[n.kind] : KIND_COLOR[n.kind];
-      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, style: `--tone:${color}`, title: n.kind === "missing" ? t("Citata ma non ancora scritta") : tn("{n} collegamento", "{n} collegamenti", links) },
+      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, "data-node": n.id, style: `--tone:${color}`, title: n.kind === "missing" ? t("Citata ma non ancora scritta") : tn("{n} collegamento", "{n} collegamenti", links) },
         h("span", { text: n.label }), h("small", { text: String(links) }), h("em", { text: n.kind === "missing" ? "!" : "✓" })) as HTMLButtonElement;
       b.addEventListener("click", () => this.host.open(n.id));
       this.tokens.append(b);
@@ -467,8 +545,10 @@ interface NucleusHost {
   pick(id: string): void;
   group(lead: string): void;
   tip(text: string | null, sub?: string, x?: number, y?: number): void;
-  /** Where the feed's rows are, for the lines that come from them. */
-  feedRows(): number[];
+  /** Where the feed's rows are, with their node, for the lines that come from them. */
+  feedRows(): { y: number; id: string }[];
+  /** The particle under the mouse (null: none): its row lights up. */
+  hoverNode(id: string | null): void;
 }
 
 interface Particle {
@@ -510,6 +590,12 @@ class Nucleus {
   private last = 0;
   private geo = { cx: 0, cy: 0, R: 0, okX: 0, okY: 0, showOk: true };
   private hover: string | null = null;
+  /** The feed's row under the mouse: its node. */
+  private hoverRow: string | null = null;
+  /** What the search found: the rest is dimmed. */
+  private match: Set<string> | null = null;
+  /** Where each particle was drawn last (screen px), for the lines. */
+  private at = new Map<string, { x: number; y: number }>();
 
   constructor(private parent: HTMLElement, private host: NucleusHost) {
     parent.append(this.canvas);
@@ -526,12 +612,17 @@ class Nucleus {
         this.host.tip(hit.name ?? "", tn("gruppo · {n} cosa · clic per vederlo", "gruppo · {n} cose · clic per vederlo", hit.size ?? 0), p.x, p.y);
       } else this.host.tip(null);
       const id = hit?.id ?? null;
-      if (id !== this.hover) this.hover = id;
+      if (id !== this.hover) {
+        this.hover = id;
+        this.host.hoverNode(id);
+      }
       this.wake();
     });
     this.canvas.addEventListener("pointerleave", () => {
       this.hover = null;
+      this.host.hoverNode(null);
       this.host.tip(null);
+      this.wake();
     });
     this.canvas.addEventListener("click", (e) => {
       const p = this.point(e);
@@ -565,12 +656,24 @@ class Nucleus {
     }
   }
 
-  setData(model: Model, colours: Colouring) {
+  setHoverRow(id: string | null) {
+    if (id === this.hoverRow) return;
+    this.hoverRow = id;
+    this.wake();
+  }
+
+  setMatch(ids: Set<string> | null) {
+    this.match = ids;
+    this.wake();
+  }
+
+  /** `prefer`: the feed's nodes, always among the particles so their lines have an end. */
+  setData(model: Model, colours: Colouring, prefer = new Set<string>()) {
     this.model = model;
-    const nodes = model.g.nodes.filter((n) => n.kind !== "day");
-    const keep = nodes.length > MAX_PARTICLES
-      ? [...nodes].sort((a, b) => b.weight + freshness(b.date) * 3 - (a.weight + freshness(a.date) * 3)).slice(0, MAX_PARTICLES)
-      : nodes;
+    // Every node is a particle, the days of chat too (the feed's chat lines end on them).
+    const nodes = model.g.nodes;
+    const score = (n: MemNode) => (prefer.has(n.id) ? 1e6 : 0) + n.weight + freshness(n.date) * 3;
+    const keep = nodes.length > MAX_PARTICLES ? [...nodes].sort((a, b) => score(b) - score(a)).slice(0, MAX_PARTICLES) : nodes;
     const { groups, of } = model.groups();
     // Each group around its own direction on the sphere, the others anywhere.
     const dirs = groups.map((_, i) => {
@@ -640,7 +743,7 @@ class Nucleus {
       const s = Math.sqrt(1 - u * u);
       return { x: Math.cos(a) * s * r, y: u * r, z: Math.sin(a) * s * r, color: colors[i % colors.length] };
     });
-    const dated = nodes.filter((n) => days(n.date) !== Infinity);
+    const dated = nodes.filter((n) => n.kind !== "day" && days(n.date) !== Infinity);
     this.fresh = dated.length ? dated.filter((n) => days(n.date) <= 30).length / dated.length : 0;
     this.wake();
   }
@@ -702,33 +805,22 @@ class Nucleus {
     this.geo = { cx, cy, R, okX, okY, showOk: wide };
     const ink = (a: number) => (P.light ? `rgba(20,24,32,${a})` : `rgba(255,255,255,${a})`);
 
-    // Lines from the feed's rows on the left into the sphere.
-    ctx.lineWidth = 1;
-    const rows = this.host.feedRows();
-    rows.forEach((y, i) => {
-      const ang = Math.PI + (i / Math.max(1, rows.length - 1) - 0.5) * 1.6;
-      const ex = cx + Math.cos(ang) * R;
-      const ey = cy + Math.sin(ang) * R;
-      ctx.strokeStyle = ink(0.05 + (i < 3 ? 0.07 : 0));
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.bezierCurveTo(cx - R * 1.6, y, ex - R * 0.4, ey, ex, ey);
-      ctx.stroke();
-    });
-
-    // Lines out to the «collegate» circle.
-    if (wide) {
-      for (let i = 0; i < 7; i++) {
-        const ang = (i / 6 - 0.5) * 1.2;
-        const sx = cx + Math.cos(ang) * R;
-        const sy = cy + Math.sin(ang) * R;
-        ctx.strokeStyle = alpha(KIND_COLOR.day, P.light ? 0.25 : 0.18);
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo((sx + okX) / 2, sy + (okY - sy) * 0.2, okX - 30, okY);
-        ctx.stroke();
-      }
-    }
+    // Where every particle is now (turning slowly), before anything is drawn:
+    // the lines end on the real points.
+    const cos = Math.cos(this.angle);
+    const sin = Math.sin(this.angle);
+    const tilt = 0.32;
+    const ct = Math.cos(tilt);
+    const st = Math.sin(tilt);
+    const pts = this.parts.map((p) => {
+      const x = p.x * cos - p.z * sin;
+      const z0 = p.x * sin + p.z * cos;
+      const y = p.y * ct - z0 * st;
+      const z = p.y * st + z0 * ct;
+      return { p, sx: cx + x * R, sy: cy + y * R, z };
+    }).sort((a, b) => a.z - b.z);
+    this.at = new Map(pts.map((q) => [q.p.id, { x: q.sx, y: q.sy }]));
+    const colorOf = new Map(this.parts.map((p) => [p.id, p.color]));
 
     // The glow behind the sphere, of the biggest group's colour.
     const glowColor = this.arcs[0]?.color ?? P.accent;
@@ -797,26 +889,58 @@ class Nucleus {
     }
     ctx.globalAlpha = 1;
 
-    // The particles, turning slowly, the far ones smaller and fainter.
-    const cos = Math.cos(this.angle);
-    const sin = Math.sin(this.angle);
-    const tilt = 0.32;
-    const ct = Math.cos(tilt);
-    const st = Math.sin(tilt);
-    const pts = this.parts.map((p) => {
-      const x = p.x * cos - p.z * sin;
-      const z0 = p.x * sin + p.z * cos;
-      const y = p.y * ct - z0 * st;
-      const z = p.y * st + z0 * ct;
-      return { p, sx: cx + x * R, sy: cy + y * R, z };
-    }).sort((a, b) => a.z - b.z);
+    // Lines from the feed's rows in sight to the particle of their node, in
+    // its colour. A node that is not among the particles: a short dashed
+    // line to the sphere's edge, never to a point at random.
+    const rows = this.host.feedRows();
+    const focus = this.hoverRow ?? this.hover;
+    for (const row of rows) {
+      if (!row.id) continue;
+      const end = this.at.get(row.id);
+      const color = colorOf.get(row.id) ?? KIND_COLOR.note;
+      const lit = focus === row.id;
+      const dim = this.match && !this.match.has(row.id);
+      ctx.lineWidth = lit ? 1.6 : 1;
+      ctx.strokeStyle = /^#[0-9a-f]{6}$/i.test(color) ? alpha(color, lit ? 0.95 : dim ? 0.06 : P.light ? 0.4 : 0.32) : ink(0.2);
+      ctx.beginPath();
+      ctx.moveTo(0, row.y);
+      if (end) {
+        ctx.setLineDash([]);
+        ctx.bezierCurveTo(Math.min(end.x, cx - R) * 0.55, row.y, Math.min(end.x, cx - R * 0.6) - R * 0.2, end.y, end.x, end.y);
+      } else {
+        const ang = Math.atan2(row.y - cy, -R);
+        ctx.setLineDash([3, 4]);
+        ctx.quadraticCurveTo((cx - R) * 0.5, row.y, cx + Math.cos(ang) * R * 1.08, cy + Math.sin(ang) * R * 1.08);
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+
+    // Lines out to the «collegate» circle: from the real linked notes nearest to it.
+    if (wide && this.model) {
+      const m = this.model;
+      const linked = pts.filter((q) => isNote(m.byId.get(q.p.id) ?? ({} as MemNode)) && m.neighbours(q.p.id).length > 0 && q.z > -0.2)
+        .sort((a, b) => b.sx - a.sx).slice(0, 8);
+      for (const q of linked) {
+        const lit = focus === q.p.id;
+        ctx.strokeStyle = alpha(KIND_COLOR.day, lit ? 0.9 : P.light ? 0.3 : 0.22);
+        ctx.beginPath();
+        ctx.moveTo(q.sx, q.sy);
+        ctx.quadraticCurveTo((q.sx + okX) / 2, q.sy + (okY - q.sy) * 0.2, okX - 30, okY);
+        ctx.stroke();
+      }
+    }
+
+    // The particles, the far ones smaller and fainter; with a search the rest dims.
     this.shown = [];
     if (!P.light) ctx.globalCompositeOperation = "lighter";
     for (const { p, sx, sy, z } of pts) {
       const near = (z + 1) / 2;
-      const r = p.r * (0.6 + near * 0.7);
+      const found = this.match?.has(p.id) ?? false;
+      const r = p.r * (0.6 + near * 0.7) * (found ? 1.5 : 1);
       const lit = p.lit > now;
-      ctx.globalAlpha = lit ? 1 : 0.35 + near * 0.6;
+      ctx.globalAlpha = lit || found ? 1 : this.match ? 0.08 : 0.35 + near * 0.6;
       ctx.fillStyle = lit ? P.ink : p.color;
       ctx.beginPath();
       ctx.arc(sx, sy, lit ? r + 2 : r, 0, Math.PI * 2);
@@ -825,8 +949,19 @@ class Nucleus {
     }
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
-    if (this.hover) {
-      const s = this.shown.find((x) => x.id === this.hover);
+    // Found by the search: a ring around each.
+    if (this.match?.size) {
+      ctx.strokeStyle = P.accent;
+      ctx.lineWidth = 1.2;
+      for (const s of this.shown) {
+        if (!this.match.has(s.id)) continue;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r + 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    if (focus) {
+      const s = this.shown.find((x) => x.id === focus);
       if (s) {
         ctx.strokeStyle = P.ring;
         ctx.lineWidth = 1.5;

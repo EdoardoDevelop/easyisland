@@ -191,6 +191,29 @@
   background: var(--control-hover);
 }
 
+/* The row of the particle under the mouse. */
+.dash-feed-row.lit {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.dash-feed-row[hidden],
+.dash-token[hidden] {
+  display: none;
+}
+
+/* What the field at the top found. */
+.dash-search-note {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.dash-search-note.none {
+  color: var(--dim-2);
+}
+
 .dash-feed-row.live {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   animation: dash-in 0.4s ease-out;

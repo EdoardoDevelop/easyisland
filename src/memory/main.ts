@@ -1021,6 +1021,8 @@ function applySearch() {
       ? new Set(model.g.nodes.filter((n) => n.kind === overviewBucket).map((n) => n.id))
       : null;
   for (const v of Object.values(views)) v.setFilter(ids, query);
+  // The dashboard has no canvas view of its own: it lights, filters and counts by itself.
+  dash.setSearch(query.trim() && model ? ids : null, query);
   stage.wake();
   return ids;
 }
@@ -1032,8 +1034,15 @@ search.addEventListener("input", () => {
 search.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const ids = applySearch();
-  const first = ids && [...ids][0];
-  if (first) select(first);
+  // The first: a node with the words in its name (a page before a note), else any found.
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const named = [...(ids ?? [])].map((id) => model?.byId.get(id)).filter((n): n is MemNode => !!n && words.every((w) => n.label.toLowerCase().includes(w)));
+  named.sort((x, y) => Number(y.kind === "page") - Number(x.kind === "page") || y.weight - x.weight);
+  const first = named[0]?.id ?? (ids && [...ids][0]);
+  if (!first) return;
+  // From the dashboard: the graph with the first one picked, «← Panoramica» to come back.
+  if (tab === "dashboard") into("graph");
+  select(first);
 });
 inboxBtn.addEventListener("click", () => void Bridge.memoryNodeOpen("inbox").catch(fail));
 reloadBtn.addEventListener("click", () => void load());
