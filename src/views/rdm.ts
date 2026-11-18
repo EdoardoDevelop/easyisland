@@ -2,7 +2,7 @@
 // src-tauri/src/dvc.rs): persistent full-height workspace (also in detached
 // windows), autofocus search, inline SVG type icons, clear 2-line entry cards
 // with host/user/folder and quick actions, collapsible folder/client groups,
-// favorites (dvcPins) and recents (localStorage, max 20, never secrets), and
+// favorites (integrationConfig.rdmPins) and recents (rdmRecent, max 8), and
 // card-scoped keyboard navigation (↑↓, Invio, Esc, Alt+U, Alt+P, Alt+O).
 
 import { h, svg, clear, brandOrDot, headActions } from "./dom";

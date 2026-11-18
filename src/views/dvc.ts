@@ -1,10 +1,10 @@
 // Devolutions Cloud inside the RDM card (src-tauri/src/dvc.rs): vault pills,
-// breadcrumbs, collapsible inline folders and client groups, favorites (dvcPins)
-// and recents (localStorage, max 20, never secrets), rich 2-line entry cards
-// with inline SVG type icons and quick actions, search grouped by folder,
-// side-by-side detail pane when wide, and preview-confirmed creation forms.
-// Passwords are never stored in DOM, settings or localStorage: «Copia password»
-// uses Rust's private 30s clipboard, and the eye asks Rust for a 30s reveal.
+// breadcrumbs, collapsible inline folders and client groups, favorites and
+// recents (integrationConfig.rdmPins and rdmRecent, never secrets), rich 2-line
+// entry cards with inline SVG type icons and quick actions, search grouped by
+// folder, side-by-side detail pane when wide, and preview-confirmed creation
+// forms. Passwords are never stored in DOM or settings: «Copia password» uses
+// Rust's private 30s clipboard, and the eye asks Rust for a 30s reveal.
 
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
