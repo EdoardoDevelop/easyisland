@@ -1,10 +1,10 @@
 // Devolutions Cloud inside the RDM card (src-tauri/src/dvc.rs): vault pills,
-// breadcrumbs, collapsible inline folders and client groups, favorites and
-// recents (integrationConfig.rdmPins and rdmRecent, never secrets), rich 2-line
-// entry cards with inline SVG type icons and quick actions, search grouped by
-// folder, side-by-side detail pane when wide, and preview-confirmed creation
-// forms. Passwords are never stored in DOM or settings: «Copia password» uses
-// Rust's private 30s clipboard, and the eye asks Rust for a 30s reveal.
+// lightweight folder tree rail, flat center list with shaded gradient icon
+// boxes and animated shimmer while loading, right detail pane (pop-in drawer
+// when narrow), favorites and recents (integrationConfig.rdmPins and rdmRecent,
+// never secrets), and preview-confirmed creation forms.
+// Passwords are never stored in DOM or settings: «Copia password (30 s)» uses
+// Rust's private 30s clipboard, and «Mostra» asks Rust for a 30s reveal.
 
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
@@ -18,13 +18,14 @@ import {
   getDvcRecents,
   isPinnedRef,
   kindInfo,
-  rdmActionBtn,
   rdmCopyText,
   rdmFolderTail,
-  rdmIconChip,
-  rdmKindPill,
-  rdmSectionHead,
+  rdmHoverBtn,
+  rdmSkelRows,
+  rdmTag,
+  rdmToneBox,
   recordDvcRecent,
+  renderHighlight,
   togglePinRef,
 } from "./rdm";
 
@@ -32,34 +33,35 @@ type Form =
   | { kind: "cred"; name: string; user: string; domain: string; password: string; description: string }
   | { kind: "list"; name: string; recurse: boolean };
 
-/** How long a password shown with the eye stays visible. */
+/** How long a password shown with «Mostra» stays visible. */
 const SHOW_MS = 30_000;
-const INITIAL_RECENTS = 5;
 
 const dv = {
-  el: null as HTMLElement | null,
+  ws: null as HTMLElement | null,
+  onHeaderSync: null as (() => void) | null,
   vault: "",
   path: "",
   browse: null as DvcBrowse | null,
+  loadingBrowse: false,
+  warmState: "idle" as "idle" | "warming" | "ready",
   /** Cached folder reads ("vault|path" → DvcBrowse), cleared on sync or write. */
   browseCache: new Map<string, DvcBrowse>(),
-  /** Subfolders expanded inline ("vault|path"). */
-  expanded: new Set<string>(),
-  loadingFolders: new Set<string>(),
-  /** Search query mirrored from rdm.ts so results live inside the split layout. */
+  /** Folders expanded in the left tree rail ("vault|path"). */
+  treeOpen: new Set<string>(),
+  autoExpandedRoot: false,
+  /** Center filter when search is empty: "browse" | "pins" | "recents". */
+  filter: "browse" as "browse" | "pins" | "recents",
+  /** Search query mirrored from rdm.ts. */
   searchQuery: "",
   searchFound: [] as DvcItem[],
   searchLoading: false,
-  /** Collapsed group ids for search groups, pins and recents. */
-  collapsedGroups: new Set<string>(),
-  showAllRecents: false,
   /** Highlighted keyboard row key. */
   activeKey: "",
-  /** The entry whose details are in the pane (below, or beside when wide). */
+  /** Entry whose details are shown in the right pane / drawer. */
   sel: "",
   selItem: null as DvcItem | null,
   details: new Map<string, DvcDetails | string>(),
-  /** Passwords shown with the eye: "id|row" → password, hidden again after SHOW_MS. */
+  /** Passwords shown with «Mostra»: "id|row" → password, hidden after SHOW_MS. */
   shown: new Map<string, string>(),
   shownTimers: new Map<string, number>(),
   revealing: "",
@@ -72,39 +74,79 @@ const dv = {
   noteTimer: 0,
   tieOpen: false,
   tie: "",
-  /** Callback to tell rdm.ts when user clicks a folder/entry from search. */
   onClearSearch: null as (() => void) | null,
 };
 
 const errText = (e: unknown) => String(e).replace(/^Error:\s*/, "");
 const cacheKey = (vault: string, path: string) => `${vault}|${path.toLowerCase()}`;
 
+function warmOnce() {
+  if (dv.warmState === "warming" || dv.warmState === "ready") return;
+  dv.warmState = "warming";
+  dv.onHeaderSync?.();
+  void Bridge.dvcWarm()
+    .then(() => {
+      dv.warmState = "ready";
+      dv.onHeaderSync?.();
+    })
+    .catch(() => {
+      dv.warmState = "idle";
+      dv.onHeaderSync?.();
+    });
+}
+
+/** Exposes current vault name, warm status and tied customers for the Panoramica header. */
+export function dvcStateSummary() {
+  const b = dv.browse;
+  const vaultName = b?.vaults.find((v) => v.id === dv.vault)?.name ?? b?.vaults[0]?.name ?? "";
+  const tied = dv.path ? tiesForPath(dv.vault, dv.path) : [];
+  return {
+    warmState: dv.warmState,
+    vaultName,
+    inFolder: !!dv.path,
+    tied,
+    untie: (name: string) => { tieFolder(name, null); draw(); dv.onHeaderSync?.(); },
+  };
+}
+
+export function dvcToggleTieInput() {
+  if (!dv.path) return;
+  dv.tieOpen = !dv.tieOpen;
+  draw();
+  if (dv.tieOpen) {
+    requestAnimationFrame(() => dv.ws?.querySelector<HTMLInputElement>('.dvc-tie input')?.focus());
+  }
+}
+
+export function dvcSetFilter(f: "browse" | "pins" | "recents") {
+  dv.filter = f;
+  dv.onClearSearch?.();
+  draw();
+}
+
 /** Clears cached folder listings (called on Sincronizza or after creating an item). */
 export function dvcResetCache() {
   dv.browseCache.clear();
   dv.details.clear();
-  if (dv.el && dv.browse) {
-    void reloadExpanded();
-  }
+  dv.autoExpandedRoot = false;
+  if (dv.ws && dv.browse) void reloadExpanded();
 }
 
 async function reloadExpanded() {
   await go(dv.path, { keepSel: true });
-  for (const key of [...dv.expanded]) {
+  for (const key of [...dv.treeOpen]) {
     const idx = key.indexOf("|");
     if (idx < 0) continue;
     const vault = key.slice(0, idx);
     const path = key.slice(idx + 1);
     if (vault !== dv.vault) continue;
     const b = await Bridge.dvcBrowse(vault, path).catch(() => null);
-    if (b) {
-      dv.browseCache.set(cacheKey(vault, b.path), b);
-    }
+    if (b) dv.browseCache.set(cacheKey(vault, b.path), b);
   }
   draw();
 }
 
-/** Updates the search results shown inside the DVC split workspace. */
+/** Updates the search results shown inside the DVC 3-zone workspace. */
 export function dvcSetSearch(query: string, found: DvcItem[], loading: boolean, onClear?: () => void) {
   dv.searchQuery = query;
   dv.searchFound = found;
@@ -116,6 +158,7 @@ export function dvcSetSearch(query: string, found: DvcItem[], loading: boolean, 
 /** Opens the cloud view on a folder (a customer tied to it, rdm.ts rdmLookFor). */
 export function dvcGoTo(vault: string, path: string) {
   dv.vault = vault;
+  dv.filter = "browse";
   dv.searchQuery = "";
   dv.searchFound = [];
   void go(path);
@@ -124,20 +167,19 @@ export function dvcGoTo(vault: string, path: string) {
 /** The cloud view on an entry's folder, with its pane open (the search field, rdm.ts rdmShowEntry). */
 export async function dvcShowEntry(e: DvcItem) {
   dv.vault = e.vault;
+  dv.filter = "browse";
   dv.searchQuery = "";
   dv.searchFound = [];
   await go(e.folder);
   const here = dv.browse?.entries.find((x) => x.id === e.id) ?? e;
   if (dv.sel !== here.id) await openDetails(here);
-  dv.el?.querySelector(".dvc-entry.on")?.scrollIntoView({ block: "nearest" });
+  dv.ws?.querySelector(".rdm-flat-row.on")?.scrollIntoView({ block: "nearest" });
 }
 
-/** The customers tied to folders, lower case → folder. */
 function ties(): Record<string, { vault: string; path: string }> {
   return State.settings.integrationConfig.rdmFolders ?? {};
 }
 
-/** The folder tied to a customer, if any. */
 export function dvcFolderFor(customer: string): { vault: string; path: string } | null {
   return ties()[customer.trim().toLowerCase()] ?? null;
 }
@@ -161,14 +203,24 @@ function tieFolder(customer: string, folder: { vault: string; path: string } | n
 
 async function fetchBrowse(vault: string, path: string): Promise<DvcBrowse | null> {
   const b = await Bridge.dvcBrowse(vault, path).catch(() => null);
-  if (b) {
-    dv.browseCache.set(cacheKey(b.vault, b.path), b);
-  }
+  if (b) dv.browseCache.set(cacheKey(b.vault, b.path), b);
   return b;
+}
+
+async function ensureAncestorsOpen(vault: string, path: string) {
+  const parts = path.split("\\").filter(Boolean);
+  let cur = "";
+  for (let i = 0; i < parts.length; i++) {
+    cur = cur ? `${cur}\\${parts[i]}` : parts[i];
+    const k = cacheKey(vault, cur);
+    dv.treeOpen.add(k);
+    if (!dv.browseCache.has(k)) await fetchBrowse(vault, cur);
+  }
 }
 
 async function go(path: string, opts: { keepSel?: boolean } = {}) {
   dv.path = path;
+  dv.filter = "browse";
   dv.form = null;
   dv.preview = null;
   dv.result = null;
@@ -179,12 +231,30 @@ async function go(path: string, opts: { keepSel?: boolean } = {}) {
     dv.selItem = null;
     hideAll();
   }
+  const cached = dv.browseCache.get(cacheKey(dv.vault, path));
+  if (!cached) {
+    dv.loadingBrowse = true;
+    draw();
+  }
   const b = await fetchBrowse(dv.vault, path);
+  dv.loadingBrowse = false;
   if (b) {
     dv.browse = b;
     dv.vault = b.vault;
+    if (!dv.browseCache.has(cacheKey(b.vault, ""))) {
+      await fetchBrowse(b.vault, "");
+    }
+    if (!b.path && !dv.autoExpandedRoot && b.folders.length === 1) {
+      dv.autoExpandedRoot = true;
+      const only = b.folders[0];
+      dv.treeOpen.add(cacheKey(b.vault, only.path));
+      await fetchBrowse(b.vault, only.path);
+    } else if (b.path) {
+      await ensureAncestorsOpen(b.vault, b.path);
+    }
   }
   draw();
+  dv.onHeaderSync?.();
   State.notify();
 }
 
@@ -201,6 +271,7 @@ async function copyPassword(e: DvcItem, row: number | null) {
     recordDvcRecent(e);
     Sound.play("blip");
     dvcSay(t("Password negli appunti: si svuotano tra {s} secondi.", { s: secs }));
+    dv.onHeaderSync?.();
   } catch (err) {
     Sound.play("error");
     dvcSay(errText(err));
@@ -211,9 +282,8 @@ async function copyUser(e: DvcItem) {
   let user = (e.user ?? "").trim();
   if (!user) {
     const cached = dv.details.get(e.id);
-    if (cached && typeof cached !== "string") {
-      user = cached.user.trim();
-    } else {
+    if (cached && typeof cached !== "string") user = cached.user.trim();
+    else {
       try {
         const d = await Bridge.dvcDetails(e.vault, e.id);
         dv.details.set(e.id, d);
@@ -231,6 +301,7 @@ async function copyUser(e: DvcItem) {
   }
   recordDvcRecent(e);
   await rdmCopyText(user, t("Utente copiato: {u}", { u: user }), dvcSay);
+  dv.onHeaderSync?.();
 }
 
 async function openInRdm(e: DvcItem) {
@@ -239,6 +310,7 @@ async function openInRdm(e: DvcItem) {
     await Bridge.rdmOpen(dvcToRef(e));
     Sound.play("blip");
     dvcSay(t("Aperto «{n}» in RDM.", { n: e.name }));
+    dv.onHeaderSync?.();
   } catch (err) {
     Sound.play("error");
     dvcSay(errText(err));
@@ -251,7 +323,6 @@ function hideAll() {
   dv.shown.clear();
 }
 
-/** The eye: the password asked now (dvc_reveal), shown until clicked again or SHOW_MS. */
 async function toggleShown(e: DvcItem, row: number | null) {
   const key = `${e.id}|${row ?? ""}`;
   if (dv.shown.has(key)) {
@@ -276,6 +347,7 @@ async function openDetails(e: DvcItem) {
   hideAll();
   dv.sel = e.id;
   dv.selItem = e;
+  dv.form = null;
   recordDvcRecent(e);
   if (!dv.details.has(e.id) || typeof dv.details.get(e.id) === "string") {
     dv.details.set(e.id, t("Leggo…"));
@@ -287,40 +359,24 @@ async function openDetails(e: DvcItem) {
     }
   }
   draw();
+  dv.onHeaderSync?.();
   State.notify();
 }
 
-/** A click on an entry: its details in the pane; again on it, the pane closes. */
-async function toggleDetails(e: DvcItem) {
-  if (dv.sel === e.id) {
-    hideAll();
-    dv.sel = "";
-    dv.selItem = null;
+async function toggleTreeFolder(vault: string, path: string) {
+  const k = cacheKey(vault, path);
+  if (dv.treeOpen.has(k)) {
+    dv.treeOpen.delete(k);
     draw();
     return;
   }
-  await openDetails(e);
-}
-
-/** Expands or collapses a subfolder inline, fetching it once and caching. */
-async function toggleFolderInline(vault: string, path: string) {
-  const key = cacheKey(vault, path);
-  if (dv.expanded.has(key)) {
-    dv.expanded.delete(key);
-    draw();
-    return;
-  }
-  dv.expanded.add(key);
-  if (!dv.browseCache.has(key)) {
-    dv.loadingFolders.add(key);
-    draw();
+  dv.treeOpen.add(k);
+  if (!dv.browseCache.has(k)) {
     await fetchBrowse(vault, path);
-    dv.loadingFolders.delete(key);
   }
   draw();
 }
 
-/** The form's step: preview (`confirm` false) or the write, read back and checked. */
 async function submit(confirm: boolean) {
   const f = dv.form;
   if (!f || dv.busy) return;
@@ -363,11 +419,9 @@ function canCopyPassword(e: DvcItem): boolean {
 }
 
 function btn(text: string, onclick: () => void, title = ""): HTMLElement {
-  return h("button", { class: "link-btn", text, title,
-    onclick: (ev: Event) => { ev.stopPropagation(); onclick(); } });
+  return h("button", { class: "link-btn", text, title, onclick: (ev: Event) => { ev.stopPropagation(); onclick(); } });
 }
 
-/** A field of a form: its value lives in the form, not in the input. */
 function field(label: string, value: string, set: (v: string) => void, type = "text", placeholder = ""): HTMLElement {
   const input = h("input", { class: "nc-input dvc-input", type, value, placeholder, spellcheck: "false", autocomplete: "off", "data-k": label }) as HTMLInputElement;
   input.addEventListener("input", () => { set(input.value); if (dv.preview) { dv.preview = null; draw(); input.focus(); } });
@@ -420,23 +474,6 @@ function resultPart(): HTMLElement | null {
     btn(t("Chiudi"), () => { dv.result = null; draw(); State.notify(); }));
 }
 
-/** A password: hidden (dots), SVG eye shows it for SHOW_MS, «Copia» puts it on the private clipboard. */
-function secret(e: DvcItem, row: number | null, length: number): HTMLElement {
-  const key = `${e.id}|${row ?? ""}`;
-  const shown = dv.shown.get(key);
-  return h("span", { class: "dvc-secret" },
-    h("b", { class: shown ? "dvc-pw shown" : "dvc-pw", text: shown ?? "•".repeat(Math.min(Math.max(length, 6), 14)) }),
-    h("button", {
-      class: shown ? "dvc-eye on" : "dvc-eye",
-      title: shown ? t("Nascondi la password") : t("Mostra la password (per 30 secondi)"),
-      onclick: (ev: Event) => { ev.stopPropagation(); void toggleShown(e, row); },
-    }, dv.revealing === key ? h("span", { text: "…" }) : svg(shown ? ICONS.eyeOff : ICONS.eye, 14, { stroke: 1.7 })),
-    rdmActionBtn(t("Copia"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, row), {
-      primary: true,
-      act: row === null ? "copy-pw" : undefined,
-    }));
-}
-
 function findEntryById(id: string): DvcItem | null {
   if (!id) return null;
   if (dv.selItem && dv.selItem.id === id) return dv.selItem;
@@ -451,203 +488,269 @@ function findEntryById(id: string): DvcItem | null {
   return null;
 }
 
-/** The pane of the entry picked: everything about it, the password hidden. */
-function panePart(): HTMLElement | null {
+/** Right detail pane (3-zone on wide, pop-in drawer on narrow). */
+function detailPane(): HTMLElement {
+  const pane = h("div", { class: "rdm-detail-pane" });
   const e = findEntryById(dv.sel);
-  if (!e) return null;
-  const d = dv.details.get(e.id);
-  const info = kindInfo(e.kind, e.cred);
-  const pinned = isPinnedRef(e.id, e.vault);
-  const pane = h("div", { class: "dvc-pane" });
-  pane.append(h("div", { class: "dvc-pane-head" },
-    rdmIconChip(e.kind, e.cred),
-    h("div", { class: "dvc-pane-title" },
-      h("b", { text: e.name }),
-      h("span", { class: "dvc-pane-sub", text: info.label })),
-    isConnection(e) ? rdmActionBtn(t("Apri in RDM"), ICONS.arrowUpRight, t("Apri in RDM (Alt+O)"), () => void openInRdm(e), { primary: true, act: "open" }) : null,
-    rdmActionBtn(null, ICONS.star, pinned ? t("Togli dai preferiti") : t("Aggiungi ai preferiti"), () => { togglePinRef(dvcToRef(e)); draw(); }, { on: pinned }),
-    h("button", { class: "dvc-close", title: t("Chiudi"), onclick: (ev: Event) => { ev.stopPropagation(); dv.sel = ""; dv.selItem = null; hideAll(); draw(); } }, svg(ICONS.xmark, 13))));
-
-  if (!d || typeof d === "string") {
-    pane.append(h("div", { class: "notion-note", text: d ?? t("Leggo…") }));
+  if (!e) {
+    pane.append(h("div", { class: "rdm-detail-empty" },
+      svg(ICONS.rdmKey, 26, { stroke: 1.4 }),
+      h("b", { text: t("Seleziona una voce") }),
+      h("span", { text: t("Frecce ↑ ↓ per scorrere, Invio per i dettagli, Alt+P per copiare la password.") })));
     return pane;
   }
 
-  const copyVal = (value: string, label: string, act?: string, tipText?: string) =>
-    rdmActionBtn(t("Copia"), ICONS.copy, tipText ?? t("Copia"), () => {
-      recordDvcRecent(e);
-      void rdmCopyText(value, t("{l} copiato", { l: label }), dvcSay);
-    }, { act });
+  const d = dv.details.get(e.id);
+  const info = kindInfo(e.kind, e.cred);
+  const pinned = isPinnedRef(e.id, e.vault);
+  const conn = isConnection(e);
+  const hasPw = canCopyPassword(e);
+  const vaultName = dv.browse?.vaults.find((v) => v.id === e.vault)?.name ?? "";
 
-  const line = (label: string, value: string, actionEl?: HTMLElement | null) => value
-    ? h("div", { class: "dvc-kv" },
-      h("span", { class: "dvc-kv-k", text: label }),
-      h("b", { class: "dvc-kv-v", text: value }),
-      actionEl ?? null)
-    : null;
+  pane.append(h("div", { class: "rdm-detail-bar" },
+    h("button", { class: "rdm-back-btn", onclick: (ev: Event) => { ev.stopPropagation(); dv.sel = ""; dv.selItem = null; hideAll(); draw(); } },
+      svg(ICONS.chevronLeft, 12, { stroke: 2 }), h("span", { text: t("Elenco") })),
+    h("button", { class: "dvc-close", title: t("Chiudi"), onclick: (ev: Event) => { ev.stopPropagation(); dv.sel = ""; dv.selItem = null; hideAll(); draw(); } },
+      svg(ICONS.xmark, 13))));
 
-  const kindText = d.cred === "PasswordList" ? t("Lista password") : d.kind.startsWith("Credential") ? t("Credenziale") : info.label;
-  const parts: (HTMLElement | null)[] = [
-    line(t("Host"), d.host, d.host ? copyVal(d.host, t("Host")) : null),
-    line(t("Indirizzo"), d.url ?? "", d.url ? copyVal(d.url, t("Indirizzo")) : null),
-    line(t("Utente"), d.user, d.user ? copyVal(d.user, t("Utente"), "copy-user", t("Copia utente (Alt+U)")) : null),
-    line(t("Dominio"), d.domain),
-    d.length ? h("div", { class: "dvc-kv" }, h("span", { class: "dvc-kv-k", text: t("Password") }), secret(e, null, d.length)) : null,
-    d.linked ? line(t("Credenziale"), d.linked) : null,
-    !d.user && !d.length && !d.rows.length && d.cred !== "PasswordList" ? h("div", { class: "notion-note", text: t("Nessun utente né password in questa voce.") }) : null,
-    line(t("Tipo"), kindText),
-    d.folder ? line(t("Cartella"), d.folder, btn(t("Apri cartella"), () => { dv.onClearSearch?.(); dvcGoTo(e.vault, d.folder); })) : null,
-    d.description ? h("div", { class: "dvc-kv dvc-desc" }, h("span", { class: "dvc-kv-k", text: t("Descrizione") }), h("b", { class: "dvc-kv-v", text: d.description })) : null,
-  ];
-  for (const p of parts) if (p) pane.append(p);
+  pane.append(h("div", { class: "rdm-detail-hero" },
+    rdmToneBox(e.kind, e.cred, "lg"),
+    h("div", { class: "rdm-detail-titles" },
+      h("span", { class: "rdm-kicker", text: info.longLabel }),
+      h("b", { class: "rdm-detail-name", text: e.name }))));
+
+  const pwKey = `${e.id}|`;
+  const shownPw = dv.shown.get(pwKey);
+  const hasSecret = typeof d === "object" && d ? d.length > 0 : hasPw;
+
+  pane.append(h("div", { class: "rdm-detail-actions" },
+    conn ? h("button", {
+      class: "rdm-big-btn primary",
+      "data-act": "open",
+      title: t("Apri in RDM (Alt+O)"),
+      onclick: () => void openInRdm(e),
+    }, svg(ICONS.arrowUpRight, 13, { stroke: 1.9 }), h("span", { text: t("Apri") })) : null,
+    hasSecret ? h("button", {
+      class: conn ? "rdm-big-btn" : "rdm-big-btn primary",
+      "data-act": "copy-pw",
+      title: t("Copia password negli appunti privati per 30s (Alt+P)"),
+      onclick: () => void copyPassword(e, null),
+    }, svg(ICONS.rdmKey, 13, { stroke: 1.8 }), h("span", { text: t("Copia password (30 s)") })) : null,
+    hasSecret ? h("button", {
+      class: shownPw ? "rdm-big-btn on" : "rdm-big-btn",
+      title: shownPw ? t("Nascondi la password") : t("Mostra la password (per 30 secondi)"),
+      onclick: () => void toggleShown(e, null),
+    }, svg(shownPw ? ICONS.eyeOff : ICONS.eye, 13, { stroke: 1.7 }), h("span", { text: dv.revealing === pwKey ? "…" : (shownPw ? t("Nascondi") : t("Mostra")) })) : null,
+    h("button", {
+      class: pinned ? "rdm-big-btn on" : "rdm-big-btn",
+      title: pinned ? t("Togli dai preferiti") : t("Aggiungi ai preferiti"),
+      onclick: () => { togglePinRef(dvcToRef(e)); draw(); dv.onHeaderSync?.(); },
+    }, svg(ICONS.star, 13), h("span", { text: t("Preferito") }))));
+
+  if (!d || typeof d === "string") {
+    pane.append(typeof d === "string" && d !== t("Leggo…")
+      ? h("div", { class: "notion-note bad", text: d })
+      : rdmSkelRows(3));
+    return pane;
+  }
+
+  if (shownPw) {
+    pane.append(h("div", { class: "rdm-revealed-box" },
+      h("span", { class: "rdm-kicker", text: t("Password") }),
+      h("code", { class: "dvc-pw shown", text: shownPw })));
+  }
+
+  const kv = h("div", { class: "rdm-kv-list" });
+  const addKv = (label: string, value: string, opts: { act?: string; tip?: string; onAct?: () => void } = {}) => {
+    if (!value) return;
+    kv.append(h("div", { class: "rdm-kv-row" },
+      h("span", { class: "rdm-kv-k", text: label }),
+      h("b", { class: "rdm-kv-v", text: value }),
+      h("button", {
+        class: "rdm-kv-copy",
+        "data-act": opts.act,
+        title: opts.tip ?? t("Copia"),
+        onclick: (ev: Event) => {
+          ev.stopPropagation();
+          if (opts.onAct) { opts.onAct(); return; }
+          recordDvcRecent(e);
+          void rdmCopyText(value, t("{l} copiato", { l: label }), dvcSay);
+        },
+      }, svg(opts.onAct ? ICONS.chevronRight : ICONS.copy, 12, { stroke: 1.8 }))));
+  };
+
+  addKv(t("Host"), d.host);
+  addKv(t("Indirizzo"), d.url ?? "");
+  addKv(t("Utente"), d.user, { act: "copy-user", tip: t("Copia utente (Alt+U)") });
+  addKv(t("Dominio"), d.domain);
+  addKv(t("Cartella"), d.folder, {
+    tip: t("Apri cartella"),
+    onAct: () => { dv.onClearSearch?.(); dvcGoTo(e.vault, d.folder); },
+  });
+  addKv(t("Cassetta"), vaultName);
+  addKv(t("Credenziale"), d.linked ?? "");
+  if (d.description) {
+    kv.append(h("div", { class: "rdm-kv-row desc" },
+      h("span", { class: "rdm-kv-k", text: t("Note") }),
+      h("b", { class: "rdm-kv-v", text: d.description })));
+  }
+  pane.append(kv);
+
+  if (!d.user && !d.length && !d.rows.length && d.cred !== "PasswordList") {
+    pane.append(h("div", { class: "notion-note", text: t("Nessun utente né password in questa voce.") }));
+  }
 
   if (d.rows.length) {
-    pane.append(h("div", { class: "dvc-rows" },
-      h("div", { class: "rdm-subhead", text: t("Voci nella lista ({n})", { n: d.rows.length }) }),
-      ...d.rows.map((r, i) => {
-        const who = [r.domain ? `${r.domain}\\${r.user}` : r.user, r.host].filter(Boolean).join(" · ");
-        return h("div", { class: "dvc-row" },
-          h("div", { class: "dvc-row-head" },
-            h("b", { text: r.name || "—" }),
-            who ? h("span", { text: who }) : null,
-            r.user ? copyVal(r.user, t("Utente")) : null),
-          r.length ? secret(e, i, r.length) : h("small", { text: t("senza password") }));
-      })));
+    const listWrap = h("div", { class: "dvc-rows" },
+      h("div", { class: "rdm-rail-kicker", text: t("Voci nella lista ({n})", { n: d.rows.length }) }));
+    d.rows.forEach((r, i) => {
+      const rKey = `${e.id}|${i}`;
+      const rShown = dv.shown.get(rKey);
+      const who = [r.domain ? `${r.domain}\\${r.user}` : r.user, r.host].filter(Boolean).join(" · ");
+      listWrap.append(h("div", { class: "dvc-row" },
+        h("div", { class: "dvc-row-head" },
+          h("b", { text: r.name || "—" }),
+          who ? h("span", { text: who }) : null),
+        rShown ? h("code", { class: "dvc-pw shown", text: rShown }) : null,
+        h("div", { class: "dvc-row-btns" },
+          r.user ? rdmHoverBtn(t("Utente"), ICONS.user, t("Copia"), () => {
+            recordDvcRecent(e);
+            void rdmCopyText(r.user, t("Utente copiato: {u}", { u: r.user }), dvcSay);
+          }) : null,
+          r.length ? rdmHoverBtn(rShown ? t("Nascondi") : t("Mostra"), rShown ? ICONS.eyeOff : ICONS.eye, t("Mostra la password (per 30 secondi)"), () => void toggleShown(e, i)) : null,
+          r.length ? rdmHoverBtn(t("Copia (30 s)"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, i), { primary: true }) : h("small", { text: t("senza password") }))));
+    });
+    pane.append(listWrap);
   }
   return pane;
 }
 
-/** Rich 2-line card for any DVC entry (folder browse, pins, recents, or search results). */
-function entryRow(e: DvcItem, opts: { showFolder?: boolean; navKeyPrefix?: string } = {}): HTMLElement {
-  const open = dv.sel === e.id;
-  const navKey = `${opts.navKeyPrefix ?? "e"}:${e.vault}:${e.id}`;
+/** Flat Panoramica-style row: gradient icon tile, name + tag, muted host · user, max 2 hover actions. */
+function flatEntryRow(e: DvcItem, opts: { showFolder?: boolean; prefix?: string } = {}): HTMLElement {
+  const selected = dv.sel === e.id;
+  const navKey = `${opts.prefix ?? "e"}:${e.vault}:${e.id}`;
   const isActive = dv.activeKey === navKey;
-  const pinned = isPinnedRef(e.id, e.vault);
   const conn = isConnection(e);
   const hasPw = canCopyPassword(e);
   const userText = (e.user ?? "").trim();
   const folderText = opts.showFolder ? rdmFolderTail(e.folder, 2) : "";
+  const subParts = [e.host, userText, folderText].filter(Boolean);
+  const q = dv.searchQuery.trim();
 
-  const row = h("div", {
-    class: `rdm-row rdm-entry-card rdm-nav-item${open ? " on" : ""}${isActive ? " is-active" : ""}`,
+  return h("div", {
+    class: `rdm-flat-row rdm-nav-item${selected ? " on" : ""}${isActive ? " is-active" : ""}`,
     role: "button",
     tabindex: "-1",
     "data-nav-key": navKey,
     title: [e.folder, e.host, userText].filter(Boolean).join(" · ") || e.name,
-    onclick: () => { dv.activeKey = navKey; void toggleDetails(e); },
+    onclick: () => {
+      dv.activeKey = navKey;
+      if (dv.sel === e.id) { hideAll(); dv.sel = ""; dv.selItem = null; draw(); }
+      else void openDetails(e);
+    },
+    ondblclick: () => { if (conn) void openInRdm(e); },
   },
-  h("div", { class: "rdm-entry-top" },
-    rdmIconChip(e.kind, e.cred),
-    rdmKindPill(e.kind, e.cred),
-    h("span", { class: "rdm-entry-name", text: e.name }),
-    h("div", { class: "rdm-row-actions" },
-      conn ? rdmActionBtn(t("Apri"), ICONS.arrowUpRight, t("Apri in RDM (Alt+O)"), () => void openInRdm(e), { primary: true, act: "open" }) : null,
-      hasPw ? rdmActionBtn(conn ? null : t("Password"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, null), { primary: !conn, act: "copy-pw" }) : null,
-      userText || hasPw ? rdmActionBtn(null, ICONS.user, t("Copia utente (Alt+U)"), () => void copyUser(e), { act: "copy-user" }) : null,
-      e.host ? rdmActionBtn(null, ICONS.copy, t("Copia host"), () => { recordDvcRecent(e); void rdmCopyText(e.host, t("Copiato: {h}", { h: e.host }), dvcSay); }) : null,
-      rdmActionBtn(null, ICONS.star, pinned ? t("Togli dai preferiti") : t("Aggiungi ai preferiti"), () => { togglePinRef(dvcToRef(e)); draw(); }, { on: pinned }))),
-  (e.host || userText || folderText)
-    ? h("div", { class: "rdm-entry-meta" },
-      e.host ? h("span", { class: "rdm-meta-chip mono", text: e.host }) : null,
-      userText ? h("span", { class: "rdm-meta-item" }, svg(ICONS.user, 11, { stroke: 1.7 }), h("span", { text: userText })) : null,
-      folderText ? h("span", { class: "rdm-meta-folder" }, svg(ICONS.rdmFolder, 11, { stroke: 1.7 }), h("span", { text: folderText })) : null)
-    : null);
-
-  return h("div", { class: open ? "dvc-entry on" : "dvc-entry" }, row);
+  rdmToneBox(e.kind, e.cred),
+  h("div", { class: "rdm-row-main" },
+    h("div", { class: "rdm-row-title" },
+      h("span", { class: "rdm-row-name" }, ...(q ? renderHighlight(e.name, q) : [e.name])),
+      rdmTag(e.kind, e.cred)),
+    subParts.length ? h("div", { class: "rdm-row-sub" },
+      ...(q ? renderHighlight(subParts.join(" · "), q) : [subParts.join(" · ")])) : null),
+  h("div", { class: "rdm-row-acts" },
+    conn ? rdmHoverBtn(t("Apri"), ICONS.arrowUpRight, t("Apri in RDM (Alt+O)"), () => void openInRdm(e), { primary: true, act: "open" }) : null,
+    hasPw ? rdmHoverBtn(t("Password"), ICONS.rdmKey, t("Copia password negli appunti privati per 30s (Alt+P)"), () => void copyPassword(e, null), { primary: !conn, act: "copy-pw" }) : null,
+    !conn && (userText || hasPw) ? rdmHoverBtn(t("Utente"), ICONS.user, t("Copia utente (Alt+U)"), () => void copyUser(e), { act: "copy-user" }) : null));
 }
 
-/** A folder row: clicking expands/collapses inline; «Entra» sets it as the breadcrumb path. */
-function folderBlock(vault: string, f: { name: string; path: string; count: number }, depth = 0): HTMLElement {
-  const fKey = cacheKey(vault, f.path);
-  const expanded = dv.expanded.has(fKey);
-  const loading = dv.loadingFolders.has(fKey);
-  const navKey = `f:${vault}:${f.path}`;
+function flatFolderRow(vault: string, f: { name: string; path: string; count: number }, prefix = "f"): HTMLElement {
+  const navKey = `${prefix}:${vault}:${f.path}`;
   const isActive = dv.activeKey === navKey;
-  const tiedNames = tiesForPath(vault, f.path);
-
-  const head = h("div", {
-    class: `rdm-folder-card dvc-folder rdm-nav-item${expanded ? " open" : ""}${isActive ? " is-active" : ""}`,
+  const tied = tiesForPath(vault, f.path);
+  const q = dv.searchQuery.trim();
+  return h("div", {
+    class: `rdm-flat-row folder rdm-nav-item${isActive ? " is-active" : ""}`,
     role: "button",
     tabindex: "-1",
     "data-nav-key": navKey,
-    onclick: () => { dv.activeKey = navKey; void toggleFolderInline(vault, f.path); },
+    onclick: () => { dv.activeKey = navKey; dv.onClearSearch?.(); void go(f.path, { keepSel: true }); },
   },
-  h("span", { class: "rdm-folder-chev" }, svg(expanded ? ICONS.chevronDown : ICONS.chevronRight, 13, { stroke: 2 })),
-  rdmIconChip("Group"),
-  h("span", { class: "rdm-folder-name", text: f.name }),
-  ...tiedNames.map((n) => h("span", { class: "rdm-tie-badge", text: n, title: t("Cliente collegato") })),
-  h("span", { class: "rdm-count-pill", text: String(f.count) }),
-  h("div", { class: "rdm-row-actions" },
-    rdmActionBtn(t("Entra"), ICONS.chevronRight, t("Apri solo questa cartella"), () => void go(f.path))));
+  rdmToneBox("Group"),
+  h("div", { class: "rdm-row-main" },
+    h("div", { class: "rdm-row-title" },
+      h("span", { class: "rdm-row-name" }, ...(q ? renderHighlight(f.name, q) : [f.name])),
+      ...tied.map((n) => h("span", { class: "rdm-tag", style: "--tag:#E8542A", text: n }))),
+    h("div", { class: "rdm-row-sub", text: t("{n} voci", { n: f.count }) })),
+  h("div", { class: "rdm-row-acts" },
+    rdmHoverBtn(t("Apri"), ICONS.chevronRight, t("Apri questa cartella"), () => { dv.onClearSearch?.(); void go(f.path, { keepSel: true }); }, { primary: true })));
+}
 
-  const wrap = h("div", { class: "rdm-folder-block" }, head);
-  if (expanded) {
-    const kids = h("div", { class: "rdm-folder-kids" });
-    if (loading) {
-      kids.append(h("div", { class: "rdm-inline-note", text: t("Leggo…") }));
-    } else {
-      const sub = dv.browseCache.get(fKey);
-      if (sub) {
-        if (depth < 4) {
-          for (const sf of sub.folders) kids.append(folderBlock(vault, sf, depth + 1));
-        } else {
-          for (const sf of sub.folders) {
-            kids.append(h("div", { class: "rdm-folder-card dvc-folder rdm-nav-item", role: "button", tabindex: "-1", onclick: () => void go(sf.path) },
-              rdmIconChip("Group"), h("span", { class: "rdm-folder-name", text: sf.name }), h("span", { class: "rdm-count-pill", text: String(sf.count) })));
-          }
-        }
-        for (const e of sub.entries) kids.append(entryRow(e));
-        if (!sub.folders.length && !sub.entries.length) {
-          kids.append(h("div", { class: "rdm-inline-note", text: t("Cartella vuota.") }));
+/** Left folder tree rail (3-zone on wide). */
+function buildTreeRail(b: DvcBrowse): HTMLElement {
+  const pins = getDvcPins();
+  const recs = getDvcRecents();
+  const q = dv.searchQuery.trim();
+
+  const rail = h("aside", { class: "rdm-tree-rail" });
+  if (b.vaults.length > 1) {
+    rail.append(h("div", { class: "rdm-rail-kicker", text: t("Cassette") }),
+      ...b.vaults.map((v) => h("button", {
+        class: v.id === b.vault ? "rdm-rail-btn on" : "rdm-rail-btn",
+        onclick: () => { if (v.id !== dv.vault) { dv.vault = v.id; dv.onClearSearch?.(); void go(""); } },
+      }, svg(ICONS.cloud, 12, { stroke: 1.7 }), h("span", { text: v.name }))));
+  }
+
+  rail.append(h("div", { class: "rdm-rail-kicker", text: t("Vista") }),
+    h("button", {
+      class: !q && dv.filter === "pins" ? "rdm-rail-btn on" : "rdm-rail-btn",
+      onclick: () => dvcSetFilter("pins"),
+    }, svg(ICONS.star, 12), h("span", { text: t("Preferiti") }), h("em", { text: String(pins.length) })),
+    h("button", {
+      class: !q && dv.filter === "recents" ? "rdm-rail-btn on" : "rdm-rail-btn",
+      onclick: () => dvcSetFilter("recents"),
+    }, svg(ICONS.history, 12, { stroke: 1.7 }), h("span", { text: t("Recenti") }), h("em", { text: String(recs.length) })),
+    h("button", {
+      class: !q && dv.filter === "browse" && !dv.path ? "rdm-rail-btn on" : "rdm-rail-btn",
+      onclick: () => { dv.onClearSearch?.(); void go("", { keepSel: true }); },
+    }, svg(ICONS.cloud, 12, { stroke: 1.7 }), h("span", { text: t("Radice") })));
+
+  const rootBrowse = dv.browseCache.get(cacheKey(b.vault, "")) ?? (b.path === "" ? b : null);
+  if (rootBrowse?.folders.length) {
+    rail.append(h("div", { class: "rdm-rail-kicker", text: t("Cartelle") }));
+    const renderNodes = (folders: DvcBrowse["folders"], depth: number) => {
+      for (const f of folders) {
+        const fk = cacheKey(b.vault, f.path);
+        const isOpen = dv.treeOpen.has(fk);
+        const isHere = !q && dv.filter === "browse" && dv.path.toLowerCase() === f.path.toLowerCase();
+        const sub = dv.browseCache.get(fk);
+        const row = h("div", {
+          class: isHere ? "rdm-tree-item on" : "rdm-tree-item",
+          style: `--depth:${depth}`,
+          onclick: () => { dv.onClearSearch?.(); void go(f.path, { keepSel: true }); },
+        },
+        h("button", {
+          class: "rdm-tree-exp",
+          title: f.name,
+          onclick: (ev: Event) => { ev.stopPropagation(); void toggleTreeFolder(b.vault, f.path); },
+        }, svg(isOpen ? ICONS.chevronDown : ICONS.chevronRight, 10, { stroke: 2 })),
+        h("button", {
+          class: "rdm-tree-lbl",
+          title: f.path,
+          onclick: (ev: Event) => { ev.stopPropagation(); dv.onClearSearch?.(); void go(f.path, { keepSel: true }); },
+        }, h("span", { text: f.name }), h("em", { text: String(f.count) })));
+        rail.append(row);
+        if (isOpen && sub?.folders.length && depth < 4) {
+          renderNodes(sub.folders, depth + 1);
         }
       }
-    }
-    wrap.append(kids);
+    };
+    renderNodes(rootBrowse.folders, 0);
   }
-  return wrap;
+  return rail;
 }
 
-function vaultBar(b: DvcBrowse): HTMLElement | null {
-  if (b.vaults.length <= 1) return null;
-  return h("div", { class: "rdm-vault-tabs" },
-    ...b.vaults.map((v) => h("button", {
-      class: v.id === b.vault ? "zm-tab rdm-vault-tab on" : "zm-tab rdm-vault-tab",
-      onclick: (e: Event) => { e.stopPropagation(); if (v.id !== dv.vault) { dv.vault = v.id; void go(""); } },
-    }, svg(ICONS.cloud, 12, { stroke: 1.7 }), h("span", { text: v.name }))));
-}
-
-function crumbs(b: DvcBrowse): HTMLElement | null {
-  if (!b.path && b.vaults.length > 1) return null;
-  const vaultName = b.vaults.find((v) => v.id === b.vault)?.name ?? b.vaults[0]?.name ?? "Cloud";
-  const bar = h("div", { class: "dvc-crumbs" });
-  bar.append(h("button", {
-    class: b.path ? "dvc-crumb-btn" : "dvc-crumb-btn on",
-    onclick: (e: Event) => { e.stopPropagation(); void go(""); },
-  }, svg(ICONS.cloud, 13, { stroke: 1.7 }), h("span", { text: vaultName })));
-  const parts = b.path ? b.path.split("\\") : [];
-  parts.forEach((p, i) => {
-    bar.append(h("span", { class: "dvc-sep", text: "›" }));
-    const to = parts.slice(0, i + 1).join("\\");
-    if (i === parts.length - 1) {
-      bar.append(h("b", { class: "dvc-crumb-here", text: p }));
-    } else {
-      bar.append(btn(p, () => void go(to)));
-    }
-  });
-  if (b.path) {
-    const tiedHere = tiesForPath(dv.vault, b.path);
-    bar.append(h("span", { class: "zm-grow" }));
-    if (!tiedHere.length && !dv.tieOpen) {
-      bar.append(btn(t("+ Collega cliente"), () => { dv.tieOpen = true; draw(); }, t("Collega questa cartella a un cliente di Zammad o 3CX")));
-    }
-  }
-  return bar;
-}
-
-function tiePart(): HTMLElement | null {
-  if (!dv.path) return null;
-  const here = tiesForPath(dv.vault, dv.path);
-  if (!here.length && !dv.tieOpen) return null;
+function tieInlineBar(): HTMLElement | null {
+  if (!dv.path || !dv.tieOpen) return null;
   const input = h("input", {
     class: "nc-input dvc-input",
     value: dv.tie,
@@ -662,6 +765,7 @@ function tiePart(): HTMLElement | null {
     dvcSay(t("«{c}» porta a questa cartella.", { c: dv.tie.trim() }));
     dv.tie = "";
     dv.tieOpen = false;
+    dv.onHeaderSync?.();
   };
   input.addEventListener("keydown", (e) => {
     e.stopPropagation();
@@ -670,193 +774,235 @@ function tiePart(): HTMLElement | null {
   });
   return h("div", { class: "dvc-tie" },
     h("span", { class: "dvc-tie-label", text: t("Cliente") }),
-    ...here.map((name) => h("span", { class: "dvc-chip" },
-      h("span", { text: name }),
-      h("button", { title: t("Scollega"), onclick: (e: Event) => { e.stopPropagation(); tieFolder(name, null); draw(); } }, svg(ICONS.xmark, 10)))),
     input,
-    btn(t("Collega"), add, t("Su un ticket Zammad o una chiamata 3CX di questo cliente, RDM apre questa cartella")));
+    btn(t("Collega"), add, t("Su un ticket Zammad o una chiamata 3CX di questo cliente, RDM apre questa cartella")),
+    btn(t("Annulla"), () => { dv.tieOpen = false; draw(); }));
 }
 
-function appendPinnedAndRecents(el: HTMLElement) {
-  const pins = getDvcPins().map((p) => findEntryById(p.id) ?? p);
-  const pinIds = new Set(pins.map((p) => p.id));
+function buildNarrowStrip(b: DvcBrowse): HTMLElement {
+  const strip = h("div", { class: "rdm-narrow-strip" });
+  const pins = getDvcPins();
+  const recs = getDvcRecents();
+  const vaultName = b.vaults.find((v) => v.id === b.vault)?.name ?? "Cloud";
+
+  if (b.vaults.length > 1) {
+    for (const v of b.vaults) {
+      strip.append(h("button", {
+        class: v.id === b.vault ? "rdm-pill on" : "rdm-pill",
+        onclick: () => { if (v.id !== dv.vault) { dv.vault = v.id; void go(""); } },
+      }, svg(ICONS.cloud, 11, { stroke: 1.7 }), h("span", { text: v.name })));
+    }
+  }
+  strip.append(h("button", {
+    class: dv.filter === "browse" ? "rdm-pill on" : "rdm-pill",
+    onclick: () => dvcSetFilter("browse"),
+  }, h("span", { text: b.path ? rdmFolderTail(b.path, 1) : vaultName })));
   if (pins.length) {
-    const open = !dv.collapsedGroups.has("sec:pins");
-    const toggle = () => {
-      if (open) dv.collapsedGroups.add("sec:pins");
-      else dv.collapsedGroups.delete("sec:pins");
-      draw();
-    };
-    el.append(rdmSectionHead("sec:pins", t("Preferiti"), pins.length, ICONS.star, open, toggle));
-    if (open) {
-      for (const p of pins) el.append(entryRow(p, { showFolder: true, navKeyPrefix: "pin" }));
-    }
+    strip.append(h("button", {
+      class: dv.filter === "pins" ? "rdm-pill on" : "rdm-pill",
+      onclick: () => dvcSetFilter("pins"),
+    }, svg(ICONS.star, 10), h("span", { text: `${t("Preferiti")} · ${pins.length}` })));
   }
-
-  const allRecents = getDvcRecents().filter((r) => !pinIds.has(r.id));
-  if (allRecents.length) {
-    const open = !dv.collapsedGroups.has("sec:recents");
-    const toggle = () => {
-      if (open) dv.collapsedGroups.add("sec:recents");
-      else dv.collapsedGroups.delete("sec:recents");
-      draw();
-    };
-    el.append(rdmSectionHead("sec:recents", t("Recenti"), allRecents.length, ICONS.history, open, toggle));
-    if (open) {
-      const shown = dv.showAllRecents ? allRecents : allRecents.slice(0, INITIAL_RECENTS);
-      for (const r of shown) el.append(entryRow(r, { showFolder: true, navKeyPrefix: "rec" }));
-      if (allRecents.length > INITIAL_RECENTS) {
-        el.append(h("div", { class: "rdm-more-row" },
-          btn(dv.showAllRecents ? t("Mostra meno") : t("Mostra tutti ({n})", { n: allRecents.length }), () => {
-            dv.showAllRecents = !dv.showAllRecents;
-            draw();
-          })));
-      }
-    }
+  if (recs.length) {
+    strip.append(h("button", {
+      class: dv.filter === "recents" ? "rdm-pill on" : "rdm-pill",
+      onclick: () => dvcSetFilter("recents"),
+    }, svg(ICONS.history, 10, { stroke: 1.8 }), h("span", { text: `${t("Recenti")} · ${recs.length}` })));
   }
+  return strip;
 }
 
-function appendSearchResults(el: HTMLElement) {
+function buildCenterList(b: DvcBrowse): HTMLElement {
+  const center = h("div", { class: "rdm-center" });
   const q = dv.searchQuery.trim();
-  if (dv.searchLoading && !dv.searchFound.length) {
-    el.append(h("div", { class: "rdm-empty-state" }, h("span", { text: t("Cerco nel cloud…") })));
-    return;
-  }
-  const folders = dv.searchFound.filter((x) => x.kind === "Group");
-  const entries = dv.searchFound.filter((x) => x.kind !== "Group");
 
-  if (!folders.length && !entries.length) {
-    el.append(h("div", { class: "rdm-empty-state" },
-      svg(ICONS.search, 22, { stroke: 1.5 }),
-      h("b", { text: t("Niente nel cloud con «{q}»", { q }) }),
-      h("span", { text: t("Prova con il nome del cliente, un IP, un utente o il tipo di connessione.") })));
-    return;
+  if (!q) center.append(buildNarrowStrip(b));
+
+  const tieBar = tieInlineBar();
+  if (tieBar) center.append(tieBar);
+
+  const listEl = h("div", { class: "rdm-flat-list" });
+
+  if (q) {
+    center.append(h("div", { class: "rdm-zone-head" },
+      h("span", { class: "rdm-kicker", text: dv.searchLoading ? t("Cerco nel cloud…") : t("Risultati · {n}", { n: dv.searchFound.length }) })));
+    if (dv.searchLoading && !dv.searchFound.length) {
+      listEl.append(rdmSkelRows(5));
+    } else {
+      const folders = dv.searchFound.filter((x) => x.kind === "Group");
+      const entries = dv.searchFound.filter((x) => x.kind !== "Group");
+      if (!folders.length && !entries.length) {
+        listEl.append(h("div", { class: "rdm-empty-state" },
+          svg(ICONS.search, 22, { stroke: 1.5 }),
+          h("b", { text: t("Niente nel cloud con «{q}»", { q }) }),
+          h("span", { text: t("Prova con il nome del cliente, un IP, un utente o il tipo di connessione.") })));
+      } else {
+        if (folders.length) {
+          listEl.append(h("div", { class: "rdm-list-label" }, h("span", { text: t("Cartelle") }), h("em", { text: String(folders.length) })));
+          for (const f of folders) {
+            listEl.append(flatFolderRow(f.vault, { name: f.name, path: f.path || [f.folder, f.name].filter(Boolean).join("\\"), count: 0 }, "sf"));
+          }
+        }
+        const groups = new Map<string, DvcItem[]>();
+        for (const e of entries) {
+          const key = e.folder || t("Radice");
+          const arr = groups.get(key) ?? [];
+          arr.push(e);
+          groups.set(key, arr);
+        }
+        for (const [folder, items] of groups) {
+          listEl.append(h("div", { class: "rdm-list-label" },
+            h("span", { text: rdmFolderTail(folder, 2) || folder }),
+            h("em", { text: String(items.length) })));
+          for (const e of items) listEl.append(flatEntryRow(e, { showFolder: false, prefix: "srch" }));
+        }
+      }
+    }
+    center.append(listEl);
+    return center;
   }
 
-  if (folders.length) {
-    const secKey = "srch:folders";
-    const open = !dv.collapsedGroups.has(secKey);
-    el.append(rdmSectionHead(secKey, t("Cartelle"), folders.length, ICONS.rdmFolder, open, () => {
-      if (open) dv.collapsedGroups.add(secKey); else dv.collapsedGroups.delete(secKey);
-      draw();
-    }));
-    if (open) {
-      for (const f of folders) {
-        const path = f.path || [f.folder, f.name].filter(Boolean).join("\\");
-        const navKey = `sf:${f.vault}:${path}`;
-        el.append(h("div", {
-          class: `rdm-folder-card dvc-folder rdm-nav-item${dv.activeKey === navKey ? " is-active" : ""}`,
-          role: "button",
-          tabindex: "-1",
-          "data-nav-key": navKey,
-          onclick: () => { dv.onClearSearch?.(); dvcGoTo(f.vault, path); },
-        },
-        rdmIconChip("Group"),
-        h("span", { class: "rdm-folder-name", text: f.name }),
-        f.folder ? h("span", { class: "rdm-meta-folder", text: rdmFolderTail(f.folder, 2) }) : null,
-        h("div", { class: "rdm-row-actions" },
-          rdmActionBtn(t("Apri"), ICONS.chevronRight, t("Apri questa cartella"), () => { dv.onClearSearch?.(); dvcGoTo(f.vault, path); }))));
+  if (dv.filter === "pins") {
+    const pins = getDvcPins().map((p) => findEntryById(p.id) ?? p);
+    center.append(h("div", { class: "rdm-zone-head" },
+      h("span", { class: "rdm-kicker", text: t("Preferiti") }),
+      h("span", { class: "rdm-kicker", text: String(pins.length) })));
+    if (pins.length) for (const p of pins) listEl.append(flatEntryRow(p, { showFolder: true, prefix: "pin" }));
+    else listEl.append(h("div", { class: "rdm-empty-state" }, svg(ICONS.star, 22), h("b", { text: t("Nessun preferito") })));
+    center.append(listEl);
+    return center;
+  }
+
+  if (dv.filter === "recents") {
+    const recs = getDvcRecents();
+    center.append(h("div", { class: "rdm-zone-head" },
+      h("span", { class: "rdm-kicker", text: t("Recenti") }),
+      h("span", { class: "rdm-kicker", text: String(recs.length) })));
+    if (recs.length) for (const r of recs) listEl.append(flatEntryRow(r, { showFolder: true, prefix: "rec" }));
+    else listEl.append(h("div", { class: "rdm-empty-state" }, svg(ICONS.history, 22, { stroke: 1.5 }), h("b", { text: t("Nessuna voce recente") })));
+    center.append(listEl);
+    return center;
+  }
+
+  // Folder browse mode: subtle breadcrumbs + create links
+  const parts = b.path ? b.path.split("\\") : [];
+  const headTrail = h("div", { class: "rdm-zone-head" },
+    h("div", { class: "rdm-trail" },
+      h("button", { class: "rdm-trail-btn", onclick: () => void go("", { keepSel: true }) },
+        h("span", { text: b.vaults.find((v) => v.id === b.vault)?.name ?? "Cloud" })),
+      ...parts.flatMap((p, i) => {
+        const to = parts.slice(0, i + 1).join("\\");
+        return [
+          h("span", { class: "dvc-sep", text: "›" }),
+          i === parts.length - 1
+            ? h("b", { class: "rdm-trail-cur", text: p })
+            : h("button", { class: "rdm-trail-btn", onclick: () => void go(to, { keepSel: true }) }, h("span", { text: p })),
+        ];
+      })),
+    b.path && !dv.form
+      ? h("div", { class: "rdm-zone-acts" },
+        btn(t("+ Credenziale"), () => { dv.form = { kind: "cred", name: "", user: "", domain: "", password: "", description: "" }; dv.result = null; draw(); State.notify(); }),
+        btn(t("+ Lista"), () => { dv.form = { kind: "list", name: t("Lista Password"), recurse: false }; dv.result = null; draw(); State.notify(); }, t("+ Lista password da questa cartella")))
+      : null);
+  center.append(headTrail);
+
+  if (dv.loadingBrowse) {
+    listEl.append(rdmSkelRows(5));
+  } else {
+    const res = resultPart();
+    if (res) listEl.append(res);
+    const form = formPart();
+    if (form) {
+      listEl.append(form);
+    } else {
+      if (!b.path) {
+        const pins = getDvcPins().map((p) => findEntryById(p.id) ?? p);
+        const recs = getDvcRecents().filter((r) => !pins.some((p) => p.id === r.id));
+        if (pins.length) {
+          listEl.append(h("div", { class: "rdm-list-label" }, h("span", { text: t("Preferiti") }), h("em", { text: String(pins.length) })));
+          for (const p of pins) listEl.append(flatEntryRow(p, { showFolder: true, prefix: "pin" }));
+        }
+        if (recs.length) {
+          listEl.append(h("div", { class: "rdm-list-label" }, h("span", { text: t("Recenti") }), h("em", { text: String(recs.length) })));
+          for (const r of recs.slice(0, 4)) listEl.append(flatEntryRow(r, { showFolder: true, prefix: "rec" }));
+        }
+      }
+
+      if (b.folders.length) {
+        listEl.append(h("div", { class: "rdm-list-label" }, h("span", { text: t("Cartelle") }), h("em", { text: String(b.folders.length) })));
+        for (const f of b.folders) listEl.append(flatFolderRow(b.vault, f));
+      }
+      if (b.entries.length) {
+        if (b.folders.length) {
+          listEl.append(h("div", { class: "rdm-list-label" }, h("span", { text: t("Voci") }), h("em", { text: String(b.entries.length) })));
+        }
+        for (const e of b.entries) listEl.append(flatEntryRow(e));
+      }
+      if (!b.folders.length && !b.entries.length && (b.path || (!getDvcPins().length && !getDvcRecents().length))) {
+        listEl.append(h("div", { class: "rdm-empty-state compact" },
+          svg(ICONS.rdmFolder, 20, { stroke: 1.5 }),
+          h("b", { text: t("Cartella vuota.") })));
       }
     }
   }
 
-  // Group entries by folder / customer so results for the same client stay together.
-  const groups = new Map<string, DvcItem[]>();
-  for (const e of entries) {
-    const key = e.folder || t("Radice");
-    const list = groups.get(key) ?? [];
-    list.push(e);
-    groups.set(key, list);
-  }
-  for (const [folder, items] of groups) {
-    const grpKey = `srch:${folder.toLowerCase()}`;
-    const open = !dv.collapsedGroups.has(grpKey);
-    const label = rdmFolderTail(folder, 3) || folder;
-    el.append(rdmSectionHead(grpKey, label, items.length, ICONS.rdmFolder, open, () => {
-      if (open) dv.collapsedGroups.add(grpKey); else dv.collapsedGroups.delete(grpKey);
-      draw();
-    }));
-    if (open) {
-      for (const e of items) el.append(entryRow(e, { showFolder: false, navKeyPrefix: "srch" }));
-    }
-  }
-}
-
-/** Folders, entries, the forms, the customer: the list's part of the view. */
-function appendList(el: HTMLElement, b: DvcBrowse) {
-  if (dv.searchQuery.trim()) {
-    appendSearchResults(el);
-    return;
-  }
-  const vb = vaultBar(b);
-  if (vb) el.append(vb);
-  const cr = crumbs(b);
-  if (cr) el.append(cr);
-  const tie = tiePart();
-  if (tie) el.append(tie);
-
-  if (!b.path) appendPinnedAndRecents(el);
-
-  if (b.folders.length || b.entries.length) {
-    if (!b.path && (getDvcPins().length || getDvcRecents().length)) {
-      el.append(h("div", { class: "rdm-subhead", text: t("Cartelle e voci") }));
-    }
-    for (const f of b.folders) el.append(folderBlock(b.vault, f, 0));
-    for (const e of b.entries) el.append(entryRow(e));
-  } else {
-    el.append(h("div", { class: "rdm-empty-state compact" },
-      svg(ICONS.rdmFolder, 20, { stroke: 1.5 }),
-      h("b", { text: t("Cartella vuota.") })));
-  }
-
-  const res = resultPart();
-  if (res) el.append(res);
-  const form = formPart();
-  if (form) el.append(form);
-  else if (b.path) {
-    el.append(h("div", { class: "rdm-actions dvc-folder-actions" },
-      btn(t("+ Credenziale"), () => { dv.form = { kind: "cred", name: "", user: "", domain: "", password: "", description: "" }; dv.result = null; draw(); State.notify(); }),
-      btn(t("+ Lista password da questa cartella"), () => { dv.form = { kind: "list", name: t("Lista Password"), recurse: false }; dv.result = null; draw(); State.notify(); })));
-  }
+  center.append(listEl);
+  return center;
 }
 
 function draw() {
-  const el = dv.el;
-  if (!el) return;
-  const focused = el.ownerDocument.activeElement;
-  const keep = focused instanceof HTMLInputElement && el.contains(focused) ? focused.dataset.k ?? "" : "";
-  const scrolled = el.querySelector(".dvc-list")?.scrollTop ?? 0;
-  const paneScrolled = el.querySelector(".dvc-pane")?.scrollTop ?? 0;
-  clear(el);
+  const ws = dv.ws;
+  if (!ws) return;
+  const focused = ws.ownerDocument.activeElement;
+  const keep = focused instanceof HTMLInputElement && ws.contains(focused) ? focused.dataset.k ?? "" : "";
+  const listScrolled = ws.querySelector(".rdm-flat-list")?.scrollTop ?? 0;
+  const railScrolled = ws.querySelector(".rdm-tree-rail")?.scrollTop ?? 0;
+  const detailScrolled = ws.querySelector(".rdm-detail-pane")?.scrollTop ?? 0;
+  clear(ws);
 
   const b = dv.browse;
   if (!b || !b.vaults.length) {
-    el.append(h("div", { class: "rdm-empty-state" },
-      svg(ICONS.cloud, 24, { stroke: 1.5 }),
-      h("b", { text: t("Devolutions Cloud non sincronizzato") }),
-      h("span", { text: t("Nessun vault letto: premi Sincronizza (in alto) dopo aver messo indirizzo, Key e Secret in Impostazioni → Remote Desktop Manager.") })));
+    ws.classList.remove("has-detail");
+    if (dv.loadingBrowse) {
+      ws.append(h("div", { class: "rdm-center" }, rdmSkelRows(5)));
+    } else {
+      ws.append(h("div", { class: "rdm-center" },
+        h("div", { class: "rdm-empty-state" },
+          svg(ICONS.cloud, 24, { stroke: 1.5 }),
+          h("b", { text: t("Devolutions Cloud non sincronizzato") }),
+          h("span", { text: t("Nessun vault letto: premi Sincronizza (in alto) dopo aver messo indirizzo, Key e Secret in Impostazioni → Remote Desktop Manager.") }))));
+    }
     return;
   }
 
-  const list = h("div", { class: "dvc-list" });
-  const pane = dv.form ? null : panePart();
-  el.append(h("div", { class: pane ? "dvc-split with-pane" : "dvc-split" }, list, pane));
-  appendList(list, b);
+  ws.classList.toggle("has-detail", !!dv.sel);
+  ws.append(buildTreeRail(b), buildCenterList(b), detailPane());
 
-  if (dv.note) {
-    el.append(h("div", { class: "rdm-toast", text: dv.note }));
+  const toastHost = ws.parentElement?.querySelector<HTMLElement>(".rdm-toast");
+  if (toastHost) {
+    toastHost.textContent = dv.note;
+    toastHost.style.display = dv.note ? "" : "none";
   }
 
-  list.scrollTop = scrolled;
-  if (pane) pane.scrollTop = paneScrolled;
+  const listEl = ws.querySelector(".rdm-flat-list");
+  if (listEl) listEl.scrollTop = listScrolled;
+  const railEl = ws.querySelector(".rdm-tree-rail");
+  if (railEl) railEl.scrollTop = railScrolled;
+  const detailEl = ws.querySelector(".rdm-detail-pane");
+  if (detailEl) detailEl.scrollTop = detailScrolled;
+
   if (keep) {
-    const again = Array.from(el.querySelectorAll("input")).find((i) => i.dataset.k === keep);
+    const again = Array.from(ws.querySelectorAll("input")).find((i) => i.dataset.k === keep);
     again?.focus();
   }
 }
 
-/** Handles Escape inside DVC (returns true if something was closed). */
 export function dvcHandleEscape(): boolean {
+  if (dv.tieOpen) {
+    dv.tieOpen = false;
+    draw();
+    return true;
+  }
   if (dv.form) {
     dv.form = null;
     dv.preview = null;
@@ -874,22 +1020,19 @@ export function dvcHandleEscape(): boolean {
   return false;
 }
 
-/** Sets active keyboard row key inside DVC so redraws preserve selection. */
 export function dvcSetActiveKey(key: string) {
   dv.activeKey = key;
 }
 
-/** The view, the same element at every rebuild of the card. */
-export function dvcView(): HTMLElement {
-  if (!dv.el) {
-    dv.el = h("div", { class: "dvc-view", onpointerdown: (e: Event) => void Bridge.focusWindow(true, e) });
-    void Bridge.dvcWarm();
+/** Mounts Devolutions Cloud inside `ws` and warms the live PowerShell connection. */
+export function dvcMount(ws: HTMLElement, onHeaderSync: () => void) {
+  const firstMount = dv.ws !== ws;
+  dv.ws = ws;
+  dv.onHeaderSync = onHeaderSync;
+  warmOnce();
+  if (firstMount || !dv.browse) {
     void go(dv.path);
   } else {
-    if (!dv.el.isConnected) void Bridge.dvcWarm();
-    if (!dv.form && !dv.searchQuery.trim()) {
-      void fetchBrowse(dv.vault, dv.path).then((b) => { if (b && !dv.form) { dv.browse = b; draw(); } });
-    }
+    draw();
   }
-  return dv.el;
 }

@@ -128,6 +128,7 @@ export const ICONS = {
   cloud: "M7 18.5h10.2a3.8 3.8 0 0 0 .6-7.5 5 5 0 0 0-9.6-1.4A3.6 3.6 0 0 0 7 18.5z",
   chevronDown: "M5.5 9 12 15.5 18.5 9",
   user: "M12 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM5.5 19.5c0-3 2.9-5 6.5-5s6.5 2 6.5 5",
+  refresh: "M20 12a8 8 0 0 1-13.7 5.6M4 12a8 8 0 0 1 13.7-5.6M17.5 3.5v3.6h-3.6M6.5 20.5v-3.6h3.6",
 } as const;
 
 /** Line glyphs (draw with a 1.6 stroke) for the integrations with no brand logo,
