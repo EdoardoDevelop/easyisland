@@ -843,20 +843,21 @@ export async function runScene(island: Island, scene: string) {
     }
     case "rdm": {
       // ?activeIntegrations=integration_rdm — the card with made-up connections (Bridge mocked);
-      // &q=rossi: a search; &nolist: no PowerShell module (the search opens in RDM).
+      // &q=rossi: a search; &nolist: no PowerShell module; &cloud / &tied; &many: long multi-vault list.
       const q = new URLSearchParams(location.search);
       const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
       const list = [
-        { id: id(1), name: "NAS Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.10", kind: "RDPConfigured" },
-        { id: id(2), name: "Server Rossi", group: "Clienti\\Rossi Srl", host: "srv01.rossi.local", kind: "RDPConfigured" },
-        { id: id(3), name: "Firewall Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.1", kind: "WebBrowser" },
-        { id: id(4), name: "Router Bianchi", group: "Clienti\\Bianchi", host: "10.0.0.1", kind: "SSHShell" },
-        { id: id(5), name: "Gestionale", group: "Interni", host: "gest.local", kind: "RDPConfigured" },
+        { id: id(1), name: "NAS Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.10", kind: "RDPConfigured", user: "ROSSI\\admin" },
+        { id: id(2), name: "Server Rossi", group: "Clienti\\Rossi Srl", host: "srv01.rossi.local", kind: "RDPConfigured", user: "Administrator" },
+        { id: id(3), name: "Firewall Rossi", group: "Clienti\\Rossi Srl", host: "https://192.168.1.1:8443", kind: "WebBrowser", user: "admin" },
+        { id: id(4), name: "Router Bianchi", group: "Clienti\\Bianchi", host: "10.0.0.1", kind: "SSHShell", user: "root" },
+        { id: id(5), name: "Gestionale", group: "Interni", host: "gest.local", kind: "RDPConfigured", user: "edoardo" },
       ];
       const nolist = q.has("nolist");
       Object.assign(Bridge, {
-        rdmSearch: async (text: string) => nolist ? [] : list.filter((e) => text.toLowerCase().split(/\s+/).every((w) => `${e.name} ${e.group} ${e.host}`.toLowerCase().includes(w))),
+        rdmSearch: async (text: string) => nolist ? [] : list.filter((e) => text.toLowerCase().split(/\s+/).every((w) => `${e.name} ${e.group} ${e.host} ${e.user}`.toLowerCase().includes(w))),
         rdmOpen: async () => { await wait(200); },
+        rdmRecentAdd: async () => {},
         rdmEdit: async () => {},
         rdmFilter: async () => {},
         rdmQuick: async () => {},
@@ -865,25 +866,47 @@ export async function runScene(island: Island, scene: string) {
       State.settings.integrationConfig.rdmRecent = nolist ? [] : [list[1], list[3]];
       // &cloud: Devolutions Cloud with a made-up vault (dvc.ts); &tied: «Farmacia Falchi» tied to its folder.
       const cloud = q.has("cloud") || q.has("tied");
+      const many = q.has("many");
       if (cloud) {
         const V = "11111111-1111-4111-8111-111111111111";
-        const item = (n: number, name: string, kind: string, folder: string, extra: Partial<{ host: string; user: string; cred: string; path: string }> = {}) =>
-          ({ id: id(100 + n), name, kind, folder, path: extra.path ?? "", host: extra.host ?? "", user: extra.user ?? "", cred: extra.cred ?? "", vault: V });
+        const V2 = "22222222-2222-4222-8222-222222222222";
+        const vaults = many ? [{ id: V, name: "Edoardo" }, { id: V2, name: "Clienti condivisi" }] : [{ id: V, name: "Edoardo" }];
+        const item = (n: number, name: string, kind: string, folder: string, extra: Partial<{ host: string; user: string; cred: string; path: string; vault: string }> = {}) =>
+          ({ id: id(100 + n), name, kind, folder, path: extra.path ?? "", host: extra.host ?? "", user: extra.user ?? "", cred: extra.cred ?? "", vault: extra.vault ?? V });
         const items = [
           item(1, "Easytech", "Group", "", { path: "Easytech" }),
           item(2, "FARMACIA FALCHI", "Group", "Easytech", { path: "Easytech\\FARMACIA FALCHI" }),
           item(3, "COMUNALE 1", "Group", "Easytech\\FARMACIA FALCHI", { path: "Easytech\\FARMACIA FALCHI\\COMUNALE 1" }),
-          item(4, "Server farmacia", "RDPConfigured", "Easytech\\FARMACIA FALCHI", { host: "192.168.10.5" }),
+          item(4, "Server farmacia", "RDPConfigured", "Easytech\\FARMACIA FALCHI", { host: "192.168.10.5", user: "FALCHI\\Administrator" }),
           item(5, "Amministratore dominio", "Credential", "Easytech\\FARMACIA FALCHI", { user: "FALCHI\\admin", cred: "Default" }),
-          item(6, "Firewall", "Credential", "Easytech\\FARMACIA FALCHI", { user: "admin", cred: "Default" }),
+          item(6, "Firewall", "WebBrowser", "Easytech\\FARMACIA FALCHI", { host: "https://fw.falchi.local:4444", user: "admin" }),
           item(7, "Lista Password", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { cred: "PasswordList" }),
-          item(8, "NAS", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { user: "admin", cred: "Default" }),
+          item(8, "NAS", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { host: "192.168.10.20", user: "admin", cred: "Default" }),
           item(9, "ROSSI SRL", "Group", "Easytech", { path: "Easytech\\ROSSI SRL" }),
+          item(10, "VPN WireGuard", "VPN", "Easytech\\FARMACIA FALCHI", { host: "vpn.falchi.it:51820", user: "tecnico" }),
         ];
+        if (many) {
+          const clients = ["STUDIO BIANCHI", "OFFICINA VERDI", "HOTEL MIRAMARE", "CLINICA SAN MARCO", "LOGISTICA NORD", "BAR CENTRALE", "IMPRESA EDIL"];
+          let seq = 20;
+          for (const c of clients) {
+            const fp = `Easytech\\${c}`;
+            const slug = c.toLowerCase().replace(/\s+/g, "");
+            items.push(item(seq++, c, "Group", "Easytech", { path: fp }));
+            items.push(item(seq++, `Server ${c.split(" ")[1] ?? c}`, "RDPConfigured", fp, { host: `srv01.${slug}.local`, user: `${slug}\\admin` }));
+            items.push(item(seq++, `Firewall ${c.split(" ")[1] ?? c}`, "SSHShell", fp, { host: `10.10.${seq % 200}.1`, user: "root" }));
+            items.push(item(seq++, `Pannello Web`, "WebBrowser", fp, { host: `https://gw.${slug}.it`, user: "admin" }));
+            items.push(item(seq++, `Credenziali Amministratore`, "Credential", fp, { user: `admin@${slug}.it`, cred: "Default" }));
+          }
+          items.push(item(seq++, "Interni", "Group", "", { path: "Interni", vault: V2 }));
+          items.push(item(seq++, "Proxmox Sede", "WebBrowser", "Interni", { host: "https://pve.easytech.local:8006", user: "root@pam", vault: V2 }));
+          items.push(item(seq++, "Backup NAS", "SFTP", "Interni", { host: "10.0.50.10", user: "backup", vault: V2 }));
+        }
         const browse = (vault: string, path: string) => {
+          const v = vaults.some((x) => x.id === vault) ? vault : V;
           const p = path.replace(/\\$/, "");
           const folders = new Map<string, { name: string; path: string; count: number }>();
           for (const e of items) {
+            if (e.vault !== v) continue;
             const at = e.kind === "Group" ? e.path : e.folder;
             const rest = p ? (at.toLowerCase().startsWith(p.toLowerCase() + "\\") ? at.slice(p.length + 1) : "") : at;
             const name = rest.split("\\")[0];
@@ -892,18 +915,31 @@ export async function runScene(island: Island, scene: string) {
             if (e.kind !== "Group") f.count++;
             folders.set(name, f);
           }
-          return { vault: vault || V, path: p, vaults: [{ id: V, name: "Edoardo" }], folders: [...folders.values()],
-            entries: items.filter((e) => e.kind !== "Group" && e.folder.toLowerCase() === p.toLowerCase()) };
+          return {
+            vault: v,
+            path: p,
+            vaults,
+            folders: [...folders.values()],
+            entries: items.filter((e) => e.vault === v && e.kind !== "Group" && e.folder.toLowerCase() === p.toLowerCase()),
+          };
         };
         Object.assign(Bridge, {
+          dvcWarm: async () => {},
           dvcBrowse: async (vault: string, path: string) => browse(vault, path),
+          dvcSearch: async (query: string, limit = 50) => {
+            const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return [];
+            return items
+              .filter((e) => words.every((w) => `${e.name} ${e.folder} ${e.host} ${e.user}`.toLowerCase().includes(w)))
+              .slice(0, limit);
+          },
           dvcDetails: async (_v: string, eid: string) => {
             await wait(200);
             const e = items.find((x) => x.id === eid);
             return e?.cred === "PasswordList"
               ? { name: e.name, kind: "Credential", cred: "PasswordList", folder: e.folder, host: "", user: "", domain: "", length: 0, description: "",
                 rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 10, description: "" }] }
-              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
+              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", url: e?.kind === "WebBrowser" ? e.host : "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
           },
           dvcCopyPassword: async () => { await wait(200); return 30; },
           dvcReveal: async () => { await wait(200); return "Fa1ch1!2026"; },
@@ -922,9 +958,15 @@ export async function runScene(island: Island, scene: string) {
           },
         });
         if (q.has("tied")) State.settings.integrationConfig.rdmFolders = { "farmacia falchi": { vault: V, path: "Easytech\\FARMACIA FALCHI" } };
+        if (many) {
+          const toRef = (x: ReturnType<typeof item>) => ({ id: x.id, name: x.name, group: x.folder, host: x.host, kind: x.kind, vault: x.vault, user: x.user, cred: x.cred });
+          State.settings.integrationConfig.rdmPins = [toRef(items[3]), toRef(items[4])];
+          State.settings.integrationConfig.rdmRecent = [toRef(items[5]), toRef(items[9])];
+        }
       }
       await wait(300);
-      const cloudData = cloud ? { cloud: { on: true, count: 6, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
+      const cloudCount = many ? 38 : 6;
+      const cloudData = cloud ? { cloud: { on: true, count: cloudCount, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
       State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true, ...cloudData } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true, ...cloudData }, error: null, loaded: true, configured: true };
       State.setFocus("integration_rdm");
       island.alert("overview");
