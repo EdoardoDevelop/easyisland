@@ -5927,5 +5927,9 @@
   "aggiornato": "updated",
   "Copiata ✓": "Copied ✓",
   "Copia utente": "Copy username",
-  "Copia password negli appunti privati per 30s": "Copy password to private clipboard for 30s"
+  "Copia password negli appunti privati per 30s": "Copy password to private clipboard for 30s",
+  "[immagine]": "[image]",
+  "Zammad ha risposto {s}": "Zammad answered {s}",
+  "File troppo grande: aprilo in Zammad": "File too large: open it in Zammad",
+  "Non è un'immagine": "Not an image"
 }
