@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
-- **1.0.52** — **search in a window of its own** with **quick answers** from the memory and search in Settings; **Devolutions, RDM and Zammad** redone (full messages with images, attachments, Save); a **client page** in the memory; notices no longer stay transparent in front.
+- **1.0.53** — fixes the **notices window** that stayed transparent in front, taking the clicks.
+- **1.0.52** — **search in a window of its own** with **quick answers** from the memory and search in Settings; **Devolutions, RDM and Zammad** redone (full messages with images, attachments, Save); a **client page** in the memory; notices in a window of their own.
 - **1.0.51** — fixes the **freeze at startup** of 1.0.50 (after closing it or restarting the PC).
 - **1.0.50** — **renewed search bar** centred on screen (`searchOnly`, dark and light) with automatic input focus, Settings pages reorganised with shared sub-tabs, clean taskbar state on close, bringing a hidden open island to front from the character, and launching Store apps, shortcuts and Control Panel from search.
-- **1.0.49** — **a model on your PC**, inside EasyIsland and on the graphics card: recommended for your PC, with a speed test; chat, terminal mode and answers from the memory with nothing to install.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
