@@ -10,6 +10,7 @@ import { h, svg, clear, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, type RdmRef } from "../core/state";
 import { Bridge, type DvcItem, type RdmEntry } from "../core/bridge";
+import { openClientCard } from "./clientcard";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { timeAgo } from "./integrations";
@@ -901,7 +902,11 @@ function renderTopHeader(data: Record<string, unknown>, cloud: { on?: boolean; c
   const tieChips = dvcSum && dvcSum.inFolder
     ? h("span", { class: "rdm-head-ties" },
       ...dvcSum.tied.map((name) => h("span", { class: "rdm-head-chip" },
-        h("span", { text: name }),
+        h("button", {
+          class: "rdm-head-chip-btn",
+          title: t("Apri scheda cliente di «{name}»", { name }),
+          onclick: (ev: Event) => { ev.stopPropagation(); openClientCard(name, { source: "rdm" }); },
+        }, h("span", { text: name })),
         h("button", { title: t("Scollega"), onclick: (ev: Event) => { ev.stopPropagation(); dvcSum.untie(name); } }, svg(ICONS.xmark, 9)))),
       h("button", {
         class: "rdm-head-tie-add",

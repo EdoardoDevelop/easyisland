@@ -22,6 +22,7 @@ import { Constellation } from "./constellation";
 import { Model } from "../memory/data";
 import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type QuickAnswer, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
+import type { ClientSeed } from "./clientcard";
 import { t, tn } from "../core/i18n";
 import { inline, plainText } from "../core/markdown";
 import { loadSettingsIndex, searchSettings } from "../core/settings-index";
@@ -40,6 +41,8 @@ export interface SearchActions {
   reopenChat(id: string): void;
   /** A new chat that starts from a node of the memory: nothing is sent yet. */
   memoryChat(id: string, title: string): void;
+  /** Opens the Scheda cliente overlay when a search hit is a customer's page. */
+  openClient?(name: string, seed?: ClientSeed): void;
   /** «Ricorda questo» with `text` (src/views/remember.ts). */
   remember(text: string): void;
   /** Search results opened, resized or closed (constellation toggled, rows updated). */
@@ -60,7 +63,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Impostazioni" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
+  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Impostazioni" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Cliente" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -80,11 +83,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Impostazioni: t("Impostazioni"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Impostazioni: t("Impostazioni"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Cliente: t("Cliente"), Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Impostazioni: 4, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Impostazioni: 4, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Cliente: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -186,6 +189,21 @@ export function buildSearch(actions: SearchActions): SearchHost {
   // stops typing; each answers when it can.
   let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[]; contacts: ThreecxContact[] } = { q: "", pages: [], chats: [], tickets: [], contacts: [] };
   let moreTimer = 0;
+  let clientTitles: string[] = [];
+  let clientFold = new Set<string>();
+  let clientAt = 0;
+  const loadClients = () => {
+    if (Date.now() - clientAt < 5000) return;
+    clientAt = Date.now();
+    void Bridge.clientList()
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        clientTitles = list;
+        clientFold = new Set(list.map((c) => fold(c)));
+        if (input.value.trim().length >= 2) refresh(true);
+      })
+      .catch(() => {});
+  };
   // The map, once per search: the constellation is drawn from it.
   let memory: Model | null = null;
   let memoryAsked = false;
@@ -227,6 +245,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
   };
   const askMore = (q: string) => {
     window.clearTimeout(moreTimer);
+    if (q.length >= 2) loadClients();
     if (q.length >= 3) loadMemory();
     if (q.length < 3 || more.q === q) return;
     moreTimer = window.setTimeout(() => {
@@ -411,8 +430,40 @@ export function buildSearch(actions: SearchActions): SearchHost {
           run: () => { actions.openTask("integration_rdm"); rdmShowEntry(e); } });
       }
     }
-    if (more.q === input.value.trim()) {
+    const rawQ = input.value.trim();
+    const seenClients = new Set<string>();
+    for (const title of clientTitles) {
+      const s = score(title, q);
+      if (!s) continue;
+      seenClients.add(fold(title));
+      const mem = more.q === rawQ ? more.pages.find((p) => fold(p.title) === fold(title)) : undefined;
+      out.push({
+        kind: "Cliente",
+        name: mem?.gist ? `${title} · ${mem.gist}` : title,
+        score: s + 1,
+        node: mem?.id,
+        icon: () => svg(ICONS.people, 13),
+        run: () => (actions.openClient
+          ? actions.openClient(title, { nodeId: mem?.id, source: "search" })
+          : mem ? actions.memoryChat(mem.id, mem.title) : actions.ask(title)),
+      });
+    }
+    if (more.q === rawQ) {
       for (const p of more.pages) {
+        if (clientFold.has(fold(p.title))) {
+          if (seenClients.has(fold(p.title))) continue;
+          out.push({
+            kind: "Cliente",
+            name: [p.title, p.gist, p.origin].filter(Boolean).join(" · "),
+            score: Math.max(2, score(p.title, q) + 1),
+            node: p.id,
+            icon: () => svg(ICONS.people, 13),
+            run: () => (actions.openClient
+              ? actions.openClient(p.title, { nodeId: p.id, source: "search" })
+              : actions.memoryChat(p.id, p.title)),
+          });
+          continue;
+        }
         out.push({ kind: "Memoria", name: [p.title, p.gist, p.origin].filter(Boolean).join(" · "), score: Math.max(1, score(p.title, q)), node: p.id,
           icon: () => svg(ICONS.memory, 13, { stroke: 1.8 }), run: () => actions.memoryChat(p.id, p.title) });
       }

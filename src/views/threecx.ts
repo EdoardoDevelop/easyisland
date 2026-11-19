@@ -17,6 +17,7 @@ import {
 } from "../core/bridge";
 import { locale, t } from "../core/i18n";
 import { rdmActive, rdmLookFor } from "./rdm";
+import { openClientCard } from "./clientcard";
 import {
   answerOnPc, callFromPc, muted, onPc, pickupOnPc, ringOn, rtcFor, setMuted, setRingOn, tone, type RtcCall,
 } from "../core/softphone";
@@ -950,12 +951,26 @@ function callRow(c: ThreecxCall): HTMLElement {
   // The caller's connections in Remote Desktop Manager (rdm.ts), by name.
   if (rdmActive() && c.name) buttons.append(callButton(ICONS.apps, t("Connessioni in RDM"), "#E8542A", () => rdmLookFor(c.name)));
   const face = initials(c.name);
+  const clientTrigger = (c.name || c.number)
+    ? h("button", {
+      class: "cli-inline-btn",
+      title: t("Apri scheda cliente di «{name}»", { name: c.name || c.number }),
+      onclick: (e: Event) => {
+        e.stopPropagation();
+        openClientCard(c.name || c.number, {
+          contactName: c.name || undefined,
+          phone: c.number || undefined,
+          source: "threecx",
+        });
+      },
+    }, svg(ICONS.people, 10), h("span", { text: t("Scheda cliente") }))
+    : null;
   return h("div", { class: ringing ? "tcx-call ringing" : "tcx-call", style: `--c:${color}` },
     h("span", { class: "tcx-avatar" }, face ? h("b", { text: face }) : svg(ICONS.phone, 13)),
     h("div", { class: "tcx-who" },
       h("b", { text: label }),
       c.name && c.number ? h("span", { class: "tcx-sub", text: c.number }) : null,
-      time),
+      h("span", { class: "tcx-sub-row" }, time, clientTrigger)),
     buttons);
 }
 

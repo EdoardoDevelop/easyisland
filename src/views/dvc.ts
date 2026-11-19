@@ -12,6 +12,7 @@ import { State } from "../core/state";
 import { Bridge, type DvcBrowse, type DvcDetails, type DvcItem, type DvcOutcome } from "../core/bridge";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
+import { openClientCard } from "./clientcard";
 import {
   dvcToRef,
   getDvcPins,
@@ -756,7 +757,13 @@ function flatFolderRow(vault: string, f: { name: string; path: string; count: nu
   h("div", { class: "rdm-row-main" },
     h("div", { class: "rdm-row-title" },
       h("span", { class: "rdm-row-name" }, ...(q ? renderHighlight(f.name, q) : [f.name])),
-      ...tied.map((n) => h("span", { class: "rdm-tag", style: "--tag:#E8542A", text: n }))),
+      ...tied.map((n) => h("button", {
+        class: "rdm-tag rdm-tag-btn",
+        style: "--tag:#E8542A",
+        title: t("Apri scheda cliente di «{name}»", { name: n }),
+        text: n,
+        onclick: (ev: Event) => { ev.stopPropagation(); openClientCard(n, { source: "rdm" }); },
+      }))),
     h("div", { class: "rdm-row-sub", text: t("{n} voci", { n: f.count }) })),
   h("div", { class: "rdm-row-acts" },
     rdmHoverBtn(t("Apri"), ICONS.chevronRight, t("Apri questa cartella"), () => { dv.onClearSearch?.(); void go(f.path, { keepSel: true }); }, { primary: true })));

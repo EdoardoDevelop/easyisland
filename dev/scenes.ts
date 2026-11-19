@@ -7,9 +7,10 @@
 import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
+import { openClientCard } from "../src/views/clientcard";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
-import { Bridge } from "../src/core/bridge";
+import { Bridge, type ClientCard } from "../src/core/bridge";
 import { demoGraph } from "../src/memory/demo";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -21,6 +22,96 @@ import * as Notices from "../src/notices/notices";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+
+const CLIENT_SECTIONS = ["Contatti", "Rete", "Server e VM", "Accessi", "Procedure", "Note"];
+
+function mockClients() {
+  const store = new Map<string, ClientCard>([
+    ["farmacia falchi", {
+      title: "Farmacia Falchi",
+      summary: "Farmacia in centro · firewall FortiGate 60F · 4 VM Proxmox",
+      aliases: ["FARMACIA FALCHI", "Falchi S.r.l."],
+      client: true,
+      intro: "Farmacia aperta lun–sab 08:30–19:30, referente IT Anna Bianchi.",
+      sections: [
+        { name: "Contatti", text: "- Anna Bianchi · anna.bianchi@falchi.example.it · +39 02 9845 1120\n- Banco Farmacia · 051 445566" },
+        { name: "Rete", text: "- LAN 192.168.10.0/24 · Gateway 192.168.10.1\n- Firewall [[FortiGate 60F]] · Fibra TIM statica 203.0.113.57\n- VPN SSL + L2TP su porta 443" },
+        { name: "Server e VM", text: "- Host [[Proxmox Falchi]] (192.168.10.4): FALCHI-DC (4 GB), WINFARM (20 GB), POLLER (2 GB), PBS (2 GB)" },
+        { name: "Accessi", text: "- Cartella RDM: Easytech\\FARMACIA FALCHI\n- Console firewall via VPN aziendale" },
+        { name: "Procedure", text: "- Backup PBS notturno alle 23:00\n- Riavvio stampante etichette [[Zebra WinFarm]]" },
+        { name: "Note", text: "" },
+      ],
+      links: ["FortiGate 60F", "Proxmox Falchi"],
+      cited_by: ["WinFarm"],
+      updated: "2026-11-18",
+    }],
+    ["rossi srl", {
+      title: "Rossi Srl",
+      summary: "Cliente storica di meccanica · vecchia pagina senza sezioni fisse",
+      aliases: ["Studio Rossi", "Mario Rossi"],
+      client: false,
+      intro: "Azienda metalmeccanica in zona industriale, server gestionale e NAS Synology per i backup.",
+      sections: [
+        { name: "Rete", text: "- LAN 192.168.20.0/24 · Synology 192.168.20.20" },
+        { name: "Note", text: "- 2026-10-04 sostituito switch principale" },
+      ],
+      links: [],
+      cited_by: [],
+      updated: "2026-10-04",
+    }],
+  ]);
+  const forms = new Set(["srl", "srls", "spa", "sas", "snc", "sa", "di", "e", "studio", "ditta"]);
+  const norm = (s: string) => s.toLowerCase().replace(/\./g, "").split(/[^a-z0-9]+/).filter((w) => w && !forms.has(w));
+  const find = (name: string): ClientCard | null => {
+    const q = norm(name);
+    if (!q.length) return null;
+    for (const c of store.values()) {
+      const names = [c.title, ...c.aliases].map(norm);
+      if (names.some((n) => n.length === q.length && n.every((w, i) => w === q[i]))) return c;
+      if (names.some((n) => q.every((w) => n.includes(w)))) return c;
+    }
+    return null;
+  };
+  return {
+    clientCard: async (name: string) => find(name),
+    clientList: async () => [...store.values()].filter((c) => c.client).map((c) => c.title),
+    clientPageMake: async (name: string, extra: { aliases?: string[]; contacts?: string[]; access?: string[] } = {}) => {
+      const existing = find(name);
+      const card: ClientCard = existing
+        ? { ...existing, client: true, sections: existing.sections.map((s) => ({ ...s })), aliases: [...existing.aliases] }
+        : {
+          title: name.trim(),
+          summary: "",
+          aliases: [],
+          client: true,
+          intro: "",
+          sections: CLIENT_SECTIONS.map((s) => ({ name: s, text: "" })),
+          links: [],
+          cited_by: [],
+          updated: new Date().toISOString().slice(0, 10),
+        };
+      for (const s of CLIENT_SECTIONS) {
+        if (!card.sections.some((x) => x.name.toLowerCase() === s.toLowerCase())) {
+          card.sections.push({ name: s, text: "" });
+        }
+      }
+      const addLines = (secName: string, lines: string[] = []) => {
+        const sec = card.sections.find((x) => x.name.toLowerCase() === secName.toLowerCase());
+        if (!sec) return;
+        for (const l of lines.map((x) => x.trim().replace(/^-\s*/, "")).filter(Boolean)) {
+          if (!sec.text.toLowerCase().includes(l.toLowerCase())) {
+            sec.text = sec.text ? `${sec.text}\n- ${l}` : `- ${l}`;
+          }
+        }
+      };
+      addLines("Contatti", extra.contacts);
+      addLines("Accessi", extra.access);
+      card.updated = new Date().toISOString().slice(0, 10);
+      store.set(card.title.toLowerCase(), card);
+      return card;
+    },
+  };
+}
 
 /** A Claude Code session at work in the Claude desktop app. */
 function session(state: "working" | "approval", steps: string[]) {
@@ -605,6 +696,7 @@ export async function runScene(island: Island, scene: string) {
           ]),
         ],
         threecxContacts: async () => [{ name: "Cliente Srl", company: "Cliente Srl", numbers: ["0511234567"], colleague: false }],
+        ...mockClients(),
       });
       State.setFocus("integration_3cx");
       (window as unknown as { island: Island }).island = island;
@@ -964,6 +1056,13 @@ export async function runScene(island: Island, scene: string) {
           State.settings.integrationConfig.rdmRecent = [toRef(items[5]), toRef(items[9])];
         }
       }
+      Object.assign(Bridge, {
+        ...mockClients(),
+        zammadSearch: async () => [
+          { title: "#31012 VPN non si collega dallo smart working — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/12" },
+          { title: "#31008 Certificato backup PBS in scadenza — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/8" },
+        ],
+      });
       await wait(300);
       const cloudCount = many ? 38 : 6;
       const cloudData = cloud ? { cloud: { on: true, count: cloudCount, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
@@ -1112,6 +1211,11 @@ export async function runScene(island: Island, scene: string) {
             text: ["Situazione", "La stampante non stampa da WinFarm.", "", "Cosa fare", "1. Chiedere se stampa la pagina di prova.", "2. Controllare la coda di stampa."].join("\n") }],
         } : null,
         ticketAdviceRefresh: async () => true,
+        zammadSearch: async () => [
+          { title: "#31012 VPN non si collega dallo smart working — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/12" },
+          { title: "#31008 Backup PBS notturno completato con avviso — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/8" },
+        ],
+        ...mockClients(),
       });
       State.widgetStatus.integration_zammad = {
         id: "integration_zammad", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
@@ -1729,6 +1833,7 @@ export async function runScene(island: Island, scene: string) {
           { id: "d1", name: "Admin NAS Rossi", kind: "Credential", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.20", user: "admin", cred: "Default", vault: "v" },
         ],
         threecxContacts: async () => [{ name: "Mario Rossi", company: "Rossi Srl", numbers: ["+39 0583 123456"], colleague: false }],
+        ...mockClients(),
       });
       State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };
       State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"];
@@ -1886,6 +1991,31 @@ export async function runScene(island: Island, scene: string) {
         ],
       });
       return;
+    case "cliente": {
+      // Scheda cliente (?name=Farmacia Falchi | ?name=Rossi Srl | ?name=Nuovo Studio)
+      const q = new URLSearchParams(location.search);
+      const name = q.get("name") ?? "Farmacia Falchi";
+      State.settings.activeIntegrations = [...new Set([...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"])];
+      State.settings.integrationConfig.rdmFolders = { "farmacia falchi": { vault: "v", path: "Easytech\\FARMACIA FALCHI" } };
+      Object.assign(Bridge, {
+        ...mockClients(),
+        zammadSearch: async () => [
+          { title: "#31012 VPN non si collega dallo smart working — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/12" },
+          { title: "#31008 Backup PBS notturno completato con avviso — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/8" },
+        ],
+      });
+      await wait(300);
+      island.alert("overview");
+      await wait(450);
+      openClientCard(name, {
+        contactName: q.get("contact") ?? (name === "Nuovo Studio" ? "Marco Neri" : undefined),
+        email: q.get("email") ?? (name === "Nuovo Studio" ? "marco@nuovostudio.it" : undefined),
+        phone: q.get("phone") ?? (name === "Nuovo Studio" ? "+39 051 998877" : undefined),
+        source: "zammad",
+      });
+      await wait(700);
+      break;
+    }
     case "fuzz":
       // Not a screenshot: hundreds of random agent events, clicks and malformed
       // integration data (?seed=7&steps=600). Every exception is reported by

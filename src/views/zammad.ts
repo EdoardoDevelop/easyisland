@@ -13,16 +13,8 @@
 import { h, brandOrDot, clear, clipMark, drainBar, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
-import {
-  Bridge,
-  onEvent,
-  type TicketAdvice,
-  type ZammadArticle,
-  type ZammadAttachment,
-  type ZammadList,
-  type ZammadOpt,
-  type ZammadTicket,
-} from "../core/bridge";
+import { Bridge, onEvent, type TicketAdvice, type ZammadArticle, type ZammadAttachment, type ZammadList, type ZammadOpt, type ZammadTicket } from "../core/bridge";
+import { openClientCard } from "./clientcard";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { timeAgo, updatedAgo } from "./integrations";
@@ -115,6 +107,26 @@ export function zammadKey(): string {
 
 /** What the card asks the chat for (island.ts prepareTicket). */
 export type TicketAsk = { id: number; title: string; url: string; mode?: "advice" | "talk"; advice?: string };
+
+export function zammadLookFor(customer: string, ticket?: { id: number; title: string }) {
+  State.summary = false;
+  State.setFocus(ZAMMAD);
+  if (ticket) {
+    zm.filter = "";
+    if (zm.filterInput) zm.filterInput.value = "";
+    void openTicket(ticket.id, ticket.title);
+    if (!zm.list && !zm.loading) void loadList();
+    return;
+  }
+  zm.openId = 0;
+  zm.open = null;
+  zm.draftProps = null;
+  zm.filter = customer.trim();
+  if (zm.filterInput) zm.filterInput.value = zm.filter;
+  if (!zm.list && !zm.loading) void loadList();
+  else draw();
+  State.notify();
+}
 
 export function zammadCard(openSettings: () => void, prepare: (m: TicketAsk) => void): HTMLElement {
   zm.openSettings = openSettings;
@@ -816,6 +828,20 @@ function detailPane(): HTMLElement {
     d ? h("span", { class: "zm-num", text: `#${d.number}` }) : null,
     d && stOpt ? stateBadge(stOpt.kind ?? "", stOpt.name) : null,
     h("span", { class: "zm-grow" }),
+    d && rdmCustomer ? h("button", {
+      class: "link-btn zm-rdm-btn",
+      text: t("Scheda cliente"),
+      title: t("Apri la scheda cliente nella Memoria"),
+      onclick: (e: Event) => {
+        e.stopPropagation();
+        openClientCard(rdmCustomer, {
+          contactName: d.customer,
+          email: d.customer_email,
+          phone: d.customer_phone,
+          source: "zammad",
+        });
+      },
+    }) : null,
     d && rdmActive() && rdmCustomer ? h("button", {
       class: "link-btn zm-rdm-btn",
       text: "RDM",
@@ -842,10 +868,20 @@ function detailPane(): HTMLElement {
 
   const scroll = h("div", { class: "zm-detail-scroll" });
   const who = [d.org, d.customer].filter((x, i, a) => x && a.indexOf(x) === i).join(" · ");
+  const clientName = (d.org || d.customer).trim();
+  const openClient = () => openClientCard(clientName, {
+    contactName: d.customer,
+    email: d.customer_email,
+    phone: d.customer_phone,
+    source: "zammad",
+  });
   scroll.append(h("div", { class: "zm-hero-block" },
     h("div", { class: "zm-ticket-title", text: d.title }),
     h("div", { class: "zm-ticket-sub" },
-      h("b", { text: who || "—" }),
+      clientName
+        ? h("button", { class: "zm-client-link", title: t("Apri scheda cliente di «{c}»", { c: clientName }), onclick: (e: Event) => { e.stopPropagation(); openClient(); } },
+          svg(ICONS.people, 11), h("b", { text: who || "—" }))
+        : h("b", { text: who || "—" }),
       d.group ? h("span", { text: `· ${d.group}` }) : null,
       h("span", { text: `· ${t("aperto {ago}", { ago: timeAgo(d.created) })}`, title: fullDate(d.created) })),
     customerChips(d)));

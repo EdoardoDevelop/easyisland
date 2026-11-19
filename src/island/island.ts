@@ -30,6 +30,10 @@ import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, 
 import { buildSearch, type SearchActions, type SearchHost } from "../views/search";
 import { hide as hideSearchWindow, searchWindowShown, toggleSearchWindow } from "./search-window";
 import { rdmLookFor } from "../views/rdm";
+import { dvcGoTo } from "../views/dvc";
+import { zammadLookFor } from "../views/zammad";
+import { THREECX } from "../views/threecx";
+import { ClientSheet } from "../views/clientcard";
 import { buildRail, isRailCompact, railBotSize, renameGroup } from "../views/rail";
 import * as MenuGroups from "../core/menu-groups";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
@@ -296,6 +300,7 @@ export class Island {
   private uploadTens = 0;
   private uploadDone = false;
   private shortcuts!: ShortcutSheet;
+  private clientSheet!: ClientSheet;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -520,6 +525,10 @@ export class Island {
         this.setView("prompt");
         window.setTimeout(() => reopenChat(id), 60);
       },
+      openClient: (name, seed) => {
+        this.shortcuts.hide();
+        void this.clientSheet.open(name, seed);
+      },
       onLayout: () => {
         if (!State.searchOnly || State.mode !== "expanded") return;
         const nextH = this.search.resultsHeight();
@@ -602,7 +611,33 @@ export class Island {
     this.waveEl = h("div", { id: "open-wave" });
     this.waveEl.addEventListener("animationend", () => this.waveEl.classList.remove("on"));
     this.shortcuts = new ShortcutSheet(() => void Bridge.openSettingsWindow());
-    this.clipEl.append(this.waveEl, this.shortcuts.el);
+    this.clientSheet = new ClientSheet({
+      openRdm: (name, linked) => {
+        this.setView("overview");
+        if (linked?.vault && linked.path) {
+          State.summary = false;
+          State.setFocus("integration_rdm");
+          dvcGoTo(linked.vault, linked.path);
+          State.notify();
+        } else {
+          rdmLookFor(name);
+        }
+      },
+      openZammad: (name, ticket) => {
+        this.setView("overview");
+        zammadLookFor(name, ticket);
+      },
+      open3cx: () => {
+        State.summary = false;
+        State.setFocus(THREECX);
+        this.setView("overview");
+        State.notify();
+      },
+      askChat: (label, text) => {
+        this.startChat("", { label, text }, false);
+      },
+    });
+    this.clipEl.append(this.waveEl, this.clientSheet.el, this.shortcuts.el);
 
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl, ...this.ears);
     this.applyGeometry();
@@ -635,7 +670,7 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || this.shortcuts?.open || State.windowPick != null || this.windowPress != null
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || this.shortcuts?.open || this.clientSheet?.openState || State.windowPick != null || this.windowPress != null
       // Typing in a Notion page of the card (notionpage.ts): it does not close under the caret.
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
@@ -1052,6 +1087,7 @@ export class Island {
   collapse(force = false) {
     closeMenu();
     this.shortcuts.hide();
+    this.clientSheet.hide();
     const card = State.pendingCard();
     if (card && !force) {
       if (State.view !== card) this.setView(card);
@@ -4108,6 +4144,12 @@ ${note}` : text };
       if (e.key === "Escape" && this.shortcuts.open) {
         e.preventDefault();
         this.shortcuts.hide();
+        State.lastActivity = performance.now();
+        return;
+      }
+      if (e.key === "Escape" && this.clientSheet.openState) {
+        e.preventDefault();
+        this.clientSheet.hide();
         State.lastActivity = performance.now();
         return;
       }
