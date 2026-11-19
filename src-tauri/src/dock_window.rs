@@ -312,3 +312,30 @@ pub fn shutdown() {
         crate::taskbar_hide::give_back_on_exit();
     }
 }
+
+/// «Ripristina barra di Windows adesso» (Settings → Dock): back now, whatever
+/// the setting (the page turns the setting off too). True when it is visible.
+#[tauri::command]
+pub fn dock_restore_taskbar() -> bool {
+    TAKE_GEN.fetch_add(1, Ordering::SeqCst);
+    crate::taskbar_hide::give_back();
+    !crate::taskbar_hide::taken()
+}
+
+/// Windows' own «Animation effects» (Settings → Accessibility → Visual
+/// effects): off, the Dock's movements would look broken, so Settings says so.
+#[tauri::command]
+pub fn windows_animations() -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{SystemParametersInfoW, SPI_GETCLIENTAREAANIMATION, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS};
+    let mut on = windows::core::BOOL(1);
+    unsafe {
+        let _ = SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, Some(&mut on as *mut _ as *mut _), SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0));
+    }
+    on.as_bool()
+}
+
+/// That Windows page.
+#[tauri::command]
+pub fn open_animation_settings() {
+    let _ = std::process::Command::new("explorer.exe").arg("ms-settings:easeofaccess-visualeffects").spawn();
+}
