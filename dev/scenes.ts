@@ -10,7 +10,9 @@ import { rdmLookFor } from "../src/views/rdm";
 import { openClientCard } from "../src/views/clientcard";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
-import { Bridge, type ClientCard } from "../src/core/bridge";
+import { Bridge, type ClientCard, type DockWin } from "../src/core/bridge";
+import { barPieces } from "../src/island/bar";
+import { scheme as currentScheme, uiStyle } from "../src/core/uistyle";
 import { demoGraph } from "../src/memory/demo";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -2015,6 +2017,132 @@ export async function runScene(island: Island, scene: string) {
       });
       await wait(700);
       break;
+    }
+    case "dock": {
+      // Dock preview in browser (?scene=dock[&style=band][&scheme=light][&ui=classic][&recents][&minimized][&attention][&opaque])
+      const q = new URLSearchParams(location.search);
+      const svgIcon = (bg: string, label: string, fg = "#fff") =>
+        `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="${bg}"/><text x="32" y="40" text-anchor="middle" font-family="Segoe UI,sans-serif" font-weight="700" font-size="26" fill="${fg}">${label}</text></svg>`)}`;
+      const explorerIco = svgIcon("#F59E0B", "E", "#111");
+      const edgeIco = svgIcon("#0EA5E9", "e");
+      const termIco = svgIcon("#18181B", "&gt;_");
+      const codeIco = svgIcon("#2563EB", "VS");
+      const mailIco = svgIcon("#6366F1", "@");
+      const padIco = svgIcon("#10B981", "N");
+
+      State.settings.dock = true;
+      State.settings.dockPinned = [
+        { id: "explorer", name: "Esplora file", path: "explorer.exe" },
+        { id: "edge", name: "Microsoft Edge", path: "msedge.exe" },
+        { id: "terminal", name: "Terminale", path: "wt.exe" },
+        { id: "code", name: "Visual Studio Code", path: "Code.exe" },
+        { id: "mail", name: "Posta", path: "olk.exe" },
+      ];
+      State.settings.dockItems = [
+        { id: "sys:tray", uid: "d-tray", area: "end", show: "icon" },
+        { id: "sys:volume", uid: "d-vol", area: "end", show: "both" },
+        { id: "sys:clock", uid: "d-clk", area: "end", show: "value" },
+        { id: "sys:systray", uid: "d-st", area: "end", show: "icon" },
+      ];
+      State.settings.dockLook = {
+        style: q.get("style") === "band" ? "band" : "capsule",
+        iconSize: 44,
+        magnify: "subtle",
+        autoHide: "off",
+        indicators: true,
+        groupWindows: true,
+        multiClick: "preview",
+        recents: q.has("recents"),
+        showMinimized: q.has("minimized"),
+        labels: true,
+        shadow: true,
+        blur: true,
+        opacity: 88,
+        characterInDock: true,
+      };
+      State.barSys = {
+        ...State.barSys,
+        volume: { level: 0.72, muted: false, device: "Altoparlanti" },
+      };
+
+      let wins: DockWin[] = [
+        { hwnd: 101, app: "msedge.exe", title: "EasyIsland · Progetto Dock — Edge", icon: edgeIco, active: true, minimized: false, attention: false, lastUsed: 10 },
+        { hwnd: 102, app: "msedge.exe", title: "Zammad Helpdesk · Ticket #31012", icon: edgeIco, active: false, minimized: false, attention: false, lastUsed: 9 },
+        { hwnd: 103, app: "wt.exe", title: "PowerShell 7 — cargo test", icon: termIco, active: false, minimized: true, attention: false, lastUsed: 7 },
+        { hwnd: 104, app: "code.exe", title: "magnify.ts — EasyIsland", icon: codeIco, active: false, minimized: false, attention: false, lastUsed: 8 },
+        { hwnd: 105, app: "olk.exe", title: "Posta in arrivo — 2 nuovi messaggi", icon: mailIco, active: false, minimized: false, attention: q.has("attention"), lastUsed: 6 },
+        { hwnd: 106, app: "notepad.exe", title: "Appunti riunione.txt — Blocco note", icon: padIco, active: false, minimized: false, attention: false, lastUsed: 5 },
+      ];
+
+      await import("../src/dock/dock.css");
+      const { DockView } = await import("../src/dock/view");
+      document.body.style.background = currentScheme() === "light"
+        ? "linear-gradient(135deg, #bae6fd 0%, #ddd6fe 52%, #fbcfe8 100%)"
+        : "linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #064e3b 100%)";
+
+      const host = document.createElement("div");
+      host.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:360px;z-index:80;pointer-events:none;";
+      document.body.append(host);
+
+      const view = new DockView(host, {
+        onAction: (what, opts) => {
+          if (what === "close" && opts?.hwnd) {
+            wins = wins.filter((w) => w.hwnd !== opts.hwnd);
+            view.setWindows(wins);
+          } else if ((what === "focus" || what === "restore") && opts?.hwnd) {
+            wins = wins.map((w) => ({ ...w, active: w.hwnd === opts.hwnd, minimized: w.hwnd === opts.hwnd ? false : w.minimized }));
+            view.setWindows(wins);
+          } else if (what === "minimize" && opts?.hwnd) {
+            wins = wins.map((w) => (w.hwnd === opts.hwnd ? { ...w, active: false, minimized: true } : w));
+            view.setWindows(wins);
+          }
+        },
+        onWidgetClick: (key, button, x) => island.barClick(key, button, x),
+        onPinReorder: (pinned) => {
+          State.settings.dockPinned = pinned;
+          view.setSnapshot(makeSnap());
+        },
+        onPinToggle: (entry, pin) => {
+          const cur = State.settings.dockPinned ?? [];
+          State.settings.dockPinned = pin
+            ? [...cur, { id: entry.id, name: entry.name, path: entry.path, aumid: entry.aumid }]
+            : cur.filter((p) => p.id !== entry.id);
+          view.setSnapshot(makeSnap());
+        },
+        onThumbsChange: () => {},
+        onOpenIsland: () => island.openFromTaskbar(),
+        onOpenSettings: () => {},
+      }, makeSnap());
+
+      function makeSnap() {
+        return {
+          background: "",
+          ink: currentScheme() === "light" ? "#181a1f" : "#f5f6f8",
+          items: barPieces(null, null, State.settings.dockItems ?? [], "pills"),
+          look: State.settings.dockLook ?? {},
+          pinned: State.settings.dockPinned ?? [],
+          font: null,
+          scheme: currentScheme(),
+          style: uiStyle(State.settings.theme?.style),
+          accent: "#4cc2ff",
+          animations: "ricche" as const,
+          reduceTransparency: q.has("opaque"),
+        };
+      }
+
+      view.setIcons({
+        "explorer.exe": explorerIco,
+        "msedge.exe": edgeIco,
+        "wt.exe": termIco,
+        "code.exe": codeIco,
+        "olk.exe": mailIco,
+        "notepad.exe": padIco,
+      });
+      view.setWindows(wins);
+      view.setRecents([{ id: "paint", name: "Paint", path: "mspaint.exe" }]);
+      await wait(500);
+      document.title = "scene ready";
+      return;
     }
     case "fuzz":
       // Not a screenshot: hundreds of random agent events, clicks and malformed

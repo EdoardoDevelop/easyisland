@@ -1,0 +1,534 @@
+/* Dock styles (docs/piano-dock.md): shared tokens for capsule and full band across
+   Windows 11, Classic, Studio (monolith/titanium/editorial) and dark/light schemes.
+   No continuous idle animations: only short GPU transitions on hover, focus, or hide. */
+
+html, body.dock-window {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  font-family: var(--font, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif);
+}
+
+.dock-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+  box-sizing: border-box;
+  --dock-accent: var(--accent, var(--win-accent, #4cc2ff));
+  --dock-bg: color-mix(in srgb, var(--layer, #202022) calc(var(--dock-opacity, 88) * 1%), transparent);
+  --dock-border: rgba(255, 255, 255, 0.14);
+  --dock-sheen: rgba(255, 255, 255, 0.08);
+  --dock-ink: #f5f6f8;
+  --dock-dim: rgba(245, 246, 248, 0.68);
+  --dock-pill: rgba(255, 255, 255, 0.10);
+  --dock-dot: rgba(255, 255, 255, 0.72);
+  --dock-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.28);
+  --dock-radius: 16px;
+}
+
+.dock-stage[data-scheme="light"] {
+  --dock-bg: color-mix(in srgb, var(--layer, #f3f4f6) calc(var(--dock-opacity, 88) * 1%), transparent);
+  --dock-border: rgba(0, 0, 0, 0.10);
+  --dock-sheen: rgba(255, 255, 255, 0.55);
+  --dock-ink: #181a1f;
+  --dock-dim: rgba(24, 26, 31, 0.65);
+  --dock-pill: rgba(0, 0, 0, 0.06);
+  --dock-dot: rgba(24, 26, 31, 0.62);
+  --dock-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Energy saver or "Reduce transparency": solid high-contrast surface. */
+.dock-stage[data-opaque="true"] {
+  --dock-bg: #2c2c2e;
+}
+.dock-stage[data-opaque="true"][data-scheme="light"] {
+  --dock-bg: #e4e5e8;
+}
+
+.dock-stage[data-ui="classic"] {
+  --dock-radius: 10px;
+  --dock-bg: color-mix(in srgb, #0b0c0f calc(var(--dock-opacity, 92) * 1%), transparent);
+  --dock-border: rgba(255, 255, 255, 0.18);
+}
+.dock-stage[data-ui="classic"][data-scheme="light"] {
+  --dock-bg: color-mix(in srgb, #ffffff calc(var(--dock-opacity, 94) * 1%), transparent);
+  --dock-border: rgba(0, 0, 0, 0.16);
+}
+
+.dock-stage[data-ui="monolith"],
+.dock-stage[data-ui="titanium"],
+.dock-stage[data-ui="editorial"] {
+  --dock-radius: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-stage[data-dock-blur="true"]:not([data-opaque="true"]) .dock-glass,
+.dock-stage[data-dock-blur="true"]:not([data-opaque="true"]) .dock-preview-box,
+.dock-stage[data-dock-blur="true"]:not([data-opaque="true"]) .dock-ctx {
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+}
+
+.dock-stage[data-dock-shadow="false"] {
+  --dock-shadow: none;
+}
+
+/* Hidden auto-hide state slides gently off-screen while keeping a thin edge handle. */
+.dock-shell {
+  position: relative;
+  pointer-events: auto;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+  margin-bottom: var(--dock-margin, 8px);
+}
+.dock-stage[data-dock-style="band"] .dock-shell {
+  width: 100%;
+  margin-bottom: 0;
+}
+.dock-stage[data-dock-hidden="true"] .dock-shell {
+  transform: translateY(calc(100% + 12px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dock-reveal-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  pointer-events: auto;
+}
+
+.dock-glass {
+  position: relative;
+  border-radius: var(--dock-radius);
+  background: var(--dock-bg);
+  box-shadow: inset 0 1px 0 var(--dock-sheen), inset 0 0 0 1px var(--dock-border), var(--dock-shadow);
+  transition: width 0.14s ease-out;
+}
+.dock-stage[data-dock-style="band"] .dock-glass {
+  border-radius: 0;
+  width: 100% !important;
+  padding: 0 14px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 var(--dock-border), var(--dock-shadow);
+}
+
+.dock-row-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  max-width: 100%;
+}
+
+.dock-track {
+  position: relative;
+  height: 100%;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Individual icon / widget slot positioned smoothly by magnify.ts. */
+.dock-slot {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--dock-ink);
+  cursor: pointer;
+  outline: none;
+}
+.dock-slot-sep {
+  pointer-events: none;
+  border-radius: 999px;
+  background: var(--dock-border);
+}
+
+.dock-tile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, transform 0.14s ease;
+}
+.dock-slot:hover .dock-tile,
+.dock-slot.focus .dock-tile {
+  background: var(--dock-pill);
+}
+.dock-slot.active .dock-tile {
+  background: color-mix(in srgb, var(--dock-ink) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dock-ink) 14%, transparent);
+}
+.dock-slot.attention .dock-tile {
+  background: rgba(245, 165, 36, 0.18);
+  box-shadow: inset 0 0 0 1.5px #f5a524;
+}
+.dock-slot.drop-hover .dock-tile {
+  background: color-mix(in srgb, var(--dock-accent) 24%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--dock-accent);
+  transform: translateY(-2px);
+}
+.dock-slot.minimized .dock-icon-img {
+  opacity: 0.72;
+}
+.dock-slot.dragging {
+  opacity: 0.52;
+  transform: scale(0.92);
+}
+
+.dock-icon-img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.24));
+}
+.dock-icon-svg {
+  width: 62%;
+  height: 62%;
+  display: grid;
+  place-items: center;
+  color: var(--dock-ink);
+  pointer-events: none;
+}
+.dock-icon-svg svg {
+  width: 100%;
+  height: 100%;
+}
+.dock-fallback-glyph {
+  width: 78%;
+  height: 78%;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--dock-accent), color-mix(in srgb, var(--dock-accent) 55%, #1d4ed8));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+/* Group mosaic tile for multiple pinned apps or windows. */
+.dock-group-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dock-bg) 92%, #000 8%);
+  border: 1px solid var(--dock-border);
+  color: var(--dock-ink);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 13px;
+  text-align: center;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* Running indicators under icons (bottom baseline). */
+.dock-dots {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 4px;
+  pointer-events: none;
+}
+.dock-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--dock-dot);
+  transition: width 0.14s ease, background 0.14s ease;
+}
+.dock-slot.active .dock-dot.main {
+  width: 12px;
+  background: var(--dock-accent);
+}
+.dock-slot.minimized .dock-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.2px var(--dock-dot);
+}
+.dock-slot.attention .dock-dot {
+  width: 8px;
+  background: #f5a524;
+}
+
+/* Dock widgets embedded from BAR_KINDS on the right section. */
+.dock-widgets {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 6px 0 2px;
+  flex-shrink: 0;
+}
+.dock-widget-sep {
+  width: 1px;
+  height: 62%;
+  margin: 0 8px 0 4px;
+  background: var(--dock-border);
+  border-radius: 999px;
+}
+.dock-widget-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--dock-ink);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dock-widget-btn:hover {
+  background: var(--dock-pill);
+}
+.dock-widget-btn .bar-icon {
+  display: inline-grid;
+  place-items: center;
+}
+.dock-widget-btn .bar-icon svg,
+.dock-widget-btn .bar-icon img {
+  width: 14px;
+  height: 14px;
+}
+.dock-widget-btn .bar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dock-widget-btn .bar-item.dim {
+  opacity: 0.58;
+}
+.dock-widget-btn .bar-text {
+  font-variant-numeric: tabular-nums;
+}
+.dock-widget-btn .bar-steady {
+  display: inline-grid;
+}
+.dock-widget-btn .bar-steady > span {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+.dock-widget-btn .bar-ghost {
+  visibility: hidden;
+}
+
+/* Floating hover label above icon. */
+.dock-label {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dock-bg) 96%, #000 4%);
+  border: 1px solid var(--dock-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  color: var(--dock-ink);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Window preview strip above Dock icons (after 420 ms hover dwell). */
+.dock-preview-box {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: min(94vw, 760px);
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dock-bg) 95%, #000 5%);
+  border: 1px solid var(--dock-border);
+  box-shadow: var(--dock-shadow);
+  pointer-events: auto;
+  z-index: 30;
+}
+.dock-thumb-card {
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dock-ink) 5%, transparent);
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--dock-ink);
+  text-align: left;
+  box-sizing: border-box;
+}
+.dock-thumb-card:hover {
+  background: color-mix(in srgb, var(--dock-ink) 10%, transparent);
+}
+.dock-thumb-card.active {
+  border-color: var(--dock-accent);
+}
+.dock-thumb-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dock-thumb-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  object-fit: contain;
+}
+.dock-thumb-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dock-thumb-close {
+  all: unset;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--dock-dim);
+  opacity: 0.7;
+  cursor: pointer;
+  flex: none;
+}
+.dock-thumb-close:hover {
+  background: #c42b1c;
+  color: #fff;
+  opacity: 1;
+}
+.dock-thumb-shot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 6px;
+  border: 1px solid var(--dock-border);
+  background: color-mix(in srgb, var(--dock-ink) 4%, rgba(0, 0, 0, 0.18));
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.dock-thumb-shot.minimized {
+  background: color-mix(in srgb, var(--dock-ink) 3%, transparent);
+}
+.dock-thumb-shot img.dock-thumb-minicon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  opacity: 0.88;
+}
+.dock-thumb-minbadge {
+  position: absolute;
+  bottom: 4px;
+  right: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  background: color-mix(in srgb, var(--dock-bg) 88%, #000 12%);
+  color: var(--dock-dim);
+  border: 1px solid var(--dock-border);
+}
+
+/* Lightweight context menu anchored above the clicked icon or Dock band. */
+.dock-ctx {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  min-width: 196px;
+  max-width: 260px;
+  padding: 5px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dock-bg) 97%, #000 3%);
+  border: 1px solid var(--dock-border);
+  box-shadow: var(--dock-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+  z-index: 40;
+}
+.dock-ctx-item {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--dock-ink);
+  cursor: pointer;
+}
+.dock-ctx-item:hover,
+.dock-ctx-item:focus-visible {
+  background: var(--dock-accent);
+  color: #000;
+}
+.dock-ctx-item.danger:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+.dock-ctx-sep {
+  height: 1px;
+  margin: 3px 6px;
+  background: var(--dock-border);
+}
+.dock-ctx-head {
+  padding: 4px 9px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dock-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-shell,
+  .dock-glass,
+  .dock-tile,
+  .dock-dot {
+    transition: none !important;
+  }
+}

@@ -6,6 +6,9 @@
 import type { BarAct } from "./state";
 import { t } from "./i18n";
 
+/** Where a bar widget naturally lives; users can still move compatible ones across bars. */
+export type BarTarget = "top" | "dock" | "both";
+
 /** A system element: its name, icon, placeholders and what each button does by default. */
 export interface BarKind {
   name: string;
@@ -27,8 +30,10 @@ export interface BarKind {
   menu?: boolean;
   /** Draws a small graph when asked (BarOpts.graph). */
   graph?: boolean;
-  /** Its group in the catalog. */
-  group?: "work";
+  /** Its group in the catalog ("taskbar" = Windows taskbar replacements, "work" = island tools). */
+  group?: "work" | "taskbar";
+  /** Which bar this element targets best ("both" when omitted). */
+  target?: BarTarget;
 }
 
 /** The catalog's «Sistema» and «Lavoro» groups (Impostazioni → Barra fissa → + Aggiungi). */
@@ -90,7 +95,7 @@ export const BAR_KINDS: Record<string, BarKind> = {
     // fgwin.rs follows the window in front while this is in the bar.
     name: t("Titolo della finestra in primo piano"), icon: "i:window", tokens: [["title", t("titolo")], ["app", t("programma")]],
     // A click: the program's own menu (appmenu.rs; Edoardo, 31 Oct 2026).
-    alt: "{icon} {app}", left: "menu", middle: "none", right: "alt", native: true, menu: true,
+    alt: "{icon} {app}", left: "menu", middle: "none", right: "alt", native: true, menu: true, target: "top",
   },
   news: {
     // «Notizie» (src/views/news.ts): how many are new; the card is the island's Notizie view.
@@ -123,9 +128,43 @@ export const BAR_KINDS: Record<string, BarKind> = {
     name: t("Progetti recenti di VS Code"), icon: "i:code", tokens: [["name", t("ultimo progetto")]],
     left: "menu", middle: "none", right: "none", native: true, menu: true, group: "work",
   },
+  tray: {
+    name: t("Vassoio dei file"), icon: "i:inbox", tokens: [["count", t("file")]],
+    left: "card", middle: "none", right: "none", card: true, group: "work", target: "dock",
+  },
+  // «Barra di sistema»: Windows taskbar controls shared between Top bar and Dock.
+  start: {
+    name: t("Menu Start"), icon: "i:grid", tokens: [],
+    left: "card", middle: "none", right: "menu", group: "taskbar", target: "both",
+  },
+  systray: {
+    name: t("Icone nascoste (area di notifica)"), icon: "i:chevronUp", tokens: [],
+    left: "card", middle: "none", right: "none", group: "taskbar", target: "both",
+  },
+  notifications: {
+    name: t("Notifiche e calendario di Windows"), icon: "i:bell", tokens: [],
+    left: "card", middle: "none", right: "none", group: "taskbar", target: "both",
+  },
+  showdesktop: {
+    name: t("Mostra desktop"), icon: "i:monitor", tokens: [],
+    left: "card", middle: "none", right: "none", group: "taskbar", target: "both",
+  },
+  taskview: {
+    name: t("Visualizzazione attività"), icon: "i:layers", tokens: [],
+    left: "card", middle: "none", right: "none", group: "taskbar", target: "both",
+  },
+  privacy: {
+    name: t("Microfono e webcam in uso"), icon: "i:eye", tokens: [["who", t("programma")]],
+    left: "card", middle: "none", right: "none", native: true, card: true, group: "taskbar", target: "both",
+  },
 };
 
 /** The kind of a system element ("sys:clock" → its BarKind). */
 export function barKind(id: string): BarKind | null {
   return id.startsWith("sys:") ? BAR_KINDS[id.slice(4)] ?? null : null;
+}
+
+/** Which bar an item fits best ("both" for non-system or shared items). */
+export function barKindTarget(id: string): BarTarget {
+  return barKind(id)?.target ?? "both";
 }

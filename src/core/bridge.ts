@@ -1049,6 +1049,19 @@ export const Bridge = {
 
   /** Tray → Pause. Stops the integration pollers, not just the island. */
   setPaused: (paused: boolean) => call<void>("set_paused", { paused }),
+
+  // ── Dock (docs/piano-dock.md) ─────────────────────────────────────────────
+  dockWindows: () => call<DockWin[]>("dock_windows"),
+  dockDo: (what: string, opts: { hwnd?: number; app?: string; files?: string[] } = {}) =>
+    call<boolean>("dock_do", { what, ...opts }),
+  dockRecent: (app: string) => call<string[]>("dock_recent", { app }),
+  dockThumbs: (rects: { hwnd: number; x: number; y: number; w: number; h: number }[]) =>
+    call<void>("dock_thumbs", { rects }),
+  appsCatalog: () => call<DockCatalogApp[]>("apps_catalog"),
+  dockRestoreTaskbar: () => call<boolean>("dock_restore_taskbar"),
+  dockHoverWindow: (on: boolean) => call<void>("dock_hover", { on }),
+  windowsAnimations: () => call<boolean>("windows_animations"),
+  openAnimationSettings: () => call<void>("open_animation_settings"),
 };
 
 export interface IntegrationUpdate {
@@ -1595,4 +1608,30 @@ export interface FlowRun {
   started: number;
   ended: number;
   trace: { node: string; kind: string; what: string; ok: boolean; out: string; at: number }[];
+}
+
+/** One open or minimized window tracked for the Dock (docs/piano-dock.md). */
+export interface DockWin {
+  hwnd: number;
+  app: string;
+  title: string;
+  icon: string;
+  active: boolean;
+  minimized: boolean;
+  attention: boolean;
+  lastUsed: number;
+}
+
+export interface DockWindowDiff {
+  add?: DockWin[];
+  change?: DockWin[];
+  remove?: number[];
+}
+
+export interface DockCatalogApp {
+  id: string;
+  name: string;
+  aumid?: string;
+  path?: string;
+  icon?: string;
 }
