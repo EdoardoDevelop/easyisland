@@ -797,6 +797,13 @@ export const Bridge = {
   /** A select of the ticket: state (with the reminder when pending), owner, priority. */
   zammadSet: (id: number, field: "state_id" | "owner_id" | "priority_id", value: number, pending: string | null) =>
     callOrThrow<ZammadTicket>("zammad_set", { id, field, value, pending }),
+  /** The customer's page of the memory as a card (clients.rs), by a name from Zammad, 3CX or the search; null = no page. */
+  clientCard: (name: string) => call<ClientCard | null>("client_card", { name }),
+  /** «Crea la pagina cliente» / «Rendila pagina cliente»: sections added, nothing removed; contacts and access lines go in their sections. */
+  clientPageMake: (name: string, extra: { aliases?: string[]; contacts?: string[]; access?: string[] } = {}) =>
+    callOrThrow<ClientCard>("client_page_make", { name, aliases: extra.aliases ?? [], contacts: extra.contacts ?? [], access: extra.access ?? [] }),
+  /** The titles of the customers' pages. */
+  clientList: () => call<string[]>("client_list"),
   /** «Salva» of the card: the changed selects together (null = unchanged). */
   zammadSave: (id: number, changes: { state_id?: number | null; owner_id?: number | null; priority_id?: number | null; pending?: string | null }) =>
     callOrThrow<ZammadTicket>("zammad_save", { id, stateId: changes.state_id ?? null, ownerId: changes.owner_id ?? null, priorityId: changes.priority_id ?? null, pending: changes.pending ?? null }),
@@ -1143,6 +1150,20 @@ export interface ZammadArticle {
   attachments: ZammadAttachment[];
   /** Names of the files that are not inline images (older field). */
   files: string[];
+}
+
+/** A customer's page of the memory as a card (clients.rs ClientCard). Sections: Contatti, Rete, Server e VM, Accessi, Procedure, Note, then any other. */
+export interface ClientCard {
+  title: string;
+  summary: string;
+  aliases: string[];
+  /** "tipo: cliente" in the page; false = a page about the customer written before (offer «Rendila pagina cliente»). */
+  client: boolean;
+  intro: string;
+  sections: { name: string; text: string }[];
+  links: string[];
+  cited_by: string[];
+  updated: string;
 }
 
 /** A file of a Zammad message (zammad.rs Attachment). */

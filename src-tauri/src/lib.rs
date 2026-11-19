@@ -153,6 +153,7 @@ mod win_user;
 mod window_drop;
 mod wss;
 mod zammad;
+mod clients;
 mod ticket_advice;
 mod chatpaths;
 
@@ -2905,6 +2906,26 @@ async fn zammad_set(id: i64, field: String, value: i64, pending: Option<String>)
     zammad::set(id, &field, value, pending).await
 }
 
+/// The customer's page of the memory as a card (clients.rs), by a name from
+/// Zammad, 3CX or the search; None when the memory has no page for it.
+#[tauri::command]
+fn client_card(name: String) -> Option<clients::ClientCard> {
+    clients::card(&name)
+}
+
+/// «Crea la pagina cliente» / «Rendila pagina cliente»: the sections added, nothing removed.
+#[tauri::command]
+fn client_page_make(app: AppHandle, name: String, aliases: Vec<String>, contacts: Vec<String>, access: Vec<String>) -> Result<clients::ClientCard, String> {
+    let title = brain::changed(&app, clients::make(&name, &aliases, &contacts, &access))?;
+    clients::card(&title).ok_or_else(|| t("Pagina non trovata").to_string())
+}
+
+/// The customers' pages, by title.
+#[tauri::command]
+fn client_list() -> Vec<String> {
+    clients::list()
+}
+
 /// The Zammad card: «Salva» with the changed selects together.
 #[tauri::command]
 async fn zammad_save(id: i64, state_id: Option<i64>, owner_id: Option<i64>, priority_id: Option<i64>, pending: Option<String>) -> Result<zammad::TicketDetail, String> {
@@ -5390,6 +5411,9 @@ pub fn run() {
             zammad_set,
             zammad_reply,
             zammad_save,
+            client_card,
+            client_page_make,
+            client_list,
             zammad_image,
             zammad_attachment_save,
             talk_toggle,

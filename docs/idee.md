@@ -204,6 +204,11 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 - **Telegram:** un bot per EasyIsland.
 - Da decidere: protocollo (HTTPS o WebSocket con TLS e chiave), frequenza massima per file, come mostrare le pagine arrivate. Ordine: prova Tailscale, abbinamento, sincronizzazione, turni, altro.
 
+## Agenti in parallelo (19/11/2026, dalla ricerca di spunti; Edoardo: «lo facciamo dopo»)
+- **Cosa:** nella scheda Agenti (sessioni di Claude Code, Codex, Antigravity nei terminali; non il «Multi motore» della chat) in cima chi chiede attenzione; righe compatte per progetto con CPU e RAM della sessione; shell e server rimasti accesi dopo la fine della sessione con «Ferma»; «chiudi le sessioni ferme da N minuti» con conferma; concluse piegate in fondo.
+- **Perché:** il PC si blocca con molte sessioni e processi orfani dei build.
+- **Fonti:** `claude-ponte/ricerca/` (principale 1–3, antigravity 28), fuori dal repo.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri» (titolo della console + UI Automation): per ora non serve.
 - **Clic destro in Esplora file** (deciso l'11/10): voce in `HKCU\Software\Classes\*\shell` scritta dopo conferma; in Windows 11 sotto «Mostra altre opzioni» (il menu nuovo vuole MSIX con `IExplorerCommand`).

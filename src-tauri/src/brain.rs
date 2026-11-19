@@ -135,6 +135,8 @@ pub struct Page {
     pub summary: String,
     /// "alias:" in the header: other names of the subject.
     pub aliases: Vec<String>,
+    /// "tipo:" in the header: "cliente" for a customer's page (clients.rs), else "".
+    pub kind: String,
     /// The text under the header.
     pub body: String,
     pub links: Vec<Link>,
@@ -186,6 +188,7 @@ pub fn parse(slug: &str, text: &str) -> Page {
     let mut updated = String::new();
     let mut summary = String::new();
     let mut aliases = Vec::new();
+    let mut kind = String::new();
     let mut lines = text.lines().peekable();
     let mut body_start = 0usize;
     let mut offset = 0usize;
@@ -213,6 +216,8 @@ pub fn parse(slug: &str, text: &str) -> Page {
             summary = v.trim().to_string();
         } else if let Some(v) = trimmed.strip_prefix("alias:") {
             aliases = alias_list(v);
+        } else if let Some(v) = trimmed.strip_prefix("tipo:") {
+            kind = v.trim().to_lowercase();
         } else if !trimmed.is_empty() {
             break;
         }
@@ -224,7 +229,7 @@ pub fn parse(slug: &str, text: &str) -> Page {
         title = slug.replace('-', " ");
     }
     let links = links_in(&body);
-    Page { slug: slug.to_string(), title, source, updated, summary, aliases, links, body }
+    Page { slug: slug.to_string(), title, source, updated, summary, aliases, kind, links, body }
 }
 
 /// "UDM, Dream Machine" → the names, without blanks or doubles.
@@ -308,7 +313,7 @@ fn read_pages(dir: &Path) -> Vec<Page> {
 }
 
 /// The page with this title (or file name), with its whole text.
-fn find(title: &str) -> Option<(Page, String)> {
+pub(crate) fn find(title: &str) -> Option<(Page, String)> {
     let key = slug(title);
     let low = title.trim().to_lowercase();
     if let Ok(text) = std::fs::read_to_string(page_file(&key)) {
@@ -320,7 +325,7 @@ fn find(title: &str) -> Option<(Page, String)> {
 }
 
 /// Pages that link to `title`.
-fn backlinks(title: &str, all: &[Page]) -> Vec<String> {
+pub(crate) fn backlinks(title: &str, all: &[Page]) -> Vec<String> {
     let key = target_of(all, title);
     all.iter().filter(|p| p.links.iter().any(|l| target_of(all, &l.target) == key)).map(|p| p.title.clone()).collect()
 }
@@ -559,6 +564,7 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     // "riassunto:" and "alias:" first lines go to the header; without them the page keeps its own.
     let mut new_summary = None;
     let mut new_aliases = None;
+    let mut new_kind = None;
     loop {
         let (first, rest) = body.split_once('\n').unwrap_or((body, ""));
         let first = first.trim();
@@ -566,6 +572,8 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
             new_summary = Some(v.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(300).collect::<String>());
         } else if let Some(v) = first.strip_prefix("alias:") {
             new_aliases = Some(alias_list(v));
+        } else if let Some(v) = first.strip_prefix("tipo:") {
+            new_kind = Some(v.trim().to_lowercase().chars().filter(|c| c.is_alphanumeric()).take(20).collect::<String>());
         } else if !(first.starts_with("fonte:") || first.starts_with("aggiornata:")) {
             break;
         }
@@ -576,9 +584,13 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     }
     let body: String = body.chars().take(MAX_PAGE).collect();
     let existing = find(&title);
-    let (summary, aliases) = match &existing {
-        Some((page, _)) => (new_summary.unwrap_or_else(|| page.summary.clone()), new_aliases.unwrap_or_else(|| page.aliases.clone())),
-        None => (new_summary.unwrap_or_default(), new_aliases.unwrap_or_default()),
+    let (summary, aliases, kind) = match &existing {
+        Some((page, _)) => (
+            new_summary.unwrap_or_else(|| page.summary.clone()),
+            new_aliases.unwrap_or_else(|| page.aliases.clone()),
+            new_kind.unwrap_or_else(|| page.kind.clone()),
+        ),
+        None => (new_summary.unwrap_or_default(), new_aliases.unwrap_or_default(), new_kind.unwrap_or_default()),
     };
     let (name, mut kept_source, title) = match &existing {
         Some((page, current)) => {
@@ -608,6 +620,9 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     }
     if !aliases.is_empty() {
         out.push_str(&format!("alias: {}\n", aliases.join(", ")));
+    }
+    if !kind.is_empty() {
+        out.push_str(&format!("tipo: {kind}\n"));
     }
     out.push_str(&format!("\n{body}\n"));
     std::fs::create_dir_all(pages_dir()).map_err(|e| e.to_string())?;

@@ -5948,5 +5948,8 @@
   "Rispondi al cliente": "Reply to customer",
   "tuoi": "yours",
   "liberi": "unassigned",
-  "escalation": "escalated"
+  "escalation": "escalated",
+  "Pagina cliente: riscrivila tenendo «tipo: cliente» e le sezioni {list} in quest'ordine; ogni fatto nella sua sezione, una riga con la data. In «Accessi» solo il nome della cartella o della voce di RDM/Devolutions, mai password.": "Customer page: rewrite it keeping «tipo: cliente» and the sections {list} in this order; each fact in its section, one line with the date. In «Accessi» only the name of the RDM/Devolutions folder or entry, never passwords.",
+  "Scrivi il nome del cliente.": "Write the customer's name.",
+  "Pagina non trovata": "Page not found"
 }

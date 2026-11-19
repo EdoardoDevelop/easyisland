@@ -345,7 +345,7 @@ mod tests {
     }
 
     fn page(title: &str, aliases: &[&str], body: &str) -> crate::brain::Page {
-        crate::brain::Page { slug: crate::brain::fold(title), title: title.into(), source: String::new(), updated: String::new(), summary: String::new(), aliases: aliases.iter().map(|a| a.to_string()).collect(), body: body.into(), links: Vec::new() }
+        crate::brain::Page { slug: crate::brain::fold(title), title: title.into(), source: String::new(), updated: String::new(), summary: String::new(), aliases: aliases.iter().map(|a| a.to_string()).collect(), kind: String::new(), body: body.into(), links: Vec::new() }
     }
 
     #[test]

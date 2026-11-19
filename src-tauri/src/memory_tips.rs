@@ -171,7 +171,7 @@ mod tests {
     use super::*;
 
     fn page(title: &str, summary: &str, body: &str) -> crate::brain::Page {
-        crate::brain::Page { slug: String::new(), title: title.into(), source: String::new(), updated: String::new(), summary: summary.into(), aliases: vec![], body: body.into(), links: vec![] }
+        crate::brain::Page { slug: String::new(), title: title.into(), source: String::new(), updated: String::new(), summary: summary.into(), aliases: vec![], kind: String::new(), body: body.into(), links: vec![] }
     }
 
     #[test]
