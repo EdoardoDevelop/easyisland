@@ -1,6 +1,10 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+// The Dock (docs/piano-dock.md, EASYTECH): open windows, apps, registry watches.
+mod applist;
+mod regwatch;
+mod taskwin;
 mod barshadow;
 mod fgwin;
 mod gitbranch;
@@ -5633,6 +5637,13 @@ pub fn run() {
             bar_grow,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
+            // The Dock (EASYTECH).
+            taskwin::dock_windows,
+            taskwin::dock_do,
+            taskwin::dock_pins,
+            taskwin::dock_pins_set,
+            taskwin::dock_icons,
+            taskwin::apps_catalog,
             news::news_proposals,
             news::news_items,
             news::news_refresh,
