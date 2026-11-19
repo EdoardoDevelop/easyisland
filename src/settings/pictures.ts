@@ -10,7 +10,7 @@
 // The SVG is built as a string: every value put in it is a number, one of a
 // fixed set of words, or a colour checked against #rrggbb.
 
-import { barThickness, type Settings } from "../core/state";
+import { barEdge, barThickness, type Settings } from "../core/state";
 import { barBgInk, hexLuma, parseBarBg } from "../core/barbg";
 import { characters } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -21,7 +21,7 @@ import { islandHex, studioLook, uiStyle } from "../core/uistyle";
 export type PicKind =
   | "look" | "compactBg" | "greeting" | "follow" | "bubble" | "menuChar"
   | "screen" | "anchor" | "overTaskbar" | "glue" | "fullscreen"
-  | "bar" | "barSlot" | "barBg"
+  | "bar" | "barSlot" | "barBg" | "dock"
   | "rest" | "hover" | "always" | "strip" | "appBar" | "alerts"
   | "place" | "openDelay" | "autoClose" | "closeBtn" | "size" | "search" | "app";
 
@@ -280,9 +280,9 @@ function spot(s: Settings, v = s.anchorV, hz = s.anchorH): { x: number; y: numbe
   return { x, y };
 }
 
-/** The fixed bar's fill (including gradient/glow/aurora/glass defs) and readable text ink. */
-function barFill(s: Settings, p: Paint, id = "barbg"): { defs: string; attrs: string; extra?: string; ink: string } {
-  const spec = parseBarBg(s.fixedBarBackground ?? "");
+/** The bar's fill (including gradient/glow/aurora/glass defs) and readable text ink. */
+function barFill(s: Settings, p: Paint, id = "barbg", bgValue = s.fixedBarBackground ?? ""): { defs: string; attrs: string; extra?: string; ink: string } {
+  const spec = parseBarBg(bgValue);
   const ink = barBgInk(spec, spec.kind === "transparent" ? "#ffffff" : p.ink);
   if (spec.kind === "transparent") {
     return { defs: "", attrs: `fill="none" stroke="${p.ink}" stroke-opacity="0.35" stroke-dasharray="2 2" stroke-width="0.6"`, ink };
@@ -425,20 +425,58 @@ export function picture(kind: PicKind, s: Settings): string {
         `<rect x="14" y="88" width="132" height="2" rx="1" fill="#ffffff" fill-opacity="0.25"/><rect x="14" y="88" width="52" height="2" rx="1" fill="#F4505E"/>` +
         (s.quietFullscreen ? "" : top()));
     case "bar": {
-      const edge = s.fixedBar;
+      const edge = barEdge(s);
       if (!edge) {
         const at = spot(s);
         return svg(screen() + taskbar() + compact(p, at.x, at.y, s));
       }
       const f = barFill(s, p, "pic-bar");
-      const y = edge === "top" ? 0 : 80;
-      const app = edge === "top" ? `<rect class="p-app" x="6" y="12" width="148" height="77" rx="2"/>` : `<rect class="p-app" x="6" y="4" width="148" height="74" rx="2"/>`;
-      const shape = (extraAttrs: string) => edge === "top"
-        ? `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" ${extraAttrs}/>`
-        : `<rect x="0" y="${y}" width="160" height="10" ${extraAttrs}/>`;
+      const app = `<rect class="p-app" x="6" y="12" width="148" height="77" rx="2"/>`;
+      const shape = (extraAttrs: string) =>
+        `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" ${extraAttrs}/>`;
       return svg(f.defs + `<rect class="p-scr" width="160" height="100" rx="7"/>` + app + taskbar() +
         shape(f.attrs) + (f.extra ? shape(f.extra) : "") +
-        barItems(s, y, 10, f.ink, 0.8) + chr(p, barCharX(s, 0.8, 10), y + 5, 3.8));
+        barItems(s, 0, 10, f.ink, 0.8) + chr(p, barCharX(s, 0.8, 10), 5, 3.8));
+    }
+    case "dock": {
+      const topOn = !!barEdge(s);
+      const topBarSvg = topOn
+        ? `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" fill="${p.island}" fill-opacity="0.9"/>`
+        : "";
+      const app = `<rect class="p-app" x="10" y="${topOn ? 14 : 6}" width="140" height="${s.dock ? 64 : 74}" rx="3"/>`;
+      const winTaskbar = s.dockHidesTaskbar ? "" : taskbar();
+      if (!s.dock) {
+        const at = spot(s);
+        return svg(`<rect class="p-scr" width="160" height="100" rx="7"/>` + topBarSvg + app + winTaskbar + (topOn ? "" : compact(p, at.x, at.y, s)));
+      }
+      const look = s.dockLook ?? {};
+      const f = barFill(s, p, "pic-dock", s.dockBackground ?? "");
+      const band = look.style === "band";
+      const count = Math.max(4, Math.min(7, (s.dockPinned?.length || 5)));
+      const hDock = clamp((look.iconSize ?? 44) * 0.25, 9, 16);
+      const yDock = band ? 100 - hDock : (s.dockHidesTaskbar ? 96 - hDock : 88 - hDock);
+      const wDock = band ? 160 : clamp(count * (hDock * 0.92 + 3) + 14, 62, 144);
+      const xDock = band ? 0 : (160 - wDock) / 2;
+      const rx = band ? 0 : 4.5;
+      const shape = (attrs: string) =>
+        `<rect x="${n1(xDock)}" y="${n1(yDock)}" width="${n1(wDock)}" height="${n1(hDock)}" rx="${rx}" ${attrs} stroke="${f.ink}" stroke-opacity="0.22" stroke-width="0.6"/>`;
+      let iconsSvg = "";
+      const step = hDock * 0.65 + 4;
+      const startX = 80 - ((count - 1) * step) / 2;
+      const iconR = hDock * 0.26;
+      const colors = ["#38BDF8", "#F472B6", "#34D399", "#F5A524", "#A78BFA", "#60A5FA", "#F87171"];
+      for (let i = 0; i < count; i++) {
+        const cx = startX + i * step;
+        const cy = yDock + hDock / 2 - 0.5;
+        iconsSvg += `<rect x="${n1(cx - iconR)}" y="${n1(cy - iconR)}" width="${n1(iconR * 2)}" height="${n1(iconR * 2)}" rx="1.4" fill="${colors[i % colors.length]}"/>`;
+        if (look.indicators !== false && i < 3) {
+          iconsSvg += i === 1
+            ? `<rect x="${n1(cx - 2.2)}" y="${n1(yDock + hDock - 2.2)}" width="4.4" height="1.2" rx="0.6" fill="var(--accent, #4cc2ff)"/>`
+            : `<circle cx="${n1(cx)}" cy="${n1(yDock + hDock - 1.6)}" r="0.8" fill="${f.ink}" fill-opacity="0.75"/>`;
+        }
+      }
+      return svg(f.defs + `<rect class="p-scr" width="160" height="100" rx="7"/>` + topBarSvg + app + winTaskbar +
+        shape(f.attrs) + (f.extra ? shape(f.extra) : "") + iconsSvg);
     }
     case "barSlot":
     case "barBg": {

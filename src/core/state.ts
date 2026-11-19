@@ -205,6 +205,40 @@ export interface FixedBarLook {
   font?: boolean;
 }
 
+/** One pinned app on the Dock (docs/piano-dock.md). */
+export interface DockPin {
+  id: string;
+  name: string;
+  aumid?: string;
+  path?: string;
+  args?: string;
+}
+
+export type DockStyle = "capsule" | "band";
+export type DockAutoHide = "off" | "auto" | "smart";
+export type DockMagnify = "off" | "subtle" | "lively";
+export type DockClickGroup = "preview" | "cycle";
+
+/** «Aspetto della Dock» (Impostazioni → Aspetto → Dock), every choice optional. */
+export interface DockLook {
+  style?: DockStyle;
+  iconSize?: number;
+  magnify?: DockMagnify;
+  autoHide?: DockAutoHide;
+  indicators?: boolean;
+  groupWindows?: boolean;
+  multiClick?: DockClickGroup;
+  recents?: boolean;
+  showMinimized?: boolean;
+  labels?: boolean;
+  shadow?: boolean;
+  blur?: boolean;
+  opacity?: number;
+  margin?: number;
+  gap?: number;
+  characterInDock?: boolean;
+}
+
 /** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */
 export interface NewsTopic {
   name: string;
@@ -285,9 +319,18 @@ export interface BarSys {
   vscode?: { name: string; path: string }[] | null;
 }
 
-/** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
-export function barEdge(s: { fixedBar?: string }): "top" | "bottom" | null {
-  return s.fixedBar === "top" || s.fixedBar === "bottom" ? s.fixedBar : null;
+/** Top bar active: its edge ("top"); null when off. Legacy "bottom" counts as "top". */
+export function barEdge(s: { fixedBar?: string }): "top" | null {
+  return s.fixedBar === "top" || s.fixedBar === "bottom" ? "top" : null;
+}
+
+/** Migrates legacy fixedBar "bottom" to Top bar ("top") + Dock enabled. */
+export function migrateBarSettings<T extends { fixedBar?: string; dock?: boolean }>(s: T): T {
+  if (s.fixedBar === "bottom") {
+    s.fixedBar = "top";
+    s.dock = true;
+  }
+  return s;
 }
 
 /** The fixed bar's thickness, logical px: the user's height, or the compact view's
@@ -809,8 +852,16 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
-  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
-  fixedBar?: "" | "top" | "bottom";
+  /** «Top bar» (appbar.rs): "" off, or "top" (always at top). Legacy "bottom" migrates to "top" + dock. */
+  fixedBar?: "" | "top";
+  /** Dock in basso (app fissate e aperte, fase 2). */
+  dock?: boolean;
+  /** Hides the Windows taskbar while the Dock is active (handled with safety guard in Rust). */
+  dockHidesTaskbar?: boolean;
+  dockPinned?: DockPin[];
+  dockItems?: BarItem[];
+  dockBackground?: string;
+  dockLook?: DockLook;
   /** Where the character sits in the fixed bar. */
   fixedBarSlot?: "start" | "center" | "end";
   /** What else the fixed bar shows, in order (BarItem). */
@@ -1500,6 +1551,11 @@ export const DEFAULT_SETTINGS: Settings = {
   glueEdges: true,
   overTaskbar: false,
   fixedBar: "",
+  dock: false,
+  dockHidesTaskbar: false,
+  dockPinned: [],
+  dockItems: [],
+  dockBackground: "",
   fixedBarSlot: "center",
   fixedBarItems: [],
   fixedBarBackground: "",

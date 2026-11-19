@@ -173,6 +173,7 @@ export const ACTION_ICONS: ActionIcon[] = [
   { name: "robot", label: t("Robot"), d: "M5 8h14v11H5z M12 4v4 M12 3h.01 M9 12.5h.01 M15 12.5h.01 M9.5 16h5 M2.5 12v3 M21.5 12v3" },
   { name: "repo", label: t("Repository"), d: "M6 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6 8v8 M6 16a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M18 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M18 8c0 5-6 4-12 8" },
   { name: "api", label: t("API"), d: "M4 12h4 M16 12h4 M8 8h8v8H8z M12 4v4 M12 16v4" },
+  { name: "chevronUp", label: t("Freccia in su"), d: "M6 15l6-6 6 6" },
 ];
 
 const BY_NAME = new Map(ACTION_ICONS.map((i) => [i.name, i]));

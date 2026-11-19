@@ -11,7 +11,7 @@ import "./chat-cards.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, barEdge, barThickness, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
+import { State, barEdge, barThickness, migrateBarSettings, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
 import { forgetRecords, previewFor, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -23,8 +23,9 @@ import { syncLanguage, t } from "./core/i18n";
 import { toolWords } from "./core/permits";
 import { refreshDone } from "./views/done";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
-import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
+import { dockChannel, linkChannel, type CharacterToIsland, type DockSnapshot, type DockToIsland, type IslandToCharacter, type IslandToDock } from "./core/link";
 import { barClockDelay, barPieces, barSysKinds, recordBarSys } from "./island/bar";
+import { scheme as currentScheme, uiStyle } from "./core/uistyle";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -53,7 +54,7 @@ async function main() {
 
   const boot = await Bridge.boot();
   if (boot) {
-    State.settings = { ...State.settings, ...boot.settings };
+    State.settings = migrateBarSettings({ ...State.settings, ...boot.settings });
     // The language this page was built in must be the one chosen (once, at the first start).
     syncLanguage(State.settings.language);
   } else {
@@ -71,7 +72,7 @@ async function main() {
         : typeof current === "boolean" ? value === "true"
         : Array.isArray(current) ? value.split(",").filter(Boolean) : value;
     }
-    State.settings = { ...State.settings, ...overrides } as Settings;
+    State.settings = migrateBarSettings({ ...State.settings, ...overrides } as Settings);
     const who = params.get("character");
     if (who) State.settings.theme = { ...State.settings.theme, character: who };
     // ?ui=classic|windows|monolith|titanium|editorial
@@ -232,7 +233,7 @@ async function main() {
 
   // The settings window writes preferences; apply them here without a restart.
   await onEvent<Settings>("settings-changed", (s) => {
-    State.settings = { ...State.settings, ...s };
+    State.settings = migrateBarSettings({ ...State.settings, ...s });
     island.applySettings();
     State.loadIntegrationTasks();
     void refreshConfigured();
@@ -248,6 +249,7 @@ async function main() {
   });
 
   linkCharacterWindow(island);
+  linkDockWindow(island);
   island.launch();
   if (boot?.openSearch) void island.onHotkey("search");
   // Monday from 8:00: last week's recap, once the greeting is over.
@@ -306,7 +308,7 @@ function linkCharacterWindow(island: Island) {
       bar: barEdge(State.settings)
         ? {
           slot: State.settings.fixedBarSlot ?? "center",
-          edge: barEdge(State.settings) === "bottom" ? "bottom" : "top",
+          edge: "top",
           ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
           thickness: barThickness(State.settings),
           items: barPieces(island.barStrip(), island.barAppBar()),
@@ -383,6 +385,52 @@ function linkCharacterWindow(island: Island) {
   State.subscribe(push);
   island.onRestChange = push;
   island.mirror = send;
+  push();
+}
+
+/** Keeps the Dock window (dock.html) synchronized with island state, widgets and theme. */
+function linkDockWindow(island: Island) {
+  let sentKey = "";
+  const build = (): DockSnapshot => {
+    const s = State.settings;
+    const paint = barPaint(s.dockBackground ?? "", island.islandBackground, island.islandInk);
+    return {
+      background: paint.background,
+      ink: paint.ink,
+      items: s.dock ? barPieces(null, null, s.dockItems ?? [], "pills") : [],
+      look: s.dockLook ?? {},
+      pinned: s.dockPinned ?? [],
+      font: barFont(s.theme?.fonts),
+      scheme: currentScheme(),
+      style: uiStyle(s.theme?.style),
+      accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4cc2ff",
+      animations: (s.animations as DockSnapshot["animations"]) ?? "ricche",
+      reduceTransparency: false,
+    };
+  };
+  const send = dockChannel<DockToIsland, IslandToDock>((m) => {
+    if (m.kind === "hello") {
+      sentKey = "";
+      push();
+    } else if (m.kind === "bar") {
+      island.barClick(m.key, m.button, m.x);
+    } else if (m.kind === "open") {
+      if (State.mode === "expanded") island.collapse();
+      else island.openFromTaskbar();
+    } else if (m.kind === "settings") {
+      void Bridge.openSettingsAt("aspetto", "dock");
+    }
+  });
+  const push = () => {
+    if (!State.settings.dock) return;
+    const snap = build();
+    const key = JSON.stringify(snap);
+    if (key === sentKey) return;
+    sentKey = key;
+    send({ kind: "dock-look", snap });
+  };
+  State.subscribe(push);
+  void onEvent<BarSys>("bar-sys", () => push());
   push();
 }
 

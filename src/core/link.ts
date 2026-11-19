@@ -84,10 +84,44 @@ export const MIRRORED_CALLS = [
 ] as const;
 
 const NAME = "easyisland-link";
+const DOCK_NAME = "easyisland-dock-link";
 
 export function linkChannel<In, Out>(onMessage: (m: In) => void): (m: Out) => void {
   if (typeof BroadcastChannel === "undefined") return () => {};
   const ch = new BroadcastChannel(NAME);
+  ch.onmessage = (e: MessageEvent<In>) => onMessage(e.data);
+  return (m) => ch.postMessage(m);
+}
+
+/** Look pushed from the island to the dedicated Dock window (dock.html). */
+export interface DockSnapshot {
+  background: string;
+  ink: string;
+  items: BarPiece[];
+  look: import("./state").DockLook;
+  pinned: import("./state").DockPin[];
+  font?: { stack: string; weight: number } | null;
+  scheme: "dark" | "light";
+  style: import("./uistyle").UiStyle;
+  accent: string;
+  animations: "ricche" | "sobrie" | "fermo";
+  reduceTransparency: boolean;
+}
+
+export type IslandToDock =
+  | { kind: "dock-look"; snap: DockSnapshot }
+  | { kind: "dock-windows"; windows: import("./bridge").DockWin[] }
+  | { kind: "dock-icons"; icons: Record<string, string> };
+
+export type DockToIsland =
+  | { kind: "hello" }
+  | { kind: "open" }
+  | { kind: "bar"; key: string; button?: BarButton; x?: number }
+  | { kind: "settings" };
+
+export function dockChannel<In, Out>(onMessage: (m: In) => void): (m: Out) => void {
+  if (typeof BroadcastChannel === "undefined") return () => {};
+  const ch = new BroadcastChannel(DOCK_NAME);
   ch.onmessage = (e: MessageEvent<In>) => onMessage(e.data);
   return (m) => ch.postMessage(m);
 }

@@ -845,6 +845,12 @@ pub struct Settings {
     /// «Barra fissa» (appbar.rs): "" off, "top" or "bottom". Of the PC, not of a profile.
     #[serde(default)]
     pub fixed_bar: String,
+    /// The Dock at the bottom (docs/piano-dock.md). Of the PC, not of a profile.
+    #[serde(default)]
+    pub dock: bool,
+    /// The Dock replaces the Windows taskbar (taskbar_hide.rs): off unless chosen.
+    #[serde(default)]
+    pub dock_hides_taskbar: bool,
     /// Where the character sits in the fixed bar: "start", "center" or "end".
     #[serde(default = "default_fixed_bar_slot")]
     pub fixed_bar_slot: String,
@@ -1354,6 +1360,8 @@ impl Default for Settings {
             glue_edges: true,
             over_taskbar: false,
             fixed_bar: String::new(),
+            dock: false,
+            dock_hides_taskbar: false,
             fixed_bar_slot: default_fixed_bar_slot(),
             fixed_bar_items: Vec::new(),
             news: Value::Null,
@@ -1497,6 +1505,11 @@ impl Settings {
 
     /// Brings a file of any earlier layout up to SCHEMA_VERSION.
     pub fn migrated(mut self) -> Self {
+        // 19 Nov 2026: the fixed bar is the «Top bar», at the top only; the bottom is the Dock's.
+        if self.fixed_bar == "bottom" {
+            self.fixed_bar = "top".into();
+            self.dock = true;
+        }
         // Schemas 3–4: values written while the character was Mochi or Ezzy.
         if LEGACY_CHARACTERS.contains(&self.icon_style.as_str()) {
             self.icon_style = default_icon_style();
@@ -1842,6 +1855,16 @@ pub fn save(settings: &Settings) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fixed_bar_at_the_bottom_becomes_the_top_bar_and_the_dock() {
+        let s = Settings { fixed_bar: "bottom".into(), ..Default::default() }.migrated();
+        assert_eq!(s.fixed_bar, "top");
+        assert!(s.dock);
+        assert!(!s.dock_hides_taskbar);
+        let s = Settings { fixed_bar: "top".into(), ..Default::default() }.migrated();
+        assert!(!s.dock);
+    }
 
     #[test]
     fn the_fixed_bar_pins_the_island_and_sizes_the_band() {

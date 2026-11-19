@@ -28,9 +28,9 @@ function keyOf(it: BarItem): string {
   return it.id.startsWith("sys:") && it.uid ? `${it.id}#${it.uid}` : it.id;
 }
 
-/** The element a key stands for (a key without uid finds the first of its id). */
+/** The element a key stands for across Top bar and Dock (a key without uid finds the first of its id). */
 export function barItemOf(key: string): BarItem | null {
-  const items = State.settings.fixedBarItems ?? [];
+  const items = [...(State.settings.fixedBarItems ?? []), ...(State.settings.dockItems ?? [])];
   return items.find((x) => keyOf(x) === key) ?? items.find((x) => x.id === key.split("#")[0]) ?? null;
 }
 
@@ -314,6 +314,28 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
       const v = n ? String(n) : "";
       return { v: { new: v, title, value: v }, icon: k.icon, tip: title ? `${t("Notizie")}: ${title}` : t("Notizie"), dim: !n };
     }
+    case "start":
+      return { v: { value: "" }, icon: k.icon, tip: t("Menu Start") };
+    case "systray":
+      return { v: { value: "" }, icon: k.icon, tip: t("Icone nascoste (area di notifica)") };
+    case "notifications":
+      return { v: { value: "" }, icon: k.icon, tip: t("Notifiche e calendario di Windows") };
+    case "showdesktop":
+      return { v: { value: "" }, icon: k.icon, tip: t("Mostra desktop") };
+    case "taskview":
+      return { v: { value: "" }, icon: k.icon, tip: t("Visualizzazione attività") };
+    case "privacy":
+      return { v: { who: "", value: "" }, icon: k.icon, tip: t("Microfono e webcam in uso"), dim: true };
+    case "tray": {
+      const n = State.inbox?.length ?? 0;
+      const v = n ? String(n) : "";
+      return {
+        v: { count: v, value: v },
+        icon: k.icon,
+        tip: n ? t("Vassoio dei file ({n})", { n: String(n) }) : t("Vassoio dei file"),
+        dim: n === 0,
+      };
+    }
     default:
       return { v: { value: "" }, icon: k?.icon ?? "i:power", tip: k?.name ?? "" };
   }
@@ -428,11 +450,18 @@ function decorateSys(el: HTMLElement, sv: SysValue, it: BarItem, kind: string, d
   }
 }
 
-export function barPieces(strip: StripItem | null, appBar: StripItem | null = null): BarPiece[] {
+export function barPieces(
+  strip: StripItem | null,
+  appBar: StripItem | null = null,
+  customItems?: BarItem[],
+  customDesign?: FixedBarDesign,
+): BarPiece[] {
   const out: BarPiece[] = [];
-  const design: FixedBarDesign = State.settings.fixedBarLook?.design ?? "classic";
-  const items = State.settings.fixedBarItems ?? [];
-  if (strip && !items.some((x) => x.id === "strip")) out.push(stripPiece(strip, State.settings.fixedBarSlot ?? "center"));
+  const design: FixedBarDesign = customDesign ?? State.settings.fixedBarLook?.design ?? "classic";
+  const items = customItems ?? State.settings.fixedBarItems ?? [];
+  if (strip && !customItems && !items.some((x) => x.id === "strip")) {
+    out.push(stripPiece(strip, State.settings.fixedBarSlot ?? "center"));
+  }
   for (const it of items) {
     const area = it.area === "start" || it.area === "end" ? it.area : "center";
     const key = keyOf(it);
@@ -486,19 +515,26 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
 /** The system elements barsys.rs has to read now (none while the bar is off). Graphs of the
  *  network need its reading too. */
 export function barSysKinds(): string[] {
-  if (!State.settings.fixedBar) return [];
+  const active: BarItem[] = [
+    ...(State.settings.fixedBar ? (State.settings.fixedBarItems ?? []) : []),
+    ...(State.settings.dock ? (State.settings.dockItems ?? []) : []),
+  ];
+  if (!active.length) return [];
   const kinds = new Set<string>();
-  for (const it of State.settings.fixedBarItems ?? []) {
+  for (const it of active) {
     const k = barKind(it.id);
     if (k?.native) kinds.add(it.id.slice(4));
   }
   return [...kinds].sort();
 }
 
-/** Milliseconds to the next minute (or second) a clock in the bar shows; null without one. */
+/** Milliseconds to the next minute (or second) a clock in any bar shows; null without one. */
 export function barClockDelay(): number | null {
-  if (!State.settings.fixedBar) return null;
-  const clocks = (State.settings.fixedBarItems ?? []).filter((x) => x.id === "sys:clock");
+  const active: BarItem[] = [
+    ...(State.settings.fixedBar ? (State.settings.fixedBarItems ?? []) : []),
+    ...(State.settings.dock ? (State.settings.dockItems ?? []) : []),
+  ];
+  const clocks = active.filter((x) => x.id === "sys:clock");
   if (!clocks.length) return null;
   const now = Date.now();
   const step = clocks.some((c) => c.opts?.seconds) ? 1000 : 60_000;
@@ -514,6 +550,7 @@ export function barMenuOf(it: BarItem): [string, string][] {
   const s = State.barSys;
   switch (it.id) {
     case "sys:power": return powerMenu();
+    case "sys:start": return [["sys:start:open", t("Menu Start")], ["sys:start:winx", t("Menu rapido di Windows (Win+X)")]];
     case "sys:volume": return soundMenu("volume");
     case "sys:mic": return soundMenu("mic");
     case "sys:cpu": case "sys:ram": case "sys:gpu":
