@@ -24,6 +24,7 @@ import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
 import { t, tn } from "../core/i18n";
 import { inline, plainText } from "../core/markdown";
+import { loadSettingsIndex, searchSettings } from "../core/settings-index";
 
 export interface SearchActions {
   openTask(id: string): void;
@@ -59,7 +60,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
+  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Impostazioni" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -79,11 +80,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Impostazioni: t("Impostazioni"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Impostazioni: 4, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -375,6 +376,19 @@ export function buildSearch(actions: SearchActions): SearchHost {
     {
       const s = score(`${t("Cosa ho fatto")} ${t("annulla azioni permessi")}`, q);
       if (s) out.push({ kind: "Isola", name: t("Cosa ho fatto"), score: s, icon: () => svg(ICONS.history, 13, { stroke: 2 }), run: () => actions.showDone() });
+    }
+    // A control of the settings (core/settings-index.ts, built by the settings window):
+    // «posizione ricerca», «davanti al cliente» → that page, that tab, the control lit.
+    if (q.length >= 3) {
+      const index = loadSettingsIndex();
+      for (const { entry: e, score: s } of index ? searchSettings(index.entries, input.value, 4) : []) {
+        const place = [e.pageLabel, e.tabLabel].filter(Boolean).join(" › ");
+        // On the scale of the other kinds: its name from the start 3, every word in its name 2, else 1.
+        const whole = s >= 4 && fold(e.label).startsWith(q);
+        out.push({ kind: "Impostazioni", name: `${e.label} · ${place}`, score: whole ? 3 : s >= 6 ? 2 : 1,
+          icon: () => svg(ICONS.sliders, 13),
+          run: () => { void Bridge.openSettingsAt(e.page, `idx:${e.key}`); doneIfSearchOnly(); } });
+      }
     }
     if (notion.q === input.value.trim()) {
       for (const p of notion.pages) {

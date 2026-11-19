@@ -4,6 +4,8 @@
 
 Settings open from the notification area icon, from `easyisland.exe --settings`, or by asking the chat to change one. They stay above the island while you use them. Sections with the purple label are saved in the active **profile**; the others apply to the PC. At the bottom of the menu: **Guide**, **Website**, **GitHub**.
 
+**Finding a setting:** the field at the top of the menu (also **Ctrl+F**) searches every page and tab, by name, description and choices. Type a few words («in front of a client», «dark mode», «telegram token»): a click or **Enter** opens the right page and the control lights up; the arrows choose, **Esc** goes back to the page. The same from the island's field at the top: typing the name of a setting shows a **Settings** line that opens that very control.
+
 | Page | What it contains |
 |---|---|
 | **General** | Language, start with Windows, profiles and automatic switch, updates (version, Check now, daily check), pause |

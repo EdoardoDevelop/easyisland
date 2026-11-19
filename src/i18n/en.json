@@ -5889,5 +5889,12 @@
   "Nessun preferito o recente": "No favorites or recents yet",
   "Cerca qui sopra: un nome, un cliente, un IP. Con la stella tieni le connessioni a portata di mano.": "Search above: a name, a customer, an IP. Star connections to keep them at hand.",
   "Cerca connessione, cliente, host o utente…": "Search connection, customer, host or user…",
-  "Pulisci ricerca": "Clear search"
+  "Pulisci ricerca": "Clear search",
+  "Cerca nelle impostazioni…": "Search the settings…",
+  "Cerca nelle impostazioni": "Search the settings",
+  "Impostazioni trovate": "Settings found",
+  "Cerca: «{q}»": "Search: «{q}»",
+  "Niente: prova con un'altra parola, anche più corta («posiz», «cliente», «tema»).": "Nothing: try another word, even a shorter one («posit», «client», «theme»).",
+  "{n} impostazione trovata · Invio apre la prima, le frecce scelgono, Esc torna indietro": "{n} setting found · Enter opens the first, the arrows choose, Esc goes back",
+  "{n} impostazioni trovate · Invio apre la prima, le frecce scelgono, Esc torna indietro": "{n} settings found · Enter opens the first, the arrows choose, Esc goes back"
 }

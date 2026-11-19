@@ -30,6 +30,7 @@ import "./settings-windows.css";
 import "./settings-studio.css";
 import "./settings-light.css";
 import "../core/search-line.css";
+import { ensureIndex, gotoEntry, indexIsCurrent, resultsView, searchField, searching, setupSearch, watchCtrlF } from "./search";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
@@ -7373,7 +7374,53 @@ async function main() {
   for (const k of keys) present[k] = (await Bridge.secretPresent(k)) ?? false;
 
   boot = { status, hasKey, present };
+  setupSearch({
+    pages: () => (boot ? pages(boot) : []),
+    lookTabs: () => LOOK_TABS(),
+    withLookTab: (tab, fn) => {
+      const was = lookTabNow;
+      lookTabNow = tab as LookTab;
+      try {
+        return fn();
+      } finally {
+        lookTabNow = was;
+      }
+    },
+    show: (page, tab, item) => {
+      try {
+        localStorage.setItem(PAGE_KEY, page);
+      } catch {
+        // Not remembered: render() below still shows it.
+      }
+      // Inside an integration: that one open, as settings-goto does.
+      if (page === "integrazioni" && item) {
+        openIntegration = item;
+        integrationQuery = "";
+        integrationGroup = "all";
+        onlyActive = false;
+      }
+      if (page === "aspetto" && tab) lookTabNow = tab as LookTab;
+      else if (tab) pageTabNow.set(page, tab);
+      render();
+    },
+    root,
+    version: () => version,
+    language: () => language(),
+    rebuilt: () => render(),
+  });
+  watchCtrlF();
   render();
+  // The index of the settings (search.ts), for this window and the island's field:
+  // built from the pages once per version and language, while the window is
+  // still hidden (it sleeps 10 s after launch), then the page drawn again so its
+  // controls are the ones on screen.
+  if (!indexIsCurrent()) {
+    window.setTimeout(() => {
+      if (!document.hidden) return;
+      ensureIndex();
+      render();
+    }, 1500);
+  }
 
   // Compiti: the list follows the tasks while they work (tasks.rs).
   void onEvent<AgentTaskItem[]>("tasks-changed", (list) => {
@@ -7392,6 +7439,11 @@ async function main() {
 
   void onEvent<{ page: string; item: string }>("settings-goto", ({ page, item }) => {
     gotoAt = Date.now();
+    // A control found by the island's field (core/settings-index.ts): «idx:page|tab|label#n».
+    if (item.startsWith("idx:")) {
+      gotoEntry(item.slice(4));
+      return;
+    }
     try {
       localStorage.setItem(PAGE_KEY, page);
     } catch {
@@ -7562,6 +7614,7 @@ function render() {
 
   const nav = h("nav", { class: "nav" },
     h("div", { class: "brand" }, h("span", { text: t("EasyIsland") }), h("span", { class: "version", text: version })),
+    searchField(() => showSearch()),
   );
   for (const p of list) {
     const item = h("button", { class: p.id === page.id ? "nav-item on" : "nav-item" },
@@ -7592,6 +7645,10 @@ function render() {
       link("GitHub", "https://github.com/EdoardoDevelop/easyisland")),
     h("div", { text: t("Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.") })));
 
+  if (searching()) {
+    root.append(nav, h("main", { class: "page", "data-page": "cerca" }, resultsView()));
+    return;
+  }
   const body = h("div", { class: "page-inner" },
     h("header", { class: "page-head" }, h("h1", { text: page.title }), h("div", { class: "hint", text: page.intro })),
     ...page.sections(),
@@ -7618,6 +7675,21 @@ function render() {
   shownKey = key;
   shownMark = item?.getBoundingClientRect() ?? null;
 }
+/**
+ * The field at the top of the menu changed: the results take the page's place
+ * (only the page is redrawn, so the field keeps the keyboard); empty, the page again.
+ */
+function showSearch() {
+  const main = root.querySelector<HTMLElement>("main.page");
+  if (searching() && main) {
+    main.setAttribute("data-page", "cerca");
+    main.replaceChildren(resultsView());
+    main.scrollTop = 0;
+    return;
+  }
+  render();
+}
+
 let shownKey = "";
 let shownMark: DOMRect | null = null;
 let enteredAt = 0;
