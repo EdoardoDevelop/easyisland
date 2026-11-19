@@ -31,6 +31,7 @@ export default defineConfig({
         flussi: resolve(__dirname, "flussi.html"),
         anteprima: resolve(__dirname, "anteprima.html"),
         personaggio: resolve(__dirname, "personaggio.html"),
+        dock: resolve(__dirname, "dock.html"),
       },
     },
   },

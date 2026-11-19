@@ -3616,6 +3616,16 @@ ${note}` : text };
       void this.onHotkey("search");
       return;
     }
+    if ((it.id === "sys:start" || it.id === "sys:systray" || it.id === "sys:notifications"
+      || it.id === "sys:showdesktop" || it.id === "sys:taskview") && button === "left") {
+      void Bridge.barSysDo(it.id.slice(4));
+      return;
+    }
+    if (it.id === "sys:tray" && button === "left") {
+      if (State.mode === "expanded" && State.view === "files") this.collapse();
+      else this.openFromBarAt("files", x);
+      return;
+    }
     if (button === "up" || button === "down") {
       if (kind && barWheels(it)) this.barWheel(it.id.slice(4), button === "up" ? 1 : -1);
       return;

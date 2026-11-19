@@ -205,6 +205,40 @@ export interface FixedBarLook {
   font?: boolean;
 }
 
+/** One pinned app on the Dock (docs/piano-dock.md). */
+export interface DockPin {
+  id: string;
+  name: string;
+  aumid?: string;
+  path?: string;
+  args?: string;
+}
+
+export type DockStyle = "capsule" | "band";
+export type DockAutoHide = "off" | "auto" | "smart";
+export type DockMagnify = "off" | "subtle" | "lively";
+export type DockClickGroup = "preview" | "cycle";
+
+/** «Aspetto della Dock» (Impostazioni → Aspetto → Dock), every choice optional. */
+export interface DockLook {
+  style?: DockStyle;
+  iconSize?: number;
+  magnify?: DockMagnify;
+  autoHide?: DockAutoHide;
+  indicators?: boolean;
+  groupWindows?: boolean;
+  multiClick?: DockClickGroup;
+  recents?: boolean;
+  showMinimized?: boolean;
+  labels?: boolean;
+  shadow?: boolean;
+  blur?: boolean;
+  opacity?: number;
+  margin?: number;
+  gap?: number;
+  characterInDock?: boolean;
+}
+
 /** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */
 export interface NewsTopic {
   name: string;
@@ -822,6 +856,12 @@ export interface Settings {
   fixedBar?: "" | "top";
   /** Dock in basso (app fissate e aperte, fase 2). */
   dock?: boolean;
+  /** Hides the Windows taskbar while the Dock is active (handled with safety guard in Rust). */
+  dockHidesTaskbar?: boolean;
+  dockPinned?: DockPin[];
+  dockItems?: BarItem[];
+  dockBackground?: string;
+  dockLook?: DockLook;
   /** Where the character sits in the fixed bar. */
   fixedBarSlot?: "start" | "center" | "end";
   /** What else the fixed bar shows, in order (BarItem). */
@@ -1512,6 +1552,10 @@ export const DEFAULT_SETTINGS: Settings = {
   overTaskbar: false,
   fixedBar: "",
   dock: false,
+  dockHidesTaskbar: false,
+  dockPinned: [],
+  dockItems: [],
+  dockBackground: "",
   fixedBarSlot: "center",
   fixedBarItems: [],
   fixedBarBackground: "",

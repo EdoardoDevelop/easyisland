@@ -229,9 +229,15 @@ section > h2 {
 .fixed-bar .bar-row { display: flex !important; }
 .bar-row-block { display: none; }
 .fixed-bar .bar-row-block { display: block; }
+.dock-row { display: none !important; }
+.dock-on .dock-row { display: flex !important; }
+.dock-row-block { display: none; }
+.dock-on .dock-row-block { display: block; }
 .bar-item-row button { min-width: 28px; }
 .bar-item-row label { display: flex; align-items: center; gap: 6px; }
 .bar-item-row button.on { background: var(--ink); color: var(--bg); }
+.bar-cat-target { font-size: 10px; padding: 1px 5px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--dim); }
+.dock-anim-warn { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(245, 165, 36, 0.4); background: rgba(245, 165, 36, 0.1); font-size: 12px; }
 /* «Widget della barra»: the catalog by group and an element's «Opzioni». */
 .bar-catalog { display: grid; gap: 10px; margin: 4px 0 10px; padding: 10px; border: 1px solid var(--hairline); border-radius: 10px; }
 .bar-cat-title { font: 600 12px var(--font); color: var(--dim); margin-bottom: 6px; }

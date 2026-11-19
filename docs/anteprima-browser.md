@@ -247,7 +247,8 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `remember` | La card «Ricorda» con un testo selezionato in Outlook | `empty`: la card vuota, da scrivere; `call`: dopo «Annota» di una chiamata |
 | `talk` | «Parla»: il microfono acceso mentre parli | `hearing`: la trascrizione |
 | `news` | le notizie | `ask`, `look=thumbs\|cards`, `many` |
-| `barcard` | le card della barra fissa | `card=clock\|volume\|mic\|brightness\|battery\|net` |
+| `barcard` | le card della Top bar | `card=clock\|volume\|mic\|brightness\|battery\|net` |
+| `dock` | la Dock in basso su un desktop finto con app fissate, aperte e widget | `style=band`, `scheme=light`, `ui=classic`, `recents`, `minimized`, `attention`, `opaque` |
 | `recap` | il riepilogo settimanale | — |
 | `stop` | una sessione finita con un messaggio lungo in markdown, dal gestore vero | — |
 | `permission` | non è una schermata: un PermissionRequest vero mentre l'isola mostra un'altra scheda, per controllare che la card compaia, resti e torni | — |
@@ -259,7 +260,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 
 | Pagina | Query |
 |---|---|
-| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto`; `importa` (con `page=compiti`: import di abilità con file e motore finti) |
+| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|dock\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto`; `importa` (con `page=compiti`: import di abilità con file e motore finti) |
 | `memoria.html` | senza `tab` la Panoramica; `tab=timeline\|graph\|graph3d\|mind\|concept\|…`, `few` (una pagina e tre note), `select=<id del nodo>`, `ui=classic`, `scheme=light\|auto`, `many=<n>` (memoria finta grande, fino a 3000 nodi, per provare le etichette) |
 | `anteprima.html` | `tab=<numero>` (di serie 2) |
 | `dev/icons-preview.html` | solo le icone animate |
