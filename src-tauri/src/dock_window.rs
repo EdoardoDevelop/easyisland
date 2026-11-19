@@ -52,8 +52,6 @@ static ASKED: Mutex<Vec<std::time::Instant>> = Mutex::new(Vec::new());
 static BAND: Mutex<f64> = Mutex::new(DEFAULT_BAND);
 /// A full-screen app is in front: the Dock steps away.
 pub static FULLSCREEN: AtomicBool = AtomicBool::new(false);
-/// The guard runs (one per app run).
-static GUARDED: AtomicBool = AtomicBool::new(false);
 /// Bumped by each request to take the taskbar: an older retry loop stops.
 static TAKE_GEN: AtomicU32 = AtomicU32::new(0);
 
@@ -286,9 +284,7 @@ fn later(after: Duration) {
 /// The taskbar taken on a thread of its own (Explorer can block), retried
 /// while Explorer is not ready; the guard started once.
 fn take_taskbar() {
-    if !GUARDED.swap(true, Ordering::SeqCst) {
-        crate::taskbar_hide::spawn_guard();
-    }
+    crate::taskbar_hide::ensure_guard();
     let gen = TAKE_GEN.fetch_add(1, Ordering::SeqCst).wrapping_add(1);
     std::thread::spawn(move || {
         for _ in 0..TAKE_TRIES {

@@ -215,14 +215,24 @@ impl Health {
     }
 }
 
-/// Started by the app when it takes the taskbar; on its own process group so
-/// closing the app's console (development) does not end it too.
-pub fn spawn_guard() {
+/// The guard of this run, while it lives.
+static GUARD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
+
+/// Started by the app when it takes the taskbar, again if it died (killed
+/// with the app's other processes); on its own process group so closing the
+/// app's console (development) does not end it too.
+pub fn ensure_guard() {
     use std::os::windows::process::CommandExt;
+    let mut guard = GUARD.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(child) = guard.as_mut() {
+        if matches!(child.try_wait(), Ok(None)) {
+            return;
+        }
+    }
     let Ok(exe) = env::current_exe() else { return };
-    let started = std::process::Command::new(exe).args([GUARD_FLAG, &std::process::id().to_string()]).creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP).spawn();
-    if let Err(err) = started {
-        crate::log::line(format!("barra di Windows: guardiano non avviato: {err}"));
+    match std::process::Command::new(exe).args([GUARD_FLAG, &std::process::id().to_string()]).creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP).spawn() {
+        Ok(child) => *guard = Some(child),
+        Err(err) => crate::log::line(format!("barra di Windows: guardiano non avviato: {err}")),
     }
 }
 
