@@ -5657,7 +5657,7 @@ pub fn run() {
             bar_grow,
             dock_window::dock_shape,
             tray_host::tray_icons,
-            tray_host::tray_click,
+            tray_host::tray_do,
             dock_window::dock_restore_taskbar,
             dock_window::windows_animations,
             dock_window::open_animation_settings,

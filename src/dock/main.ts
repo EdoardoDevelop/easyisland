@@ -3,7 +3,7 @@
 // and live windows/icons/coverage directly from Rust events & commands.
 
 import "./dock.css";
-import { Bridge, IS_TAURI, onEvent, type DockWin, type DockWindowDiff, type TrayIconInfo } from "../core/bridge";
+import { Bridge, IS_TAURI, onEvent, type DockPinsChange, type DockWin, type DockWindowDiff, type TrayIconInfo } from "../core/bridge";
 import { addFaces } from "../core/fonts";
 import { dockChannel, type DockSnapshot, type DockToIsland, type IslandToDock } from "../core/link";
 import { syncLanguage, t } from "../core/i18n";
@@ -76,6 +76,9 @@ async function main() {
         : current.filter((p) => p.id !== entry.id);
       settings = { ...settings, dockPinned: next };
       void Bridge.saveSettings(settings);
+      if (pin) void Bridge.dockIcons([entry.id]);
+      // Unpinned from the Dock: from the Windows taskbar too, or its next change would bring it back.
+      else void Bridge.dockDo("unpin", { app: entry.id });
     },
     onThumbsChange: (rects) => {
       void Bridge.dockThumbs(rects);
@@ -121,6 +124,24 @@ async function main() {
     await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
       view.setTrayIcons(icons ?? []);
     });
+    // The Windows taskbar's pins: all of them the first time, then what is pinned
+    // or unpinned there (also while EasyIsland was off). The id is the app id its
+    // windows carry, so a pin and its windows meet.
+    const applyWindowsPins = (change: DockPinsChange | null | undefined) => {
+      if (!change || (!change.add?.length && !change.remove?.length)) return;
+      const removed = new Set((change.remove ?? []).map((id) => id.toLowerCase()));
+      let pins = (settings.dockPinned ?? []).filter((p) => !removed.has(p.id.toLowerCase()));
+      const have = new Set(pins.map((p) => p.id.toLowerCase()));
+      for (const p of change.add ?? []) {
+        if (!have.has(p.id.toLowerCase())) pins = [...pins, { id: p.id, name: p.name }];
+      }
+      settings = { ...settings, dockPinned: pins };
+      void Bridge.saveSettings(settings);
+      void Bridge.dockIcons(pins.map((p) => p.id));
+    };
+    await onEvent<DockPinsChange>("dock-pins-windows", applyWindowsPins);
+    applyWindowsPins(await Bridge.dockPinsWindows().catch(() => null));
+    void Bridge.dockIcons((settings.dockPinned ?? []).map((p) => p.id));
     await onEvent<boolean>("dock-covered", (covered) => {
       view.setCovered(covered);
     });

@@ -222,20 +222,21 @@ fn queue_event() {
         std::thread::sleep(Duration::from_millis(120));
         QUEUED.store(false, Ordering::SeqCst);
         if let Some(app) = APP.get() {
-            let _ = app.emit("tray-icons", ());
+            let _ = app.emit("tray-icons", tray_icons());
         }
     });
 }
 
 /// One icon for the bars.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrayIconOut {
-    key: String,
+    id: String,
     tip: String,
-    image: String,
-    /// Windows' «always show» for it; None when Windows has no preference.
-    promoted: Option<bool>,
+    /// PNG data URL.
+    icon: String,
+    /// Windows' «always show» for it (no preference recorded: in the ^ flyout, as Windows 11 does).
+    promoted: bool,
 }
 
 /// The icons to show, in Windows' order; empty when the host is off.
@@ -264,7 +265,7 @@ pub fn tray_icons() -> Vec<TrayIconOut> {
                 }
             };
             seen.push(id);
-            Some(TrayIconOut { key, tip: i.tip.clone(), image, promoted: i.promoted })
+            Some(TrayIconOut { id: key, tip: i.tip.clone(), icon: image, promoted: i.promoted.unwrap_or(false) })
         })
         .collect();
     // Only the current revisions stay.
@@ -272,15 +273,30 @@ pub fn tray_icons() -> Vec<TrayIconOut> {
     out
 }
 
-/// A click on an icon in a bar: `action` "click", "double" or "menu"; `x`, `y`
-/// the icon's centre in physical screen px (where the app opens its menu).
+/// A click on an icon in a bar (`button` "left", "right", "middle", "double"):
+/// the app gets it as from Explorer, at the mouse (the click just happened
+/// there; the app opens its menu by it). True when it reached the app.
 #[tauri::command]
-pub fn tray_click(key: String, action: String, x: i32, y: i32) -> std::result::Result<(), String> {
-    let action = match action.as_str() {
+pub fn tray_do(id: String, button: String) -> bool {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+    let action = match button.as_str() {
         "double" => Action::DoubleClick,
-        "menu" => Action::Menu,
+        "right" => Action::Menu,
         _ => Action::Click,
     };
-    let icon = lock(&HOST).as_ref().and_then(|h| h.icons().into_iter().find(|i| i.key().to_string() == key)).ok_or_else(|| crate::i18n::t("L'icona non c'è più"))?;
-    invoke(&icon, action, x, y)
+    let mut at = POINT::default();
+    unsafe {
+        let _ = GetCursorPos(&mut at);
+    }
+    let Some(icon) = lock(&HOST).as_ref().and_then(|h| h.icons().into_iter().find(|i| i.key().to_string() == id)) else {
+        return false;
+    };
+    match invoke(&icon, action, at.x, at.y) {
+        Ok(()) => true,
+        Err(err) => {
+            crate::log::line(format!("area notifiche: clic non arrivato ({err})"));
+            false
+        }
+    }
 }
