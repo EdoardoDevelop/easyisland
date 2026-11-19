@@ -6215,5 +6215,6 @@
   "Separa gruppo": "Ungroup",
   "Aggiungi al gruppo «{name}»": "Add to group «{name}»",
   "Raggruppa con {name}": "Group with {name}",
-  "Gruppo": "Group"
+  "Gruppo": "Group",
+  "Importa da Windows": "Import from Windows"
 }

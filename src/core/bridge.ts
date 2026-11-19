@@ -1060,6 +1060,8 @@ export const Bridge = {
   dockShape: (band: number, rects: [number, number, number, number][]) =>
     call<void>("dock_shape", { band, rects }),
   appsCatalog: () => call<DockCatalogApp[]>("apps_catalog"),
+  dockImportPinned: () =>
+    call<{ id: string; name: string; aumid?: string; path?: string; args?: string }[]>("dock_import_pinned"),
   dockRestoreTaskbar: () => call<boolean>("dock_restore_taskbar"),
   dockHoverWindow: (on: boolean) => call<void>("dock_hover", { on }),
   windowsAnimations: () => call<boolean>("windows_animations"),

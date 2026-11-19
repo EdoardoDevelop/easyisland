@@ -398,12 +398,18 @@ function linkDockWindow(island: Island) {
   const build = (): DockSnapshot => {
     const s = State.settings;
     const paint = barPaint(s.dockBackground ?? "", island.islandBackground, island.islandInk);
+    const pinned = s.dockPinned ?? [];
+    const items = s.dock ? barPieces(null, null, s.dockItems ?? [], "pills") : [];
+    const look = { ...(s.dockLook ?? {}) };
+    if (look.characterInDock === undefined && !pinned.length && !items.length) {
+      look.characterInDock = true;
+    }
     return {
       background: paint.background,
       ink: paint.ink,
-      items: s.dock ? barPieces(null, null, s.dockItems ?? [], "pills") : [],
-      look: s.dockLook ?? {},
-      pinned: s.dockPinned ?? [],
+      items,
+      look,
+      pinned,
       font: barFont(s.theme?.fonts),
       scheme: currentScheme(),
       style: uiStyle(s.theme?.style),

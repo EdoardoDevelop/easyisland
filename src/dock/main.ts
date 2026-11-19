@@ -37,9 +37,13 @@ async function main() {
 
   let windows: DockWin[] = [];
   let settings = boot?.settings ?? { ...DEFAULT_SETTINGS };
+  let gotLook = false;
+  let lastSnap: DockSnapshot = initial;
 
   const sendToIsland = dockChannel<IslandToDock, DockToIsland>((msg) => {
     if (msg.kind === "dock-look") {
+      gotLook = true;
+      lastSnap = msg.snap;
       if (msg.snap.font) addFaces(document);
       view.setSnapshot(msg.snap);
     } else if (msg.kind === "dock-windows") {
@@ -132,10 +136,26 @@ async function main() {
     });
     await onEvent<Settings>("settings-changed", (next) => {
       settings = { ...settings, ...next };
+      if (next.language) {
+        syncLanguage(next.language);
+        document.title = t("Dock — EasyIsland");
+      }
+      lastSnap = {
+        ...lastSnap,
+        look: next.dockLook ?? lastSnap.look,
+        pinned: next.dockPinned ?? lastSnap.pinned,
+        background: next.dockBackground ?? lastSnap.background,
+        scheme: next.theme?.scheme === "light" ? "light" : next.theme?.scheme === "dark" ? "dark" : lastSnap.scheme,
+        style: (next.theme?.style as DockSnapshot["style"]) ?? lastSnap.style,
+        animations: (next.animations as DockSnapshot["animations"]) ?? lastSnap.animations,
+      };
+      view.setSnapshot(lastSnap);
     });
   }
 
   sendToIsland({ kind: "hello" });
+  window.setTimeout(() => { if (!gotLook) sendToIsland({ kind: "hello" }); }, 250);
+  window.setTimeout(() => { if (!gotLook) sendToIsland({ kind: "hello" }); }, 900);
 }
 
 void main();

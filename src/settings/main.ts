@@ -3648,7 +3648,33 @@ function appearanceSections(): HTMLElement[] {
           h("h2", {}, h("span", { text: t("Dock") }), profileChip()),
           pictured("dock", h("div", { class: "row" },
             h("label", { text: t("Dock") }),
-            toggle(!!settings.dock, (v) => { settings.dock = v; paintFixedBar(); commit(); render(); }),
+            toggle(!!settings.dock, (v) => {
+              settings.dock = v;
+              if (v) {
+                if (settings.dockLook?.characterInDock === undefined) {
+                  settings.dockLook = { ...(settings.dockLook ?? {}), characterInDock: true };
+                }
+                if (!settings.dockItems?.length) {
+                  settings.dockItems = [
+                    { id: "sys:start", uid: "d-start", area: "end", show: "icon" },
+                    { id: "sys:clock", uid: "d-clk", area: "end", show: "value" },
+                    { id: "sys:systray", uid: "d-st", area: "end", show: "icon" },
+                  ];
+                }
+                if (!settings.dockPinned?.length) {
+                  void Bridge.dockImportPinned().then((imported) => {
+                    if (imported?.length && !settings.dockPinned?.length) {
+                      settings.dockPinned = imported;
+                      commit();
+                      render();
+                    }
+                  }).catch(() => {});
+                }
+              }
+              paintFixedBar();
+              commit();
+              render();
+            }),
             h("span", { class: "hint note", text: t("barra inferiore dedicata alle app fissate, alle finestre aperte e al rilascio rapido dei file") }),
           )),
           h("div", { class: "row dock-row" },
@@ -4383,6 +4409,16 @@ function dockPinnedEditor(commit: () => void): HTMLElement {
           }).catch(() => { cachedDockApps = []; paint(); });
         }
         paint();
+      } }),
+      h("button", { text: t("Importa da Windows"), onclick: async () => {
+        const imported = await Bridge.dockImportPinned().catch(() => null);
+        if (imported?.length) {
+          const taken = new Set(pins.map((p) => (p.aumid || p.path || p.id).toLowerCase()));
+          const merged = [...pins, ...imported.filter((x) => !taken.has((x.aumid || x.path || x.id).toLowerCase()))];
+          settings.dockPinned = merged;
+          commit();
+          paint();
+        }
       } }),
     );
     wrap.append(addRow);

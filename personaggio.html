@@ -86,6 +86,9 @@
       .bar-graph { width: calc(34px * var(--s, 1)); height: calc(14px * var(--s, 1)); flex: none; margin-left: 2px; overflow: visible; }
       .bar-graph polyline { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; opacity: 0.85; }
       .bar-item .bar-strip-btn { padding: 1px 6px; margin-left: 2px; }
+      .bar-btn:has(.bar-tray-btn) { max-width: calc(380px * var(--s, 1)); }
+      .bar-item .bar-tray-btn { padding: 2px 3px; margin-left: 0; border-radius: 6px; border-left: 0; background: transparent; }
+      .bar-item .bar-tray-arrow { padding: 2px 5px; margin-left: 1px; border-radius: 6px; border-left: 0; background: transparent; }
       .bar-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
       .bar-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
       .bar-icon { display: grid; place-items: center; flex: none; }
