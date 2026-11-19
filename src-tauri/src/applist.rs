@@ -326,8 +326,8 @@ fn decode(bytes: &[u8], expected: u64) -> Option<(String, Vec<u8>)> {
 /// Ids whose icon is on its way: asked again meanwhile, they are not read twice.
 static PENDING: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
-/// Reads the icons and names of `ids` on the shell thread and sends them to the
-/// Dock as they come: `dock-icons` `{ id: { name, icon } }`, a few at a time.
+/// Reads the icons of `ids` on the shell thread and sends them to the Dock as
+/// they come: `dock-icons` `{ id in lower case: data URL }`, a few at a time.
 pub fn request_icons(app: &AppHandle, ids: Vec<String>) {
     let fresh: Vec<String> = {
         let Ok(mut pending) = PENDING.lock() else { return };
@@ -340,22 +340,23 @@ pub fn request_icons(app: &AppHandle, ids: Vec<String>) {
     let app = app.clone();
     on_shell_later(move || {
         let mut batch = Map::new();
-        let total = fresh.len();
-        for (i, id) in fresh.into_iter().enumerate() {
-            let entry = match visual(&id) {
-                Some((name, icon)) => json!({ "name": name, "icon": icon }),
-                None => json!({ "name": display_name(&id), "icon": Value::Null }),
-            };
+        for id in fresh {
+            let read = visual(&id);
             if let Ok(mut p) = PENDING.lock() {
                 if let Some(p) = p.as_mut() {
                     p.remove(&id);
                 }
             }
-            batch.insert(id, entry);
+            let Some((_, icon)) = read else { continue };
+            // Keyed as the Dock matches apps: the id in lower case.
+            batch.insert(id.to_lowercase(), Value::String(icon));
             // In small batches: the first icons show while the rest is read.
-            if batch.len() >= 8 || i + 1 == total {
+            if batch.len() >= 8 {
                 let _ = app.emit_to(crate::taskwin::DOCK_LABEL, "dock-icons", Value::Object(std::mem::take(&mut batch)));
             }
+        }
+        if !batch.is_empty() {
+            let _ = app.emit_to(crate::taskwin::DOCK_LABEL, "dock-icons", Value::Object(batch));
         }
     });
 }
@@ -561,141 +562,76 @@ fn app_exists(id: &str) -> bool {
     !fixed || Path::new(id).exists()
 }
 
-/* ------------------------------------------------------- the Dock's pins */
+/* ------------------------------------------- the Dock and Windows' pins */
+
+// The Dock's pins live in the settings (`dockPinned`, the front end's). Here
+// only what Windows' taskbar adds to them: all its pins the first time, then
+// what was pinned or unpinned there since, also while EasyIsland was off.
 
 #[derive(Default, Serialize, Deserialize)]
-struct PinsFile {
-    /// The Dock's pinned apps, in its order.
-    pins: Vec<String>,
-    /// The Windows taskbar's pins as last read: what changed there since is
-    /// added to or taken from the Dock.
+struct SeenFile {
+    /// Windows' pins were offered to the Dock once.
+    imported: bool,
+    /// Windows' pins as last read.
     windows: Vec<String>,
 }
 
-static PINS: Mutex<Option<PinsFile>> = Mutex::new(None);
+static SEEN: Mutex<()> = Mutex::new(());
 
-fn pins_path() -> PathBuf {
-    crate::settings::config_dir().join("dock-pins.json")
+fn seen_path() -> PathBuf {
+    crate::settings::config_dir().join("dock-windows-pins.json")
 }
 
-fn load_pins() -> Option<PinsFile> {
-    serde_json::from_slice(&fs::read(pins_path()).ok()?).ok()
-}
-
-fn save_pins(p: &PinsFile) {
-    if let Ok(text) = serde_json::to_vec_pretty(p) {
+/// What changed on the Windows taskbar since last time: `(added, removed)`;
+/// the first time every pin is «added». None when nothing can be read (never
+/// taken for «everything unpinned»). Shell thread.
+fn windows_delta() -> Option<(Vec<String>, Vec<String>)> {
+    let _one_at_a_time = SEEN.lock().ok()?;
+    let now = taskbar_pins_if_readable()?;
+    let mut seen: SeenFile = fs::read(seen_path()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+    let delta = pins_delta(&seen, &now);
+    seen.imported = true;
+    seen.windows = now;
+    if let Ok(text) = serde_json::to_vec_pretty(&seen) {
         let _ = fs::create_dir_all(crate::settings::config_dir());
-        let _ = crate::settings::write_atomic(&pins_path(), &text);
+        let _ = crate::settings::write_atomic(&seen_path(), &text);
     }
+    Some(delta)
 }
 
-/// Follows the Windows taskbar's pins: the first time the Dock takes them all;
-/// later, what was pinned there since is added at the end and what was
-/// unpinned there is taken away. Unreadable: nothing changes. Shell thread.
-fn follow_windows(file: &mut PinsFile, now: Option<Vec<String>>, first: bool) -> bool {
-    let Some(now) = now else { return false };
-    let changed = merge_windows_pins(file, &now, first);
-    file.windows = now;
-    changed
-}
-
-fn merge_windows_pins(file: &mut PinsFile, now: &[String], first: bool) -> bool {
-    let before = file.pins.clone();
-    if first {
-        for id in now {
-            if !file.pins.contains(id) {
-                file.pins.push(id.clone());
-            }
-        }
-    } else {
-        file.pins.retain(|id| !(file.windows.contains(id) && !now.contains(id)));
-        for id in now {
-            if !file.windows.contains(id) && !file.pins.contains(id) {
-                file.pins.push(id.clone());
-            }
-        }
+fn pins_delta(seen: &SeenFile, now: &[String]) -> (Vec<String>, Vec<String>) {
+    if !seen.imported {
+        return (now.to_vec(), Vec::new());
     }
-    file.pins != before
+    let added = now.iter().filter(|id| !seen.windows.contains(id)).cloned().collect();
+    let removed = seen.windows.iter().filter(|id| !now.contains(id)).cloned().collect();
+    (added, removed)
 }
 
-/// The Dock's pins, in order (read and followed with Windows' on the first call).
-pub fn pins() -> Vec<String> {
+/// `{ add: [DockPin], remove: [id] }` for the front end, None if nothing changed.
+/// A pin is `{ id, name }`: the id is the app id its windows carry.
+pub fn windows_pins_change() -> Option<Value> {
     on_shell(Duration::from_secs(10), || {
-        let mut guard = PINS.lock().ok()?;
-        if guard.is_none() {
-            let loaded = load_pins();
-            let first = loaded.is_none();
-            let mut file = loaded.unwrap_or_default();
-            if follow_windows(&mut file, taskbar_pins_if_readable(), first) || first {
-                save_pins(&file);
-            }
-            // Uninstalled apps leave quietly.
-            let before = file.pins.len();
-            file.pins.retain(|id| app_exists(id));
-            if file.pins.len() != before {
-                save_pins(&file);
-            }
-            *guard = Some(file);
+        let (added, removed) = windows_delta()?;
+        if added.is_empty() && removed.is_empty() {
+            return None;
         }
-        guard.as_ref().map(|f| f.pins.clone())
+        let add: Vec<Value> = added.iter().filter(|id| app_exists(id)).map(|id| json!({ "id": id, "name": display_name(id) })).collect();
+        Some(json!({ "add": add, "remove": removed }))
     })
     .flatten()
-    .unwrap_or_default()
 }
 
-/// The Windows taskbar's pins changed (taskwin.rs heard `Taskband`): the Dock follows.
-/// True if the Dock's pins changed.
-pub fn windows_pins_changed() -> bool {
-    on_shell(Duration::from_secs(10), || {
-        let now = taskbar_pins_if_readable();
-        let mut guard = PINS.lock().ok()?;
-        let file = guard.as_mut()?;
-        let changed = follow_windows(file, now, false);
-        save_pins(file);
-        Some(changed)
-    })
-    .flatten()
-    .unwrap_or(false)
-}
-
-fn update_pins(f: impl FnOnce(&mut Vec<String>)) -> Vec<String> {
-    let _ = pins();
-    let Ok(mut guard) = PINS.lock() else { return Vec::new() };
-    let Some(file) = guard.as_mut() else { return Vec::new() };
-    f(&mut file.pins);
-    save_pins(file);
-    file.pins.clone()
-}
-
-/// The Dock's pins in a new order, or a new set (from the editor in Settings).
-pub fn set_pins(ids: Vec<String>) -> Vec<String> {
-    update_pins(|pins| {
-        let mut seen = HashSet::new();
-        *pins = ids.into_iter().filter(|id| !id.is_empty() && seen.insert(id.clone())).collect();
-    })
-}
-
-pub fn pin(id: &str) -> Vec<String> {
-    let id = normalize_id(id);
-    update_pins(|pins| {
-        if !pins.contains(&id) {
-            pins.push(id);
+/// Unpinned from the Dock: from the Windows taskbar too, if it is there
+/// (otherwise the Dock would see it «pinned» there again). Shell thread, later.
+pub fn unpin_from_windows(id: &str) {
+    let id = id.to_owned();
+    on_shell_later(move || {
+        if unpin_from_taskbar(&id) {
+            // Already gone there: not a change to bring back.
+            let _ = windows_delta();
         }
-    })
-}
-
-/// Unpins from the Dock and, if it was pinned there, from the Windows taskbar
-/// too (otherwise the next change there would bring it back).
-pub fn unpin(id: &str) -> Vec<String> {
-    let id = normalize_id(id);
-    let pins = update_pins(|pins| pins.retain(|p| p != &id));
-    let was_windows = PINS.lock().ok().and_then(|g| g.as_ref().map(|f| f.windows.contains(&id))).unwrap_or(false);
-    if was_windows {
-        on_shell_later(move || {
-            let _ = unpin_from_taskbar(&id);
-        });
-    }
-    pins
+    });
 }
 
 /* ------------------------------------------------------- installed apps */
@@ -860,22 +796,15 @@ mod tests {
     }
 
     #[test]
-    fn the_dock_follows_what_changes_on_the_windows_taskbar() {
+    fn the_dock_hears_what_changed_on_the_windows_taskbar() {
         let ids = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // First time: everything Windows had, after what the Dock has.
-        let mut f = PinsFile { pins: ids(&["mine"]), windows: vec![] };
-        assert!(merge_windows_pins(&mut f, &ids(&["a", "b"]), true));
-        assert_eq!(f.pins, ids(&["mine", "a", "b"]));
-        f.windows = ids(&["a", "b"]);
-        // Later: unpinned there leaves, newly pinned there comes, the Dock's order stays.
-        f.pins = ids(&["b", "mine", "a"]);
-        assert!(merge_windows_pins(&mut f, &ids(&["b", "c"]), false));
-        assert_eq!(f.pins, ids(&["b", "mine", "c"]));
-        // Unpinned from the Dock only: a later change on Windows does not bring it back.
-        f.windows = ids(&["b", "c"]);
-        f.pins = ids(&["mine", "c"]);
-        assert!(!merge_windows_pins(&mut f, &ids(&["b", "c"]), false));
-        assert_eq!(f.pins, ids(&["mine", "c"]));
+        // The first time: all of them.
+        let seen = SeenFile { imported: false, windows: vec![] };
+        assert_eq!(pins_delta(&seen, &ids(&["a", "b"])), (ids(&["a", "b"]), vec![]));
+        // Later: only what was pinned or unpinned there.
+        let seen = SeenFile { imported: true, windows: ids(&["a", "b"]) };
+        assert_eq!(pins_delta(&seen, &ids(&["b", "c"])), (ids(&["c"]), ids(&["a"])));
+        assert_eq!(pins_delta(&seen, &ids(&["a", "b"])), (vec![], vec![]));
     }
 
     fn com() {

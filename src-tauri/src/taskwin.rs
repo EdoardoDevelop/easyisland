@@ -11,13 +11,15 @@
 // millisecond) and the Dock hears only what changed (`dock-windows`). Title
 // changes are not followed: browsers and terminals change titles all the
 // time, which kept the CPU busy at rest. The thread starts with the Dock
-// (`dock_windows`) and ends when the Dock's window is gone.
+// (`dock_windows`) and ends when the Dock's window is gone. It also tells the
+// Dock when the window in front reaches its band (`dock-covered`, for «hide
+// when covered»): followed only for that window, moved or resized.
 //
 // Window filter, app ids, the bring-to-front sequence and the system keys:
 // adapted from a MIT-licensed dock for Windows (LICENSE, third parties).
 
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicI8, AtomicIsize, AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
@@ -25,7 +27,8 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use windows::core::{w, BOOL, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, LRESULT, WPARAM};
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+use windows::Win32::Foundation::RECT;
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::Storage::Packaging::Appx::GetApplicationUserModelId;
@@ -43,11 +46,11 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DeregisterShellHookWindow, DestroyWindow, DispatchMessageW, EnumWindows,
-    GetClassNameW, GetForegroundWindow, GetMessageW, GetWindow, GetWindowLongW, GetWindowTextLengthW, GetWindowTextW,
+    GetClassNameW, GetForegroundWindow, GetMessageW, GetWindow, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
     GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, KillTimer, PostMessageW, PostQuitMessage,
     RegisterClassW, RegisterShellHookWindow, RegisterWindowMessageW, SendMessageTimeoutW, SetForegroundWindow,
     SetTimer, SetWindowPos, ShowWindowAsync, SwitchToThisWindow, TranslateMessage, EVENT_OBJECT_CLOAKED,
-    EVENT_OBJECT_UNCLOAKED, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GWL_EXSTYLE,
+    EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_UNCLOAKED, EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GWL_EXSTYLE,
     GW_OWNER, MSG, OBJID_WINDOW, SMTO_ABORTIFHUNG, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOOWNERZORDER, SWP_NOSIZE, SW_MINIMIZE, SW_RESTORE, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_APP,
     WM_CLOSE, WM_NULL, WM_TIMER, WNDCLASSW, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
@@ -62,6 +65,11 @@ const SYNC_DELAY_MS: u32 = 40;
 const PINS_DELAY_MS: u32 = 400;
 const SYNC_TIMER: usize = 1;
 const PINS_TIMER: usize = 2;
+/// The window in front moved or changed size: is the Dock covered now?
+const COVER_TIMER: usize = 3;
+const COVER_DELAY_MS: u32 = 100;
+/// The part of the Dock's window a window in front must reach to cover it (logical px from its bottom).
+const COVER_BAND: f64 = 72.0;
 /// The registry watch on the taskbar's pins fired (regwatch.rs).
 const WM_PINS: u32 = WM_APP + 1;
 /// Asked to end (the Dock's window is gone).
@@ -82,6 +90,8 @@ static APP: OnceLock<AppHandle> = OnceLock::new();
 static HOOK_WINDOW: AtomicIsize = AtomicIsize::new(0);
 /// The registered "SHELLHOOK" message.
 static SHELL_MSG: AtomicU32 = AtomicU32::new(0);
+/// What the Dock was last told about being covered: -1 nothing yet.
+static COVERED: AtomicI8 = AtomicI8::new(-1);
 
 /// One open window as the Dock shows it.
 #[derive(Clone, Debug, PartialEq)]
@@ -125,6 +135,11 @@ static STATE: Mutex<Option<State>> = Mutex::new(None);
 fn with_state<T>(f: impl FnOnce(&mut State) -> T) -> Option<T> {
     let mut guard = STATE.lock().ok()?;
     Some(f(guard.get_or_insert_with(State::default)))
+}
+
+/// A window the Dock was shown (commands take only those, never any handle).
+pub fn is_known(hwnd: isize) -> bool {
+    with_state(|s| s.sent.iter().any(|w| w.hwnd == hwnd)).unwrap_or(false)
 }
 
 /* ---------------------------------------------------------- the filter */
@@ -285,6 +300,51 @@ fn diff(before: &[Win], now: &[Win]) -> Option<Value> {
     (!add.is_empty() || !change.is_empty() || !remove.is_empty()).then(|| json!({ "add": add, "change": change, "remove": remove }))
 }
 
+/// The visible frame of a window (without the invisible resize borders).
+fn frame_of(hwnd: HWND) -> Option<RECT> {
+    let mut r = RECT::default();
+    let dwm = unsafe { DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, (&raw mut r).cast(), size_of::<RECT>() as u32) };
+    if dwm.is_err() {
+        unsafe { GetWindowRect(hwnd, &mut r) }.ok()?;
+    }
+    (r.right > r.left && r.bottom > r.top).then_some(r)
+}
+
+/// Whether the window in front reaches the Dock's band. The desktop, Alt+Tab,
+/// hidden, minimized or cloaked windows and EasyIsland's own never do.
+fn covered_now(app: &AppHandle) -> Option<bool> {
+    let dock = app.get_webview_window(DOCK_LABEL)?;
+    let scale = dock.scale_factor().ok()?;
+    let dock_rect = frame_of(HWND(dock.hwnd().ok()?.0))?;
+    let band_top = dock_rect.bottom - (COVER_BAND * scale).round() as i32;
+    unsafe {
+        let front = GetForegroundWindow();
+        if front.is_invalid() || !IsWindowVisible(front).as_bool() || IsIconic(front).as_bool() || is_cloaked(front) {
+            return Some(false);
+        }
+        let class = class_name(front);
+        if matches!(class.as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "XamlExplorerHostIslandWindow" | "MultitaskingViewFrame") {
+            return Some(false);
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(front, Some(&mut pid));
+        if pid == GetCurrentProcessId() {
+            return Some(false);
+        }
+        let r = frame_of(front)?;
+        Some(r.bottom > band_top && r.top < dock_rect.bottom && r.right > dock_rect.left && r.left < dock_rect.right)
+    }
+}
+
+/// Tells the Dock if it became covered or uncovered.
+fn check_covered() {
+    let Some(app) = APP.get() else { return };
+    let Some(now) = covered_now(app) else { return };
+    if COVERED.swap(now as i8, Ordering::SeqCst) != now as i8 {
+        let _ = app.emit_to(DOCK_LABEL, "dock-covered", now);
+    }
+}
+
 /// Reads the windows, sends the Dock what changed and asks for the icons of new apps.
 fn sync() {
     let Some(app) = APP.get() else { return };
@@ -307,6 +367,7 @@ fn sync() {
     if !new_apps.is_empty() {
         crate::applist::request_icons(app, new_apps);
     }
+    check_covered();
 }
 
 /* ------------------------------------------------------------- thread */
@@ -345,11 +406,13 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             }
             if wparam.0 == SYNC_TIMER {
                 sync();
+            } else if wparam.0 == COVER_TIMER {
+                check_covered();
             } else if wparam.0 == PINS_TIMER {
                 // On a thread of its own: the shell may be slow, this thread must stay free.
                 std::thread::spawn(|| {
-                    if crate::applist::windows_pins_changed() {
-                        send_pins();
+                    if let (Some(app), Some(change)) = (APP.get(), crate::applist::windows_pins_change()) {
+                        let _ = app.emit_to(DOCK_LABEL, "dock-pins-windows", change);
                     }
                 });
             }
@@ -382,11 +445,53 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 }
 
 thread_local! {
+    /// Moves and resizes of the process in front only (re-hooked at each change of front).
+    static FRONT_HOOK: std::cell::Cell<isize> = const { std::cell::Cell::new(0) };
     static PINS_WATCH: std::cell::RefCell<Option<crate::regwatch::RegistryWatch>> = const { std::cell::RefCell::new(None) };
+}
+
+fn cover_soon() {
+    let window = HWND(HOOK_WINDOW.load(Ordering::Relaxed) as *mut _);
+    if !window.is_invalid() {
+        unsafe {
+            SetTimer(Some(window), COVER_TIMER, COVER_DELAY_MS, None);
+        }
+    }
+}
+
+/// Follows moves and resizes of the front window's process only (maximize,
+/// restore, snap, a drag); anything else than that window is filtered out in the callback.
+fn follow_front(front: HWND) {
+    unsafe {
+        let old = FRONT_HOOK.with(|h| h.replace(0));
+        if old != 0 {
+            let _ = UnhookWinEvent(HWINEVENTHOOK(old as *mut _));
+        }
+        if front.is_invalid() {
+            return;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(front, Some(&mut pid));
+        if pid == 0 || pid == GetCurrentProcessId() {
+            return;
+        }
+        let hook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, None, Some(on_win_event), pid, 0, WINEVENT_OUTOFCONTEXT);
+        FRONT_HOOK.with(|h| h.set(hook.0 as isize));
+    }
 }
 
 unsafe extern "system" fn on_win_event(_h: HWINEVENTHOOK, event: u32, hwnd: HWND, object: i32, _c: i32, _t: u32, _time: u32) {
     if object != OBJID_WINDOW.0 {
+        return;
+    }
+    if event == EVENT_OBJECT_LOCATIONCHANGE {
+        if hwnd == unsafe { GetForegroundWindow() } {
+            cover_soon();
+        }
+        return;
+    }
+    if event == EVENT_SYSTEM_MOVESIZEEND {
+        cover_soon();
         return;
     }
     if event == EVENT_SYSTEM_FOREGROUND {
@@ -401,6 +506,7 @@ unsafe extern "system" fn on_win_event(_h: HWINEVENTHOOK, event: u32, hwnd: HWND
             s.last_used.insert(hwnd.0 as isize, seq);
             s.attention.remove(&(hwnd.0 as isize));
         });
+        follow_front(hwnd);
     }
     let window = HWND(HOOK_WINDOW.load(Ordering::Relaxed) as *mut _);
     if !window.is_invalid() {
@@ -440,7 +546,9 @@ pub fn start(app: &AppHandle) {
             SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, Some(on_win_event), 0, 0, flags),
             SetWinEventHook(EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND, None, Some(on_win_event), 0, 0, flags),
             SetWinEventHook(EVENT_OBJECT_CLOAKED, EVENT_OBJECT_UNCLOAKED, None, Some(on_win_event), 0, 0, flags),
+            SetWinEventHook(EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZEEND, None, Some(on_win_event), 0, 0, flags),
         ];
+        follow_front(GetForegroundWindow());
         PINS_WATCH.with(|w| *w.borrow_mut() = crate::regwatch::RegistryWatch::new(crate::applist::TASKBAND, false, hwnd.0 as isize, WM_PINS));
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
@@ -448,6 +556,8 @@ pub fn start(app: &AppHandle) {
             DispatchMessageW(&msg);
         }
         PINS_WATCH.with(|w| *w.borrow_mut() = None);
+        follow_front(HWND::default());
+        COVERED.store(-1, Ordering::SeqCst);
         for h in hooks {
             if !h.is_invalid() {
                 let _ = UnhookWinEvent(h);
@@ -464,6 +574,7 @@ pub fn start(app: &AppHandle) {
 
 /// Stops following the windows: the Dock's window is gone. Nothing runs after.
 pub fn stop() {
+    crate::winthumbs::clear();
     let hwnd = HOOK_WINDOW.load(Ordering::Relaxed);
     if hwnd > 0 {
         unsafe {
@@ -479,13 +590,6 @@ fn resync() {
             let _ = PostMessageW(Some(HWND(hwnd as *mut _)), WM_RESYNC, WPARAM(0), LPARAM(0));
         }
     }
-}
-
-fn send_pins() {
-    let Some(app) = APP.get() else { return };
-    let pins = crate::applist::pins();
-    crate::applist::request_icons(app, pins.clone());
-    let _ = app.emit_to(DOCK_LABEL, "dock-pins", pins);
 }
 
 /* ------------------------------------------------------------ actions */
@@ -671,30 +775,34 @@ pub async fn dock_windows(app: AppHandle) -> Value {
 /// What the Dock does. `what`: `click`, `activate`, `minimize`, `close` (a
 /// window by `hwnd`, else the app's windows), `close-all`, `minimize-all`,
 /// `launch` / `launch-new` / `launch-admin` (`app`), `open-files` (`app`,
-/// `files`), `pin` / `unpin` (`app`), or a system button: `start`,
-/// `quick-settings`, `notifications`, `search`, `task-view`, `widgets`, `sound`, `show-desktop`.
+/// `files`), `unpin` (`app`: unpinned from the Dock, so from the Windows
+/// taskbar too), or a system button: `start`, `quick-settings`,
+/// `notifications`, `search`, `task-view`, `widgets`, `sound`, `show-desktop`.
+/// False when there was nothing to do it on.
 #[tauri::command]
-pub fn dock_do(app: AppHandle, what: String, hwnd: Option<isize>, app_id: Option<String>, files: Option<Vec<String>>) {
-    let target = app_id.unwrap_or_default();
+pub fn dock_do(what: String, hwnd: Option<isize>, app: Option<String>, files: Option<Vec<String>>) -> bool {
+    let target = app.unwrap_or_default();
     // Windows given by the Dock must be ones it was shown: never any handle.
-    let known = |h: isize| with_state(|s| s.sent.iter().any(|w| w.hwnd == h)).unwrap_or(false);
     let windows: Vec<isize> = match hwnd {
-        Some(h) if known(h) => vec![h],
-        Some(_) => return,
+        Some(h) if is_known(h) => vec![h],
+        Some(_) => return false,
         None if !target.is_empty() => windows_of(&target),
         None => Vec::new(),
     };
     if let Some(keys) = system_keys(&what) {
         let keys = keys.to_vec();
         std::thread::spawn(move || tap(&keys));
-        return;
+        return true;
     }
     match what.as_str() {
         "click" | "activate" | "minimize" | "close" | "close-all" | "minimize-all" => {
-            if windows.is_empty() && what == "click" && !target.is_empty() {
-                // A pinned app with no window: open it.
-                crate::applist::launch(crate::applist::Launch::Open { id: target });
-                return;
+            if windows.is_empty() {
+                if what == "click" && !target.is_empty() {
+                    // A pinned app with no window: open it.
+                    crate::applist::launch(crate::applist::Launch::Open { id: target });
+                    return true;
+                }
+                return false;
             }
             std::thread::spawn(move || {
                 match what.as_str() {
@@ -706,51 +814,50 @@ pub fn dock_do(app: AppHandle, what: String, hwnd: Option<isize>, app_id: Option
                 std::thread::sleep(Duration::from_millis(60));
                 resync();
             });
+            true
         }
-        "launch" | "launch-new" if !target.is_empty() => crate::applist::launch(crate::applist::Launch::Open { id: target }),
-        "launch-admin" if !target.is_empty() => crate::applist::launch(crate::applist::Launch::Admin { id: target }),
+        "launch" | "launch-new" if !target.is_empty() => {
+            crate::applist::launch(crate::applist::Launch::Open { id: target });
+            true
+        }
+        "launch-admin" if !target.is_empty() => {
+            crate::applist::launch(crate::applist::Launch::Admin { id: target });
+            true
+        }
         "open-files" if crate::applist::is_program(&target) => {
             let files: Vec<String> = files.unwrap_or_default().into_iter().filter(|f| std::path::Path::new(f).exists()).collect();
-            if !files.is_empty() {
-                crate::applist::launch(crate::applist::Launch::Files { app: target, files });
+            if files.is_empty() {
+                return false;
             }
+            crate::applist::launch(crate::applist::Launch::Files { app: target, files });
+            true
         }
-        "pin" | "unpin" if !target.is_empty() => {
-            std::thread::spawn(move || {
-                let pins = if what == "pin" { crate::applist::pin(&target) } else { crate::applist::unpin(&target) };
-                crate::applist::request_icons(&app, pins.clone());
-                let _ = app.emit_to(DOCK_LABEL, "dock-pins", pins);
-            });
+        "unpin" if !target.is_empty() => {
+            crate::applist::unpin_from_windows(&target);
+            true
         }
-        _ => {}
+        _ => false,
     }
 }
 
-/// The Dock's pinned apps, in order (later changes in `dock-pins`).
+/// What changed on the Windows taskbar's pins since last time (the first time:
+/// all of them), for the Dock's own pins in the settings: `{ add: [{ id, name }],
+/// remove: [id] }` or null. Later changes come as `dock-pins-windows`.
 #[tauri::command]
-pub async fn dock_pins(app: AppHandle) -> Vec<String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let pins = crate::applist::pins();
-        crate::applist::request_icons(&app, pins.clone());
-        pins
-    })
-    .await
-    .unwrap_or_default()
+pub async fn dock_pins_windows() -> Value {
+    tauri::async_runtime::spawn_blocking(|| crate::applist::windows_pins_change().unwrap_or(Value::Null))
+        .await
+        .unwrap_or(Value::Null)
 }
 
-/// The pinned apps in a new order or set (reordering on the Dock, the editor in Settings).
+/// An app's recent documents for its menu: not yet (phase 4), always empty.
 #[tauri::command]
-pub async fn dock_pins_set(app: AppHandle, ids: Vec<String>) -> Vec<String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let pins = crate::applist::set_pins(ids);
-        let _ = app.emit_to(DOCK_LABEL, "dock-pins", pins.clone());
-        pins
-    })
-    .await
-    .unwrap_or_default()
+pub fn dock_recent(app: String) -> Vec<String> {
+    let _ = app;
+    Vec::new()
 }
 
-/// Icons and names of these apps, sent in `dock-icons` as they are read.
+/// Icons of these apps (pins, the catalog), sent in `dock-icons` as they are read.
 #[tauri::command]
 pub fn dock_icons(app: AppHandle, ids: Vec<String>) {
     crate::applist::request_icons(&app, ids.into_iter().take(500).collect());

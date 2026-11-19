@@ -5,6 +5,7 @@ mod actions;
 mod applist;
 mod regwatch;
 mod taskwin;
+mod winthumbs;
 mod barshadow;
 mod fgwin;
 mod gitbranch;
@@ -5659,8 +5660,9 @@ pub fn run() {
             // The Dock (EASYTECH).
             taskwin::dock_windows,
             taskwin::dock_do,
-            taskwin::dock_pins,
-            taskwin::dock_pins_set,
+            taskwin::dock_pins_windows,
+            taskwin::dock_recent,
+            winthumbs::dock_thumbs,
             taskwin::dock_icons,
             taskwin::apps_catalog,
             news::news_proposals,
