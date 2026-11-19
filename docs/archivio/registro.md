@@ -2,6 +2,72 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 sera — Controlli grafici nelle integrazioni personali
+Cinque tipi nuovi nella lista fissa: `slider`, `switch`, `segmented`, `progress`, `stat` (`custom.rs` `check_control`).
+- `onChange` esegue solo azioni `save`/`http`/`notice`: subito al clic, lo slider dopo 600 ms. Accanto ✓/✕, e con un errore il campo torna indietro.
+- Barra e numero hanno soglie ambra e rosso.
+- Scena `custom&controlli` (`&errore`). `docs/integrazioni.md`, guida 24.
+
+### 17/11 sera — Procedure nella ricerca; Modello sul PC dopo un crash
+- La ricerca della memoria e la risposta rapida trovano le procedure: parole pulite e radici (`search_words`, `roots`); per «come + verbo» la risposta rapida è la sezione `##` della pagina (provato sulla `proxmox.md` del portatile).
+- Il Modello sul PC che crasha all'avvio sulla scheda grafica riparte sul processore; nella Modalità terminale interna, dopo 30 s senza testo, un avviso.
+
+### 17/11 — Chat: allegati senza testo, lingua, tempo dei lavori in background, rifiuti dell'Automatica, costo nel log
+- Solo allegati: partono con «Guarda l'allegato.». Ogni messaggio a Claude Code ricorda la lingua (dopo una skill in inglese rispondeva in inglese).
+- «In background»: «da N min» e, dopo 10 min, «A che punto è?». Rifiuti del classificatore in «Automatica» spiegati in italiano (`auto_denied`).
+- Log di Claude Code: costo e secondi del modello del turno, non i totali del processo, una riga per risultato. Dalla giornata del portatile; ricerca/procedure e Modello sul PC li fa l'altra sessione.
+
+### 17/11 — Percorsi relativi nella chat; Anteprima che non si apre da sola
+- I percorsi relativi si cercano nella cartella della chat, nella cartella di lavoro e nei loro due genitori, poi in `%USERPROFILE%` (`chatpaths::candidates`); anche nudi con `\`. Clic e menu usano il percorso trovato.
+- L'Anteprima si apre da sola sui file della chat solo con `previewEdits` (spenta di serie), mai dopo una chiusura a mano.
+
+### 17/11 — Chat staccata che perde il fuoco; Antigravity Desktop
+- Il clic nel campo della chat staccata, girato alla pagina dell'isola, la portava avanti: ora `focusWindow(true, from)` ignora le richieste da altre finestre (`inIslandPage`, senza `instanceof`: altro realm).
+- Le sessioni di Antigravity hanno l'host `antigravity`: niente isola a fine comando con Desktop in primo piano, e «Apri Antigravity» porta avanti Desktop o il terminale (`apps::open_session`).
+
+### 17/11 — Chat: «In background» non copre più la riga del motore
+Con l'aspetto «schede» il campo sale di 24 px; solo consigli e avviso lasciavano quello spazio. Ora lo tiene l'ultima riga mostrata sopra il campo (`chat-cards.css`). Un lavoro finito esce dalla lista anche con il solo `task_notification` (`claude_cli.rs` `Progress::feed`). Scene `chat&background=1`, `&coda`.
+
+### 17/11 — Risposte rapide nella ricerca dell'isola
+Edoardo: «quali vm ha la farmacia Falchi?» nella ricerca con la risposta diretta. `quick_answer.rs` usa le righe sicure della risposta diretta della chat (o, se qui mancano, la copia della memoria dell'altro PC) e le scrive con Potion (di serie), il Modello sul PC o un motore scelto (`quickAnswers`). Il riquadro sta sopra i risultati e Invio non cambia. Provato sulla copia vera del portatile: 2 righe giuste per Falchi; nessuna risposta dove non ci sono righe (`docs/chat.md`).
+
+### 17/11 — Anteprima: attesa lunga, iframe dello stesso sito, foto come immagine
+Il 16/11 sul portatile l'aggiornamento dell'iLO è costato un turno di 25 minuti (46 attese inventate, 38 foto + 38 letture, 3,44 $). Ora:
+- `preview_wait` aspetta fino a 10 minuti controllando nell'app, con `changed` o come pausa, e «Ferma» la interrompe;
+- gli iframe dello stesso sito si leggono e si usano (ref `f1e5`); la foto torna come immagine MCP;
+- `sync` gira uno alla volta.
+
+Prova degli script in Edge: `scripts/anteprima-frame.mjs`. Dal vivo nell'app: `docs/prove-dal-vivo.md`.
+
+### 17/11 — Antigravity: permessi nella chat (`--settings`), Nega che ferma, avvisi giusti
+Sul portatile il turno finiva senza testo: in `--print` agy nega da sé ogni conferma (`easyisland/skill_list`), anche con gli hook. Ora:
+- ogni turno ha `--settings` di sessione con `mcp(easyisland/*)`; con gli hook anche `always-proceed`, e ogni azione chiede nell'isola (nessuna risposta = Nega; in Automatica passa ciò che non è delicato, `permits::agy_auto`);
+- l'avviso dice cosa è successo (senza hook, o un passo negato).
+
+Provato dal vivo: la regola, e il `deny` del PreToolUse che blocca in `always-proceed` (`docs/chat.md`, `docs/agenti.md`). Non provato tutto il giro con l'isola: `docs/prove-dal-vivo.md`.
+
+### 17/11 — Antigravity: impegno suo, nuovo tentativo, Automatica, meno memoria
+Sul portatile «puoi vedere le skill di claude?» falliva in 4 s: a `gemini-4-hydrogen-high` arrivava `--effort medium` di Claude Code e agy 1.5.9 rifiuta la coppia. Ora:
+- Antigravity ha il suo impegno (`agyEffort`, `Chat::agy_effort`); niente `--effort` con il «Predefinito del modello» o con l'impegno nel nome del modello;
+- se agy rifiuta la coppia, un nuovo tentativo senza `--effort` e poi un errore in italiano;
+- senza i suoi hook, un avviso che «Automatica» non è la sua (`init` → `permission_mode`);
+- ai motori con strumenti propri diversi da Claude Code arrivano solo le righe di significato forti (`docs/chat.md`).
+
+### 16/11 — Anteprima: popup veri; chat: coda come Claude Desktop
+Anteprima (`preview.rs` `new_window`/`make_popup`): `window.open` con dimensioni o pagina vuota apre una finestra `anteprima-popup-N` dell'Anteprima con lo stesso ambiente WebView2 e `window.opener` (accessi Google/Microsoft, pagamenti), `window.close()` la chiude; i link `target=_blank` restano schede. Chat (`src/views/chat.ts`): quello che si scrive mentre risponde va sempre in coda; «Invia subito» con Claude Code lo fa leggere nel turno senza fermarlo, come domanda a sé sotto la risposta fin lì (`steered`/`part`, `streamCut`/`afterCut`), in cronologia resta «↪» sulla domanda e si ridivide alla riapertura.
+
+### 16/11 — Versione 1.0.51: blocco all'avvio della 1.0.50
+La 1.0.50 si bloccava all'avvio: `WindowEvent::Focused` arriva dentro `Webview::set_focus` (`apply_app_mode`, `activate_window`), che tiene il lock `window_id` della webview, e l'`emit_to` sincrono di `island-focused`/`island-blurred` lo riprendeva sul thread principale. Ora gli emit partono da `async_runtime::spawn` (`lib.rs`). Trovato con i thread della build con simboli; 6 riavvii puliti. Smoke completo «nessun errore» (91 prove), test Rust 575 + 38.
+
+### 16/11 — Versione 1.0.50
+Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su schermo, tema scuro e chiaro, fuoco automatico WebView2 sul thread principale in `island::activate_window` anche dopo clic sul desktop), la scelta dell'aspetto della riga di ricerca (`search-line.css`, `searchBarLine`: `waves`/`horizon`/`comet`/`prism`/`emerald`/`amber`/`steady`/`off`; `searchBarLineMode`: `focus`/`loop`/`both`/`fade` con anteprima in Impostazioni → Aspetto → Isola aperta), i nuovi sfondi (`gradient`/`glow`/`aurora`/`glass` in `barbg.ts`) e stili elementi (`classic`/`pills`/`compact`) della barra fissa, tutte le schede delle Impostazioni riordinate con sotto-schede condivise e tre fix Windows (chiusura pulita senza finestra nascosta, clic sul personaggio che riporta in primo piano l'isola coperta, avvio di app Store, collegamenti `.lnk`/`.url` e Pannello di controllo). Smoke completo «nessun errore» (91 prove), `npm run build` (`5380 testi, 0 senza inglese`), test Rust 575 + 38.
+
+### 15/11 — Versione 1.0.49
+Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo della scheda grafica e modello consigliato, Modalità terminale interna, risposte dalla memoria scritte dal modello) e le sotto-schede di Impostazioni → Chat e motori. Smoke completo «nessun errore» (91 prove), test Rust 574 + 38.
+
+### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
+Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.
+
 ### 15/11 — Voti 👍/👎 e «Solo EasyIsland» (ramo `claude/voti-solo-easyisland`, da `claude/sviluppo`)
 Edoardo: like/dislike alle risposte e una chat senza motori per allenare EasyIsland. Fatto `votes.rs` (voti cifrati; 👍/👎 sulle righe della memoria, 👍 a un motore insegna le righe usate; «Riprova» come prove di regressione) e la voce «Solo EasyIsland» nel menu dei motori (`lib.rs` `ONLY_EASY`, `router::only_none`). Risposte dalla memoria anche senza servizio di significato (solo parole). `claude/risposte-memoria` unito in `claude/sviluppo` (avanti veloce). Poi: «Puoi chiedere» con domande dalla memoria sulle pagine che si hanno davanti (solo quelle a cui risponde da solo), nascosto sotto i menu; quadratino bianco della barra di scorrimento della chat tolto. Ricerca per significato fino a 50.000 righe (portatile: 1.200), vettori in `significato.bin` binario (34 ms e 13 MB a 50.000; il JSON si converte da solo); niente database vettoriale. Isola rimisurata quando il contenuto cambia da solo (fondo tagliato in Modifica rete… e altre schede). Avvisi dei controlli (pioggia, disco) con «Attenzione» giallo invece di «Errore»; nella Panoramica il nome non si taglia più per l'etichetta.
 
@@ -927,3 +993,9 @@ A un messaggio generico risponde un solo motore: il capo del primo EasyIsland ch
 
 ### 6 ottobre 2026 — handoff ridotto
 - `HANDOFF.md` ridotto al minimo per riprendere il lavoro; la versione completa (roadmap 6.1–6.6, analisi 3CX, idee del 2 ottobre, registro dal 1° al 6 ottobre) era in `HANDOFF-archivio.md` (ora `docs/archivio/HANDOFF-fino-al-6-ottobre.md`), non più aggiornata.
+
+### 15/11 — Versione 1.0.48
+Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.
+
+### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
+Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.

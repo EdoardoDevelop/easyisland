@@ -305,8 +305,13 @@ pub fn init(app: &AppHandle) {
 /// On the graphics card: the setting allows it and llama.cpp sees one.
 async fn use_gpu() -> bool {
     let allowed = APP.get().and_then(|a| a.try_state::<crate::Shared>()).map_or(true, |s| s.settings.lock().unwrap().local_gpu);
-    allowed && !devices().await.is_empty()
+    allowed && !GPU_CRASHED.load(std::sync::atomic::Ordering::Relaxed) && !devices().await.is_empty()
 }
+
+/// The model crashed starting on the graphics card (17 Nov 2026 on the laptop:
+/// Gemma 4 E2B, 0xc0000409 on the Radeon 840M): the processor until «Spegni
+/// ora», a change of model or of «Scheda grafica» (stop), not a crash at every question.
+static GPU_CRASHED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A catalog model's file is there and as big as it should be (a cut or
 /// mixed file is not a model).
@@ -704,6 +709,9 @@ pub fn delete(id: &str) -> Result<(), String> {
     {
         let mut s = SERVER.lock().unwrap();
         if s.as_ref().is_some_and(|s| s.path == path) {
+            if s.as_ref().is_some_and(|s| s.busy > 0) {
+                return Err(t("Il modello sta rispondendo: eliminalo quando ha finito.").into());
+            }
             *s = None;
         }
     }
@@ -850,6 +858,40 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
     let path = model_path(model)?;
     let _one = STARTING.lock().await;
     let gpu = use_gpu().await;
+    match start(model, &path, min_context, gpu).await {
+        // Out at once on the graphics card: once more on the processor.
+        Err(Start::Crashed(e)) if gpu => {
+            GPU_CRASHED.store(true, std::sync::atomic::Ordering::Relaxed);
+            crate::log::line("modello sul PC: chiuso all'avvio sulla scheda grafica, riprovo sul processore".to_string());
+            start(model, &path, min_context, false).await.map_err(|f| match f {
+                Start::Crashed(e2) | Start::Other(e2) => if e2.is_empty() { e } else { e2 },
+            })
+        }
+        Err(Start::Crashed(e) | Start::Other(e)) => Err(e),
+        Ok(l) => Ok(l),
+    }
+}
+
+/// Why `start` failed: the process went out at once (a crash), or anything else.
+enum Start {
+    Crashed(String),
+    Other(String),
+}
+
+impl From<String> for Start {
+    fn from(e: String) -> Self {
+        Start::Other(e)
+    }
+}
+
+impl From<&str> for Start {
+    fn from(e: &str) -> Self {
+        Start::Other(e.to_string())
+    }
+}
+
+async fn start(model: &str, path: &Path, min_context: u32, gpu: bool) -> Result<Lease, Start> {
+    let path = path.to_path_buf();
     let hw = hardware_cached();
     let context = context_for(&hw, &path, gpu);
     if context < min_context {
@@ -862,7 +904,14 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
                 return Ok(lease(sv));
             }
         }
-        // Another model, or it died: away with it.
+        // Another model, or it died: away with it, but never under a turn
+        // that is using it (review of 16 Nov 2026: that turn failed with a
+        // network error nobody understood).
+        if let Some(sv) = s.as_mut() {
+            if sv.busy > 0 && matches!(sv.child.try_wait(), Ok(None)) {
+                return Err(t("Il modello sul PC sta rispondendo a un'altra richiesta: riprova tra poco.").to_string().into());
+            }
+        }
         *s = None;
     }
     let exe = server_exe().ok_or(t("Il motore del modello sul PC non è scaricato: Impostazioni → Chat → Modello sul PC."))?;
@@ -900,11 +949,11 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
         if let Ok(Some(status)) = child.try_wait() {
             let tail = log_tail();
             crate::log::line(format!("modello sul PC: uscito all'avvio ({status})"));
-            return Err(if tail.is_empty() {
+            return Err(Start::Crashed(if tail.is_empty() {
                 t("Il modello sul PC si è chiuso all'avvio.").to_string()
             } else {
                 tf("Il modello sul PC si è chiuso all'avvio:\n{tail}", &[("tail", &tail)])
-            });
+            }));
         }
         if let Ok(r) = client.get(format!("http://127.0.0.1:{port}/health")).send().await {
             if r.status().is_success() {
@@ -912,7 +961,7 @@ pub async fn ensure(model: &str, min_context: u32) -> Result<Lease, String> {
             }
         }
         if started.elapsed() >= START_TIMEOUT {
-            return Err(t("Il modello sul PC non si è avviato in 3 minuti: il PC potrebbe non avere abbastanza memoria per questo modello.").into());
+            return Err(t("Il modello sul PC non si è avviato in 3 minuti: il PC potrebbe non avere abbastanza memoria per questo modello.").to_string().into());
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
@@ -1029,7 +1078,7 @@ fn facts(text: &str) -> Vec<String> {
 }
 
 /// The composed answer keeps to the lines: every fact it names is in them.
-fn faithful(answer: &str, lines: &[String]) -> bool {
+pub(crate) fn faithful(answer: &str, lines: &[String]) -> bool {
     let joined = lines.join("\n");
     let known = facts(&joined);
     let source = joined.to_lowercase();
@@ -1039,7 +1088,7 @@ fn faithful(answer: &str, lines: &[String]) -> bool {
 
 /// A composed answer says more than a name and is not one of the lines copied
 /// (Qwen 3.5 0.8B on the laptop answered «Farmacia Falchi», 15 Nov 2026).
-fn useful(answer: &str, lines: &[String]) -> bool {
+pub(crate) fn useful(answer: &str, lines: &[String]) -> bool {
     let plain = |t: &str| t.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
     let a = plain(answer);
     answer.split_whitespace().count() >= 5 && !lines.iter().any(|l| {
@@ -1061,16 +1110,34 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
         }
         s.engine_models.get("local").cloned().unwrap_or_default()
     };
-    model_path(&model).ok()?;
+    let path = model_path(&model).ok()?;
     server_exe()?;
+    // Only with the server already up: loading the model takes up to
+    // START_TIMEOUT, and the answer from the memory must not wait for it
+    // (review of 16 Nov 2026). The first time the lines go as they are and the
+    // model loads meanwhile, for the next one.
+    if !running(&path, use_gpu().await) {
+        if STARTING.try_lock().is_ok() {
+            let model = model.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = ensure(&model, 0).await {
+                    crate::log::line(format!("modello sul PC: non caricato per le risposte dalla memoria ({e})"));
+                }
+            });
+        }
+        crate::log::line("modello sul PC: si carica, questa risposta dalla memoria resta con le righe".to_string());
+        return None;
+    }
     let listed: String = lines.iter().map(|l| format!("- {}\n", crate::memory_answer::shown(l))).collect();
     let messages = json!([
         { "role": "system", "content": t("Rispondi alla domanda in italiano, in una o due frasi brevi, usando solo le righe date. Copia nomi, numeri, indirizzi IP e codici esattamente come sono scritti. Non aggiungere niente che non sia nelle righe. Se le righe non rispondono alla domanda, scrivi solo: NO") },
         { "role": "user", "content": tf("Righe:\n{lines}\nDomanda: {q}", &[("lines", &listed), ("q", &question)]) },
     ]);
     let started = Instant::now();
-    // The first time the model loads: a little longer, then the lines.
-    let (text, _) = match complete(&model, messages, 200, Duration::from_secs(20)).await {
+    let composed = tokio::time::timeout(Duration::from_secs(25), complete(&model, messages, 200, Duration::from_secs(20)))
+        .await
+        .unwrap_or_else(|_| Err(t("Il modello sul PC non ha risposto in tempo.").to_string()));
+    let (text, _) = match composed {
         Ok(r) => r,
         Err(e) => {
             crate::log::line(format!("modello sul PC: risposta dalla memoria non composta ({e})"));
@@ -1095,9 +1162,17 @@ pub async fn compose(app: &AppHandle, question: &str, lines: &[String]) -> Optio
     Some((text, display_name(&model)))
 }
 
+/// The server is up with this model's file, where `ensure` wants it (graphics
+/// card or not): else `ensure` would start it again inside compose's 25 s.
+fn running(path: &Path, gpu: bool) -> bool {
+    SERVER.lock().unwrap_or_else(|e| e.into_inner()).as_mut().is_some_and(|s| s.path == path && s.gpu == gpu && matches!(s.child.try_wait(), Ok(None)))
+}
+
 /// "Spegni ora", and when the engine or the model changes.
 pub fn stop() {
     *SERVER.lock().unwrap() = None;
+    // «Spegni ora», another model or «Scheda grafica» changed: the card is tried again.
+    GPU_CRASHED.store(false, std::sync::atomic::Ordering::Relaxed);
 }
 
 #[cfg(test)]

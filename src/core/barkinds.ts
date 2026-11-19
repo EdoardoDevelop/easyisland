@@ -102,6 +102,11 @@ export const BAR_KINDS: Record<string, BarKind> = {
     left: "menu", middle: "none", right: "menu", menu: true,
   },
   // «Lavoro»: things of the island brought into the bar.
+  search: {
+    // The search on its own, in its window (search-window.ts): the island stays as it is.
+    name: t("Cerca (la ricerca da sola)"), icon: "i:search", tokens: [],
+    left: "card", middle: "none", right: "none", group: "work",
+  },
   appbar: {
     name: t("Barra dell'app in uso"), icon: "i:grid", tokens: [["app", t("programma")]],
     left: "none", middle: "none", right: "none", group: "work",

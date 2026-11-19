@@ -33,7 +33,7 @@ use crate::rdm::{guid, run, PRELUDE, READ_TIMEOUT};
 pub const CLIP_SECONDS: u64 = 30;
 
 /// Connects with the identity from the environment, then forgets it.
-const CONNECT: &str = "$u = $env:EASYISLAND_DVC_URL; $k = $env:EASYISLAND_DVC_KEY; $s = $env:EASYISLAND_DVC_SECRET\n$env:EASYISLAND_DVC_KEY = $null; $env:EASYISLAND_DVC_SECRET = $null\nConnect-HubAccount -Url $u -ApplicationKey $k -ApplicationSecret $s | Out-Null\n$s = $null; $k = $null\n";
+pub(crate) const CONNECT: &str = "$u = $env:EASYISLAND_DVC_URL; $k = $env:EASYISLAND_DVC_KEY; $s = $env:EASYISLAND_DVC_SECRET\n$env:EASYISLAND_DVC_KEY = $null; $env:EASYISLAND_DVC_SECRET = $null\nConnect-HubAccount -Url $u -ApplicationKey $k -ApplicationSecret $s | Out-Null\n$s = $null; $k = $null\n";
 
 /// Every vault but the System Vault, and every entry of each (no secrets).
 const READ: &str = r#"$vaults = @(Get-HubVault | Where-Object { $_.Name -ne 'System Vault' })
@@ -45,7 +45,9 @@ $list = @(foreach ($v in $vaults) {
     $path = [string]$c.Group
     $folder = if ($kind -eq 'Group') { ($path -split '\\' | Select-Object -SkipLast 1) -join '\' } else { $path }
     $h = if ($c.Host) { [string]$c.Host } elseif ($c.Url) { [string]$c.Url } else { '' }
-    [pscustomobject]@{ id = [string]$c.ID; name = [string]$c.Name; kind = $kind; folder = $folder; path = $path; host = $h; user = [string]$c.Credentials.UserName; cred = [string]$c.Credentials.CredentialType; vault = $vid }
+    $u = [string]$c.Credentials.UserName
+    if (-not $u) { foreach ($x in @($c.RDP.UserName, $c.Terminal.Username, $c.Web.UserName, $c.HostUserName)) { if ($x) { $u = [string]$x; break } } }
+    [pscustomobject]@{ id = [string]$c.ID; name = [string]$c.Name; kind = $kind; folder = $folder; path = $path; host = $h; user = $u; cred = [string]$c.Credentials.CredentialType; vault = $vid; parent = [string]$c.ParentID }
   }
 })
 ConvertTo-Json -InputObject ([pscustomobject]@{ vaults = @($vaults | ForEach-Object { [pscustomobject]@{ id = [string]$_.Id; name = [string]$_.Name } }); entries = $list }) -Compress -Depth 4"#;
@@ -168,6 +170,11 @@ ConvertTo-Json -InputObject ([pscustomobject]@{ id = $newId; rows = $rows }) -Co
 // ── Connection and the list ───────────────────────────────────────────────────
 
 /// Address, key and secret from the Credential Manager.
+/// The identity, for the ready process (dvc_live.rs).
+pub(crate) fn identity_pub() -> Result<(String, String, String), String> {
+    identity()
+}
+
 fn identity() -> Result<(String, String, String), String> {
     let url = crate::secrets::get("dvc-url").unwrap_or_default().trim().trim_end_matches('/').to_string();
     if !url.starts_with("https://") {
@@ -195,6 +202,26 @@ async fn hub(script: &str, env: &[(&str, &str)]) -> Result<String, String> {
     let mut all: Vec<(&str, &str)> = vec![("EASYISLAND_DVC_URL", &url), ("EASYISLAND_DVC_KEY", &key), ("EASYISLAND_DVC_SECRET", &secret)];
     all.extend_from_slice(env);
     run(&format!("{PRELUDE}{CONNECT}{script}"), &all, READ_TIMEOUT).await.map_err(|e| hub_problem(&e))
+}
+
+/// A read at a click (details, a password): in the ready process
+/// (dvc_live.rs), which is signed in already; if that fails, in a process of
+/// its own as before. `env`: ids only (checked by `known`), set as $env:… in
+/// front of the script.
+async fn read(script: &str, env: &[(&str, &str)]) -> Result<String, String> {
+    let quoted = |v: &str| format!("'{}'", v.replace('\'', "''"));
+    let head: String = env.iter().map(|(k, v)| format!("$env:{k} = {}\n", quoted(v))).collect();
+    let clear: String = env.iter().map(|(k, _)| format!("$env:{k} = $null\n")).collect();
+    let at = std::time::Instant::now();
+    match crate::dvc_live::run(&format!("{head}try {{\n{script}\n}} finally {{\n{clear}}}")).await {
+        Ok(out) => {
+            crate::log::line(format!("dvc: lettura dalla connessione pronta in {} ms", at.elapsed().as_millis()));
+            Ok(out)
+        }
+        // The script itself failed (no such entry, no permission): its error, as before.
+        Err(e) if e.starts_with("RDM: ") => Err(hub_problem(&e)),
+        Err(_) => hub(script, env).await,
+    }
 }
 
 /// RDM's wording of an error, for the cloud.
@@ -246,6 +273,67 @@ pub struct Item {
     #[serde(default)]
     pub cred: String,
     pub vault: String,
+    /// RDM's ParentID: an entry under another entry (not a folder), as RDM
+    /// shows ILO and Proxmox under a «Nuovo Server» information entry.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub parent: String,
+    /// For an entry that holds others (made a folder by `nest`): RDM's own
+    /// Group of it, where a new entry under it goes with ParentID = its id.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
+}
+
+/// Entries under another entry (ParentID, 19 Nov 2026: at a customer «Nuovo Server»
+/// is an information entry with ILO, Proxmox and the terminal server under it,
+/// all with Group «10 - Clienti\<cliente>»): the holder becomes a folder at
+/// «folder\name», its entries go inside it. A real folder as parent changes nothing.
+fn nest(entries: &mut [Item]) {
+    use std::collections::HashMap;
+    let idx: HashMap<(String, String), usize> = entries.iter().enumerate().map(|(i, e)| ((e.vault.clone(), e.id.to_lowercase()), i)).collect();
+    let parent_of = |e: &Item| -> Option<usize> {
+        if e.parent.is_empty() || e.parent.eq_ignore_ascii_case(&e.id) {
+            return None;
+        }
+        idx.get(&(e.vault.clone(), e.parent.to_lowercase())).copied()
+    };
+    let holders: std::collections::HashSet<usize> = entries.iter().filter_map(|e| parent_of(e)).filter(|&p| entries.get(p).is_some_and(|h| h.kind != "Group")).collect();
+    if holders.is_empty() {
+        return;
+    }
+    let parents: Vec<Option<usize>> = entries.iter().map(|e| parent_of(e).filter(|p| holders.contains(p))).collect();
+    // A holder may sit under another holder: its own path first, a few levels at most.
+    let mut path_of: HashMap<usize, String> = HashMap::new();
+    for _ in 0..6 {
+        for &h in &holders {
+            let Some(e) = entries.get(h) else { continue };
+            let base = match parents.get(h).copied().flatten() {
+                Some(p) => match path_of.get(&p) {
+                    Some(pp) => pp.clone(),
+                    None => continue,
+                },
+                None => e.folder.clone(),
+            };
+            path_of.insert(h, if base.is_empty() { e.name.clone() } else { format!("{base}\\{}", e.name) });
+        }
+    }
+    for i in 0..entries.len() {
+        let inside = parents.get(i).copied().flatten().and_then(|p| path_of.get(&p).cloned());
+        let own = path_of.get(&i).cloned();
+        let Some(e) = entries.get_mut(i) else { continue };
+        if let Some(own) = own {
+            e.group = e.folder.clone();
+            e.kind = "Group".into();
+            e.path = own;
+        }
+        if let Some(folder) = inside {
+            e.folder = folder;
+        }
+    }
+}
+
+/// Where a new entry goes in RDM for folder `f`: (Group, ParentID).
+fn write_place(f: &Item) -> (String, String) {
+    (if f.group.is_empty() { f.path.clone() } else { f.group.clone() }, f.id.clone())
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -273,7 +361,9 @@ fn parse_read(json: &str) -> Result<(Vec<Vault>, Vec<Item>), String> {
         .into_iter()
         .filter_map(|x| serde_json::from_value::<Item>(x).ok())
         .filter(|x| guid(&x.id) && guid(&x.vault) && !x.name.trim().is_empty())
-        .collect();
+        .collect::<Vec<Item>>();
+    let mut entries = entries;
+    nest(&mut entries);
     Ok((vaults, entries))
 }
 
@@ -379,7 +469,7 @@ pub fn search(query: &str, limit: usize) -> Vec<Item> {
         })
         .collect();
     found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase())));
-    found.into_iter().take(limit.clamp(1, 50)).map(|(_, e)| e.clone()).collect()
+    found.into_iter().take(limit.clamp(1, 100)).map(|(_, e)| e.clone()).collect()
 }
 
 /// For the card and the settings: on, how many entries, vaults, when, the error.
@@ -543,7 +633,7 @@ fn known(vault: &str, id: &str) -> Result<Item, String> {
 /// Name, user, domain, host, description, the password's length; a list's rows likewise.
 pub async fn details(vault: &str, id: &str) -> Result<Value, String> {
     known(vault, id)?;
-    let out = hub(&format!("{CREDS}{DETAILS}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id)]).await?;
+    let out = read(&format!("{CREDS}{DETAILS}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id)]).await?;
     serde_json::from_str(out.trim()).map_err(|_| t("Risposta di Devolutions Cloud non leggibile.").to_string())
 }
 
@@ -551,7 +641,7 @@ pub async fn details(vault: &str, id: &str) -> Result<Value, String> {
 async fn password_of(vault: &str, id: &str, row: Option<usize>) -> Result<(Item, String), String> {
     let item = known(vault, id)?;
     let row_s = row.map(|r| r.to_string()).unwrap_or_default();
-    let out = hub(&format!("{CREDS}{PASSWORD}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id), ("EASYISLAND_DVC_ROW", &row_s)]).await?;
+    let out = read(&format!("{CREDS}{PASSWORD}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id), ("EASYISLAND_DVC_ROW", &row_s)]).await?;
     let secret = serde_json::from_str::<Value>(out.trim())
         .ok()
         .and_then(|v| v.get("p")?.as_str().map(str::to_string))
@@ -735,7 +825,7 @@ pub struct NewCredential {
 /// A credential: `confirm` false = the preview only.
 pub async fn new_credential(c: NewCredential, confirm: bool) -> Result<Outcome, String> {
     let name = clean_name(&c.name)?;
-    let (parent, folder) = {
+    let (parent, folder, group) = {
         load_cache();
         let g = INDEX.lock().map_err(|e| e.to_string())?;
         let index = g.as_ref().ok_or_else(|| t("Premi Sincronizza prima di scrivere").to_string())?;
@@ -743,7 +833,8 @@ pub async fn new_credential(c: NewCredential, confirm: bool) -> Result<Outcome, 
         if taken(index, &c.vault, &f.path, &name) {
             return Err(t("Esiste già una voce con questo nome nella cartella: scegli un altro nome.").into());
         }
-        (f.id, f.path)
+        let (group, parent) = write_place(&f);
+        (parent, f.path, group)
     };
     if !confirm {
         let mut preview = vec![tf("Nuova credenziale «{name}» in «{folder}»", &[("name", &name), ("folder", &folder)])];
@@ -758,7 +849,7 @@ pub async fn new_credential(c: NewCredential, confirm: bool) -> Result<Outcome, 
         &format!("{NEW_ENTRY}{NEW_CREDENTIAL}"),
         &[
             ("EASYISLAND_DVC_VAULT", &c.vault),
-            ("EASYISLAND_DVC_FOLDER", &folder),
+            ("EASYISLAND_DVC_FOLDER", &group),
             ("EASYISLAND_DVC_PARENT", &parent),
             ("EASYISLAND_DVC_NAME", &name),
             ("EASYISLAND_DVC_USER", c.user.trim()),
@@ -795,7 +886,7 @@ fn sources_by_id(index: &Index, vault: &str, ids: &[String]) -> Vec<Item> {
 /// A «Lista Password» in `folder` from `from`: `confirm` false = the preview only.
 pub async fn new_password_list(vault: &str, folder: &str, name: &str, from: Sources, confirm: bool) -> Result<Outcome, String> {
     let name = clean_name(name)?;
-    let (parent, folder, sources) = {
+    let (parent, folder, group, sources) = {
         load_cache();
         let g = INDEX.lock().map_err(|e| e.to_string())?;
         let index = g.as_ref().ok_or_else(|| t("Premi Sincronizza prima di scrivere").to_string())?;
@@ -810,7 +901,8 @@ pub async fn new_password_list(vault: &str, folder: &str, name: &str, from: Sour
         if sources.is_empty() {
             return Err(t("Nella cartella non ci sono credenziali da unire.").into());
         }
-        (f.id, f.path, sources)
+        let (group, parent) = write_place(&f);
+        (parent, f.path, group, sources)
     };
     if !confirm {
         let mut preview = vec![tf("Nuova «{name}» in «{folder}» con {n} righe:", &[("name", &name), ("folder", &folder), ("n", &sources.len())])];
@@ -821,7 +913,7 @@ pub async fn new_password_list(vault: &str, folder: &str, name: &str, from: Sour
     let ids = sources.iter().map(|s| s.id.as_str()).collect::<Vec<_>>().join(",");
     let out = hub(
         &format!("{NEW_ENTRY}{NEW_LIST}"),
-        &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_FOLDER", &folder), ("EASYISLAND_DVC_PARENT", &parent), ("EASYISLAND_DVC_NAME", &name), ("EASYISLAND_DVC_SOURCES", &ids)],
+        &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_FOLDER", &group), ("EASYISLAND_DVC_PARENT", &parent), ("EASYISLAND_DVC_NAME", &name), ("EASYISLAND_DVC_SOURCES", &ids)],
     )
     .await?;
     let outcome: Outcome = serde_json::from_str(out.trim()).map_err(|_| t("Risposta di Devolutions Cloud non leggibile.").to_string())?;
@@ -1147,6 +1239,39 @@ pub async fn tool_new_credential(args: &Value) -> Result<String, String> {
         crate::rdm::changed(app);
     }
     Ok(format!("{}{}", checked(&out, &name, &folder), if had { "" } else { "\n(senza password)" }))
+}
+
+#[cfg(test)]
+mod nest_tests {
+    use super::*;
+
+    fn item(id: &str, name: &str, kind: &str, folder: &str, parent: &str) -> Item {
+        let path = if kind == "Group" { format!("{folder}\\{name}") } else { String::new() };
+        Item { id: id.into(), name: name.into(), kind: kind.into(), folder: folder.into(), path, host: String::new(), user: String::new(), cred: String::new(), vault: "v".into(), parent: parent.into(), group: String::new() }
+    }
+
+    #[test]
+    fn entries_under_an_information_entry_go_inside_it() {
+        let mut e = vec![
+            item("a", "ROSSI", "Group", "10 - Clienti", ""),
+            item("h", "Nuovo Server ROSSI", "DataEntry", "10 - Clienti\\ROSSI", ""),
+            item("c1", "ILO", "Credential", "10 - Clienti\\ROSSI", "h"),
+            item("c2", "Proxmox", "Credential", "10 - Clienti\\ROSSI", "H"),
+            item("x", "SERVER-ROSSI", "DataEntry", "10 - Clienti\\ROSSI", ""),
+            item("y", "Utenti VPN", "Credential", "10 - Clienti\\ROSSI", "a"),
+        ];
+        nest(&mut e);
+        assert_eq!(e[1].kind, "Group");
+        assert_eq!(e[1].path, "10 - Clienti\\ROSSI\\Nuovo Server ROSSI");
+        assert_eq!(e[2].folder, "10 - Clienti\\ROSSI\\Nuovo Server ROSSI");
+        assert_eq!(e[3].folder, e[2].folder);
+        // Written in RDM where its children are: Group of the holder, ParentID = its id.
+        assert_eq!(write_place(&e[1]), ("10 - Clienti\\ROSSI".to_string(), "h".to_string()));
+        assert_eq!(write_place(&e[0]), ("10 - Clienti\\ROSSI".to_string(), "a".to_string()));
+        // Without children an information entry stays an entry; a real folder as parent changes nothing.
+        assert_eq!(e[4].kind, "DataEntry");
+        assert_eq!(e[5].folder, "10 - Clienti\\ROSSI");
+    }
 }
 
 #[cfg(test)]

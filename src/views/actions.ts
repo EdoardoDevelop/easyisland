@@ -1,7 +1,8 @@
 // Quick actions: the Azioni tab (a grid of the user's buttons) and the Run view
 // (confirm a script, watch it, read its output).
 
-import { h, clear } from "./dom";
+import { h, clear, emptyState } from "./dom";
+import { ICONS } from "./icons";
 import { Bridge } from "../core/bridge";
 import { renderActionIcon } from "./action-icons";
 import { suggestionsFor, type Suggestion } from "../island/context";
@@ -73,8 +74,8 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
   const suggest = h("div", { class: "qa-suggest" });
   // Search across every action, folders included.
   const search = h("input", { type: "text", class: "qa-search", placeholder: t("Cerca un'azione"), spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
-  search.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
-  search.addEventListener("focus", () => void Bridge.focusWindow(true));
+  search.addEventListener("pointerdown", () => void Bridge.focusWindow(true, search));
+  search.addEventListener("focus", () => void Bridge.focusWindow(true, search));
   search.addEventListener("input", () => { key = ""; State.notify(); });
   search.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && search.value) { e.stopPropagation(); search.value = ""; key = ""; State.notify(); }
@@ -130,16 +131,13 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       }
       if (list.length === 0 && sugg) return;
       if (list.length === 0) {
-        grid.append(
-          h("div", { class: "qa-empty" },
-            h("div", { class: "title", text: t("Nessuna azione rapida.") }),
-            h("div", { class: "sub", text: t("Creale in Impostazioni → Azioni rapide: link, programmi, script e domande alla chat.") }),
-            h("button", {
-              class: "btn secondary", text: t("Apri le impostazioni"),
-              onclick: () => handlers.openSettingsWindow(),
-            }),
-          ),
-        );
+        grid.append(emptyState({
+          compact: true,
+          icon: ICONS.bolt,
+          title: t("Nessuna azione rapida."),
+          hint: t("Creale in Impostazioni → Azioni rapide: link, programmi, script e domande alla chat."),
+          actions: [{ label: t("Apri le impostazioni"), primary: true, onclick: () => handlers.openSettingsWindow() }],
+        }));
         return;
       }
       search.style.display = list.length > SEARCH_FROM ? "" : "none";
@@ -148,7 +146,15 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       if (search.value.trim()) {
         const found = matches();
         for (const a of found) grid.append(actionButton(a, () => handlers.runAction(a)));
-        if (!found.length) grid.append(h("div", { class: "qa-none", text: t("Nessuna azione trovata") }));
+        if (!found.length) {
+          grid.append(emptyState({
+            compact: true,
+            icon: ICONS.search,
+            title: t("Nessuna azione trovata"),
+            hint: t("Controlla i termini cercati o svuota il filtro per vedere tutte le azioni."),
+            actions: [{ label: t("Svuota ricerca"), onclick: () => { search.value = ""; key = ""; State.notify(); search.focus(); } }],
+          }));
+        }
         return;
       }
       if (folder) {

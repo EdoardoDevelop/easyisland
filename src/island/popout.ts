@@ -277,7 +277,7 @@ export function closePopped(key: string) {
 }
 
 /** The island's look in the new page: styles, theme, language. */
-function dress(doc: Document, title: string) {
+export function dress(doc: Document, title: string) {
   const root = document.documentElement;
   for (const a of Array.from(root.attributes)) doc.documentElement.setAttribute(a.name, a.value);
   doc.documentElement.classList.remove("browser-preview");
@@ -300,7 +300,7 @@ function dress(doc: Document, title: string) {
  * --card-alpha (the attributes and the style of <html>) and the island's
  * colour. Before, only the look of the moment it opened was copied.
  */
-function mirror(doc: Document, fallback: string) {
+export function mirror(doc: Document, fallback: string) {
   const root = document.documentElement;
   const there = doc.documentElement;
   for (const a of Array.from(root.attributes)) {
@@ -320,7 +320,7 @@ function room(win: Window, island: HTMLElement) {
 }
 
 /** A pointerdown in the window, told to the island's page with its real target. */
-function forward(e: PointerEvent) {
+export function forward(e: PointerEvent) {
   const copy = new PointerEvent("pointerdown", { bubbles: false });
   Object.defineProperty(copy, "target", { value: e.target });
   document.dispatchEvent(copy);

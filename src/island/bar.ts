@@ -306,6 +306,8 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
       const app = exe && State.barWindow?.exe === exe && State.barWindow.name ? State.barWindow.name : exe ? appName(exe) : "";
       return { v: { app, value: app }, icon: k.icon, tip: app ? t("Azioni per {app}", { app }) : t("Barra dell'app in uso") };
     }
+    case "search":
+      return { v: { value: "" }, icon: k.icon, tip: t("Cerca: apre la ricerca nella sua finestra, l'isola resta com'è") };
     case "news": {
       const n = unreadNews();
       const title = State.news[0]?.title ?? "";

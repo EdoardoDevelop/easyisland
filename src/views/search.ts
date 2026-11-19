@@ -4,7 +4,10 @@
 // the day of today or tomorrow (asked to the chat, `day_prompt` in telegram.rs),
 // and, as the user stops typing, the memory's pages (brain.rs), the past
 // conversations (chat_log.rs) and Zammad's tickets (zammad.rs, when it is on);
-// last the chat, asked what was typed. The results cover the views while
+// last the chat, asked what was typed. A question the memory answers for sure
+// gets its answer above the results, as the user stops typing (quick_answer.rs,
+// Impostazioni → Chat → «Risposte rapide»): not a result, so Enter and the
+// selection stay as they are. The results cover the views while
 // there is something typed; Enter opens the selected one, Ctrl+Enter asks the
 // chat, Esc clears.
 
@@ -17,9 +20,12 @@ import { calculate, formatResult, plainResult } from "../core/calc";
 import { Sound } from "../core/sound";
 import { Constellation } from "./constellation";
 import { Model } from "../memory/data";
-import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
+import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type QuickAnswer, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
+import type { ClientSeed } from "./clientcard";
 import { t, tn } from "../core/i18n";
+import { inline, plainText } from "../core/markdown";
+import { loadSettingsIndex, searchSettings } from "../core/settings-index";
 
 export interface SearchActions {
   openTask(id: string): void;
@@ -35,6 +41,8 @@ export interface SearchActions {
   reopenChat(id: string): void;
   /** A new chat that starts from a node of the memory: nothing is sent yet. */
   memoryChat(id: string, title: string): void;
+  /** Opens the Scheda cliente overlay when a search hit is a customer's page. */
+  openClient?(name: string, seed?: ClientSeed): void;
   /** «Ricorda questo» with `text` (src/views/remember.ts). */
   remember(text: string): void;
   /** Search results opened, resized or closed (constellation toggled, rows updated). */
@@ -45,10 +53,17 @@ export interface SearchActions {
   onEscape?: () => void;
   /** Whether the host expects auto-focus on the search field when the window activates. */
   canAutoFocus?: () => boolean;
+  /**
+   * The search on its own in its window (search-window.ts): always «search
+   * only», whatever the island does; its window, not the island's, takes the keys.
+   */
+  only?: boolean;
+  /** Asks for the keyboard for the window the search is in (the island's when unset). */
+  takeFocus?: () => void;
 }
 
 interface Hit {
-  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
+  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Impostazioni" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Cliente" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -68,11 +83,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Impostazioni: t("Impostazioni"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Cliente: t("Cliente"), Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Impostazioni: 4, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Cliente: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -95,6 +110,11 @@ export interface SearchHost {
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
+  /** The search on its own: in its window, or the island in search-only mode. */
+  const only = () => actions.only ?? State.searchOnly;
+  /** The page the search is in now (its own window's, or the island's). */
+  const doc = () => el.ownerDocument;
+  const takeFocus = () => (actions.takeFocus ? actions.takeFocus() : void Bridge.focusWindow(true));
   const input = h("input", { type: "text", class: "search-input", placeholder: t("Chiedi, cerca o avvia…"),
     spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
   const kbd = (label: string) => h("span", { class: "search-kbd" }, label);
@@ -121,11 +141,16 @@ export function buildSearch(actions: SearchActions): SearchHost {
     ),
     h("span", { class: "search-foot-item" }, kbd("Esc"), " ", t("pulisci")),
   );
-  const results = h("div", { class: "search-results" }, sky.el, list, foot);
+  // The quick answer: above the results, never one of them.
+  const answerBox = h("div", { class: "search-answer" });
+  // The quick answer and the results scroll together; the keys stay in view
+  // (17 Nov 2026: a long procedure scrolled on its own and hid the results).
+  const scroller = h("div", { class: "search-scroll" }, answerBox, list);
+  const results = h("div", { class: "search-results" }, sky.el, scroller, foot);
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input, countPill, clearBtn, escHint);
   // Click anywhere inside the search bar in search-only mode (except action buttons) keeps focus in the input.
   bar.addEventListener("mousedown", (e) => {
-    if (State.searchOnly && e.target !== input && !(e.target as Element | null)?.closest("button")) {
+    if (only() && e.target !== input && !(e.target as Element | null)?.closest("button")) {
       e.preventDefault();
       input.focus({ preventScroll: true });
     }
@@ -164,6 +189,21 @@ export function buildSearch(actions: SearchActions): SearchHost {
   // stops typing; each answers when it can.
   let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[]; contacts: ThreecxContact[] } = { q: "", pages: [], chats: [], tickets: [], contacts: [] };
   let moreTimer = 0;
+  let clientTitles: string[] = [];
+  let clientFold = new Set<string>();
+  let clientAt = 0;
+  const loadClients = () => {
+    if (Date.now() - clientAt < 5000) return;
+    clientAt = Date.now();
+    void Bridge.clientList()
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        clientTitles = list;
+        clientFold = new Set(list.map((c) => fold(c)));
+        if (input.value.trim().length >= 2) refresh(true);
+      })
+      .catch(() => {});
+  };
   // The map, once per search: the constellation is drawn from it.
   let memory: Model | null = null;
   let memoryAsked = false;
@@ -189,13 +229,13 @@ export function buildSearch(actions: SearchActions): SearchHost {
   sky.onPick = (id) => {
     picked = id;
     showSky();
-    if (State.searchOnly) input.focus({ preventScroll: true });
+    if (only()) input.focus({ preventScroll: true });
   };
   sky.onOpen = (id) => {
     reset(true);
     input.blur();
     void Bridge.memoryWindowSelect(id);
-    if (State.searchOnly) actions.onDone?.();
+    if (only()) actions.onDone?.();
   };
   sky.onChat = (id) => {
     const title = memory?.byId.get(id)?.label ?? "";
@@ -205,6 +245,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
   };
   const askMore = (q: string) => {
     window.clearTimeout(moreTimer);
+    if (q.length >= 2) loadClients();
     if (q.length >= 3) loadMemory();
     if (q.length < 3 || more.q === q) return;
     moreTimer = window.setTimeout(() => {
@@ -222,6 +263,53 @@ export function buildSearch(actions: SearchActions): SearchHost {
         void Bridge.threecxContacts(q).then((contacts) => { if (more.q === q && contacts?.length) { more.contacts = contacts.filter((c) => c.numbers.length); show(); } }).catch(() => {});
       }
     }, 400);
+  };
+
+  // The answer from the memory for the words typed: once per text, after a pause, dropped if the text changes.
+  let quick: { q: string; ans: QuickAnswer | null } = { q: "", ans: null };
+  let quickTimer = 0;
+  const askQuick = (q: string) => {
+    window.clearTimeout(quickTimer);
+    if ((State.settings.quickAnswers ?? "potion") === "off" || q.length < 6 || quick.q === q) return;
+    quickTimer = window.setTimeout(() => {
+      quick = { q, ans: null };
+      void Bridge.quickAnswer(q).then((ans) => {
+        if (quick.q !== q) return;
+        quick.ans = ans ?? null;
+        if (input.value.trim() === q) { drawAnswer(); actions.onLayout?.(); }
+      }).catch(() => {});
+    }, 600);
+  };
+  const drawAnswer = () => {
+    clear(answerBox);
+    const typed = input.value.trim();
+    const a = typed && quick.q === typed ? quick.ans : null;
+    answerBox.classList.toggle("on", !!a);
+    if (!a) return;
+    const from = [...new Set(a.sources)].join(" · ");
+    const written = a.by !== "Potion";
+    answerBox.append(
+      h("div", { class: "search-answer-head" },
+        svg(ICONS.memory, 12, { stroke: 1.8 }),
+        h("span", { text: written ? t("Risposta rapida · scritta da {by}", { by: a.by }) : t("Risposta rapida dalla memoria") })),
+      // Line by line, with `code`, **bold** and links as in the chat (17 Nov 2026:
+      // the procedure's commands showed their backticks). A procedure's title in bold.
+      h("div", { class: "search-answer-text md" }, ...a.text.split("\n").map((l, i) => {
+        const line = h("div", { class: i === 0 && a.node ? "search-answer-title" : "" });
+        line.append(...inline(l, { openUrl: (url) => void Bridge.openUrl(url) }));
+        return line;
+      })),
+      written
+        ? h("details", { class: "search-answer-src" }, h("summary", { text: t("Fonti: {from}", { from }) }), ...a.lines.map((l) => h("div", { class: "search-answer-line", text: l })))
+        : h("div", { class: "search-answer-src", text: t("Fonti: {from}", { from }) }),
+      h("div", { class: "search-answer-acts" },
+        h("button", { type: "button", class: "search-answer-btn", text: t("Copia"),
+          onclick: () => { void navigator.clipboard.writeText(plainText(a.text)).then(() => Sound.play("finish")).catch(() => {}); } }),
+        ...(a.node ? [h("button", { type: "button", class: "search-answer-btn", text: t("Apri la pagina"),
+          onclick: () => { const id = a.node!; reset(true); input.blur(); void Bridge.memoryWindowSelect(id); } })] : []),
+        h("button", { type: "button", class: "search-answer-btn", text: t("Chiedi alla chat"),
+          onclick: () => { reset(true); input.blur(); actions.ask(typed); } })),
+    );
   };
 
   const askNotion = (q: string) => {
@@ -249,7 +337,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     icon: () => svg(ICONS.bubble, 13), run: () => actions.ask(text) });
 
   const doneIfSearchOnly = () => {
-    if (State.searchOnly) actions.onDone?.();
+    if (only()) actions.onDone?.();
   };
 
   // The words typed, searched with Google in the default browser.
@@ -308,6 +396,19 @@ export function buildSearch(actions: SearchActions): SearchHost {
       const s = score(`${t("Cosa ho fatto")} ${t("annulla azioni permessi")}`, q);
       if (s) out.push({ kind: "Isola", name: t("Cosa ho fatto"), score: s, icon: () => svg(ICONS.history, 13, { stroke: 2 }), run: () => actions.showDone() });
     }
+    // A control of the settings (core/settings-index.ts, built by the settings window):
+    // «posizione ricerca», «davanti al cliente» → that page, that tab, the control lit.
+    if (q.length >= 3) {
+      const index = loadSettingsIndex();
+      for (const { entry: e, score: s } of index ? searchSettings(index.entries, input.value, 4) : []) {
+        const place = [e.pageLabel, e.tabLabel].filter(Boolean).join(" › ");
+        // On the scale of the other kinds: its name from the start 3, every word in its name 2, else 1.
+        const whole = s >= 4 && fold(e.label).startsWith(q);
+        out.push({ kind: "Impostazioni", name: `${e.label} · ${place}`, score: whole ? 3 : s >= 6 ? 2 : 1,
+          icon: () => svg(ICONS.sliders, 13),
+          run: () => { void Bridge.openSettingsAt(e.page, `idx:${e.key}`); doneIfSearchOnly(); } });
+      }
+    }
     if (notion.q === input.value.trim()) {
       for (const p of notion.pages) {
         out.push({ kind: "Notion", name: p.title || t("Senza titolo"), score: Math.max(1, score(p.title, q)),
@@ -329,8 +430,40 @@ export function buildSearch(actions: SearchActions): SearchHost {
           run: () => { actions.openTask("integration_rdm"); rdmShowEntry(e); } });
       }
     }
-    if (more.q === input.value.trim()) {
+    const rawQ = input.value.trim();
+    const seenClients = new Set<string>();
+    for (const title of clientTitles) {
+      const s = score(title, q);
+      if (!s) continue;
+      seenClients.add(fold(title));
+      const mem = more.q === rawQ ? more.pages.find((p) => fold(p.title) === fold(title)) : undefined;
+      out.push({
+        kind: "Cliente",
+        name: mem?.gist ? `${title} · ${mem.gist}` : title,
+        score: s + 1,
+        node: mem?.id,
+        icon: () => svg(ICONS.people, 13),
+        run: () => (actions.openClient
+          ? actions.openClient(title, { nodeId: mem?.id, source: "search" })
+          : mem ? actions.memoryChat(mem.id, mem.title) : actions.ask(title)),
+      });
+    }
+    if (more.q === rawQ) {
       for (const p of more.pages) {
+        if (clientFold.has(fold(p.title))) {
+          if (seenClients.has(fold(p.title))) continue;
+          out.push({
+            kind: "Cliente",
+            name: [p.title, p.gist, p.origin].filter(Boolean).join(" · "),
+            score: Math.max(2, score(p.title, q) + 1),
+            node: p.id,
+            icon: () => svg(ICONS.people, 13),
+            run: () => (actions.openClient
+              ? actions.openClient(p.title, { nodeId: p.id, source: "search" })
+              : actions.memoryChat(p.id, p.title)),
+          });
+          continue;
+        }
         out.push({ kind: "Memoria", name: [p.title, p.gist, p.origin].filter(Boolean).join(" · "), score: Math.max(1, score(p.title, q)), node: p.id,
           icon: () => svg(ICONS.memory, 13, { stroke: 1.8 }), run: () => actions.memoryChat(p.id, p.title) });
       }
@@ -375,6 +508,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       h("span", { class: "search-kind", text: KIND_LABEL[hit.kind] })));
     });
     countPill.textContent = hits.length ? tn("{n} risultato", "{n} risultati", hits.length, { n: hits.length }) : "";
+    drawAnswer();
     showSky();
   };
 
@@ -397,6 +531,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
         askNotion(raw);
         askRdm(raw);
         askMore(raw);
+        askQuick(raw);
       }
     } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
@@ -408,6 +543,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     }
     clear(list);
     countPill.textContent = "";
+    drawAnswer();
     memory = null;
     memoryAsked = false;
     // The stars go back into the middle before the panel leaves.
@@ -443,21 +579,22 @@ export function buildSearch(actions: SearchActions): SearchHost {
   });
 
   const focusInput = () => {
-    const active = document.activeElement;
+    const active = doc().activeElement;
     if (active === input) return;
-    if (active && active !== document.body && active !== document.documentElement && active.matches("input, textarea, [contenteditable]")) return;
+    if (active && active !== doc().body && active !== doc().documentElement && active.matches("input, textarea, [contenteditable]")) return;
     input.focus({ preventScroll: true });
     loadApps();
   };
   // The island's window takes no keys until asked (as for the ⚡ search field).
   input.addEventListener("pointerdown", () => {
-    if (!document.hasFocus()) void Bridge.focusWindow(true);
+    if (!doc().hasFocus()) takeFocus();
   });
   input.addEventListener("focus", () => {
     loadApps();
-    if (!document.hasFocus()) void Bridge.focusWindow(true);
+    if (!doc().hasFocus()) takeFocus();
   });
-  window.addEventListener("focus", () => {
+  // The island's window coming forward; the search's own window does this itself.
+  if (!actions.only) window.addEventListener("focus", () => {
     const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
     if (!allow) return;
     focusInput();
@@ -467,9 +604,9 @@ export function buildSearch(actions: SearchActions): SearchHost {
     if (e.key === "Escape") {
       e.stopPropagation();
       if (input.value) reset();
-      else if (State.searchOnly) actions.onEscape?.();
+      else if (only()) actions.onEscape?.();
       else input.blur();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp" || (State.searchOnly && e.key === "Tab" && hits.length)) {
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp" || (only() && e.key === "Tab" && hits.length)) {
       e.preventDefault();
       if (!hits.length) return;
       const forward = e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey);
@@ -491,9 +628,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
     get open() { return el.classList.contains("open"); },
     resultsHeight() {
       if (!el.classList.contains("open")) return 0;
-      const listH = list.scrollHeight;
+      // The list and the quick answer above it.
+      // Measured on what is in it, not on the scroller: in the search's own
+      // window the scroller fills the window, and the window never shrank
+      // (18 Nov 2026: a short list in a window two thirds of the screen tall).
+      const box = (e: HTMLElement) => e.offsetHeight ? e.offsetHeight + 14 : 0;
+      const listH = box(answerBox) + list.scrollHeight;
       const skyH = sky.shown ? 178 : 0;
-      if (State.searchOnly) {
+      if (only()) {
         const skyBlock = sky.shown ? skyH + 16 : 0;
         const raw = 2 + skyBlock + listH + 30;
         return sky.shown ? Math.max(384, raw) : raw;
@@ -502,15 +644,17 @@ export function buildSearch(actions: SearchActions): SearchHost {
       return sky.shown ? Math.max(324, raw) : raw;
     },
     sync() {
-      // The island closed: start again empty next time.
-      if (State.mode !== "expanded" && input.value) reset(true);
+      // The island closed: start again empty next time (not the search's own window).
+      if (!actions.only && State.mode !== "expanded" && input.value) reset(true);
     },
     focusInputOnly() {
       focusInput();
     },
     focus() {
       focusInput();
-      if (!document.hasFocus()) {
+      if (actions.takeFocus) {
+        if (!doc().hasFocus()) actions.takeFocus();
+      } else if (!document.hasFocus()) {
         void Bridge.focusWindow(true).then(() => {
           const allow = actions.canAutoFocus ? actions.canAutoFocus() : (State.mode === "expanded" && !State.pendingApproval);
           if (allow) focusInput();
@@ -518,7 +662,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       }
     },
     blur() {
-      if (document.activeElement === input) input.blur();
+      if (doc().activeElement === input) input.blur();
     },
     close() {
       if (input.value) reset(true);

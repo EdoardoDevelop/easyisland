@@ -17,6 +17,7 @@ import { t, tn } from "../core/i18n";
 import { plainText } from "../core/markdown";
 import { quickApproval } from "../views/strip";
 import { isReversible, toolWords } from "../core/permits";
+import * as Notices from "../notices/notices";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -128,6 +129,10 @@ function taskFor(p: HookPayload): string {
 
 function sessionHost(p: HookPayload): SessionHost {
   if (p.easyisland_host === "opencode") return "opencode";
+  // Antigravity (its Desktop app, or agy in a terminal): its own window, never
+  // «a terminal» (17 Nov 2026: the island opened at the end of a command while
+  // Edoardo was in Antigravity Desktop, and «Apri terminale» did nothing).
+  if (p.easyisland_agent?.id === "antigravity") return "antigravity";
   // A task of EasyIsland (tasks.rs): "Apri" goes to Impostazioni → Flussi.
   if (p.easyisland_host === "compiti") return "compiti";
   // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
@@ -810,6 +815,8 @@ const HOST_APPS: Record<SessionHost, string[]> = {
     "wezterm-gui.exe", "alacritty.exe", "mintty.exe"],
   // opencode Desktop, or its TUI in a terminal.
   opencode: ["opencode.exe", "windowsterminal.exe", "conhost.exe", "openconsole.exe", "pwsh.exe", "powershell.exe", "cmd.exe"],
+  // Antigravity Desktop, or agy in a terminal.
+  antigravity: ["antigravity.exe", "agy.exe", "windowsterminal.exe", "conhost.exe", "openconsole.exe", "pwsh.exe", "powershell.exe", "cmd.exe"],
   // A task of EasyIsland runs in no app: the user never "watches" it elsewhere.
   compiti: [],
 };
@@ -935,6 +942,7 @@ function handle(island: Island, payload: HookPayload) {
       text: str("text"),
       level: level === "ok" || level === "warn" || level === "error" ? level : "info",
       url: str("url"),
+      test: p.test === true,
     });
     return;
   }
@@ -1140,6 +1148,15 @@ function handle(island: Island, payload: HookPayload) {
           return;
         }
         Sound.play("finish");
+        // In the notices' window: a toast, the island stays on what it shows (notices.ts).
+        if (Notices.windowed() && !quietNow()) {
+          const name = State.tasks.find((x) => x.id === tid)?.name ?? projectName;
+          Notices.push({ key: `finished:${tid}`, icon: "✅", title: t("{name} ha finito.", { name }), level: "ok",
+            open: () => { State.setFocus(tid); island.alert("finished"); } });
+          if (State.focusId !== tid) State.setPillBadge(tid, "finished");
+          State.notify();
+          return;
+        }
         if (!quietNow()) State.setFocus(tid);
         surface("finished", true);
         State.notify();
@@ -1156,7 +1173,12 @@ function handle(island: Island, payload: HookPayload) {
       if (State.reaction("agentError") !== "show") State.setPillBadge(tid, "error");
       else {
         Sound.play("error");
-        if (focused) surface("error", true);
+        if (Notices.windowed() && !quietNow()) {
+          const name = State.tasks.find((x) => x.id === tid)?.name ?? projectName;
+          Notices.push({ key: `error:${tid}`, icon: "⛔", title: t("{name} si è fermato con un errore.", { name }), level: "error",
+            open: () => { State.setFocus(tid); island.alert("error"); } });
+          State.setPillBadge(tid, "error");
+        } else if (focused) surface("error", true);
         else State.setPillBadge(tid, "error");
       }
       break;

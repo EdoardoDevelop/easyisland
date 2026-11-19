@@ -123,6 +123,10 @@ pub fn taught(question: &str, present: &dyn Fn(&str) -> bool) -> Vec<String> {
             .iter()
             .rev()
             .filter(|v| v.up && !v.lines.is_empty() && crate::memory_answer::similar(&v.question, question))
+            // (A 👍 on «che controller ha Rossi?» never reaches «che contratto
+            // ha Rossi?»: their keys differ, memory_answer::key. The lines are
+            // not checked against the question's words: those learnt from an
+            // engine's answer do not have them, that is why they are taught.)
             .map(|v| v.lines.iter().filter(|l| present(l) && !rejected.contains(*l)).cloned().collect::<Vec<_>>())
             .find(|l| !l.is_empty())
             .unwrap_or_default()
@@ -166,7 +170,8 @@ pub fn stats() -> Value {
     })
 }
 
-/// «Riprova»: the voted questions asked again of today's memory, no engine.
+/// «Riprova»: the voted questions asked again of today's memory, no engine,
+/// and without the votes themselves (they would always confirm themselves).
 /// A 👍 holds if the same lines still come; a 👎 if they do not.
 pub async fn check(app: &AppHandle) -> Value {
     let votes: Vec<Vote> = with_book(|b| b.votes.iter().filter(|v| !v.lines.is_empty()).cloned().collect());
@@ -179,7 +184,7 @@ pub async fn check(app: &AppHandle) -> Value {
         }
         seen.push(v.question.clone());
         tried += 1;
-        let got = crate::router::memory_lines(app, &v.question).await;
+        let got = crate::router::memory_lines_unvoted(app, &v.question).await;
         let same = v.lines.iter().all(|l| got.contains(l));
         let holds = if v.up { same } else { !v.lines.iter().any(|l| got.contains(l)) };
         if !holds {
@@ -219,6 +224,11 @@ mod tests {
         assert!(rejected("quale ip ha falchi?").is_empty());
         tauri::async_runtime::block_on(vote("quale vm ha Falchi?", "Dalla memoria: altro", "subscription", true, vec![vm.clone()], Some(true)));
         assert_eq!(taught("che vm ha falchi?", &|_| true), vec![vm.clone()]);
+        // A line voted for one thing does not answer another with the same start.
+        let ctl = "[[rossi]] controller UniFi".to_string();
+        tauri::async_runtime::block_on(vote("che controller ha Rossi?", "Dalla memoria: …", "subscription", true, vec![ctl.clone()], Some(true)));
+        assert_eq!(taught("che controller ha rossi", &|_| true), vec![ctl.clone()]);
+        assert!(taught("che contratto ha Rossi?", &|_| true).is_empty());
         // Gone from the memory: not taught any more.
         assert!(taught("che vm ha falchi?", &|l| l != vm).is_empty());
         // Taken back.

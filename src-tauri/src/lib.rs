@@ -17,6 +17,10 @@ mod memory_learn;
 mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
+mod quick_answer;
+mod search_window;
+mod dvc_live;
+mod notices_window;
 mod votes;
 mod memory_tips;
 mod local_model;
@@ -149,6 +153,7 @@ mod win_user;
 mod window_drop;
 mod wss;
 mod zammad;
+mod clients;
 mod ticket_advice;
 mod chatpaths;
 
@@ -735,6 +740,7 @@ fn notify_test(app: AppHandle) {
 
             "level": "ok",
             "url": "",
+            "test": true,
         }),
     );
 }
@@ -1191,6 +1197,14 @@ fn rdm_by_host(host: String) -> Vec<rdm::Entry> {
 #[tauri::command]
 fn rdm_open(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) -> Result<(), String> {
     rdm::open(&entry.id)?;
+    rdm_recent_add(app, shared, entry);
+    Ok(())
+}
+
+/// An entry used from the card without opening it (a credential of
+/// Devolutions Cloud whose user or password was copied): first in the recent ones.
+#[tauri::command]
+fn rdm_recent_add(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) {
     let snapshot = {
         let mut s = shared.settings.lock().unwrap();
         let recent = &mut s.integration_config.rdm_recent;
@@ -1201,7 +1215,12 @@ fn rdm_open(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) 
     };
     let _ = settings::save(&snapshot);
     let _ = app.emit("settings-changed", &snapshot);
-    Ok(())
+}
+
+/// The Devolutions Cloud card opened: the ready connection signs in now (dvc_live.rs).
+#[tauri::command]
+async fn dvc_warm() {
+    dvc_live::warm().await;
 }
 
 /// "Modifica in RDM": its properties open in RDM.
@@ -1530,7 +1549,14 @@ async fn chat_send(
     chat.set_mode(mode);
     // The effort picked in the chat, else the last one picked (Impostazioni keeps it).
     let fallback = app.state::<Shared>().settings.lock().unwrap().cli_effort.clone();
-    chat.set_effort(effort.filter(|e| !e.is_empty()).or(Some(fallback)));
+    // Antigravity has its own effort ("" = the model's own): never Claude Code's.
+    let agy = engine.as_deref() == Some("antigravity")
+        || (engine.is_none() && app.state::<Shared>().settings.lock().unwrap().chat_engine == "antigravity");
+    if agy {
+        chat.set_agy_effort(Some(effort.unwrap_or_default()));
+    } else {
+        chat.set_effort(effort.filter(|e| !e.is_empty()).or(Some(fallback)));
+    }
     // Work Claude Code leaves in the background (claude_cli::follow): its list
     // under the conversation, its answers in it when they come, with a notice.
     {
@@ -1742,6 +1768,7 @@ impl Channel {
 /// Stops the turn of the running task (tasks.rs).
 pub(crate) fn stop_task_turn() {
     STOP[Channel::Task.slot()].notify_waiters();
+    preview::stop_waits();
 }
 
 /// What a stopped turn answers (telegram.rs and the chat recognise it).
@@ -1752,6 +1779,7 @@ pub(crate) fn stopped_text() -> String {
 pub(crate) fn stop_turn(telegram: bool) {
     log::line(if telegram { "chat: turno di Telegram fermato" } else { "chat: turno fermato" });
     STOP[usize::from(telegram)].notify_waiters();
+    preview::stop_waits();
 }
 
 /// Whichever comes first: the turn or "Ferma" (then the turn is dropped).
@@ -1797,6 +1825,7 @@ fn chat_stop(chats: State<'_, Chats>, sid: String) {
     log::line("chat: turno fermato");
     if let Some(c) = chats.find(&sid) {
         c.stop.notify_waiters();
+        preview::stop_waits();
         // Also what it left in the background (claude_cli::follow).
         claude_cli::stop_background(std::sync::Arc::as_ptr(&c) as usize);
     }
@@ -1880,6 +1909,9 @@ pub(crate) async fn chat_turn(
     // Telegram, tasks, helpers: the effort last picked in the chat (chat_send sets its own).
     if chat.effort().is_none() {
         chat.set_effort(Some(shared.settings.lock().unwrap().cli_effort.clone()));
+    }
+    if chat.agy_effort().is_none() {
+        chat.set_agy_effort(Some(shared.settings.lock().unwrap().agy_effort.clone()));
     }
     // Agent Chat with «Letture libere»: opencode reads outside its folder and runs
     // read-only commands without the island; writing, running, sending still ask.
@@ -2048,8 +2080,19 @@ pub(crate) async fn chat_turn(
     // (memory::related): often one memory_search step less, at every question.
     // «Ricerca per significato» (memory_meaning.rs), when a service is chosen: the closest lines join them.
     let (scored, meaning_engine) = if remember && memory_tools && learns { memory_meaning::related_scored(app, &asked).await } else { (Vec::new(), String::new()) };
-    let strong = scored.first().is_some_and(|(s, _)| *s >= memory_meaning::strong(&meaning_engine));
-    let meaning: Vec<String> = scored.into_iter().map(|(_, l)| l).collect();
+    let strong_at = memory_meaning::strong(&meaning_engine);
+    let strong = scored.first().is_some_and(|(s, _)| *s >= strong_at);
+    // Engines with tools of their own other than Claude Code (Antigravity,
+    // opencode, the terminal of the others): only the lines very close in
+    // meaning; they search the rest with memory_search. On the laptop four
+    // lines at 0.42–0.50 went with «puoi vedere le skill di claude?» (17 Nov
+    // 2026). Claude Code keeps them all, as it uses them well.
+    let few = has_tools && engine != "subscription";
+    let before = scored.len();
+    let meaning: Vec<String> = scored.into_iter().filter(|(s, _)| !few || *s >= strong_at).map(|(_, l)| l).collect();
+    if meaning.len() < before {
+        log::line(format!("significato: {} righe vicine non passate a {engine} (sotto {strong_at:.2})", before - meaning.len()));
+    }
     let related = if remember && memory_tools && learns { memory::related(&asked, fresh, &meaning) } else { None };
     // Lines very close in meaning: the engine answers with them, a search only for what is missing
     // (on the laptop Claude read the page and searched again for a line it had, 14 Nov 2026).
@@ -2497,6 +2540,15 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
     if url != "about:blank" {
         return tauri::webview::NewWindowResponse::Deny;
     }
+    // A window of its own kind (popout_kind just before window.open): the
+    // search's (search_window.rs) or the notices' (notices_window.rs).
+    let kind = NEXT_KIND.lock().unwrap_or_else(|e| e.into_inner()).take();
+    if kind.as_deref() == Some("ricerca") {
+        return own_window(search_window::build(app, features));
+    }
+    if kind.as_deref() == Some("avvisi") {
+        return own_window(notices_window::build(app, features));
+    }
     let label = format!("staccata-{}", NEXT.fetch_add(1, Ordering::Relaxed));
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
         .window_features(features)
@@ -2560,6 +2612,20 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
     }
 }
 
+/// A window of its own kind made (or not) for window.open: its name for popout_take.
+fn own_window(made: tauri::Result<tauri::WebviewWindow>) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    match made {
+        Ok(window) => {
+            *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(window.label().to_string());
+            tauri::webview::NewWindowResponse::Create { window }
+        }
+        Err(e) => {
+            log::line(format!("finestra: {e}"));
+            tauri::webview::NewWindowResponse::Deny
+        }
+    }
+}
+
 /// The last window popout_window made: the island asks for its name right
 /// after window.open (popout_take) and uses that name from then on.
 static LAST_POPOUT: Mutex<Option<String>> = Mutex::new(None);
@@ -2573,6 +2639,16 @@ fn popout_find(app: &AppHandle, name: &str) -> Option<tauri::Window> {
         return None;
     }
     app.get_window(name)
+}
+
+/// What the next `window.open("", …)` of the island is for: "ricerca" (the
+/// search on its own, search_window.rs), "avvisi" (notices_window.rs); none =
+/// a view popped out (popout_window). Taken by the next window made.
+static NEXT_KIND: Mutex<Option<String>> = Mutex::new(None);
+
+#[tauri::command]
+fn popout_kind(kind: String) {
+    *NEXT_KIND.lock().unwrap_or_else(|e| e.into_inner()) = Some(kind);
 }
 
 /// The name of the window window.open has just made (popout.ts).
@@ -2748,6 +2824,13 @@ fn memory_window_open(app: AppHandle) {
     show_memory_window(&app);
 }
 
+/// The search of the island: the answer from the memory to a question, if
+/// it has a sure one (quick_answer.rs; Impostazioni → Chat).
+#[tauri::command]
+async fn quick_answer(app: AppHandle, question: String) -> Option<quick_answer::QuickAnswer> {
+    quick_answer::answer(&app, &question).await
+}
+
 /// The field at the top of the island: memory pages with these words.
 #[tauri::command]
 async fn memory_find(app: AppHandle, query: String) -> Vec<brain::PageHit> {
@@ -2823,6 +2906,44 @@ async fn zammad_set(id: i64, field: String, value: i64, pending: Option<String>)
     zammad::set(id, &field, value, pending).await
 }
 
+/// The customer's page of the memory as a card (clients.rs), by a name from
+/// Zammad, 3CX or the search; None when the memory has no page for it.
+#[tauri::command]
+fn client_card(name: String) -> Option<clients::ClientCard> {
+    clients::card(&name)
+}
+
+/// «Crea la pagina cliente» / «Rendila pagina cliente»: the sections added, nothing removed.
+#[tauri::command]
+fn client_page_make(app: AppHandle, name: String, aliases: Vec<String>, contacts: Vec<String>, access: Vec<String>) -> Result<clients::ClientCard, String> {
+    let title = brain::changed(&app, clients::make(&name, &aliases, &contacts, &access))?;
+    clients::card(&title).ok_or_else(|| t("Pagina non trovata").to_string())
+}
+
+/// The customers' pages, by title.
+#[tauri::command]
+fn client_list() -> Vec<String> {
+    clients::list()
+}
+
+/// The Zammad card: «Salva» with the changed selects together.
+#[tauri::command]
+async fn zammad_save(id: i64, state_id: Option<i64>, owner_id: Option<i64>, priority_id: Option<i64>, pending: Option<String>) -> Result<zammad::TicketDetail, String> {
+    zammad::save(id, state_id, owner_id, priority_id, pending).await
+}
+
+/// The Zammad card: an image inside a message (a data: address, raster images only).
+#[tauri::command]
+async fn zammad_image(ticket: i64, article: i64, id: i64) -> Result<String, String> {
+    zammad::image(ticket, article, id).await
+}
+
+/// The Zammad card: «Scarica» on a file of a message (Downloads, shown in Explorer).
+#[tauri::command]
+async fn zammad_attachment_save(ticket: i64, article: i64, id: i64, name: String) -> Result<String, String> {
+    zammad::save_attachment(ticket, article, id, &name).await
+}
+
 /// The Zammad card: an internal note, or a reply by email after the second click.
 #[tauri::command]
 async fn zammad_reply(id: i64, text: String, email: bool) -> Result<zammad::TicketDetail, String> {
@@ -2869,6 +2990,8 @@ fn chat_history_rename(id: String, title: String) {
 fn chat_rewind(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
     let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
+    // «Chiedi al motore» under a command offered: the same question then goes to the engine.
+    router::rewound(&chat);
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
 }
@@ -4307,11 +4430,13 @@ pub(crate) fn webview_dir() -> Option<std::path::PathBuf> {
 #[tauri::command]
 async fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
     let place = if new_tab.unwrap_or(false) { preview::Place::NewTab } else { preview::Place::Reuse };
+    preview::closed_by_user(false);
     preview::open(&app, &target, place, true)
 }
 
 #[tauri::command]
 async fn preview_show(app: AppHandle) -> Result<(), String> {
+    preview::closed_by_user(false);
     preview::show(&app, true)
 }
 
@@ -4334,6 +4459,7 @@ async fn preview_pane(app: AppHandle, x: f64, y: f64, w: f64, h: f64) {
 
 #[tauri::command]
 async fn preview_hide(app: AppHandle) {
+    preview::closed_by_user(true);
     preview::close_window(&app);
 }
 
@@ -5250,6 +5376,12 @@ pub fn run() {
             memory_graph,
             popout_focus,
             popout_take,
+            popout_kind,
+            search_window::search_window_show,
+            search_window::search_window_fit,
+            search_window::search_window_hide,
+            notices_window::notices_show,
+            notices_window::notices_hide,
             popout_title,
             popout_chat,
             popout_close,
@@ -5263,6 +5395,7 @@ pub fn run() {
             memory_note_add,
             chat_history_search,
             memory_find,
+            quick_answer,
             memory_node_brief,
             memory_window_select,
             zammad_search,
@@ -5277,6 +5410,12 @@ pub fn run() {
             zammad_ticket,
             zammad_set,
             zammad_reply,
+            zammad_save,
+            client_card,
+            client_page_make,
+            client_list,
+            zammad_image,
+            zammad_attachment_save,
             talk_toggle,
             talk_cancel,
             talk_speak,
@@ -5411,6 +5550,8 @@ pub fn run() {
             rdm_search,
             rdm_by_host,
             rdm_open,
+            rdm_recent_add,
+            dvc_warm,
             rdm_edit,
             rdm_filter,
             rdm_quick,
@@ -5542,13 +5683,24 @@ pub fn run() {
                     // Dragged, moved to another screen or resized: the resting character follows.
                     tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => sync_character(&closing),
                     // Once Win32/WebView2 grants keyboard focus, tell the front end so it can place the caret cleanly.
+                    // Emitted a moment later, off this handler: the focus event arrives
+                    // inside `Webview::set_focus` (apply_app_mode, activate_window), which
+                    // holds the webview's `window_id` lock, and an emit to that webview
+                    // takes it again. Emitted here, the main thread waited on itself and
+                    // EasyIsland froze at start (1.0.50, Edoardo, 16 Nov 2026).
                     tauri::WindowEvent::Focused(true) => {
-                        let _ = closing.emit_to(island::WINDOW_LABEL, "island-focused", ());
+                        let h = closing.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let _ = h.emit_to(island::WINDOW_LABEL, "island-focused", ());
+                        });
                     }
                     // When another window or the desktop takes focus, stop pending auto-focus immediately.
                     tauri::WindowEvent::Focused(false) => {
                         island::set_want_focus(false);
-                        let _ = closing.emit_to(island::WINDOW_LABEL, "island-blurred", ());
+                        let h = closing.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let _ = h.emit_to(island::WINDOW_LABEL, "island-blurred", ());
+                        });
                     }
                     _ => {}
                 });

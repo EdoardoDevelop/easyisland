@@ -1,10 +1,13 @@
 # Handoff — EasyIsland
 
-_15 novembre 2026. **1.0.50** in `main` (tag `v1.0.50`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_19 novembre 2026. **1.0.52** in `main` (tag `v1.0.52`). Prossimo lavoro: Dock al posto della barra di Windows e Top bar (piano in corso, uscirà come 1.1.0). `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Ricerca nelle Impostazioni** (19/11, `docs/architettura.md` → Impostazioni): provata nell'anteprima (italiano e inglese, Telegram aperto e illuminato, risultati nel campo dell'isola); da provare nell'app che l'indice si costruisca all'avvio a finestra nascosta e che il clic dall'isola apra le Impostazioni sul controllo.
+- [ ] **Panoramica della memoria** (17/11, `docs/chat.md` → Finestra Memoria): provata nell'anteprima (scuro, chiaro, `few`, `many=300`, 900 px); da guardare nell'app con la memoria vera, CPU a finestra aperta e ferma, righe dal vivo quando la chat legge o scrive.
+- [ ] **Avvisi in una finestra loro** (17/11, `docs/architettura.md` → Avvisi): provati nell'anteprima (scena `avvisi`) e con i test di `spot`; da provare nell'app che la finestra non prenda il fuoco né resti bianca, i tre posti con l'isola aperta e chiusa, un download mentre una card di Claude Code aspetta, «+N», schermo intero e davanti al cliente.
 - [ ] **Modello sul PC** (15/11, nella 1.0.49): `docs/chat.md` → Motori → Modello sul PC. Provato dal vivo con `chiedi`: RTX 3070 (Qwen 3.5 4B, 55 token/s scritti, 1.500 letti) e Radeon 840M del portatile (Gemma 4 E2B 21/180, consigliato lì; 4B 8/150). Ora in Modalità terminale usa il giro interno (`local_agent.rs`, senza opencode): dal vivo 3.989 token alla prima domanda sulla 840M (38 s), ~2.100 sulla 3070 (`git status` senza card in 6 s); obiettivo 2.500 da limare (note della memoria davanti). Limiti rispetto a opencode in `docs/idee.md`, lasciati così (Edoardo, 15/11). Dal 15/11 anche OpenRouter, Ollama e LM Studio usano il terminale interno (`local_agent::ENGINES`): OpenRouter provato dal vivo (5,6 s e 1,8 s, `git status` senza card); Ollama e LM Studio non provati (nessun modello impostato). Da provare nell'isola: Impostazioni → card, «Scarica» del consigliato, «Prova la velocità», risposte dalla memoria scritte dal modello, Modalità terminale (tempo e token sotto 2.500 nel `server.log`, `git status` senza card, `write_file`/`npm install` con card, Ferma su comando lungo, «⟲ File»).
 - [ ] **Voti e Solo EasyIsland** (15/11, ramo `claude/voti-solo-easyisland`, da `claude/sviluppo` che ha già `claude/risposte-memoria`): `docs/chat.md` → Voti, Solo EasyIsland. Provati con test, anteprima e `chiedi --motore easyisland` sul portatile (risposte, righe vicine, domanda ripetuta); da provare nell'isola i voti veri (👍 a un motore che insegna una riga, 👎 poi «Chiedi al motore») e «Riprova» in Impostazioni → Chat. Unito in `claude/sviluppo`. Poi (stesso ramo) i suggerimenti 📒 dalla memoria (`memory_tips.rs`): da guardare nell'isola con una pagina o un file di un cliente davanti e dopo una domanda.
 - [ ] **Risposte dalla memoria e `chiedi`** (15/11, in `claude/sviluppo`): da guardare nell'isola «📒 Dalla memoria» e «Chiedi al motore»; con l'uso, i 👎 dicono dove la regola delle parole in `memory_answer.rs` sbaglia.
@@ -60,22 +63,25 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 16/11 — Versione 1.0.50
-Uniti in `main` la barra di ricerca dedicata rinnovata (`searchOnly` centrata su schermo, tema scuro e chiaro, fuoco automatico WebView2 sul thread principale in `island::activate_window` anche dopo clic sul desktop), la scelta dell'aspetto della riga di ricerca (`search-line.css`, `searchBarLine`: `waves`/`horizon`/`comet`/`prism`/`emerald`/`amber`/`steady`/`off`; `searchBarLineMode`: `focus`/`loop`/`both`/`fade` con anteprima in Impostazioni → Aspetto → Isola aperta), i nuovi sfondi (`gradient`/`glow`/`aurora`/`glass` in `barbg.ts`) e stili elementi (`classic`/`pills`/`compact`) della barra fissa, tutte le schede delle Impostazioni riordinate con sotto-schede condivise e tre fix Windows (chiusura pulita senza finestra nascosta, clic sul personaggio che riporta in primo piano l'isola coperta, avvio di app Store, collegamenti `.lnk`/`.url` e Pannello di controllo). Smoke completo «nessun errore» (91 prove), `npm run build` (`5380 testi, 0 senza inglese`), test Rust 575 + 38.
+### 19/11 — Pagina cliente, stile nuovo sulle schede, Ticket e RDM rifatti
+- **Pagina cliente** nella memoria (`clients.rs`, `src/views/clientcard.ts`): `tipo: cliente` e sezioni fisse; scheda da Zammad, 3CX, RDM/Devolutions e ricerca; «Crea pagina cliente» già riempita, «Rendila pagina cliente» aggiunge senza togliere.
+- **Stile nuovo** su Rete, 3CX, Appunti, Agenti, Agent Chat (non Meteo né Impostazioni). Barre a tempo per password e conferme, stati vuoti con l'azione, «?» con le scorciatoie (`src/views/shortcuts.ts`).
+- **Zammad:** immagini al loro posto (`[[img:ID]]`, mai remote), allegati in Download, cc, contatti, tag, Salva unico (`zammad_save`). **Devolutions:** connessione pronta (`dvc_live.rs`) e scheda a tre zone.
 
-### 15/11 — Versione 1.0.49
-Uniti in `main` il Modello sul PC (llama.cpp Vulkan dentro EasyIsland, controllo della scheda grafica e modello consigliato, Modalità terminale interna, risposte dalla memoria scritte dal modello) e le sotto-schede di Impostazioni → Chat e motori. Smoke completo «nessun errore» (91 prove), test Rust 574 + 38.
+### 19/11 — Ricerca nelle Impostazioni
+Campo in cima al menu delle Impostazioni (anche Ctrl+F) e gruppo «Impostazioni» nel campo unico dell'isola: un risultato apre pagina, scheda o integrazione e illumina il controllo (`src/settings/search.ts`, `src/core/settings-index.ts`).
+- L'indice si legge dai controlli veri (pagine disegnate fuori schermo), una volta per versione e lingua, e passa all'isola dal `localStorage` condiviso; niente Rust.
 
-### 15/11 — Modalità terminale interna per il Modello sul PC (ramo `claude/llm-interno`)
-Tolto opencode dal Modello sul PC in Modalità terminale: `local_agent.rs` guida llama-server con istruzioni brevi e pochi strumenti (comandi PowerShell, file, `memory_search` + `toolhint::tools_for`), permessi Consenti/Nega/`"always"` via `pipe`/`telegram`, punti di ripristino e Anteprima, 25 passi max. I lavori reali da provare dopo l'installazione stanno in Da fare e in `docs/chat.md`.
+### 18/11 — Panoramica: ricerca e linee vere
+La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.
 
+### 17/11 sera — Panoramica della Mappa della memoria
+La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
+- Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.
+- Nucleo a 30 fps al massimo, solo a finestra visibile e a fuoco, fermo 20 s dopo l'ultimo mouse. `?few` e `?many=300` nell'anteprima; `docs/chat.md`, guida 12.
 
-### 15/11 — Modello sul PC: LLM dentro EasyIsland sulla scheda grafica (ramo `claude/llm-interno`)
-Edoardo: un LLM interno, mai Ollama, sulla GPU con controllo di compatibilità, scelta e consiglio del modello, per la chat, la Modalità terminale e accanto a Potion. Ripreso `local_model.rs` dal ramo del 27/10 (llama.cpp b11928 Vulkan, catalogo con impronte) e aggiunti DXGI e `--list-devices`, consiglio per memoria e velocità, `-ngl 99`/`-ub`, «Prova la velocità», `compose` con i controlli `faithful`/`useful`, opencode con provider `easyisland`. Trovati dal vivo: download doppio che mescolava il file (ora `.part` esclusivo e misura controllata), 0.8B inutile per comporre, 4B lento sulle integrate, lettura lenta con `-ub 512`.
-
-
-### 15/11 — Versione 1.0.48
-Uniti in `main` ricerca per significato sul PC (Potion), risposte dalla memoria senza motore, `chiedi`, voti 👍/👎, «Solo EasyIsland», suggerimenti dalla memoria, isola rimisurata, bollino «Attenzione». Smoke completo «nessun errore» (91 prove), test Rust 560 + 38.
-
-
+### 17/11 sera — Avvisi in una finestra loro
+Messaggi, aggiornamenti, momenti (download, Vassoio, errore copiato…), fine ed errori degli agenti, riepilogo e giornata vanno in toast in una finestra che non prende il fuoco e non apre né cambia l'isola (`src/notices/notices.ts`, `notices_window.rs`).
+- Permessi, domande, card di Claude Code con le scelte e chiamate 3CX restano all'isola. Durata 8/15 s, errori finché chiusi, mouse sopra = pausa, massimo 3 + «+N».
+- Impostazioni → Notifiche → Avvisi: sotto l'isola (di serie), alto o basso a destra, nell'isola come prima. Scena `avvisi` (anche nello smoke), `docs/architettura.md`, guida 06.
 

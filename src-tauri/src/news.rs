@@ -83,7 +83,11 @@ fn has_phone(text: &str) -> bool {
 
 /// The header's «tipo:» line, lowercase ("" if none).
 fn kind_of(page: &Page) -> String {
-    // parse() keeps unknown header lines in the body: the first lines say it.
+    // parse() reads «tipo:» in the header (brain::Page::kind); a page written
+    // with it lower down still says it in its first lines.
+    if !page.kind.is_empty() {
+        return page.kind.clone();
+    }
     page.body
         .lines()
         .take(6)

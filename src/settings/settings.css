@@ -1632,3 +1632,94 @@ html[data-font-text-weight] :is(label, .hint, p, input, textarea, select) { font
 .search-line-preview-input::placeholder { color: var(--dim); }
 
 
+
+/* The search of the settings (search.ts): a field at the top of the menu,
+   the results in the page's place. Same surfaces as the menu and the rows. */
+.settings-search-wrap {
+  padding: 0 0 10px;
+}
+
+.settings-search {
+  width: 100%;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font: 400 13px var(--font);
+}
+
+.settings-search::placeholder {
+  color: var(--dim-2);
+}
+
+.settings-search:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.settings-hit {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-hit:hover,
+.settings-hit.on {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--hairline);
+}
+
+.settings-hit.on {
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.settings-hit-label {
+  font: 600 13.5px var(--font);
+}
+
+.settings-hit-path {
+  font: 500 11.5px var(--font);
+  color: #38bdf8;
+}
+
+.settings-hit-hint {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font: 400 12px var(--font);
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+html[data-scheme="light"] .settings-search {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
+html[data-scheme="light"] .settings-hit:hover,
+html[data-scheme="light"] .settings-hit.on {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+html[data-scheme="light"] .settings-hit-path {
+  color: #0369a1;
+}

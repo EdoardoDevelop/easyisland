@@ -251,12 +251,20 @@ fn shell_execute(target: &str, args: &str) -> Result<(), ()> {
                 nShow: SW_SHOWNORMAL.0,
                 ..Default::default()
             };
-            unsafe { ShellExecuteExW(&mut info) }.map_err(|_| ())
+            unsafe { ShellExecuteExW(&mut info) }
         };
-        if starts_with_ignore_ascii_case(&target, "shell:") {
-            invoke(PCWSTR::null()).or_else(|_| invoke(windows::core::w!("open")))
+        // «Annulla» on Windows' elevation prompt is the user's no: never asked
+        // again with the other verb (review of 16 Nov 2026: UAC came twice).
+        let cancelled = |e: &windows::core::Error| e.code() == windows::Win32::Foundation::ERROR_CANCELLED.to_hresult();
+        let (first, second) = if starts_with_ignore_ascii_case(&target, "shell:") {
+            (PCWSTR::null(), windows::core::w!("open"))
         } else {
-            invoke(windows::core::w!("open")).or_else(|_| invoke(PCWSTR::null()))
+            (windows::core::w!("open"), PCWSTR::null())
+        };
+        match invoke(first) {
+            Ok(()) => Ok(()),
+            Err(e) if cancelled(&e) => Err(()),
+            Err(_) => invoke(second).map_err(|_| ()),
         }
     })
 }

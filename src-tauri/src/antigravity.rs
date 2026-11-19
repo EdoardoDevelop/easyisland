@@ -134,6 +134,8 @@ struct Progress {
     answer: String,
     conversation: Option<String>,
     result: Option<Value>,
+    /// The mode agy says it works in (`init` → `permission_mode`).
+    mode: Option<String>,
 }
 
 impl Progress {
@@ -148,6 +150,10 @@ impl Progress {
             self.conversation = Some(id.to_string());
         }
         match Some(event.as_str()) {
+            Some("init") => {
+                self.mode = v.get("permission_mode").and_then(Value::as_str).map(String::from);
+                false
+            }
             Some("step_update") => {
                 let kind = v.get("step_type").and_then(Value::as_str).unwrap_or("");
                 if kind == "agent_response" {
@@ -237,30 +243,102 @@ pub async fn send(
     let dir = folder.map(Path::to_path_buf)
         .or_else(|| std::env::var_os("USERPROFILE").map(PathBuf::from))
         .unwrap_or_else(|| PathBuf::from("."));
-    let mut cmd = command(&exe);
-    cmd.current_dir(&dir).arg("--output-format").arg("stream-json");
+    let effort = effort_flag(model, chat.agy_effort().as_deref());
+    match run(chat, &exe, model, &prompt, &dir, session.as_deref(), effort.as_deref(), on_text, telegram, auto).await {
+        // agy refuses some model + effort pairs before starting (17 Nov 2026,
+        // agy 1.5.9): once more without `--effort`, the model's own.
+        Err(Failed::Selection(why)) if effort.is_some() => {
+            crate::log::line(format!("chat: antigravity rifiuta --effort {} con {model}, riprovo senza: {why}", effort.as_deref().unwrap_or("")));
+            match run(chat, &exe, model, &prompt, &dir, session.as_deref(), None, on_text, telegram, auto).await {
+                Err(Failed::Selection(_)) => Err(selection_error(model)),
+                Err(Failed::Other(e)) => Err(e),
+                Ok(r) => Ok(r),
+            }
+        }
+        Err(Failed::Selection(_)) => Err(selection_error(model)),
+        Err(Failed::Other(e)) => Err(e),
+        Ok(r) => Ok(r),
+    }
+}
+
+/// Why a run failed: the model and effort refused before the turn started
+/// (the conversation is still good), or anything else.
+#[derive(Debug, PartialEq)]
+enum Failed {
+    Selection(String),
+    Other(String),
+}
+
+impl From<String> for Failed {
+    fn from(e: String) -> Self {
+        Failed::Other(e)
+    }
+}
+
+/// agy's words when the model or its effort is refused before the turn.
+fn selection_refused(why: &str) -> bool {
+    let low = why.to_lowercase();
+    low.contains("invalid model selection") || low.contains("conflicts with --effort")
+}
+
+fn selection_error(model: &str) -> String {
+    tf("Antigravity non accetta il modello «{model}» con questo impegno: cambia modello o impegno dal menu del motore (in alto nella chat).", &[("model", &model.trim())])
+}
+
+/// The `--effort` to send: none for the model's own (""), none when the
+/// model's name already has one (`gemini-…-high`: agy refuses both).
+fn effort_flag(model: &str, effort: Option<&str>) -> Option<String> {
+    let e = effort.filter(|e| crate::claude::EFFORTS.contains(e))?;
+    let in_name = model.trim().rsplit('-').next().is_some_and(|last| crate::claude::EFFORTS.contains(&last));
+    (!in_name).then(|| e.to_string())
+}
+
+/// One run of agy for the turn.
+#[allow(clippy::too_many_arguments)]
+async fn run(
+    chat: &Chat,
+    exe: &Path,
+    model: &str,
+    prompt: &str,
+    dir: &Path,
+    session: Option<&str>,
+    effort: Option<&str>,
+    on_text: &(dyn Fn(&str) + Sync),
+    telegram: bool,
+    auto: bool,
+) -> Result<ChatReply, Failed> {
+    let mut cmd = command(exe);
+    cmd.current_dir(dir).arg("--output-format").arg("stream-json");
     if !model.trim().is_empty() {
         cmd.arg("--model").arg(model.trim());
     }
-    if let Some(id) = &session {
+    if let Some(id) = session {
         cmd.arg("--conversation").arg(id);
     }
     let mode = agy_mode(chat.mode().as_deref(), auto);
     if let Some(m) = mode {
         cmd.arg("--mode").arg(m);
     }
-    if let Some(e) = chat.effort().filter(|e| !e.is_empty()) {
+    if let Some(e) = effort {
         cmd.arg("--effort").arg(e);
     }
+    // Permissions for this run only (`--settings`, never saved in ~/.gemini):
+    // in `--print` agy cannot ask, it denies (17 Nov 2026, agy 1.5.9).
+    let hooks = crate::hooks::status_for(crate::hooks::Target::Antigravity).installed;
+    cmd.arg("--settings").arg(session_settings(hooks));
     let started = std::time::SystemTime::now();
     // The prompt attached to the flag, last: `-p <text>` would take a text
     // starting with "-" for an option, and agy stops at the first argument.
     cmd.arg(format!("--print={prompt}"));
     // Its hooks know this turn is the chat's: permissions as the chat's, no session.
     cmd.env("EASYISLAND_AGY_CHAT", "1");
-    // «Automatica»: Antigravity decides, the relay does not ask for each command.
+    // «Automatica»: the island lets through what is not delicate
+    // (permits::agy_auto); «Accetta modifiche»: the file edits.
     if mode == Some("auto") {
         cmd.env("EASYISLAND_AGY_AUTO", "1");
+    }
+    if mode == Some("accept-edits") {
+        cmd.env("EASYISLAND_AGY_EDITS", "1");
     }
     if telegram {
         cmd.env("EASYISLAND_CHANNEL", "telegram");
@@ -269,7 +347,7 @@ pub async fn send(
         cmd.env("EASYISLAND_CHANNEL", "agentchat");
     }
     let mut child = cmd.spawn().map_err(|e| tf("Antigravity non si avvia: {e}", &[("e", &e)]))?;
-    let stdout = child.stdout.take().ok_or(t("Antigravity si è interrotto."))?;
+    let stdout = child.stdout.take().ok_or(t("Antigravity si è interrotto.").to_string())?;
     let stderr = child.stderr.take();
     let err = tauri::async_runtime::spawn(async move {
         let mut s = String::new();
@@ -286,9 +364,9 @@ pub async fn send(
         match tokio::time::timeout_at(deadline, lines.next_line()).await {
             Err(_) => {
                 let _ = child.start_kill();
-                return Err(t("Antigravity non ha finito entro 30 minuti: interrotto.").into());
+                return Err(Failed::Other(t("Antigravity non ha finito entro 30 minuti: interrotto.").into()));
             }
-            Ok(Err(e)) => return Err(tf("Antigravity si è interrotto: {e}", &[("e", &e)])),
+            Ok(Err(e)) => return Err(Failed::Other(tf("Antigravity si è interrotto: {e}", &[("e", &e)]))),
             Ok(Ok(None)) => break,
             Ok(Ok(Some(line))) => {
                 let known = progress.conversation.clone();
@@ -309,14 +387,18 @@ pub async fn send(
     let result = progress.result.clone().unwrap_or(Value::Null);
     let status = result.get("status").and_then(Value::as_str).unwrap_or("");
     if !ok || status == "ERROR" || status == "INVALID" {
-        chat.set_cli_session(None);
         let why = result.get("error").and_then(Value::as_str).map(String::from)
             .unwrap_or_else(|| stderr.trim().chars().take(300).collect());
+        // Refused before the turn: the conversation goes on (the caller retries or explains).
+        if selection_refused(&why) {
+            return Err(Failed::Selection(why));
+        }
+        chat.set_cli_session(None);
         let low = why.to_lowercase();
         if low.contains("sign in") || low.contains("login") || low.contains("auth") {
-            return Err(t("Antigravity non ha il login: apri un terminale, scrivi «agy» e accedi con il tuo account Google, poi riprova.").into());
+            return Err(Failed::Other(t("Antigravity non ha il login: apri un terminale, scrivi «agy» e accedi con il tuo account Google, poi riprova.").into()));
         }
-        return Err(if why.is_empty() { t("Antigravity ha restituito un errore.").to_string() } else { format!("Antigravity: {why}") });
+        return Err(Failed::Other(if why.is_empty() { t("Antigravity ha restituito un errore.").to_string() } else { format!("Antigravity: {why}") }));
     }
     if let Some(id) = result.get("conversation_id").and_then(Value::as_str).map(String::from).or(progress.conversation) {
         if mode == Some("plan") {
@@ -335,10 +417,14 @@ pub async fn send(
         crate::engine_usage::record("antigravity", model, n("input_tokens"), n("output_tokens") + n("thinking_tokens"), None, false);
     }
     let mut final_text = result.get("response").and_then(Value::as_str).unwrap_or("").to_string();
-    // What headless mode skipped because nobody could be asked (no hooks).
+    // What agy skipped because it could not ask (no hooks), or what the island denied.
     let denied = result.get("denied_actions").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
-    if denied > 0 && !crate::hooks::status_for(crate::hooks::Target::Antigravity).installed {
-        final_text.push_str(&format!("\n\n> {}", t("Antigravity ha saltato dei comandi perché non poteva chiederti il permesso: installa i suoi hook in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.")));
+    let stopped = progress.answer.trim().is_empty() && final_text.trim().is_empty() && progress.shown.contains(" — negato");
+    // One notice only (17 Nov 2026): without hooks, «Automatica» once per
+    // conversation, else what was skipped; with hooks, a step denied that
+    // stopped the turn.
+    if let Some(n) = notice(hooks, auto_not_taken(mode, progress.mode.as_deref()), denied, stopped, || chat.first_auto_notice()) {
+        final_text.push_str(&format!("\n\n> {n}"));
     }
     // The steps stay above the answer, as they were shown.
     let text = if progress.shown.trim().is_empty() { final_text } else if progress.answer.trim().is_empty() && !final_text.is_empty() {
@@ -347,9 +433,45 @@ pub async fn send(
         progress.shown
     };
     if text.trim().is_empty() {
-        return Err(t("Nessun testo nella risposta.").into());
+        return Err(Failed::Other(t("Nessun testo nella risposta.").into()));
     }
     Ok(ChatReply { text })
+}
+
+/// agy's settings for one run (`--settings`, «never saved»). EasyIsland's
+/// tools always (they guard themselves: agent.rs, Consenti / Nega for what
+/// sends, deletes or runs elsewhere); `mcp(easyisland)` without `/*` does not
+/// match. With its hooks, `always-proceed`: every tool then asks the island
+/// first (easyisland-hook, `antigravity_asks`) and a «Nega» or no answer stops
+/// it (tried with agy 1.5.9: a PreToolUse `deny` blocks in `always-proceed`).
+/// Without hooks agy's own `request-review`: what it would ask is skipped.
+fn session_settings(hooks: bool) -> String {
+    let allow = serde_json::json!({ "allow": ["mcp(easyisland/*)"] });
+    let s = if hooks {
+        serde_json::json!({ "toolPermission": "always-proceed", "permissions": allow })
+    } else {
+        serde_json::json!({ "permissions": allow })
+    };
+    s.to_string()
+}
+
+/// The line under the answer when something was not done, if any.
+fn notice(hooks: bool, auto_ignored: bool, denied: usize, stopped: bool, first_auto: impl FnOnce() -> bool) -> Option<String> {
+    if !hooks {
+        if auto_ignored && first_auto() {
+            return Some(t("«Automatica» con Antigravity funziona solo con i suoi hook: senza, salta i comandi fuori dalla sua lista sicura e le modifiche ai file (qui non può chiederti il permesso). Installali in Impostazioni → Agenti di codice → Antigravity: ogni azione chiede Consenti / Nega nell'isola, e in «Automatica» passano da sole quelle non delicate.").into());
+        }
+        if denied > 0 || stopped {
+            return Some(t("Antigravity ha saltato delle azioni perché qui non può chiederti il permesso (comandi fuori dalla sua lista sicura, modifiche ai file). Installa i suoi hook in Impostazioni → Agenti di codice → Antigravity: ogni azione chiederà Consenti / Nega nell'isola.").into());
+        }
+        return None;
+    }
+    stopped.then(|| t("Un'azione di Antigravity è stata negata (da te, o senza risposta in tempo) e si è fermato lì. Riprova e consentila, o chiedigli un'altra strada.").into())
+}
+
+/// «Automatica» was asked (`--mode auto`) and agy said it works otherwise.
+fn auto_not_taken(asked: Option<&str>, taken: Option<&str>) -> bool {
+    asked == Some("auto") && taken.is_some_and(|m| m != "auto")
 }
 
 #[cfg(test)]
@@ -391,6 +513,62 @@ mod tests {
         assert_eq!(agy_mode(Some("plan"), true), Some("auto"));
         assert_eq!(agy_mode(Some("bypassPermissions"), false), None);
         assert_eq!(plan_written("../x", std::time::SystemTime::UNIX_EPOCH), None);
+    }
+
+    #[test]
+    fn no_effort_with_a_model_that_has_one() {
+        assert_eq!(effort_flag("gemini-4-hydrogen-high", Some("medium")), None);
+        assert_eq!(effort_flag("gemini-4-argon-xhigh", Some("low")), None);
+        assert_eq!(effort_flag("gemini-3.1-pro", Some("medium")).as_deref(), Some("medium"));
+        assert_eq!(effort_flag("", Some("high")).as_deref(), Some("high"));
+        // «Predefinito del modello», or a word agy would not know: no flag.
+        assert_eq!(effort_flag("gemini-3.1-pro", Some("")), None);
+        assert_eq!(effort_flag("gemini-3.1-pro", None), None);
+        assert_eq!(effort_flag("gemini-3.1-pro", Some("turbo")), None);
+    }
+
+    #[test]
+    fn a_refused_selection_is_tried_again_without_effort() {
+        // agy 1.5.9 on the laptop, 17 Nov 2026.
+        assert!(selection_refused("invalid model selection (--model \"gemini-4-hydrogen-high\" --effort \"medium\"): --model gemini-4-hydrogen-high conflicts with --effort=medium"));
+        assert!(!selection_refused("You are not logged into Antigravity."));
+        assert!(!selection_refused(""));
+        let mut p = Progress::default();
+        p.feed(r#"{"event":"init","init":{"permission_mode":"request-review"}}"#);
+        assert!(auto_not_taken(Some("auto"), p.mode.as_deref()));
+        assert!(!auto_not_taken(Some("auto"), Some("auto")));
+        assert!(!auto_not_taken(None, p.mode.as_deref()));
+        assert!(!auto_not_taken(Some("auto"), None));
+    }
+
+    #[test]
+    fn permissions_for_one_run() {
+        let with: Value = serde_json::from_str(&session_settings(true)).unwrap();
+        assert_eq!(with["toolPermission"], "always-proceed");
+        assert_eq!(with["permissions"]["allow"][0], "mcp(easyisland/*)");
+        let without: Value = serde_json::from_str(&session_settings(false)).unwrap();
+        assert!(without.get("toolPermission").is_none());
+        assert_eq!(without["permissions"]["allow"][0], "mcp(easyisland/*)");
+    }
+
+    #[test]
+    fn one_notice_when_something_was_not_done() {
+        // Without hooks: «Automatica» once, then what was skipped; nothing done right, nothing said.
+        assert!(notice(false, true, 1, true, || true).unwrap().contains("«Automatica»"));
+        assert!(notice(false, true, 1, true, || false).unwrap().contains("saltato"));
+        assert!(notice(false, false, 0, false, || true).is_none());
+        // With hooks: only a denied step that ended the turn, never «install the hooks».
+        assert!(notice(true, true, 0, false, || true).is_none());
+        let n = notice(true, false, 0, true, || true).unwrap();
+        assert!(n.contains("negata") && !n.contains("Agenti di codice"));
+    }
+
+    #[test]
+    fn the_automatica_notice_once_per_conversation() {
+        let (a, b) = (Chat::default(), Chat::default());
+        assert!(a.first_auto_notice());
+        assert!(!a.first_auto_notice());
+        assert!(b.first_auto_notice());
     }
 
     #[test]

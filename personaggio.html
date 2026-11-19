@@ -156,6 +156,8 @@
         0%, 100% { transform: scaleY(0.45); }
         50% { transform: scaleY(1); }
       }
+      /* Windows «Riduci animazioni»: the bars stand still while music plays. */
+      @media (prefers-reduced-motion: reduce) { .bar-eq span { animation: none; } }
       /* Proposal A: pills & telemetry. */
       body.bar-pills .bar-btn {
         background: color-mix(in srgb, var(--ink, #fff) 6%, transparent);

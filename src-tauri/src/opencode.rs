@@ -466,7 +466,30 @@ pub fn read_only(command: &str) -> bool {
         "git status", "git log", "git diff", "git show", "git branch", "node --version", "npm --version",
     ];
     let c = command.trim().to_ascii_lowercase();
-    if c.is_empty() || c.contains(['>', '|', ';', '&', '`']) || c.contains("$(") {
+    // One plain command on one line: a new line is a second command, and in
+    // PowerShell `(…)`, `$(…)`, `@(…)` and `{…}` run code inside an argument
+    // («Get-ChildItem (Remove-Item x)»); a plain `$env:X` only reads. Found in
+    // the review of 16 Nov 2026: these went without a card, even in Piano and read-only.
+    if c.is_empty()
+        || c.contains(['>', '<', '|', ';', '&', '`', '\n', '\r', '(', ')', '{', '}', '\0'])
+        || c.chars().any(char::is_control)
+    {
+        return false;
+    }
+    // Commands that also write with an option: only their looking forms.
+    let words: Vec<&str> = c.split_whitespace().collect();
+    if c.starts_with("git ") && words.iter().any(|w| *w == "-o" || w.starts_with("--output") || w.starts_with("--ext-diff")) {
+        return false;
+    }
+    if c == "git branch" || c.starts_with("git branch ") {
+        const LOOKING: &[&str] = &["-a", "-r", "-v", "-vv", "--all", "--remotes", "--list", "--show-current", "--verbose", "--merged", "--no-merged", "--contains"];
+        // A bare name creates a branch; only after a listing option is it a pattern.
+        let rest = words.get(2..).unwrap_or(&[]);
+        let flags_ok = rest.iter().filter(|w| w.starts_with('-')).all(|w| LOOKING.contains(w));
+        let lists = rest.iter().any(|w| matches!(*w, "--list" | "--merged" | "--no-merged" | "--contains"));
+        return flags_ok && (lists || rest.iter().all(|w| w.starts_with('-')));
+    }
+    if c.starts_with("find ") && words.iter().any(|w| matches!(*w, "-delete" | "-exec" | "-execdir" | "-ok" | "-fprint" | "-fls")) {
         return false;
     }
     SAFE.iter().any(|s| c == *s || c.starts_with(&format!("{s} ")))
@@ -1124,6 +1147,26 @@ mod tests {
         assert!(!read_only("cat a | sh"));
         assert!(!read_only("echo $(rm -rf .)"));
         assert!(!read_only("Remove-Item x"));
+        // From the review of 16 Nov 2026: a second line, code inside an argument, writing options.
+        assert!(!read_only("echo ok\nRemove-Item -Recurse X"));
+        assert!(!read_only("echo ok\r\nRemove-Item X"));
+        assert!(!read_only("Get-ChildItem (Remove-Item X)"));
+        assert!(!read_only("Get-ChildItem @(Remove-Item X)"));
+        assert!(read_only("Get-Content $env:USERPROFILE\\x"));
+        assert!(!read_only("Get-ChildItem {Remove-Item X}"));
+        assert!(!read_only("git branch -D main"));
+        assert!(!read_only("git branch -m nuovo"));
+        assert!(!read_only("git branch nuovo-ramo"));
+        assert!(!read_only("git diff --output=C:\\x.txt"));
+        assert!(!read_only("git log -o x"));
+        assert!(!read_only("find . -delete"));
+        assert!(!read_only("type a < b"));
+        assert!(read_only("git branch"));
+        assert!(read_only("git branch -a"));
+        assert!(read_only("git branch --show-current"));
+        assert!(read_only("git branch --list feat*"));
+        assert!(read_only("git diff HEAD~1 --stat"));
+        assert!(read_only("Get-ChildItem -Force C:\\Clienti"));
     }
 
     #[test]

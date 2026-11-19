@@ -414,11 +414,13 @@ html[data-chat-look="cards"][data-scheme="light"] .chat-card .chat-term { backgr
 /* The lines over the field (queue, background work, hints) keep clear of it. */
 html[data-chat-look="cards"] .chat-card .chat-queue,
 html[data-chat-look="cards"] .chat-card .chat-hint { position: relative; z-index: 3; }
-/* The tips stand clear of the field, which rises over the conversation. */
-html[data-chat-look="cards"] .chat-card .chat-tips { position: relative; z-index: 4; margin-bottom: var(--cc-s5); }
-/* So does a notice («Imparato…», 15 Nov 2026: it went under «Progetto…»); under the tips, they keep the room. */
-html[data-chat-look="cards"] .chat-card .chat-hint { margin-bottom: var(--cc-s5); }
-html[data-chat-look="cards"] .chat-card .chat-tips:has(+ .chat-hint:not([style*="none"])) { margin-bottom: 0; }
+html[data-chat-look="cards"] .chat-card .chat-tips { position: relative; z-index: 4; }
+/* The field rises over the conversation (margin-top -cc-s5): the last line shown
+   above it keeps that room, whichever it is: tips, a notice («Imparato…», 15 Nov
+   2026: it went under «Progetto…»), another chat's question, the work in the
+   background or the queue (17 Nov 2026: «In background» went under the
+   engine's row, and the tips stood apart above it). */
+html[data-chat-look="cards"] .chat-card :is(.chat-tips, .chat-hint, .chat-other-ask, .chat-queue):not([style*="none"]):not(:has(~ :is(.chat-tips, .chat-hint, .chat-other-ask, .chat-queue):not([style*="none"]))) { margin-bottom: var(--cc-s5); }
 
 /* The Anteprima beside the chat: a card too, the page inside it with room around (island.ts paneInset). */
 html[data-chat-look="cards"] #preview-pane {

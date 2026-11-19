@@ -57,7 +57,7 @@ const MAX_READ: usize = 30_000;
 const MAX_STEPS: usize = 15;
 const STEP_TOOLS: &[&str] = &[
     "preview_open", "preview_find", "preview_wait", "preview_scroll", "preview_act", "preview_click", "preview_type",
-    "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract",
+    "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract", "preview_screenshot",
 ];
 /// Steps whose whole answer is kept even in the middle: what they read is the point.
 const READS: &[&str] = &["preview_find", "preview_read", "preview_snapshot", "preview_network", "preview_console", "preview_extract"];
@@ -690,8 +690,35 @@ pub fn set_view(app: &AppHandle, preset: &str, width: u32, height: u32, scheme: 
 // ── The browser layer ────────────────────────────────────────────────────────
 
 /// Places the active tab's browser on the content area (making it the first
-/// time), hides the others. Called after every change.
+/// time), hides the others. Called after every change, from several threads:
+/// one at a time (16 Nov 2026: two at once both found no browser and the
+/// second failed with «a webview with label anteprima-web-N already exists»,
+/// 23 times on the laptop). A call while one runs is not lost: the running one
+/// goes round once more. No lock held: a call from inside cannot hang, and the
+/// rounds are counted: one that always asks for another cannot spin.
 fn sync(app: &AppHandle) {
+    use std::sync::atomic::Ordering::SeqCst;
+    static RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    static AGAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    AGAIN.store(true, SeqCst);
+    for _ in 0..4 {
+        if RUNNING.swap(true, SeqCst) {
+            return;
+        }
+        let mut rounds = 0;
+        while rounds < 4 && AGAIN.swap(false, SeqCst) {
+            sync_once(app);
+            rounds += 1;
+        }
+        RUNNING.store(false, SeqCst);
+        // Asked while it was finishing: round again, unless another call took it.
+        if !AGAIN.load(SeqCst) {
+            return;
+        }
+    }
+}
+
+fn sync_once(app: &AppHandle) {
     let Some(win) = host(app) else { return };
     let (tabs, active, rect, covered, view, origin, shown) = {
         let s = state();
@@ -794,17 +821,9 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
                 emit_tabs(app);
             }
         })
-        // A link that wants a new window opens in a new tab instead.
-        .on_new_window(|url, _| {
-            let target = url.to_string();
-            if let Some(app) = APP.get() {
-                let app = app.clone();
-                std::thread::spawn(move || {
-                    let _ = open(&app, &target, Place::NewTab, true);
-                });
-            }
-            tauri::webview::NewWindowResponse::Deny
-        });
+        // A link with target=_blank opens in a new tab; a real popup
+        // (window.open with a size, or blank) gets a window of its own.
+        .on_new_window(|url, features| new_window(url, features));
     if let Some(dir) = crate::webview_dir() {
         b = b.data_directory(dir);
     }
@@ -814,6 +833,100 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
     devtools_and_console(&w, id);
     let _ = app;
     Ok(w)
+}
+
+// ── Popups (window.open) ─────────────────────────────────────────────────────
+
+/// Label prefix of the popups a page opens: not in the capabilities, so they
+/// never reach EasyIsland's commands, like the tabs' browsers.
+const POPUP: &str = "anteprima-popup-";
+
+/// Popups open at once: a page that calls window.open in a loop gets no more
+/// (review of 16 Nov 2026); a sign-in needs one or two.
+const MAX_POPUPS: usize = 5;
+
+/// Popup or tab: a popup is what a page opens with `window.open` giving a
+/// size (sign-in with Google/Microsoft, payment pages, "open in a window") or
+/// a blank page it then writes into. A plain link with target=_blank has
+/// neither and opens in a new tab, as before.
+fn is_popup(url: &str, sized: bool) -> bool {
+    sized || url.is_empty() || url == "about:blank"
+}
+
+/// WebView2 asks for a new window (from a tab's browser or from a popup).
+/// Runs on the main thread (wry dispatches it after the event), where the
+/// popup window can be built; nothing here emits.
+fn new_window(url: tauri::Url, features: tauri::webview::NewWindowFeatures) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    let target = url.to_string();
+    let Some(app) = APP.get().cloned() else {
+        return tauri::webview::NewWindowResponse::Deny;
+    };
+    if !is_popup(&target, features.size().is_some()) {
+        std::thread::spawn(move || {
+            let _ = open(&app, &target, Place::NewTab, true);
+        });
+        return tauri::webview::NewWindowResponse::Deny;
+    }
+    let open_now = app.webview_windows().keys().filter(|l| l.starts_with(POPUP)).count();
+    if open_now >= MAX_POPUPS {
+        crate::log::line(format!("anteprima: popup rifiutato, già {open_now} aperti ({})", url.host_str().unwrap_or(url.scheme())));
+        return tauri::webview::NewWindowResponse::Deny;
+    }
+    match make_popup(&app, &url, features) {
+        Ok(window) => tauri::webview::NewWindowResponse::Create { window },
+        Err(e) => {
+            crate::log::line(format!("anteprima: popup non aperto: {e}"));
+            tauri::webview::NewWindowResponse::Deny
+        }
+    }
+}
+
+/// The popup: a window of its own owned by the Anteprima's (above it, closed
+/// with it), with the opener's WebView2 environment, so the same cookies and
+/// sign-ins, and `window.opener` kept (WebView2's SetNewWindow). The page
+/// loads the URL itself; `window.close()` destroys it (wry).
+fn make_popup(app: &AppHandle, url: &tauri::Url, features: tauri::webview::NewWindowFeatures) -> Result<tauri::WebviewWindow, String> {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    let label = format!("{POPUP}{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    let (w, h) = features.size().map(|s| (s.width.max(200.0), s.height.max(150.0))).unwrap_or((520.0, 640.0));
+    let place = features.position().is_none();
+    let mut b = tauri::WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse::<tauri::Url>().map_err(|e| e.to_string())?))
+        .title(t("Anteprima"))
+        .inner_size(w, h)
+        .min_inner_size(200.0, 150.0)
+        .resizable(true)
+        .decorations(true)
+        .skip_taskbar(false)
+        .window_features(features)
+        .disable_drag_drop_handler()
+        .on_navigation(|u| matches!(u.scheme(), "http" | "https" | "about" | "data" | "blob"))
+        .on_new_window(|url, features| new_window(url, features))
+        .on_document_title_changed(|w, title| {
+            let title: String = title.trim().chars().take(120).collect();
+            if !title.is_empty() && title != "about:blank" {
+                let _ = w.set_title(&title);
+            }
+        });
+    if let Some(owner) = host(app) {
+        if let Ok(hwnd) = owner.hwnd() {
+            b = b.owner_raw(hwnd);
+        }
+        // No position from the page: centred on the Anteprima.
+        if place {
+            if let (Ok(pos), Ok(size), Ok(scale)) = (owner.outer_position(), owner.outer_size(), owner.scale_factor()) {
+                let (ox, oy) = (pos.x as f64 / scale, pos.y as f64 / scale);
+                let (ow, oh) = (size.width as f64 / scale, size.height as f64 / scale);
+                b = b.position(ox + ((ow - w) / 2.0).max(0.0), oy + ((oh - h) / 2.0).max(0.0));
+            }
+        }
+    } else if place {
+        b = b.center();
+    }
+    let window = b.build().map_err(|e| e.to_string())?;
+    // Only the site's name in the log: a sign-in URL carries codes and tokens.
+    crate::log::line(format!("anteprima: popup aperto ({}) {}", label, url.host_str().unwrap_or(url.scheme())));
+    Ok(window)
 }
 
 // ── WebView2: DevTools protocol ──────────────────────────────────────────────
@@ -1230,14 +1343,14 @@ async fn mouse(app: &AppHandle, id: u32, kind: &'static str, x: f64, y: f64, but
 /// viewport, after bringing it into view), found like preview_click finds it.
 async fn point_of(app: &AppHandle, id: u32, target: &Value, guard: bool) -> Result<(f64, f64, String), String> {
     let script = format!(
-        "({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }}, false, {guard})"
+        "{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); const o = window.__eiOff(el); return [r.left + r.width / 2 + o[0], r.top + r.height / 2 + o[1]]; }}, false, {guard})"
     );
     let raw = eval(app, id, &script).await?;
     let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
     if let Some(e) = v.get("error").and_then(Value::as_str) {
         return Err(e.to_string());
     }
-    let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina.").to_string())?;
+    let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find.").to_string())?;
     let n = |i: usize| p.get(i).and_then(Value::as_f64).unwrap_or(0.0);
     Ok((n(0), n(1), v.get("what").and_then(Value::as_str).unwrap_or_default().to_string()))
 }
@@ -1332,6 +1445,14 @@ fn key(path: &str) -> String {
     path.replace('/', "\\").to_lowercase()
 }
 
+/// The user closed the Anteprima (its ✕, or the chat's button): files the chat
+/// edits do not open it again until the user opens something (lib.rs).
+static CLOSED_BY_USER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn closed_by_user(closed: bool) {
+    CLOSED_BY_USER.store(closed, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// «Modalità terminale» is about to change a file (a step of Claude Code or
 /// opencode): its text now is the «Modifiche» baseline, and the file opens in
 /// the preview when the user wants it.
@@ -1357,8 +1478,13 @@ pub fn touched(path: &str) {
             }
         }
     }
-    let wanted = app.try_state::<crate::Shared>().map(|sh| sh.settings.lock().unwrap().chat_preview).unwrap_or(false);
-    if !wanted {
+    // By itself only when asked (Impostazioni → Chat), and never after the user
+    // closed it, until they open something in it again.
+    let wanted = app.try_state::<crate::Shared>().is_some_and(|sh| {
+        let s = sh.settings.lock().unwrap();
+        s.chat_preview && s.preview_edits
+    });
+    if !wanted || CLOSED_BY_USER.load(std::sync::atomic::Ordering::Relaxed) {
         return;
     }
     // The edit happens after the permission: open once the file is there.
@@ -1529,16 +1655,18 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     _ => Err(tf("Il file non si può leggere come testo ({k}).", &[("k", &f.kind)])),
                 };
             }
-            let script = r#"(() => {
-  const t = document.body ? document.body.innerText : "";
-  const links = Array.from(document.querySelectorAll("a[href]")).slice(0, 60).map(a => (a.innerText || "").trim().slice(0, 60) + " → " + a.href).filter(l => !l.startsWith(" →"));
-  const fields = Array.from(document.querySelectorAll("input, textarea, select, button")).slice(0, 60).map(e => {
+            let script = format!("{FRAMES}{READ}");
+            const READ: &str = r#"(() => {
+  const docs = window.__eiDocs();
+  const t = docs.map((x) => (x.frame ? "\n[frame " + x.frame + "]\n" : "") + (x.doc.body ? x.doc.body.innerText : "")).join("\n");
+  const links = docs.flatMap((x) => Array.from(x.doc.querySelectorAll("a[href]"))).slice(0, 60).map(a => (a.innerText || "").trim().slice(0, 60) + " → " + a.href).filter(l => !l.startsWith(" →"));
+  const fields = docs.flatMap((x) => Array.from(x.doc.querySelectorAll("input, textarea, select, button"))).slice(0, 60).map(e => {
     const label = e.getAttribute("aria-label") || e.getAttribute("placeholder") || e.getAttribute("name") || e.id || (e.innerText || "").trim().slice(0, 40);
     return e.tagName.toLowerCase() + (e.type ? "[" + e.type + "]" : "") + " " + label;
   });
   return { title: document.title, url: location.href, text: t, links, fields };
 })()"#;
-            let raw = eval(app, tb.id, script).await?;
+            let raw = eval(app, tb.id, &script).await?;
             let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
             let mut out = format!(
                 "{}\n{}\n\n{}",
@@ -1555,12 +1683,13 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_screenshot" => {
             let tb = tab_for(&s("tab"))?;
-            let scale = args.get("scale").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 1.0);
+            let asked = args.get("scale").and_then(Value::as_f64).map(|v| v.clamp(0.1, 1.0));
+            let mut scale = asked.unwrap_or(1.0);
             let png = if tb.browser && app.get_webview(&web_label(tb.id)).is_some() {
                 // In CSS pixels (× scale): what preview_act's x, y mean. A zone: one element.
                 let zone = match target_of(args, "") {
                     Some(target) => {
-                        let script = format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); const r = el.getBoundingClientRect(); return [r.left + scrollX, r.top + scrollY, r.width, r.height]; }}, false, false)");
+                        let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); const r = el.getBoundingClientRect(); const o = window.__eiOff(el); return [r.left + o[0] + scrollX, r.top + o[1] + scrollY, r.width, r.height]; }}, false, false)");
                         let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                         if let Some(e) = v.get("error").and_then(Value::as_str) {
                             return Err(e.to_string());
@@ -1571,6 +1700,10 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 };
                 let n = |i: usize| zone.as_ref().and_then(|z| z.get(i)).and_then(Value::as_f64).unwrap_or(0.0);
                 let (w, h) = (n(2).max(1.0).min(4000.0), n(3).max(1.0).min(4000.0));
+                // Sent to the engine as an image: no wider than SHOT_WIDTH unless a scale was asked.
+                if asked.is_none() && w > SHOT_WIDTH {
+                    scale = (SHOT_WIDTH / w).clamp(0.1, 1.0);
+                }
                 let v = cdp_on(app, tb.id, "Page.captureScreenshot", json!({ "format": "png", "clip": { "x": n(0), "y": n(1), "width": w, "height": h, "scale": scale } })).await?;
                 let data = v.get("data").and_then(Value::as_str).ok_or_else(|| t("Schermata non riuscita.").to_string())?;
                 crate::backup::base64_decode(data).ok_or_else(|| t("Schermata non riuscita.").to_string())?
@@ -1578,9 +1711,13 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 screenshot_of(app, tb.id).await?
             };
             let path = std::env::temp_dir().join(format!("easyisland-anteprima-{}.png", crate::memory::stamp().replace([':', ' '], "-")));
+            // The image goes back with the answer (easyisland-hook mcp: one step, not
+            // a file to read after); the file stays for the engines that cannot take it.
+            keep_shot(&path.display().to_string(), crate::claude::base64_for(&png));
             std::fs::write(&path, png).map_err(|e| e.to_string())?;
+            let scale = (scale * 100.0).round() / 100.0;
             let note = if tb.browser && (scale - 1.0).abs() > f64::EPSILON { tf(" Rimpicciolita a {s}: per preview_act dividi x e y dell'immagine per {s}.", &[("s", &format!("{scale}"))]) } else { String::new() };
-            Ok(tf("Schermata della scheda {id} salvata in {p} (PNG): leggila come immagine.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]) + &note)
+            Ok(tf("Schermata della scheda {id}: {p} (PNG). Se non è già qui come immagine, leggila da quel file.", &[("id", &tb.id.to_string()), ("p", &path.display().to_string())]) + &note)
         }
         "preview_console" => {
             let tb = tab_for(&s("tab"))?;
@@ -1631,7 +1768,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             for (i, step) in steps.iter().enumerate() {
                 let tool_name = step.get("tool").and_then(Value::as_str).unwrap_or_default().trim().to_string();
                 if !STEP_TOOLS.contains(&tool_name.as_str()) {
-                    return Err(tf("Passo {n}: strumento non ammesso qui: «{t}».", &[("n", &(i + 1).to_string()), ("t", &tool_name)]));
+                    return Err(tf("Passo {n}: strumento non ammesso qui: «{t}». Si possono usare: {list}.", &[("n", &(i + 1).to_string()), ("t", &tool_name), ("list", &STEP_TOOLS.join(", "))]));
                 }
                 let mut a = step.clone();
                 if let Some(obj) = a.as_object_mut() {
@@ -1733,7 +1870,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             if q.trim().is_empty() {
                 return Err(t("Manca query: il testo da cercare nella pagina.").into());
             }
-            let raw = eval(app, tb.id, &format!("({FIND_ALL})({})", json!(q))).await?;
+            let raw = eval(app, tb.id, &format!("{FRAMES}({FIND_ALL})({})", json!(q))).await?;
             let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
             let lines: Vec<&str> = v.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
             if lines.is_empty() {
@@ -1753,10 +1890,34 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_wait" => {
             let tb = tab_for(&s("tab"))?;
-            let secs = args.get("timeout").and_then(Value::as_u64).unwrap_or(10).clamp(1, 30);
-            let q = json!({ "text": s("text"), "gone": s("text_gone"), "selector": s("selector") });
-            let script = format!("({WAIT})({q})");
+            let changed = args.get("changed").and_then(Value::as_bool).unwrap_or(false);
+            let pause = s("text").is_empty() && s("text_gone").is_empty() && s("selector").is_empty() && !changed;
+            let secs = wait_seconds(args);
+            // A long wait (a firmware, a reboot, a download: 16 Nov 2026 the
+            // engine waited for invented words 46 times in 25 minutes) is
+            // checked here every few seconds, with no step of the model.
+            let every = Duration::from_millis(if secs > 30 { 2500 } else { 300 });
+            let stops = WAIT_STOPS.load(std::sync::atomic::Ordering::Relaxed);
+            let stopped = || WAIT_STOPS.load(std::sync::atomic::Ordering::Relaxed) != stops;
             let until = std::time::Instant::now() + Duration::from_secs(secs);
+            if pause {
+                while std::time::Instant::now() < until {
+                    if stopped() {
+                        return Err(t("Attesa interrotta.").into());
+                    }
+                    tokio::time::sleep(every.min(until.saturating_duration_since(std::time::Instant::now()))).await;
+                }
+                if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
+                    return Ok(tf("Aspettato {t}.", &[("t", &span(secs))]));
+                }
+                let waited = tf("Aspettato {t}.", &[("t", &span(secs))]);
+                let page = page_view(app, tb.id).await?;
+                return Ok(format!("{waited}\n\n{page}"));
+            }
+            // «changed»: the page's text (with its frames of the same site) as it is now.
+            let before = if changed { eval(app, tb.id, &format!("{FRAMES}({WAIT})({})", json!({ "hash": true }))).await.ok().map(|h| h.trim().trim_matches('"').to_string()) } else { None };
+            let q = json!({ "text": s("text"), "gone": s("text_gone"), "selector": s("selector"), "before": before });
+            let script = format!("{FRAMES}({WAIT})({q})");
             loop {
                 // During a navigation the page does not answer: tried again.
                 if let Ok(raw) = eval(app, tb.id, &script).await {
@@ -1764,10 +1925,13 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                         break;
                     }
                 }
-                if std::time::Instant::now() >= until {
-                    return Err(tf("Non è successo entro {s} secondi.", &[("s", &secs.to_string())]));
+                if stopped() {
+                    return Err(t("Attesa interrotta.").into());
                 }
-                tokio::time::sleep(Duration::from_millis(300)).await;
+                if std::time::Instant::now() >= until {
+                    return Err(tf("Non è successo entro {t}.", &[("t", &span(secs))]));
+                }
+                tokio::time::sleep(every).await;
             }
             if args.get("quiet").and_then(Value::as_bool).unwrap_or(false) {
                 return Ok(t("Pronto.").into());
@@ -1809,12 +1973,12 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let tb = tab_for(&s("tab"))?;
             let target = json!({ "ref": s("ref"), "selector": s("selector"), "text": s("text_match") });
             let script = if name == "preview_click" {
-                format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
+                format!("{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
             } else {
                 let value = json!(s("text"));
                 let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(false);
                 format!(
-                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
+                    "{FRAMES}({FIND})({target}, (el) => {{ el.focus(); const W = el.ownerDocument.defaultView; const proto = el instanceof W.HTMLTextAreaElement ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof W.HTMLInputElement || el instanceof W.HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
                 )
             };
             let raw = eval(app, tb.id, &script).await?;
@@ -1901,7 +2065,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     }
                     // On an element: focused first (and guarded: Invio on «Acquista» is a click).
                     if let Some(target) = at("") {
-                        let script = format!("({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
+                        let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
                         let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                         if let Some(e) = v.get("error").and_then(Value::as_str) {
                             return Err(e.to_string());
@@ -1915,7 +2079,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 "type_keys" => {
                     // As typed on the keyboard: for search boxes that suggest while you write.
                     let target = at("").ok_or_else(|| t("Manca il campo: ref, selector o text_match.").to_string())?;
-                    let script = format!("({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
+                    let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
                     let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                     if let Some(e) = v.get("error").and_then(Value::as_str) {
                         return Err(e.to_string());
@@ -1930,7 +2094,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                         "select" => format!("if (el.tagName !== 'SELECT') return 'not-select'; const w = String({want}).trim().toLowerCase(); const o = Array.from(el.options).find((o) => o.value.toLowerCase() === w || o.text.trim().toLowerCase() === w) || Array.from(el.options).find((o) => o.text.toLowerCase().includes(w)); if (!o) return 'no-option'; el.value = o.value; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); return o.text;"),
                         _ => format!("const on = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true'; if (on !== {}) el.click(); return 'ok';", action == "check"),
                     };
-                    let script = format!("({FIND})({target}, (el) => {{ {body} }}, false, true)");
+                    let script = format!("{FRAMES}({FIND})({target}, (el) => {{ {body} }}, false, true)");
                     let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
                     if let Some(e) = v.get("error").and_then(Value::as_str) {
                         return Err(e.to_string());
@@ -2060,7 +2224,7 @@ pub(crate) async fn extract_found(app: &AppHandle, id: u32, args: &Value) -> Res
     if let Some(v) = args.get("items").and_then(Value::as_str).filter(|v| !v.trim().is_empty()) {
         opts["items"] = json!(v);
     }
-    let v = eval_async(app, id, &format!("({EXTRACT})({opts})")).await?;
+    let v = eval_async(app, id, &format!("{FRAMES}({EXTRACT})({opts})")).await?;
     match v.get("error").and_then(Value::as_str) {
         Some("cross") => return Err(t("url deve essere dello stesso sito della scheda (apri prima quel sito).").into()),
         Some("status") => return Err(tf("Il sito ha risposto {s}.", &[("s", &v.get("status").map(Value::to_string).unwrap_or_default())])),
@@ -2177,7 +2341,7 @@ fn changes(before: &str, now: &str) -> Option<String> {
 
 /// The page as the chat reads it: roles, names and a ref for each control.
 async fn page_snapshot(app: &AppHandle, id: u32) -> Result<String, String> {
-    let raw = eval(app, id, &format!("({SNAPSHOT})()")).await?;
+    let raw = eval(app, id, &format!("{FRAMES}({SNAPSHOT})()")).await?;
     let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
     let mut out = format!(
         "{}\n{}\n",
@@ -2206,6 +2370,45 @@ async fn settle(app: &AppHandle, id: u32) {
     }
 }
 
+/// Frames of the same site (17 Nov 2026: iLO and iDRAC have all their pages
+/// in one): put once on the page's window, used by every script here.
+/// `__eiDocs` the page and its readable frames (a frame of another site gives
+/// no document: not read), `__eiFrameId` f1, f2… per frame (the prefix of its
+/// refs, f1e5), `__eiOff` where a frame's element is on the page (clicks and
+/// zones in the page's pixels). The guard on carts and payments looks at the
+/// element, so it holds inside a frame too; a frame of the same site is the
+/// same site for the permissions.
+const FRAMES: &str = r#"(() => {
+  if (window.__eiDocs) return;
+  const def = (k, v) => Object.defineProperty(window, k, { value: v, enumerable: false });
+  const ids = new WeakMap();
+  let n = 0;
+  def("__eiFrameId", (f) => { let id = ids.get(f); if (!id) { id = "f" + (++n); ids.set(f, id); } return id; });
+  def("__eiDocOf", (f) => { try { const d = f.contentDocument; return d && d.body ? d : null; } catch (e) { return null; } });
+  def("__eiDocs", () => {
+    const out = [{ doc: document, frame: "" }];
+    const seen = new Set([document]);
+    for (let i = 0; i < out.length && out.length < 12; i++) {
+      for (const f of out[i].doc.querySelectorAll("iframe, frame")) {
+        const d = window.__eiDocOf(f);
+        if (d && !seen.has(d)) { seen.add(d); out.push({ doc: d, frame: window.__eiFrameId(f) }); }
+      }
+    }
+    return out;
+  });
+  def("__eiPrefix", (el) => { const v = el.ownerDocument && el.ownerDocument.defaultView; return v && v !== window && v.frameElement ? window.__eiFrameId(v.frameElement) : ""; });
+  def("__eiOff", (el) => {
+    let x = 0, y = 0;
+    let v = el.ownerDocument && el.ownerDocument.defaultView;
+    while (v && v !== window && v.frameElement) {
+      const f = v.frameElement; const r = f.getBoundingClientRect();
+      x += r.left + f.clientLeft; y += r.top + f.clientTop;
+      v = v.parent;
+    }
+    return [x, y];
+  });
+})();"#;
+
 /// The page's tree, as screen readers see it: one line per landmark, heading,
 /// control or text, indented. Controls get a ref (e1, e2…) that stays the same
 /// for the same element while the page lives, so an old ref never points at
@@ -2214,10 +2417,10 @@ async fn settle(app: &AppHandle, id: u32) {
 const SNAPSHOT: &str = r#"() => {
   if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
   const R = window.__eiRefs;
-  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = window.__eiPrefix(el) + "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
   const shown = (el) => {
     if (el.getAttribute("aria-hidden") === "true" || el.hidden) return false;
-    const s = getComputedStyle(el);
+    const s = el.ownerDocument.defaultView.getComputedStyle(el);
     if (s.display === "none" || s.visibility === "hidden" || s.opacity === "0") return false;
     return el.getClientRects().length > 0 || s.display === "contents";
   };
@@ -2241,12 +2444,12 @@ const SNAPSHOT: &str = r#"() => {
     if (/^h[1-6]$/.test(tag)) return "heading";
     if (tag === "img") return el.getAttribute("alt") ? "img" : "";
     if (el.getAttribute("contenteditable") === "true" || el.getAttribute("contenteditable") === "") return "textbox";
-    return { nav: "navigation", main: "main", header: "banner", footer: "contentinfo", form: "form", dialog: "dialog", aside: "complementary", table: "table", iframe: "iframe" }[tag] || "";
+    return { nav: "navigation", main: "main", header: "banner", footer: "contentinfo", form: "form", dialog: "dialog", aside: "complementary", table: "table", iframe: "iframe", frame: "iframe" }[tag] || "";
   };
   const CONTROL = new Set(["link", "button", "textbox", "searchbox", "checkbox", "radio", "slider", "combobox", "listbox", "tab", "menuitem", "switch", "option", "menuitemcheckbox", "menuitemradio", "spinbutton", "treeitem"]);
   const nameOf = (el) => {
     const by = el.getAttribute("aria-labelledby");
-    if (by) { const t = by.split(/\s+/).map((i) => document.getElementById(i)).filter(Boolean).map((e) => e.innerText).join(" "); if (t.trim()) return clip(t, 80); }
+    if (by) { const t = by.split(/\s+/).map((i) => el.ownerDocument.getElementById(i)).filter(Boolean).map((e) => e.innerText).join(" "); if (t.trim()) return clip(t, 80); }
     const direct = el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.getAttribute("alt") || "";
     if (direct.trim()) return clip(direct, 80);
     const tag = el.tagName;
@@ -2287,7 +2490,14 @@ const SNAPSHOT: &str = r#"() => {
       }
       if (role === "heading") { lines.push(pad + "- heading " + JSON.stringify(clip(el.innerText, 120)) + " [level=" + (el.getAttribute("aria-level") || tag.slice(1)) + "]"); continue; }
       if (role === "img") { lines.push(pad + "- img " + JSON.stringify(nameOf(el))); continue; }
-      if (role === "iframe") { lines.push(pad + "- iframe " + JSON.stringify(clip(el.getAttribute("title") || el.src, 80)) + " (contenuto non letto)"); continue; }
+      if (role === "iframe") {
+        const d = window.__eiDocOf(el);
+        const name = JSON.stringify(clip(el.getAttribute("title") || el.getAttribute("name") || el.src, 80));
+        if (!d) { lines.push(pad + "- iframe " + name + " (altro sito: contenuto non letto)"); continue; }
+        lines.push(pad + "- iframe " + name + " [frame=" + window.__eiFrameId(el) + "]:");
+        walk(d.body, depth + 1);
+        continue;
+      }
       let inner = depth;
       if (role) { lines.push(pad + "- " + role + (el.getAttribute("aria-label") ? " " + JSON.stringify(clip(el.getAttribute("aria-label"), 60)) : "") + ":"); inner = depth + 1; }
       walk(el.shadowRoot || el, inner);
@@ -2305,15 +2515,16 @@ const SNAPSHOT: &str = r#"() => {
 const FIND_ALL: &str = r#"(q) => {
   if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
   const R = window.__eiRefs;
-  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = window.__eiPrefix(el) + "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
   const clip = (t, n) => { t = (t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
   const want = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = (el) => { const s = getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0; };
+  const shown = (el) => { const s = el.ownerDocument.defaultView.getComputedStyle(el); return s.display !== "none" && s.visibility !== "hidden" && el.getClientRects().length > 0; };
   const nameOf = (el) => clip(el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.innerText || el.value || el.getAttribute("placeholder") || el.getAttribute("title") || el.getAttribute("alt") || "", 100);
   const has = (t) => { t = t.toLowerCase(); return want.every((w) => t.includes(w)); };
   const roleOf = (el) => el.getAttribute("role") || ({ A: "link", BUTTON: "button", INPUT: "textbox", TEXTAREA: "textbox", SELECT: "combobox", IMG: "img", H1: "heading", H2: "heading", H3: "heading", H4: "heading", H5: "heading", H6: "heading" }[el.tagName] || "text");
-  const under = (el) => { let e = el; while (e && e !== document.body) { let p = e.previousElementSibling; while (p) { if (/^H[1-6]$/.test(p.tagName)) return clip(p.innerText, 50); p = p.previousElementSibling; } e = e.parentElement; } return ""; };
-  const controls = Array.from(document.querySelectorAll("a[href], button, input:not([type=hidden]), textarea, select, img[alt], h1, h2, h3, h4, h5, h6, [role], label, summary"));
+  const under = (el) => { let e = el; while (e && e !== e.ownerDocument.body) { let p = e.previousElementSibling; while (p) { if (/^H[1-6]$/.test(p.tagName)) return clip(p.innerText, 50); p = p.previousElementSibling; } e = e.parentElement; } return ""; };
+  const docs = window.__eiDocs().map((x) => x.doc);
+  const controls = docs.flatMap((d) => Array.from(d.querySelectorAll("a[href], button, input:not([type=hidden]), textarea, select, img[alt], h1, h2, h3, h4, h5, h6, [role], label, summary")));
   const out = [];
   const seen = new Set();
   for (const el of controls) {
@@ -2327,7 +2538,8 @@ const FIND_ALL: &str = r#"(q) => {
   }
   // Plain text too (a price, a code), as its smallest block.
   if (out.length < 25) {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (const d of docs) {
+    const walker = d.createTreeWalker(d.body, NodeFilter.SHOW_TEXT);
     let n;
     while ((n = walker.nextNode()) && out.length < 25) {
       const el = n.parentElement;
@@ -2336,6 +2548,7 @@ const FIND_ALL: &str = r#"(q) => {
       if (seen.has(block)) continue;
       seen.add(block);
       out.push("- text " + JSON.stringify(clip(block.innerText, 160)) + " [ref=" + refOf(block) + "]");
+    }
     }
   }
   return out;
@@ -2518,7 +2731,7 @@ const EXTRACT: &str = r#"async (o) => {
     if (j != null) fromJson(j, "json");
     else html(new DOMParser().parseFromString(text, "text/html"));
   } else {
-    html(document);
+    for (const x of window.__eiDocs()) html(x.doc);
     fromDataLayer();
     for (const b of o.bodies || []) { let j = null; try { j = JSON.parse(b); } catch (e) {} if (j != null) fromJson(j, "rete"); }
   }
@@ -2640,12 +2853,80 @@ const LOGIN: &str = r#"(user, pass, submit) => {
 
 /// preview_wait: true when the text is there, the gone text is not, the selector matches.
 const WAIT: &str = r#"(q) => {
-  const body = document.body ? document.body.innerText : "";
+  const docs = window.__eiDocs().map((x) => x.doc);
+  const body = docs.map((d) => (d.body ? d.body.innerText : "")).join("\n");
+  if (q.hash || q.before != null) {
+    let h = 0;
+    for (let i = 0; i < body.length; i++) h = (h * 31 + body.charCodeAt(i)) | 0;
+    const now = String(h) + ":" + body.length;
+    if (q.hash) return now;
+    if (now === q.before) return false;
+  }
   if (q.text && !body.includes(q.text)) return false;
   if (q.gone && body.includes(q.gone)) return false;
-  try { if (q.selector && !document.querySelector(q.selector)) return false; } catch (e) { return false; }
+  try { if (q.selector && !docs.some((d) => d.querySelector(q.selector))) return false; } catch (e) { return false; }
   return document.readyState !== "loading";
 }"#;
+
+/// The widest screenshot sent as an image without a scale asked: as the
+/// desktop view (DESKTOP_W), no more.
+const SHOT_WIDTH: f64 = 1280.0;
+/// Larger than this, the image is not sent: the file is there.
+const SHOT_MAX_B64: usize = 4_000_000;
+
+/// The last screenshots (path, PNG in base64), until agent::call takes them.
+static SHOTS: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
+
+fn keep_shot(path: &str, b64: String) {
+    let mut all = SHOTS.lock().unwrap();
+    all.retain(|(p, _)| p != path);
+    if b64.len() <= SHOT_MAX_B64 {
+        all.push((path.to_string(), b64));
+    }
+    // Taken only by an MCP answer: the in-app engines read the file.
+    while all.len() > 3 {
+        all.remove(0);
+    }
+}
+
+/// The screenshot named in a tool's answer (preview_screenshot, or the last step
+/// of preview_steps), once: the PNG in base64.
+pub fn take_shot(text: &str) -> Option<String> {
+    let mut all = SHOTS.lock().unwrap();
+    let i = all.iter().rposition(|(p, _)| text.contains(p.as_str()))?;
+    Some(all.remove(i).1)
+}
+
+/// How long preview_wait waits: `minutes` (up to 10) or `timeout` in seconds
+/// (up to 600); 10 seconds when neither is given.
+fn wait_seconds(args: &Value) -> u64 {
+    if let Some(m) = args.get("minutes").and_then(Value::as_f64).filter(|m| *m > 0.0) {
+        return ((m * 60.0).round() as u64).clamp(1, MAX_WAIT);
+    }
+    args.get("timeout").and_then(Value::as_u64).unwrap_or(10).clamp(1, MAX_WAIT)
+}
+
+/// The longest wait: an update or a reboot of a server takes minutes. Under
+/// easyisland-hook's `CALL_BUDGET` (mcp.rs).
+const MAX_WAIT: u64 = 600;
+
+/// «Ferma» on a turn: the waits running stop (lib.rs chat_stop, stop_turn,
+/// stop_task_turn). One count for all of them: a wait of another conversation
+/// stops too, and the engine can wait again.
+static WAIT_STOPS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn stop_waits() {
+    WAIT_STOPS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// «45 secondi», «3 minuti», «2 min 30 s».
+fn span(secs: u64) -> String {
+    match (secs / 60, secs % 60) {
+        (0, s) => tf("{n} secondi", &[("n", &s.to_string())]),
+        (m, 0) => tf("{n} minuti", &[("n", &m.to_string())]),
+        (m, s) => tf("{m} min {s} s", &[("m", &m.to_string()), ("s", &s.to_string())]),
+    }
+}
 
 /// Finds the element of preview_click / preview_type: a ref of preview_snapshot,
 /// a CSS selector, or the visible text (or label, placeholder, value) of a
@@ -2659,15 +2940,16 @@ const FIND: &str = r#"(q, act, typing, guard) => {
     el = w && w.deref();
     if (!el || !el.isConnected) return { error: "Il riferimento " + q.ref + " non è più nella pagina: rifai preview_snapshot." };
   }
-  try { if (!el && q.selector) el = document.querySelector(q.selector); } catch (e) { return { error: "Selettore non valido: " + q.selector }; }
+  const docs = window.__eiDocs().map((x) => x.doc);
+  try { if (!el && q.selector) for (const d of docs) { el = d.querySelector(q.selector); if (el) break; } } catch (e) { return { error: "Selettore non valido: " + q.selector }; }
   if (!el && q.text) {
     const want = q.text.trim().toLowerCase();
-    const all = Array.from(document.querySelectorAll("a, button, input, textarea, select, label, summary, [role=button], [role=link], [role=tab], [role=menuitem], [onclick], [contenteditable=true]"));
+    const all = docs.flatMap((d) => Array.from(d.querySelectorAll("a, button, input, textarea, select, label, summary, [role=button], [role=link], [role=tab], [role=menuitem], [onclick], [contenteditable=true]")));
     const name = (e) => [e.innerText, e.value, e.getAttribute("aria-label"), e.getAttribute("placeholder"), e.getAttribute("title"), e.getAttribute("name")].filter(Boolean).join(" ").trim().toLowerCase();
     el = all.find((e) => name(e) === want) || all.find((e) => name(e).includes(want));
     if (el && el.tagName === "LABEL" && el.control) el = el.control;
   }
-  if (!el) return { error: "Elemento non trovato nella pagina." };
+  if (!el) return { error: "Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find." };
   if (typing && (el.type === "password" || /cc-|card|cvc|iban/i.test(el.getAttribute("autocomplete") || "") || /card|cvc|cvv|iban/i.test(el.name || ""))) return { error: "Password e dati di pagamento li scrive l'utente." };
   const what = ((el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.tagName) + "").trim().slice(0, 60);
   if (guard) {
@@ -2693,6 +2975,14 @@ fn cut(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn popups_only_with_a_size_or_blank() {
+        assert!(!is_popup("https://example.com/", false));
+        assert!(is_popup("https://accounts.google.com/o/oauth2", true));
+        assert!(is_popup("about:blank", false));
+        assert!(is_popup("", false));
+    }
 
     #[test]
     fn after_a_click_only_what_changed() {
@@ -2759,6 +3049,19 @@ mod tests {
 
     #[test]
     fn targets_from_the_arguments() {
+        // A screenshot goes back once, by the path in the answer.
+        keep_shot("C:\\t\\a.png", "QUJD".into());
+        assert_eq!(take_shot("Schermata: C:\\t\\a.png (PNG)").as_deref(), Some("QUJD"));
+        assert!(take_shot("Schermata: C:\\t\\a.png (PNG)").is_none());
+        keep_shot("C:\\t\\big.png", "A".repeat(SHOT_MAX_B64 + 1));
+        assert!(take_shot("C:\\t\\big.png").is_none());
+        // preview_wait: minutes or seconds, never past 10 minutes.
+        assert_eq!(wait_seconds(&json!({})), 10);
+        assert_eq!(wait_seconds(&json!({ "minutes": 2.5 })), 150);
+        assert_eq!(wait_seconds(&json!({ "minutes": 60 })), 600);
+        assert_eq!(wait_seconds(&json!({ "timeout": 90 })), 90);
+        assert_eq!(wait_seconds(&json!({ "timeout": 0 })), 1);
+        assert_eq!((span(45).as_str(), span(180).as_str(), span(150).as_str()), ("45 secondi", "3 minuti", "2 min 30 s"));
         let a = json!({ "ref": "e3", "to_selector": "#b", "x": 10, "y": 20.5 });
         assert_eq!(target_of(&a, "").unwrap()["ref"], "e3");
         assert_eq!(target_of(&a, "to_").unwrap()["selector"], "#b");

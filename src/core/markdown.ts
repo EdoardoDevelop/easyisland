@@ -117,6 +117,18 @@ const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => 
     re: /\bhttps?:\/\/[^\s<>()\]]+[^\s<>()\].,;:!?'"»]/i,
     make: (m, hooks) => link(m[0], [document.createTextNode(m[0])], hooks),
   },
+  // A bare relative path with backslashes and an extension (WORK\Cardinalini\x.sh,
+  // 17 Nov 2026): a link only if the chat finds it (views/chat.ts checkPaths,
+  // `data-bare`: otherwise plain text again). The full stop after it stays text.
+  {
+    re: /(?<![\w\\/`:.])(?:[\w@()+-][\w@.()+-]*\\)+[\w@()+-][\w@.()+-]*\.[A-Za-z][A-Za-z0-9]{0,7}(?![\w\\/])/,
+    make: (m, hooks) => {
+      if (!hooks.openPath) return document.createTextNode(m[0]);
+      const span = pathLink(m[0], el("span", "", m[0]), hooks);
+      span.dataset.bare = "1";
+      return span;
+    },
+  },
   // A bare absolute path (C:\…, C:/…, \\server\share\…): up to a space; the
   // punctuation after it stays text. Paths with spaces need `code`.
   {

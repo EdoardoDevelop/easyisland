@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.52** — **Ricerca in una finestra sua**: la scorciatoia la apre sopra tutto senza toccare l'isola, in alto, al centro o in basso (Impostazioni → Ricerca da sola), e nella barra fissa c'è l'elemento «Cerca». Alle domande che la memoria sa di sicuro arriva una **risposta rapida** sopra i risultati, con le fonti, «Copia» e «Chiedi alla chat»; le procedure si trovano anche scritte in modo diverso. **Ricerca nelle Impostazioni** (Ctrl+F nel menu e nel campo unico dell'isola). **Devolutions e RDM** rifatti: tre zone, cartelle pieghevoli, preferiti e recenti, password sotto l'utente e copia solo se c'è, dettagli in circa un secondo, voci sotto una voce di informazioni mostrate dentro di lei. **Ticket Zammad** con i messaggi completi di immagini, allegati da scaricare, cc, contatti e tag del cliente e un pulsante **Salva** per tutte le modifiche. **Pagina cliente** nella memoria (contatti, rete, server, accessi, procedure), collegata a Zammad, 3CX, RDM e ricerca. **Panoramica** della mappa della memoria e stile nuovo anche sulle schede vecchie, con barre d'attesa, stati vuoti utili e la guida delle scorciatoie con «?». **Avvisi in una finestra loro**, che non prendono il fuoco e non lasciano più un riquadro trasparente davanti. Nella chat i messaggi scritti durante la risposta vanno in coda (anche dopo la chiusura) e «Invia subito» li fa leggere subito; l'Anteprima apre i popup veri, usa i riquadri interni dei siti e sa aspettare fino a 10 minuti. Le integrazioni personali hanno controlli grafici (cursori, interruttori, pulsanti a scelta, barre con soglie). Il modello sul PC riparte sul processore se la scheda grafica si blocca all'avvio.
+
+**1.0.51** — **Correzione del blocco all'avvio** della 1.0.50: dopo la chiusura o un riavvio del PC EasyIsland
+restava bloccata appena partita.
+
 **1.0.50** — **Barra di ricerca rinnovata** e tutte le schede delle Impostazioni riordinate con sotto-schede condivise.
 La ricerca ora può aprirsi anche come barra dedicata al centro dello schermo (`searchOnly`), in modalità scura e chiara, con
 sfumatura inferiore scegliibile su tutti i temi (onde originali sul focus, sfumatura ciano-viola-ciano, cometa, prisma,

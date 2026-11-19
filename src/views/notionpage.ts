@@ -110,7 +110,7 @@ export function closeNotionPage() {
 /** The view, the same element at every rebuild of the card. */
 export function notionPageCard(): HTMLElement {
   if (!np.el) {
-    np.el = h("div", { class: "int-card np-card", onpointerdown: () => void Bridge.focusWindow(true) });
+    np.el = h("div", { class: "int-card np-card", onpointerdown: (e: Event) => void Bridge.focusWindow(true, e) });
     draw();
   }
   return np.el;

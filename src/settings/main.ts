@@ -30,6 +30,7 @@ import "./settings-windows.css";
 import "./settings-studio.css";
 import "./settings-light.css";
 import "../core/search-line.css";
+import { ensureIndex, gotoEntry, indexIsCurrent, resultsView, searchField, searching, setupSearch, watchCtrlF } from "./search";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
@@ -155,7 +156,7 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
   let known = initial != null;
   const head = h("div", { class: "agent-head" });
   const detail = h("div", { class: "agent-detail" });
-  const el = h("div", { class: "agent" }, head, h("div", { class: "hint", text: T.what }), detail);
+  const el = h("div", { class: "agent", "data-item": `agent-${tool}` }, head, h("div", { class: "hint", text: T.what }), detail);
 
   function badge(): HTMLElement {
     if (!known) return h("span", { class: "agent-state", text: "…" });
@@ -1004,7 +1005,13 @@ function terminalSections(): HTMLElement[] {
         (v) => { settings.chatPreview = v !== "off"; settings.previewDocked = v === "docked"; void save(); }),
       moreHint(
         t("Apre link, pagine web e file modificati dalla chat accanto all'isola o in una finestra dedicata."),
-        t("I link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser."))));
+        t("I link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero; i file che la modalità terminale modifica si vedono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser."))),
+    h("div", { class: "row" },
+      h("label", { text: t("Apri da sola i file della chat") }),
+      toggle(settings.previewEdits === true, (v) => { settings.previewEdits = v; void save(); }),
+      moreHint(
+        t("Quando la chat crea o modifica un file, l'Anteprima si apre da sola per mostrarlo."),
+        t("Spenta, il file creato o modificato resta un collegamento nella risposta: un clic lo mostra nell'Anteprima con le modifiche evidenziate. Accesa, l'Anteprima si apre da sola; se la chiudi, non si riapre da sola finché non apri tu qualcosa. Le pagine che il motore apre con i suoi strumenti si aprono comunque."))));
 
   const routingSection = h("section", {},
     h("h2", {}, h("span", { text: t("Risposte rapide, ricette e portali") })),
@@ -2558,6 +2565,17 @@ function memoryRow(): HTMLElement {
     settings.memoryMeaningModel = meaningModel.value.trim();
     void save();
   });
+  // «Risposte rapide nella ricerca» (quick_answer.rs): who writes the answer above the results.
+  const quickEngines: [string, string][] = [
+    ["potion", t("Potion: le righe della memoria, senza IA")],
+    ["local", t("Modello sul PC")],
+    ["api", t("Claude (chiave API)")],
+    ["openrouter", "OpenRouter"],
+    ["openai", "OpenAI"],
+    ["gemini", "Gemini"],
+    ["off", t("Spente")],
+  ];
+  const quick = choice(quickEngines, settings.quickAnswers ?? "potion", (v) => { settings.quickAnswers = v; void save(); });
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Memoria dopo la risposta") }),
@@ -2570,6 +2588,10 @@ function memoryRow(): HTMLElement {
         t("Trova note con parole diverse ma stesso senso («server» → «NAS»)."),
         t("Oltre alle parole in comune, cerca nella memoria ciò che ha lo stesso significato («server» trova una nota sul «NAS»): ogni riga diventa una volta un vettore e prima di ogni domanda, e in ogni ricerca della chat, arrivano le più vicine. «EasyIsland, su questo PC» lo fa da sola con un modello scaricato qui sotto: niente chiave, niente rete, la memoria resta sul PC. Con OpenAI, Gemini o OpenRouter le righe escono dal PC; con Ollama o LM Studio restano qui (serve un modello di embedding, per Ollama «ollama pull nomic-embed-text»)."))),
     localRow,
+    h("div", { class: "row" }, h("label", { text: t("Risposte rapide nella ricerca") }), quick,
+      moreHint(
+        t("Una domanda nella ricerca dell'isola («quali vm ha la farmacia Falchi?») ha la risposta sopra i risultati."),
+        t("Quando smetti di scrivere una domanda nella ricerca dell'isola, EasyIsland cerca nella memoria le righe che rispondono di sicuro (Potion, come le risposte dirette della chat) e le mostra sopra i risultati, con le fonti; se non è sicuro non mostra niente e resta «Chiedi alla chat». Invio fa quello di sempre. Con «Modello sul PC» le righe diventano una frase solo se il modello è già acceso. Con Claude, OpenRouter, OpenAI o Gemini le righe trovate escono dal PC verso quel servizio (mai righe con chiavi o password) e si usa il modello scelto per la chat; se nomina qualcosa che nelle righe non c'è, o non risponde entro 12 secondi, si vedono le righe."))),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
       moreHint(
         t("Organizza pagine, collegamenti e riassunti nei file .md della memoria (va bene un motore gratuito)."),
@@ -3719,6 +3741,15 @@ function appearanceSections(): HTMLElement[] {
             h("label", { text: t("Campo in alto") }),
             toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
             h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Ricerca da sola") }),
+            choice([
+              ["alto", t("In alto")],
+              ["centro", t("Al centro")],
+              ["basso", t("In basso")],
+            ], settings.searchPlace ?? "centro", (v) => { settings.searchPlace = v; commit(); }),
+            h("span", { class: "hint note", text: t("dove si apre la ricerca della scorciatoia e del pulsante «Cerca» della barra, nella sua finestra") }),
           ),
           h("div", { class: "row" },
             h("label", { text: t("Linea della barra") }),
@@ -5603,6 +5634,23 @@ function notifySection(): HTMLElement {
         (v) => { settings.notify = v; void save(); },
       ),
     ),
+    h("div", { class: "row" },
+      h("label", { text: t("Avvisi") }),
+      choice(
+        [
+          ["isola", t("In una finestra sotto l'isola")],
+          ["alto-destra", t("In alto a destra")],
+          ["basso-destra", t("In basso a destra")],
+          ["dentro", t("Nell'isola (come prima)")],
+        ],
+        settings.noticesPlace ?? "isola",
+        (v) => { settings.noticesPlace = v; void save(); },
+      ),
+      moreHint(
+        t("Avvisi, download, fine degli agenti e riepiloghi in una piccola finestra che non apre l'isola e non prende la tastiera."),
+        t("Gli avvisi compaiono in una piccola finestra sempre davanti, che non prende la tastiera e non apre né cambia l'isola: puoi continuare a lavorare dentro l'isola. Un clic sull'avviso apre l'isola su quella cosa. Restano un po' e spariscono da soli (gli errori finché non li chiudi; il mouse sopra ferma il tempo). Permessi e domande restano nell'isola e nella striscia, perché aspettano il tuo clic. «Sotto l'isola»: sotto l'isola a riposo, di fianco quando è aperta."),
+      ),
+    ),
   );
 }
 
@@ -7326,7 +7374,53 @@ async function main() {
   for (const k of keys) present[k] = (await Bridge.secretPresent(k)) ?? false;
 
   boot = { status, hasKey, present };
+  setupSearch({
+    pages: () => (boot ? pages(boot) : []),
+    lookTabs: () => LOOK_TABS(),
+    withLookTab: (tab, fn) => {
+      const was = lookTabNow;
+      lookTabNow = tab as LookTab;
+      try {
+        return fn();
+      } finally {
+        lookTabNow = was;
+      }
+    },
+    show: (page, tab, item) => {
+      try {
+        localStorage.setItem(PAGE_KEY, page);
+      } catch {
+        // Not remembered: render() below still shows it.
+      }
+      // Inside an integration: that one open, as settings-goto does.
+      if (page === "integrazioni" && item) {
+        openIntegration = item;
+        integrationQuery = "";
+        integrationGroup = "all";
+        onlyActive = false;
+      }
+      if (page === "aspetto" && tab) lookTabNow = tab as LookTab;
+      else if (tab) pageTabNow.set(page, tab);
+      render();
+    },
+    root,
+    version: () => version,
+    language: () => language(),
+    rebuilt: () => render(),
+  });
+  watchCtrlF();
   render();
+  // The index of the settings (search.ts), for this window and the island's field:
+  // built from the pages once per version and language, while the window is
+  // still hidden (it sleeps 10 s after launch), then the page drawn again so its
+  // controls are the ones on screen.
+  if (!indexIsCurrent()) {
+    window.setTimeout(() => {
+      if (!document.hidden) return;
+      ensureIndex();
+      render();
+    }, 1500);
+  }
 
   // Compiti: the list follows the tasks while they work (tasks.rs).
   void onEvent<AgentTaskItem[]>("tasks-changed", (list) => {
@@ -7345,6 +7439,11 @@ async function main() {
 
   void onEvent<{ page: string; item: string }>("settings-goto", ({ page, item }) => {
     gotoAt = Date.now();
+    // A control found by the island's field (core/settings-index.ts): «idx:page|tab|label#n».
+    if (item.startsWith("idx:")) {
+      gotoEntry(item.slice(4));
+      return;
+    }
     try {
       localStorage.setItem(PAGE_KEY, page);
     } catch {
@@ -7515,6 +7614,7 @@ function render() {
 
   const nav = h("nav", { class: "nav" },
     h("div", { class: "brand" }, h("span", { text: t("EasyIsland") }), h("span", { class: "version", text: version })),
+    searchField(() => showSearch()),
   );
   for (const p of list) {
     const item = h("button", { class: p.id === page.id ? "nav-item on" : "nav-item" },
@@ -7545,6 +7645,10 @@ function render() {
       link("GitHub", "https://github.com/EdoardoDevelop/easyisland")),
     h("div", { text: t("Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.") })));
 
+  if (searching()) {
+    root.append(nav, h("main", { class: "page", "data-page": "cerca" }, resultsView()));
+    return;
+  }
   const body = h("div", { class: "page-inner" },
     h("header", { class: "page-head" }, h("h1", { text: page.title }), h("div", { class: "hint", text: page.intro })),
     ...page.sections(),
@@ -7571,6 +7675,21 @@ function render() {
   shownKey = key;
   shownMark = item?.getBoundingClientRect() ?? null;
 }
+/**
+ * The field at the top of the menu changed: the results take the page's place
+ * (only the page is redrawn, so the field keeps the keyboard); empty, the page again.
+ */
+function showSearch() {
+  const main = root.querySelector<HTMLElement>("main.page");
+  if (searching() && main) {
+    main.setAttribute("data-page", "cerca");
+    main.replaceChildren(resultsView());
+    main.scrollTop = 0;
+    return;
+  }
+  render();
+}
+
 let shownKey = "";
 let shownMark: DOMRect | null = null;
 let enteredAt = 0;

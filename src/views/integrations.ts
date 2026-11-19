@@ -6,7 +6,7 @@ import type { Notice } from "../core/state";
 // (month → day → booking); here it is the list of upcoming bookings.
 
 import { customCard } from "./custom";
-import { h, svg, clear, dot, brandOrDot } from "./dom";
+import { h, svg, clear, dot, brandOrDot, emptyState } from "./dom";
 import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge, type NotionPage } from "../core/bridge";
@@ -440,7 +440,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
 
   const search = notion.search ?? (notion.search = h("input", {
     class: "nc-input notion-search", placeholder: t("Cerca in Notion…"), spellcheck: "false",
-    onpointerdown: () => void Bridge.focusWindow(true),
+    onpointerdown: (e: Event) => void Bridge.focusWindow(true, e),
     oninput: (e: Event) => { notion.query = (e.target as HTMLInputElement).value; notionSearchSoon(); },
     onkeydown: (e: Event) => {
       const k = e as KeyboardEvent;
@@ -543,7 +543,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     const area = notion.noteArea ?? (notion.noteArea = h("textarea", {
       class: "nc-input notion-note-area", rows: "3", spellcheck: "true",
       placeholder: t("Scrivi la nota… (Ctrl+Invio per salvare)"),
-      onpointerdown: () => void Bridge.focusWindow(true),
+      onpointerdown: (e: Event) => void Bridge.focusWindow(true, e),
       onkeydown: (e: Event) => {
         const k = e as KeyboardEvent;
         if (k.key === "Enter" && (k.ctrlKey || k.metaKey)) { k.preventDefault(); void saveNote(); }
@@ -582,7 +582,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
   const taskBox = () => {
     const input = notion.taskInput ?? (notion.taskInput = h("input", {
       class: "nc-input", type: "text", spellcheck: "true", placeholder: t("Cosa c'è da fare? (Invio per salvare)"),
-      onpointerdown: () => void Bridge.focusWindow(true),
+      onpointerdown: (e: Event) => void Bridge.focusWindow(true, e),
       onkeydown: (e: Event) => {
         const k = e as KeyboardEvent;
         if (k.key === "Enter") { k.preventDefault(); void saveTask(); }
@@ -704,7 +704,13 @@ function calcomCard(): HTMLElement {
     .sort((a, b) => new Date(String(a.start)).getTime() - new Date(String(b.start)).getTime());
   const rows = h("div", { class: "int-rows tight" });
   if (bookings.length === 0) {
-    rows.append(h("div", { class: "int-empty", text: t("Nessuna chiamata in programma") }));
+    rows.append(emptyState({
+      compact: true,
+      icon: ICONS.calendar,
+      title: t("Nessuna chiamata in programma"),
+      hint: t("Le prossime prenotazioni Cal.com appariranno qui automaticamente."),
+      actions: [{ label: t("Apri Cal.com"), onclick: () => void Bridge.openUrl(OPEN_URLS.integration_calcom) }],
+    }));
   }
   for (const b of bookings.slice(0, 3)) {
     const when = new Date(String(b.start));
@@ -849,7 +855,13 @@ function clipboardCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElemen
     : undefined;
   const rows = h("div", { class: "int-rows tight clip-list" });
   if (items.length === 0) {
-    rows.append(h("div", { class: "int-empty", text: t("Copia un testo o un'immagine: lo ritrovi qui.") }));
+    rows.append(emptyState({
+      compact: true,
+      icon: ICONS.clipboard,
+      title: t("Cronologia appunti vuota"),
+      hint: t("Copia testo, link o immagini con Ctrl+C in qualsiasi app per ritrovarli e fissarli qui."),
+      kbd: State.settings.hotkeyClipboard || undefined,
+    }));
   }
   for (const it of items) {
     if (it.kind === "image") {
@@ -1092,8 +1104,15 @@ function agentIdleCard(task: AgentTask): HTMLElement {
   const when = task.lastActive ? t("ultima attività {ago}", { ago: timeAgo(task.lastActive) }) : t("nessuna sessione da quando EasyIsland è aperto");
   return h("div", { class: "int-card" },
     header(task.color, name, t("In attesa")),
-    h("div", { class: "int-rows" },
-      h("div", { class: "int-empty", text: t("Nessuna sessione in corso: {when}.", { when }) })));
+    emptyState({
+      compact: true,
+      icon: ICONS.terminal,
+      title: t("Nessuna sessione attiva"),
+      hint: when,
+      actions: task.sessionHost || task.sessionCwd
+        ? [{ label: t("Apri"), onclick: () => void Bridge.openSession(task.sessionHost ?? null, task.sessionCwd ?? null) }]
+        : undefined,
+    }));
 }
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {

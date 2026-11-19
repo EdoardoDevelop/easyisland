@@ -27,8 +27,13 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
-import { buildSearch, type SearchHost } from "../views/search";
+import { buildSearch, type SearchActions, type SearchHost } from "../views/search";
+import { hide as hideSearchWindow, searchWindowShown, toggleSearchWindow } from "./search-window";
 import { rdmLookFor } from "../views/rdm";
+import { dvcGoTo } from "../views/dvc";
+import { zammadLookFor } from "../views/zammad";
+import { THREECX } from "../views/threecx";
+import { ClientSheet } from "../views/clientcard";
 import { buildRail, isRailCompact, railBotSize, renameGroup } from "../views/rail";
 import * as MenuGroups from "../core/menu-groups";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
@@ -36,13 +41,17 @@ import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { canPreview, chatPathAction, chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
-import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
+import type { ApprovalInfo, Moment, Notice, QuickAction, Settings } from "../core/state";
+import { answerCard } from "./moments";
 import { h } from "../views/dom";
+import { ShortcutSheet } from "../views/shortcuts";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
 import { applySearchLine, applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
+import * as Notices from "../notices/notices";
+import { momentHeadline } from "../views/moment";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -135,6 +144,11 @@ function paneTermTop(pane: HTMLElement, r: DOMRect): number {
   return term.getBoundingClientRect().top;
 }
 
+/** Views that go to the notices' window when it is on (notices.ts) instead of opening the island. */
+const TOASTED: ReadonlySet<IslandViewName> = new Set<IslandViewName>(["notify", "moment", "recap", "daily"]);
+const LEVEL_ICON: Record<string, string> = { ok: "✅", info: "ℹ️", warn: "⚠️", error: "⛔" };
+const MOMENT_ICON: Record<string, string> = { download: "⬇️", tray: "📥", recording: "🎙️", error: "🐞", server: "🌐", call: "📞", ticket: "🎫", agentchat: "💬" };
+
 export class Island {
   readonly fsm = new IslandStateMachine();
 
@@ -181,6 +195,8 @@ export class Island {
 
   private header!: ViewHost & { field: HTMLElement };
   private search!: SearchHost;
+  /** What a search result does (the island's field and the search's own window, search-window.ts). */
+  private searchActions!: SearchActions;
   /** Set while the user's own hover or click opens the island (openByUser). */
   private openedByUser = false;
   private views!: Map<IslandViewName, ViewHost>;
@@ -283,6 +299,8 @@ export class Island {
   /** Drop sequence bookkeeping: last tick played, and whether the ✓ has fired. */
   private uploadTens = 0;
   private uploadDone = false;
+  private shortcuts!: ShortcutSheet;
+  private clientSheet!: ClientSheet;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -320,6 +338,7 @@ export class Island {
         State.maximized = false;
         this.animateGeometry(false);
       }
+      this.shortcuts.sync();
     });
   }
 
@@ -472,7 +491,7 @@ export class Island {
         this.refit();
       });
     }).observe(this.viewsEl, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["style", "class"] });
-    this.search = buildSearch({
+    const searchActions: SearchActions = {
       openTask: (id) => {
         State.summary = false;
         State.setFocus(id);
@@ -506,6 +525,10 @@ export class Island {
         this.setView("prompt");
         window.setTimeout(() => reopenChat(id), 60);
       },
+      openClient: (name, seed) => {
+        this.shortcuts.hide();
+        void this.clientSheet.open(name, seed);
+      },
       onLayout: () => {
         if (!State.searchOnly || State.mode !== "expanded") return;
         const nextH = this.search.resultsHeight();
@@ -516,11 +539,26 @@ export class Island {
       onDone: () => this.collapse(true),
       onEscape: () => this.collapse(true),
       canAutoFocus: () => State.mode === "expanded" && this.searchShown && !State.pendingApproval && (this.keyboard || State.searchOnly),
-    });
+    };
+    this.searchActions = searchActions;
+    this.search = buildSearch(searchActions);
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
     this.rail = buildRail(actions);
     watchPresses(document);
+    // A click in any text field of the open island asks for the keyboard: after
+    // another app took the focus (onWindowBlurred makes the island non-activating
+    // again) the chat's field got the click but the keys went on to the other
+    // app (review of 16 Nov 2026). The other views asked one by one.
+    document.addEventListener("pointerdown", (e) => {
+      if (State.mode !== "expanded") return;
+      const field = (e.target as Element | null)?.closest?.("textarea, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=range]), [contenteditable=''], [contenteditable=true]");
+      // Only when the keys are elsewhere: activating brings the window forward
+      // with a tap of Alt, not to be done at every click while typing.
+      // A field of a popped-out window (its clicks are told to this page, popout.ts
+      // forward) is not the island's: that window keeps the keyboard.
+      if (field && !document.hasFocus()) void Bridge.focusWindow(true, field);
+    }, true);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
     this.stripActions = {
@@ -572,7 +610,34 @@ export class Island {
 
     this.waveEl = h("div", { id: "open-wave" });
     this.waveEl.addEventListener("animationend", () => this.waveEl.classList.remove("on"));
-    this.clipEl.append(this.waveEl);
+    this.shortcuts = new ShortcutSheet(() => void Bridge.openSettingsWindow());
+    this.clientSheet = new ClientSheet({
+      openRdm: (name, linked) => {
+        this.setView("overview");
+        if (linked?.vault && linked.path) {
+          State.summary = false;
+          State.setFocus("integration_rdm");
+          dvcGoTo(linked.vault, linked.path);
+          State.notify();
+        } else {
+          rdmLookFor(name);
+        }
+      },
+      openZammad: (name, ticket) => {
+        this.setView("overview");
+        zammadLookFor(name, ticket);
+      },
+      open3cx: () => {
+        State.summary = false;
+        State.setFocus(THREECX);
+        this.setView("overview");
+        State.notify();
+      },
+      askChat: (label, text) => {
+        this.startChat("", { label, text }, false);
+      },
+    });
+    this.clipEl.append(this.waveEl, this.clientSheet.el, this.shortcuts.el);
 
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl, ...this.ears);
     this.applyGeometry();
@@ -605,7 +670,7 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || State.windowPick != null || this.windowPress != null
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || this.shortcuts?.open || this.clientSheet?.openState || State.windowPick != null || this.windowPress != null
       // Typing in a Notion page of the card (notionpage.ts): it does not close under the caret.
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
@@ -619,7 +684,9 @@ export class Island {
           // With the fixed bar there is no compact view to go back to: closing,
           // the end of the greeting and a quiet launch go straight to hidden,
           // or a small character showed for a moment.
-          if ((from !== "hidden" || this.quietLaunch) && barEdge(State.settings) && !this.fsm.held()) {
+          // Never from hidden either (18 Nov 2026: the compact island with the
+          // agent's line showed under the bar now and then, a reveal from hidden).
+          if (barEdge(State.settings) && !this.fsm.held()) {
             if (from === "greeting") this.greeting.interrupt();
             this.quietLaunch = false;
             this.setMode("hidden");
@@ -941,6 +1008,7 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
+    this.shortcuts.hide();
     // The chat in a window of its own: that window comes forward, the island stays as it is.
     if (view === "prompt" && focusPopped("chat")) {
       State.notify();
@@ -1018,6 +1086,8 @@ export class Island {
 
   collapse(force = false) {
     closeMenu();
+    this.shortcuts.hide();
+    this.clientSheet.hide();
     const card = State.pendingCard();
     if (card && !force) {
       if (State.view !== card) this.setView(card);
@@ -1088,6 +1158,13 @@ export class Island {
 
   /** Alert from the hook server: open on this view. Pinned alerts never auto-close. */
   alert(view: IslandViewName) {
+    // A notice, a proposal, the recap or the day: in the notices' window, the
+    // island stays as it is (Edoardo, 17 Nov 2026). A card of Claude Code with
+    // choices waits for an answer: the island, as before.
+    if (TOASTED.has(view) && Notices.windowed() && !(view === "moment" && State.moment?.kind === "card")) {
+      this.toastFor(view);
+      return;
+    }
     this.fsm.pinned = State.isPinned;
     this.fsm.forceHome();
     this.expand(view);
@@ -1978,6 +2055,8 @@ ${note}` : text };
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "search") {
+      // In its own window: the island stays as it is (Edoardo, 17 Nov 2026).
+      if (await toggleSearchWindow(this.searchActions)) return;
       State.searchOnly = true;
       State.summary = false;
       this.lastSearchH = 0;
@@ -1985,7 +2064,16 @@ ${note}` : text };
       this.setView("overview");
       this.openedByUser = false;
     } else if (name === "open") {
-      // Pressed again with the island open: it closes (a waiting request stays, see collapse).
+      // The search's window open: the shortcut closes it, the island stays as it is.
+      if (searchWindowShown()) {
+        hideSearchWindow();
+        return;
+      }
+      // The island open on a view: the search opens in its window over it, the
+      // island stays open (Edoardo, 17 Nov 2026: «se apro la scorciatoia mentre
+      // l'isola è aperta si chiude l'isola»). Esc or ✕ close the island.
+      if (State.mode === "expanded" && !State.searchOnly && (await toggleSearchWindow(this.searchActions))) return;
+      // The island's own search-only mode (no window): pressed again, it closes.
       if (State.mode === "expanded") {
         this.collapse(State.searchOnly);
         return;
@@ -1997,6 +2085,7 @@ ${note}` : text };
         State.summary = true;
         this.setView(pending);
       } else {
+        if (await toggleSearchWindow(this.searchActions)) return;
         State.searchOnly = true;
         State.summary = false;
         this.lastSearchH = 0;
@@ -2108,6 +2197,11 @@ ${note}` : text };
       return;
     }
     if (State.searchOnly || typing || ctrl || e.altKey || e.repeat) return;
+    if (key === "?") {
+      e.preventDefault();
+      this.shortcuts.toggle();
+      return;
+    }
     const k = CSS.escape(key);
     const button = this.viewsEl.querySelector<HTMLElement>(`.view.on :is([data-key="${k}"], [data-key-alt="${k}"])`);
     if (button) {
@@ -2152,14 +2246,75 @@ ${note}` : text };
     State.notify();
   }
 
+  /** The toast for a view that would have opened the island (notices.ts); a click opens it there. */
+  private toastFor(view: IslandViewName) {
+    const open = () => {
+      this.fsm.pinned = State.isPinned;
+      this.fsm.forceHome();
+      this.expand(view);
+    };
+    switch (view) {
+      case "notify": {
+        const n = State.notice;
+        if (!n) return;
+        const actions: { label: string; run: () => void }[] = [];
+        if (n.install) actions.push({ label: t("Installa"), run: () => void this.installUpdate() });
+        else if (n.url) actions.push({ label: t("Apri"), run: () => void Bridge.openUrl(n.url) });
+        // A proposal with its own buttons (Crea / Non ora): those are in the island's card.
+        Notices.push({ key: n.install ? "update" : undefined, icon: LEVEL_ICON[n.level] ?? "ℹ️", title: n.title, text: n.text, level: n.level, actions, open });
+        return;
+      }
+      case "moment":
+        if (State.moment) this.toastMoment(State.moment);
+        return;
+      case "recap":
+        Notices.push({ key: "recap", icon: "🗓️", title: t("Il riepilogo della settimana è pronto."), level: "info", actions: [{ label: t("Apri"), run: open }], open });
+        return;
+      case "daily":
+        Notices.push({ key: "daily", icon: "☀️", title: t("Il punto della giornata è pronto."), level: "info", actions: [{ label: t("Apri"), run: open }], open });
+        return;
+      default:
+        open();
+    }
+  }
+
+  /**
+   * A moment (download, tray, error copied…) as a toast (moments.ts): State.moment
+   * changes only when the island opens on it, so a card of Claude Code waiting
+   * in the island keeps its place.
+   */
+  toastMoment(m: Moment) {
+    const open = () => {
+      if (State.moment?.kind === "card" && State.moment !== m) answerCard(State.moment.id, null, "replaced");
+      State.moment = m;
+      this.fsm.pinned = State.isPinned;
+      this.fsm.forceHome();
+      this.expand("moment");
+    };
+    const [title, text] = momentHeadline(m);
+    // A file: open it or its folder from the toast; the rest (Chiedi, the
+    // file's actions, Spiega e correggi, Annota, Prepara) in the island's card.
+    const actions: { label: string; run: () => void }[] =
+      m.kind === "download" || m.kind === "tray" || m.kind === "recording"
+        ? [
+            { label: t("Apri"), run: () => void Bridge.fileOpen(m.path, false).catch(() => {}) },
+            { label: t("Mostra nella cartella"), run: () => void Bridge.fileOpen(m.path, true).catch(() => {}) },
+            { label: t("Altro…"), run: open },
+          ]
+        : [{ label: t("Apri"), run: open }];
+    Notices.push({ key: m.kind === "download" ? "download" : undefined, icon: MOMENT_ICON[m.kind] ?? "✨", title, text, level: "info", actions, open });
+  }
+
   /** A message from `easyisland-hook notify` (any script, task or flow). */
   showNotice(n: Notice) {
     const important = n.level === "error" || n.level === "warn";
     // Same rules as everything else: in front of a client or over a full-screen
     // app only problems may show, and "solo permessi" means just that.
-    if (State.settings.notify === "permissions") return;
-    if (State.settings.notify === "alerts" && !important) return;
-    if (State.quiet && !important) return;
+    // «Prova» in Impostazioni always shows (17 Nov 2026: with «Solo richieste
+    // di permesso» it did nothing and looked broken).
+    if (!n.test && State.settings.notify === "permissions") return;
+    if (!n.test && State.settings.notify === "alerts" && !important) return;
+    if (!n.test && State.quiet && !important) return;
     State.notice = n;
     Sound.play(n.level === "error" ? "error" : n.level === "warn" ? "question" : n.level === "ok" ? "finish" : "blip");
     if (State.quiet) return; // a problem in front of a client: the sound is off anyway, no card either
@@ -2228,10 +2383,11 @@ ${note}` : text };
       return {
         title: target.split(/[\\/]/).filter(Boolean).pop() ?? target,
         items: [
-          { label: t("Apri"), run: () => chatPathAction(path, "open") },
+          // The path as found (chatpaths.rs): a relative one is in the chat's folders, not where Rust would look alone.
+          { label: t("Apri"), run: () => chatPathAction(target, "open") },
           ...(!dir && canPreview(target) ? [{ label: t("Anteprima"), run: () => chatPathAction(target, "preview") }] : []),
-          ...(!dir ? [{ label: t("Scarica"), run: () => chatPathAction(path, "download") }] : []),
-          { label: t("Apri percorso"), run: () => chatPathAction(path, "reveal") },
+          ...(!dir ? [{ label: t("Scarica"), run: () => chatPathAction(target, "download") }] : []),
+          { label: t("Apri percorso"), run: () => chatPathAction(target, "reveal") },
           { label: t("Copia percorso"), sep: true, run: () => void navigator.clipboard.writeText(target).catch(() => undefined) },
         ],
       };
@@ -3455,6 +3611,11 @@ ${note}` : text };
     const it = barItemOf(key);
     if (!it) return;
     const kind = barKind(it.id);
+    // «Cerca» in the bar: the search in its own window, opened or closed (Edoardo, 18 Nov 2026).
+    if (it.id === "sys:search" && button === "left") {
+      void this.onHotkey("search");
+      return;
+    }
     if (button === "up" || button === "down") {
       if (kind && barWheels(it)) this.barWheel(it.id.slice(4), button === "up" ? 1 : -1);
       return;
@@ -3980,6 +4141,18 @@ ${note}` : text };
     });
 
     window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.shortcuts.open) {
+        e.preventDefault();
+        this.shortcuts.hide();
+        State.lastActivity = performance.now();
+        return;
+      }
+      if (e.key === "Escape" && this.clientSheet.openState) {
+        e.preventDefault();
+        this.clientSheet.hide();
+        State.lastActivity = performance.now();
+        return;
+      }
       // Esc on a permission or a question folds the island: the request keeps waiting.
       if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
       else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();

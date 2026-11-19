@@ -40,6 +40,13 @@ Cliente dal 2021, commercialisti, 8 postazioni.
 - La chat le scrive quando le chiedi «fai una pagina su…», e dalle fonti (sotto).
 - **Scritture sicure**: se modifichi a mano una pagina mentre l'agente ci lavora, la sua scrittura viene rifiutata; deve rileggerla e ripartire dalla tua versione.
 
+## La pagina cliente
+Per ogni cliente una pagina della memoria con sezioni fisse: **Contatti, Rete, Server e VM, Accessi, Procedure, Note**. È una pagina come le altre (file `.md` modificabile), con `tipo: cliente` in testa.
+- **Dove si apre:** dalla scheda Ticket (il cliente del ticket), da una chiamata 3CX, dalla cartella di RDM o Devolutions collegata al cliente e dal campo in alto.
+- **Dalla scheda:** connessioni RDM, ticket del cliente, chiama, chiedi alla chat con la pagina come contesto, apri nella Memoria.
+- **Senza pagina:** «Crea pagina cliente» la scrive già con i contatti del ticket e la cartella RDM. Una pagina scritta prima diventa cliente con «Rendila pagina cliente»: aggiunge le sezioni, non toglie niente.
+- Quello che la chat impara sul cliente finisce in **Note**. In **Accessi** solo il nome della cartella o della voce di RDM/Devolutions: le password mai.
+
 ## Da leggere: insegnare con i file
 Metti nella cartella `da-leggere` articoli, appunti, trascrizioni di riunioni, mail salvate (`.md`, `.txt`, `.html`, `.eml`, `.csv`, `.json`…), oppure **trascinali sulla finestra Memoria**. Poi:
 1. l'agente legge ogni file;
@@ -101,6 +108,19 @@ In alto, «Vista» sceglie il disegno; accanto i filtri:
 **Claude Code** ha una sua memoria: le note che salva da solo mentre lavori con lui (come vuoi che lavori, fatti dei progetti). EasyIsland le legge, di ogni account di Claude Code su questo PC, e le trova con la ricerca della memoria, il campo in alto e la Mappa, alla voce **Claude Code**. Si leggono soltanto: le scrive e le corregge Claude Code. Ognuna porta la sua data e, se dice altro rispetto alla memoria di EasyIsland, vale quella di EasyIsland. Una nota che EasyIsland ricorda già non compare due volte: nella Mappa diventa un collegamento a quella nota. Quelle sul tuo modo di lavorare salvate fuori da un progetto arrivano anche all'inizio di ogni conversazione. Si spengono con **Memoria di Claude Code** in Impostazioni → Flussi → Secondo cervello.
 
 Se ricevi la memoria di un altro PC (**Memoria condivisa fra due PC**, in Integrazioni), in alto compaiono **Questo PC**, il nome dell'altro PC e **Tutte**: scegli quale memoria vedere, o tutte e due insieme; in **Tutte** le cose dell'altro PC hanno il suo nome accanto. La copia dell'altro PC si guarda soltanto: le note nuove vanno nella memoria di questo PC.
+
+### Panoramica
+![La Panoramica della memoria](../media/memoria-panoramica.png)
+
+La finestra si apre sulla **Panoramica**: tutta la memoria in una schermata, con i dati veri e ogni pezzo cliccabile.
+- In alto quattro numeri: pagine, note e fonti con i collegamenti; le cose nuove degli ultimi 7 giorni; i file da leggere; le note sole. Un clic le mostra nel grafo (i file da leggere aprono la cartella).
+- A sinistra gli **ultimi arrivi**: note, pagine, fonti e giorni di chat, i più recenti in alto; quando la chat legge o scrive la memoria la riga compare subito.
+- Al centro il **nucleo**: ogni nota e pagina è un punto, colorato per gruppo o per tipo; intorno gli archi dei gruppi (un clic apre le Bolle su quel gruppo) e la linea della freschezza. Sotto, quante cose sono da sistemare: note sole, pagine da scrivere, controlli.
+- Sopra il nucleo i **filtri** (tipi, solo collegamenti sicuri, colori), che valgono per tutte le viste, e i numeri della settimana.
+- A destra le **tappe**: da leggere, fonti lette, pagine, collegate, controllo, con **Leggi adesso**, **Collega con l'IA** e **Controlla**. È evidenziata la prima tappa con del lavoro da fare.
+- Sotto, le **pagine più collegate** come gettoni, il **registro** della memoria che scrive riga per riga e tre periodi a confronto (ultimo mese, 3 mesi, sempre): un clic sceglie il periodo per tutte le viste.
+
+Un clic su un punto, una riga o un gettone apre il Grafo su quella cosa; **← Panoramica** riporta qui. Le altre viste restano tutte, nelle tendine accanto.
 
 ### Grafo
 ![Il grafo della memoria](../media/memoria-grafo.png)

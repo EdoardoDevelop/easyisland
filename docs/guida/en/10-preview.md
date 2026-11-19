@@ -9,7 +9,7 @@ The **Preview** is a window with tabs, like a small browser, next to the chat. I
 ## How it opens
 - **A link in a chat message**: it opens in the Preview. **Ctrl+click** sends it to the Windows browser instead.
 - **A file the chat mentions** (for example `src/app.ts` or `C:\Projects\site\README.md`): it is underlined with dots, a click opens it. Relative paths start from the chat's folder (Settings → Chat → Work folder).
-- **By itself, with terminal mode**: when the chat changes a file, the file shows up in the Preview with the changes highlighted, without stealing your window.
+- **From the chat's files**: when the chat creates or changes a file, its path in the reply becomes a link; a click shows it in the Preview with the changes highlighted (right click: Open, Download, Open location, Copy path). If you want the Preview to open **by itself**, turn on Settings → Chat → "Open the chat's files by itself"; if you then close it, it does not open again until you open something.
 - **The window button** in the chat's header (with terminal mode on).
 - **A development server that just started**: the card in the island has a **Preview** button. **+** in the Preview also lists the servers listening on this PC.
 - **Dropping a file** on the window, or typing an address or a path in the bar.

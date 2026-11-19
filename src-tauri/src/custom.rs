@@ -33,7 +33,22 @@ const MAX_ASSET: u64 = 5 * 1024 * 1024;
 pub const FIELD_KINDS: &[&str] = &[
     "text", "textarea", "number", "money", "date", "checkbox", "select", "multiselect", "email", "phone", "url", "rows", "computed",
     "counter", "link", "file",
+    // Graphic controls (Edoardo, 17 Nov 2026): a slider, an on/off switch,
+    // buttons to pick one, and two that only show (a bar, a big number).
+    "slider", "switch", "segmented", "progress", "stat",
 ];
+
+/// Fields that only show a value worked out by a formula: never in a record.
+pub(crate) fn shows_only(kind: &str) -> bool {
+    matches!(kind, "computed" | "counter" | "progress" | "stat")
+}
+
+/// What a control may run when it changes (`onChange`): saving, a call to a
+/// declared service, a notice. Never a script, a quick action or a document:
+/// those stay a button (review of 17 Nov 2026).
+pub const CHANGE_ACTIONS: &[&str] = &["save", "http", "notice"];
+/// segmented: at most this many buttons (more: a select).
+const MAX_SEGMENTS: usize = 6;
 pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date", "computed", "link"];
 
 /// What a `link` copies from the record picked: target field (or column) → a
@@ -102,6 +117,26 @@ pub struct Field {
     /// of `ACCEPT_GROUPS` and/or extensions, "audio" or "mp3,wav". Empty = any file.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub accept: String,
+    /// slider, progress: the range; slider: the step.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<f64>,
+    /// slider, progress, stat: what the number is in («x», «%», «GB»).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub unit: String,
+    /// progress, stat: from here amber, from here red (lower than warn: the
+    /// lower the worse, as free disk space).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warn: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bad: Option<f64>,
+    /// slider, switch, segmented: the label of an action run when it changes
+    /// (only `CHANGE_ACTIONS`).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub on_change: String,
 }
 
 /// `accept` of a file field: a group name → its extensions.
@@ -427,6 +462,7 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         if f.kind == "computed" && f.formula.trim().is_empty() {
             return Err(tf("Campo «{l}»: formula, es. sum(quantita*prezzo) oppure imponibile*0,22.", &[("l", &f.label)]));
         }
+        check_control(f, &c.actions)?;
     }
     // The fields a link fills: the form's others, never a table, a computed value or a counter.
     let targets: Vec<(String, String)> = c.fields.iter().map(|x| (x.id.clone(), x.kind.clone())).collect();
@@ -541,7 +577,7 @@ fn check_fill(label: &str, own: &str, fill: Fill, targets: &[(String, String)]) 
     let mut out = Fill::new();
     for (to, from) in fill {
         let (to, from) = (to.trim().to_string(), from.trim().to_string());
-        let ok = to != own && targets.iter().any(|(id, kind)| id == &to && !matches!(kind.as_str(), "rows" | "computed" | "counter"));
+        let ok = to != own && targets.iter().any(|(id, kind)| id == &to && kind != "rows" && !shows_only(kind));
         if !ok {
             return Err(tf("«{l}»: in fill «{t}» non è un campo da compilare (deve essere l'id di un altro campo, non calcolato).", &[("l", &label), ("t", &to)]));
         }
@@ -713,6 +749,67 @@ fn write_records(id: &str, all: &[Record]) -> Result<(), String> {
     crate::settings::write_atomic(&records_file(id), &bytes).map_err(|e| e.to_string())
 }
 
+/// The graphic controls (slider, switch, segmented, progress, stat): their
+/// range, choices and formula, and what they run when they change.
+fn check_control(f: &mut Field, actions: &[Action]) -> Result<(), String> {
+    let label = f.label.clone();
+    let bad_range = |min: f64, max: f64| !(min.is_finite() && max.is_finite() && min < max);
+    match f.kind.as_str() {
+        "slider" | "progress" => {
+            let (min, max) = (f.min.unwrap_or(0.0), f.max.unwrap_or(100.0));
+            if bad_range(min, max) {
+                return Err(tf("Campo «{l}»: min deve essere minore di max.", &[("l", &label)]));
+            }
+            f.min = Some(min);
+            f.max = Some(max);
+            if f.kind == "slider" {
+                let step = f.step.filter(|s| s.is_finite() && *s > 0.0 && *s <= max - min).unwrap_or((max - min) / 100.0);
+                f.step = Some(step);
+            } else {
+                f.step = None;
+            }
+        }
+        "segmented" => {
+            if f.options.len() < 2 || f.options.len() > MAX_SEGMENTS {
+                return Err(tf("Campo «{l}»: segmented vuole options da 2 a 6 scelte; con di più usa select.", &[("l", &label)]));
+            }
+        }
+        _ => {
+            f.min = None;
+            f.max = None;
+            f.step = None;
+        }
+    }
+    if matches!(f.kind.as_str(), "progress" | "stat") && f.formula.trim().is_empty() {
+        return Err(tf("Campo «{l}»: formula che dà il numero da mostrare, es. usato/totale*100.", &[("l", &label)]));
+    }
+    if !matches!(f.kind.as_str(), "progress" | "stat") {
+        f.warn = None;
+        f.bad = None;
+    }
+    if !matches!(f.kind.as_str(), "slider" | "progress" | "stat") {
+        f.unit.clear();
+    }
+    f.unit = f.unit.trim().chars().take(12).collect();
+    f.on_change = f.on_change.trim().to_string();
+    if !f.on_change.is_empty() {
+        if !matches!(f.kind.as_str(), "slider" | "switch" | "segmented") {
+            return Err(tf("Campo «{l}»: onChange solo su slider, switch e segmented.", &[("l", &label)]));
+        }
+        match actions.iter().find(|a| a.label.trim() == f.on_change) {
+            Some(a) if CHANGE_ACTIONS.contains(&a.kind.as_str()) => {}
+            Some(a) => {
+                return Err(tf(
+                    "Campo «{l}»: onChange può eseguire solo azioni save, http o notice, non «{a}» ({k}): quella resta un pulsante.",
+                    &[("l", &label), ("a", &a.label), ("k", &a.kind)],
+                ))
+            }
+            None => return Err(tf("Campo «{l}»: onChange, la label di un'azione di questa integrazione.", &[("l", &label)])),
+        }
+    }
+    Ok(())
+}
+
 /// Saves a record: a new one (`record` empty) or the one with that id.
 pub fn save_record(app: &AppHandle, id: &str, record: &str, values: Map<String, Value>) -> Result<Record, String> {
     let c = get(id).ok_or(t("Integrazione non trovata."))?;
@@ -728,7 +825,7 @@ pub fn save_record(app: &AppHandle, id: &str, record: &str, values: Map<String, 
             Some(Value::Array(a)) => a.is_empty(),
             _ => false,
         };
-        if f.required && empty && f.kind != "computed" {
+        if f.required && empty && !shows_only(&f.kind) {
             return Err(tf("Manca «{l}».", &[("l", &f.label)]));
         }
     }
@@ -984,7 +1081,7 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
     if text.trim().is_empty() {
         return Err(t("Incolla prima il testo da cui compilare.").into());
     }
-    let schema: Vec<Value> = c.fields.iter().filter(|f| !matches!(f.kind.as_str(), "computed" | "counter")).map(|f| {
+    let schema: Vec<Value> = c.fields.iter().filter(|f| !shows_only(&f.kind)).map(|f| {
         let mut v = json!({ "id": f.id, "label": f.label, "kind": f.kind });
         if !f.options.is_empty() {
             v["options"] = json!(f.options);
@@ -1006,7 +1103,7 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
     let end = raw.rfind('}').ok_or(t("L'IA non ha risposto con i campi: riprova o compila a mano."))?;
     let json_text = raw.get(start..=end).unwrap_or_default();
     let found: Map<String, Value> = serde_json::from_str(json_text).map_err(|_| t("L'IA non ha risposto con i campi: riprova o compila a mano."))?;
-    Ok(found.into_iter().filter(|(k, _)| c.fields.iter().any(|f| &f.id == k && !matches!(f.kind.as_str(), "computed" | "counter"))).collect())
+    Ok(found.into_iter().filter(|(k, _)| c.fields.iter().any(|f| &f.id == k && !shows_only(&f.kind))).collect())
 }
 
 // ── Services (http actions and sources) ─────────────────────────────────────
@@ -1964,6 +2061,59 @@ mod tests {
         assert_eq!(c.fields[2].columns[0].kind, "text");
         assert_eq!(c.actions[0].format, "html");
         assert_eq!(c.color, "#0EA5E9");
+    }
+
+    #[test]
+    fn graphic_controls_are_checked() {
+        let field = |label: &str, kind: &str| Field { label: label.into(), kind: kind.into(), ..Default::default() };
+        let mut c = quote();
+        let mut speed = field("Velocità", "slider");
+        speed.min = Some(0.5);
+        speed.max = Some(2.0);
+        speed.step = Some(0.05);
+        speed.unit = "x".into();
+        speed.on_change = "Applica".into();
+        let mut on = field("Acceso", "switch");
+        on.on_change = "Applica".into();
+        let mut mode = field("Modo", "segmented");
+        mode.options = vec!["Auto".into(), "Manuale".into()];
+        let mut disk = field("Disco", "progress");
+        disk.formula = "usato/totale*100".into();
+        disk.unit = "%".into();
+        disk.warn = Some(80.0);
+        disk.bad = Some(95.0);
+        let mut count = field("Schede", "stat");
+        count.formula = "3".into();
+        c.fields.extend([speed, on, mode, disk, count]);
+        c.actions.push(Action { label: "Applica".into(), kind: "http".into(), method: "POST".into(), url: "https://example.com/x".into(), ..Default::default() });
+        let n = normalize(c.clone()).unwrap();
+        let get = |id: &str| n.fields.iter().find(|f| f.id == id).unwrap().clone();
+        assert_eq!((get("velocita").min, get("velocita").max, get("velocita").step), (Some(0.5), Some(2.0), Some(0.05)));
+        assert_eq!((get("disco").min, get("disco").max, get("disco").unit.as_str()), (Some(0.0), Some(100.0), "%"));
+        // A switch has no range nor unit; never saved in a record: progress and stat.
+        assert_eq!((get("acceso").min, get("acceso").unit.as_str()), (None, ""));
+        assert!(shows_only("progress") && shows_only("stat") && !shows_only("slider"));
+        // Range upside down, too many or too few buttons, no formula.
+        let mut bad = c.clone();
+        bad.fields.iter_mut().find(|f| f.kind == "slider").unwrap().max = Some(0.1);
+        assert!(normalize(bad).unwrap_err().contains("min"));
+        let mut bad = c.clone();
+        bad.fields.iter_mut().find(|f| f.kind == "segmented").unwrap().options = vec!["Uno".into()];
+        assert!(normalize(bad).unwrap_err().contains("segmented"));
+        let mut bad = c.clone();
+        bad.fields.iter_mut().find(|f| f.kind == "stat").unwrap().formula.clear();
+        assert!(normalize(bad).unwrap_err().contains("formula"));
+        // onChange: only towards save, http, notice; never a script; only on the three that change.
+        let mut bad = c.clone();
+        bad.actions.push(Action { label: "Lancia".into(), kind: "script".into(), script: "echo".into(), ..Default::default() });
+        bad.fields.iter_mut().find(|f| f.kind == "switch").unwrap().on_change = "Lancia".into();
+        assert!(normalize(bad).unwrap_err().contains("pulsante"));
+        let mut bad = c.clone();
+        bad.fields.iter_mut().find(|f| f.kind == "switch").unwrap().on_change = "Non c'è".into();
+        assert!(normalize(bad).unwrap_err().contains("onChange"));
+        let mut bad = c.clone();
+        bad.fields.iter_mut().find(|f| f.kind == "stat").unwrap().on_change = "Applica".into();
+        assert!(normalize(bad).unwrap_err().contains("onChange"));
     }
 
     #[test]

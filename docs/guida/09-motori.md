@@ -42,7 +42,7 @@ Serve **opencode 2** sul PC. EasyIsland avvia un server privato di opencode solo
 ## Antigravity
 Installi la CLI con `irm https://antigravity.google/cli/install.ps1 | iex`, poi scrivi `agy` e accedi con Google. Con gli hook di Antigravity installati, i suoi comandi chiedono Consenti / Nega nell'isola.
 
-Come con Claude, dal menu del motore scegli il **modello** (quelli del tuo account Antigravity) e l'**impegno** per quella conversazione; il pulsante della modalità passa da **Manuale** ad **Accetta modifiche**, **Piano** e **Automatica** (come la sua modalità Turbo: nessuna domanda sui comandi). In **Piano** Antigravity prepara il piano e te lo mostra in una card: **Procedi** per farlo lavorare, **Continua a pianificare** per cambiarlo.
+Come con Claude, dal menu del motore scegli il **modello** (quelli del tuo account Antigravity) e l'**impegno** per quella conversazione, separati come per Claude: ogni modello compare una volta sola e sotto **Impegno** trovi solo i livelli che quel modello ha (l'impegno è separato da quello di Claude); il pulsante della modalità passa da **Manuale** ad **Accetta modifiche**, **Piano** e **Automatica** (come la sua modalità Turbo: nessuna domanda sui comandi; per ora la modalità automatica di Antigravity è spenta, quindi servono i suoi hook, Impostazioni → Agenti di codice → Antigravity). In **Piano** Antigravity prepara il piano e te lo mostra in una card: **Procedi** per farlo lavorare, **Continua a pianificare** per cambiarlo.
 
 ## Modello sul PC
 Un modello di intelligenza artificiale che gira **dentro EasyIsland**, senza programmi da installare e senza che niente esca dal PC. Nella card **Modello sul PC**:

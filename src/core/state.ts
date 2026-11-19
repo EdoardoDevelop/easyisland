@@ -329,7 +329,7 @@ export const MAX_DIFFS = 50;
 export const DIFF_TTL_MS = 60 * 60 * 1000;
 
 /** The Claude desktop app, VS Code, Cursor, Windows Terminal, or any other console. */
-export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode" | "compiti";
+export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode" | "antigravity" | "compiti";
 
 /** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
 export interface Notice {
@@ -345,6 +345,8 @@ export interface Notice {
   suggestionAccept?: string;
   /** An entry of «Cosa ho fatto» done without a click (permits.rs): Annulla on the card. */
   did?: string;
+  /** «Prova» in Impostazioni: shown whatever «Il personaggio si fa vedere per» says. */
+  test?: boolean;
 }
 
 /** A proposal at the right moment (src-tauri/src/moments.rs, src/island/moments.ts). */
@@ -385,6 +387,7 @@ export function sessionOpenLabel(host: SessionHost | null | undefined): string {
     case "vscode": return t("Apri VS Code");
     case "cursor": return t("Apri Cursor");
     case "opencode": return t("Apri opencode");
+    case "antigravity": return t("Apri Antigravity");
     default: return t("Apri terminale");
   }
 }
@@ -493,6 +496,8 @@ export interface ChatSessionState {
   folder: string | null;
   /** Claude Code's effort for it; null = the one of the settings. */
   effort: string | null;
+  /** Antigravity's effort for it, apart from Claude Code's; null = the one of the settings, "" = the model's own. */
+  agyEffort?: string | null;
   /** Tokens in the engine's context after the last turn and its size (0 = unknown); null = it does not say. */
   context: [number, number] | null;
   /** Its id in the history (chat_log.rs), once an answer saved it. */
@@ -501,6 +506,11 @@ export interface ChatSessionState {
   sending: boolean;
   stopping: boolean;
   streamed: string;
+  /**
+   * The reply as shown when a message joined the turn («Invia subito», Claude
+   * Code): that part already stands above the message; only what follows shows.
+   */
+  streamCut: string;
   /** An answer came while another conversation was on screen. */
   unread: boolean;
   /** The field's text while another conversation is on screen. */
@@ -519,7 +529,7 @@ export function newChatSession(): ChatSessionState {
   return {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
     history: [], engineOverride: null, onlyEasy: false, engineOnce: false, auto: true, mode: "", model: null, agyModel: null, plan: null, fast: false, agents: false, team: false, teamRows: [], background: [], working: false, desktop: false, text: null, window: null, attach: [],
-    session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
+    session: null, assistant: null, folder: null, effort: null, context: null, logId: null, sending: false, stopping: false, streamed: "", streamCut: "", unread: false,
     draft: "", queue: [], at: Date.now(),
   };
 }
@@ -532,6 +542,10 @@ export interface ChatMessage {
   engine?: string;
   /** A second opinion: the name of the engine that gave it. */
   reviewer?: string;
+  /** Written while the turn went on and taken into it («Invia subito»): a question of its own under the reply so far. */
+  steered?: boolean;
+  /** The reply written before such a message: the turn goes on in the next answer. */
+  part?: boolean;
   /** A file added to this question (pasted or dropped during the conversation). */
   file?: string;
   /** What the turn cost (Claude Code): shown small under the answer. */
@@ -745,6 +759,14 @@ export interface Settings {
   memoryMeaningModel?: string;
   /** «Modello sul PC» writes the answers from the memory (local_model.rs); off = the lines as they are. */
   localCompose?: boolean;
+  /** Quick answers in the island's search: "potion" (default), "off", "local" or an engine (quick_answer.rs). */
+  quickAnswers?: string;
+  /** The Anteprima opens by itself on a file the chat creates or edits; off by default. */
+  previewEdits?: boolean;
+  /** Where notices go (notices.ts): "isola" (default), "alto-destra", "basso-destra", "dentro" (in the island). */
+  noticesPlace?: string;
+  /** Where the search on its own opens (search_window.rs): "centro" (default), "alto", "basso". */
+  searchPlace?: string;
   /** The model on the graphics card when there is a fitting one. */
   localGpu?: boolean;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
@@ -775,6 +797,8 @@ export interface Settings {
   cliModel: string;
   /** Claude Code's effort (low…max), the last one picked in the chat; "" = its own. */
   cliEffort?: string;
+  /** Antigravity's effort, the last one picked in the chat; "" = the model's own. Never Claude Code's. */
+  agyEffort?: string;
   /** Where the island sits; content opens aligned to that side. */
   anchorV: AnchorV;
   anchorH: AnchorH;
@@ -1068,6 +1092,11 @@ export interface RdmRef {
   group: string;
   host: string;
   kind: string;
+  /** A Devolutions Cloud entry: its vault (absent = RDM's own list). */
+  vault?: string;
+  user?: string;
+  /** Its credential kind (Default, PasswordList…), for a cloud entry. */
+  cred?: string;
 }
 
 /** A view of the Notion tasks (settings.rs NotionView, notion.rs view_filter). */
@@ -2136,6 +2165,17 @@ export interface CustomField extends CustomLink {
   optionsFrom?: CustomOptionsFrom;
   /** file: what can be picked, "audio" or "mp3,wav" (custom.rs accept_extensions). */
   accept?: string;
+  /** slider, progress: the range; slider: the step. */
+  min?: number;
+  max?: number;
+  step?: number;
+  /** slider, progress, stat: what the number is in («x», «%»). */
+  unit?: string;
+  /** progress, stat: from here amber, from here red (bad below warn: the lower the worse). */
+  warn?: number;
+  bad?: number;
+  /** slider, switch, segmented: the action (label) run when it changes: save, http or notice. */
+  onChange?: string;
 }
 export interface CustomOptionsFrom {
   source: string;

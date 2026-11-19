@@ -215,6 +215,17 @@ export interface DayText {
   busy: boolean;
 }
 
+/**
+ * An event or element of the island's own page (not of a popped-out window).
+ * No `instanceof`: a popped-out window is another realm, its elements are not
+ * this page's Node (tried 17 Nov 2026: they passed as the island's).
+ */
+export function inIslandPage(from: Event | Node): boolean {
+  const node = ("type" in from && "target" in from ? from.target : from) as Node | null;
+  if (!node || typeof node.nodeType !== "number") return true;
+  return node === document || node.ownerDocument === document;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -236,7 +247,14 @@ export const Bridge = {
     call<void>("set_island_rect", { x, y, width, height }),
 
   /** Give the window keyboard focus (chat field) and take it away again. */
-  focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
+  /**
+   * The island's window takes (true) or leaves the keyboard. `from`: the
+   * click or field asking; one in another window (a view popped out,
+   * popout.ts) never brings the island forward (17 Nov 2026: a click in the
+   * popped-out chat's field raised the island and took the keys).
+   */
+  focusWindow: (focused: boolean, from?: Event | Node | null) =>
+    focused && from && !inIslandPage(from) ? Promise.resolve(null) : call<void>("focus_window", { focused }),
   /** 📌 on: the open island as an ordinary app window (taskbar, not always on top). island.rs → set_app_mode. */
   setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
   /** Click on the character: the open island behind another window comes forward (true); in front, false. island.rs → to_front. */
@@ -595,6 +613,10 @@ export const Bridge = {
   dvcNewPasswordList: (a: { vault: string; folder: string; name: string; source: string; recurse: boolean; confirm: boolean }) =>
     callOrThrow<DvcOutcome>("dvc_new_password_list", a),
   rdmOpen: (entry: RdmEntry) => callOrThrow<void>("rdm_open", { entry }),
+  /** An entry used without opening it (a cloud credential copied): first in rdmRecent. */
+  rdmRecentAdd: (entry: RdmEntry) => call<void>("rdm_recent_add", { entry }),
+  /** The Devolutions Cloud card opened: sign in now, so details and passwords come at once (dvc_live.rs). */
+  dvcWarm: () => call<void>("dvc_warm"),
   rdmEdit: (id: string) => callOrThrow<void>("rdm_edit", { id }),
   rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
   rdmQuick: (kind: "RDP" | "SSH" | "VNC", host: string) => callOrThrow<void>("rdm_quick", { kind, host }),
@@ -673,6 +695,12 @@ export const Bridge = {
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
   popoutFocus: (window: string) => call<void>("popout_focus", { window }),
   popoutTake: () => call<string | null>("popout_take"),
+  /** The next window.open is a window of its own kind: "ricerca" (search_window.rs), "avvisi" (notices_window.rs). */
+  popoutKind: (kind: "ricerca" | "avvisi") => call<void>("popout_kind", { kind }),
+  /** The search on its own: shown `height` (logical px) tall where the mouse is, with the keyboard; false when its window is not there. */
+  searchWindowShow: (height: number) => call<boolean>("search_window_show", { height }),
+  searchWindowFit: (height: number) => call<void>("search_window_fit", { height }),
+  searchWindowHide: () => call<void>("search_window_hide"),
   popoutTitle: (window: string, title: string) => call<void>("popout_title", { window, title }),
   popoutChat: (window: string | null) => call<void>("popout_chat", { window }),
   popoutClose: (window: string) => call<void>("popout_close", { window }),
@@ -746,6 +774,10 @@ export const Bridge = {
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
   /** The field at the top: the nodes of the map (brain.rs find_nodes). */
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
+  quickAnswer: (question: string) => call<QuickAnswer | null>("quick_answer", { question }),
+  /** The notices' window (notices_window.rs): `height` of toasts, placed by `place`; or hidden. */
+  noticesShow: (height: number, place: string) => call<void>("notices_show", { height, place }),
+  noticesHide: () => call<void>("notices_hide"),
   /** A node's name and card, for a new chat (brain.rs node_brief). */
   memoryNodeBrief: (id: string) => call<[string, string] | null>("memory_node_brief", { id }),
   /** A page found there: the memory window with it selected. */
@@ -765,6 +797,21 @@ export const Bridge = {
   /** A select of the ticket: state (with the reminder when pending), owner, priority. */
   zammadSet: (id: number, field: "state_id" | "owner_id" | "priority_id", value: number, pending: string | null) =>
     callOrThrow<ZammadTicket>("zammad_set", { id, field, value, pending }),
+  /** The customer's page of the memory as a card (clients.rs), by a name from Zammad, 3CX or the search; null = no page. */
+  clientCard: (name: string) => call<ClientCard | null>("client_card", { name }),
+  /** «Crea la pagina cliente» / «Rendila pagina cliente»: sections added, nothing removed; contacts and access lines go in their sections. */
+  clientPageMake: (name: string, extra: { aliases?: string[]; contacts?: string[]; access?: string[] } = {}) =>
+    callOrThrow<ClientCard>("client_page_make", { name, aliases: extra.aliases ?? [], contacts: extra.contacts ?? [], access: extra.access ?? [] }),
+  /** The titles of the customers' pages. */
+  clientList: () => call<string[]>("client_list"),
+  /** «Salva» of the card: the changed selects together (null = unchanged). */
+  zammadSave: (id: number, changes: { state_id?: number | null; owner_id?: number | null; priority_id?: number | null; pending?: string | null }) =>
+    callOrThrow<ZammadTicket>("zammad_save", { id, stateId: changes.state_id ?? null, ownerId: changes.owner_id ?? null, priorityId: changes.priority_id ?? null, pending: changes.pending ?? null }),
+  /** An image of a message as a data: address (raster images only). */
+  zammadImage: (ticket: number, article: number, id: number) => callOrThrow<string>("zammad_image", { ticket, article, id }),
+  /** «Scarica» on a file: copied into Downloads and shown in Explorer; returns where. */
+  zammadAttachmentSave: (ticket: number, article: number, id: number, name: string) =>
+    callOrThrow<string>("zammad_attachment_save", { ticket, article, id, name }),
   /** An internal note, or (`email`) a reply Zammad sends to the customer. */
   zammadReply: (id: number, text: string, email: boolean) => callOrThrow<ZammadTicket>("zammad_reply", { id, text, email }),
   /** «Parla» (talk.rs): starts listening or ends the question; true = listening now. */
@@ -1022,6 +1069,20 @@ export interface MemoryInfo {
 
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
 /** A memory page found from the field at the top (brain.rs PageHit). */
+/** An answer from the memory to a question typed in the search (quick_answer.rs). */
+export interface QuickAnswer {
+  /** Written by a model, or the memory's lines themselves. */
+  text: string;
+  /** The lines it comes from, as shown. */
+  lines: string[];
+  /** Where each line is from: a page's title or «nota». */
+  sources: string[];
+  /** «Potion» or the model that wrote it. */
+  by: string;
+  /** A procedure: the page of the Mappa it is a section of («p:proxmox»). */
+  node?: string;
+}
+
 export interface MemoryHit {
   /** The memory window's node, "p:<slug>" or "lavoro|p:<slug>". */
   id: string;
@@ -1082,8 +1143,36 @@ export interface ZammadArticle {
   internal: boolean;
   at: string;
   subject: string;
+  /** Plain text; an image inside it is a line of its own `[[img:ID]]` (an attachment with `inline`). */
   text: string;
+  cc: string;
+  /** Every file; `inline` ones are the images of the text. Show one with zammadImage, save with zammadAttachmentSave. */
+  attachments: ZammadAttachment[];
+  /** Names of the files that are not inline images (older field). */
   files: string[];
+}
+
+/** A customer's page of the memory as a card (clients.rs ClientCard). Sections: Contatti, Rete, Server e VM, Accessi, Procedure, Note, then any other. */
+export interface ClientCard {
+  title: string;
+  summary: string;
+  aliases: string[];
+  /** "tipo: cliente" in the page; false = a page about the customer written before (offer «Rendila pagina cliente»). */
+  client: boolean;
+  intro: string;
+  sections: { name: string; text: string }[];
+  links: string[];
+  cited_by: string[];
+  updated: string;
+}
+
+/** A file of a Zammad message (zammad.rs Attachment). */
+export interface ZammadAttachment {
+  id: number;
+  name: string;
+  size: number;
+  mime: string;
+  inline: boolean;
 }
 
 /** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
@@ -1116,7 +1205,9 @@ export interface TicketAdvice {
 
 export interface ZammadTicket {
   id: number; number: string; title: string; url: string;
-  customer: string; org: string; group: string;
+  customer: string; customer_email: string; customer_phone: string; org: string; group: string;
+  /** Zammad's tags of the ticket. */
+  tags: string[];
   state_id: number; priority_id: number; owner_id: number;
   created: string; updated: string; pending: string;
   states: ZammadOpt[]; priorities: ZammadOpt[]; owners: ZammadOpt[];
@@ -1235,6 +1326,10 @@ export interface RdmEntry {
   host: string;
   /** RDM's connection type ("RDPConfigured", "SSHShell"…). */
   kind: string;
+  /** A Devolutions Cloud entry: its vault (absent = RDM's own list). */
+  vault?: string;
+  user?: string;
+  cred?: string;
 }
 
 /** Impostazioni → Remote Desktop Manager: what is installed (rdm.rs Status). */

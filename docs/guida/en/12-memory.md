@@ -40,6 +40,13 @@ Client since 2021, accountants, 8 workstations.
 - The chat writes them when you ask "make a page about…", and from sources (below).
 - **Safe writes**: if you edit a page by hand while the agent works on it, its write is refused; it must read it again and start from your version.
 
+## The customer page
+For each customer, a memory page with fixed sections: **Contatti (contacts), Rete (network), Server e VM, Accessi (access), Procedure, Note**. It is a page like the others (an editable `.md` file), with `tipo: cliente` at the top.
+- **Where it opens:** from the Ticket card (the ticket's customer), from a 3CX call, from the RDM or Devolutions folder tied to the customer, and from the top field.
+- **From the card:** RDM connections, the customer's tickets, call, ask the chat with the page as context, open in Memory.
+- **No page yet:** «Crea pagina cliente» writes it with the ticket's contacts and the RDM folder already in. A page written before becomes a customer page with «Rendila pagina cliente»: sections are added, nothing is removed.
+- What the chat learns about the customer goes to **Note**. In **Accessi** only the name of the RDM/Devolutions folder or entry: never passwords.
+
 ## To read: teaching with files
 Put articles, notes, meeting transcripts, saved mails (`.md`, `.txt`, `.html`, `.eml`, `.csv`, `.json`…) in the `da-leggere` folder, or **drag them onto the Memory window**. Then:
 1. the agent reads each file;
@@ -101,6 +108,19 @@ At the top, «View» picks the drawing; beside it the filters:
 **Claude Code** has a memory of its own: the notes it saves by itself while you work with it (how you want it to work, facts about projects). EasyIsland reads them, from every Claude Code account on this PC, and finds them with the memory search, the field at the top and the Map, under **Claude Code**. They are read only: Claude Code writes and fixes them. Each one carries its date and, if it says something different from EasyIsland's memory, EasyIsland's wins. A note EasyIsland already remembers doesn't show up twice: on the Map it becomes a link to that note. Those about the way you work, saved outside a project, also reach the start of every conversation. Turn them off with **Claude Code's memory** in Settings → Flows → Second brain.
 
 If you receive another PC's memory (**Memory shared between two PCs**, in Integrations), the top bar shows **This PC**, the other PC's name and **All**: pick which memory to see, or both together; in **All** the other PC's things carry its name. The other PC's copy is read only: new notes go into this PC's memory.
+
+### Overview
+![The memory overview](../media/memoria-panoramica.png)
+
+The window opens on the **Overview**: the whole memory on one screen, with the real data and every piece clickable.
+- At the top four numbers: pages, notes and sources with the links; the new things of the last 7 days; the files to read; the lone notes. A click shows them in the graph (the files to read open the folder).
+- On the left the **latest**: notes, pages, sources and chat days, newest on top; when the chat reads or writes the memory the line shows up at once.
+- In the middle the **nucleus**: every note and page is a point, coloured by group or kind; around it the groups' arcs (a click opens Bubbles on that group) and the freshness line. Below, how many things are to fix: lone notes, pages to write, checks.
+- Over the nucleus the **filters** (kinds, only sure links, colours), which apply to every view, and the week's numbers.
+- On the right the **stages**: to read, sources read, pages, linked, check, with **Read now**, **Link with AI** and **Check**. The first stage with work to do is highlighted.
+- Below, the **most linked pages** as chips, the memory's **log** writing line by line and three periods to compare (last month, 3 months, always): a click picks the period for every view.
+
+A click on a point, a line or a chip opens the Graph on that thing; **← Overview** brings you back. The other views all stay, in the menus beside it.
 
 ### Graph
 ![The memory graph](../media/memoria-grafo.png)

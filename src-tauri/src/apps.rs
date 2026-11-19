@@ -184,6 +184,23 @@ pub fn open_session(host: &str, path: Option<&str>) -> &'static str {
             }
             return if open_folder(path) { "folder" } else { "" };
         }
+        // Antigravity: Desktop's window, else the terminal agy runs in, else
+        // Desktop started (its sessions often have no folder: «Apri terminale»
+        // found nothing to open, 17 Nov 2026).
+        "antigravity" => {
+            if focus_app(&["antigravity.exe"]) || focus_app(&["windowsterminal.exe", "openconsole.exe", "conhost.exe"]) {
+                return "antigravity";
+            }
+            let desktop = std::env::var_os("LOCALAPPDATA")
+                .map(|l| PathBuf::from(l).join(r"Programs\antigravity\Antigravity.exe"))
+                .filter(|p| p.is_file());
+            if let Some(exe) = desktop {
+                if Command::new(exe).spawn().is_ok() {
+                    return "antigravity";
+                }
+            }
+            return if open_folder(path) { "folder" } else { "" };
+        }
         // Claude Code in Cursor's terminal: Cursor's window, or Cursor on the folder.
         "cursor" => {
             if focus_app(&["cursor.exe"]) {
@@ -232,5 +249,6 @@ mod tests {
         println!("Claude: {:?}", find_window(&["claude.exe"]));
         println!("VS Code launcher: {:?}", find_vscode());
         println!("Windows Terminal: {:?}", find_window(&["windowsterminal.exe"]));
+        println!("Antigravity Desktop: {:?}", find_window(&["antigravity.exe"]));
     }
 }

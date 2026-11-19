@@ -130,7 +130,7 @@ Use WebSearch and WebFetch when the question needs current or external informati
 Every step re-reads the whole conversation: call independent tools together in the same step, and use queries, titles and notes \
 of memory_search, memory_page and memory_note for several at once; load all the deferred tools you will need with one ToolSearch \
 (select:name1,name2,...). \
-Respond in Italian unless the user writes in another language. Be thorough and complete: use as much detail as the task requires. \
+Respond in Italian unless the user writes in another language, also after reading skills, files or pages in English. Be thorough and complete: use as much detail as the task requires. \
 Markdown is rendered: use lists, tables and code blocks when they help.";
 
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
@@ -157,7 +157,7 @@ Spend tokens where they matter: a sub-agent that only reads, searches, extracts 
 and ask for a compact report (facts, names, amounts, dates, differences; never copied text). \
 Prefer a few sub-agents with a large share each to many small ones, and do not read again what a sub-agent already reported. \
 While others are still running, answer a sub-agent's report with one short line at most. \
-Respond in Italian unless the user writes in another language. Be thorough and complete: \
+Respond in Italian unless the user writes in another language, also after reading skills, files or pages in English. Be thorough and complete: \
 use as much detail as the task requires. Markdown is rendered.";
 
 /// Where `claude` lives: %PATH% first (npm installs `claude.cmd`), then the
@@ -633,6 +633,17 @@ impl Progress {
             self.tasks_changed = true;
             return false;
         }
+        // A job that ended leaves the list even if the new list does not come
+        // (17 Nov 2026: «Wait for Windows setup…» stayed in «In background»).
+        if v.get("subtype").and_then(Value::as_str) == Some("task_notification") {
+            let ended = matches!(v.get("status").and_then(Value::as_str), Some("completed" | "failed" | "killed" | "stopped" | "error" | "cancelled"));
+            let id = v.get("task_id").and_then(Value::as_str).unwrap_or_default();
+            if ended && !id.is_empty() && self.tasks.iter().any(|t| t.id == id) {
+                self.tasks.retain(|t| t.id != id);
+                self.tasks_changed = true;
+            }
+            return false;
+        }
         // Claude Code reports how much it reasons, not the text: the island
         // shows its waiting phrases meanwhile.
         if v.get("subtype").and_then(Value::as_str) == Some("thinking_tokens") {
@@ -762,7 +773,8 @@ impl Progress {
                 continue;
             }
             let failed = block.get("is_error").and_then(Value::as_bool) == Some(true);
-            let piece = result_block(text, failed);
+            let explained = if failed { auto_denied(text) } else { None };
+            let piece = result_block(explained.as_deref().unwrap_or(text), failed);
             self.push_piece(&piece);
             changed = true;
         }
@@ -789,6 +801,21 @@ impl Progress {
         }
         changed
     }
+}
+
+/// A step refused by Claude Code's own classifier in «Automatica» (auto mode):
+/// told in the user's words, not Claude Code's English for the model (17 Nov
+/// 2026: «[Undermining Oversight]», «[Unauthorized Access]» in the chat).
+fn auto_denied(text: &str) -> Option<String> {
+    if !text.contains("denied by the Claude Code auto mode classifier") {
+        return None;
+    }
+    let reason = text.split("Reason: [").nth(1).and_then(|r| r.split(']').next()).unwrap_or("").trim();
+    let why = if reason.is_empty() { String::new() } else { format!(" ({reason})") };
+    Some(format!(
+        "{}{why}",
+        t("Claude Code non ha fatto questo passo da solo in «Automatica»: lo ha giudicato delicato. Chiedilo esplicitamente nella chat, o passa a «Manuale» per approvarlo tu.")
+    ))
 }
 
 /// A step's output as a fenced «esito» block, cut to its first lines.
@@ -1896,27 +1923,55 @@ fn parse_output(stdout: &str) -> Option<Outcome> {
     })
 }
 
+/// The totals of cost and model time last logged, per session: a kept process
+/// reports them since it started, the log wants this turn's.
+static LOGGED: std::sync::Mutex<Vec<(String, f64, f64)>> = std::sync::Mutex::new(Vec::new());
+
 /// The `result` line's numbers in the log: where the time and the tokens went.
+/// Once per result (17 Nov 2026: the same line twice, from `follow` and from
+/// the turn), and the cost and model time of this turn, not the process's
+/// totals (0,60 → 0,70 $ on one-step turns).
 fn log_usage(stdout: &str) {
     let Some(v) = stdout.lines().rev().map(str::trim).find(|l| l.starts_with('{')).and_then(|l| serde_json::from_str::<Value>(l).ok()) else { return };
-    if let Some(line) = usage_line(&v) {
+    let session = v.get("session_id").and_then(Value::as_str).unwrap_or_default().to_string();
+    let cost = v.get("total_cost_usd").and_then(Value::as_f64).unwrap_or(0.0);
+    let api = v.get("duration_api_ms").and_then(Value::as_f64).unwrap_or(0.0);
+    let prev = {
+        let mut all = LOGGED.lock().unwrap();
+        let prev = all.iter().find(|(s, _, _)| *s == session).map(|(_, c, a)| (*c, *a));
+        if !session.is_empty() && prev == Some((cost, api)) {
+            return;
+        }
+        all.retain(|(s, _, _)| *s != session);
+        if !session.is_empty() {
+            all.push((session, cost, api));
+            if all.len() > 50 {
+                all.remove(0);
+            }
+        }
+        prev
+    };
+    if let Some(line) = usage_line(&v, prev.unwrap_or((0.0, 0.0))) {
         crate::log::line(line);
     }
 }
 
-fn usage_line(v: &Value) -> Option<String> {
+/// `before`: the cost and model time this process had already reported
+/// (a fresh process or lower totals: none).
+fn usage_line(v: &Value, before: (f64, f64)) -> Option<String> {
     let u = v.get("usage")?;
+    let since = |now: f64, then: f64| if now >= then { now - then } else { now };
     let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
     Some(format!(
         "claude: {} passi, {:.1} s (modello {:.1} s), token: {} nuovi, {} in cache, {} scritti in cache, {} in uscita, {:.3} $",
         v.get("num_turns").and_then(Value::as_u64).unwrap_or(0),
         v.get("duration_ms").and_then(Value::as_f64).unwrap_or(0.0) / 1000.0,
-        v.get("duration_api_ms").and_then(Value::as_f64).unwrap_or(0.0) / 1000.0,
+        since(v.get("duration_api_ms").and_then(Value::as_f64).unwrap_or(0.0), before.1) / 1000.0,
         n("input_tokens"),
         n("cache_read_input_tokens"),
         n("cache_creation_input_tokens"),
         n("output_tokens"),
-        v.get("total_cost_usd").and_then(Value::as_f64).unwrap_or(0.0),
+        since(v.get("total_cost_usd").and_then(Value::as_f64).unwrap_or(0.0), before.0),
     ))
 }
 
@@ -2031,6 +2086,9 @@ async fn send_mode(
         }
     }
     prompt.push_str(&query);
+    // The language at every message, not only in the system prompt: after a skill
+    // or a page in English the answers went on in English (17 Nov 2026).
+    prompt.push_str(&format!("\n\n{}", t("[Rispondi nella lingua in cui scrivo, anche dopo skill, file o pagine in un'altra lingua.]")));
 
     let locked = chat.read_only();
     let make = |resume: Option<&str>| {
@@ -2391,6 +2449,9 @@ mod tests {
         assert!(p.done().contains("```esito\nok 12 test\n```"), "{}", p.done());
         p.feed(r#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","is_error":true,"content":[{"type":"text","text":"non trovato"}]}]}}"#);
         assert!(p.done().contains("```errore\nnon trovato\n```"));
+        let denied = super::auto_denied("Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Unauthorized Access]. If you have other tasks").unwrap();
+        assert!(denied.contains("Automatica") && denied.ends_with("(Unauthorized Access)"));
+        assert!(super::auto_denied("File not found").is_none());
         // A long output is cut, a fence inside does not close the block.
         let long: String = (0..50).map(|i| format!("riga {i}\n")).collect::<String>() + "```";
         let block = super::result_block(&long, false);
@@ -2512,6 +2573,11 @@ mod tests {
         p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[{"task_id":"b1","task_type":"local_bash"}]}"#);
         assert_eq!(p.tasks, vec![crate::claude::BgTask { id: "b1".into(), kind: "local_bash".into(), description: String::new() }]);
         p.feed(r#"{"type":"system","subtype":"task_notification","task_id":"b1","status":"completed"}"#);
+        // Ended: out of the list at once, without waiting for the next list.
+        assert!(p.tasks.is_empty() && p.tasks_changed);
+        p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[{"task_id":"b2","task_type":"local_bash"}]}"#);
+        p.feed(r#"{"type":"system","subtype":"task_notification","task_id":"b2","status":"running"}"#);
+        assert_eq!(p.tasks.len(), 1);
         assert_eq!(super::thousands(12345), "12.345");
         p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[]}"#);
         assert!(p.tasks.is_empty());
@@ -2697,8 +2763,10 @@ mod tests {
     fn usage_in_the_log() {
         let v = serde_json::json!({ "type": "result", "num_turns": 3, "duration_ms": 28700, "duration_api_ms": 21000, "total_cost_usd": 0.0412,
             "usage": { "input_tokens": 6, "cache_read_input_tokens": 26285, "cache_creation_input_tokens": 590, "output_tokens": 113 } });
-        assert_eq!(super::usage_line(&v).unwrap(), "claude: 3 passi, 28.7 s (modello 21.0 s), token: 6 nuovi, 26285 in cache, 590 scritti in cache, 113 in uscita, 0.041 $");
-        assert!(super::usage_line(&serde_json::json!({ "type": "result" })).is_none());
+        assert_eq!(super::usage_line(&v, (0.0, 0.0)).unwrap(), "claude: 3 passi, 28.7 s (modello 21.0 s), token: 6 nuovi, 26285 in cache, 590 scritti in cache, 113 in uscita, 0.041 $");
+        // A kept process: this turn's cost and model time, not the totals.
+        assert_eq!(super::usage_line(&v, (0.0312, 20000.0)).unwrap(), "claude: 3 passi, 28.7 s (modello 1.0 s), token: 6 nuovi, 26285 in cache, 590 scritti in cache, 113 in uscita, 0.010 $");
+        assert!(super::usage_line(&serde_json::json!({ "type": "result" }), (0.0, 0.0)).is_none());
     }
 
     #[test]

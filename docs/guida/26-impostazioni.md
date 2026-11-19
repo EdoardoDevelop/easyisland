@@ -4,6 +4,8 @@
 
 Le Impostazioni si aprono dall'icona nell'area di notifica, da `easyisland.exe --settings`, o chiedendo alla chat di cambiarne una. Restano sopra l'isola mentre le usi. Le sezioni con l'etichetta viola si salvano nel **profilo** attivo; le altre valgono per il PC. In fondo al menu: **Guida**, **Sito**, **GitHub**.
 
+**Cercare un'impostazione:** il campo in cima al menu (anche **Ctrl+F**) cerca in tutte le pagine e schede, per nome, descrizione e scelte. Scrivi qualche parola («davanti al cliente», «tema scuro», «telegram token»): un clic o **Invio** apre la pagina giusta e il controllo si illumina; le frecce scelgono, **Esc** torna alla pagina. Lo stesso dal campo in alto dell'isola: scrivendo il nome di un'impostazione compare la riga **Impostazioni**, che apre direttamente quel controllo.
+
 | Pagina | Cosa contiene |
 |---|---|
 | **Generale** | Lingua, avvio con Windows, profili e cambio automatico, aggiornamenti (versione, Controlla ora, controllo giornaliero), pausa |

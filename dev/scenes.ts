@@ -7,9 +7,10 @@
 import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
+import { openClientCard } from "../src/views/clientcard";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
-import { Bridge } from "../src/core/bridge";
+import { Bridge, type ClientCard } from "../src/core/bridge";
 import { demoGraph } from "../src/memory/demo";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -17,9 +18,100 @@ import { Recap } from "../src/island/recap";
 import { Daily } from "../src/island/daily";
 import { handleMoment } from "../src/island/moments";
 import { setHistoryDemo } from "../src/views/chat";
+import * as Notices from "../src/notices/notices";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+
+const CLIENT_SECTIONS = ["Contatti", "Rete", "Server e VM", "Accessi", "Procedure", "Note"];
+
+function mockClients() {
+  const store = new Map<string, ClientCard>([
+    ["farmacia falchi", {
+      title: "Farmacia Falchi",
+      summary: "Farmacia in centro · firewall FortiGate 60F · 4 VM Proxmox",
+      aliases: ["FARMACIA FALCHI", "Falchi S.r.l."],
+      client: true,
+      intro: "Farmacia aperta lun–sab 08:30–19:30, referente IT Anna Bianchi.",
+      sections: [
+        { name: "Contatti", text: "- Anna Bianchi · anna.bianchi@falchi.example.it · +39 02 9845 1120\n- Banco Farmacia · 051 445566" },
+        { name: "Rete", text: "- LAN 192.168.10.0/24 · Gateway 192.168.10.1\n- Firewall [[FortiGate 60F]] · Fibra TIM statica 203.0.113.57\n- VPN SSL + L2TP su porta 443" },
+        { name: "Server e VM", text: "- Host [[Proxmox Falchi]] (192.168.10.4): FALCHI-DC (4 GB), WINFARM (20 GB), POLLER (2 GB), PBS (2 GB)" },
+        { name: "Accessi", text: "- Cartella RDM: Easytech\\FARMACIA FALCHI\n- Console firewall via VPN aziendale" },
+        { name: "Procedure", text: "- Backup PBS notturno alle 23:00\n- Riavvio stampante etichette [[Zebra WinFarm]]" },
+        { name: "Note", text: "" },
+      ],
+      links: ["FortiGate 60F", "Proxmox Falchi"],
+      cited_by: ["WinFarm"],
+      updated: "2026-11-18",
+    }],
+    ["rossi srl", {
+      title: "Rossi Srl",
+      summary: "Cliente storica di meccanica · vecchia pagina senza sezioni fisse",
+      aliases: ["Studio Rossi", "Mario Rossi"],
+      client: false,
+      intro: "Azienda metalmeccanica in zona industriale, server gestionale e NAS Synology per i backup.",
+      sections: [
+        { name: "Rete", text: "- LAN 192.168.20.0/24 · Synology 192.168.20.20" },
+        { name: "Note", text: "- 2026-10-04 sostituito switch principale" },
+      ],
+      links: [],
+      cited_by: [],
+      updated: "2026-10-04",
+    }],
+  ]);
+  const forms = new Set(["srl", "srls", "spa", "sas", "snc", "sa", "di", "e", "studio", "ditta"]);
+  const norm = (s: string) => s.toLowerCase().replace(/\./g, "").split(/[^a-z0-9]+/).filter((w) => w && !forms.has(w));
+  const find = (name: string): ClientCard | null => {
+    const q = norm(name);
+    if (!q.length) return null;
+    for (const c of store.values()) {
+      const names = [c.title, ...c.aliases].map(norm);
+      if (names.some((n) => n.length === q.length && n.every((w, i) => w === q[i]))) return c;
+      if (names.some((n) => q.every((w) => n.includes(w)))) return c;
+    }
+    return null;
+  };
+  return {
+    clientCard: async (name: string) => find(name),
+    clientList: async () => [...store.values()].filter((c) => c.client).map((c) => c.title),
+    clientPageMake: async (name: string, extra: { aliases?: string[]; contacts?: string[]; access?: string[] } = {}) => {
+      const existing = find(name);
+      const card: ClientCard = existing
+        ? { ...existing, client: true, sections: existing.sections.map((s) => ({ ...s })), aliases: [...existing.aliases] }
+        : {
+          title: name.trim(),
+          summary: "",
+          aliases: [],
+          client: true,
+          intro: "",
+          sections: CLIENT_SECTIONS.map((s) => ({ name: s, text: "" })),
+          links: [],
+          cited_by: [],
+          updated: new Date().toISOString().slice(0, 10),
+        };
+      for (const s of CLIENT_SECTIONS) {
+        if (!card.sections.some((x) => x.name.toLowerCase() === s.toLowerCase())) {
+          card.sections.push({ name: s, text: "" });
+        }
+      }
+      const addLines = (secName: string, lines: string[] = []) => {
+        const sec = card.sections.find((x) => x.name.toLowerCase() === secName.toLowerCase());
+        if (!sec) return;
+        for (const l of lines.map((x) => x.trim().replace(/^-\s*/, "")).filter(Boolean)) {
+          if (!sec.text.toLowerCase().includes(l.toLowerCase())) {
+            sec.text = sec.text ? `${sec.text}\n- ${l}` : `- ${l}`;
+          }
+        }
+      };
+      addLines("Contatti", extra.contacts);
+      addLines("Accessi", extra.access);
+      card.updated = new Date().toISOString().slice(0, 10);
+      store.set(card.title.toLowerCase(), card);
+      return card;
+    },
+  };
+}
 
 /** A Claude Code session at work in the Claude desktop app. */
 function session(state: "working" | "approval", steps: string[]) {
@@ -280,17 +372,35 @@ export async function runScene(island: Island, scene: string) {
           { id: 2, role: "assistant", content: "È il file delle impostazioni di **Windows Terminal**." },
         ];
       }
+      // ?percorsi: relative paths in a reply (17 Nov 2026), found as chatpaths.rs does
+      // (the folder above the chat's «…\WORK»); a missing bare one stays plain text.
+      if (new URLSearchParams(location.search).has("percorsi")) {
+        const found = "C:\\Users\\Edoardo\\OneDrive - Easytech SRL\\WORK\\Cardinalini\\FreePBX\\export-freepbx211-3cx.sh";
+        Object.assign(Bridge, {
+          pathsInfo: async (paths: string[]) => paths.map((path) => /export-freepbx211-3cx\.sh$/.test(path.replace(/[.:]+$/, ""))
+            ? { path, resolved: found, kind: "file", line: null }
+            : { path, resolved: path, kind: "missing", line: null }),
+        });
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Mi prepari lo script per esportare la rubrica da FreePBX?" },
+          { id: 2, role: "assistant", content: "Fatto. Lo script è in `WORK\\Cardinalini\\FreePBX\\export-freepbx211-3cx.sh`.\n\nL'ho salvato anche come WORK\\Cardinalini\\FreePBX\\export-freepbx211-3cx.sh. Il vecchio WORK\\Cardinalini\\vecchio\\export.sh non c'è più.", engine: "subscription" },
+        ];
+      }
       // ?background: work Claude Code left running (claude_cli.rs follow), listed under the conversation.
       if (new URLSearchParams(location.search).has("background")) {
         State.chatHistory = [
           { id: 1, role: "user", content: "Analizza tutte le offerte in C:\\Users\\Edoardo\\OneDrive\\WORK\\Offerte PDF e aggiorna i clienti in memoria." },
           { id: 2, role: "assistant", content: "> ⚙ Legge · `Offerte PDF`\n\n> ⚙ Sotto-agente · `Riassumi offerte gruppo 1`\n\n> ⚙ Sotto-agente · `Riassumi offerte gruppo 2`\n\nSono 62 offerte: le leggono due agenti in parallelo. Quando finiscono aggiorno la pagina «Clienti Easytech» e ti scrivo qui." },
         ];
-        State.chat.background = [
-          { id: "a538bd76", kind: "local_agent", description: "Riassumi offerte gruppo 1" },
-          { id: "a9cb7fb4", kind: "local_agent", description: "Riassumi offerte gruppo 2" },
-          { id: "be7uhb2w", kind: "local_bash", description: "Estrae il testo dei PDF in una cartella temporanea" },
-        ];
+        // background=1: one long command, as on 17 Nov 2026 (it went under the engine's row); &coda: a message waiting too.
+        State.chat.background = new URLSearchParams(location.search).get("background") === "1"
+          ? [{ id: "bq1x9z", kind: "local_bash", description: "Wait for Windows setup to finish and verify VM is reachable over RDP and WinRM before continuing" }]
+          : [
+            { id: "a538bd76", kind: "local_agent", description: "Riassumi offerte gruppo 1" },
+            { id: "a9cb7fb4", kind: "local_agent", description: "Riassumi offerte gruppo 2" },
+            { id: "be7uhb2w", kind: "local_bash", description: "Estrae il testo dei PDF in una cartella temporanea" },
+          ];
+        if (new URLSearchParams(location.search).has("coda")) State.chat.queue = ["Quando hai finito controlla anche il backup"];
       }
       // ?history: the sidebar with earlier conversations; three of them open:
       // the one on screen, one answering in the background, one answered while away.
@@ -586,6 +696,7 @@ export async function runScene(island: Island, scene: string) {
           ]),
         ],
         threecxContacts: async () => [{ name: "Cliente Srl", company: "Cliente Srl", numbers: ["0511234567"], colleague: false }],
+        ...mockClients(),
       });
       State.setFocus("integration_3cx");
       (window as unknown as { island: Island }).island = island;
@@ -824,20 +935,21 @@ export async function runScene(island: Island, scene: string) {
     }
     case "rdm": {
       // ?activeIntegrations=integration_rdm — the card with made-up connections (Bridge mocked);
-      // &q=rossi: a search; &nolist: no PowerShell module (the search opens in RDM).
+      // &q=rossi: a search; &nolist: no PowerShell module; &cloud / &tied; &many: long multi-vault list.
       const q = new URLSearchParams(location.search);
       const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
       const list = [
-        { id: id(1), name: "NAS Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.10", kind: "RDPConfigured" },
-        { id: id(2), name: "Server Rossi", group: "Clienti\\Rossi Srl", host: "srv01.rossi.local", kind: "RDPConfigured" },
-        { id: id(3), name: "Firewall Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.1", kind: "WebBrowser" },
-        { id: id(4), name: "Router Bianchi", group: "Clienti\\Bianchi", host: "10.0.0.1", kind: "SSHShell" },
-        { id: id(5), name: "Gestionale", group: "Interni", host: "gest.local", kind: "RDPConfigured" },
+        { id: id(1), name: "NAS Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.10", kind: "RDPConfigured", user: "ROSSI\\admin" },
+        { id: id(2), name: "Server Rossi", group: "Clienti\\Rossi Srl", host: "srv01.rossi.local", kind: "RDPConfigured", user: "Administrator" },
+        { id: id(3), name: "Firewall Rossi", group: "Clienti\\Rossi Srl", host: "https://192.168.1.1:8443", kind: "WebBrowser", user: "admin" },
+        { id: id(4), name: "Router Bianchi", group: "Clienti\\Bianchi", host: "10.0.0.1", kind: "SSHShell", user: "root" },
+        { id: id(5), name: "Gestionale", group: "Interni", host: "gest.local", kind: "RDPConfigured", user: "edoardo" },
       ];
       const nolist = q.has("nolist");
       Object.assign(Bridge, {
-        rdmSearch: async (text: string) => nolist ? [] : list.filter((e) => text.toLowerCase().split(/\s+/).every((w) => `${e.name} ${e.group} ${e.host}`.toLowerCase().includes(w))),
+        rdmSearch: async (text: string) => nolist ? [] : list.filter((e) => text.toLowerCase().split(/\s+/).every((w) => `${e.name} ${e.group} ${e.host} ${e.user}`.toLowerCase().includes(w))),
         rdmOpen: async () => { await wait(200); },
+        rdmRecentAdd: async () => {},
         rdmEdit: async () => {},
         rdmFilter: async () => {},
         rdmQuick: async () => {},
@@ -846,25 +958,47 @@ export async function runScene(island: Island, scene: string) {
       State.settings.integrationConfig.rdmRecent = nolist ? [] : [list[1], list[3]];
       // &cloud: Devolutions Cloud with a made-up vault (dvc.ts); &tied: «Farmacia Falchi» tied to its folder.
       const cloud = q.has("cloud") || q.has("tied");
+      const many = q.has("many");
       if (cloud) {
         const V = "11111111-1111-4111-8111-111111111111";
-        const item = (n: number, name: string, kind: string, folder: string, extra: Partial<{ host: string; user: string; cred: string; path: string }> = {}) =>
-          ({ id: id(100 + n), name, kind, folder, path: extra.path ?? "", host: extra.host ?? "", user: extra.user ?? "", cred: extra.cred ?? "", vault: V });
+        const V2 = "22222222-2222-4222-8222-222222222222";
+        const vaults = many ? [{ id: V, name: "Edoardo" }, { id: V2, name: "Clienti condivisi" }] : [{ id: V, name: "Edoardo" }];
+        const item = (n: number, name: string, kind: string, folder: string, extra: Partial<{ host: string; user: string; cred: string; path: string; vault: string }> = {}) =>
+          ({ id: id(100 + n), name, kind, folder, path: extra.path ?? "", host: extra.host ?? "", user: extra.user ?? "", cred: extra.cred ?? "", vault: extra.vault ?? V });
         const items = [
           item(1, "Easytech", "Group", "", { path: "Easytech" }),
           item(2, "FARMACIA FALCHI", "Group", "Easytech", { path: "Easytech\\FARMACIA FALCHI" }),
           item(3, "COMUNALE 1", "Group", "Easytech\\FARMACIA FALCHI", { path: "Easytech\\FARMACIA FALCHI\\COMUNALE 1" }),
-          item(4, "Server farmacia", "RDPConfigured", "Easytech\\FARMACIA FALCHI", { host: "192.168.10.5" }),
+          item(4, "Server farmacia", "RDPConfigured", "Easytech\\FARMACIA FALCHI", { host: "192.168.10.5", user: "FALCHI\\Administrator" }),
           item(5, "Amministratore dominio", "Credential", "Easytech\\FARMACIA FALCHI", { user: "FALCHI\\admin", cred: "Default" }),
-          item(6, "Firewall", "Credential", "Easytech\\FARMACIA FALCHI", { user: "admin", cred: "Default" }),
+          item(6, "Firewall", "WebBrowser", "Easytech\\FARMACIA FALCHI", { host: "https://fw.falchi.local:4444", user: "admin" }),
           item(7, "Lista Password", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { cred: "PasswordList" }),
-          item(8, "NAS", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { user: "admin", cred: "Default" }),
+          item(8, "NAS", "Credential", "Easytech\\FARMACIA FALCHI\\COMUNALE 1", { host: "192.168.10.20", user: "admin", cred: "Default" }),
           item(9, "ROSSI SRL", "Group", "Easytech", { path: "Easytech\\ROSSI SRL" }),
+          item(10, "VPN WireGuard", "VPN", "Easytech\\FARMACIA FALCHI", { host: "vpn.falchi.it:51820", user: "tecnico" }),
         ];
+        if (many) {
+          const clients = ["STUDIO BIANCHI", "OFFICINA VERDI", "HOTEL MIRAMARE", "CLINICA SAN MARCO", "LOGISTICA NORD", "BAR CENTRALE", "IMPRESA EDIL"];
+          let seq = 20;
+          for (const c of clients) {
+            const fp = `Easytech\\${c}`;
+            const slug = c.toLowerCase().replace(/\s+/g, "");
+            items.push(item(seq++, c, "Group", "Easytech", { path: fp }));
+            items.push(item(seq++, `Server ${c.split(" ")[1] ?? c}`, "RDPConfigured", fp, { host: `srv01.${slug}.local`, user: `${slug}\\admin` }));
+            items.push(item(seq++, `Firewall ${c.split(" ")[1] ?? c}`, "SSHShell", fp, { host: `10.10.${seq % 200}.1`, user: "root" }));
+            items.push(item(seq++, `Pannello Web`, "WebBrowser", fp, { host: `https://gw.${slug}.it`, user: "admin" }));
+            items.push(item(seq++, `Credenziali Amministratore`, "Credential", fp, { user: `admin@${slug}.it`, cred: "Default" }));
+          }
+          items.push(item(seq++, "Interni", "Group", "", { path: "Interni", vault: V2 }));
+          items.push(item(seq++, "Proxmox Sede", "WebBrowser", "Interni", { host: "https://pve.easytech.local:8006", user: "root@pam", vault: V2 }));
+          items.push(item(seq++, "Backup NAS", "SFTP", "Interni", { host: "10.0.50.10", user: "backup", vault: V2 }));
+        }
         const browse = (vault: string, path: string) => {
+          const v = vaults.some((x) => x.id === vault) ? vault : V;
           const p = path.replace(/\\$/, "");
           const folders = new Map<string, { name: string; path: string; count: number }>();
           for (const e of items) {
+            if (e.vault !== v) continue;
             const at = e.kind === "Group" ? e.path : e.folder;
             const rest = p ? (at.toLowerCase().startsWith(p.toLowerCase() + "\\") ? at.slice(p.length + 1) : "") : at;
             const name = rest.split("\\")[0];
@@ -873,18 +1007,31 @@ export async function runScene(island: Island, scene: string) {
             if (e.kind !== "Group") f.count++;
             folders.set(name, f);
           }
-          return { vault: vault || V, path: p, vaults: [{ id: V, name: "Edoardo" }], folders: [...folders.values()],
-            entries: items.filter((e) => e.kind !== "Group" && e.folder.toLowerCase() === p.toLowerCase()) };
+          return {
+            vault: v,
+            path: p,
+            vaults,
+            folders: [...folders.values()],
+            entries: items.filter((e) => e.vault === v && e.kind !== "Group" && e.folder.toLowerCase() === p.toLowerCase()),
+          };
         };
         Object.assign(Bridge, {
+          dvcWarm: async () => {},
           dvcBrowse: async (vault: string, path: string) => browse(vault, path),
+          dvcSearch: async (query: string, limit = 50) => {
+            const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return [];
+            return items
+              .filter((e) => words.every((w) => `${e.name} ${e.folder} ${e.host} ${e.user}`.toLowerCase().includes(w)))
+              .slice(0, limit);
+          },
           dvcDetails: async (_v: string, eid: string) => {
             await wait(200);
             const e = items.find((x) => x.id === eid);
             return e?.cred === "PasswordList"
               ? { name: e.name, kind: "Credential", cred: "PasswordList", folder: e.folder, host: "", user: "", domain: "", length: 0, description: "",
-                rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 10, description: "" }] }
-              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
+                rows: [{ name: "Router", host: "192.168.1.1", user: "admin", domain: "", length: 14, description: "" }, { name: "Stampante", host: "192.168.1.30", user: "admin", domain: "", length: 0, description: "" }] }
+              : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", url: e?.kind === "WebBrowser" ? e.host : "", user: e?.user ?? "", domain: "", length: e?.kind === "WebBrowser" || e?.kind === "VPN" ? 0 : 16, description: "Accesso amministrativo", rows: [] };
           },
           dvcCopyPassword: async () => { await wait(200); return 30; },
           dvcReveal: async () => { await wait(200); return "Fa1ch1!2026"; },
@@ -903,9 +1050,22 @@ export async function runScene(island: Island, scene: string) {
           },
         });
         if (q.has("tied")) State.settings.integrationConfig.rdmFolders = { "farmacia falchi": { vault: V, path: "Easytech\\FARMACIA FALCHI" } };
+        if (many) {
+          const toRef = (x: ReturnType<typeof item>) => ({ id: x.id, name: x.name, group: x.folder, host: x.host, kind: x.kind, vault: x.vault, user: x.user, cred: x.cred });
+          State.settings.integrationConfig.rdmPins = [toRef(items[3]), toRef(items[4])];
+          State.settings.integrationConfig.rdmRecent = [toRef(items[5]), toRef(items[9])];
+        }
       }
+      Object.assign(Bridge, {
+        ...mockClients(),
+        zammadSearch: async () => [
+          { title: "#31012 VPN non si collega dallo smart working — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/12" },
+          { title: "#31008 Certificato backup PBS in scadenza — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/8" },
+        ],
+      });
       await wait(300);
-      const cloudData = cloud ? { cloud: { on: true, count: 6, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
+      const cloudCount = many ? 38 : 6;
+      const cloudData = cloud ? { cloud: { on: true, count: cloudCount, vaults: [{ id: "v", name: "Edoardo" }], at: Math.floor(Date.now() / 1000) - 300, error: null } } : {};
       State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true, ...cloudData } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true, ...cloudData }, error: null, loaded: true, configured: true };
       State.setFocus("integration_rdm");
       island.alert("overview");
@@ -946,18 +1106,56 @@ export async function runScene(island: Island, scene: string) {
       };
       const detail = {
         id: 12, number: "31012", title: "VPN non si collega dallo smart working", url: "https://help.example.it/#ticket/zoom/12",
-        customer: "Anna Bianchi", org: "Farmacia Falchi", group: "Assistenza", state_id: 2, priority_id: 3, owner_id: 4,
+        customer: "Anna Bianchi", customer_email: "anna.bianchi@falchi.example.it", customer_phone: "+39 02 9845 1120",
+        org: "Farmacia Falchi", group: "Assistenza", tags: ["VPN", "L2TP", "Urgente"],
+        state_id: 2, priority_id: 3, owner_id: 4,
         created: ago(60 * 5), updated: ago(12), pending: "", states, priorities, owners, me: 4, reply_to: "anna.bianchi@falchi.example.it",
         articles: [
-          { id: 1, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(60 * 5), subject: "VPN",
-            text: "Buongiorno,\nda stamattina il client VPN dal portatile di casa resta su «Connessione in corso» e poi va in errore 809.\nIeri funzionava. Potete controllare?\n\nGrazie,\nAnna", files: ["errore-vpn.png"] },
-          { id: 2, from: "Edoardo", to: "", sender: "Agent", kind: "note", internal: true, at: ago(60 * 4), subject: "",
-            text: "Il firewall è stato aggiornato ieri sera: probabilmente la regola L2TP è sparita. Controllo.", files: [] },
-          { id: 3, from: "Edoardo <assistenza@example.it>", to: "anna.bianchi@falchi.example.it", sender: "Agent", kind: "email", internal: false, at: ago(60 * 3), subject: "VPN",
-            text: "Buongiorno Anna,\nstiamo verificando la configurazione del firewall. Le scrivo appena ho novità.", files: [] },
-          { id: 4, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", sender: "Customer", kind: "email", internal: false, at: ago(12), subject: "Re: VPN",
-            text: "Grazie! Mi serve entro le 15 per la riunione.", files: [] },
+          { id: 1, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", cc: "direzione@falchi.example.it",
+            sender: "Customer", kind: "email", internal: false, at: ago(60 * 5), subject: "VPN",
+            text: "Buongiorno,\nda stamattina il client VPN dal portatile di casa resta su «Connessione in corso» e poi va in errore 809.\n[[img:101]]\nIeri funzionava. Allego anche i log della diagnostica.\n\nGrazie,\nAnna",
+            attachments: [
+              { id: 101, name: "errore-vpn-809.png", size: 48200, mime: "image/png", inline: true },
+              { id: 102, name: "log-connessione.txt", size: 14680, mime: "text/plain", inline: false },
+              { id: 103, name: "diagnostica-rete.pdf", size: 245760, mime: "application/pdf", inline: false },
+            ],
+            files: ["log-connessione.txt", "diagnostica-rete.pdf"] },
+          { id: 2, from: "Edoardo", to: "", cc: "", sender: "Agent", kind: "note", internal: true, at: ago(60 * 4), subject: "",
+            text: "Il firewall è stato aggiornato ieri sera: probabilmente la regola L2TP è sparita. Controllo su RDM.", attachments: [], files: [] },
+          { id: 3, from: "Edoardo <assistenza@example.it>", to: "anna.bianchi@falchi.example.it", cc: "", sender: "Agent", kind: "email", internal: false, at: ago(60 * 3), subject: "VPN",
+            text: "Buongiorno Anna,\nstiamo verificando la configurazione del firewall. Le scrivo appena ho novità.", attachments: [], files: [] },
+          { id: 4, from: "Anna Bianchi <anna.bianchi@falchi.example.it>", to: "assistenza@example.it", cc: "", sender: "Customer", kind: "email", internal: false, at: ago(12), subject: "Re: VPN",
+            text: "Grazie! Mi serve entro le 15 per la riunione.\n[immagine]", attachments: [], files: [] },
         ],
+      };
+      // Tiny real PNG generated via canvas in browser preview (pure client-side, zero network).
+      const mockInlinePng = () => {
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = 320;
+          cv.height = 112;
+          const ctx = cv.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#161a24";
+            ctx.fillRect(0, 0, 320, 112);
+            ctx.fillStyle = "#232938";
+            ctx.fillRect(0, 0, 320, 26);
+            ctx.fillStyle = "#f4505e";
+            ctx.beginPath(); ctx.arc(14, 13, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#e5e7eb";
+            ctx.font = "600 11px Segoe UI, sans-serif";
+            ctx.fillText("Connessione VPN — Errore 809", 28, 17);
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "11px Consolas, monospace";
+            ctx.fillText("Impossibile stabilire la connessione al server.", 14, 52);
+            ctx.fillStyle = "#f59e0b";
+            ctx.fillText("Porta UDP 500/4500 non raggiungibile", 14, 72);
+            ctx.fillStyle = "#64748b";
+            ctx.fillText("Gateway: vpn.falchi.it", 14, 92);
+            return cv.toDataURL("image/png");
+          }
+        } catch {}
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAEklEQVR42mP8z8AARAwMjIwwBgAE/gH+w9z/swAAAABJRU5ErkJggg==";
       };
       Object.assign(Bridge, {
         zammadTickets: async (view: string | null) => {
@@ -974,14 +1172,27 @@ export async function runScene(island: Island, scene: string) {
         },
         zammadTicket: async () => { await wait(150); return { ...detail }; },
         zammadSet: async (_id: number, field: "state_id" | "owner_id" | "priority_id", value: number) => {
-          await wait(300);
+          await wait(250);
           Object.assign(detail, { [field]: value });
           return { ...detail };
         },
+        zammadSave: async (_id: number, changes: { state_id?: number | null; owner_id?: number | null; priority_id?: number | null; pending?: string | null }) => {
+          await wait(280);
+          if (changes.state_id != null) detail.state_id = changes.state_id;
+          if (changes.owner_id != null) detail.owner_id = changes.owner_id;
+          if (changes.priority_id != null) detail.priority_id = changes.priority_id;
+          if (changes.pending != null) detail.pending = changes.pending;
+          return { ...detail };
+        },
+        zammadImage: async () => { await wait(120); return mockInlinePng(); },
+        zammadAttachmentSave: async (_t: number, _a: number, _id: number, name: string) => {
+          await wait(180);
+          return `C:\\Users\\Edoardo\\Downloads\\${name}`;
+        },
         zammadReply: async (_id: number, text: string, email: boolean) => {
-          await wait(300);
-          detail.articles.push({ id: detail.articles.length + 1, from: "Edoardo", to: email ? detail.reply_to : "", sender: "Agent", kind: email ? "email" : "note",
-            internal: !email, at: new Date().toISOString(), subject: "", text, files: [] });
+          await wait(250);
+          detail.articles.push({ id: detail.articles.length + 1, from: "Edoardo", to: email ? detail.reply_to : "", cc: "", sender: "Agent", kind: email ? "email" : "note",
+            internal: !email, at: new Date().toISOString(), subject: "", text, attachments: [], files: [] });
           return { ...detail, articles: [...detail.articles] };
         },
         widgetRefresh: async () => {},
@@ -1000,6 +1211,11 @@ export async function runScene(island: Island, scene: string) {
             text: ["Situazione", "La stampante non stampa da WinFarm.", "", "Cosa fare", "1. Chiedere se stampa la pagina di prova.", "2. Controllare la coda di stampa."].join("\n") }],
         } : null,
         ticketAdviceRefresh: async () => true,
+        zammadSearch: async () => [
+          { title: "#31012 VPN non si collega dallo smart working — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/12" },
+          { title: "#31008 Backup PBS notturno completato con avviso — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/8" },
+        ],
+        ...mockClients(),
       });
       State.widgetStatus.integration_zammad = {
         id: "integration_zammad", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
@@ -1459,14 +1675,47 @@ export async function runScene(island: Island, scene: string) {
         const before = Bridge.customFetch;
         Bridge.customFetch = async (id: string, source: string) => (id === "ttspeak" ? { status: 200, ok: true, data } : before(id, source));
       }
+      // &controlli: the graphic controls (17 Nov 2026), a slider and a switch with an
+      // http action (&errore: the service says no, the value goes back), segmented, a bar, a number.
+      if (new URLSearchParams(location.search).has("controlli")) {
+        State.customs.push({
+          id: "sala", name: "Sala riunioni", icon: "🎛️", color: "#38BDF8", description: "Luci, audio e stato della sala", enabled: true,
+          fields: [
+            field({ id: "luci", label: "Luci accese", kind: "switch", default: "true", onChange: "Applica" }),
+            field({ id: "volume", label: "Volume", kind: "slider", min: 0, max: 100, step: 5, unit: "%", default: "40", onChange: "Applica" }),
+            field({ id: "velocita", label: "Velocità voce", kind: "slider", min: 0.5, max: 2, step: 0.05, unit: "x", default: "1.05" }),
+            field({ id: "modo", label: "Modo", kind: "segmented", options: ["Auto", "Presentazione", "Video", "Spento"], default: "Auto", onChange: "Applica" }),
+            field({ id: "usato", label: "Disco usato (GB)", kind: "number", default: "412" }),
+            field({ id: "disco", label: "Disco", kind: "progress", formula: "usato/500*100", unit: "%", warn: 80, bad: 95 }),
+            field({ id: "libero", label: "Spazio libero", kind: "stat", formula: "500-usato", unit: "GB", warn: 100, bad: 50 }),
+          ],
+          template: "", actions: [{ label: "Applica", kind: "http", method: "POST", url: "https://sala.example.com/api", body: "{\"luci\": {{luci}}, \"volume\": {{volume}}, \"modo\": \"{{modo}}\"}" }],
+        } as unknown as (typeof State.customs)[number]);
+        const fails = new URLSearchParams(location.search).has("errore");
+        Bridge.customHttp = async () => (fails ? { status: 503, ok: false, data: "servizio non raggiungibile" } : { status: 200, ok: true, data: { ok: true } });
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
       const q = new URLSearchParams(location.search);
-      State.setFocus(q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
+      State.setFocus(q.has("controlli") ? "custom:sala" : q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);
+      break;
+    }
+    case "avvisi": {
+      // The notices' window (notices.ts, 17 Nov 2026): the island open on the
+      // overview stays there; the toasts come aside (in the preview, in a corner).
+      State.settings.noticesPlace = "isola";
+      State.isPinned = true;
+      island.alert("overview");
+      await wait(600);
+      island.showUpdate("1.0.52", "1.0.51");
+      handleMoment({ alert: (v: Parameters<typeof island.alert>[0]) => island.alert(v), collapse: () => {}, holdOpen: () => {}, toast: (m) => island.toastMoment(m) }, { kind: "download", name: "Offerta Rossi.pdf", path: "C:/Users/Edoardo/Downloads/Offerta Rossi.pdf", size: 245000 });
+      Notices.push({ key: "finished:x", icon: "✅", title: "EasyIsland ha finito.", level: "ok", open: () => {} });
+      Notices.push({ key: "error:y", icon: "⛔", title: "Sito clienti si è fermato con un errore.", level: "error", open: () => {} });
+      await wait(800);
       break;
     }
     case "compiti": {
@@ -1564,6 +1813,15 @@ export async function runScene(island: Island, scene: string) {
           .slice(0, 8)
           .map((n) => ({ id: n.id, title: n.label, gist: n.kind === "page" ? n.text.split("\n")[0] : "", kind: n.kind as "page" | "note", origin: "" })),
         chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
+        // A quick answer (quick_answer.rs) to a question: ?q=quali vm ha la farmacia falchi&ai shows one written by a model.
+        // ?q=come cambiare ip a proxmox: a procedure, the section of a page, with `code`.
+        quickAnswer: async (question: string) => /^come\b/i.test(question) && /proxmox/i.test(question)
+          ? { text: "Cambiare l'IP del Proxmox (host fisico, nodo singolo)\nFarlo dalla console locale: cambiando l'IP si chiudono SSH e la Shell web.\n1. Backup: `cp /etc/network/interfaces /etc/network/interfaces.bak-ip`\n2. `/etc/network/interfaces`, blocco `vmbr0`: `address NUOVOIP/24` e `gateway GW`\n3. Applica: `ifreload -a` (oppure riavvio).", lines: [], sources: ["Proxmox"], by: "Potion", node: "p:proxmox" }
+          : /\b(vm|macchine)\b/i.test(question) && /falchi/i.test(question)
+          ? (new URLSearchParams(location.search).has("ai")
+            ? { text: "La Farmacia Falchi ha quattro VM: FALCHI-DC (4 GB), WINFARM (20 GB), POLLER (2 GB) e PBS (2 GB, IP 192.168.0.221).", lines: ["Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB", "2026-11-14: PBS ha IP 192.168.0.221"], sources: ["Farmacia Falchi", "nota"], by: "OpenRouter · openai/gpt-5.6-luna-pro" }
+            : { text: "Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB\n2026-11-14: PBS ha IP 192.168.0.221", lines: ["Farmacia Falchi: VM FALCHI-DC 4 GB, WINFARM 20 GB, POLLER (Centreon) 2 GB, PBS 2 GB", "2026-11-14: PBS ha IP 192.168.0.221"], sources: ["Farmacia Falchi", "nota"], by: "Potion" })
+          : null,
         zammadSearch: async () => [
           { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
           { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },
@@ -1575,6 +1833,7 @@ export async function runScene(island: Island, scene: string) {
           { id: "d1", name: "Admin NAS Rossi", kind: "Credential", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.20", user: "admin", cred: "Default", vault: "v" },
         ],
         threecxContacts: async () => [{ name: "Mario Rossi", company: "Rossi Srl", numbers: ["+39 0583 123456"], colleague: false }],
+        ...mockClients(),
       });
       State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };
       State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"];
@@ -1732,6 +1991,31 @@ export async function runScene(island: Island, scene: string) {
         ],
       });
       return;
+    case "cliente": {
+      // Scheda cliente (?name=Farmacia Falchi | ?name=Rossi Srl | ?name=Nuovo Studio)
+      const q = new URLSearchParams(location.search);
+      const name = q.get("name") ?? "Farmacia Falchi";
+      State.settings.activeIntegrations = [...new Set([...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"])];
+      State.settings.integrationConfig.rdmFolders = { "farmacia falchi": { vault: "v", path: "Easytech\\FARMACIA FALCHI" } };
+      Object.assign(Bridge, {
+        ...mockClients(),
+        zammadSearch: async () => [
+          { title: "#31012 VPN non si collega dallo smart working — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/12" },
+          { title: "#31008 Backup PBS notturno completato con avviso — Farmacia Falchi", url: "https://help.example.it/#ticket/zoom/8" },
+        ],
+      });
+      await wait(300);
+      island.alert("overview");
+      await wait(450);
+      openClientCard(name, {
+        contactName: q.get("contact") ?? (name === "Nuovo Studio" ? "Marco Neri" : undefined),
+        email: q.get("email") ?? (name === "Nuovo Studio" ? "marco@nuovostudio.it" : undefined),
+        phone: q.get("phone") ?? (name === "Nuovo Studio" ? "+39 051 998877" : undefined),
+        source: "zammad",
+      });
+      await wait(700);
+      break;
+    }
     case "fuzz":
       // Not a screenshot: hundreds of random agent events, clicks and malformed
       // integration data (?seed=7&steps=600). Every exception is reported by

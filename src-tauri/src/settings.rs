@@ -236,6 +236,14 @@ pub struct RdmRef {
     pub host: String,
     #[serde(default)]
     pub kind: String,
+    /// A Devolutions Cloud entry: its vault (empty = RDM's own list; 18 Nov 2026).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub vault: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub user: String,
+    /// Its credential kind (Default, PasswordList…), for a cloud entry.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub cred: String,
 }
 
 /// A folder of a Devolutions Cloud vault (dvc.rs), tied to a customer.
@@ -757,6 +765,11 @@ pub struct Settings {
     /// (TextComposer) with the model of `engine_models.local`; off = the lines as they are.
     #[serde(default)]
     pub local_compose: bool,
+    /// Quick answers in the island's search (quick_answer.rs): "potion" (the
+    /// memory's lines as they are, no model), "off", "local" (the model on this
+    /// PC) or an engine of quick_answer::ENGINES.
+    #[serde(default = "default_quick_answers")]
+    pub quick_answers: String,
     /// The model on the graphics card (Vulkan) when there is a fitting one.
     #[serde(default = "default_true")]
     pub local_gpu: bool,
@@ -802,6 +815,10 @@ pub struct Settings {
     /// xhigh, max); "" = Claude Code's own. Picked in the chat's engine menu.
     #[serde(default)]
     pub cli_effort: String,
+    /// Effort for Antigravity (`--effort`), apart from Claude Code's; "" = the
+    /// model's own. Not sent with a model whose name has it (`-high`…).
+    #[serde(default)]
+    pub agy_effort: String,
     /// Model chosen for each OpenAI-compatible engine (openai.rs): engine → model id.
     #[serde(default)]
     pub engine_models: std::collections::BTreeMap<String, String>,
@@ -951,6 +968,15 @@ pub struct Settings {
     /// "permissions" (only Claude Code permission requests).
     #[serde(default = "default_notify")]
     pub notify: String,
+    /// Where notices go (notices_window.rs, Edoardo 17 Nov 2026): "isola" in
+    /// their own window under the island (beside it when open), "alto-destra",
+    /// "basso-destra", or "dentro" (in the island, as before).
+    #[serde(default = "default_notices_place")]
+    pub notices_place: String,
+    /// Where the search on its own opens (search_window.rs, Edoardo 18 Nov
+    /// 2026): "centro" (default, centred and growing both ways), "alto", "basso".
+    #[serde(default = "default_search_place")]
+    pub search_place: String,
     /// How the character takes each situation ("agentFinished", "agentError",
     /// "agentLimit", or a check's pill id): "show", "quiet" or "off". Missing = "show".
     /// The front end owns the meaning (src/core/state.ts `reactionKey`).
@@ -1040,6 +1066,12 @@ pub struct Settings {
     /// terminale» edits open in the preview window.
     #[serde(default = "default_true")]
     pub chat_preview: bool,
+    /// The Anteprima opens by itself on a file the chat creates or edits
+    /// (preview::touched). Off by default (Edoardo, 17 Nov 2026: «quando la chat
+    /// crea uno script non mi deve necessariamente aprire l'anteprima»): the
+    /// file is a link in the reply, a click shows it.
+    #[serde(default)]
+    pub preview_edits: bool,
     /// The picture of an empty chat (src/views/chat-empty.ts): "ezzy" (default),
     /// "isola", "onde", "stelle", "aurora", "rete", "nessuna".
     #[serde(default = "default_chat_empty_art")]
@@ -1236,6 +1268,18 @@ fn default_model() -> String {
     crate::claude::DEFAULT_MODEL.to_string()
 }
 
+fn default_notices_place() -> String {
+    "isola".into()
+}
+
+fn default_search_place() -> String {
+    "centro".into()
+}
+
+fn default_quick_answers() -> String {
+    "potion".into()
+}
+
 fn default_chat_engine() -> String {
     "subscription".into()
 }
@@ -1283,6 +1327,7 @@ impl Default for Settings {
             memory_meaning: String::new(),
             memory_meaning_model: String::new(),
             local_compose: false,
+            quick_answers: default_quick_answers(),
             local_gpu: true,
             remember_now: true,
             memory_claude_code: true,
@@ -1299,6 +1344,7 @@ impl Default for Settings {
             chat_engine: default_chat_engine(),
             cli_model: String::new(),
             cli_effort: String::new(),
+            agy_effort: String::new(),
             engine_models: Default::default(),
             engine_urls: Default::default(),
             anchor_v: default_anchor_v(),
@@ -1345,6 +1391,8 @@ impl Default for Settings {
             alerts_open: true,
             theme: Theme::default(),
             notify: default_notify(),
+            notices_place: default_notices_place(),
+            search_place: default_search_place(),
             reactions: Map::new(),
             actions: Vec::new(),
             widgets: Vec::new(),
@@ -1373,6 +1421,7 @@ impl Default for Settings {
             chat_team_check: true,
             chat_folder: String::new(),
             chat_preview: true,
+            preview_edits: false,
             chat_empty_art: default_chat_empty_art(),
             chat_tips: true,
             chat_light: true,

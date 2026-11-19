@@ -9,9 +9,9 @@
 // and only when it is safe:
 //   - the question looks something up: short, with a question word, no action
 //     to do (fai, manda, apri…), nothing live («adesso», «stato») nor a why/how;
-//   - the best line is very close in meaning (`DIRECT_MIN`) and names something
-//     of the question (a name, a device: a word of the question that is not a
-//     common one);
+//   - a line names every subject of the question (a name, a device: a word of
+//     the question that is not a common one); the meaning only orders the
+//     lines (`memory_meaning::answer_min`);
 // else the engine, as before. «⚡ Chiedi al motore», or the same question
 // again, sends it to the engine (router.rs, as the other direct answers).
 
@@ -45,6 +45,58 @@ const COMMON: &[&str] = &[
     "nostro", "nostra", "questo", "questa", "quello", "quella", "l", "d", "un'", "chiama", "chiamano", "usa", "usano",
     "c'è", "sai", "sa", "so", "you", "know", "about", "the", "a", "an", "of", "is", "are", "does", "do", "has", "have", "in", "on", "for", "to", "and", "or",
 ];
+
+/// The words of a search that say what it is about: no punctuation («proxmox?»,
+/// «l'ip»), no question words («come», «quale»), no common ones («di», «da»).
+/// None left (a question of common words only): its words as they are.
+/// 17 Nov 2026: «come cambiare ip di proxmox da shell?» found nothing in the
+/// island's search, though the page had the procedure (brain::find_nodes).
+pub(crate) fn search_words(query: &str) -> Vec<String> {
+    let all = words(query);
+    let kept: Vec<String> = all
+        .iter()
+        .filter(|w| !ASKING.contains(&w.as_str()) && !COMMON.contains(&w.as_str()) && !QUESTION.contains(&w.as_str()))
+        .cloned()
+        .collect();
+    if kept.is_empty() { all } else { kept }
+}
+
+/// Question words that are not ASKING (they ask «how», «why»).
+const QUESTION: &[&str] = &["come", "perché", "perche", "why", "how", "posso", "puoi", "devo", "bisogna", "si", "fa", "fare"];
+
+/// The part of a word that its other forms share: «cambiare», «cambio», «cambia»
+/// → «cambi»; «modificare», «modifica» → «modific». Short words stay whole.
+pub(crate) fn root(w: &str) -> String {
+    let n = w.chars().count();
+    if n < 6 {
+        return w.to_string();
+    }
+    w.chars().take(5.max(n - 3)).collect()
+}
+
+/// The roots a word stands for: its own, and for the verbs of changing a
+/// setting all of them («modificare l'ip» is the section «Cambiare l'IP»).
+pub(crate) fn roots(w: &str) -> Vec<String> {
+    const CHANGE: &[&str] = &["cambi", "modific", "impost", "configur", "setta", "aggiorn"];
+    let r = root(w);
+    if CHANGE.iter().any(|c| r.starts_with(c) || (r.len() >= 4 && c.starts_with(r.as_str()))) {
+        return CHANGE.iter().map(|c| c.to_string()).collect();
+    }
+    vec![r]
+}
+
+/// A question that asks how to do something («come cambiare l'ip del proxmox?»):
+/// its answer is a procedure, a section of a page (quick_answer.rs).
+pub fn is_procedure(question: &str) -> bool {
+    let low = question.trim().to_lowercase();
+    let w = words(&low);
+    // «come cambiare…», «procedura per…», or a verb first: «cambiare ip proxmox?»
+    // (18 Nov 2026: written without «come», the procedure had no answer).
+    let verb_first = w.first().is_some_and(|x| x.chars().count() >= 5 && ["are", "ere", "ire"].iter().any(|e| x.ends_with(e))) && (2..=MAX_WORDS).contains(&w.len());
+    (w.first().is_some_and(|x| x == "come" || x == "how") && !low.contains("come si chiama") && (3..=MAX_WORDS).contains(&w.len()))
+        || low.starts_with("procedura per ")
+        || verb_first
+}
 
 const MAX_WORDS: usize = 14;
 /// At most this many lines, as good as the best one (same page, same words).
@@ -93,8 +145,10 @@ fn subjects(question: &str) -> Vec<String> {
 }
 
 /// The word is in the line: whole for a short one («ip» not in «tipo»,
-/// «teams» not in «TeamSystem»), by its first five letters for a long one
-/// («farmacie» / «farmacia»).
+/// «teams» not in «TeamSystem»); a long one also with another ending, at most
+/// its last two letters («farmacie» / «farmacia», «stampante» / «stampanti»),
+/// never by a shared start alone («contratto» is not «controller», «centralino»
+/// is not «centrale»: review of 16 Nov 2026).
 fn has_word(line_words: &[String], line: &str, w: &str) -> bool {
     let n = w.chars().count();
     if n <= 5 {
@@ -103,9 +157,19 @@ fn has_word(line_words: &[String], line: &str, w: &str) -> bool {
     if line.contains(w) {
         return true;
     }
-    let stem: String = w.chars().take(5).collect();
-    n >= 6 && line_words.iter().any(|x| x.starts_with(&stem))
+    line_words.iter().any(|x| same_word(w, x))
 }
+
+/// Two long words that differ only in their last two letters at most.
+fn same_word(a: &str, b: &str) -> bool {
+    let (na, nb) = (a.chars().count(), b.chars().count());
+    if na < 6 || nb < 6 {
+        return false;
+    }
+    let shared = a.chars().zip(b.chars()).take_while(|(x, y)| x == y).count();
+    shared >= 5 && shared + 2 >= na.max(nb)
+}
+
 
 /// Lines that only hold the page together: a title, aliases, links, dates.
 pub(crate) fn structural(line: &str) -> bool {
@@ -210,13 +274,27 @@ pub fn key(question: &str) -> Vec<String> {
     let mut k: Vec<String> = subjects(question)
         .into_iter()
         .map(|w| {
+            // A long word without its ending, as `same_word` reads it:
+            // «farmacia»/«farmacie», «fabbrica»/«fabbriche», «server»/«servers»
+            // share the key, «contratto» and «controller» do not.
             let w: String = w.chars().map(fold).collect();
-            if w.chars().count() >= 6 { w.chars().take(5).collect() } else { w }
+            if w.chars().count() >= 6 { stem(&w) } else { w }
         })
         .collect();
     k.sort();
     k.dedup();
     k
+}
+
+/// A long word's key: without its last vowels, a plural «s», the «h» of
+/// «-che»/«-ghi».
+fn stem(w: &str) -> String {
+    let mut s = w.trim_end_matches(['a', 'e', 'i', 'o', 'u']);
+    s = s.strip_suffix('s').unwrap_or(s);
+    if s.ends_with("ch") || s.ends_with("gh") {
+        s = s.strip_suffix('h').unwrap_or(s);
+    }
+    s.to_string()
 }
 
 fn fold(c: char) -> char {
@@ -312,6 +390,18 @@ mod tests {
         assert!(used_lines("perché il backup di Falchi non parte?", answer, &lines).is_empty());
         let near = near("che switch ha falchi?", &[(0.3, lines[1].clone()), (0.2, lines[2].clone())], 3);
         assert_eq!(near, vec![lines[1].clone()]);
+        // Same start, another word (review of 16 Nov 2026): not the same subject.
+        assert!(!similar("che contratto ha Rossi?", "che controller ha Rossi?"));
+        assert!(similar("quale farmacia ha Rossi?", "quali farmacie ha Rossi?"));
+        assert!(similar("quali fabbriche ha Rossi?", "che fabbrica ha Rossi?"));
+        assert!(similar("che elenchi ha Rossi?", "che elenco ha Rossi?"));
+        let ctl = "[[rossi]] controller UniFi in sala server".to_string();
+        assert!(pick("che contratto ha Rossi?", &[(0.5, ctl.clone())], 0.0).is_empty());
+        assert_eq!(pick("che controller ha Rossi?", &[(0.5, ctl.clone())], 0.0), vec![ctl.clone()]);
+        let central = "[[bianchi]] centrale telefonica 3CX".to_string();
+        assert!(pick("che centralino ha Bianchi?", &[(0.5, central)], 0.0).is_empty());
+        let printer = "[[bianchi]] stampante HP in reception".to_string();
+        assert_eq!(pick("quali stampanti ha Bianchi?", &[(0.5, printer.clone())], 0.0), vec![printer]);
         // «teams» is not inside «TeamSystem» (on the laptop, 15 Nov 2026).
         let ts = vec![(0.3, "[[listino]] Marche ricorrenti: UniFi, Synology, TeamSystem".to_string())];
         assert!(super::near("apri teams", &ts, 3).is_empty());
@@ -386,6 +476,21 @@ mod tests {
                 println!("  → {}", shown(l).chars().take(150).collect::<String>());
             }
         }
+    }
+
+    #[test]
+    fn search_words_and_their_roots() {
+        assert_eq!(search_words("come cambiare ip di proxmox da shell?"), ["cambiare", "ip", "proxmox", "shell"]);
+        assert_eq!(search_words("come si cambia l'ip del proxmox?"), ["cambia", "ip", "proxmox"]);
+        assert_eq!(search_words("di da"), ["di", "da"]);
+        assert_eq!((root("cambiare"), root("cambio"), root("modificare")), ("cambi".to_string(), "cambi".to_string(), "modific".to_string()));
+        assert!(root("modifica").starts_with("modific") || "modifica".starts_with(&root("modificare")));
+        assert!(is_procedure("come cambiare ip di proxmox da shell?") && is_procedure("Procedura per cambiare l'ip"));
+        assert!(is_procedure("cambiare ip proxmox?") && is_procedure("installare stampante rossi") && !is_procedure("proxmox falchi"));
+        // A month is not a verb of changing («sett» took «settembre» for «settare»).
+        assert_eq!(roots("settembre"), vec![root("settembre")]);
+        assert!(roots("settare").contains(&"cambi".to_string()));
+        assert!(!is_procedure("come si chiama il server di Falchi?") && !is_procedure("quali vm ha Falchi?") && !is_procedure("come?"));
     }
 
     #[test]

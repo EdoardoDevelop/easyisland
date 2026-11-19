@@ -34,6 +34,11 @@ pub async fn call(app: &AppHandle, tool: &str, args: &Value) -> Value {
     crate::log::line(format!("agent {tool} {} ms, {size} caratteri{}", start.elapsed().as_millis(), if out.is_err() { ", errore" } else { "" }));
     crate::recipes::saw(tool, args, out.is_ok());
     match out {
+        // A screenshot of the Anteprima rides as an image (easyisland-hook mcp).
+        Ok(text) if tool.starts_with("preview_") => match crate::preview::take_shot(&text) {
+            Some(png) => json!({ "ok": true, "text": text, "image": png, "mime": "image/png" }),
+            None => json!({ "ok": true, "text": text }),
+        },
         Ok(text) => json!({ "ok": true, "text": text }),
         Err(text) => json!({ "ok": false, "text": text }),
     }

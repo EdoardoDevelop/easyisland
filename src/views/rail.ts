@@ -276,7 +276,7 @@ export function buildRail(actions: ViewActions): ViewHost {
     };
     input.addEventListener("focus", () => {
       actions.holdOpen(true);
-      void Bridge.focusWindow(true);
+      void Bridge.focusWindow(true, input);
     });
     input.addEventListener("keydown", (e) => {
       e.stopPropagation();

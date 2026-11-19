@@ -159,8 +159,10 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
         g.iter().position(|(c, _, _)| *c == k).map(|i| g.remove(i))
     };
     if let Some((_, q, steps)) = last.filter(|_| !only) {
-        if crate::recipes::same_question(&q, asked) {
-            crate::recipes::no_direct(&steps);
+        if asked_again(&q, asked, &steps) {
+            if steps.iter().all(|s| !s.starts_with('@')) {
+                crate::recipes::no_direct(&steps);
+            }
             crate::log::line("smistatore: domanda ripetuta dopo una risposta diretta, al motore");
             return Direct::Refused;
         }
@@ -206,6 +208,16 @@ pub async fn direct(app: &AppHandle, chat: &Chat, asked: &str, command: Option<c
 /// learnt) for a similar question first (votes.rs), else memory_answer::pick
 /// without the lines voted 👎. With no meaning service, the words alone.
 pub async fn memory_lines(app: &AppHandle, question: &str) -> Vec<String> {
+    lines_from_memory(app, question, true).await
+}
+
+/// The same lines without the votes: «Riprova» (votes.rs `check`) tests the
+/// memory, not the votes again.
+pub async fn memory_lines_unvoted(app: &AppHandle, question: &str) -> Vec<String> {
+    lines_from_memory(app, question, false).await
+}
+
+async fn lines_from_memory(app: &AppHandle, question: &str, voted: bool) -> Vec<String> {
     // The memory off (Impostazioni → Chat): nothing from it.
     let remember = tauri::Manager::try_state::<crate::Shared>(app).is_some_and(|s| s.settings.lock().unwrap().chat_history);
     if !remember || !crate::memory_answer::is_lookup(question) {
@@ -218,12 +230,14 @@ pub async fn memory_lines(app: &AppHandle, question: &str) -> Vec<String> {
     } else {
         crate::memory_meaning::answer_min(&engine)
     };
-    let taught = crate::votes::taught(question, &|l| found.iter().any(|(_, x)| x == l));
-    if !taught.is_empty() {
-        return taught;
+    if voted {
+        let taught = crate::votes::taught(question, &|l| found.iter().any(|(_, x)| x == l));
+        if !taught.is_empty() {
+            return taught;
+        }
+        let rejected = crate::votes::rejected(question);
+        found.retain(|(_, l)| !rejected.contains(l));
     }
-    let rejected = crate::votes::rejected(question);
-    found.retain(|(_, l)| !rejected.contains(l));
     crate::memory_answer::pick(question, &found, min)
 }
 
@@ -317,13 +331,52 @@ pub fn take_memory(chat: &Chat) -> Vec<String> {
     }
 }
 
+/// LAST_DIRECT marks: a command offered, and that offer taken back by
+/// «Chiedi al motore» / Rigenera (the chat rewound).
+const OFFERED: &str = "@offerta";
+const TO_ENGINE: &str = "@motore";
+
+/// The chat went back before its last question (chat_rewind: «Chiedi al
+/// motore», Rigenera, a question edited): a command offered there sends the
+/// same question, asked again, to the engine.
+pub fn rewound(chat: &Chat) {
+    let k = key(chat);
+    for (c, _, steps) in LAST_DIRECT.lock().unwrap_or_else(|e| e.into_inner()).iter_mut() {
+        if *c == k && steps.first().is_some_and(|s| s == OFFERED) {
+            *steps = vec![TO_ENGINE.to_string()];
+        }
+    }
+}
+
+/// The question after a direct answer asks the same again (so the engine's
+/// turn). After an answer from the memory (no steps) the same things asked:
+/// «quale ip ha Falchi?» after «quale vm ha Falchi?» is another question
+/// (same_question drops «vm» and «ip»; review of 16 Nov 2026).
+fn asked_again(before: &str, asked: &str, steps: &[String]) -> bool {
+    // A command offered: written again it is offered again («pausa» twice);
+    // after «Chiedi al motore» (rewound) the same question goes to the engine.
+    if steps.first().is_some_and(|s| s == OFFERED) {
+        return false;
+    }
+    if steps.first().is_some_and(|s| s == TO_ENGINE) {
+        return crate::recipes::same_question(before, asked);
+    }
+    if steps.is_empty() {
+        crate::memory_answer::similar(&crate::recipes::bare_question(before), &crate::recipes::bare_question(asked))
+    } else {
+        crate::recipes::same_question(before, asked)
+    }
+}
+
 /// Tappa 1 of the 14 Nov ideas: a short order («apri Teams», «profilo
 /// Ufficio», «pausa») gets its button at once, no engine; nothing runs until
-/// the user presses «Esegui» (chat_command_run). Written again, or «Chiedi al
-/// motore», it goes to the engine like a direct answer.
+/// the user presses «Esegui» (chat_command_run). Written again it gets its
+/// button again («pausa» twice is two pauses, not a question rewritten,
+/// review of 16 Nov 2026); «Chiedi al motore» (the chat rewound, then the same
+/// question: `rewound`) sends it to the engine.
 fn offer(chat: &Chat, asked: &str, c: crate::commands::Command) -> Direct {
     let k = key(chat);
-    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), Vec::new()));
+    LAST_DIRECT.lock().unwrap().push((k, asked.to_string(), vec![OFFERED.to_string()]));
     {
         let mut w = WAS_DIRECT.lock().unwrap();
         if !w.contains(&k) {
@@ -506,6 +559,21 @@ mod tests {
         assert_eq!(s["direct"], 1);
         assert_eq!(s["refused"], 1);
         assert_eq!(s["saved"], 20_000);
+    }
+
+    #[test]
+    fn repeated_after_memory_means_the_same_things() {
+        // After the memory: the same subjects again → the engine; another subject → not.
+        assert!(asked_again("quale vm ha Falchi?", "che VM ha falchi", &[]));
+        assert!(!asked_again("quale vm ha Falchi?", "quale ip ha Falchi?", &[]));
+        assert!(!asked_again("che pc ha la comunale 2?", "che pc ha la comunale 3?", &[]));
+        // After a recipe: as before.
+        let steps = vec!["pc_check".to_string()];
+        assert!(asked_again("stato del computer", "Stato del computer?", &steps));
+        // A command: written again, offered again; after «Chiedi al motore», the engine.
+        assert!(!asked_again("pausa", "pausa", &[OFFERED.to_string()]));
+        assert!(asked_again("pausa", "pausa", &[TO_ENGINE.to_string()]));
+        assert!(!asked_again("pausa", "apri teams", &[TO_ENGINE.to_string()]));
     }
 
     #[test]

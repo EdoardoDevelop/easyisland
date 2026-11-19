@@ -346,6 +346,9 @@ fn uses_ctx(template: &str, ctx: &Ctx) -> bool {
 const SHELLS: &[&str] = &[
     "cmd", "powershell", "pwsh", "wscript", "cscript", "mshta", "bash", "wsl", "sh", "rundll32", "regsvr32", "python",
     "pythonw", "py", "node", "conhost", "wt",
+    // Programs that run or fetch what they are given (review of 16 Nov 2026).
+    "msiexec", "certutil", "bitsadmin", "forfiles", "schtasks", "mmc", "hh", "explorer", "ssh", "git", "start",
+    "runas", "pcalua", "installutil", "msbuild", "regasm", "regsvcs", "cmstp", "odbcconf", "msxsl", "wmic",
 ];
 
 /// Files that would run if opened: an automation never opens one it was handed
@@ -354,6 +357,16 @@ const RUNNABLE: &[&str] = &[
     "exe", "com", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "msi", "msp", "scr", "pif",
     "hta", "cpl", "msc", "jar", "lnk", "reg", "url", "appref-ms", "application", "gadget", "inf", "scf",
 ];
+
+/// A target whose program is not in its name: a shortcut, a shell: path, an app id.
+fn hides_program(target: &str) -> bool {
+    let t = target.trim().trim_matches('"').to_ascii_lowercase();
+    let ext = t.rsplit_once('.').map(|(_, e)| e).unwrap_or_default();
+    matches!(ext, "lnk" | "url" | "pif" | "appref-ms" | "application")
+        || t.starts_with("shell:")
+        || t.contains("appsfolder")
+        || t.contains('!')
+}
 
 fn stem_of(target: &str) -> String {
     let name = target.trim().trim_matches('"').rsplit(['\\', '/']).next().unwrap_or("").to_lowercase();
@@ -488,7 +501,11 @@ pub(crate) async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ct
             }
             // The event's data as separate quoted arguments, and never for a
             // program that would run them as code.
-            if uses_ctx(&step.args, ctx) && SHELLS.contains(&stem_of(target).as_str()) {
+            // A shortcut, a shell: path or an app of the Apps folder starts a
+            // program the name does not show («Windows PowerShell.lnk», since
+            // 1.0.50 run with its own target): the event's data never go to one
+            // (review of 16 Nov 2026).
+            if uses_ctx(&step.args, ctx) && (SHELLS.contains(&stem_of(target).as_str()) || hides_program(target)) {
                 return Err(tf("i dati dell'evento non vanno passati a {target}", &[("target", &target)]));
             }
             let args = fill(&step.args, ctx, &|v: &str, _| {
@@ -1246,6 +1263,16 @@ pub fn spawn(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shortcuts_and_app_ids_hide_their_program() {
+        assert!(hides_program(r"C:\Users\x\Desktop\Windows PowerShell.lnk"));
+        assert!(hides_program("\"C:\\x\\sito.url\""));
+        assert!(hides_program(r"shell:AppsFolder\Microsoft.WindowsTerminal_8wekyb3d8bbwe!App"));
+        assert!(hides_program("shell:startup"));
+        assert!(!hides_program(r"C:\Program Files\Notepad++\notepad++.exe"));
+        assert!(!hides_program("notepad"));
+    }
 
     #[test]
     fn parses_with_defaults() {

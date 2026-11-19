@@ -33,6 +33,40 @@ export function setHistoryDemo(list: ChatSummary[]) {
 }
 
 /**
+ * `text` without the part `cut` already shown above a message taken into the
+ * turn. The reply grows at its end; where it changed before (the task list),
+ * it goes back to the last paragraph they share; nothing shared: all of it.
+ */
+/** An Antigravity slug as model and effort: `gemini-4-hydrogen-high` → [`gemini-4-hydrogen`, `high`]. */
+export function splitAgy(id: string): [string, string] {
+  const at = id.lastIndexOf("-");
+  const last = at > 0 ? id.slice(at + 1) : "";
+  return ["low", "medium", "high", "xhigh", "max"].includes(last) ? [id.slice(0, at), last] : [id, ""];
+}
+
+/** A readable name for a slug without the effort: `claude-opus-5-5` → «Claude Opus 5.5». */
+export function agyLabel(base: string): string {
+  const out: string[] = [];
+  for (const w of base.split("-").filter(Boolean)) {
+    const prev = out.length ? out[out.length - 1] : "";
+    if (/^\d+$/.test(w) && /^[\d.]+$/.test(prev)) out[out.length - 1] = `${prev}.${w}`;
+    else out.push(/^[a-z]{1,3}$/.test(w) && !["pro"].includes(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1));
+  }
+  return out.join(" ");
+}
+
+function afterCut(text: string, cut: string): string {
+  if (!cut) return text;
+  text = text.trimStart();
+  cut = cut.trimStart();
+  if (text.startsWith(cut)) return text.slice(cut.length).replace(/^\s+/, "");
+  let n = 0;
+  while (n < text.length && n < cut.length && text[n] === cut[n]) n++;
+  const at = text.lastIndexOf("\n\n", n);
+  return at > 0 ? text.slice(at).replace(/^\s+/, "") : text;
+}
+
+/**
  * A conversation's title as shown: its first line, a file path reduced to the
  * file's name, at most ~70 characters cut on a word. The full one goes in title=.
  */
@@ -141,11 +175,26 @@ function saveSide(open: boolean) {
 
 /** The text being written survives a restart of EasyIsland (only this one, on this PC). */
 const DRAFT_KEY = "easyisland.chatDraft";
+/** The messages still in line when EasyIsland closed: back in the field at the next start, never lost. */
+const QUEUE_KEY = "easyisland.chatQueue";
 function loadDraft(): string {
   try {
-    return localStorage.getItem(DRAFT_KEY) ?? "";
+    const draft = localStorage.getItem(DRAFT_KEY) ?? "";
+    const queued: unknown = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]");
+    localStorage.removeItem(QUEUE_KEY);
+    const waiting = Array.isArray(queued) ? queued.filter((q): q is string => typeof q === "string" && q.trim() !== "") : [];
+    return [draft, ...waiting].filter((x) => x.trim()).join("\n\n");
   } catch {
     return "";
+  }
+}
+/** Every open conversation's queue, as it is now (renderQueue). */
+function saveQueues(all: string[]) {
+  try {
+    if (all.length) localStorage.setItem(QUEUE_KEY, JSON.stringify(all));
+    else localStorage.removeItem(QUEUE_KEY);
+  } catch {
+    /* storage off: the queue just does not survive */
   }
 }
 function saveDraft(text: string) {
@@ -237,6 +286,13 @@ async function checkPaths(root: HTMLElement) {
   for (const e of els) {
     const info = pathSeen.get(key(e.dataset.path ?? ""))?.info;
     if (!info) continue;
+    // A bare relative path that is not there: back to plain text (markdown.ts).
+    if (info.kind === "missing" && e.dataset.bare) {
+      e.classList.remove("md-path");
+      delete e.dataset.path;
+      e.removeAttribute("title");
+      continue;
+    }
     e.dataset.kind = info.kind;
     e.dataset.resolved = info.resolved;
     e.classList.toggle("md-missing", info.kind === "missing");
@@ -273,7 +329,8 @@ export function openChatPath(path: string, el: HTMLElement | null, direct = fals
   if (el?.classList.contains("md-missing")) return;
   const target = el?.dataset.resolved || path;
   if (el?.dataset.kind === "dir" || direct || State.settings.chatPreview === false || !canPreview(target)) {
-    chatPathAction(path, "open");
+    // The path as found (a relative one, in the chat's folders: chatpaths.rs).
+    chatPathAction(target, "open");
     return;
   }
   chatPathAction(target, "preview");
@@ -643,7 +700,12 @@ export function buildPrompt(
   });
   const slashQuickBtn = h("button", { class: "auto-btn tool-quick", text: "/", title: t("Comandi (/)") }) as HTMLButtonElement;
   slashQuickBtn.addEventListener("click", () => {
-    if (!input.value.startsWith("/")) setInput(`/${input.value}`);
+    // What is already written waits aside: it comes back after the command
+    // (or with Esc), never glued behind a «/» (review of 16 Nov 2026).
+    if (!input.value.startsWith("/")) {
+      slashStash = input.value.trim() ? input.value : null;
+      setInput("/");
+    }
     slashSel = 0;
     updateSlash();
     input.focus();
@@ -670,6 +732,8 @@ export function buildPrompt(
   slashMenu.style.display = "none";
   let slashItems: Slash[] = [];
   let slashSel = 0;
+  /** The text the «/» button set aside, back after the command or with Esc. */
+  let slashStash: string | null = null;
   // What can be done with what is on screen (chat-tips.ts): chips that write the request in the field.
   const tipsRow = h("div", { class: "chat-tips" });
   tipsRow.style.display = "none";
@@ -920,7 +984,26 @@ export function buildPrompt(
 
   /** What the conversation was so far, as chat_log.rs keeps it. */
   function lines(list: ChatMessage[]) {
-    return list.map((m) => ({ role: m.role, content: m.content }));
+    // A message taken into a turn joins its question («↪», chat_log::steered),
+    // and the reply before it joins the rest of the answer.
+    const out: { role: ChatMessage["role"]; content: string }[] = [];
+    let part = "";
+    for (const m of list) {
+      const last = out[out.length - 1];
+      if (m.steered && last?.role === "user") last.content += `\n\n↪ ${m.content}`;
+      else if (m.part) part += `${m.content}\n\n`;
+      else {
+        // A turn that ended in an error left its reply so far: it stays in that turn.
+        if (part && m.role === "user") {
+          out.push({ role: "assistant", content: part.trim() });
+          part = "";
+        }
+        out.push({ role: m.role, content: m.role === "assistant" ? part + m.content : m.content });
+        if (m.role === "assistant") part = "";
+      }
+    }
+    if (part) out.push({ role: "assistant", content: part.trim() });
+    return out;
   }
 
   function setInput(text: string) {
@@ -1049,9 +1132,11 @@ export function buildPrompt(
 
   async function submit(override?: string, target?: ChatSessionState) {
     const raw = override ?? input.value;
-    const query = raw.trim();
     // The conversation on screen now (or the one whose queue goes on): the answer goes to it even if another one is shown by then.
     const c = target ?? State.chat;
+    // Only an attachment (a screenshot pasted): it goes with a few words of its
+    // own (17 Nov 2026: «.» or «?» typed just to send an image, 11 times).
+    const query = raw.trim() || (override == null && c.attach.length ? t("Guarda l'allegato.") : "");
     if (!query || c.sending) return;
     if (override == null && runSlash(query)) return;
     if (override == null) setInput("");
@@ -1114,6 +1199,7 @@ export function buildPrompt(
     }
 
     c.streamed = "";
+    c.streamCut = "";
     const engine = engineOf(c);
     // «Solo EasyIsland»: no engine, but «Chiedi al motore» sends this one question to it.
     const sent = c.onlyEasy && !c.engineOnce ? "easyisland" : engine;
@@ -1127,7 +1213,7 @@ export function buildPrompt(
           if (c.session === session) session.fork = r.fork;
           return { text: r.text, log: null, context: null };
         })
-        : await Bridge.chatSend(c.sid, asked, context, sent, c.auto && State.settings.chatTerminal === true, c.folder, c.team, c.effort ?? (State.settings.cliEffort || null),
+        : await Bridge.chatSend(c.sid, asked, context, sent, c.auto && State.settings.chatTerminal === true, c.folder, c.team, engine === "antigravity" ? (c.agyEffort ?? State.settings.agyEffort ?? "") : c.effort ?? (State.settings.cliEffort || null),
           State.settings.chatTerminal === true && !c.auto ? c.mode : "", engine === "subscription" ? c.model : engine === "antigravity" ? c.agyModel : null, engine === "subscription" && c.fast, engine === "subscription" && c.agents);
       if (reply.log) c.logId = reply.log;
       // «Piano» ends when its plan is approved, as in Claude Desktop.
@@ -1149,13 +1235,13 @@ export function buildPrompt(
       const command = (reply as { command?: ChatCommand | null }).command ?? undefined;
       const meaning = (reply as { meaning?: [string, number][] }).meaning;
       const memory = (reply as { memory?: string[] }).memory;
-      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
+      c.history.push({ id: nextId++, role: "assistant", content: afterCut(reply.text, c.streamCut), engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
       takeReplyHook()?.(null);
       if (c.stopping) {
-        const soFar = c.streamed.trim();
+        const soFar = afterCut(c.streamed.trim(), c.streamCut).trim();
         c.history.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}` });
         Sound.play("blip");
         return;
@@ -1173,6 +1259,7 @@ export function buildPrompt(
       c.sending = false;
       c.stopping = false;
       c.streamed = "";
+      c.streamCut = "";
       c.working = false;
       c.teamRows = [];
       c.at = Date.now();
@@ -1186,6 +1273,9 @@ export function buildPrompt(
       void refreshHistory();
       // What was written meanwhile goes now, the first in line.
       const next = c.queue.shift();
+      // Saved here too: with the chat not on screen renderQueue does not run,
+      // and a message already sent came back in the field at the next start.
+      saveQueues(State.chats.flatMap((x) => x.queue));
       if (next != null && State.chats.includes(c)) {
         State.notify();
         window.setTimeout(() => void submit(next, c), 0);
@@ -1199,21 +1289,7 @@ export function buildPrompt(
     const text = input.value.trim();
     if (!text) return;
     setInput("");
-    // Claude Code takes it into the turn it is in, between two steps (as in Claude Desktop); else the queue.
-    if (c.sending && !c.session && !c.team && engineOf(c) === "subscription") {
-      void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
-        const question = [...c.history].reverse().find((m) => m.role === "user");
-        if (ok && c.sending && question) {
-          question.content += `\n\n↪ ${text}`;
-          renderedCount = -1;
-          flash(t("Aggiunto al lavoro in corso: Claude ne tiene conto subito."));
-        } else c.queue.push(text);
-        Sound.play("blip");
-        State.notify();
-        onHeightChange();
-      });
-      return;
-    }
+    // As in Claude Desktop: it waits in line, and «Invia subito» on its row has it read now.
     c.queue.push(text);
     Sound.play("blip");
     State.notify();
@@ -1221,13 +1297,52 @@ export function buildPrompt(
     input.focus();
   }
 
-  /** «Invia subito»: the reply stops and this one goes first. */
+  /** Claude Code in a turn of its own (not a read-only session copy, not a team) takes a message into it. */
+  function canSteer(c: ChatSessionState) {
+    return c.sending && !c.session && !c.team && engineOf(c) === "subscription";
+  }
+
+  /**
+   * A message taken into the turn: the reply so far stays above it, the
+   * message is a question of its own under it, and the turn goes on below
+   * (as in Claude Desktop), never added to the question before.
+   */
+  function steered(c: ChatSessionState, text: string) {
+    const body = splitStatus(c.streamed).body.trim();
+    const before = afterCut(body, c.streamCut).trim();
+    if (before) c.history.push({ id: nextId++, role: "assistant", content: before, part: true });
+    c.history.push({ id: nextId++, role: "user", content: text, steered: true });
+    if (body) c.streamCut = body;
+    renderedCount = -1;
+  }
+
+  /** «Invia subito»: Claude Code reads it now in the turn; the other engines stop and this one goes first. */
   function sendNow(i: number) {
     const c = State.chat;
     const [text] = c.queue.splice(i, 1);
     if (text == null) return;
     if (!c.sending) {
       void submit(text, c);
+      return;
+    }
+    // Claude Code reads it between two steps of the turn in progress, with no stop.
+    if (canSteer(c)) {
+      void Promise.resolve(Bridge.chatSteer(c.sid, text)).then((ok) => {
+        if (ok && c.sending) steered(c, text);
+        // The turn ended meanwhile (its queue already went on): this one goes now.
+        else if (!c.sending) void submit(text, c);
+        else {
+          // No turn to join after all: it stops and this one goes first.
+          c.queue.unshift(text);
+          if (c.sending && !c.stopping) {
+            c.stopping = true;
+            void Bridge.chatStop(c.sid);
+          }
+        }
+        Sound.play("blip");
+        State.notify();
+        onHeightChange();
+      });
       return;
     }
     c.queue.unshift(text);
@@ -1238,16 +1353,38 @@ export function buildPrompt(
     State.notify();
   }
 
+  /** When each background job was first seen (its id), for «da 12 min». */
+  const bgSince = new Map<string, number>();
+  let bgTimer = 0;
   function renderBackground() {
     const c = State.chat;
-    const key = `${c.sid}|${c.stopping ? 1 : 0}|${c.background.map((b) => b.id + b.description).join("\u0000")}`;
+    const now = Date.now();
+    for (const b of c.background) if (!bgSince.has(b.id)) bgSince.set(b.id, now);
+    const minutes = (b: { id: string }) => Math.floor((now - (bgSince.get(b.id) ?? now)) / 60_000);
+    // Once a minute while there is work, for the time shown; none without (CPU ~0).
+    if (c.background.length && !bgTimer) bgTimer = window.setInterval(renderBackground, 60_000);
+    else if (!c.background.length && bgTimer) {
+      window.clearInterval(bgTimer);
+      bgTimer = 0;
+    }
+    const key = `${c.sid}|${c.stopping ? 1 : 0}|${c.background.map((b) => b.id + b.description + minutes(b)).join("\u0000")}`;
     if (key === bgKey) return;
     bgKey = key;
     const kindOf = (b: { kind: string }) => (b.kind.includes("agent") ? t("agente") : b.kind.includes("bash") || b.kind.includes("shell") ? t("comando") : t("lavoro"));
+    // How long it runs and, past 10 minutes, a click to ask how far it got
+    // (17 Nov 2026: a job ended unseen, «credo che ti sei bloccato» 23 min later).
+    const ask = (b: { id: string; description: string }) => {
+      const q = t("A che punto è il lavoro in background «{name}» (id {id})? Guarda il suo output e dimmelo.", { name: b.description || b.id, id: b.id });
+      if (c.sending) c.queue.push(q);
+      else void submit(q, c);
+      State.notify();
+    };
     const rows = c.background.map((b) => h("div", { class: "chat-queued" },
       h("span", { class: "chat-bg-dot" }),
       h("span", { class: "chat-queued-tag", text: kindOf(b) }),
       h("span", { class: "chat-queued-text", text: b.description || b.id, title: b.description || b.id }),
+      minutes(b) >= 1 ? h("span", { class: "chat-bg-time", text: t("da {n} min", { n: minutes(b) }) }) : null,
+      minutes(b) >= 10 ? h("button", { class: "chat-queued-btn", text: t("A che punto è?"), title: t("Chiedi a che punto è questo lavoro"), onclick: () => ask(b) }) : null,
       h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiedi di fermare solo questo lavoro"),
         onclick: () => {
           const ask = t("Ferma il lavoro in background «{name}» (id {id}) con TaskStop e dimmi a che punto era.", { name: b.description || b.id, id: b.id });
@@ -1272,7 +1409,15 @@ export function buildPrompt(
     onHeightChange();
   }
 
+  let savedQueues = "";
   function renderQueue() {
+    // Every conversation's line, also the ones not on screen: saved when it changes.
+    const all = State.chats.flatMap((x) => x.queue);
+    const allKey = all.join("\u0000");
+    if (allKey !== savedQueues) {
+      savedQueues = allKey;
+      saveQueues(all);
+    }
     const c = State.chat;
     const key = `${c.sid}|${c.sending ? 1 : 0}|${c.queue.join("\u0000")}`;
     if (key === queueKey) return;
@@ -1281,7 +1426,7 @@ export function buildPrompt(
       h("span", { class: "chat-queued-tag", text: t("in attesa") }),
       h("span", { class: "chat-queued-text", text, title: text }),
       h("button", { class: "chat-queued-btn now", text: t("Invia subito"),
-        title: c.sending ? t("Ferma la risposta e manda subito questo messaggio") : t("Manda subito questo messaggio"),
+        title: !c.sending ? t("Manda subito questo messaggio") : canSteer(c) ? t("Claude lo legge subito, senza fermare il lavoro in corso") : t("Ferma la risposta e manda subito questo messaggio"),
         onclick: () => sendNow(i) }),
       h("button", { class: "chat-queued-btn", text: t("Modifica"), title: t("Rimetti il messaggio nel campo"),
         onclick: () => {
@@ -1301,7 +1446,7 @@ export function buildPrompt(
   /** The button: «Ferma» while it answers with an empty field, else «Invia» (in the queue while it answers). */
   function updateSendBtn() {
     const c = State.chat;
-    const stopMode = (c.sending || c.working) && !c.session && !input.value.trim();
+    const stopMode = (c.sending || c.working) && !c.session && !input.value.trim() && !(c.working && !c.sending && c.attach.length);
     const mode = stopMode ? "stop" : "send";
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
@@ -1611,9 +1756,13 @@ export function buildPrompt(
     }
     if (own && last && m.role === "assistant" && m.command && !m.commandDone) {
       const cmd = m.command;
-      const run = h("button", { class: "msg-act msg-run", title: cmd.label, text: `▶︎ ${t("Esegui")}` }) as HTMLButtonElement;
+      const run = h("button", { class: "msg-act msg-run", title: `${cmd.label} (${t("Invio")})`, text: `▶︎ ${t("Esegui")}` }) as HTMLButtonElement;
       run.addEventListener("click", () => void runCommand(m, cmd, run));
       bar.append(run);
+    }
+    // Antigravity without its hooks (antigravity.rs): straight to where they are installed.
+    if (m.role === "assistant" && /Agenti di codice → Antigravity|Coding agents → Antigravity/.test(m.content)) {
+      bar.append(h("button", { class: "msg-act", text: `🔌 ${t("Installa gli hook di Antigravity")}`, onclick: () => void Bridge.openSettingsAt("claude", "agent-antigravity") }));
     }
     if (own && last && m.role === "assistant" && m.direct) {
       // The same question again goes to the engine, and that recipe stops answering by itself (router.rs).
@@ -2027,6 +2176,8 @@ export function buildPrompt(
   /** The menu over the field while a command ("/") or an "@" is being typed. */
   function updateSlash() {
     subMenu = null;
+    // The «/» was deleted by hand: what it set aside stays where it is.
+    if (!input.value.startsWith("/")) slashStash = null;
     const m = /^\/(\S*)$/.exec(input.value);
     const at = /(?:^|\s)@(\S*)$/.exec(input.value);
     slashItems = State.chatSession ? []
@@ -2075,13 +2226,16 @@ export function buildPrompt(
       c.run("");
       return;
     }
+    const stash = slashStash;
+    slashStash = null;
     if (c.arg) {
-      setInput(`/${c.name} `);
+      setInput(`/${c.name} ${stash ?? ""}`);
       input.focus();
       return;
     }
     setInput("");
     c.run("");
+    if (stash) setInput(stash);
   }
 
   /** Claude Code with its login, asked once per run (it starts a process). */
@@ -2162,36 +2316,85 @@ export function buildPrompt(
       }
       engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Claude continua la stessa sessione con il modello scelto.") }));
     }
-    // Antigravity: the same choices, with its own models (`agy models`).
+    // Antigravity: effort and model as Claude's. Its models carry the effort in
+    // their name (`gemini-4-hydrogen-high`): the menu shows each model once and
+    // its efforts apart, and the pair becomes the slug again.
     if (State.chatEngine === "antigravity" && !State.chat.onlyEasy) {
-      const now = effortOf(State.chat);
-      engineMenu.append(h("div", { class: "engine-head", text: t("Impegno di Antigravity") }));
-      for (const [id, label, hint] of efforts()) {
-        engineMenu.append(h("button", {
-          class: `engine-item${id === now ? " on" : ""}`, title: hint, text: id ? label : t("Predefinito del modello"),
-          onclick: () => pickEffort(id),
-        }));
-      }
-      const model = State.chat.agyModel ?? "";
-      engineMenu.append(h("div", { class: "engine-head", text: t("Modello di Antigravity") }));
-      const pick = (id: string, label: string) => h("button", {
-        class: `engine-item${id === model ? " on" : ""}`, text: label,
-        onclick: () => { State.chat.agyModel = id || null; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); },
-      });
-      engineMenu.append(pick("", t("Quello delle Impostazioni")));
-      const list = h("div", { class: "engine-models" });
-      engineMenu.append(list);
+      const effortBox = h("div", { class: "engine-models" });
+      const modelBox = h("div", { class: "engine-models" });
+      engineMenu.append(
+        h("div", { class: "engine-head", text: t("Impegno di Antigravity") }), effortBox,
+        h("div", { class: "engine-note", text: t("Più impegno: risposte più ragionate, ma più lente e più consumo. Solo per Antigravity, separato da quello di Claude.") }),
+        h("div", { class: "engine-head", text: t("Modello di Antigravity") }), modelBox,
+        h("div", { class: "engine-note", text: t("Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.") }),
+      );
+      const done = (model: string | null) => { State.chat.agyModel = model; engineMenu.style.display = "none"; Sound.play("blip"); State.notify(); input.focus(); };
       agyModels ??= Promise.resolve(Bridge.chatModels("antigravity", null)).then((l) => (l ?? []).map((m) => m.id)).catch(() => { agyModels = null; return []; });
       void agyModels.then((ids) => {
-        list.replaceChildren(...(ids.length ? ids.map((id) => pick(id, id)) : [h("div", { class: "engine-note", text: t("Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.") })]));
+        const groups = agyGroups(ids);
+        const chosen = State.chat.agyModel ?? "";
+        const current = chosen || State.settings.engineModels?.antigravity || "";
+        const [base, effort] = splitAgy(current);
+        const group = groups.get(base);
+        // Effort: the ones of the model in use; with no model, agy's own `--effort`.
+        if (group && group.efforts.length) {
+          for (const [id, label, hint] of efforts().filter(([id]) => group.efforts.includes(id))) {
+            effortBox.append(h("button", {
+              class: `engine-item${id === effort ? " on" : ""}`, title: hint, text: label,
+              onclick: () => { State.chat.agyEffort = id; State.settings.agyEffort = id; void Bridge.saveSettings(State.settings); done(`${base}-${id}`); },
+            }));
+          }
+        } else {
+          // No model, a model without levels in its name, or no list: agy's own `--effort`.
+          const now = effortOf(State.chat, "antigravity");
+          for (const [id, label, hint] of efforts()) {
+            effortBox.append(h("button", {
+              class: `engine-item${id === now ? " on" : ""}`, title: id ? hint : t("Quello del modello scelto"), text: id ? label : t("Predefinito del modello"),
+              onclick: () => pickEffort(id, "antigravity"),
+            }));
+          }
+        }
+        // Model: each once; it keeps the effort picked, if it has it.
+        modelBox.append(h("button", {
+          class: `engine-item${chosen ? "" : " on"}`, text: t("Quello delle Impostazioni"), onclick: () => done(null),
+        }));
+        for (const [b, g] of groups) {
+          modelBox.append(h("button", {
+            class: `engine-item${chosen && b === base ? " on" : ""}`, text: g.label,
+            onclick: () => done(agySlug(b, g.efforts, effort || State.settings.agyEffort || "")),
+          }));
+        }
+        if (!groups.size) modelBox.append(h("div", { class: "engine-note", text: t("Elenco dei modelli non disponibile: controlla che agy sia installato e con il login.") }));
       });
-      engineMenu.append(h("div", { class: "engine-note", text: t("Per questa conversazione: Antigravity continua la stessa conversazione con il modello scelto.") }));
     }
     engineMenu.style.display = "";
   }
 
   /** Antigravity's models, read once per run (`agy models` takes a few seconds). */
   let agyModels: Promise<string[]> | null = null;
+
+  /** Antigravity's models by name without the effort, with the efforts each has. */
+  function agyGroups(ids: string[]): Map<string, { label: string; efforts: string[] }> {
+    const groups = new Map<string, { label: string; efforts: string[] }>();
+    for (const id of ids) {
+      const [base, effort] = splitAgy(id);
+      const g = groups.get(base) ?? { label: agyLabel(base), efforts: [] };
+      if (effort && !g.efforts.includes(effort)) g.efforts.push(effort);
+      groups.set(base, g);
+    }
+    const order = efforts().map(([id]) => id);
+    for (const g of groups.values()) g.efforts.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return groups;
+  }
+
+  /** The slug for a model and an effort: the one asked if it has it, else the closest. */
+  function agySlug(base: string, have: string[], want: string): string {
+    if (!have.length) return base;
+    const order = efforts().map(([id]) => id);
+    const at = order.indexOf(want || "medium");
+    const best = have.reduce((a, b) => Math.abs(order.indexOf(b) - at) < Math.abs(order.indexOf(a) - at) ? b : a);
+    return `${base}-${best}`;
+  }
 
   /** Engines with Claude Code's modes and effort: Claude Code and Antigravity. */
   function hasModes(engine: string): boolean {
@@ -2209,15 +2412,23 @@ export function buildPrompt(
     ];
   }
 
-  function effortOf(c: ChatSessionState): string {
+  /** The chat's effort for that engine: Antigravity has its own, apart from Claude Code's. */
+  function effortOf(c: ChatSessionState, engine = State.chatEngine): string {
+    // Antigravity: a model with the level in its name has that one (agy drops `--effort`).
+    if (engine === "antigravity") return splitAgy(c.agyModel ?? State.settings.engineModels?.antigravity ?? "")[1] || (c.agyEffort ?? State.settings.agyEffort ?? "");
     return c.effort ?? State.settings.cliEffort ?? "";
   }
 
-  /** For this chat, and remembered for the next ones. */
-  function pickEffort(id: string) {
+  /** For this chat, and remembered for the next ones (each engine its own). */
+  function pickEffort(id: string, engine = "subscription") {
     engineMenu.style.display = "none";
-    State.chat.effort = id;
-    State.settings.cliEffort = id;
+    if (engine === "antigravity") {
+      State.chat.agyEffort = id;
+      State.settings.agyEffort = id;
+    } else {
+      State.chat.effort = id;
+      State.settings.cliEffort = id;
+    }
     void Bridge.saveSettings(State.settings);
     State.notify();
   }
@@ -2706,7 +2917,10 @@ export function buildPrompt(
     const c = reuse ? State.chat : openNew();
     try {
       const got = await Bridge.chatHistoryOpen(c.sid, id);
-      c.history = got.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
+      c.history = got.lines.flatMap((l): ChatMessage[] => l.role !== "user"
+        ? [{ id: nextId++, role: l.role, content: l.content }]
+        // The messages taken into that turn, each a question of its own again.
+        : l.content.split("\n\n↪ ").map((content, i) => ({ id: nextId++, role: "user" as const, content, steered: i > 0 || undefined })));
       c.logId = id;
       // Claude Code's session resumed: its context at once, read from the session's file.
       c.context = got.context ?? null;
@@ -3008,7 +3222,7 @@ export function buildPrompt(
     // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").
     const c = State.chat;
     // Writing on its own after background work: «Ferma» stops it (a message goes in as usual).
-    if (c.working && !c.sending && !input.value.trim()) {
+    if (c.working && !c.sending && !input.value.trim() && !c.attach.length) {
       c.working = false;
       c.streamed = "";
       c.background = [];
@@ -3072,8 +3286,11 @@ export function buildPrompt(
         return;
       }
       if (k.key === "Escape") {
-        if (menuPrefix === "/") setInput("");
-        else {
+        // Esc closes the menu; the field keeps what was written (or gets back what «/» set aside).
+        if (slashStash != null) {
+          setInput(slashStash);
+          slashStash = null;
+        } else {
           subMenu = null;
           slashItems = [];
           renderMenu();
@@ -3107,6 +3324,15 @@ export function buildPrompt(
         enqueue();
         if (k.ctrlKey) sendNow(State.chat.queue.length - 1);
         return;
+      }
+      // Empty field under a command the chat offered: Enter is «▶ Esegui» (Edoardo,
+      // 16 Nov 2026). Still a gesture of the user's, on that one button.
+      if (!typed && !State.chat.sending && !State.chat.attach.length) {
+        const run = log.querySelector<HTMLButtonElement>(".msg-actions.last .msg-run");
+        if (run && !run.disabled) {
+          run.click();
+          return;
+        }
       }
       // A calculation: Enter copies the result, Ctrl+Enter still asks Claude.
       if (calcResult != null && !k.ctrlKey) void copyCalc();
@@ -3344,7 +3570,9 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         toBottom();
       }
       // The growing reply: only its bubble is redrawn.
-      const { body, status } = splitStatus(streamed);
+      const split = splitStatus(streamed);
+      const status = split.status;
+      const body = afterCut(split.body, State.chat.streamCut);
       if (streamEl && streamEl.dataset.len !== String(body.length)) {
         streamEl.dataset.len = String(body.length);
         streamEl.style.display = body ? "" : "none";

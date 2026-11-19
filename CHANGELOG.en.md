@@ -2,6 +2,11 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.52** — **Search in a window of its own**: the shortcut opens it above everything without touching the island, at the top, centre or bottom (Settings → Search on its own), and the fixed bar has a «Search» item. Questions the memory knows for sure get a **quick answer** above the results, with sources, «Copy» and «Ask the chat»; procedures are found even when worded differently. **Search in Settings** (Ctrl+F in the menu and in the island's single field). **Devolutions and RDM** redone: three areas, folding folders, favourites and recent items, the password under the user and a copy button only when there is one, details in about a second, entries under an information entry shown inside it. **Zammad tickets** with full messages including images, downloadable attachments, cc, the customer's contacts and tags, and a **Save** button for all changes. A **client page** in the memory (contacts, network, servers, access, procedures), linked to Zammad, 3CX, RDM and search. An **Overview** of the memory map and the new style on the older tabs too, with waiting bars, useful empty states and a shortcut guide on «?». **Notices in a window of their own**, which never take focus and no longer leave a transparent box in front. In the chat, messages written during a reply are queued (even across a restart) and «Send now» has them read at once; Preview opens real popups, works inside a site's frames and can wait up to 10 minutes. Personal integrations get graphic controls (sliders, switches, choice buttons, bars with thresholds). The model on the PC falls back to the processor if the graphics card crashes at startup.
+
+**1.0.51** — **Fix for the startup freeze** of 1.0.50: after closing it or restarting the PC, EasyIsland froze
+right after starting.
+
 **1.0.50** — **Renewed search bar** and all Settings pages reorganised with shared sub-tabs. Search can now also open as a
 dedicated bar centred on screen (`searchOnly`), in dark and light mode, with a selectable bottom line style across all themes
 (original focus waves, cyan-violet-cyan gradient, comet, prism, emerald, amber, steady or off) and configurable animation
