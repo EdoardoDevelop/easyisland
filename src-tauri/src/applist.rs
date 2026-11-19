@@ -695,31 +695,96 @@ pub enum Launch {
     Files { app: String, files: Vec<String> },
 }
 
-/// Opens it on a thread of its own: the shell (DDE, a slow handler, UAC) never
-/// holds the Dock. The click was the Dock's, which lets it hand the right to
-/// come in front to what it opens.
+/// Opens it in a throw-away process (`easyisland-hook avvia`, hook/src/launch.rs):
+/// the shell (DDE, a slow handler, a progress window, UAC) may hang there,
+/// never in EasyIsland. The click was the Dock's, which lets it hand the right
+/// to come in front to that process. Without the relay (a build without it),
+/// on a thread of EasyIsland's own.
 pub fn launch(what: Launch) {
-    unsafe {
-        let _ = AllowSetForegroundWindow(ASFW_ANY);
-    }
     let _ = std::thread::Builder::new().name("dock-launch".into()).spawn(move || {
-        unsafe {
-            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-        }
-        let (verb, file, args) = match what {
+        let (request, admin) = match what {
             // A program pinned from a shortcut with arguments opens through it.
-            Launch::Open { id } => ("open", launch_target(&id).unwrap_or(id), None),
-            Launch::Admin { id } => ("runas", id, None),
-            Launch::Files { app, files } => ("open", app, Some(quote_all(&files))),
+            Launch::Open { id } => {
+                let target = on_shell(Duration::from_secs(5), {
+                    let id = id.clone();
+                    move || launch_target(&id)
+                })
+                .flatten()
+                .unwrap_or(id);
+                (json!({ "op": "open", "id": target }), false)
+            }
+            Launch::Admin { id } => (json!({ "op": "open_admin", "id": id }), true),
+            Launch::Files { app, files } => (json!({ "op": "open_with", "app": app, "files": files }), false),
         };
-        let started = std::time::Instant::now();
-        if let Err(e) = shell_execute(verb, &file, args.as_deref()) {
-            crate::log::line(format!("dock: apertura non riuscita ({}): {e}", crate::log::mask(&file)));
-        }
-        if started.elapsed() > LAUNCH_TIMEOUT {
-            crate::log::line("dock: apertura lenta (oltre 30 s)");
+        if !through_relay(&request, admin) {
+            in_process(&request);
         }
     });
+}
+
+/// False when the relay could not be started (missing): then EasyIsland opens it itself.
+fn through_relay(request: &Value, admin: bool) -> bool {
+    use std::io::Write;
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let relay = crate::settings::hook_exe_path();
+    if !relay.exists() {
+        return false;
+    }
+    // stderr inherited, never piped: the app opened inherits it and would keep a pipe open forever.
+    let Ok(mut child) = std::process::Command::new(&relay)
+        .arg("avvia")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+    else {
+        return false;
+    };
+    unsafe {
+        let _ = AllowSetForegroundWindow(child.id());
+    }
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(request.to_string().as_bytes());
+    }
+    // UAC waits for the user: no limit then. Otherwise a hung shell handler is left after 30 s.
+    let started = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if !status.success() {
+                    crate::log::line(format!("dock: apertura non riuscita (codice {:?})", status.code()));
+                }
+                return true;
+            }
+            Ok(None) if admin || started.elapsed() < LAUNCH_TIMEOUT => std::thread::sleep(Duration::from_millis(100)),
+            _ => {
+                crate::log::line("dock: apertura ferma da 30 s, lasciata");
+                let _ = child.kill();
+                return true;
+            }
+        }
+    }
+}
+
+/// The same request, opened by EasyIsland itself (no relay).
+fn in_process(request: &Value) {
+    unsafe {
+        let _ = AllowSetForegroundWindow(ASFW_ANY);
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    }
+    let text = |k: &str| request.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let (verb, file, args) = match request.get("op").and_then(Value::as_str) {
+        Some("open_admin") => ("runas", text("id"), None),
+        Some("open_with") => {
+            let files: Vec<String> = request.get("files").and_then(Value::as_array).map(|a| a.iter().filter_map(|f| f.as_str().map(String::from)).collect()).unwrap_or_default();
+            ("open", text("app"), Some(quote_all(&files)))
+        }
+        _ => ("open", text("id"), None),
+    };
+    if let Err(e) = shell_execute(verb, &file, args.as_deref()) {
+        crate::log::line(format!("dock: apertura non riuscita ({}): {e}", crate::log::mask(&file)));
+    }
 }
 
 /// Every file as one argument, in quotes; quotes inside a path are not possible on Windows.

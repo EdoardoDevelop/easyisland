@@ -16,7 +16,9 @@
 // when covered»): followed only for that window, moved or resized.
 //
 // Window filter, app ids, the bring-to-front sequence and the system keys:
-// adapted from a MIT-licensed dock for Windows (LICENSE, third parties).
+// adapted from MIT-licensed docks for Windows (LICENSE, third parties); so are
+// the retries when the focus is refused, closing Start or the notification
+// centre first, and what counts as a full-screen app.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicI8, AtomicIsize, AtomicU32, Ordering};
@@ -39,9 +41,10 @@ use windows::Win32::System::Threading::{
     PROCESS_QUERY_LIMITED_INFORMATION,
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
+use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_A, VK_D,
-    VK_LCONTROL, VK_LWIN, VK_N, VK_S, VK_TAB, VK_V, VK_W,
+    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VIRTUAL_KEY,
+    VK_A, VK_D, VK_ESCAPE, VK_LBUTTON, VK_LCONTROL, VK_LWIN, VK_MBUTTON, VK_N, VK_RBUTTON, VK_S, VK_TAB, VK_V, VK_W,
 };
 use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -53,7 +56,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_UNCLOAKED, EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GWL_EXSTYLE,
     GW_OWNER, MSG, OBJID_WINDOW, SMTO_ABORTIFHUNG, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOOWNERZORDER, SWP_NOSIZE, SW_MINIMIZE, SW_RESTORE, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_APP,
-    WM_CLOSE, WM_NULL, WM_TIMER, WNDCLASSW, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WM_CLOSE, WM_NULL, WM_SYSCOMMAND, WM_TIMER, WNDCLASSW, WS_CAPTION, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, GWL_STYLE, SC_RESTORE,
 };
 
 /// The Dock's window (created by lib.rs when the Dock is on).
@@ -92,6 +96,13 @@ static HOOK_WINDOW: AtomicIsize = AtomicIsize::new(0);
 static SHELL_MSG: AtomicU32 = AtomicU32::new(0);
 /// What the Dock was last told about being covered: -1 nothing yet.
 static COVERED: AtomicI8 = AtomicI8::new(-1);
+/// Whether a full-screen app was last said to be in front: -1 nothing yet.
+static FULLSCREEN: AtomicI8 = AtomicI8::new(-1);
+/// Screen tools that cover the screen for a moment (Win+Maiusc+S): never a game.
+const SCREEN_TOOLS: &[&str] = &[
+    "screenclippinghost.exe", "snippingtool.exe", "screensketch.exe", "sharex.exe", "lightshot.exe", "greenshot.exe",
+    "powertoys.screenruler.exe", "powertoys.powerocr.exe", "powertoys.colorpickerui.exe",
+];
 
 /// One open window as the Dock shows it.
 #[derive(Clone, Debug, PartialEq)]
@@ -336,8 +347,79 @@ fn covered_now(app: &AppHandle) -> Option<bool> {
     }
 }
 
+/// The program file of a process, in lower case ("" if it cannot be read).
+fn process_exe(pid: u32) -> String {
+    unsafe {
+        let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else { return String::new() };
+        let mut buf = [0u16; 1024];
+        let mut len = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut len).is_ok();
+        let _ = CloseHandle(process);
+        if ok { String::from_utf16_lossy(buf.get(..len as usize).unwrap_or_default()).to_lowercase() } else { String::new() }
+    }
+}
+
+/// A full-screen app in front (a game, a video, a presentation): it covers its
+/// whole monitor and has no title bar. A window with a title bar never is,
+/// even covering the screen with the taskbar hidden (Chrome keeps
+/// WS_MAXIMIZE in F11, only the caption goes). The desktop, tool windows,
+/// screen-capture tools, hidden, minimized or cloaked windows and
+/// EasyIsland's own never are. With the Windows taskbar hidden its own
+/// notice (ABN_FULLSCREENAPP) does not hold: this replaces it.
+fn foreground_fullscreen() -> bool {
+    unsafe {
+        let front = GetForegroundWindow();
+        if front.is_invalid() || !IsWindowVisible(front).as_bool() || IsIconic(front).as_bool() || is_cloaked(front) {
+            return false;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(front, Some(&mut pid));
+        if pid == 0 || pid == GetCurrentProcessId() {
+            return false;
+        }
+        if GetWindowLongW(front, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW.0 != 0 {
+            return false;
+        }
+        if GetWindowLongW(front, GWL_STYLE) as u32 & WS_CAPTION.0 == WS_CAPTION.0 {
+            return false;
+        }
+        if matches!(class_name(front).as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd")
+            || matches!(class_name(front).as_str(), "XamlExplorerHostIslandWindow" | "MultitaskingViewFrame")
+        {
+            return false;
+        }
+        let exe = process_exe(pid);
+        if SCREEN_TOOLS.iter().any(|t| exe.ends_with(&format!("\\{t}"))) {
+            return false;
+        }
+        let mut rect = RECT::default();
+        let mut info = MONITORINFO { cbSize: size_of::<MONITORINFO>() as u32, ..Default::default() };
+        if GetWindowRect(front, &mut rect).is_err() || !GetMonitorInfoW(MonitorFromWindow(front, MONITOR_DEFAULTTONEAREST), &mut info).as_bool() {
+            return false;
+        }
+        covers(rect, info.rcMonitor)
+    }
+}
+
+fn covers(window: RECT, screen: RECT) -> bool {
+    window.left <= screen.left && window.top <= screen.top && window.right >= screen.right && window.bottom >= screen.bottom
+}
+
+/// Tells the Dock's window when a full-screen app comes in front or leaves.
+fn check_fullscreen() {
+    let now = foreground_fullscreen();
+    if FULLSCREEN.swap(now as i8, Ordering::SeqCst) != now as i8 {
+        if let Some(app) = APP.get() {
+            // dock_window.rs hides the Dock (and the Top bar follows); until its
+            // function is merged, the Dock's page hears it.
+            let _ = app.emit_to(DOCK_LABEL, "dock-fullscreen", now);
+        }
+    }
+}
+
 /// Tells the Dock if it became covered or uncovered.
 fn check_covered() {
+    check_fullscreen();
     let Some(app) = APP.get() else { return };
     let Some(now) = covered_now(app) else { return };
     if COVERED.swap(now as i8, Ordering::SeqCst) != now as i8 {
@@ -558,6 +640,7 @@ pub fn start(app: &AppHandle) {
         PINS_WATCH.with(|w| *w.borrow_mut() = None);
         follow_front(HWND::default());
         COVERED.store(-1, Ordering::SeqCst);
+        FULLSCREEN.store(-1, Ordering::SeqCst);
         for h in hooks {
             if !h.is_invalid() {
                 let _ = UnhookWinEvent(h);
@@ -618,8 +701,13 @@ fn activate(windows: &[isize]) {
         if IsIconic(front).as_bool() && !ShowWindowAsync(front, SW_RESTORE).as_bool() {
             SwitchToThisWindow(front, true);
         }
-        if !SetForegroundWindow(front).as_bool() {
+        if !SetForegroundWindow(front).as_bool() && !focus_retrying(front) {
             return;
+        }
+        // Still minimized (a program run as administrator refused ShowWindow): the
+        // system command passes where UIPI stops the rest.
+        if IsIconic(front).as_bool() {
+            let _ = PostMessageW(Some(front), WM_SYSCOMMAND, WPARAM(SC_RESTORE as usize), LPARAM(0));
         }
         // Activation across input queues is asynchronous: let it settle (a hung app answers no).
         if SendMessageTimeoutW(front, WM_NULL, WPARAM(0), LPARAM(0), SMTO_ABORTIFHUNG, 100, None).0 == 0 {
@@ -643,6 +731,47 @@ fn activate(windows: &[isize]) {
             }
         }
     }
+}
+
+/// A mouse button went down since the last call: the user clicked elsewhere.
+fn new_press() -> bool {
+    [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON].iter().any(|vk| unsafe { GetAsyncKeyState(vk.0 as i32) } & 1 != 0)
+}
+
+/// Start, Search or the notification centre keep the focus and refuse it to
+/// the window: Esc closes them first.
+fn dismiss_shell_flyout() {
+    const SHELL: [&str; 4] = ["\\shellexperiencehost.exe", "\\startmenuexperiencehost.exe", "\\searchhost.exe", "\\shellhost.exe"];
+    let front = unsafe { GetForegroundWindow() };
+    let mut pid = 0u32;
+    unsafe {
+        GetWindowThreadProcessId(front, Some(&mut pid));
+    }
+    if pid != 0 && SHELL.iter().any(|s| process_exe(pid).ends_with(s)) {
+        tap(&[VK_ESCAPE]);
+    }
+}
+
+/// The focus was refused: Start and the like closed, then asked again every
+/// 20 ms for at most 600 ms, until the window has it; a click meanwhile means
+/// the user moved on, and it is not taken back. True once the window is in front.
+fn focus_retrying(front: HWND) -> bool {
+    dismiss_shell_flyout();
+    let _ = new_press();
+    let started = std::time::Instant::now();
+    while started.elapsed() < Duration::from_millis(600) {
+        std::thread::sleep(Duration::from_millis(20));
+        unsafe {
+            if GetForegroundWindow() == front {
+                return true;
+            }
+            if new_press() || !IsWindow(Some(front)).as_bool() {
+                return false;
+            }
+            let _ = SetForegroundWindow(front);
+        }
+    }
+    unsafe { GetForegroundWindow() == front }
 }
 
 /// Asynchronous: a program that does not answer never holds the Dock.
@@ -888,6 +1017,14 @@ mod tests {
         assert_eq!(d["remove"].as_array().unwrap().len(), 0);
         let d = diff(&now, &[win(3, "c")]).unwrap();
         assert_eq!(d["remove"], json!([1, 2]));
+    }
+
+    #[test]
+    fn only_a_window_over_the_whole_monitor_covers_it() {
+        let screen = RECT { left: 0, top: 0, right: 1920, bottom: 1080 };
+        assert!(covers(screen, screen));
+        // Maximized above the Dock's band: its borders past the sides, not the bottom.
+        assert!(!covers(RECT { left: -8, top: -8, right: 1928, bottom: 985 }, screen));
     }
 
     #[test]
