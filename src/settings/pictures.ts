@@ -10,7 +10,7 @@
 // The SVG is built as a string: every value put in it is a number, one of a
 // fixed set of words, or a colour checked against #rrggbb.
 
-import { barThickness, type Settings } from "../core/state";
+import { barEdge, barThickness, type Settings } from "../core/state";
 import { barBgInk, hexLuma, parseBarBg } from "../core/barbg";
 import { characters } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -425,20 +425,18 @@ export function picture(kind: PicKind, s: Settings): string {
         `<rect x="14" y="88" width="132" height="2" rx="1" fill="#ffffff" fill-opacity="0.25"/><rect x="14" y="88" width="52" height="2" rx="1" fill="#F4505E"/>` +
         (s.quietFullscreen ? "" : top()));
     case "bar": {
-      const edge = s.fixedBar;
+      const edge = barEdge(s);
       if (!edge) {
         const at = spot(s);
         return svg(screen() + taskbar() + compact(p, at.x, at.y, s));
       }
       const f = barFill(s, p, "pic-bar");
-      const y = edge === "top" ? 0 : 80;
-      const app = edge === "top" ? `<rect class="p-app" x="6" y="12" width="148" height="77" rx="2"/>` : `<rect class="p-app" x="6" y="4" width="148" height="74" rx="2"/>`;
-      const shape = (extraAttrs: string) => edge === "top"
-        ? `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" ${extraAttrs}/>`
-        : `<rect x="0" y="${y}" width="160" height="10" ${extraAttrs}/>`;
+      const app = `<rect class="p-app" x="6" y="12" width="148" height="77" rx="2"/>`;
+      const shape = (extraAttrs: string) =>
+        `<path d="M0 7 a7 7 0 0 1 7 -7 H153 a7 7 0 0 1 7 7 V10 H0 Z" ${extraAttrs}/>`;
       return svg(f.defs + `<rect class="p-scr" width="160" height="100" rx="7"/>` + app + taskbar() +
         shape(f.attrs) + (f.extra ? shape(f.extra) : "") +
-        barItems(s, y, 10, f.ink, 0.8) + chr(p, barCharX(s, 0.8, 10), y + 5, 3.8));
+        barItems(s, 0, 10, f.ink, 0.8) + chr(p, barCharX(s, 0.8, 10), 5, 3.8));
     }
     case "barSlot":
     case "barBg": {

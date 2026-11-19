@@ -6121,5 +6121,22 @@
   "Apri scheda cliente di «{name}»": "Open customer card for \"{name}\"",
   "Apri la scheda cliente nella Memoria": "Open customer card in Memory",
   "Apri scheda cliente di «{c}»": "Open customer card for \"{c}\"",
-  "Ogni cliente ha la sua pagina cliente in memoria (rubrica clienti, scheda cliente): memory_page_write con la prima riga «tipo: cliente» e le sezioni {list}; in «Accessi» solo il nome della cartella o della voce di RDM/Devolutions, mai password. Non è un'integrazione personale.": "Each customer has its customer page in the memory (customer list, customer card): memory_page_write with «tipo: cliente» as the first line and the sections {list}; in «Accessi» only the name of the RDM/Devolutions folder or entry, never passwords. It is not a custom integration."
+  "Ogni cliente ha la sua pagina cliente in memoria (rubrica clienti, scheda cliente): memory_page_write con la prima riga «tipo: cliente» e le sezioni {list}; in «Accessi» solo il nome della cartella o della voce di RDM/Devolutions, mai password. Non è un'integrazione personale.": "Each customer has its customer page in the memory (customer list, customer card): memory_page_write with «tipo: cliente» as the first line and the sections {list}; in «Accessi» only the name of the RDM/Devolutions folder or entry, never passwords. It is not a custom integration.",
+  "Con la Top bar accesa il personaggio sta lì: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Top bar).": "With the Top bar on, the character sits there: the corner and the settings about it come back when you turn it off (Top bar tab).",
+  "Una fascia in alto sullo schermo: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto.": "A strip at the top of the screen: the character sits there with the integrations, widgets and actions you choose, and the island opens below.",
+  "Top bar": "Top bar",
+  "Windows tiene libera una fascia in alto sullo schermo: le finestre si fermano lì": "Windows keeps a strip free at the top of the screen: windows stop there",
+  "Personaggio nella Top bar": "Character in the Top bar",
+  "con la Top bar il personaggio sta lì e non si trascina; l'isola si apre sotto di lei e da chiusa non c'è": "with the Top bar the character stays there and cannot be dragged; the island opens below it and is not there when closed",
+  "Nella Top bar": "In the Top bar",
+  "chi sta nella Top bar può essere diverso da chi sta nell'isola: un personaggio o il logo animato seguono il mouse e cambiano con gli stati; il logo fermo, il tuo logo e il meteo sono immagini ferme": "whoever sits in the Top bar may differ from the island: a character or the animated logo follows the mouse and changes with states; the still logo, your logo and the weather are still pictures",
+  "Altezza della Top bar": "Top bar height",
+  "Sfondo della Top bar": "Top bar background",
+  "Aspetto della Top bar": "Top bar appearance",
+  "Widget della Top bar": "Top bar widgets",
+  "Con la Top bar accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta lì. Queste voci valgono quando la spegni.": "With the Top bar on there is no closed island: the strip and its buttons sit there. These settings apply when you turn it off.",
+  "titoli e intestazioni, nomi nelle schede e in chat; nella Top bar se lì è acceso «Font di Aspetto → Font»": "titles and headings, names in cards and in the chat; in the Top bar when «Font from Appearance → Font» is on there",
+  "leggera, sotto la Top bar": "light, under the Top bar",
+  "Le schede escono dalla Top bar": "Cards pop out of the Top bar",
+  "Widget della Top bar: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.": "Top bar widgets: clock, volume, battery, network, processor, memory, disk, recycle bin, updates and other system elements; the active app's bar, music, weather, VS Code projects, integrations, widgets and quick actions, each in its area. Under «Options» choose what it shows and what clicks, right-click and wheel do; ✕ removes it."
 }
