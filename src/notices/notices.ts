@@ -153,24 +153,37 @@ function moreButton(doc: Document, more: number): HTMLElement {
   return tail;
 }
 
+/** No toast: the window emptied and hidden, always (also when this page lost
+ * track of it, after a reload: hiding a hidden window costs nothing). */
+function hideEmpty() {
+  if (win && !win.closed) {
+    try {
+      win.document.getElementById("notices")?.replaceChildren();
+    } catch {
+      // Its page is out of reach: the next draw makes it again.
+    }
+  }
+  void Bridge.noticesHide();
+}
+
 async function draw() {
   if (!IS_TAURI) {
     drawInPage();
     return;
   }
   if (!toasts.length) {
-    if (win && !win.closed) {
-      try {
-        win.document.getElementById("notices")?.replaceChildren();
-      } catch {
-        // Its page is out of reach: the next draw makes it again.
-      }
-      void Bridge.noticesHide();
-    }
+    hideEmpty();
     return;
   }
   const w = await ensure();
   if (!w) return;
+  // The last toast may have gone while the window was being made: an empty
+  // window shown here stayed in front, invisible, taking the clicks under it
+  // (Edoardo, 19 Nov 2026: «mi si mette in trasparenza davanti»).
+  if (!toasts.length) {
+    hideEmpty();
+    return;
+  }
   let doc: Document;
   try {
     doc = w.document;
@@ -295,3 +308,7 @@ html[data-scheme="light"] .notice-more { background: #ffffff; color: #475569; }
 @keyframes notice-in { from { opacity: 0; transform: translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .notice-toast { animation: none; } }
 `;
+
+// The island's page (re)starting: a window left shown by the page before,
+// with nobody to hide it, goes now.
+if (IS_TAURI) void Bridge.noticesHide();
