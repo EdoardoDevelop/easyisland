@@ -687,7 +687,8 @@ export class DockView {
         tile.append(this.renderGroupTileContent(entry.pin));
       } else if (entry.icon.startsWith("i:")) {
         tile.append(h("div", { class: "dock-icon-svg" }, renderActionIcon(entry.icon, Math.round(this.metrics.icon * 0.62))));
-      } else if (entry.icon) {
+      } else if (entry.icon.startsWith("data:")) {
+        // Only a picture: an app id or anything else would show a broken image.
         tile.append(h("img", { class: "dock-icon-img", src: entry.icon, alt: "", draggable: "false" }));
       } else {
         tile.append(h("div", { class: "dock-fallback-glyph", text: fallbackInitial(entry.name) }));
@@ -1237,7 +1238,8 @@ export class DockView {
         this.ops.onAction("close", { hwnd: w.hwnd });
       });
       const iconSrc = this.icons.get(entry.appId) || w.icon || entry.icon;
-      const headIcon = iconSrc && !iconSrc.startsWith("i:")
+      // Only a picture: an app id or anything else would show a broken image.
+      const headIcon = iconSrc && iconSrc.startsWith("data:")
         ? h("img", { class: "dock-thumb-icon", src: iconSrc, alt: "" })
         : h("span", { class: "dock-thumb-icon" }, fallbackInitial(entry.name));
 

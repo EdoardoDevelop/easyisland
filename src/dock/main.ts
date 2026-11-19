@@ -99,17 +99,8 @@ async function main() {
   onReducedTransparencyChange((on) => view.setReducedTransparency(on));
 
   if (IS_TAURI) {
-    const [initialWins, initialTray] = await Promise.all([
-      Bridge.dockWindows().catch(() => null),
-      Bridge.trayIcons().catch(() => null),
-    ]);
-    if (initialWins) {
-      windows = initialWins;
-      view.setWindows(windows);
-    }
-    if (initialTray) {
-      view.setTrayIcons(initialTray);
-    }
+    // Listening first: the icons come from a cache on disk in a few ms, often
+    // before dock_windows() has even answered; heard late, they were lost.
     await onEvent<DockWindowDiff>("dock-windows", (diff) => {
       const byHwnd = new Map(windows.map((w) => [w.hwnd, w]));
       for (const hwnd of diff.remove ?? []) byHwnd.delete(hwnd);
@@ -121,6 +112,19 @@ async function main() {
     await onEvent<Record<string, string>>("dock-icons", (icons) => {
       view.setIcons(icons);
     });
+    const [initialWins, initialTray] = await Promise.all([
+      Bridge.dockWindows().catch(() => null),
+      Bridge.trayIcons().catch(() => null),
+    ]);
+    if (initialWins) {
+      windows = initialWins;
+      view.setWindows(windows);
+      // Asked again now that we listen (the Rust side reads them from its disk cache).
+      void Bridge.dockIcons([...new Set(windows.map((w) => w.app))]);
+    }
+    if (initialTray) {
+      view.setTrayIcons(initialTray);
+    }
     await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
       view.setTrayIcons(icons ?? []);
     });
