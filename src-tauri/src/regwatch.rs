@@ -1,9 +1,9 @@
 // A registry key watched without polling and without a thread of its own
 // (docs/piano-dock.md): the registry signals an event, the system thread pool
-// posts a message to a window, and the window's owner calls `arm` again when
-// it handles it, so a burst of changes costs one message. Used by the Dock for
-// the Windows taskbar's pinned apps (applist.rs) and by the bar for the
-// microphone and camera in use (barsys.rs).
+// posts a message to a window (or calls a function), and the owner calls
+// `arm` again when it handles it, so a burst of changes costs one message.
+// Used by the Dock for the Windows taskbar's pinned apps (taskwin.rs) and by
+// the bars for the microphone and camera in use (sysevents.rs).
 //
 // Adapted from a MIT-licensed dock for Windows (LICENSE, third parties).
 
@@ -16,22 +16,41 @@ use windows::Win32::System::Registry::{
 use windows::Win32::System::Threading::{CreateEventW, RegisterWaitForSingleObject, UnregisterWaitEx, INFINITE, WT_EXECUTEONLYONCE};
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 
-/// Posts `message` to a window when a key under HKEY_CURRENT_USER changes: a
-/// value written or, with `subtree`, a key below it added, removed or written.
+/// Where a change goes.
+#[derive(Clone, Copy)]
+enum Target {
+    /// Posted to a window: (window, message).
+    Post(isize, u32),
+    /// Called on a thread of the system pool: it must be quick.
+    Call(fn()),
+}
+
+/// Tells when a key under HKEY_CURRENT_USER changes: a value written or, with
+/// `subtree`, a key below it added, removed or written.
 pub struct RegistryWatch {
     key: HKEY,
     subtree: bool,
     event: HANDLE,
     wait: HANDLE,
-    /// Window and message, boxed: the thread pool holds its address.
-    target: Box<(isize, u32)>,
+    /// Boxed: the thread pool holds its address.
+    target: Box<Target>,
 }
 
 // The handles are only used by the owner and the system thread pool.
 unsafe impl Send for RegistryWatch {}
 
 impl RegistryWatch {
+    /// Posts `message` to the window `hwnd` at each change.
     pub fn new(path: PCWSTR, subtree: bool, hwnd: isize, message: u32) -> Option<Self> {
+        Self::with(path, subtree, Target::Post(hwnd, message))
+    }
+
+    /// Calls `f` at each change (on a pool thread: it only wakes someone up).
+    pub fn calling(path: PCWSTR, subtree: bool, f: fn()) -> Option<Self> {
+        Self::with(path, subtree, Target::Call(f))
+    }
+
+    fn with(path: PCWSTR, subtree: bool, target: Target) -> Option<Self> {
         let mut key = HKEY::default();
         unsafe {
             RegOpenKeyExW(HKEY_CURRENT_USER, path, None, KEY_NOTIFY, &mut key).ok().ok()?;
@@ -42,7 +61,7 @@ impl RegistryWatch {
             }
             return None;
         };
-        let mut watch = Self { key, subtree, event, wait: HANDLE::default(), target: Box::new((hwnd, message)) };
+        let mut watch = Self { key, subtree, event, wait: HANDLE::default(), target: Box::new(target) };
         watch.arm().then_some(watch)
     }
 
@@ -73,9 +92,11 @@ impl RegistryWatch {
 
 unsafe extern "system" fn changed(context: *mut std::ffi::c_void, _timed_out: bool) {
     // `context` is the watch's boxed target, alive until the wait is cancelled.
-    let (hwnd, message) = unsafe { *context.cast::<(isize, u32)>() };
-    unsafe {
-        let _ = PostMessageW(Some(HWND(hwnd as *mut _)), message, WPARAM(0), LPARAM(0));
+    match unsafe { *context.cast::<Target>() } {
+        Target::Post(hwnd, message) => unsafe {
+            let _ = PostMessageW(Some(HWND(hwnd as *mut _)), message, WPARAM(0), LPARAM(0));
+        },
+        Target::Call(f) => f(),
     }
 }
 

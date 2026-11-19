@@ -30,6 +30,7 @@ windows = { version = "0.61", features = [
   "Graphics_Imaging",
   "Media_Ocr",
   "Media_Control",
+  "Networking_Connectivity",
   "Storage_Streams",
   "Win32_Foundation",
   "Win32_Globalization",
@@ -83,6 +84,9 @@ windows = { version = "0.61", features = [
 # Already in the tree through Tauri (same versions): used to read the real path
 # of a file dropped on the island, see drop.rs.
 webview2-com = "0.39"
+# `#[implement]` (COM callbacks in sysevents.rs) expands to paths in windows-core:
+# the same version as `windows`, already in the tree through it.
+windows-core = "0.61"
 windows-core-wv2 = { package = "windows-core", version = "0.62" }
 # Already in the tree through Tauri (tray-icon, muda; same version): screenshots
 # and pictures copied to the clipboard are saved and shown as PNG, see clipimage.rs.

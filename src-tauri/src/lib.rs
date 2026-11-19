@@ -4,6 +4,7 @@ mod actions;
 // The Dock (docs/piano-dock.md, EASYTECH): open windows, apps, registry watches.
 mod applist;
 mod regwatch;
+mod sysevents;
 mod taskwin;
 mod winthumbs;
 mod barshadow;
