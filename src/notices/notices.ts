@@ -215,6 +215,50 @@ async function draw() {
   if (more > 0) box.append(moreButton(doc, more));
   const height = Math.ceil(box.getBoundingClientRect().height) + 4;
   void Bridge.noticesShow(height, State.settings.noticesPlace ?? "isola");
+  watch();
+}
+
+/** While the window is shown, every 2 s: is something really drawn in it?
+ * It stayed in front empty and transparent, taking the clicks, here and on
+ * the laptop even after the other fixes (Edoardo, 19 Nov 2026): a toast drawn
+ * in a page the window no longer shows (WebView2 swapping its blank page), or
+ * one gone without the window being hidden. Not drawn: drawn once more, then
+ * hidden. CPU: one check every 2 s only while a toast is on screen. */
+let guard = 0;
+let misses = 0;
+function watch() {
+  if (!guard) guard = window.setInterval(check, 2000);
+}
+function check() {
+  if (!toasts.length) {
+    window.clearInterval(guard);
+    guard = 0;
+    misses = 0;
+    hideEmpty();
+    return;
+  }
+  let drawn = false;
+  try {
+    const box = win && !win.closed ? win.document.getElementById("notices") : null;
+    drawn = !!box && box.isConnected && box.childElementCount > 0 && box.getBoundingClientRect().height > 8;
+  } catch {
+    drawn = false;
+  }
+  if (drawn) {
+    misses = 0;
+    return;
+  }
+  misses++;
+  void Bridge.log(`avvisi: finestra vuota con ${toasts.length} avvisi (tentativo ${misses})`).catch(() => {});
+  if (misses === 1) {
+    void draw();
+    return;
+  }
+  // Not drawn twice: hidden; the next notice draws it again from scratch.
+  window.clearInterval(guard);
+  guard = 0;
+  misses = 0;
+  hideEmpty();
 }
 
 function card(doc: Document, s: Shown): HTMLElement {

@@ -28,7 +28,7 @@ pub fn build(app: &AppHandle, features: tauri::webview::NewWindowFeatures) -> ta
     // goes: nobody would hide it again, and it stayed in front, empty and
     // transparent, taking the clicks (laptop, 19 Nov 2026).
     for old in others(app, None) {
-        let _ = old.hide();
+        hide_now(&old);
         let _ = old.destroy();
     }
     let label = format!("avvisi-{}", NEXT.fetch_add(1, Ordering::Relaxed));
@@ -96,9 +96,11 @@ pub fn notices_show(app: AppHandle, height: f64, place: String) {
     let height = if height.is_finite() { height.clamp(40.0, 900.0) } else { 120.0 };
     let size = ((WIDTH * scale).round() as i32, (height * scale).round() as i32);
     let (x, y) = spot(&place, area, island, open, size, (MARGIN * scale).round() as i32);
-    for old in others(&app, Some(win.label())) {
-        let _ = old.hide();
+    let stale = others(&app, Some(win.label()));
+    for old in &stale {
+        hide_now(old);
     }
+    crate::log::line(format!("avvisi: mostra {} ({}x{} a {},{}; altre nascoste: {})", win.label(), size.0, size.1, x, y, stale.len()));
     show_at(&win, x, y, size.0, size.1);
 }
 
@@ -106,8 +108,34 @@ pub fn notices_show(app: AppHandle, height: f64, place: String) {
 #[tauri::command]
 pub fn notices_hide(app: AppHandle) {
     // All of them: one the island's page lost track of included.
+    let mut shown = 0;
     for win in others(&app, None) {
-        let _ = win.hide();
+        if hide_now(&win) {
+            shown += 1;
+        }
+    }
+    if shown > 0 {
+        crate::log::line(format!("avvisi: nascoste {shown}"));
+    }
+}
+
+/// Hidden for real, by Windows as it was shown (show_at). Tao's `hide()`
+/// did nothing: shown behind its back, it still believed the window hidden,
+/// so the empty, transparent window stayed in front taking the clicks
+/// (Edoardo, 19 Nov 2026; the log said «nascoste 1» twice in a row).
+/// Whether it was visible.
+fn hide_now(win: &tauri::Window) -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{IsWindowVisible, ShowWindow, SW_HIDE};
+    let _ = win.hide();
+    let Ok(raw) = win.hwnd() else { return false };
+    let hwnd = HWND(raw.0);
+    unsafe {
+        let was = IsWindowVisible(hwnd).as_bool();
+        if was {
+            let _ = ShowWindow(hwnd, SW_HIDE);
+        }
+        was
     }
 }
 
