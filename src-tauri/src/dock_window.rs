@@ -41,9 +41,13 @@ const TAKE_EVERY: Duration = Duration::from_millis(600);
 static APP: OnceLock<AppHandle> = OnceLock::new();
 /// The Dock's window registered as an appbar (its HWND).
 static REGISTERED: Mutex<Option<isize>> = Mutex::new(None);
-/// The band last given to the shell: the same again is not sent (the Top bar
-/// and the Dock would answer each other's ABN_POSCHANGED forever).
-static LAST_BAND: Mutex<Option<(isize, i32, i32, i32, i32)>> = Mutex::new(None);
+/// The band as the shell settled it (window, bottom edge), used when the
+/// shell is not asked again.
+static LAST_BAND: Mutex<Option<(isize, i32)>> = Mutex::new(None);
+/// When the shell was asked lately: more than a few times in 2 s means the
+/// Top bar and the Dock are answering each other's ABN_POSCHANGED; then the
+/// last settled band stands.
+static ASKED: Mutex<Vec<std::time::Instant>> = Mutex::new(Vec::new());
 /// The band at rest the page asked for (logical px; 0 = hides by itself).
 static BAND: Mutex<f64> = Mutex::new(DEFAULT_BAND);
 /// A full-screen app is in front: the Dock steps away.
@@ -165,23 +169,32 @@ fn place(app: &AppHandle, win: &tauri::WebviewWindow) {
     let band = (*BAND.lock().unwrap() * scale).round() as i32;
     let mut abd = data(raw);
     abd.rc = RECT { left: p.x, top: p.y + s.height as i32 - band, right: p.x + s.width as i32, bottom: p.y + s.height as i32 };
-    let wanted = (raw, abd.rc.left, abd.rc.top, abd.rc.right, abd.rc.bottom);
-    let mut last = LAST_BAND.lock().unwrap();
-    if *last != Some(wanted) {
-        unsafe {
-            SHAppBarMessage(ABM_QUERYPOS, &mut abd);
-            abd.rc.top = abd.rc.bottom - band;
-            SHAppBarMessage(ABM_SETPOS, &mut abd);
+    let busy = {
+        let mut asked = ASKED.lock().unwrap();
+        let now = std::time::Instant::now();
+        asked.retain(|t| now.duration_since(*t) < Duration::from_secs(2));
+        asked.push(now);
+        asked.len() > 8
+    };
+    let last = *LAST_BAND.lock().unwrap();
+    match last {
+        Some((r, bottom)) if busy && r == raw => abd.rc.bottom = bottom,
+        _ => {
+            // The shell moves the band above the taskbar and other bars.
+            unsafe {
+                SHAppBarMessage(ABM_QUERYPOS, &mut abd);
+                abd.rc.top = abd.rc.bottom - band;
+                SHAppBarMessage(ABM_SETPOS, &mut abd);
+            }
+            *LAST_BAND.lock().unwrap() = Some((raw, abd.rc.bottom));
         }
-        *last = Some(wanted);
-    } else {
-        abd.rc.bottom = p.y + s.height as i32;
     }
-    drop(last);
     let h = (HEIGHT * scale).round() as i32;
     let sized = win.set_size(tauri::PhysicalSize::new(s.width, h as u32));
     let moved = win.set_position(tauri::PhysicalPosition::new(p.x, abd.rc.bottom - h));
     let shown = if FULLSCREEN.load(Ordering::Relaxed) { win.hide() } else { win.show() };
+    // Never in Alt+Tab or the taskbar, never takes the focus (tao may have reset it).
+    keep_tool_style(raw);
     crate::log::line(format!("dock: a {},{} {}x{} fascia {band}px (size {sized:?}, pos {moved:?}, show {shown:?})", p.x, abd.rc.bottom - h, s.width, h));
 }
 
@@ -353,5 +366,17 @@ pub fn set_fullscreen(on: bool) {
     let Some(app) = APP.get() else { return };
     if let Some(win) = app.get_webview_window(LABEL) {
         let _ = if on { win.hide() } else { win.show() };
+    }
+}
+
+/// Tool window that never activates, out of Alt+Tab and the taskbar.
+fn keep_tool_style(raw: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW};
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd(raw), GWL_EXSTYLE);
+        let want = (ex & !(WS_EX_APPWINDOW.0 as isize)) | WS_EX_NOACTIVATE.0 as isize | WS_EX_TOOLWINDOW.0 as isize;
+        if want != ex {
+            SetWindowLongPtrW(hwnd(raw), GWL_EXSTYLE, want);
+        }
     }
 }
