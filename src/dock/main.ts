@@ -3,11 +3,12 @@
 // and live windows/icons/coverage directly from Rust events & commands.
 
 import "./dock.css";
-import { Bridge, IS_TAURI, onEvent, type DockWin, type DockWindowDiff } from "../core/bridge";
+import { Bridge, IS_TAURI, onEvent, type DockWin, type DockWindowDiff, type TrayIconInfo } from "../core/bridge";
 import { addFaces } from "../core/fonts";
 import { dockChannel, type DockSnapshot, type DockToIsland, type IslandToDock } from "../core/link";
 import { syncLanguage, t } from "../core/i18n";
 import { DEFAULT_SETTINGS, type Settings } from "../core/state";
+import { onReducedTransparencyChange, prefersReducedTransparency } from "./surface";
 import { DockView } from "./view";
 
 async function main() {
@@ -28,7 +29,10 @@ async function main() {
     style: (boot?.settings.theme.style as DockSnapshot["style"]) ?? "windows",
     accent: "#4cc2ff",
     animations: (boot?.settings.animations as DockSnapshot["animations"]) ?? "ricche",
-    reduceTransparency: false,
+    reduceTransparency: prefersReducedTransparency(),
+    fullscreen: false,
+    nativeMaterial: false,
+    trayIcons: [],
   };
 
   let windows: DockWin[] = [];
@@ -43,6 +47,10 @@ async function main() {
       view.setWindows(windows);
     } else if (msg.kind === "dock-icons") {
       view.setIcons(msg.icons);
+    } else if (msg.kind === "dock-tray") {
+      view.setTrayIcons(msg.icons);
+    } else if (msg.kind === "dock-fullscreen") {
+      view.setFullscreen(msg.fullscreen);
     }
   });
 
@@ -52,6 +60,10 @@ async function main() {
     },
     onWidgetClick: (key, button, x) => {
       sendToIsland({ kind: "bar", key, button, x });
+    },
+    onTrayClick: (id, button, x, y) => {
+      if (IS_TAURI) void Bridge.trayDo(id, button, x, y);
+      else sendToIsland({ kind: "tray", id, button, x, y });
     },
     onPinReorder: (pinned) => {
       settings = { ...settings, dockPinned: pinned };
@@ -81,11 +93,19 @@ async function main() {
   }, initial);
 
   document.title = t("Dock — EasyIsland");
+  onReducedTransparencyChange((on) => view.setReducedTransparency(on));
+
   if (IS_TAURI) {
-    const initialWins = await Bridge.dockWindows();
+    const [initialWins, initialTray] = await Promise.all([
+      Bridge.dockWindows().catch(() => null),
+      Bridge.trayIcons().catch(() => null),
+    ]);
     if (initialWins) {
       windows = initialWins;
       view.setWindows(windows);
+    }
+    if (initialTray) {
+      view.setTrayIcons(initialTray);
     }
     await onEvent<DockWindowDiff>("dock-windows", (diff) => {
       const byHwnd = new Map(windows.map((w) => [w.hwnd, w]));
@@ -98,8 +118,17 @@ async function main() {
     await onEvent<Record<string, string>>("dock-icons", (icons) => {
       view.setIcons(icons);
     });
+    await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
+      view.setTrayIcons(icons ?? []);
+    });
     await onEvent<boolean>("dock-covered", (covered) => {
       view.setCovered(covered);
+    });
+    await onEvent<boolean>("fullscreen", (fs) => {
+      view.setFullscreen(!!fs);
+    });
+    await onEvent<boolean>("dock-material", (native) => {
+      view.setNativeMaterial(!!native);
     });
     await onEvent<Settings>("settings-changed", (next) => {
       settings = { ...settings, ...next };

@@ -9,9 +9,10 @@ import "./style-light.css";
 import "./core/search-line.css";
 import "./chat-cards.css";
 import "./character/roster";
-import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
+import { Bridge, IS_TAURI, onEvent, type DoneItem, type TrayIconInfo, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, barEdge, barThickness, migrateBarSettings, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
+import { onReducedTransparencyChange, prefersReducedTransparency } from "./dock/surface";
 import { forgetRecords, previewFor, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -391,6 +392,9 @@ function linkCharacterWindow(island: Island) {
 /** Keeps the Dock window (dock.html) synchronized with island state, widgets and theme. */
 function linkDockWindow(island: Island) {
   let sentKey = "";
+  let dockFullscreen = false;
+  let reducedTransparency = prefersReducedTransparency();
+
   const build = (): DockSnapshot => {
     const s = State.settings;
     const paint = barPaint(s.dockBackground ?? "", island.islandBackground, island.islandInk);
@@ -405,7 +409,9 @@ function linkDockWindow(island: Island) {
       style: uiStyle(s.theme?.style),
       accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4cc2ff",
       animations: (s.animations as DockSnapshot["animations"]) ?? "ricche",
-      reduceTransparency: false,
+      reduceTransparency: reducedTransparency,
+      fullscreen: dockFullscreen,
+      trayIcons: State.trayIcons,
     };
   };
   const send = dockChannel<DockToIsland, IslandToDock>((m) => {
@@ -414,6 +420,8 @@ function linkDockWindow(island: Island) {
       push();
     } else if (m.kind === "bar") {
       island.barClick(m.key, m.button, m.x);
+    } else if (m.kind === "tray") {
+      void Bridge.trayDo(m.id, m.button, m.x, m.y);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();
@@ -431,6 +439,29 @@ function linkDockWindow(island: Island) {
   };
   State.subscribe(push);
   void onEvent<BarSys>("bar-sys", () => push());
+  void onEvent<boolean>("fullscreen", (on) => {
+    dockFullscreen = !!on;
+    send({ kind: "dock-fullscreen", fullscreen: dockFullscreen });
+    push();
+  });
+  void onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
+    State.trayIcons = icons ?? [];
+    State.notify();
+    send({ kind: "dock-tray", icons: State.trayIcons });
+    push();
+  });
+  void Bridge.trayIcons().then((icons) => {
+    if (icons) {
+      State.trayIcons = icons;
+      State.notify();
+      send({ kind: "dock-tray", icons: State.trayIcons });
+      push();
+    }
+  }).catch(() => {});
+  onReducedTransparencyChange((next) => {
+    reducedTransparency = next;
+    push();
+  });
   push();
 }
 

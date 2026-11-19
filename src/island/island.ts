@@ -3580,7 +3580,17 @@ ${note}` : text };
    * action runs.
    */
   barClick(key: string, button: BarButton = "left", x?: number) {
-    // A small button inside an element: music's, or one of the app in use.
+    // A small button inside an element: music's, appbar's, or mirrored systray icons (16 px + ^).
+    const traySub = /^(sys:systray[^:]*):btn:(tray-more|tray:(.+))$/.exec(key);
+    if (traySub) {
+      if (traySub[2] === "tray-more") {
+        if (button === "left") void Bridge.barSysDo("systray");
+      } else {
+        const trayBtn = button === "right" ? "right" : button === "middle" ? "middle" : "left";
+        void Bridge.trayDo(traySub[3], trayBtn, x);
+      }
+      return;
+    }
     const inner = /^(sys:(music|appbar)[^:]*):btn:(\d+)$/.exec(key);
     if (inner) {
       const i = Number(inner[3]);
