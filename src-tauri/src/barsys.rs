@@ -1,13 +1,17 @@
 // The system elements of the fixed bar (docs/architettura.md → «Barra fissa»,
 // «Widget della barra»): volume, microphone, brightness, battery, network
 // speed, CPU, memory, disks, GPU, keyboard language, recycle bin, updates
-// (winget) and VS Code's recent folders, read here and sent to the island as
-// `bar-sys` (src/island/bar.ts draws them; the clock, the window title, music
-// and weather are the island's own). One thread holds the COM objects: it
-// sleeps on its channel while no such element is in the bar, and reads every
-// 2 s while one is (battery, disks and recycle bin every 30 s, brightness every
-// 15 s, VS Code every minute, updates every 6 hours on a thread of their own,
-// at once after a change of ours). The island hears only what changed.
+// (winget), VS Code's recent folders and the apps using the microphone or
+// camera («privacy»), read here and sent to the island as `bar-sys`
+// (src/island/bar.ts draws them; the clock, the window title, music and
+// weather are the island's own). One thread holds the COM objects. Volume,
+// microphone, the connection and «privacy» are read when Windows says they
+// changed (sysevents.rs, docs/piano-dock.md); the rest on a timer: every 2 s
+// while CPU, network speed, memory, GPU, language or title are in the bar,
+// every 15 s with only slow ones (battery and disks every 30 s, brightness
+// every 15 s, VS Code every minute, updates every 6 hours on a thread of their
+// own, at once after a change of ours). With only event-driven elements, or
+// none, it sleeps until told. The island hears only what changed.
 //
 // It also does what the elements and their cards in the island ask (src/views/
 // barcard.ts): volume and brightness from the wheel or a slider, mute, and the
@@ -23,6 +27,14 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 const EVERY: Duration = Duration::from_secs(2);
+/// With only slow elements in the bar (battery, disks, brightness…): a look this often.
+const SLOW_EVERY: Duration = Duration::from_secs(15);
+/// Read on a timer every `EVERY`: they have no event of their own.
+const FAST: &[&str] = &["title", "net", "cpu", "ram", "gpu", "lang"];
+/// Read on a timer, but seldom (their own periods below).
+const SLOW: &[&str] = &["battery", "brightness", "disk", "recycle", "vscode", "updates"];
+// Volume, microphone and the apps using them («privacy») come from Windows'
+// own events (sysevents.rs): with only those in the bar, nothing runs.
 const BATTERY_EVERY: Duration = Duration::from_secs(30);
 const BRIGHTNESS_EVERY: Duration = Duration::from_secs(15);
 const VSCODE_EVERY: Duration = Duration::from_secs(60);
@@ -35,6 +47,34 @@ enum Cmd {
     Do(String, f64),
     /// A value read elsewhere (the updates, on their own thread).
     Set(&'static str, Value),
+    /// Windows said the volume, the devices or the connection changed (sysevents.rs).
+    Wake,
+    /// The apps using the microphone or camera changed.
+    WakePrivacy,
+}
+
+/// Volume, devices or connection changed: read them again now.
+pub fn wake() {
+    send(Cmd::Wake);
+}
+
+/// Microphone or camera use changed (registry watch, sysevents.rs).
+pub fn wake_privacy() {
+    send(Cmd::WakePrivacy);
+}
+
+/// How long the loop may sleep with these elements in the bar: None, until told.
+fn tick(watch: &HashSet<String>, audio_events: bool) -> Option<Duration> {
+    let has = |list: &[&str]| list.iter().any(|k| watch.contains(*k));
+    // Without the volume callbacks (no audio device yet), volume and mic are read on the timer.
+    let audio_polled = !audio_events && (watch.contains("volume") || watch.contains("mic"));
+    if has(FAST) || audio_polled {
+        Some(EVERY)
+    } else if has(SLOW) {
+        Some(SLOW_EVERY)
+    } else {
+        None
+    }
 }
 
 /// VS Code's recent folders as last read: the only ones `vscode-open` opens.
@@ -71,18 +111,24 @@ pub fn start(app: AppHandle) {
         let mut vscode_at: Option<Instant> = None;
         let mut updates_at: Option<Instant> = None;
         let mut gpu: Option<Gpu> = None;
+        // Windows' own events, while an element needs them (sysevents.rs).
+        let mut audio: Option<crate::sysevents::AudioWatch> = None;
+        let mut net_watch: Option<crate::sysevents::NetWatch> = None;
+        let mut privacy_watch: Option<crate::regwatch::RegistryWatch> = None;
+        let mut connection = Value::Null;
+        // What an event said changed: read at the next turn, then not again until told.
+        let (mut dirty_audio, mut dirty_net, mut dirty_privacy) = (true, true, true);
         loop {
-            let cmd = if watch.is_empty() {
-                match rx.recv() {
+            let cmd = match tick(&watch, audio.is_some()) {
+                None => match rx.recv() {
                     Ok(c) => Some(c),
                     Err(_) => return,
-                }
-            } else {
-                match rx.recv_timeout(EVERY) {
+                },
+                Some(every) => match rx.recv_timeout(every) {
                     Ok(c) => Some(c),
                     Err(RecvTimeoutError::Timeout) => None,
                     Err(RecvTimeoutError::Disconnected) => return,
-                }
+                },
             };
             match cmd {
                 Some(Cmd::Watch(w)) => {
@@ -96,6 +142,23 @@ pub fn start(app: AppHandle) {
                     }
                     watch = w;
                     crate::fgwin::watch(watch.contains("title"));
+                    let wants_audio = watch.contains("volume") || watch.contains("mic");
+                    if wants_audio && audio.is_none() {
+                        audio = crate::sysevents::AudioWatch::new();
+                    } else if !wants_audio {
+                        audio = None;
+                    }
+                    if watch.contains("net") && net_watch.is_none() {
+                        net_watch = crate::sysevents::NetWatch::new();
+                    } else if !watch.contains("net") {
+                        net_watch = None;
+                    }
+                    if watch.contains("privacy") && privacy_watch.is_none() {
+                        privacy_watch = crate::sysevents::watch_privacy();
+                    } else if !watch.contains("privacy") {
+                        privacy_watch = None;
+                    }
+                    (dirty_audio, dirty_net, dirty_privacy) = (true, true, true);
                     // Read at once and send everything again: the island may have just started.
                     last = Value::Null;
                     battery_at = None;
@@ -125,6 +188,19 @@ pub fn start(app: AppHandle) {
                     }
                 }
                 Some(Cmd::Set(key, value)) => state[key] = value,
+                Some(Cmd::Wake) => {
+                    if let Some(a) = audio.as_mut() {
+                        a.follow();
+                    }
+                    dirty_audio = true;
+                    dirty_net = true;
+                }
+                Some(Cmd::WakePrivacy) => {
+                    if let Some(w) = privacy_watch.as_mut() {
+                        w.arm();
+                    }
+                    dirty_privacy = true;
+                }
                 None => {}
             }
             if watch.is_empty() {
@@ -134,15 +210,20 @@ pub fn start(app: AppHandle) {
             if watch.contains("title") {
                 crate::fgwin::poll();
             }
-            if watch.contains("volume") {
+            // Volume and mic: when Windows said they changed (on the timer only without its callbacks).
+            let read_audio = std::mem::replace(&mut dirty_audio, false) || audio.is_none();
+            if watch.contains("volume") && read_audio {
                 state["volume"] = volume(Flow::Render)
                     .map(|(l, m)| json!({ "level": l, "muted": m, "device": device_name(Flow::Render) }))
                     .unwrap_or(Value::Null);
             }
-            if watch.contains("mic") {
+            if watch.contains("mic") && read_audio {
                 state["mic"] = volume(Flow::Capture)
                     .map(|(l, m)| json!({ "level": l, "muted": m, "device": device_name(Flow::Capture) }))
                     .unwrap_or(Value::Null);
+            }
+            if watch.contains("privacy") && std::mem::replace(&mut dirty_privacy, false) {
+                state["privacy"] = crate::sysevents::privacy();
             }
             if watch.contains("battery") && battery_at.is_none_or(|t| t.elapsed() >= BATTERY_EVERY) {
                 battery_at = Some(Instant::now());
@@ -153,10 +234,15 @@ pub fn start(app: AppHandle) {
                 state["brightness"] = brightness().map(|b| json!(b)).unwrap_or(Value::Null);
             }
             if watch.contains("net") {
+                // Online or not, Wi-Fi bars: when Windows says the connection changed.
+                let changed = std::mem::replace(&mut dirty_net, false);
+                if changed {
+                    connection = crate::sysevents::connection();
+                }
                 if let Some(o) = octets() {
                     let now = Instant::now();
-                    // The address changes rarely and costs more to read: every 30 s.
-                    if ip.0.is_none_or(|t: Instant| t.elapsed() >= BATTERY_EVERY) {
+                    // The address changes rarely and costs more to read: every 30 s, and when the connection changes.
+                    if changed || ip.0.is_none_or(|t: Instant| t.elapsed() >= BATTERY_EVERY) {
                         ip = (Some(now), crate::probes::primary_ipv4().map(|a| a.to_string()).unwrap_or_default());
                     }
                     if let Some((d0, u0, t0)) = net {
@@ -168,6 +254,8 @@ pub fn start(app: AppHandle) {
                             "name": o.name,
                             "link": o.link,
                             "ip": ip.1,
+                            "online": connection.get("online").cloned().unwrap_or(Value::Null),
+                            "bars": connection.get("bars").cloned().unwrap_or(Value::Null),
                         });
                     }
                     net = Some((o.down, o.up, now));
