@@ -5951,5 +5951,12 @@
   "escalation": "escalated",
   "Pagina cliente: riscrivila tenendo «tipo: cliente» e le sezioni {list} in quest'ordine; ogni fatto nella sua sezione, una riga con la data. In «Accessi» solo il nome della cartella o della voce di RDM/Devolutions, mai password.": "Customer page: rewrite it keeping «tipo: cliente» and the sections {list} in this order; each fact in its section, one line with the date. In «Accessi» only the name of the RDM/Devolutions folder or entry, never passwords.",
   "Scrivi il nome del cliente.": "Write the customer's name.",
-  "Pagina non trovata": "Page not found"
+  "Pagina non trovata": "Page not found",
+  "Cerca nelle impostazioni…": "Search the settings…",
+  "Cerca nelle impostazioni": "Search the settings",
+  "Impostazioni trovate": "Settings found",
+  "Cerca: «{q}»": "Search: «{q}»",
+  "Niente: prova con un'altra parola, anche più corta («posiz», «cliente», «tema»).": "Nothing: try another word, even a shorter one («posit», «client», «theme»).",
+  "{n} impostazione trovata · Invio apre la prima, le frecce scelgono, Esc torna indietro": "{n} setting found · Enter opens the first, the arrows choose, Esc goes back",
+  "{n} impostazioni trovate · Invio apre la prima, le frecce scelgono, Esc torna indietro": "{n} settings found · Enter opens the first, the arrows choose, Esc goes back"
 }
