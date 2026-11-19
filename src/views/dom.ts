@@ -160,3 +160,60 @@ export function markIcon(id: string, size = 14): Element | null {
 export function brandOrDot(id: string, color: string, size = 8): Element {
   return markIcon(id, Math.round(size * 1.75)) ?? dot(color, size);
 }
+
+export interface EmptyAction {
+  label: string;
+  primary?: boolean;
+  onclick: () => void;
+}
+
+export interface EmptyOpts {
+  icon: string;
+  title: string;
+  hint?: string;
+  actions?: EmptyAction[];
+  kbd?: string;
+  compact?: boolean;
+}
+
+/** Shared actionable empty state (Panoramica / RDM / Zammad style). */
+export function emptyState(opts: EmptyOpts): HTMLElement {
+  const wrap = h("div", { class: opts.compact ? "ei-empty compact" : "ei-empty" },
+    h("div", { class: "ei-empty-icon" }, svg(opts.icon, opts.compact ? 16 : 18, { stroke: 1.6 })),
+    h("b", { class: "ei-empty-title", text: opts.title }),
+    opts.hint ? h("span", { class: "ei-empty-hint", text: opts.hint }) : null);
+  if (opts.actions?.length || opts.kbd) {
+    const row = h("div", { class: "ei-empty-acts" });
+    for (const a of opts.actions ?? []) {
+      row.append(h("button", {
+        class: a.primary ? "ei-empty-btn primary" : "ei-empty-btn",
+        text: a.label,
+        onclick: (e: Event) => { e.stopPropagation(); a.onclick(); },
+      }));
+    }
+    if (opts.kbd) {
+      row.append(h("span", { class: "ei-empty-kbd" }, h("kbd", { text: opts.kbd })));
+    }
+    wrap.append(row);
+  }
+  return wrap;
+}
+
+/**
+ * Functional drain progress bar for timed waits (30s copied/revealed password,
+ * 6s confirm timers, approval deadline). Timestamp-anchored so DOM redraws resume
+ * cleanly from the remaining fraction.
+ */
+export function drainBar(until: number, totalMs: number, opts: { color?: string; slim?: boolean } = {}): HTMLElement | null {
+  const left = until - Date.now();
+  if (left <= 0 || totalMs <= 0) return null;
+  const from = Math.max(0.02, Math.min(1, left / totalMs));
+  const fill = h("i", {
+    class: "ei-drain-fill",
+    style: `--drain-from:${from.toFixed(4)};animation-duration:${Math.round(left)}ms${opts.color ? `;background:${opts.color}` : ""}`,
+  });
+  return h("div", {
+    class: opts.slim ? "ei-drain slim" : "ei-drain",
+    "aria-hidden": "true",
+  }, fill);
+}

@@ -6,7 +6,7 @@
 // Passwords are never stored in DOM or settings: «Copia password (30 s)» uses
 // Rust's private 30s clipboard, and «Mostra» asks Rust for a 30s reveal.
 
-import { h, clear, svg } from "./dom";
+import { h, clear, svg, drainBar } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { Bridge, type DvcBrowse, type DvcDetails, type DvcItem, type DvcOutcome } from "../core/bridge";
@@ -64,9 +64,12 @@ const dv = {
   /** Passwords shown with «Mostra»: "id|row" → password, hidden after SHOW_MS. */
   shown: new Map<string, string>(),
   shownTimers: new Map<string, number>(),
+  shownUntil: new Map<string, number>(),
   revealing: "",
   copiedKey: "",
   copiedTimer: 0,
+  clipWait: null as { key: string; until: number; totalMs: number; note: string } | null,
+  clipWaitTimer: 0,
   form: null as Form | null,
   preview: null as string[] | null,
   result: null as DvcOutcome | null,
@@ -272,10 +275,16 @@ async function copyPassword(e: DvcItem, row: number | null) {
     const secs = await Bridge.dvcCopyPassword(e.vault, e.id, row);
     recordDvcRecent(e);
     Sound.play("blip");
-    dv.copiedKey = `${e.id}|${row ?? ""}`;
+    const key = `${e.id}|${row ?? ""}`;
+    dv.copiedKey = key;
     window.clearTimeout(dv.copiedTimer);
     dv.copiedTimer = window.setTimeout(() => { dv.copiedKey = ""; draw(); }, 2500);
-    dvcSay(t("Password negli appunti: si svuotano tra {s} secondi.", { s: secs }));
+    const ms = Math.max(1000, secs * 1000);
+    const note = t("Password negli appunti: si svuotano tra {s} secondi.", { s: secs });
+    dv.clipWait = { key, until: Date.now() + ms, totalMs: ms, note };
+    window.clearTimeout(dv.clipWaitTimer);
+    dv.clipWaitTimer = window.setTimeout(() => { dv.clipWait = null; draw(); }, ms);
+    dvcSay(note);
     dv.onHeaderSync?.();
   } catch (err) {
     Sound.play("error");
@@ -325,6 +334,7 @@ async function openInRdm(e: DvcItem) {
 function hideAll() {
   for (const timer of dv.shownTimers.values()) window.clearTimeout(timer);
   dv.shownTimers.clear();
+  dv.shownUntil.clear();
   dv.shown.clear();
 }
 
@@ -332,6 +342,7 @@ async function toggleShown(e: DvcItem, row: number | null) {
   const key = `${e.id}|${row ?? ""}`;
   if (dv.shown.has(key)) {
     dv.shown.delete(key);
+    dv.shownUntil.delete(key);
     window.clearTimeout(dv.shownTimers.get(key));
     draw();
     return;
@@ -340,7 +351,13 @@ async function toggleShown(e: DvcItem, row: number | null) {
   draw();
   try {
     dv.shown.set(key, await Bridge.dvcReveal(e.vault, e.id, row));
-    dv.shownTimers.set(key, window.setTimeout(() => { dv.shown.delete(key); dv.shownTimers.delete(key); draw(); }, SHOW_MS));
+    dv.shownUntil.set(key, Date.now() + SHOW_MS);
+    dv.shownTimers.set(key, window.setTimeout(() => {
+      dv.shown.delete(key);
+      dv.shownUntil.delete(key);
+      dv.shownTimers.delete(key);
+      draw();
+    }, SHOW_MS));
   } catch (err) {
     dvcSay(errText(err));
   }
@@ -576,11 +593,15 @@ function detailPane(): HTMLElement {
 
   const addPwRow = () => {
     if (!(d.length > 0)) return;
-    kv.append(h("div", { class: shownPw ? "rdm-kv-row is-pw is-revealed" : "rdm-kv-row is-pw" },
+    const pwKey = `${e.id}|`;
+    const showDrain = shownPw ? drainBar(dv.shownUntil.get(pwKey) ?? 0, SHOW_MS, { color: "#f59e0b", slim: true }) : null;
+    const clipActive = dv.clipWait?.key === pwKey ? dv.clipWait : null;
+    const clipDrain = clipActive ? drainBar(clipActive.until, clipActive.totalMs, { color: "#22c55e", slim: true }) : null;
+    kv.append(h("div", { class: `rdm-kv-row is-pw${shownPw ? " is-revealed" : ""}${clipDrain ? " has-drain" : ""}` },
       h("span", { class: "rdm-kv-k", text: t("Password") }),
       h("div", { class: "rdm-pw-val" },
         shownPw
-          ? h("code", { class: "dvc-pw shown", text: shownPw })
+          ? h("div", { class: "dvc-pw-stack" }, h("code", { class: "dvc-pw shown", text: shownPw }), showDrain)
           : h("span", { class: "rdm-pw-mask", text: "••••••••" })),
       h("div", { class: "rdm-pw-acts" },
         h("button", {
@@ -594,7 +615,8 @@ function detailPane(): HTMLElement {
           title: t("Copia password negli appunti privati per 30s (Alt+P)"),
           onclick: (ev: Event) => { ev.stopPropagation(); void copyPassword(e, null); },
         }, svg(justCopied ? ICONS.check : ICONS.rdmKey, 12, { stroke: 1.9 }),
-        h("span", { text: justCopied ? t("Copiata ✓") : t("Copia (30 s)") })))));
+        h("span", { text: justCopied ? t("Copiata ✓") : t("Copia (30 s)") }))),
+      clipDrain));
   };
 
   addKv(t("Host"), d.host);
@@ -648,10 +670,14 @@ function detailPane(): HTMLElement {
       }
 
       if (r.length > 0) {
-        rowEl.append(h("div", { class: rShown ? "dvc-sub-line is-pw is-revealed" : "dvc-sub-line is-pw" },
+        const rShowDrain = rShown ? drainBar(dv.shownUntil.get(rKey) ?? 0, SHOW_MS, { color: "#f59e0b", slim: true }) : null;
+        const rClipDrain = dv.clipWait?.key === rKey
+          ? drainBar(dv.clipWait.until, dv.clipWait.totalMs, { color: "#22c55e", slim: true })
+          : null;
+        rowEl.append(h("div", { class: `dvc-sub-line is-pw${rShown ? " is-revealed" : ""}${rClipDrain ? " has-drain" : ""}` },
           h("span", { class: "dvc-sub-k", text: t("Password") }),
           rShown
-            ? h("code", { class: "dvc-pw shown dvc-sub-v", text: rShown })
+            ? h("div", { class: "dvc-pw-stack dvc-sub-v" }, h("code", { class: "dvc-pw shown", text: rShown }), rShowDrain)
             : h("span", { class: "rdm-pw-mask dvc-sub-v", text: "••••••••" }),
           h("div", { class: "rdm-pw-acts" },
             h("button", {
@@ -664,7 +690,8 @@ function detailPane(): HTMLElement {
               title: t("Copia password negli appunti privati per 30s"),
               onclick: (ev: Event) => { ev.stopPropagation(); void copyPassword(e, i); },
             }, svg(rCopied ? ICONS.check : ICONS.rdmKey, 11, { stroke: 1.9 }),
-            h("span", { text: rCopied ? t("Copiata ✓") : t("Copia (30 s)") })))));
+            h("span", { text: rCopied ? t("Copiata ✓") : t("Copia (30 s)") }))),
+          rClipDrain));
       }
 
       listWrap.append(rowEl);
@@ -1031,8 +1058,12 @@ function draw() {
 
   const toastHost = ws.parentElement?.querySelector<HTMLElement>(".rdm-toast");
   if (toastHost) {
-    toastHost.textContent = dv.note;
-    toastHost.style.display = dv.note ? "" : "none";
+    const activeClip = dv.clipWait && dv.clipWait.until > Date.now() ? dv.clipWait : null;
+    const text = dv.note || activeClip?.note || "";
+    const toastDrain = activeClip ? drainBar(activeClip.until, activeClip.totalMs, { color: "#22c55e" }) : null;
+    toastHost.replaceChildren(h("span", { text }), toastDrain ?? "");
+    toastHost.classList.toggle("has-drain", !!toastDrain);
+    toastHost.style.display = text ? "" : "none";
   }
 
   const listEl = ws.querySelector(".rdm-flat-list");

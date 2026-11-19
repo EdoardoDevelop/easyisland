@@ -40,6 +40,7 @@ import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Moment, Notice, QuickAction, Settings } from "../core/state";
 import { answerCard } from "./moments";
 import { h } from "../views/dom";
+import { ShortcutSheet } from "../views/shortcuts";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
 import { applySearchLine, applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
@@ -294,6 +295,7 @@ export class Island {
   /** Drop sequence bookkeeping: last tick played, and whether the ✓ has fired. */
   private uploadTens = 0;
   private uploadDone = false;
+  private shortcuts!: ShortcutSheet;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -331,6 +333,7 @@ export class Island {
         State.maximized = false;
         this.animateGeometry(false);
       }
+      this.shortcuts.sync();
     });
   }
 
@@ -598,7 +601,8 @@ export class Island {
 
     this.waveEl = h("div", { id: "open-wave" });
     this.waveEl.addEventListener("animationend", () => this.waveEl.classList.remove("on"));
-    this.clipEl.append(this.waveEl);
+    this.shortcuts = new ShortcutSheet(() => void Bridge.openSettingsWindow());
+    this.clipEl.append(this.waveEl, this.shortcuts.el);
 
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl, ...this.ears);
     this.applyGeometry();
@@ -631,7 +635,7 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || State.windowPick != null || this.windowPress != null
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.searchOnly || this.shortcuts?.open || State.windowPick != null || this.windowPress != null
       // Typing in a Notion page of the card (notionpage.ts): it does not close under the caret.
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
@@ -969,6 +973,7 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
+    this.shortcuts.hide();
     // The chat in a window of its own: that window comes forward, the island stays as it is.
     if (view === "prompt" && focusPopped("chat")) {
       State.notify();
@@ -1046,6 +1051,7 @@ export class Island {
 
   collapse(force = false) {
     closeMenu();
+    this.shortcuts.hide();
     const card = State.pendingCard();
     if (card && !force) {
       if (State.view !== card) this.setView(card);
@@ -2155,6 +2161,11 @@ ${note}` : text };
       return;
     }
     if (State.searchOnly || typing || ctrl || e.altKey || e.repeat) return;
+    if (key === "?") {
+      e.preventDefault();
+      this.shortcuts.toggle();
+      return;
+    }
     const k = CSS.escape(key);
     const button = this.viewsEl.querySelector<HTMLElement>(`.view.on :is([data-key="${k}"], [data-key-alt="${k}"])`);
     if (button) {
@@ -4094,6 +4105,12 @@ ${note}` : text };
     });
 
     window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.shortcuts.open) {
+        e.preventDefault();
+        this.shortcuts.hide();
+        State.lastActivity = performance.now();
+        return;
+      }
       // Esc on a permission or a question folds the island: the request keeps waiting.
       if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
       else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();

@@ -9,7 +9,7 @@
 // taste, more or fewer news per check). At −3 the view asks whether to stop
 // following the subject: «Smetti di seguirlo» moves it to the excluded ones.
 
-import { h, svg, clear } from "./dom";
+import { h, svg, clear, emptyState } from "./dom";
 import { ICONS } from "./icons";
 import { Bridge } from "../core/bridge";
 import { State, type NewsItem, type NewsSettings } from "../core/state";
@@ -196,10 +196,18 @@ export function buildNews(actions: ViewActions): ViewHost {
     lookBtns.forEach((b, i) => b.classList.toggle("on", looks[i][0] === look));
     const shown = all.filter((n) => !topic || n.topic === topic).slice(0, 40);
     if (!shown.length) {
-      const none = followed.length
-        ? t("Ancora nessuna notizia: arrivano al prossimo controllo, o con «Aggiorna».")
-        : t("Scegli gli argomenti da seguire in Impostazioni → Notizie.");
-      list.append(h("div", { class: "sub", text: none }));
+      list.append(emptyState({
+        compact: true,
+        icon: ICONS.apps,
+        title: followed.length ? t("Ancora nessuna notizia") : t("Nessun argomento seguito"),
+        hint: followed.length
+          ? t("Le notizie arrivano al prossimo controllo automatico o premendo «Aggiorna ora».")
+          : t("Scegli gli argomenti di tuo interesse in Impostazioni → Notizie."),
+        actions: [
+          ...(followed.length ? [{ label: t("Aggiorna ora"), primary: true, onclick: () => void run() }] : []),
+          { label: t("Scegli gli argomenti"), primary: !followed.length, onclick: () => void Bridge.openSettingsAt("notizie") },
+        ],
+      }));
     }
     const seen = newsSeenAt();
     for (const n of shown) {
