@@ -6120,5 +6120,6 @@
   "Pagine collegate": "Linked pages",
   "Apri scheda cliente di «{name}»": "Open customer card for \"{name}\"",
   "Apri la scheda cliente nella Memoria": "Open customer card in Memory",
-  "Apri scheda cliente di «{c}»": "Open customer card for \"{c}\""
+  "Apri scheda cliente di «{c}»": "Open customer card for \"{c}\"",
+  "Ogni cliente ha la sua pagina cliente in memoria (rubrica clienti, scheda cliente): memory_page_write con la prima riga «tipo: cliente» e le sezioni {list}; in «Accessi» solo il nome della cartella o della voce di RDM/Devolutions, mai password. Non è un'integrazione personale.": "Each customer has its customer page in the memory (customer list, customer card): memory_page_write with «tipo: cliente» as the first line and the sections {list}; in «Accessi» only the name of the RDM/Devolutions folder or entry, never passwords. It is not a custom integration."
 }

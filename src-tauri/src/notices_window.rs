@@ -24,6 +24,13 @@ static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1)
 /// Made by popout_window (lib.rs) when the island asked for the notices'
 /// window (Bridge.popoutKind("avvisi") right before window.open).
 pub fn build(app: &AppHandle, features: tauri::webview::NewWindowFeatures) -> tauri::Result<tauri::WebviewWindow> {
+    // A window made before (the island's page lost it, e.g. after a reload)
+    // goes: nobody would hide it again, and it stayed in front, empty and
+    // transparent, taking the clicks (laptop, 19 Nov 2026).
+    for old in others(app, None) {
+        let _ = old.hide();
+        let _ = old.destroy();
+    }
     let label = format!("avvisi-{}", NEXT.fetch_add(1, Ordering::Relaxed));
     let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
         .window_features(features)
@@ -43,6 +50,11 @@ pub fn build(app: &AppHandle, features: tauri::webview::NewWindowFeatures) -> ta
     crate::island::make_non_activating(&built.as_ref().window());
     *LABEL.lock().unwrap_or_else(|e| e.into_inner()) = Some(label);
     Ok(built)
+}
+
+/// Every notices' window but `keep`.
+fn others(app: &AppHandle, keep: Option<&str>) -> Vec<tauri::Window> {
+    app.windows().into_iter().filter(|(label, _)| label.starts_with("avvisi-") && Some(label.as_str()) != keep).map(|(_, w)| w).collect()
 }
 
 fn window(app: &AppHandle) -> Option<tauri::Window> {
@@ -84,13 +96,17 @@ pub fn notices_show(app: AppHandle, height: f64, place: String) {
     let height = if height.is_finite() { height.clamp(40.0, 900.0) } else { 120.0 };
     let size = ((WIDTH * scale).round() as i32, (height * scale).round() as i32);
     let (x, y) = spot(&place, area, island, open, size, (MARGIN * scale).round() as i32);
+    for old in others(&app, Some(win.label())) {
+        let _ = old.hide();
+    }
     show_at(&win, x, y, size.0, size.1);
 }
 
 /// Nothing to say: hidden (no frames while hidden).
 #[tauri::command]
 pub fn notices_hide(app: AppHandle) {
-    if let Some(win) = window(&app) {
+    // All of them: one the island's page lost track of included.
+    for win in others(&app, None) {
         let _ = win.hide();
     }
 }

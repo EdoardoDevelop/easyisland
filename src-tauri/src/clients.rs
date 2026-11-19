@@ -56,6 +56,14 @@ pub fn writing_hint() -> String {
     )
 }
 
+/// For the chat's memory preamble (memory.rs): what a customer's page is and how to write one.
+pub fn chat_hint() -> String {
+    tf(
+        "Ogni cliente ha la sua pagina cliente in memoria (rubrica clienti, scheda cliente): memory_page_write con la prima riga «tipo: cliente» e le sezioni {list}; in «Accessi» solo il nome della cartella o della voce di RDM/Devolutions, mai password. Non è un'integrazione personale.",
+        &[("list", &SECTIONS.iter().map(|s| format!("## {s}")).collect::<Vec<_>>().join(", "))],
+    )
+}
+
 /// "Studio Rossi", "studio rossi srl" → the same: folded words.
 fn words(s: &str) -> Vec<String> {
     brain::fold(&s.replace('.', "")).split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_string).collect()

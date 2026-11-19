@@ -114,6 +114,9 @@ pub fn preface(tools: bool, learns: bool) -> Option<String> {
     } else {
         ""
     };
+    // The customer's page (clients.rs): without this the chat took «la rubrica
+    // dei clienti» for a custom integration (laptop, 19 Nov 2026).
+    let how = if how.is_empty() { String::new() } else { format!("{how} {}", crate::clients::chat_hint()) };
     if body.is_empty() {
         return Some(format!("[{}]\n\n", how));
     }
