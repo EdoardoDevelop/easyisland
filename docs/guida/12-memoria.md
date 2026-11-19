@@ -40,6 +40,13 @@ Cliente dal 2021, commercialisti, 8 postazioni.
 - La chat le scrive quando le chiedi «fai una pagina su…», e dalle fonti (sotto).
 - **Scritture sicure**: se modifichi a mano una pagina mentre l'agente ci lavora, la sua scrittura viene rifiutata; deve rileggerla e ripartire dalla tua versione.
 
+## La pagina cliente
+Per ogni cliente una pagina della memoria con sezioni fisse: **Contatti, Rete, Server e VM, Accessi, Procedure, Note**. È una pagina come le altre (file `.md` modificabile), con `tipo: cliente` in testa.
+- **Dove si apre:** dalla scheda Ticket (il cliente del ticket), da una chiamata 3CX, dalla cartella di RDM o Devolutions collegata al cliente e dal campo in alto.
+- **Dalla scheda:** connessioni RDM, ticket del cliente, chiama, chiedi alla chat con la pagina come contesto, apri nella Memoria.
+- **Senza pagina:** «Crea pagina cliente» la scrive già con i contatti del ticket e la cartella RDM. Una pagina scritta prima diventa cliente con «Rendila pagina cliente»: aggiunge le sezioni, non toglie niente.
+- Quello che la chat impara sul cliente finisce in **Note**. In **Accessi** solo il nome della cartella o della voce di RDM/Devolutions: le password mai.
+
 ## Da leggere: insegnare con i file
 Metti nella cartella `da-leggere` articoli, appunti, trascrizioni di riunioni, mail salvate (`.md`, `.txt`, `.html`, `.eml`, `.csv`, `.json`…), oppure **trascinali sulla finestra Memoria**. Poi:
 1. l'agente legge ogni file;

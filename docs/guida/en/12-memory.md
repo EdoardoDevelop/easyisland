@@ -40,6 +40,13 @@ Client since 2021, accountants, 8 workstations.
 - The chat writes them when you ask "make a page about…", and from sources (below).
 - **Safe writes**: if you edit a page by hand while the agent works on it, its write is refused; it must read it again and start from your version.
 
+## The customer page
+For each customer, a memory page with fixed sections: **Contatti (contacts), Rete (network), Server e VM, Accessi (access), Procedure, Note**. It is a page like the others (an editable `.md` file), with `tipo: cliente` at the top.
+- **Where it opens:** from the Ticket card (the ticket's customer), from a 3CX call, from the RDM or Devolutions folder tied to the customer, and from the top field.
+- **From the card:** RDM connections, the customer's tickets, call, ask the chat with the page as context, open in Memory.
+- **No page yet:** «Crea pagina cliente» writes it with the ticket's contacts and the RDM folder already in. A page written before becomes a customer page with «Rendila pagina cliente»: sections are added, nothing is removed.
+- What the chat learns about the customer goes to **Note**. In **Accessi** only the name of the RDM/Devolutions folder or entry: never passwords.
+
 ## To read: teaching with files
 Put articles, notes, meeting transcripts, saved mails (`.md`, `.txt`, `.html`, `.eml`, `.csv`, `.json`…) in the `da-leggere` folder, or **drag them onto the Memory window**. Then:
 1. the agent reads each file;
