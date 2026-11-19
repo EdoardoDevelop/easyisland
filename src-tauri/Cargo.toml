@@ -87,6 +87,8 @@ webview2-com = "0.39"
 # `#[implement]` (COM callbacks in sysevents.rs) expands to paths in windows-core:
 # the same version as `windows`, already in the tree through it.
 windows-core = "0.61"
+# The asynchronous operations of `windows` 0.61 (media.rs waits on players with a limit).
+windows-future = "0.2"
 windows-core-wv2 = { package = "windows-core", version = "0.62" }
 # Already in the tree through Tauri (tray-icon, muda; same version): screenshots
 # and pictures copied to the clipboard are saved and shown as PNG, see clipimage.rs.

@@ -101,6 +101,9 @@ Graph non vale in sede; si fa come i client di posta.
 - **Rust:** SOAP fisso; XML con `quick-xml` (dipendenza da valutare) o a mano. Autenticazione con **WinHTTP** dal crate `windows` (`Win32_Networking_WinHttp`, già presente, gestisce l'utente Windows) — preferito a `sspi`. Comandi `get_mail`, `get_calendar`, `get_tasks`.
 - Sconsigliati ActiveSync (complicato, licenza) e IMAP (solo posta).
 
+## Ricerca dell'isola, programmi e file (19/11/2026, dallo studio dei dock di riferimento; PRINCIPALE: «non ora»)
+Da un lanciatore MIT: programmi trovati anche per il nome del file del collegamento («cmd», «taskmgr», «calc» in ogni lingua), le cartelle Strumenti di amministrazione (l'elenco delle app di Windows non le ha), corrispondenza «pulita» (al massimo un pezzo a metà parola per parola cercata: «vsc» trova Visual Studio Code, «code» non trova Registratore), spinta per ciò che si apre spesso e da poco; file dall'indice di Windows Search (OLE DB) in due passate, prefisso subito e sottostringa dopo una pausa di battitura. Il catalogo delle app c'è già (`applist.rs`, Dock).
+
 ## Menu dell'app in uso nella barra
 Fatto il 31/10 come menu del titolo della finestra (`appmenu.rs`). Restano le schede della barra multifunzione di Office e le voci dei sottomenu delle app moderne (oggi la voce apre il menu nel programma).
 
