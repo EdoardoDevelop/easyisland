@@ -851,6 +851,18 @@ pub struct Settings {
     /// The Dock replaces the Windows taskbar (taskbar_hide.rs): off unless chosen.
     #[serde(default)]
     pub dock_hides_taskbar: bool,
+    /// The Dock's pinned apps, in order (src/core/state.ts DockPin). Only the front end reads them.
+    #[serde(default)]
+    pub dock_pinned: Vec<Value>,
+    /// The Dock's widgets (BarItem, as fixed_bar_items).
+    #[serde(default)]
+    pub dock_items: Vec<Value>,
+    /// The Dock's background, as fixed_bar_background.
+    #[serde(default)]
+    pub dock_background: String,
+    /// «Aspetto della Dock» (src/core/state.ts DockLook).
+    #[serde(default)]
+    pub dock_look: Value,
     /// Where the character sits in the fixed bar: "start", "center" or "end".
     #[serde(default = "default_fixed_bar_slot")]
     pub fixed_bar_slot: String,
@@ -1362,6 +1374,10 @@ impl Default for Settings {
             fixed_bar: String::new(),
             dock: false,
             dock_hides_taskbar: false,
+            dock_pinned: Vec::new(),
+            dock_items: Vec::new(),
+            dock_background: String::new(),
+            dock_look: Value::Null,
             fixed_bar_slot: default_fixed_bar_slot(),
             fixed_bar_items: Vec::new(),
             news: Value::Null,
@@ -1864,6 +1880,21 @@ mod tests {
         assert!(!s.dock_hides_taskbar);
         let s = Settings { fixed_bar: "top".into(), ..Default::default() }.migrated();
         assert!(!s.dock);
+    }
+
+    #[test]
+    fn the_docks_own_settings_survive_a_save() {
+        let mut raw = serde_json::to_value(Settings::default()).unwrap();
+        let extra: Value = serde_json::from_str(r##"{"dock":true,"dockPinned":[{"id":"C:/a.exe"}],"dockItems":[{"id":"sys:clock"}],"dockBackground":"#101010","dockLook":{"shape":"capsule"}}"##).unwrap();
+        for (k, v) in extra.as_object().unwrap() {
+            raw[k] = v.clone();
+        }
+        let s: Settings = serde_json::from_value(raw).unwrap();
+        let back = serde_json::to_value(&s).unwrap();
+        assert_eq!(back["dockPinned"][0]["id"], "C:/a.exe");
+        assert_eq!(back["dockItems"][0]["id"], "sys:clock");
+        assert_eq!(back["dockBackground"], "#101010");
+        assert_eq!(back["dockLook"]["shape"], "capsule");
     }
 
     #[test]
