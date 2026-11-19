@@ -68,6 +68,9 @@ async function main() {
     onThumbsChange: (rects) => {
       void Bridge.dockThumbs(rects);
     },
+    onShapeChange: (band, rects) => {
+      void Bridge.dockShape(band, rects);
+    },
     onOpenIsland: () => sendToIsland({ kind: "open" }),
     onOpenSettings: () => {
       sendToIsland({ kind: "settings" });

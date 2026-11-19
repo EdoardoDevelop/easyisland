@@ -1057,6 +1057,8 @@ export const Bridge = {
   dockRecent: (app: string) => call<string[]>("dock_recent", { app }),
   dockThumbs: (rects: { hwnd: number; x: number; y: number; w: number; h: number }[]) =>
     call<void>("dock_thumbs", { rects }),
+  dockShape: (band: number, rects: [number, number, number, number][]) =>
+    call<void>("dock_shape", { band, rects }),
   appsCatalog: () => call<DockCatalogApp[]>("apps_catalog"),
   dockRestoreTaskbar: () => call<boolean>("dock_restore_taskbar"),
   dockHoverWindow: (on: boolean) => call<void>("dock_hover", { on }),

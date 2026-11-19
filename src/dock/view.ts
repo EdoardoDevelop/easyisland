@@ -34,6 +34,7 @@ export interface DockHostOps {
   onPinReorder: (pinned: DockPin[]) => void;
   onPinToggle: (entry: { id: string; name: string; path?: string; aumid?: string }, pin: boolean) => void;
   onThumbsChange: (rects: { hwnd: number; x: number; y: number; w: number; h: number }[]) => void;
+  onShapeChange?: (band: number, rects: [number, number, number, number][]) => void;
   onOpenIsland: () => void;
   onOpenSettings: () => void;
   onFilesDrop?: (appId: string, files: string[]) => void;
@@ -107,8 +108,10 @@ export class DockView {
   private magLastTs = 0;
   private hoveredIdx = -1;
 
-  /** Auto-hide state. */
+  /** Auto-hide & pointer region state. */
   private revealed = false;
+  private shellHot = false;
+  private lastShapeKey = "";
   private revealTimer: number | null = null;
   private hideTimer: number | null = null;
 
@@ -235,6 +238,7 @@ export class DockView {
     const blocked = !!this.previewEl || !!this.ctxEl || this.dragActive || this.dropHighlightIdx >= 0;
     const shouldHide = !blocked && !this.revealed && (mode === "auto" || (mode === "smart" && this.covered));
     this.stage.dataset.dockHidden = String(shouldHide);
+    this.scheduleShapeReport();
   }
 
   /** Builds unified list: optional EasyIsland anchor + pinned + open unpinned + recents + minimized. */
@@ -444,6 +448,7 @@ export class DockView {
 
     this.renderWidgets();
     this.paintGeometry();
+    this.scheduleShapeReport();
   }
 
   private renderWidgets() {
@@ -539,6 +544,10 @@ export class DockView {
         this.hideTimer = null;
       }
       this.revealed = true;
+      if (!this.shellHot) {
+        this.shellHot = true;
+        this.scheduleShapeReport();
+      }
       this.updateHiddenAttr();
     });
 
@@ -564,6 +573,10 @@ export class DockView {
       if (related && (this.previewEl?.contains(related) || this.ctxEl?.contains(related))) return;
       this.hoveredIdx = -1;
       this.magTarget = 0;
+      if (this.shellHot) {
+        this.shellHot = false;
+        this.scheduleShapeReport();
+      }
       this.startMagAnim();
       this.scheduleClosePreview();
       this.scheduleAutoHide();
@@ -811,7 +824,10 @@ export class DockView {
       this.previewEl.style.left = `${Math.round(clamped)}px`;
     }
     this.updateHiddenAttr();
-    window.requestAnimationFrame(() => this.reportThumbRects());
+    window.requestAnimationFrame(() => {
+      this.reportThumbRects();
+      this.reportShapeNow();
+    });
   }
 
   private refreshOpenPreview() {
@@ -1040,6 +1056,57 @@ export class DockView {
     const left = Math.max(8, Math.min(window.innerWidth - w - 8, Math.round(cx - w / 2)));
     this.ctxEl.style.left = `${left}px`;
     this.updateHiddenAttr();
+    this.scheduleShapeReport();
+  }
+
+  private scheduleShapeReport() {
+    if (!this.ops.onShapeChange) return;
+    window.requestAnimationFrame(() => this.reportShapeNow());
+  }
+
+  /** Sends window hit/clip rects (`dock_shape`) only on discrete state transitions, never on pointermove. */
+  private reportShapeNow() {
+    if (!this.ops.onShapeChange) return;
+    const look = this.snap.look;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const auto = look.autoHide === "auto" || (look.autoHide === "smart" && this.covered);
+    const margin = look.style === "band" ? 0 : Math.max(0, Math.min(24, look.margin ?? 8));
+    const band = auto ? 0 : Math.round(this.layout.height + margin);
+    const hidden = this.stage.dataset.dockHidden === "true";
+
+    const rects: [number, number, number, number][] = [];
+    const pushBox = (x: number, y: number, w: number, h: number) => {
+      const rx = Math.max(0, Math.floor(x));
+      const ry = Math.max(0, Math.floor(y));
+      const rr = Math.min(W, Math.ceil(x + w));
+      const rb = Math.min(H, Math.ceil(y + h));
+      if (rr > rx && rb > ry) rects.push([rx, ry, rr - rx, rb - ry]);
+    };
+
+    if (hidden) {
+      pushBox(0, H - 3, W, 3);
+    } else {
+      const g = this.glass.getBoundingClientRect();
+      const shadowPad = look.shadow === false ? 2 : 16;
+      const hot = this.shellHot || !!this.previewEl || !!this.ctxEl || this.dragActive;
+      const sidePad = hot ? Math.round(this.metrics.icon * 1.4) + shadowPad : shadowPad;
+      const topPad = hot
+        ? Math.round(this.metrics.icon * (this.maxScale() - 1)) + (look.labels !== false ? 42 : 12) + shadowPad
+        : shadowPad;
+      pushBox(g.left - sidePad, g.top - topPad, g.width + sidePad * 2, g.height + topPad + shadowPad);
+
+      for (const extra of [this.previewEl, this.ctxEl]) {
+        if (!extra) continue;
+        const r = extra.getBoundingClientRect();
+        pushBox(r.left - shadowPad, r.top - shadowPad, r.width + shadowPad * 2, r.height + shadowPad * 2);
+      }
+    }
+
+    const key = JSON.stringify([band, rects]);
+    if (key === this.lastShapeKey) return;
+    this.lastShapeKey = key;
+    this.ops.onShapeChange(band, rects);
   }
 
   private closeContextMenu() {
