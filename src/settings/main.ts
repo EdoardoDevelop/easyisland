@@ -3633,14 +3633,18 @@ function appearanceSections(): HTMLElement[] {
     ],
     dock: () => {
       const restoreBtn = h("button", { text: t("Ripristina barra di Windows adesso") }) as HTMLButtonElement;
-      const restoreNote = h("span", { class: "hint note", text: t("Quando esci da EasyIsland o in caso di blocco un guardiano la rimette subito") });
+      const restoreNote = h("span", {
+        class: "hint note",
+        text: dockRestoreFeedback || t("Quando esci da EasyIsland o in caso di blocco un guardiano la rimette subito"),
+      });
       restoreBtn.addEventListener("click", async () => {
         restoreBtn.disabled = true;
         const ok = await Bridge.dockRestoreTaskbar().catch(() => false);
         settings.dockHidesTaskbar = false;
+        dockRestoreFeedback = ok ? t("Barra di Windows ripristinata.") : t("Comando inviato: se era nascosta torna visibile.");
         commit();
-        restoreBtn.disabled = false;
-        restoreNote.textContent = ok ? t("Barra di Windows ripristinata.") : t("Comando inviato: se era nascosta torna visibile.");
+        paintFixedBar();
+        render();
       });
       return [
         intro(t("Una barra in basso con le tue app fissate, le finestre aperte, le anteprime al passaggio e i widget che scegli.")),
@@ -3679,7 +3683,12 @@ function appearanceSections(): HTMLElement[] {
           )),
           h("div", { class: "row dock-row" },
             h("label", { text: t("Nascondi la barra delle applicazioni di Windows") }),
-            toggle(!!settings.dockHidesTaskbar, (v) => { settings.dockHidesTaskbar = v; commit(); }),
+            toggle(!!settings.dockHidesTaskbar, (v) => {
+              dockRestoreFeedback = "";
+              settings.dockHidesTaskbar = v;
+              commit();
+              render();
+            }),
             h("span", { class: "hint note", text: t("consenso esplicito: usa la Dock al posto della barra di Windows") }),
           ),
           h("div", { class: "row dock-row" },
@@ -4287,6 +4296,7 @@ function barLookRows(commit: () => void): HTMLElement[] {
 
 /** Cached catalog of installed apps from applist.rs (populated lazily in Dock settings). */
 let cachedDockApps: DockCatalogApp[] | null = null;
+let dockRestoreFeedback = "";
 
 /** «Aspetto e comportamento della Dock» (DockLook): shape, icon size, magnification, auto-hide and windows. */
 function dockLookRows(commit: () => void): HTMLElement[] {

@@ -427,7 +427,7 @@ function linkDockWindow(island: Island) {
     } else if (m.kind === "bar") {
       island.barClick(m.key, m.button, m.x);
     } else if (m.kind === "tray") {
-      void Bridge.trayDo(m.id, m.button, m.x, m.y);
+      void Bridge.trayDo(m.id, m.button);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();

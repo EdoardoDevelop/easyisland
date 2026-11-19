@@ -1067,8 +1067,8 @@ export const Bridge = {
   windowsAnimations: () => call<boolean>("windows_animations"),
   openAnimationSettings: () => call<void>("open_animation_settings"),
   trayIcons: () => call<TrayIconInfo[]>("tray_icons"),
-  trayDo: (id: string, button: "left" | "right" | "middle" | "double", x?: number, y?: number) =>
-    call<boolean>("tray_do", { id, button, x, y }),
+  trayDo: (id: string, button: "left" | "right" | "middle" | "double") =>
+    call<boolean>("tray_do", { id, button }),
 };
 
 export interface IntegrationUpdate {

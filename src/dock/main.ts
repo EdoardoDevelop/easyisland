@@ -66,7 +66,7 @@ async function main() {
       sendToIsland({ kind: "bar", key, button, x });
     },
     onTrayClick: (id, button, x, y) => {
-      if (IS_TAURI) void Bridge.trayDo(id, button, x, y);
+      if (IS_TAURI) void Bridge.trayDo(id, button);
       else sendToIsland({ kind: "tray", id, button, x, y });
     },
     onPinReorder: (pinned) => {
