@@ -680,7 +680,8 @@ fn resync() {
 /// The windows of `app`, most recently used first.
 fn windows_of(app: &str) -> Vec<isize> {
     with_state(|s| {
-        let mut list: Vec<&Win> = s.sent.iter().filter(|w| w.app == app).collect();
+        // The Dock keys apps in lower case: ids compared ignoring case.
+        let mut list: Vec<&Win> = s.sent.iter().filter(|w| w.app.eq_ignore_ascii_case(app)).collect();
         list.sort_by_key(|w| std::cmp::Reverse(w.last_used));
         list.into_iter().map(|w| w.hwnd).collect()
     })
@@ -901,9 +902,9 @@ pub async fn dock_windows(app: AppHandle) -> Value {
     .unwrap_or(Value::Array(Vec::new()))
 }
 
-/// What the Dock does. `what`: `click`, `activate`, `minimize`, `close` (a
+/// What the Dock does. `what`: `click`, `activate` (also `focus`, `restore`), `minimize`, `close` (a
 /// window by `hwnd`, else the app's windows), `close-all`, `minimize-all`,
-/// `launch` / `launch-new` / `launch-admin` (`app`), `open-files` (`app`,
+/// `launch` / `launch-new` / `launch-admin` (`app`), `open-files` / `drop-files` (`app`,
 /// `files`), `unpin` (`app`: unpinned from the Dock, so from the Windows
 /// taskbar too), or a system button: `start`, `quick-settings`,
 /// `notifications`, `search`, `task-view`, `widgets`, `sound`, `show-desktop`.
@@ -911,6 +912,12 @@ pub async fn dock_windows(app: AppHandle) -> Value {
 #[tauri::command]
 pub fn dock_do(what: String, hwnd: Option<isize>, app: Option<String>, files: Option<Vec<String>>) -> bool {
     let target = app.unwrap_or_default();
+    // The Dock's own words for the same things.
+    let what = match what.as_str() {
+        "focus" | "restore" => "activate".to_string(),
+        "drop-files" => "open-files".to_string(),
+        _ => what,
+    };
     // Windows given by the Dock must be ones it was shown: never any handle.
     let windows: Vec<isize> = match hwnd {
         Some(h) if is_known(h) => vec![h],
