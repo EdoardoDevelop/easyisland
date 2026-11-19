@@ -23,7 +23,7 @@ use windows::{
         UI::{
             Shell::{SHAppBarMessage, ABM_GETSTATE, ABM_SETSTATE, ABS_AUTOHIDE, APPBARDATA},
             WindowsAndMessaging::{
-                FindWindowExW, FindWindowW, GetLayeredWindowAttributes, GetWindowLongPtrW, SetLayeredWindowAttributes, SetWindowLongPtrW, GWL_EXSTYLE, LWA_ALPHA, WS_EX_LAYERED, WS_EX_TRANSPARENT,
+                FindWindowExW, GetLayeredWindowAttributes, GetWindowLongPtrW, SetLayeredWindowAttributes, SetWindowLongPtrW, GWL_EXSTYLE, LWA_ALPHA, WS_EX_LAYERED, WS_EX_TRANSPARENT,
             },
         },
     },
@@ -106,10 +106,21 @@ fn starts_with_windows() -> bool {
 }
 
 fn taskbars() -> Vec<HWND> {
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
     let mut found = Vec::new();
+    let me = std::process::id();
     unsafe {
-        if let Ok(hwnd) = FindWindowW(PRIMARY, None) {
-            found.push(hwnd);
+        // Explorer's own: never a Shell_TrayWnd of this process (the
+        // notification area's host has that class too).
+        let mut previous = None;
+        while let Ok(hwnd) = FindWindowExW(None, previous, PRIMARY, None) {
+            previous = Some(hwnd);
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if pid != me {
+                found.push(hwnd);
+                break;
+            }
         }
         let mut previous = None;
         while let Ok(hwnd) = FindWindowExW(None, previous, SECONDARY, None) {

@@ -339,3 +339,15 @@ pub fn windows_animations() -> bool {
 pub fn open_animation_settings() {
     let _ = std::process::Command::new("explorer.exe").arg("ms-settings:easeofaccess-visualeffects").spawn();
 }
+
+/// A full-screen app came or went (taskwin.rs: with the Windows taskbar
+/// hidden the shell's ABN_FULLSCREENAPP does not hold). The Dock steps away.
+pub fn set_fullscreen(on: bool) {
+    if FULLSCREEN.swap(on, Ordering::Relaxed) == on {
+        return;
+    }
+    let Some(app) = APP.get() else { return };
+    if let Some(win) = app.get_webview_window(LABEL) {
+        let _ = if on { win.hide() } else { win.show() };
+    }
+}
