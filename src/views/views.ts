@@ -5,7 +5,7 @@ import type { Notice } from "../core/state";
 
 import { isSorting, sortable } from "./sortable";
 import * as MenuGroups from "../core/menu-groups";
-import { h, svg, clear, dot, brandOrDot, markIcon, tip } from "./dom";
+import { h, svg, clear, dot, brandOrDot, markIcon, tip, emptyState, drainBar } from "./dom";
 import { ICONS } from "./icons";
 import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { Ticker } from "./ticker";
@@ -769,7 +769,14 @@ function renderSummary(actions: ViewActions): HTMLElement {
     grid.append(row);
   }
   if (!visible.length) {
-    grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
+    grid.append(emptyState({
+      compact: true,
+      icon: ICONS.sliders,
+      title: t("Nessuna integrazione attiva"),
+      hint: t("Attiva Zammad, 3CX, Remote Desktop Manager o altre integrazioni dalle Impostazioni."),
+      actions: [{ label: t("Impostazioni…"), primary: true, onclick: () => actions.openSettingsWindow() }],
+      kbd: "?",
+    }));
   }
 
   const quick = tabActions();
@@ -844,15 +851,18 @@ function pillLabel(task: AgentTask): { text: string; title?: string; song?: bool
 function buildEmpty(actions: ViewActions): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 max(16px, calc(118px * var(--bot-room, 1)));flex-direction:row;align-items:center;gap:16px" },
-    h(
-      "div",
-      { style: "display:flex;flex-direction:column;gap:5px" },
-      h("div", { class: "title", text: t("Nulla in esecuzione al momento.") }),
-      h("div", { class: "sub", text: t("Trascina un file o chiedimi qualsiasi cosa.") }),
-    ),
-    h("div", { class: "grow" }),
-    btn(t("Chiedi alla chat"), "primary", () => actions.setView("prompt")),
+    { class: "stack", style: "padding:10px 18px 10px max(16px, calc(118px * var(--bot-room, 1)))" },
+    emptyState({
+      compact: true,
+      icon: ICONS.spark,
+      title: t("Nulla in esecuzione al momento"),
+      hint: t("Trascina un file sull'isola, avvia una chat o apri le Azioni rapide."),
+      actions: [
+        { label: t("Chiedi alla chat"), primary: true, onclick: () => actions.setView("prompt") },
+        { label: t("Azioni rapide"), onclick: () => actions.setView("actions") },
+      ],
+      kbd: "?",
+    }),
   );
   return { el: h("div", { class: "view" }, card(body)), sync() {} };
 }
@@ -860,17 +870,37 @@ function buildEmpty(actions: ViewActions): ViewHost {
 /**
  * How long a permission or a question still waits for a click here ("1:32"):
  * after that the relay gives up and the terminal (or, for the chat, a refusal)
- * takes over. Written only when the second changes.
+ * takes over. Written only when the second changes, while the drain bar stays
+ * anchored to the request's first observed remaining duration.
  */
+const waitTotal = new Map<number, number>();
+
 function waitLeft(el: HTMLElement) {
   const req = State.pendingApproval;
-  const ms = req?.deadline != null ? req.deadline - Date.now() : null;
+  const deadline = req?.deadline ?? null;
+  const ms = deadline != null ? deadline - Date.now() : null;
   const text = ms == null ? "" : (() => {
     const s = Math.max(0, Math.ceil(ms / 1000));
     return t("attende ancora {t}", { t: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` });
   })();
-  if (el.textContent === text) return;
-  el.textContent = text;
+  let label = el.querySelector<HTMLElement>(".wait-left-txt");
+  let barHost = el.querySelector<HTMLElement>(".wait-left-bar");
+  if (!label || !barHost) {
+    label = h("span", { class: "wait-left-txt" });
+    barHost = h("span", { class: "wait-left-bar" });
+    el.replaceChildren(label, barHost);
+  }
+  if (label.textContent !== text) label.textContent = text;
+  const barKey = deadline != null && ms != null && ms > 0 ? String(deadline) : "";
+  if (barHost.dataset.deadline !== barKey) {
+    barHost.dataset.deadline = barKey;
+    clear(barHost);
+    if (deadline != null && ms != null && ms > 0) {
+      if (!waitTotal.has(deadline)) waitTotal.set(deadline, Math.max(1000, ms));
+      const bar = drainBar(deadline, waitTotal.get(deadline)!, { slim: true });
+      if (bar) barHost.append(bar);
+    }
+  }
   el.classList.toggle("soon", ms != null && ms < 20_000);
   el.title = req?.source === "chat"
     ? t("Poi la chiamata al connettore viene rifiutata")

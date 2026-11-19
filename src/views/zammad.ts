@@ -10,7 +10,7 @@
 // The view lives outside the card lifecycle (views.ts keys it on `zammadKey()`):
 // it is redrawn here so typing and scroll positions stay intact.
 
-import { h, brandOrDot, clear, clipMark, svg } from "./dom";
+import { h, brandOrDot, clear, clipMark, drainBar, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
 import {
@@ -85,6 +85,7 @@ const zm = {
   drafts: new Map<number, string>(),
   email: false,
   confirm: false,
+  confirmUntil: 0,
   confirmTimer: 0,
   sending: false,
   openSettings: (() => {}) as () => void,
@@ -449,13 +450,15 @@ async function send() {
   if (!text) return;
   if (zm.email && !zm.confirm) {
     zm.confirm = true;
+    zm.confirmUntil = Date.now() + 6000;
     window.clearTimeout(zm.confirmTimer);
-    zm.confirmTimer = window.setTimeout(() => { zm.confirm = false; drawComposer(); }, 6000);
+    zm.confirmTimer = window.setTimeout(() => { zm.confirm = false; zm.confirmUntil = 0; drawComposer(); }, 6000);
     drawComposer();
     return;
   }
   zm.sending = true;
   zm.confirm = false;
+  zm.confirmUntil = 0;
   drawComposer();
   const ok = await saving(Bridge.zammadReply(d.id, text, zm.email), d.id, false);
   zm.sending = false;
@@ -1193,7 +1196,7 @@ function drawComposer() {
   const mode = (email: boolean, icon: string, label: string, tip: string) => h("button", {
     class: zm.email === email ? "zm-mode on" : "zm-mode",
     title: tip,
-    onclick: (e: Event) => { e.stopPropagation(); zm.email = email; zm.confirm = false; drawComposer(); field.focus(); },
+    onclick: (e: Event) => { e.stopPropagation(); zm.email = email; zm.confirm = false; zm.confirmUntil = 0; window.clearTimeout(zm.confirmTimer); drawComposer(); field.focus(); },
   }, svg(icon, 11, { stroke: 1.8 }), h("span", { text: label }));
   modes.replaceChildren(
     mode(false, ICONS.pencil, t("Nota interna"), t("Visibile solo ai tecnici")),
@@ -1203,9 +1206,12 @@ function drawComposer() {
   field.classList.toggle("email", zm.email);
   sendBtn.disabled = zm.sending || !field.value.trim() || (zm.email && !d.reply_to);
   sendBtn.classList.toggle("red", zm.confirm);
-  sendBtn.textContent = zm.sending ? t("Invio…")
+  const label = zm.sending ? t("Invio…")
     : zm.confirm ? t("Conferma: invia a {to}", { to: d.reply_to })
     : zm.email ? t("Invia al cliente") : t("Aggiungi nota");
+  const drain = zm.confirm && !zm.sending ? drainBar(zm.confirmUntil, 6000, { slim: true }) : null;
+  if (drain) sendBtn.replaceChildren(h("span", { text: label }), drain);
+  else sendBtn.textContent = label;
 }
 
 function placeComposer(host: HTMLElement, d: ZammadTicket) {
@@ -1218,6 +1224,8 @@ function placeComposer(host: HTMLElement, d: ZammadTicket) {
     field.value = zm.drafts.get(d.id) ?? "";
     zm.email = false;
     zm.confirm = false;
+    zm.confirmUntil = 0;
+    window.clearTimeout(zm.confirmTimer);
   }
   host.append(composer.box!);
   drawComposer();

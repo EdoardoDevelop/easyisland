@@ -13,7 +13,8 @@
 // field lives outside it (`composer`) and is moved into each new card, its
 // text, cursor and focus kept.
 
-import { h, brandOrDot, clipMark, headActions } from "./dom";
+import { h, brandOrDot, clipMark, headActions, emptyState } from "./dom";
+import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { Bridge, onEvent } from "../core/bridge";
 import { renderMarkdown } from "../core/markdown";
@@ -258,13 +259,26 @@ function drawLog(x: LiveTurn) {
   logText = x.text;
   logBox().replaceChildren(...(x.text
     ? renderMarkdown(x.text, { openUrl: (url) => void Bridge.openUrl(url) })
-    : [h("div", { class: "int-empty", text: x.state === "working" ? t("Sta ragionando: il primo passo arriva tra poco.") : t("Nessun passo da mostrare.") })]));
+    : [emptyState({
+      compact: true,
+      icon: ICONS.terminal,
+      title: x.state === "working" ? t("Sta ragionando…") : t("Nessun passo registrato"),
+      hint: x.state === "working" ? t("Il primo passo apparirà qui appena l'agente risponde.") : t("Questo turno non ha generato righe di output."),
+    })]));
   placeLog();
 }
 
 function workView(): HTMLElement {
   const list = [...liveTurns.values()].sort((a, b) => b.id - a.id);
-  if (!list.length) return h("div", { class: "int-empty", text: t("Nessun motore sta lavorando su questo PC. Quando ne parte uno, qui vedi cosa fa passo per passo.") });
+  if (!list.length) {
+    return emptyState({
+      compact: true,
+      icon: ICONS.terminal,
+      title: t("Nessun motore al lavoro su questo PC"),
+      hint: t("Quando un motore locale prende in carico un messaggio, qui vedi cosa fa passo per passo."),
+      actions: [{ label: t("Torna alla chat"), onclick: () => { acView = "chat"; State.notify(); } }],
+    });
+  }
   const open = liveTurns.get(livePicked) ?? list.find((x) => x.state === "working") ?? list[0];
   const words: Record<string, string> = { done: t("finito"), failed: t("non riuscito"), stopped: t("fermato") };
   const chips = list.map((x) => h("button", {
@@ -538,7 +552,13 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
     headActions(h("button", { class: "link-btn", text: t("Impostazioni…"), onclick: openSettings })));
   const body = h("div", { class: "ac-body" });
   if (!d.configured) {
-    body.append(h("div", { class: "hint rec-hint", text: t("Collega EasyIsland alla tua Agent Chat: serve il server (si installa con Docker) e un token creato nella sua pagina «Agenti». Indirizzo e token in Impostazioni → Integrazioni → Agent Chat.") }));
+    body.append(emptyState({
+      compact: true,
+      icon: ICONS.bubble,
+      title: t("Collega la tua Agent Chat"),
+      hint: t("Collega EasyIsland alla tua Agent Chat: serve il server (si installa con Docker) e un token creato nella sua pagina «Agenti». Indirizzo e token in Impostazioni → Integrazioni → Agent Chat."),
+      actions: [{ label: t("Impostazioni…"), primary: true, onclick: openSettings }],
+    }));
     return h("div", { class: "int-card notion-card" }, head, body);
   }
   const actions = h("div", { class: "rec-actions" },
@@ -570,7 +590,15 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
     tab("work", working().length ? t("In esecuzione · {n}", { n: working().length }) : t("In esecuzione"))));
   const box = h("div", { class: "ac-list" });
   if (acView === "topics") {
-    if (!topics.length) box.append(h("div", { class: "int-empty", text: t("Ancora nessun argomento: si formano dalle richieste in chat.") }));
+    if (!topics.length) {
+      box.append(emptyState({
+        compact: true,
+        icon: ICONS.tag,
+        title: t("Ancora nessun argomento"),
+        hint: t("Gli argomenti si formano automaticamente dalle richieste nelle stanze seguite."),
+        actions: [{ label: t("Torna alla chat"), onclick: () => { acView = "chat"; State.notify(); } }],
+      }));
+    }
     for (const tp of topics) box.append(topicRow(tp));
     body.append(box);
   } else if (acView === "work") {
@@ -589,7 +617,17 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
         if (acTopic?.topic.id === tp.id && msgs && msgs.length !== known) { acTopic = { topic: tp, msgs }; State.notify(); }
       });
     }
-    if (!list.length) box.append(h("div", { class: "int-empty", text: t("Nessun messaggio nelle stanze seguite.") }));
+    if (!list.length) {
+      box.append(emptyState({
+        compact: true,
+        icon: ICONS.bubble,
+        title: t("Nessun messaggio nelle stanze seguite"),
+        hint: d.canWrite
+          ? t("Scrivi qui sotto per iniziare o usa @nome per chiamare un agente.")
+          : t("I messaggi delle stanze seguite compariranno qui."),
+        actions: d.canWrite ? [{ label: t("Scrivi messaggio"), onclick: () => focusField() }] : undefined,
+      }));
+    }
     for (const m of list) box.append(messageRow(m, d));
     body.append(box);
   }

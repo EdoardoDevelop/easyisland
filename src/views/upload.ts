@@ -8,7 +8,7 @@ import { buildRecorderPanel } from "./recorder";
 import { buildWorkPanel } from "./workdir";
 import { buildCollectPanel } from "./collect";
 import { fileBadge } from "./filekind";
-import { h, clear, svg, tip } from "./dom";
+import { h, clear, svg, tip, emptyState } from "./dom";
 import { showMenu, type MenuItem } from "./ctxmenu";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
@@ -387,7 +387,13 @@ export function buildFiles(actions: ViewActions): ViewHost {
       // The empty tray says it itself: the note would repeat it.
       note.style.display = files.length ? "" : "none";
       if (files.length === 0) {
-        list.append(h("div", { class: "files-empty", text: t("Il vassoio è vuoto. I file che rilasci sull'isola restano qui finché EasyIsland è aperto.") }));
+        list.append(emptyState({
+          compact: true,
+          icon: ICONS.clip,
+          title: t("Il vassoio è vuoto"),
+          hint: t("Trascina qui un file dall'Esplora file o cattura uno screenshot con «Riquadra e chiedi»."),
+          kbd: State.settings.hotkeyScreenshot || undefined,
+        }));
         return;
       }
       for (const f of files) {

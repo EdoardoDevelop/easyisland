@@ -5,7 +5,7 @@
 // Vassoio, dragged out, its path copied, or sent to the Recycle Bin. The
 // Vassoio moves its files into the folder shown here (`current`).
 
-import { h, clear, tip, svg } from "./dom";
+import { h, clear, tip, svg, emptyState } from "./dom";
 import { ICONS } from "./icons";
 import { showMenu, type MenuItem } from "./ctxmenu";
 import { renderActionIcon } from "./action-icons";
@@ -233,7 +233,13 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     tip(sortBtn, t("Ordine: clic per cambiarlo (nome, data di modifica)"));
     list.classList.toggle("grid", grid);
     if (!listing) {
-      list.append(h("div", { class: "files-empty", text: error || t("Scegli una cartella del PC: la chat e Telegram potranno consultarla e lavorarci.") }));
+      list.append(emptyState({
+        compact: true,
+        icon: ICONS.rdmFolder,
+        title: error || t("Nessuna cartella di lavoro"),
+        hint: t("Scegli una cartella del PC: la chat e Telegram potranno consultarla e lavorarci."),
+        actions: [{ label: t("Scegli cartella…"), primary: true, onclick: () => pick.click() }],
+      }));
       return;
     }
     // Where we are: the folder's name, then each subfolder, clickable.
@@ -278,7 +284,15 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
         h("span", { class: "work-icon", style: "color:#8E939C" }, h("span", { text: "↰" })),
         h("div", { class: "files-info" }, h("span", { class: "files-name", text: ".." }))));
     }
-    if (!listing.entries.length && !newFolder) list.append(h("div", { class: "files-empty", text: t("Cartella vuota.") }));
+    if (!listing.entries.length && !newFolder) {
+      list.append(emptyState({
+        compact: true,
+        icon: ICONS.rdmFolder,
+        title: t("Cartella vuota"),
+        hint: t("Crea una nuova cartella con «+ Nuova» oppure sposta qui dei file dal Vassoio."),
+        actions: [{ label: t("+ Nuova"), onclick: () => { newFolder = true; drawn = ""; State.notify(); } }],
+      }));
+    }
     for (const e of sorted(listing.entries, sort)) list.append(row(e));
     if (listing.more) list.append(h("div", { class: "files-note", text: t("Sono mostrati i primi 500 elementi.") }));
   }

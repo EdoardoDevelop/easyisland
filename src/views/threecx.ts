@@ -8,7 +8,7 @@
 // element kept across rebuilds, so typing (a number or a chat message) is
 // never interrupted by an incoming update.
 
-import { h, svg, clear, clipMark, dot, brandOrDot } from "./dom";
+import { h, svg, clear, clipMark, dot, brandOrDot, emptyState } from "./dom";
 import { ICONS } from "./icons";
 import { State, type AgentTask } from "../core/state";
 import {
@@ -469,7 +469,12 @@ class Dialer {
     }
     refit();
     if (q.length < 2) {
-      this.list.append(h("div", { class: "int-empty", text: t("Scrivi nel display almeno due lettere di un nome o di un'azienda") }));
+      this.list.append(emptyState({
+        compact: true,
+        icon: ICONS.search,
+        title: t("Cerca in rubrica o composizione"),
+        hint: t("Scrivi nel display almeno due lettere di un nome o azienda, oppure un numero e Invio."),
+      }));
       refit();
       return;
     }
@@ -482,7 +487,15 @@ class Dialer {
           for (const c of this.results.slice(0, 8)) {
             this.list.append(this.row(c.name, c.colleague ? t("interno") : c.company, c.numbers, c.colleague ? "#38BDF8" : "#A78BFA"));
           }
-          if (this.results.length === 0 && !number) this.list.append(h("div", { class: "int-empty", text: t("Nessun contatto") }));
+          if (this.results.length === 0 && !number) {
+            this.list.append(emptyState({
+              compact: true,
+              icon: ICONS.book,
+              title: t("Nessun contatto trovato"),
+              hint: t("Controlla il testo cercato o digita direttamente il numero da chiamare."),
+              actions: [{ label: t("Pulisci display"), onclick: () => { this.input.value = ""; this.typed(); this.input.focus(); } }],
+            }));
+          }
           refit();
         })
         .catch((e) => { if (seq === this.seq) this.say(message(e)); });
@@ -514,7 +527,17 @@ class Dialer {
     clear(this.list);
     this.list.append(this.head());
     if (items.length === 0) {
-      this.list.append(h("div", { class: "int-empty", text: this.panel === "missed" ? t("Nessuna chiamata persa") : t("Nessuna chiamata") }));
+      this.list.append(emptyState({
+        compact: true,
+        icon: this.panel === "missed" ? ICONS.missed : ICONS.phone,
+        title: this.panel === "missed" ? t("Nessuna chiamata persa") : t("Nessuna chiamata recente"),
+        hint: this.panel === "missed"
+          ? t("Ottimo: nessuna chiamata senza risposta nell'ultimo periodo.")
+          : t("Le chiamate ricevute, effettuate e perse appariranno qui."),
+        actions: this.panel === "missed"
+          ? [{ label: t("Vedi tutte le chiamate"), onclick: () => this.show("recent") }]
+          : undefined,
+      }));
       return;
     }
     const colors = { missed: RED, received: GREEN, outgoing: "#38BDF8", other: "#8e939c" } as const;
@@ -552,7 +575,18 @@ class Dialer {
         dot(GREEN, 5), h("span", { class: "int-name", text: typed })));
     }
     if (list.length === 0) {
-      this.list.append(h("div", { class: "int-empty", text: (data().team ?? []).length ? t("Nessun collega") : t("Il centralino non ha mandato colleghi") }));
+      const hasAny = (data().team ?? []).length > 0;
+      this.list.append(emptyState({
+        compact: true,
+        icon: ICONS.people,
+        title: hasAny ? t("Nessun collega trovato") : t("Nessun interno disponibile"),
+        hint: hasAny
+          ? t("Nessun nome o interno corrisponde al filtro nel display.")
+          : t("Il centralino non ha ancora mandato l'elenco dei colleghi."),
+        actions: hasAny && this.input.value
+          ? [{ label: t("Mostra tutti"), onclick: () => { this.input.value = ""; this.renderTeam(); } }]
+          : undefined,
+      }));
     }
     for (const c of list.slice(0, 60)) this.list.append(this.colleagueRow(c));
     this.list.scrollTop = scroll;
@@ -618,7 +652,15 @@ class Dialer {
     clear(this.list);
     this.list.append(this.head());
     const unread = data().unreadByChat ?? {};
-    if (this.chats.length === 0) this.list.append(h("div", { class: "int-empty", text: t("Nessuna chat") }));
+    if (this.chats.length === 0) {
+      this.list.append(emptyState({
+        compact: true,
+        icon: ICONS.bubble,
+        title: t("Nessuna chat attiva"),
+        hint: t("Avvia una conversazione interna dal tab Team scegliendo un collega."),
+        actions: [{ label: t("Vai al Team"), onclick: () => this.show("team") }],
+      }));
+    }
     for (const c of this.chats) {
       const n = unread[String(c.id)] ?? 0;
       const preview = `${c.lastMine ? t("Tu: ") : ""}${c.last}`;
@@ -725,7 +767,15 @@ class Dialer {
     if (!this.thread || !this.chat) return;
     clear(this.thread);
     const list = this.chat.messages;
-    if (list.length === 0) this.thread.append(h("div", { class: "int-empty", text: t("Nessun messaggio: scrivi tu il primo") }));
+    if (list.length === 0) {
+      this.thread.append(emptyState({
+        compact: true,
+        icon: ICONS.bubble,
+        title: t("Nessun messaggio"),
+        hint: t("Scrivi qui sotto per iniziare la conversazione."),
+        actions: [{ label: t("Scrivi"), onclick: () => this.composer?.focus() }],
+      }));
+    }
     list.forEach((m, i) => this.thread?.append(this.bubble(m, list[i - 1])));
     this.thread.scrollTop = this.thread.scrollHeight;
     refit();
@@ -801,7 +851,14 @@ class Dialer {
   private renderVoicemail(items: ThreecxVoicemail[]) {
     clear(this.list);
     this.list.append(this.head());
-    if (items.length === 0) this.list.append(h("div", { class: "int-empty", text: t("Nessun messaggio in segreteria") }));
+    if (items.length === 0) {
+      this.list.append(emptyState({
+        compact: true,
+        icon: ICONS.voicemail,
+        title: t("Segreteria telefonica vuota"),
+        hint: t("I nuovi messaggi vocali lasciati dai chiamanti appariranno qui con eventuale trascrizione."),
+      }));
+    }
     for (const v of items) {
       const label = v.name || v.number || t("Sconosciuto");
       const btn = (icon: string, title: string, tint: string, run: () => void) =>
