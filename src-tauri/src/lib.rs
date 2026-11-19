@@ -21,6 +21,8 @@ mod quick_answer;
 mod search_window;
 mod dvc_live;
 mod notices_window;
+mod dock_window;
+pub mod taskbar_hide;
 mod votes;
 mod memory_tips;
 mod local_model;
@@ -241,7 +243,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     settings.commit_active();
     i18n::set(&settings.language);
     cc_memory::set_on(settings.memory_claude_code);
-    let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
+    let (screen_changed, autostart_changed, bar_changed, shadow_changed, dock_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
@@ -257,12 +259,13 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
             || current.bar_blur() != settings.bar_blur();
         // The shadow's look: only the shadow is laid again (sync_character).
         let shadow_changed = (current.bar_shadow(), current.bar_margin()) != (settings.bar_shadow(), settings.bar_margin());
+        let dock_changed = current.dock != settings.dock || current.dock_hides_taskbar != settings.dock_hides_taskbar || current.screen != settings.screen;
         let autostart_changed = current.autostart != settings.autostart;
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
-        (screen_changed, autostart_changed, bar_changed, shadow_changed)
+        (screen_changed, autostart_changed, bar_changed, shadow_changed, dock_changed)
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
@@ -280,6 +283,9 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     if screen_changed {
         let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
         island::apply_geometry(&app, &shared.gate, &settings, collapsed);
+    }
+    if dock_changed {
+        dock_window::apply(app);
     }
     if bar_changed {
         appbar::apply(app);
@@ -5132,6 +5138,15 @@ fn open_settings_at(app: AppHandle, page: String, item: Option<String>) {
 }
 
 pub fn run() {
+    // The taskbar's guard and «give it back» run without the app (docs/piano-dock.md).
+    if taskbar_hide::handle_args() {
+        return;
+    }
+    // Left taken by a run that ended without its guard (power cut): back first.
+    if taskbar_hide::taken() {
+        taskbar_hide::give_back();
+        log::line("barra di Windows: rimessa all'avvio (era rimasta nascosta)");
+    }
     jumplist::set_app_id();
     // The release build aborts on a panic (panic = "abort"): without this the
     // reason is lost and Windows only reports 0xc0000409.
@@ -5631,6 +5646,7 @@ pub fn run() {
             app_menu_run,
             bar_reveal,
             bar_grow,
+            dock_window::dock_shape,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
             news::news_proposals,
@@ -5667,6 +5683,8 @@ pub fn run() {
             appbar::apply(&handle);
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
+            // The Dock, when it is on (and the Windows taskbar, if it replaces it).
+            dock_window::apply(&handle);
             preview::init(&handle);
             claude_cli::init(&handle);
 
@@ -5770,6 +5788,7 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 tasks::on_exit();
                 appbar::shutdown();
+                dock_window::shutdown();
                 opencode::shutdown();
                 claude_cli::shutdown();
                 terminal::close(None);
