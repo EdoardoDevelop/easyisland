@@ -11,7 +11,7 @@ import "./chat-cards.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, barEdge, barThickness, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
+import { State, barEdge, barThickness, migrateBarSettings, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
 import { forgetRecords, previewFor, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -53,7 +53,7 @@ async function main() {
 
   const boot = await Bridge.boot();
   if (boot) {
-    State.settings = { ...State.settings, ...boot.settings };
+    State.settings = migrateBarSettings({ ...State.settings, ...boot.settings });
     // The language this page was built in must be the one chosen (once, at the first start).
     syncLanguage(State.settings.language);
   } else {
@@ -71,7 +71,7 @@ async function main() {
         : typeof current === "boolean" ? value === "true"
         : Array.isArray(current) ? value.split(",").filter(Boolean) : value;
     }
-    State.settings = { ...State.settings, ...overrides } as Settings;
+    State.settings = migrateBarSettings({ ...State.settings, ...overrides } as Settings);
     const who = params.get("character");
     if (who) State.settings.theme = { ...State.settings.theme, character: who };
     // ?ui=classic|windows|monolith|titanium|editorial
@@ -232,7 +232,7 @@ async function main() {
 
   // The settings window writes preferences; apply them here without a restart.
   await onEvent<Settings>("settings-changed", (s) => {
-    State.settings = { ...State.settings, ...s };
+    State.settings = migrateBarSettings({ ...State.settings, ...s });
     island.applySettings();
     State.loadIntegrationTasks();
     void refreshConfigured();
@@ -306,7 +306,7 @@ function linkCharacterWindow(island: Island) {
       bar: barEdge(State.settings)
         ? {
           slot: State.settings.fixedBarSlot ?? "center",
-          edge: barEdge(State.settings) === "bottom" ? "bottom" : "top",
+          edge: "top",
           ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
           thickness: barThickness(State.settings),
           items: barPieces(island.barStrip(), island.barAppBar()),

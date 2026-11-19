@@ -4657,7 +4657,7 @@ ${note}` : text };
     this.islandEl.classList.toggle("railed", railed);
     this.islandEl.classList.toggle("rail-compact", compactRail);
     this.islandEl.classList.toggle("pop", !!State.popover);
-    this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
+    this.islandEl.classList.toggle("pop-bottom", false);
     this.islandEl.classList.toggle("search-only", State.searchOnly);
     this.islandEl.classList.toggle("open", expanded);
     if (railed) {

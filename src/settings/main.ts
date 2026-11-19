@@ -11,7 +11,7 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 /** The animated logo's character id (logo-anim.ts). */
 const LOGO_ID = LOGO_CHARACTER.id;
 import { type DoneItem, type LocalModelStatus, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barEdge, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, migrateBarSettings, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_BG_PRESETS, barBgCss, parseBarBg } from "../core/barbg";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
@@ -3547,7 +3547,7 @@ function appearanceSections(): HTMLElement[] {
     ],
     posizione: () => [
       intro(t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.")),
-      barNote(t("Con la barra fissa accesa il personaggio sta nella barra: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Barra fissa).")),
+      barNote(t("Con la Top bar accesa il personaggio sta lì: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Top bar).")),
       h("section", {},
         h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
         pictured("screen", h("div", { class: "row" },
@@ -3579,22 +3579,22 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     barra: () => [
-      intro(t("Una fascia sul bordo dello schermo, come la barra delle applicazioni: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto.")),
+      intro(t("Una fascia in alto sullo schermo: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto.")),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Barra fissa") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Top bar") }), profileChip()),
         pictured("bar", h("div", { class: "row" },
-          h("label", { text: t("Barra fissa") }),
-          select([["", t("Spenta")], ["top", t("In alto")], ["bottom", t("In basso")]], settings.fixedBar ?? "",
+          h("label", { text: t("Top bar") }),
+          select([["", t("Spenta")], ["top", t("In alto")]], barEdge(settings) ?? "",
             (v) => { settings.fixedBar = v as Settings["fixedBar"]; paintFixedBar(); commit(); }),
-          h("span", { class: "hint note", text: t("Windows tiene libera una fascia sul bordo, come per la barra delle applicazioni: le finestre si fermano lì") }),
+          h("span", { class: "hint note", text: t("Windows tiene libera una fascia in alto sullo schermo: le finestre si fermano lì") }),
         )),
         pictured("barSlot", h("div", { class: "row bar-row" },
-          h("label", { text: t("Personaggio nella barra") }),
+          h("label", { text: t("Personaggio nella Top bar") }),
           select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
             (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
-          h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+          h("span", { class: "hint note", text: t("con la Top bar il personaggio sta lì e non si trascina; l'isola si apre sotto di lei e da chiusa non c'è") }),
         ), h("div", { class: "row bar-row" },
-          h("label", { text: t("Nella barra") }),
+          h("label", { text: t("Nella Top bar") }),
           select<string>([
             ["", t("Come nell'isola")],
             ["logo", t("Ezzy, il logo di EasyIsland animato")],
@@ -3604,9 +3604,9 @@ function appearanceSections(): HTMLElement[] {
             ...characters().filter((c) => c.id !== LOGO_ID).map((c): [string, string] => [`char:${c.id}`, c.name]),
           ], settings.fixedBarFigure ?? "",
             (v) => { settings.fixedBarFigure = v; commit(); }),
-          h("span", { class: "hint note", text: t("chi sta nella barra può essere diverso da chi sta nell'isola: un personaggio o il logo animato seguono il mouse e cambiano con gli stati; il logo fermo, il tuo logo e il meteo sono immagini ferme") }),
+          h("span", { class: "hint note", text: t("chi sta nella Top bar può essere diverso da chi sta nell'isola: un personaggio o il logo animato seguono il mouse e cambiano con gli stati; il logo fermo, il tuo logo e il meteo sono immagini ferme") }),
         ), h("div", { class: "row bar-row" },
-          h("label", { text: t("Altezza della barra") }),
+          h("label", { text: t("Altezza della Top bar") }),
           slider(24, 96, 2, Math.round(barThickness(settings)), "px", (v) => { settings.fixedBarHeight = v; commit(); render(); }),
           h("button", {
             text: t("Automatica"),
@@ -3618,22 +3618,22 @@ function appearanceSections(): HTMLElement[] {
             : t("automatica: alta quanto la vista compatta; il personaggio, le icone e i testi si adattano all'altezza") }),
         )),
         pictured("barBg", h("div", { class: "row bar-row" },
-          h("label", { text: t("Sfondo della barra") }),
+          h("label", { text: t("Sfondo della Top bar") }),
           barBackground(commit),
         )),
       ),
       h("section", { class: "bar-row-block" },
-        h("h2", {}, h("span", { text: t("Aspetto della barra") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Aspetto della Top bar") }), profileChip()),
         ...barLookRows(commit),
       ),
       h("section", { class: "bar-row-block" },
-        h("h2", {}, h("span", { text: t("Widget della barra") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Widget della Top bar") }), profileChip()),
         barItemsEditor(commit),
       ),
     ],
     chiusa: () => [
       intro(t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.")),
-      barNote(t("Con la barra fissa accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta nella barra. Queste voci valgono quando la spegni.")),
+      barNote(t("Con la Top bar accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta lì. Queste voci valgono quando la spegni.")),
       h("section", {},
         h("h2", {}, h("span", { text: t("A riposo") }), profileChip()),
         pictured("always", h("div", { class: "row" },
@@ -3846,7 +3846,7 @@ const LOOK_TABS = (): [LookTab, string][] => [
   ["font", t("Font")],
   ["personaggio", t("Personaggio")],
   ["posizione", t("Posizione")],
-  ["barra", t("Barra fissa")],
+  ["barra", t("Top bar")],
   ["chiusa", t("Isola chiusa")],
   ["aperta", t("Isola aperta")],
   ["chat", t("Chat")],
@@ -3951,7 +3951,7 @@ function fontSections(commit: () => void): HTMLElement[] {
       h("h2", {}, h("span", { text: t("Anteprima") })),
       preview,
     ),
-    block(t("Font dei titoli"), t("titoli e intestazioni, nomi nelle schede e in chat; nella barra fissa se lì è acceso «Font di Aspetto → Font»"), fonts.title),
+    block(t("Font dei titoli"), t("titoli e intestazioni, nomi nelle schede e in chat; nella Top bar se lì è acceso «Font di Aspetto → Font»"), fonts.title),
     block(t("Font del testo"), t("testo dei messaggi, delle schede, dei campi e delle Impostazioni"), fonts.text),
     h("section", {},
       h("div", { class: "hint", text: t("Doto, DotGothic16, VT323 e Space Mono sono inclusi nell'app con licenza SIL Open Font License.") }),
@@ -4191,9 +4191,9 @@ function barLookRows(commit: () => void): HTMLElement[] {
     h("div", { class: "row bar-row" },
       h("label", { text: t("Ombra") }),
       toggle(look().shadow !== false, (v) => set("shadow", v)),
-      h("span", { class: "hint note", text: t("leggera, sotto la barra, o sopra se la barra è in basso") })),
+      h("span", { class: "hint note", text: t("leggera, sotto la Top bar") })),
     h("div", { class: "row bar-row" },
-      h("label", { text: t("Le schede escono dalla barra") }),
+      h("label", { text: t("Le schede escono dalla Top bar") }),
       toggle(look().popover !== false, (v) => set("popover", v)),
       h("span", { class: "hint note", text: t("un clic su un elemento apre una piccola isola sotto di lui invece dell'isola intera") })),
     h("div", { class: "row bar-row" },
@@ -4373,13 +4373,13 @@ function barItemsEditor(commit: () => void): HTMLElement {
       if (open.has(id)) list.append(options(it, save));
     });
     list.append(h("div", { class: "row" },
-      h("label", { text: items.length ? "" : t("Widget della barra") }),
+      h("label", { text: items.length ? "" : t("Widget della Top bar") }),
       h("button", { text: adding ? t("Chiudi") : t("+ Aggiungi"), onclick: () => { adding = !adding; render(); } })));
     if (adding) list.append(catalog(items));
   };
   render();
   return h("div", { class: "bar-row-block" },
-    h("div", { class: "hint", text: t("Widget della barra: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.") }),
+    h("div", { class: "hint", text: t("Widget della Top bar: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.") }),
     list,
   );
 }
@@ -4390,9 +4390,9 @@ function formatHint(it: BarItem): string {
   return show === "icon" ? "{icon}" : show === "value" ? "{value}" : "{icon} {value}";
 }
 
-/** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
+/** «Top bar» on: its own rows show, those that no longer apply hide (settings.css). */
 function paintFixedBar() {
-  document.body.classList.toggle("fixed-bar", !!settings.fixedBar);
+  document.body.classList.toggle("fixed-bar", !!barEdge(settings));
 }
 
 /** Chip shown on sections whose values belong to the active profile. */
@@ -7333,7 +7333,7 @@ async function main() {
   document.title = t("Impostazioni — EasyIsland");
   const info = await Bridge.boot();
   if (info) {
-    settings = { ...settings, ...info.settings };
+    settings = migrateBarSettings({ ...settings, ...info.settings });
     version = info.version;
     syncLanguage(settings.language);
   } else if (settings.profiles.length === 0) {
@@ -7497,6 +7497,8 @@ async function main() {
     applySearchLine(settings);
     applyFonts(settings.theme.fonts);
     applyMotion(settings);
+    migrateBarSettings(settings);
+    paintFixedBar();
     // The echo of a save made here (Rust may tidy a value) is taken without
     // redrawing: a redraw closed the open integration and the page jumped up.
     if (redraw && Date.now() - savedAt > 2000) render();
