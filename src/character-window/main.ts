@@ -608,10 +608,13 @@ document.addEventListener("pointerdown", (e) => {
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
 });
 
-/** The bar element under an event, without «…» and the strip's own buttons. */
+/** The bar element under an event, without «…» and with any inner [data-btn] suffix. */
 function barKey(e: Event): string | null {
-  const btn = (e.target as HTMLElement | null)?.closest?.(".bar-btn") as HTMLElement | null;
-  return btn && !btn.classList.contains("bar-more") ? btn.dataset.key ?? null : null;
+  const target = e.target as HTMLElement | null;
+  const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
+  if (!btn || btn.classList.contains("bar-more") || !btn.dataset.key) return null;
+  const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
+  return sub?.dataset.btn ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key;
 }
 
 // The right and middle buttons and the wheel on an element: what the user chose

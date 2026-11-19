@@ -2031,13 +2031,28 @@ export async function runScene(island: Island, scene: string) {
       const padIco = svgIcon("#10B981", "N");
 
       State.settings.dock = true;
-      State.settings.dockPinned = [
-        { id: "explorer", name: "Esplora file", path: "explorer.exe" },
-        { id: "edge", name: "Microsoft Edge", path: "msedge.exe" },
-        { id: "terminal", name: "Terminale", path: "wt.exe" },
-        { id: "code", name: "Visual Studio Code", path: "Code.exe" },
-        { id: "mail", name: "Posta", path: "olk.exe" },
-      ];
+      State.settings.dockPinned = q.has("group")
+        ? [
+            { id: "explorer", name: "Esplora file", path: "explorer.exe" },
+            {
+              id: "grp-work",
+              name: "Lavoro",
+              children: [
+                { id: "edge", name: "Microsoft Edge", path: "msedge.exe" },
+                { id: "code", name: "Visual Studio Code", path: "Code.exe" },
+                { id: "terminal", name: "Terminale", path: "wt.exe" },
+                { id: "pad", name: "Blocco note", path: "notepad.exe" },
+              ],
+            },
+            { id: "mail", name: "Posta", path: "olk.exe" },
+          ]
+        : [
+            { id: "explorer", name: "Esplora file", path: "explorer.exe" },
+            { id: "edge", name: "Microsoft Edge", path: "msedge.exe" },
+            { id: "terminal", name: "Terminale", path: "wt.exe" },
+            { id: "code", name: "Visual Studio Code", path: "Code.exe" },
+            { id: "mail", name: "Posta", path: "olk.exe" },
+          ];
       State.settings.dockItems = [
         { id: "sys:tray", uid: "d-tray", area: "end", show: "icon" },
         { id: "sys:volume", uid: "d-vol", area: "end", show: "both" },
@@ -2065,12 +2080,18 @@ export async function runScene(island: Island, scene: string) {
         volume: { level: 0.72, muted: false, device: "Altoparlanti" },
       };
 
+      State.trayIcons = [
+        { id: "tray-audio", tip: "Realtek Audio Console", icon: svgIcon("#0284c7", "♪"), promoted: true },
+        { id: "tray-sync", tip: "OneDrive · Aggiornato", icon: svgIcon("#2563eb", "☁"), promoted: true },
+        { id: "tray-sec", tip: "Sicurezza di Windows", icon: svgIcon("#16a34a", "✓"), promoted: false },
+        { id: "tray-bt", tip: "Bluetooth", icon: svgIcon("#4f46e5", "B"), promoted: false },
+      ];
       let wins: DockWin[] = [
         { hwnd: 101, app: "msedge.exe", title: "EasyIsland · Progetto Dock — Edge", icon: edgeIco, active: true, minimized: false, attention: false, lastUsed: 10 },
         { hwnd: 102, app: "msedge.exe", title: "Zammad Helpdesk · Ticket #31012", icon: edgeIco, active: false, minimized: false, attention: false, lastUsed: 9 },
         { hwnd: 103, app: "wt.exe", title: "PowerShell 7 — cargo test", icon: termIco, active: false, minimized: true, attention: false, lastUsed: 7 },
         { hwnd: 104, app: "code.exe", title: "magnify.ts — EasyIsland", icon: codeIco, active: false, minimized: false, attention: false, lastUsed: 8 },
-        { hwnd: 105, app: "olk.exe", title: "Posta in arrivo — 2 nuovi messaggi", icon: mailIco, active: false, minimized: false, attention: q.has("attention"), lastUsed: 6 },
+        { hwnd: 105, app: "olk.exe", title: "(3) Posta in arrivo — 2 nuovi messaggi", icon: mailIco, active: false, minimized: false, attention: q.has("attention"), lastUsed: 6 },
         { hwnd: 106, app: "notepad.exe", title: "Appunti riunione.txt — Blocco note", icon: padIco, active: false, minimized: false, attention: false, lastUsed: 5 },
       ];
 
@@ -2098,6 +2119,7 @@ export async function runScene(island: Island, scene: string) {
           }
         },
         onWidgetClick: (key, button, x) => island.barClick(key, button, x),
+        onTrayClick: () => {},
         onPinReorder: (pinned) => {
           State.settings.dockPinned = pinned;
           view.setSnapshot(makeSnap());
@@ -2127,6 +2149,8 @@ export async function runScene(island: Island, scene: string) {
           accent: "#4cc2ff",
           animations: "ricche" as const,
           reduceTransparency: q.has("opaque"),
+          fullscreen: q.has("fullscreen"),
+          trayIcons: State.trayIcons,
         };
       }
 

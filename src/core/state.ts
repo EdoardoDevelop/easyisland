@@ -205,13 +205,19 @@ export interface FixedBarLook {
   font?: boolean;
 }
 
-/** One pinned app on the Dock (docs/piano-dock.md). */
+/** One pinned app or pinned group on the Dock (docs/piano-dock.md). */
 export interface DockPin {
   id: string;
   name: string;
   aumid?: string;
   path?: string;
   args?: string;
+  /** Pinned group children when this entry acts as a folder/stack on the Dock. */
+  children?: DockPin[];
+  /** Optional accent color hex or family id for a pinned group tile. */
+  color?: string;
+  /** Optional library glyph key for a pinned group tile. */
+  glyph?: string;
 }
 
 export type DockStyle = "capsule" | "band";
@@ -234,6 +240,7 @@ export interface DockLook {
   shadow?: boolean;
   blur?: boolean;
   opacity?: number;
+  materialStrength?: number;
   margin?: number;
   gap?: number;
   characterInDock?: boolean;
@@ -1756,6 +1763,8 @@ class AppState {
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */
   barSys: BarSys = {};
+  /** Mirrored notification-area icons exposed by the native tray host (if active). */
+  trayIcons: { id: string; tip: string; icon: string; promoted: boolean }[] = [];
   /** The window in front for the bar's title element (fgwin.rs): the program's own name and icon, the title without the name. */
   barWindow: { exe?: string; name?: string; title?: string; icon?: string } | null = null;
   /** «Notizie»: the news found for the followed subjects, newest first (news.rs). */

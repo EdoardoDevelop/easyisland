@@ -163,23 +163,38 @@ function speed(n: number): string {
   return `${(n / 1_000_000).toLocaleString(locale(), { maximumFractionDigits: 1 })} MB/s`;
 }
 
-/** A clock's time and date, in its time zone (an unknown zone falls back to the PC's). */
+const clockMinuteCache = new Map<string, Record<string, string>>();
+
+/** A clock's time and date, in its time zone (cached per minute when seconds are off). */
 function clockText(it: BarItem): Record<string, string> {
   const now = new Date();
+  const showSec = !!it.opts?.seconds;
+  const tz = it.opts?.tz || "";
+  const cacheKey = showSec
+    ? ""
+    : `${locale()}|${tz}|${now.getFullYear()}-${now.getMonth()}-${now.getDate()}|${now.getHours()}:${now.getMinutes()}`;
+  if (cacheKey && clockMinuteCache.has(cacheKey)) {
+    return clockMinuteCache.get(cacheKey)!;
+  }
   const fmt = (o: Intl.DateTimeFormatOptions) => {
     try {
-      return new Intl.DateTimeFormat(locale(), { ...o, timeZone: it.opts?.tz || undefined }).format(now);
+      return new Intl.DateTimeFormat(locale(), { ...o, timeZone: tz || undefined }).format(now);
     } catch {
       return new Intl.DateTimeFormat(locale(), o).format(now);
     }
   };
-  const time = fmt({ hour: "2-digit", minute: "2-digit", ...(it.opts?.seconds ? { second: "2-digit" } : {}) });
-  return {
+  const time = fmt({ hour: "2-digit", minute: "2-digit", ...(showSec ? { second: "2-digit" } : {}) });
+  const out = {
     time, value: time,
     date: fmt({ weekday: "short", day: "numeric", month: "short" }),
     day: fmt({ weekday: "long" }),
     full: fmt({ weekday: "long", day: "numeric", month: "long", year: "numeric" }),
   };
+  if (cacheKey) {
+    clockMinuteCache.set(cacheKey, out);
+    if (clockMinuteCache.size > 16) clockMinuteCache.delete(clockMinuteCache.keys().next().value!);
+  }
+  return out;
 }
 
 /** What a system element shows now: its placeholders, the icon, the tooltip, how it looks. */
@@ -488,6 +503,19 @@ export function barPieces(
       if (kind === "music" && it.opts?.buttons !== false && media().active) innerButtons(el, musicButtons());
       if (kind === "appbar" && appBar) {
         innerButtons(el, appBar.buttons.map((b) => ({ icon: b.icon, label: b.label, color: b.color, look: b.look })));
+      }
+      if (kind === "systray" && State.trayIcons.length > 0) {
+        el.replaceChildren();
+        const promoted = State.trayIcons.filter((x) => x.promoted).slice(0, 8);
+        for (const ti of promoted) {
+          const btn = h("span", { class: "bar-strip-btn bar-tray-btn", title: ti.tip || ti.id });
+          btn.dataset.btn = `tray:${ti.id}`;
+          btn.append(h("img", { src: ti.icon, width: "16", height: "16", alt: "", draggable: "false", style: "width:16px;height:16px;object-fit:contain;display:block" }));
+          el.append(btn);
+        }
+        const arrow = h("span", { class: "bar-strip-btn bar-tray-arrow", title: sv.tip }, renderActionIcon(sv.icon, 13));
+        arrow.dataset.btn = "tray-more";
+        el.append(arrow);
       }
       out.push({ key, area, html: el.outerHTML, title: tip || sv.tip });
     } else if (it.id.startsWith("task:")) {

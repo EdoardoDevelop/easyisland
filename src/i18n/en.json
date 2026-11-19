@@ -6204,5 +6204,16 @@
   "Sposta nella Dock": "Move to Dock",
   "Gli stessi widget della Top bar, messi a destra nella Dock (Start, icone nascoste, orologio, volume, Vassoio dei file, azioni rapide…). Usa ↔ per spostare un widget nell'altra barra.": "The same Top bar widgets, placed on the right of the Dock (Start, hidden icons, clock, volume, File tray, quick actions…). Use ↔ to move a widget to the other bar.",
   "Widget della Top bar: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. Usa ↔ per spostarlo nella Dock; in «Opzioni» scegli cosa mostra e i clic.": "Top bar widgets: clock, volume, battery, network, processor, memory, disk, recycle bin, updates and other system elements; the active app's bar, music, weather, VS Code projects, integrations, widgets and quick actions, each in its area. Use ↔ to move it to the Dock; under «Options» choose what it shows and clicks.",
-  "Freccia in su": "Arrow up"
+  "Freccia in su": "Arrow up",
+  "Icone nascoste ({n})": "Hidden icons ({n})",
+  "Altre app ({n})": "More apps ({n})",
+  "Altre app": "More apps",
+  "Cerca nel gruppo…": "Search group…",
+  "Elenco": "List",
+  "Griglia": "Grid",
+  "Mostra mosaico icone": "Show icon mosaic",
+  "Separa gruppo": "Ungroup",
+  "Aggiungi al gruppo «{name}»": "Add to group «{name}»",
+  "Raggruppa con {name}": "Group with {name}",
+  "Gruppo": "Group"
 }

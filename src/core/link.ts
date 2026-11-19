@@ -106,17 +106,23 @@ export interface DockSnapshot {
   accent: string;
   animations: "ricche" | "sobrie" | "fermo";
   reduceTransparency: boolean;
+  fullscreen?: boolean;
+  nativeMaterial?: boolean;
+  trayIcons?: import("./bridge").TrayIconInfo[];
 }
 
 export type IslandToDock =
   | { kind: "dock-look"; snap: DockSnapshot }
   | { kind: "dock-windows"; windows: import("./bridge").DockWin[] }
-  | { kind: "dock-icons"; icons: Record<string, string> };
+  | { kind: "dock-icons"; icons: Record<string, string> }
+  | { kind: "dock-tray"; icons: import("./bridge").TrayIconInfo[] }
+  | { kind: "dock-fullscreen"; fullscreen: boolean };
 
 export type DockToIsland =
   | { kind: "hello" }
   | { kind: "open" }
   | { kind: "bar"; key: string; button?: BarButton; x?: number }
+  | { kind: "tray"; id: string; button: "left" | "right" | "middle" | "double"; x?: number; y?: number }
   | { kind: "settings" };
 
 export function dockChannel<In, Out>(onMessage: (m: In) => void): (m: Out) => void {

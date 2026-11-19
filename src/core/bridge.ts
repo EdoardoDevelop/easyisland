@@ -1064,6 +1064,9 @@ export const Bridge = {
   dockHoverWindow: (on: boolean) => call<void>("dock_hover", { on }),
   windowsAnimations: () => call<boolean>("windows_animations"),
   openAnimationSettings: () => call<void>("open_animation_settings"),
+  trayIcons: () => call<TrayIconInfo[]>("tray_icons"),
+  trayDo: (id: string, button: "left" | "right" | "middle" | "double", x?: number, y?: number) =>
+    call<boolean>("tray_do", { id, button, x, y }),
 };
 
 export interface IntegrationUpdate {
@@ -1406,6 +1409,9 @@ async function callOrThrow<T>(cmd: string, args?: Record<string, unknown>): Prom
 export type BridgeEvent =
   | { name: "cursor"; payload: { x: number; y: number } }
   | { name: "tray"; payload: string }
+  | { name: "tray-icons"; payload: TrayIconInfo[] }
+  | { name: "fullscreen"; payload: boolean }
+  | { name: "dock-material"; payload: boolean }
   | { name: "hook"; payload: Record<string, unknown> }
   | { name: "screen-changed"; payload: null }
   | { name: "click-away"; payload: null };
@@ -1616,12 +1622,24 @@ export interface FlowRun {
 export interface DockWin {
   hwnd: number;
   app: string;
+  aumid?: string;
   title: string;
   icon: string;
   active: boolean;
   minimized: boolean;
   attention: boolean;
+  badge?: number;
   lastUsed: number;
+}
+
+/** Mirrored Windows notification-area icon exposed by the tray host. */
+export interface TrayIconInfo {
+  id: string;
+  tip: string;
+  /** Data URL of the 16 px / HiDPI tray icon image. */
+  icon: string;
+  /** True when Windows promotes this icon inline; false for the ^ overflow flyout. */
+  promoted: boolean;
 }
 
 export interface DockWindowDiff {
