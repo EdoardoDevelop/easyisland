@@ -82,6 +82,7 @@ pub fn apply(app: &AppHandle) {
             std::thread::spawn(crate::taskbar_hide::give_back);
         }
     }
+    crate::log::line(format!("dock: apply (accesa {on}, barra di Windows nascosta {hide_taskbar})"));
     if !on {
         remove(app);
         return;
@@ -139,9 +140,15 @@ fn build(app: &AppHandle) -> Option<tauri::WebviewWindow> {
 /// On the main thread: the band reserved, the window at the bottom of the
 /// island's monitor, shown (through tao, so it knows: see notices_window.rs).
 fn place(app: &AppHandle, win: &tauri::WebviewWindow) {
-    let Ok(raw) = win.hwnd().map(|h| h.0 as isize) else { return };
+    let Ok(raw) = win.hwnd().map(|h| h.0 as isize) else {
+        crate::log::line("dock: finestra senza hwnd");
+        return;
+    };
     let screen = app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().screen.clone()).unwrap_or_default();
-    let Some(m) = crate::island::target_monitor(app, &screen) else { return };
+    let Some(m) = crate::island::target_monitor(app, &screen) else {
+        crate::log::line("dock: nessuno schermo");
+        return;
+    };
     let (p, s, scale) = (m.position(), m.size(), m.scale_factor());
     let registered = *REGISTERED.lock().unwrap();
     if registered != Some(raw) {
@@ -172,13 +179,10 @@ fn place(app: &AppHandle, win: &tauri::WebviewWindow) {
     }
     drop(last);
     let h = (HEIGHT * scale).round() as i32;
-    let _ = win.set_size(tauri::PhysicalSize::new(s.width, h as u32));
-    let _ = win.set_position(tauri::PhysicalPosition::new(p.x, abd.rc.bottom - h));
-    if FULLSCREEN.load(Ordering::Relaxed) {
-        let _ = win.hide();
-    } else {
-        let _ = win.show();
-    }
+    let sized = win.set_size(tauri::PhysicalSize::new(s.width, h as u32));
+    let moved = win.set_position(tauri::PhysicalPosition::new(p.x, abd.rc.bottom - h));
+    let shown = if FULLSCREEN.load(Ordering::Relaxed) { win.hide() } else { win.show() };
+    crate::log::line(format!("dock: a {},{} {}x{} fascia {band}px (size {sized:?}, pos {moved:?}, show {shown:?})", p.x, abd.rc.bottom - h, s.width, h));
 }
 
 /// The page's shape: the band at rest (logical px from the bottom; 0 = hides

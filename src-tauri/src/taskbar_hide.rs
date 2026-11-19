@@ -131,6 +131,20 @@ fn taskbars() -> Vec<HWND> {
     found
 }
 
+/// Every top-level window of the taskbar's class, any process (the
+/// notification area's host picks Explorer's among them).
+pub fn shell_tray_windows() -> Vec<HWND> {
+    let mut found = Vec::new();
+    unsafe {
+        let mut previous = None;
+        while let Ok(hwnd) = FindWindowExW(None, previous, PRIMARY, None) {
+            found.push(hwnd);
+            previous = Some(hwnd);
+        }
+    }
+    found
+}
+
 fn appbar_data() -> APPBARDATA {
     APPBARDATA { cbSize: size_of::<APPBARDATA>() as u32, hWnd: taskbars().first().copied().unwrap_or_default(), ..Default::default() }
 }

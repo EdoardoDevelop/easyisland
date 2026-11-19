@@ -28,6 +28,7 @@ mod search_window;
 mod dvc_live;
 mod notices_window;
 mod dock_window;
+mod tray_host;
 pub mod taskbar_hide;
 mod votes;
 mod memory_tips;
@@ -293,6 +294,8 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     if dock_changed {
         dock_window::apply(app);
     }
+    // The notification area follows the bars' items (cheap when nothing changes).
+    tray_host::apply(app);
     if bar_changed {
         appbar::apply(app);
         // The closed island: hidden while the bar stands for it, back when it goes.
@@ -5653,6 +5656,8 @@ pub fn run() {
             bar_reveal,
             bar_grow,
             dock_window::dock_shape,
+            tray_host::tray_icons,
+            tray_host::tray_click,
             dock_window::dock_restore_taskbar,
             dock_window::windows_animations,
             dock_window::open_animation_settings,
@@ -5702,6 +5707,8 @@ pub fn run() {
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
             // The Dock, when it is on (and the Windows taskbar, if it replaces it).
             dock_window::apply(&handle);
+            // The apps' notification-area icons, while a bar shows them.
+            tray_host::apply(&handle);
             preview::init(&handle);
             claude_cli::init(&handle);
 

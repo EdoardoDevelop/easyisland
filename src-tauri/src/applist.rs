@@ -168,7 +168,7 @@ fn program_icon(path: &str) -> Option<crate::clipimage::Rgba> {
 }
 
 /// An icon's pixels, straight alpha; None for a monochrome icon.
-fn icon_rgba(icon: HICON) -> Option<crate::clipimage::Rgba> {
+pub(crate) fn icon_rgba(icon: HICON) -> Option<crate::clipimage::Rgba> {
     let mut info = ICONINFO::default();
     unsafe { GetIconInfo(icon, &mut info) }.ok()?;
     let read = (|| {
