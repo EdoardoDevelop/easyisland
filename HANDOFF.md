@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_16 novembre 2026. **1.0.51** in `main` (tag `v1.0.51`). Si lavora su `claude/sviluppo`; `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_19 novembre 2026. **1.0.52** in `main` (tag `v1.0.52`). Prossimo lavoro: Dock al posto della barra di Windows e Top bar (piano in corso, uscirà come 1.1.0). `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
