@@ -1593,7 +1593,14 @@ const PREVIEW_LOCAL_MODEL: LocalModelStatus = {
 
 export async function onEvent<T>(name: string, handler: (payload: T) => void) {
   if (!IS_TAURI) return () => {};
-  return listen<T>(name, (e) => handler(e.payload));
+  try {
+    return await listen<T>(name, (e) => handler(e.payload));
+  } catch (e) {
+    // A window without the permission to listen (not in the capability): said
+    // once, and the page goes on — one refused event must not stop the rest.
+    console.error(`onEvent(${name}):`, e);
+    return () => {};
+  }
 }
 
 export interface NotionMapStatus {
