@@ -15,6 +15,11 @@ async function main() {
   const root = document.getElementById("dock-root");
   if (!root) return;
 
+  // Its console is out of reach in the installed app: errors go to easyisland.log.
+  if (IS_TAURI) {
+    window.addEventListener("error", (e) => void Bridge.log(`dock: errore ${e.message} (${e.filename}:${e.lineno})`).catch(() => {}));
+    window.addEventListener("unhandledrejection", (e) => void Bridge.log(`dock: promessa rifiutata ${String(e.reason)}`).catch(() => {}));
+  }
   const boot = await Bridge.boot();
   if (boot?.settings) syncLanguage(boot.settings.language);
 
@@ -129,6 +134,7 @@ async function main() {
     if (initialTray) {
       view.setTrayIcons(initialTray);
     }
+    void Bridge.log(`dock: pagina pronta, ${initialWins?.length ?? "nessuna risposta:"} finestre, ${(settings.dockPinned ?? []).length} fissate, ${initialTray?.length ?? 0} icone dell'area notifiche`).catch(() => {});
     await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
       view.setTrayIcons(icons ?? []);
     });
@@ -144,6 +150,7 @@ async function main() {
         if (!have.has(p.id.toLowerCase())) pins = [...pins, { id: p.id, name: p.name }];
       }
       settings = { ...settings, dockPinned: pins };
+      void Bridge.log(`dock: fissate di Windows +${change.add?.length ?? 0} -${change.remove?.length ?? 0} → ${pins.length}`).catch(() => {});
       void Bridge.saveSettings(settings);
       void Bridge.dockIcons(pins.map((p) => p.id));
     };
