@@ -342,9 +342,19 @@ struct Index {
     entries: Vec<Item>,
     /// Seconds since 1970 of the last good read.
     at: i64,
+    /// What the entries carry: below INDEX_VERSION a cache written by an
+    /// older EasyIsland (before 19 Nov 2026 no ParentID: entries under an
+    /// information entry stayed outside it on the laptop until «Sincronizza»).
+    #[serde(default)]
+    version: u32,
     #[serde(skip)]
     error: Option<String>,
 }
+
+/// 2: entries carry ParentID and are nested (nest).
+const INDEX_VERSION: u32 = 2;
+/// An old cache was sent to be read again (once per run).
+static REREAD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 static INDEX: Mutex<Option<Index>> = Mutex::new(None);
 
@@ -389,6 +399,11 @@ fn load_cache() {
         return;
     }
     let Some(cache) = std::fs::read(cache_path()).ok().and_then(|b| crate::secrets::dpapi(&b, false)).and_then(|j| serde_json::from_slice::<Index>(&j).ok()) else { return };
+    if cache.version < INDEX_VERSION && !REREAD.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        // Shown meanwhile, read again from Devolutions once, right away.
+        crate::log::line("dvc: elenco salvato di una versione precedente, lo rileggo");
+        tauri::async_runtime::spawn(refresh());
+    }
     *g = Some(cache);
 }
 
@@ -410,6 +425,7 @@ pub async fn refresh() {
             index.vaults = vaults;
             index.entries = entries;
             index.at = now;
+            index.version = INDEX_VERSION;
             save_cache(index);
         }
         Err(e) => {
@@ -1320,7 +1336,7 @@ mod tests {
             {{"id":"nope","name":"Rotto","kind":"Credential","vault":"{V}"}}
         ]}}"#);
         let (vaults, entries) = parse_read(&out).unwrap();
-        Index { vaults, entries, at: 1, error: None }
+        Index { vaults, entries, at: 1, version: INDEX_VERSION, error: None }
     }
 
     #[test]
