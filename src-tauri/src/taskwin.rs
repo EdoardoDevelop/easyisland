@@ -118,9 +118,10 @@ struct Win {
 
 impl Win {
     fn json(&self) -> Value {
-        // `icon` is the app's id: its picture comes once per app in `dock-icons`.
+        // The picture comes once per app in `dock-icons` (keyed by the app id in
+        // lower case): never a source here, an id would show a broken image.
         json!({
-            "hwnd": self.hwnd, "app": self.app, "icon": self.app, "title": self.title,
+            "hwnd": self.hwnd, "app": self.app, "icon": "", "title": self.title,
             "active": self.active, "minimized": self.minimized, "attention": self.attention, "lastUsed": self.last_used,
         })
     }
