@@ -32,7 +32,8 @@ pub fn run() -> i32 {
     if std::io::stdin().take(MAX as u64 + 1).read_to_string(&mut raw).is_err() || raw.len() > MAX {
         return BAD;
     }
-    match parse(&raw) {
+    // A byte-order mark (PowerShell pipes add one) is not part of the request.
+    match parse(raw.trim_start_matches('\u{feff}')) {
         Some(s) => execute(&s),
         None => BAD,
     }

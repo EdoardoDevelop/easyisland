@@ -29,7 +29,7 @@ use windows::Win32::UI::WindowsAndMessaging::{RegisterWindowMessageW, WM_ACTIVAT
 
 pub const LABEL: &str = "dock";
 /// The window's height, logical px: band + magnified icons + labels + shadow.
-const HEIGHT: f64 = 180.0;
+const HEIGHT: f64 = 400.0;
 /// The band kept free until the page says its own (logical px).
 const DEFAULT_BAND: f64 = 64.0;
 const CALLBACK: u32 = WM_APP + 0x52;
