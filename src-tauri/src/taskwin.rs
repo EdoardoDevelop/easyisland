@@ -410,11 +410,8 @@ fn covers(window: RECT, screen: RECT) -> bool {
 fn check_fullscreen() {
     let now = foreground_fullscreen();
     if FULLSCREEN.swap(now as i8, Ordering::SeqCst) != now as i8 {
-        if let Some(app) = APP.get() {
-            // dock_window.rs hides the Dock (and the Top bar follows); until its
-            // function is merged, the Dock's page hears it.
-            let _ = app.emit_to(DOCK_LABEL, "dock-fullscreen", now);
-        }
+        // dock_window.rs hides the Dock's window (the Top bar follows on its own).
+        crate::dock_window::set_fullscreen(now);
     }
 }
 
@@ -700,16 +697,26 @@ fn activate(windows: &[isize]) {
         let Some(front) = handles().find(|&h| valid(h) && !IsIconic(h).as_bool()).or_else(|| handles().find(|&h| valid(h))) else {
             return;
         };
-        if IsIconic(front).as_bool() && !ShowWindowAsync(front, SW_RESTORE).as_bool() {
-            SwitchToThisWindow(front, true);
+        // SW_RESTORE brings a minimized window back as it was, maximized too.
+        if IsIconic(front).as_bool() {
+            if !ShowWindowAsync(front, SW_RESTORE).as_bool() {
+                SwitchToThisWindow(front, true);
+            }
+            // ShowWindowAsync is queued: wait for it before deciding it was refused.
+            // A second restore sent too early reached the window already back up
+            // and un-maximized it (Edoardo, 20 Nov: Chrome came back not maximized).
+            let started = std::time::Instant::now();
+            while IsIconic(front).as_bool() && started.elapsed() < Duration::from_millis(400) {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            // Still minimized (a program run as administrator refused ShowWindow): the
+            // system command passes where UIPI stops the rest, and restores as it was.
+            if IsIconic(front).as_bool() {
+                let _ = PostMessageW(Some(front), WM_SYSCOMMAND, WPARAM(SC_RESTORE as usize), LPARAM(0));
+            }
         }
         if !SetForegroundWindow(front).as_bool() && !focus_retrying(front) {
             return;
-        }
-        // Still minimized (a program run as administrator refused ShowWindow): the
-        // system command passes where UIPI stops the rest.
-        if IsIconic(front).as_bool() {
-            let _ = PostMessageW(Some(front), WM_SYSCOMMAND, WPARAM(SC_RESTORE as usize), LPARAM(0));
         }
         // Activation across input queues is asynchronous: let it settle (a hung app answers no).
         if SendMessageTimeoutW(front, WM_NULL, WPARAM(0), LPARAM(0), SMTO_ABORTIFHUNG, 100, None).0 == 0 {
