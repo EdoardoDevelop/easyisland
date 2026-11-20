@@ -3,7 +3,7 @@
 // and live windows/icons/coverage directly from Rust events & commands.
 
 import "./dock.css";
-import { Bridge, IS_TAURI, onEvent, type DockWin, type DockWindowDiff, type TrayIconInfo } from "../core/bridge";
+import { Bridge, IS_TAURI, onEvent, type DockPinsChange, type DockWin, type DockWindowDiff, type TrayIconInfo } from "../core/bridge";
 import { addFaces } from "../core/fonts";
 import { dockChannel, type DockSnapshot, type DockToIsland, type IslandToDock } from "../core/link";
 import { syncLanguage, t } from "../core/i18n";
@@ -80,6 +80,8 @@ async function main() {
         : current.filter((p) => p.id !== entry.id);
       settings = { ...settings, dockPinned: next };
       void Bridge.saveSettings(settings);
+      if (pin) requestIcons([entry.id]);
+      else void Bridge.dockDo("unpin", { app: entry.id });
     },
     onThumbsChange: (rects) => {
       void Bridge.dockThumbs(rects);
@@ -99,18 +101,19 @@ async function main() {
   document.title = t("Dock — EasyIsland");
   onReducedTransparencyChange((on) => view.setReducedTransparency(on));
 
+  const knownIcons = new Set<string>();
+  const requestIcons = (ids: string[]) => {
+    if (!IS_TAURI) return;
+    const missing = ids.map((s) => s.trim()).filter((id) => id && !knownIcons.has(id.toLowerCase()));
+    if (missing.length) void Bridge.dockIcons(missing);
+  };
+
   if (IS_TAURI) {
-    const [initialWins, initialTray] = await Promise.all([
-      Bridge.dockWindows().catch(() => null),
-      Bridge.trayIcons().catch(() => null),
-    ]);
-    if (initialWins) {
-      windows = initialWins;
-      view.setWindows(windows);
-    }
-    if (initialTray) {
-      view.setTrayIcons(initialTray);
-    }
+    // Register listeners BEFORE fetching initial state so boot-time icon pushes are never missed.
+    await onEvent<Record<string, string>>("dock-icons", (icons) => {
+      for (const k of Object.keys(icons)) knownIcons.add(k.trim().toLowerCase());
+      view.setIcons(icons);
+    });
     await onEvent<DockWindowDiff>("dock-windows", (diff) => {
       const byHwnd = new Map(windows.map((w) => [w.hwnd, w]));
       for (const hwnd of diff.remove ?? []) byHwnd.delete(hwnd);
@@ -118,10 +121,23 @@ async function main() {
       for (const w of diff.change ?? []) byHwnd.set(w.hwnd, w);
       windows = [...byHwnd.values()];
       view.setWindows(windows);
+      requestIcons(windows.map((w) => w.app));
     });
-    await onEvent<Record<string, string>>("dock-icons", (icons) => {
-      view.setIcons(icons);
-    });
+    const applyWindowsPins = (change: DockPinsChange | null | undefined) => {
+      if (!change || (!change.add?.length && !change.remove?.length)) return;
+      const removed = new Set((change.remove ?? []).map((id) => id.toLowerCase()));
+      let pins = (settings.dockPinned ?? []).filter((p) => !removed.has(p.id.toLowerCase()));
+      const have = new Set(pins.map((p) => p.id.toLowerCase()));
+      for (const p of change.add ?? []) {
+        if (!have.has(p.id.toLowerCase())) pins = [...pins, { id: p.id, name: p.name }];
+      }
+      settings = { ...settings, dockPinned: pins };
+      void Bridge.saveSettings(settings);
+      lastSnap = { ...lastSnap, pinned: pins };
+      view.setSnapshot(lastSnap);
+      requestIcons(pins.map((p) => p.id));
+    };
+    await onEvent<DockPinsChange>("dock-pins-windows", applyWindowsPins);
     await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
       view.setTrayIcons(icons ?? []);
     });
@@ -150,7 +166,33 @@ async function main() {
         animations: (next.animations as DockSnapshot["animations"]) ?? lastSnap.animations,
       };
       view.setSnapshot(lastSnap);
+      requestIcons((lastSnap.pinned ?? []).map((p) => p.id));
     });
+
+    const [initialWins, initialTray, initialPins] = await Promise.all([
+      Bridge.dockWindows().catch(() => null),
+      Bridge.trayIcons().catch(() => null),
+      Bridge.dockPinsWindows().catch(() => null),
+    ]);
+    if (initialWins) {
+      windows = initialWins;
+      view.setWindows(windows);
+    }
+    if (initialTray) {
+      view.setTrayIcons(initialTray);
+    }
+    applyWindowsPins(initialPins);
+    requestIcons([
+      ...(settings.dockPinned ?? []).map((p) => p.id),
+      ...windows.map((w) => w.app),
+    ]);
+    // Second-chance icon request in case applist indexed after first boot paint.
+    window.setTimeout(() => {
+      requestIcons([
+        ...(settings.dockPinned ?? []).map((p) => p.id),
+        ...windows.map((w) => w.app),
+      ]);
+    }, 1200);
   }
 
   sendToIsland({ kind: "hello" });

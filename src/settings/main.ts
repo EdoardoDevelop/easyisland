@@ -3666,8 +3666,8 @@ function appearanceSections(): HTMLElement[] {
                   ];
                 }
                 if (!settings.dockPinned?.length) {
-                  void Bridge.dockImportPinned().then((imported) => {
-                    if (imported?.length && !settings.dockPinned?.length) {
+                  void fetchWindowsPins().then((imported) => {
+                    if (imported.length && !settings.dockPinned?.length) {
                       settings.dockPinned = imported;
                       commit();
                       render();
@@ -4374,6 +4374,22 @@ function dockLookRows(commit: () => void): HTMLElement[] {
   ];
 }
 
+/** Fetches Windows taskbar pinned apps via `dock_import_pinned`, falling back to `dock_pins_windows`. */
+async function fetchWindowsPins(): Promise<DockPin[]> {
+  const imported = await Bridge.dockImportPinned().catch(() => null);
+  if (imported?.length) {
+    return imported.map((x) => ({
+      id: x.id,
+      name: x.name,
+      ...(x.aumid ? { aumid: x.aumid } : {}),
+      ...(x.path ? { path: x.path } : {}),
+      ...(x.args ? { args: x.args } : {}),
+    }));
+  }
+  const change = await Bridge.dockPinsWindows().catch(() => null);
+  return change?.add?.length ? change.add.map((x) => ({ id: x.id, name: x.name })) : [];
+}
+
 /** Pinned Dock apps list: reorder, add from Start catalog, or remove (zero live edit mode on the Dock). */
 function dockPinnedEditor(commit: () => void): HTMLElement {
   const wrap = h("div", { class: "bar-items" });
@@ -4421,10 +4437,14 @@ function dockPinnedEditor(commit: () => void): HTMLElement {
         paint();
       } }),
       h("button", { text: t("Importa da Windows"), onclick: async () => {
-        const imported = await Bridge.dockImportPinned().catch(() => null);
-        if (imported?.length) {
-          const taken = new Set(pins.map((p) => (p.aumid || p.path || p.id).toLowerCase()));
-          const merged = [...pins, ...imported.filter((x) => !taken.has((x.aumid || x.path || x.id).toLowerCase()))];
+        const imported = await fetchWindowsPins();
+        if (imported.length) {
+          const keyOf = (p: DockPin) => (p.aumid || p.path || p.id).toLowerCase();
+          const taken = new Set(pins.map(keyOf));
+          const merged = [
+            ...pins,
+            ...imported.filter((x) => !taken.has(keyOf(x)) && !taken.has(x.id.toLowerCase())),
+          ];
           settings.dockPinned = merged;
           commit();
           paint();

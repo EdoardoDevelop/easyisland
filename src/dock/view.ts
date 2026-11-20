@@ -90,6 +90,28 @@ function fallbackInitial(name: string): string {
   return ch || "•";
 }
 
+/** Accepts only renderable image URLs or inline icon ids (`i:...`), never raw app ids like "claude". */
+function isRenderableIcon(s: string | undefined | null): s is string {
+  if (!s) return false;
+  return (
+    s.startsWith("i:") ||
+    s.startsWith("data:") ||
+    s.startsWith("blob:") ||
+    s.startsWith("https://") ||
+    s.startsWith("http://")
+  );
+}
+
+function isImageUrl(s: string | undefined | null): s is string {
+  if (!s) return false;
+  return (
+    s.startsWith("data:") ||
+    s.startsWith("blob:") ||
+    s.startsWith("https://") ||
+    s.startsWith("http://")
+  );
+}
+
 export class DockView {
   private readonly host: HTMLElement;
   private readonly ops: DockHostOps;
@@ -126,6 +148,8 @@ export class DockView {
 
   /** Bounded attention bounce tracking (5 cycles or until focused). */
   private readonly attentionState = new Map<string, { stopped: boolean; timer: number | null }>();
+  private ro: ResizeObserver | null = null;
+  private lastStageWidth = 0;
 
   /** Open flyouts inside the Dock WebView (all included in dock_shape). */
   private trayFlyoutEl: HTMLElement | null = null;
@@ -186,6 +210,20 @@ export class DockView {
     this.host.append(this.stage);
 
     this.bindEvents();
+    this.lastStageWidth = this.stage.clientWidth;
+    if (typeof ResizeObserver !== "undefined") {
+      this.ro = new ResizeObserver(() => {
+        const sw = this.stage.clientWidth;
+        if (sw > 0 && sw !== this.lastStageWidth) {
+          this.lastStageWidth = sw;
+          this.rebuild(true);
+          return;
+        }
+        this.scheduleShapeReport();
+      });
+      this.ro.observe(this.stage);
+      this.ro.observe(this.glass);
+    }
     this.applyThemeTokens();
     this.rebuild(true);
   }
@@ -215,12 +253,25 @@ export class DockView {
   setIcons(icons: Record<string, string>) {
     let changed = false;
     for (const [k, url] of Object.entries(icons)) {
-      if (this.icons.get(k) !== url) {
-        this.icons.set(k, url);
+      const key = k.trim().toLowerCase();
+      if (!key || !isImageUrl(url)) continue;
+      if (this.icons.get(key) !== url) {
+        this.icons.set(key, url);
         changed = true;
       }
     }
     if (changed) this.rebuild(true);
+  }
+
+  private lookupIcon(key: string, winIcon?: string): string {
+    const k = key.trim().toLowerCase();
+    const direct = this.icons.get(k);
+    if (isRenderableIcon(direct)) return direct;
+    const base = k.split(/[\\/]/).pop() || k;
+    const fromBase = this.icons.get(base) || this.icons.get(base.replace(/\.exe$/i, ""));
+    if (isRenderableIcon(fromBase)) return fromBase;
+    if (isRenderableIcon(winIcon)) return winIcon;
+    return "";
   }
 
   setTrayIcons(icons: TrayIconInfo[]) {
@@ -265,6 +316,8 @@ export class DockView {
   }
 
   destroy() {
+    this.ro?.disconnect();
+    this.ro = null;
     this.stopMagAnim();
     this.clearPreviewTimers();
     this.clearSpringTimer();
@@ -309,8 +362,19 @@ export class DockView {
     this.stage.style.setProperty("--dock-margin", `${Math.max(0, Math.min(24, look.margin ?? 8))}px`);
     const bgRaw = (this.snap.background ?? "").trim();
     if (!opaque && bgRaw) {
+      const rgbaMatch = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)$/i.exec(bgRaw);
       if (bgRaw === "transparent" || /^(gradient|glow|aurora|glass):/i.test(bgRaw) || /^#[0-9a-f]{6}$/i.test(bgRaw)) {
         this.stage.style.setProperty("--dock-bg-custom", barBgCss(parseBarBg(bgRaw), { opacity: alphaPct }));
+      } else if (rgbaMatch) {
+        const [, r, g, b, rawA] = rgbaMatch;
+        const aNum = rawA !== undefined ? parseFloat(rawA) : 1;
+        if (!Number.isFinite(aNum) || aNum <= 0) {
+          this.stage.style.removeProperty("--dock-bg-custom");
+        } else {
+          // Avoid double-multiplying island alpha with effectiveSurfaceAlpha().
+          const effectivePct = Math.max(alphaPct, Math.round(Math.min(1, aNum) * 100));
+          this.stage.style.setProperty("--dock-bg-custom", `color-mix(in srgb, rgb(${r}, ${g}, ${b}) ${effectivePct}%, transparent)`);
+        }
       } else {
         this.stage.style.setProperty("--dock-bg-custom", `color-mix(in srgb, ${bgRaw} ${alphaPct}%, transparent)`);
       }
@@ -338,7 +402,7 @@ export class DockView {
     const mode = this.snap.look.autoHide ?? "off";
     const empty = this.isDockEmpty();
     const blocked = !!this.previewEl || !!this.ctxEl || !!this.groupFlyoutEl || !!this.trayFlyoutEl || this.dragActive || this.dropHighlightIdx >= 0;
-    const shouldHide = this.fullscreen || empty || (!blocked && !this.revealed && (mode === "auto" || (mode === "smart" && this.covered)));
+    const shouldHide = this.fullscreen || (!empty && !blocked && !this.revealed && (mode === "auto" || (mode === "smart" && this.covered)));
     this.stage.dataset.dockFullscreen = String(this.fullscreen);
     this.stage.dataset.dockEmpty = String(empty);
     this.stage.dataset.dockHidden = String(shouldHide);
@@ -418,7 +482,7 @@ export class DockView {
           kind: "pin",
           appId: k,
           name: pin.name,
-          icon: this.icons.get(k) ?? wins[0]?.icon ?? "",
+          icon: this.lookupIcon(k, wins[0]?.icon),
           pinned: true,
           pin,
           windows: wins,
@@ -440,7 +504,7 @@ export class DockView {
           kind: "open",
           appId: k,
           name: wins[0]?.title || wins[0]?.app || k,
-          icon: this.icons.get(k) ?? wins[0]?.icon ?? "",
+          icon: this.lookupIcon(k, wins[0]?.icon),
           pinned: false,
           windows: wins,
           active: wins.some((w) => w.active),
@@ -459,7 +523,7 @@ export class DockView {
           kind: "open",
           appId: k,
           name: w.title || w.app,
-          icon: this.icons.get(k) ?? w.icon ?? "",
+          icon: this.lookupIcon(k, w.icon),
           pinned: false,
           windows: [w],
           active: w.active,
@@ -486,7 +550,7 @@ export class DockView {
               kind: "recent",
               appId: k,
               name: r.name,
-              icon: this.icons.get(k) ?? "",
+              icon: this.lookupIcon(k),
               pinned: false,
               pin: r,
               windows: [],
@@ -512,7 +576,7 @@ export class DockView {
               kind: "minimized",
               appId: appKeyOfWin(w),
               name: w.title || w.app,
-              icon: this.icons.get(appKeyOfWin(w)) ?? w.icon ?? "",
+              icon: this.lookupIcon(appKeyOfWin(w), w.icon),
               pinned: false,
               windows: [w],
               active: false,
@@ -566,8 +630,8 @@ export class DockView {
     const mosaic = h("div", { class: "dock-group-mosaic" });
     for (const child of (pin.children ?? []).slice(0, 4)) {
       const k = appKeyOfPin(child);
-      const src = this.icons.get(k) ?? "";
-      if (src && !src.startsWith("i:")) mosaic.append(h("img", { src, alt: "", draggable: "false" }));
+      const src = this.lookupIcon(k);
+      if (isImageUrl(src)) mosaic.append(h("img", { src, alt: "", draggable: "false" }));
       else mosaic.append(h("span", { text: fallbackInitial(child.name) }));
     }
     return mosaic;
@@ -646,7 +710,7 @@ export class DockView {
 
     this.metrics = { ...DEFAULT_METRICS, icon: fit.iconSize, gap };
     this.slots = finalSlots;
-    this.stage.dataset.dockEmpty = String(this.isDockEmpty());
+    this.updateHiddenAttr();
 
     const finalEntries = this.slots
       .filter((s): s is { kind: "entry"; entry: DockEntry } => s.kind === "entry")
@@ -664,7 +728,8 @@ export class DockView {
           : [
               s.entry.key,
               s.entry.name,
-              s.entry.icon ? 1 : 0,
+              s.entry.icon.length,
+              s.entry.icon.slice(0, 12),
               s.entry.pin?.color ?? "",
               s.entry.pin?.glyph ?? "",
               s.entry.pin?.children?.length ?? 0,
@@ -678,6 +743,7 @@ export class DockView {
 
     if (!force && trackSig === this.lastTrackSig) {
       this.paintGeometry();
+      this.scheduleShapeReport();
       return;
     }
     this.lastTrackSig = trackSig;
@@ -713,7 +779,7 @@ export class DockView {
         tile.append(this.renderGroupTileContent(entry.pin));
       } else if (entry.icon.startsWith("i:")) {
         tile.append(h("div", { class: "dock-icon-svg" }, renderActionIcon(entry.icon, Math.round(this.metrics.icon * 0.62))));
-      } else if (entry.icon) {
+      } else if (isImageUrl(entry.icon)) {
         tile.append(h("img", { class: "dock-icon-img", src: entry.icon, alt: "", draggable: "false" }));
       } else {
         tile.append(h("div", { class: "dock-fallback-glyph", text: fallbackInitial(entry.name) }));
@@ -1262,8 +1328,8 @@ export class DockView {
         e.stopPropagation();
         this.ops.onAction("close", { hwnd: w.hwnd });
       });
-      const iconSrc = this.icons.get(entry.appId) || w.icon || entry.icon;
-      const headIcon = iconSrc && !iconSrc.startsWith("i:")
+      const iconSrc = this.lookupIcon(entry.appId, w.icon) || (isImageUrl(entry.icon) ? entry.icon : "");
+      const headIcon = isImageUrl(iconSrc)
         ? h("img", { class: "dock-thumb-icon", src: iconSrc, alt: "" })
         : h("span", { class: "dock-thumb-icon" }, fallbackInitial(entry.name));
 
@@ -1276,7 +1342,7 @@ export class DockView {
       const shot = h("div", { class: `dock-thumb-shot${w.minimized ? " minimized" : ""}` });
       shot.dataset.hwnd = String(w.hwnd);
       if (w.minimized) {
-        if (iconSrc && !iconSrc.startsWith("i:")) shot.append(h("img", { class: "dock-thumb-minicon", src: iconSrc, alt: "" }));
+        if (isImageUrl(iconSrc)) shot.append(h("img", { class: "dock-thumb-minicon", src: iconSrc, alt: "" }));
         shot.append(h("span", { class: "dock-thumb-minbadge", text: t("Ridotta a icona") }));
       }
       card.append(head, shot);
@@ -1487,9 +1553,9 @@ export class DockView {
       clear(list);
       for (const child of filterGroupChildren(children, query)) {
         const ck = appKeyOfPin(child);
-        const src = this.icons.get(ck) ?? "";
+        const src = this.lookupIcon(ck);
         const btn = h("button", { type: "button", class: "dock-group-child", title: child.name });
-        if (src && !src.startsWith("i:")) btn.append(h("img", { src, alt: "", draggable: "false" }));
+        if (isImageUrl(src)) btn.append(h("img", { src, alt: "", draggable: "false" }));
         else btn.append(h("span", { text: fallbackInitial(child.name) }));
         btn.append(h("span", { text: child.name }));
         btn.addEventListener("click", () => {

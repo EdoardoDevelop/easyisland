@@ -1060,8 +1060,13 @@ export const Bridge = {
   dockShape: (band: number, rects: [number, number, number, number][]) =>
     call<void>("dock_shape", { band, rects }),
   appsCatalog: () => call<DockCatalogApp[]>("apps_catalog"),
+  /** Icons of these app ids (pins, windows, catalog), sent back in `dock-icons`. */
+  dockIcons: (ids: string[]) => call<void>("dock_icons", { ids }),
+  /** Imports currently pinned apps from the Windows taskbar (`dock_import_pinned`). */
   dockImportPinned: () =>
     call<{ id: string; name: string; aumid?: string; path?: string; args?: string }[]>("dock_import_pinned"),
+  /** What changed on the Windows taskbar's pins since last time (first time: all of them). */
+  dockPinsWindows: () => call<DockPinsChange | null>("dock_pins_windows"),
   dockRestoreTaskbar: () => call<boolean>("dock_restore_taskbar"),
   dockHoverWindow: (on: boolean) => call<void>("dock_hover", { on }),
   windowsAnimations: () => call<boolean>("windows_animations"),
@@ -1648,6 +1653,12 @@ export interface DockWindowDiff {
   add?: DockWin[];
   change?: DockWin[];
   remove?: number[];
+}
+
+/** Pins added on / removed from the Windows taskbar (taskwin.rs `dock_pins_windows`). */
+export interface DockPinsChange {
+  add?: { id: string; name: string }[];
+  remove?: string[];
 }
 
 export interface DockCatalogApp {

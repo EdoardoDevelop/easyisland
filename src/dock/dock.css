@@ -2,7 +2,7 @@
    Windows 11, Classic, Studio (monolith/titanium/editorial) and dark/light schemes.
    No continuous idle animations: only short GPU transitions on hover, focus, or hide. */
 
-html, body.dock-window {
+html, body.dock-window, #dock-root {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -23,14 +23,14 @@ html, body.dock-window {
   pointer-events: none;
   box-sizing: border-box;
   --dock-accent: var(--accent, var(--win-accent, #4cc2ff));
-  --dock-bg: color-mix(in srgb, var(--layer, #202022) calc(var(--dock-opacity, 88) * 1%), transparent);
-  --dock-border: rgba(255, 255, 255, 0.14);
-  --dock-sheen: rgba(255, 255, 255, 0.08);
+  --dock-bg: color-mix(in srgb, var(--layer, #282a32) calc(var(--dock-opacity, 90) * 1%), transparent);
+  --dock-border: rgba(255, 255, 255, 0.20);
+  --dock-sheen: rgba(255, 255, 255, 0.12);
   --dock-ink: #f5f6f8;
-  --dock-dim: rgba(245, 246, 248, 0.68);
-  --dock-pill: rgba(255, 255, 255, 0.10);
-  --dock-dot: rgba(255, 255, 255, 0.72);
-  --dock-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.28);
+  --dock-dim: rgba(245, 246, 248, 0.72);
+  --dock-pill: rgba(255, 255, 255, 0.12);
+  --dock-dot: rgba(255, 255, 255, 0.78);
+  --dock-shadow: 0 10px 28px rgba(0, 0, 0, 0.52), 0 2px 8px rgba(0, 0, 0, 0.34);
   --dock-radius: 16px;
 }
 
@@ -123,7 +123,6 @@ html, body.dock-window {
   border-radius: var(--dock-radius);
   background: var(--dock-bg-custom, var(--dock-bg));
   box-shadow: inset 0 1px 0 var(--dock-sheen), inset 0 0 0 1px var(--dock-border), var(--dock-shadow);
-  transition: width 0.14s ease-out;
 }
 .dock-stage[data-dock-style="band"] .dock-glass {
   border-radius: 0;
