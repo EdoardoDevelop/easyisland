@@ -614,16 +614,17 @@ html, body.dock-window, #dock-root {
 /* Window preview strip above Dock icons (after 420 ms hover dwell, fits cleanly within 180 px window height). */
 .dock-preview-box {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 4px);
   transform: translateX(-50%);
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   max-width: min(94vw, 760px);
+  max-height: 104px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 5px;
+  padding: 4px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--dock-bg) 95%, #000 5%);
   border: 1px solid var(--dock-border);
@@ -632,11 +633,11 @@ html, body.dock-window, #dock-root {
   z-index: 30;
 }
 .dock-thumb-card {
-  width: 156px;
+  width: 152px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 5px;
+  gap: 3px;
+  padding: 4px;
   border-radius: 7px;
   background: color-mix(in srgb, var(--dock-ink) 5%, transparent);
   border: 1px solid transparent;
@@ -693,7 +694,7 @@ html, body.dock-window, #dock-root {
 .dock-thumb-shot {
   position: relative;
   width: 100%;
-  height: 62px;
+  height: 50px;
   border-radius: 5px;
   border: 1px solid var(--dock-border);
   background: color-mix(in srgb, var(--dock-ink) 4%, rgba(0, 0, 0, 0.18));

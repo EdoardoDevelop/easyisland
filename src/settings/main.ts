@@ -11,7 +11,7 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 /** The animated logo's character id (logo-anim.ts). */
 const LOGO_ID = LOGO_CHARACTER.id;
 import { type DockCatalogApp, type DoneItem, type LocalModelStatus, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, barEdge, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, migrateBarSettings, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type DockAutoHide, type DockClickGroup, type DockLook, type DockMagnify, type DockPin, type DockStyle, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barEdge, barThickness, defaultDockItems, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, migrateBarSettings, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type DockAutoHide, type DockClickGroup, type DockLook, type DockMagnify, type DockPin, type DockStyle, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_BG_PRESETS, barBgCss, parseBarBg } from "../core/barbg";
 import { BAR_KINDS, barKind, barKindTarget } from "../core/barkinds";
 
@@ -3659,11 +3659,7 @@ function appearanceSections(): HTMLElement[] {
                   settings.dockLook = { ...(settings.dockLook ?? {}), characterInDock: true };
                 }
                 if (!settings.dockItems?.length) {
-                  settings.dockItems = [
-                    { id: "sys:start", uid: "d-start", area: "end", show: "icon" },
-                    { id: "sys:clock", uid: "d-clk", area: "end", show: "value" },
-                    { id: "sys:systray", uid: "d-st", area: "end", show: "icon" },
-                  ];
+                  settings.dockItems = defaultDockItems();
                 }
                 if (!settings.dockPinned?.length) {
                   void fetchWindowsPins().then((imported) => {
@@ -7645,6 +7641,9 @@ async function main() {
   const info = await Bridge.boot();
   if (info) {
     settings = migrateBarSettings({ ...settings, ...info.settings });
+    if (settings.dock && !settings.dockItems?.length) {
+      settings.dockItems = defaultDockItems();
+    }
     version = info.version;
     syncLanguage(settings.language);
   } else if (settings.profiles.length === 0) {

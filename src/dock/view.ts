@@ -85,6 +85,29 @@ function appKeyOfPin(p: DockPin): string {
   return (p.aumid || p.path || p.id).trim().toLowerCase();
 }
 
+/** Candidate keys linking a DockPin (which may carry full path or aumid) to open DockWin keys. */
+function pinLookupKeys(p: DockPin): string[] {
+  const keys: string[] = [];
+  const push = (v?: string, stripExe = true) => {
+    const s = (v ?? "").trim().toLowerCase();
+    if (!s) return;
+    if (!keys.includes(s)) keys.push(s);
+    if (stripExe) {
+      const base = s.split(/[\\/]/).pop() || "";
+      const noExe = base.replace(/\.exe$/i, "");
+      if (noExe && !keys.includes(noExe)) keys.push(noExe);
+    }
+  };
+  if (p.aumid) push(p.aumid, false);
+  const baseId = (p.id || "").trim().toLowerCase();
+  // Distinct browser PWAs (aumid present on a browser host) must not absorb unrelated host windows.
+  if (!p.aumid || !isBrowserHostApp(baseId)) {
+    push(p.id);
+    push(p.path);
+  }
+  return keys;
+}
+
 function fallbackInitial(name: string): string {
   const ch = name.trim().charAt(0).toUpperCase();
   return ch || "•";
@@ -164,6 +187,7 @@ export class DockView {
   private magRaf = 0;
   private magLastTs = 0;
   private hoveredIdx = -1;
+  private hoveredAppKey = "";
 
   /** Auto-hide & pointer region state. */
   private revealed = false;
@@ -448,9 +472,13 @@ export class DockView {
       if (pin.children?.length) {
         const groupWins: DockWin[] = [];
         for (const child of pin.children) {
-          const ck = appKeyOfPin(child);
-          consumedApps.add(ck);
-          groupWins.push(...(byApp.get(ck) ?? []));
+          for (const ck of pinLookupKeys(child)) {
+            consumedApps.add(ck);
+            const found = byApp.get(ck);
+            if (found?.length) {
+              for (const w of found) if (!groupWins.includes(w)) groupWins.push(w);
+            }
+          }
         }
         out.push({
           kind: "entry",
@@ -472,9 +500,17 @@ export class DockView {
         continue;
       }
 
-      const k = appKeyOfPin(pin);
-      consumedApps.add(k);
-      const wins = byApp.get(k) ?? [];
+      const candidates = pinLookupKeys(pin);
+      const k = candidates[0] ?? appKeyOfPin(pin);
+      const wins: DockWin[] = [];
+      for (const ck of candidates) {
+        consumedApps.add(ck);
+        const found = byApp.get(ck);
+        if (found?.length) {
+          for (const w of found) if (!wins.includes(w)) wins.push(w);
+        }
+      }
+      const icon = candidates.map((ck) => this.lookupIcon(ck, wins[0]?.icon)).find(Boolean) ?? "";
       out.push({
         kind: "entry",
         entry: {
@@ -482,7 +518,7 @@ export class DockView {
           kind: "pin",
           appId: k,
           name: pin.name,
-          icon: this.lookupIcon(k, wins[0]?.icon),
+          icon,
           pinned: true,
           pin,
           windows: wins,
@@ -710,6 +746,10 @@ export class DockView {
 
     this.metrics = { ...DEFAULT_METRICS, icon: fit.iconSize, gap };
     this.slots = finalSlots;
+    if (this.hoveredAppKey) {
+      this.hoveredIdx = this.slots.findIndex((s) => s.kind === "entry" && s.entry.key === this.hoveredAppKey);
+      if (this.hoveredIdx < 0) this.hoveredAppKey = "";
+    }
     this.updateHiddenAttr();
 
     const finalEntries = this.slots
@@ -996,13 +1036,9 @@ export class DockView {
       this.updateHiddenAttr();
     });
 
-    this.track.addEventListener("pointermove", (e) => {
-      if (this.dragPinIdx >= 0) {
-        this.handlePinDragMove(e.clientX);
-        return;
-      }
+    const updateHoverFromPointer = (clientX: number) => {
       const rect = this.track.getBoundingClientRect();
-      this.magCursorX = e.clientX - rect.left + this.currentMag.left;
+      this.magCursorX = clientX - rect.left + this.currentMag.left;
       this.magTarget = this.maxScale() > 1 ? 1 : 0;
       const idx = iconAt(this.currentMag, this.layout, this.magCursorX, this.metrics.gap);
       if (idx !== this.hoveredIdx) {
@@ -1011,6 +1047,16 @@ export class DockView {
       }
       if (this.magAmount > 0 || this.magTarget > 0) this.startMagAnim();
       else this.paintGeometry();
+    };
+    this.track.addEventListener("pointerover", (e) => {
+      if (this.dragPinIdx < 0) updateHoverFromPointer(e.clientX);
+    });
+    this.track.addEventListener("pointermove", (e) => {
+      if (this.dragPinIdx >= 0) {
+        this.handlePinDragMove(e.clientX);
+        return;
+      }
+      updateHoverFromPointer(e.clientX);
     });
 
     this.shell.addEventListener("pointerleave", (e) => {
@@ -1025,6 +1071,7 @@ export class DockView {
         return;
       }
       this.hoveredIdx = -1;
+      this.hoveredAppKey = "";
       this.magTarget = 0;
       if (this.shellHot) {
         this.shellHot = false;
@@ -1147,13 +1194,7 @@ export class DockView {
         this.cancelClickUntil = performance.now() + 250;
         this.rebuild(true);
       }
-      this.closeContextMenu();
-      this.closePreview();
-      this.closeTrayFlyout();
-      this.closeGroupFlyout();
-      this.magTarget = 0;
-      this.hoveredIdx = -1;
-      this.startMagAnim();
+      this.dismissOverlaysAndHover();
     });
     window.addEventListener("blur", () => {
       if (this.dragPinIdx >= 0) {
@@ -1161,13 +1202,7 @@ export class DockView {
         this.dragActive = false;
         this.rebuild(true);
       }
-      this.closeContextMenu();
-      this.closePreview();
-      this.closeTrayFlyout();
-      this.closeGroupFlyout();
-      this.hoveredIdx = -1;
-      this.magTarget = 0;
-      this.startMagAnim();
+      this.dismissOverlaysAndHover();
     });
     window.addEventListener("resize", () => this.rebuild(false));
     document.addEventListener("pointerdown", (e) => {
@@ -1255,14 +1290,24 @@ export class DockView {
   private onHoveredSlotChange(idx: number) {
     this.clearPreviewTimers();
     const slot = this.slots[idx];
-    if (!slot || slot.kind !== "entry" || !slot.entry.windows.length) {
+    if (!slot || slot.kind !== "entry") {
+      this.hoveredAppKey = "";
+      this.scheduleClosePreview();
+      return;
+    }
+    this.hoveredAppKey = slot.entry.key;
+    if (!slot.entry.windows.length) {
       this.scheduleClosePreview();
       return;
     }
     const delay = this.previewEl ? PREVIEW_SWITCH_MS : PREVIEW_DWELL_MS;
-    const targetEntry = slot.entry;
+    const targetKey = slot.entry.key;
     this.previewTimer = window.setTimeout(() => {
-      this.showPreviewFor(targetEntry, idx);
+      const liveIdx = this.slots.findIndex((s) => s.kind === "entry" && s.entry.key === targetKey);
+      const liveSlot = liveIdx >= 0 ? this.slots[liveIdx] : null;
+      if (liveSlot?.kind === "entry" && liveSlot.entry.windows.length) {
+        this.showPreviewFor(liveSlot.entry, liveIdx);
+      }
     }, delay);
   }
 
@@ -1272,6 +1317,19 @@ export class DockView {
       return i >= 0 ? i : Number.MAX_SAFE_INTEGER;
     };
     return [...wins].sort((a, b) => pos(a.hwnd) - pos(b.hwnd));
+  }
+
+  private positionPreviewBox(entry: DockEntry, idx: number) {
+    if (!this.previewEl) return;
+    const r = this.currentMag.rects[idx];
+    if (!r) return;
+    const shellRect = this.shell.getBoundingClientRect();
+    const localCx = this.track.offsetLeft + r.x - this.currentMag.left + r.width / 2;
+    const viewCx = shellRect.left + localCx;
+    const boxW = this.previewEl.offsetWidth || Math.min(window.innerWidth * 0.94, entry.windows.length * 158 + 16);
+    const half = boxW / 2;
+    const clampedView = Math.max(half + 8, Math.min(window.innerWidth - half - 8, viewCx));
+    this.previewEl.style.left = `${Math.round(clampedView - shellRect.left)}px`;
   }
 
   private showPreviewFor(entry: DockEntry, idx: number) {
@@ -1285,14 +1343,7 @@ export class DockView {
       this.shell.append(this.previewEl);
     }
     this.renderPreviewCards(entry);
-
-    const r = this.currentMag.rects[idx];
-    if (r) {
-      const cx = this.track.offsetLeft + r.x - this.currentMag.left + r.width / 2;
-      const boxW = Math.min(window.innerWidth * 0.94, Math.max(216, entry.windows.length * 206));
-      const clamped = Math.max(boxW / 2 + 12, Math.min(window.innerWidth - boxW / 2 - 12, cx));
-      this.previewEl.style.left = `${Math.round(clamped)}px`;
-    }
+    this.positionPreviewBox(entry, idx);
     this.updateHiddenAttr();
     window.requestAnimationFrame(() => {
       this.reportThumbRects();
@@ -1302,14 +1353,18 @@ export class DockView {
 
   private refreshOpenPreview() {
     if (!this.previewEl || !this.previewAppKey) return;
-    const match = this.slots.find((s): s is { kind: "entry"; entry: DockEntry } =>
-      s.kind === "entry" && s.entry.key === this.previewAppKey);
-    if (!match || !match.entry.windows.length) {
+    const matchIdx = this.slots.findIndex((s) => s.kind === "entry" && s.entry.key === this.previewAppKey);
+    const match = matchIdx >= 0 ? this.slots[matchIdx] : null;
+    if (!match || match.kind !== "entry" || !match.entry.windows.length) {
       this.closePreview();
       return;
     }
     this.renderPreviewCards(match.entry);
-    window.requestAnimationFrame(() => this.reportThumbRects());
+    this.positionPreviewBox(match.entry, matchIdx);
+    window.requestAnimationFrame(() => {
+      this.reportThumbRects();
+      this.reportShapeNow();
+    });
   }
 
   private renderPreviewCards(entry: DockEntry) {
@@ -1820,12 +1875,24 @@ export class DockView {
     this.ops.onShapeChange(band, rects);
   }
 
+  private dismissOverlaysAndHover() {
+    this.closeContextMenu();
+    this.closePreview();
+    this.closeTrayFlyout();
+    this.closeGroupFlyout();
+    this.hoveredIdx = -1;
+    this.hoveredAppKey = "";
+    this.magTarget = 0;
+    this.startMagAnim();
+  }
+
   private closeContextMenu() {
     if (!this.ctxEl) return;
     this.ctxEl.remove();
     this.ctxEl = null;
     // Trap avoidance: closing a menu resets magnification and resumes auto-hide.
     this.hoveredIdx = -1;
+    this.hoveredAppKey = "";
     this.magTarget = 0;
     this.startMagAnim();
     this.scheduleAutoHide();

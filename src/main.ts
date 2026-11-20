@@ -11,7 +11,7 @@ import "./chat-cards.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type DoneItem, type TrayIconInfo, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, barEdge, barThickness, migrateBarSettings, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
+import { State, barEdge, barThickness, defaultDockItems, migrateBarSettings, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
 import { onReducedTransparencyChange, prefersReducedTransparency } from "./dock/surface";
 import { forgetRecords, previewFor, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
@@ -56,6 +56,10 @@ async function main() {
   const boot = await Bridge.boot();
   if (boot) {
     State.settings = migrateBarSettings({ ...State.settings, ...boot.settings });
+    if (State.settings.dock && !State.settings.dockItems?.length) {
+      State.settings = { ...State.settings, dockItems: defaultDockItems() };
+      void Bridge.saveSettings(State.settings).catch(() => {});
+    }
     // The language this page was built in must be the one chosen (once, at the first start).
     syncLanguage(State.settings.language);
   } else {

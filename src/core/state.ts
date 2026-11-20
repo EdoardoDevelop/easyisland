@@ -331,11 +331,23 @@ export function barEdge(s: { fixedBar?: string }): "top" | null {
   return s.fixedBar === "top" || s.fixedBar === "bottom" ? "top" : null;
 }
 
+/** Default Dock utility widgets matching Windows taskbar essentials (Start, Net, Volume, Systray, Clock). */
+export function defaultDockItems(): BarItem[] {
+  return [
+    { id: "sys:start", uid: "d-start", area: "end", show: "icon" },
+    { id: "sys:net", uid: "d-net", area: "end", show: "icon" },
+    { id: "sys:volume", uid: "d-vol", area: "end", show: "icon" },
+    { id: "sys:systray", uid: "d-st", area: "end", show: "icon" },
+    { id: "sys:clock", uid: "d-clk", area: "end", show: "value" },
+  ];
+}
+
 /** Migrates legacy fixedBar "bottom" to Top bar ("top") + Dock enabled. */
-export function migrateBarSettings<T extends { fixedBar?: string; dock?: boolean }>(s: T): T {
+export function migrateBarSettings<T extends { fixedBar?: string; dock?: boolean; dockItems?: BarItem[] }>(s: T): T {
   if (s.fixedBar === "bottom") {
     s.fixedBar = "top";
     s.dock = true;
+    if (!s.dockItems?.length) s.dockItems = defaultDockItems();
   }
   return s;
 }
