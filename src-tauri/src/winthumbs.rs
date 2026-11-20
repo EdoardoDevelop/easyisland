@@ -15,9 +15,11 @@ use serde::Deserialize;
 use tauri::{AppHandle, Manager};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Dwm::{
-    DwmQueryThumbnailSourceSize, DwmRegisterThumbnail, DwmUnregisterThumbnail, DwmUpdateThumbnailProperties,
-    DWM_THUMBNAIL_PROPERTIES, DWM_TNP_OPACITY, DWM_TNP_RECTDESTINATION, DWM_TNP_SOURCECLIENTAREAONLY, DWM_TNP_VISIBLE,
+    DwmGetWindowAttribute, DwmQueryThumbnailSourceSize, DwmRegisterThumbnail, DwmUnregisterThumbnail,
+    DwmUpdateThumbnailProperties, DWMWA_EXTENDED_FRAME_BOUNDS, DWM_THUMBNAIL_PROPERTIES, DWM_TNP_OPACITY,
+    DWM_TNP_RECTDESTINATION, DWM_TNP_RECTSOURCE, DWM_TNP_SOURCECLIENTAREAONLY, DWM_TNP_VISIBLE,
 };
+use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 
 /// One preview: the window and where it goes, logical px of the Dock's window.
 #[derive(Deserialize)]
@@ -27,6 +29,20 @@ pub struct ThumbRect {
     pub y: f64,
     pub w: f64,
     pub h: f64,
+}
+
+/// The visible part of a window in its own coordinates: without the invisible
+/// resize borders (8 px past the screen for a maximized window), which shifted
+/// the picture in its card. None: the whole window.
+fn visible_part(source: HWND) -> Option<RECT> {
+    let mut whole = RECT::default();
+    let mut frame = RECT::default();
+    unsafe {
+        GetWindowRect(source, &mut whole).ok()?;
+        DwmGetWindowAttribute(source, DWMWA_EXTENDED_FRAME_BOUNDS, (&raw mut frame).cast(), size_of::<RECT>() as u32).ok()?;
+    }
+    let r = RECT { left: frame.left - whole.left, top: frame.top - whole.top, right: frame.right - whole.left, bottom: frame.bottom - whole.top };
+    (r.right > r.left && r.bottom > r.top && r.left >= 0 && r.top >= 0).then_some(r)
 }
 
 /// Source window → DWM thumbnail.
@@ -80,9 +96,18 @@ pub fn dock_thumbs(app: AppHandle, rects: Vec<ThumbRect>) {
         };
         let px = |v: f64| (v * scale).round() as i32;
         let rect = RECT { left: px(r.x), top: px(r.y), right: px(r.x + r.w), bottom: px(r.y + r.h) };
-        let source = unsafe { DwmQueryThumbnailSourceSize(id) }.map(|s| (s.cx, s.cy)).unwrap_or((0, 0));
+        let part = visible_part(HWND(r.hwnd as *mut _));
+        let source = match part {
+            Some(p) => (p.right - p.left, p.bottom - p.top),
+            None => unsafe { DwmQueryThumbnailSourceSize(id) }.map(|s| (s.cx, s.cy)).unwrap_or((0, 0)),
+        };
+        let mut flags = DWM_TNP_RECTDESTINATION | DWM_TNP_VISIBLE | DWM_TNP_OPACITY | DWM_TNP_SOURCECLIENTAREAONLY;
+        if part.is_some() {
+            flags |= DWM_TNP_RECTSOURCE;
+        }
         let props = DWM_THUMBNAIL_PROPERTIES {
-            dwFlags: DWM_TNP_RECTDESTINATION | DWM_TNP_VISIBLE | DWM_TNP_OPACITY | DWM_TNP_SOURCECLIENTAREAONLY,
+            dwFlags: flags,
+            rcSource: part.unwrap_or_default(),
             rcDestination: fit(rect, source),
             opacity: 255,
             fVisible: true.into(),

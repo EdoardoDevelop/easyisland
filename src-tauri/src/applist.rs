@@ -393,7 +393,7 @@ fn taskbar_pins_if_readable() -> Option<Vec<String>> {
     found.sort_by_key(|(at, _)| *at);
     let mut pins: Vec<String> = Vec::new();
     for (_, id) in found {
-        if !pins.contains(&id) {
+        if !pins.contains(&id) && !is_easyisland(&id) {
             pins.push(id);
         }
     }
@@ -479,9 +479,22 @@ fn read_link(link: &Path) -> Option<(Option<String>, String)> {
 /// whatever its arguments, so its windows gather under one icon; or the
 /// shortcut itself when it opens something else. None for a missing target.
 fn shortcut_id(link: &Path) -> Option<String> {
-    let (target, _) = read_link(link)?;
+    let (target, args) = read_link(link)?;
     let target = target.filter(|t| Path::new(t).exists())?;
-    Some(if is_program(&target) { normalize_id(&target) } else { normalize_id(&link.to_string_lossy()) })
+    Some(if is_program(&target) && !is_web_app(&target, &args) { normalize_id(&target) } else { normalize_id(&link.to_string_lossy()) })
+}
+
+/// A browser's web app (Chrome's or Edge's «Installa come app»): its shortcut
+/// opens the browser's proxy with an app id. Kept as the shortcut, which has
+/// the web app's own name and icon (the program would say «Google Chrome»).
+fn is_web_app(target: &str, args: &str) -> bool {
+    let file = target.rsplit('\\').next().unwrap_or(target).to_ascii_lowercase();
+    file.ends_with("_proxy.exe") || args.contains("--app-id")
+}
+
+/// EasyIsland itself: the Dock has its own button for it, and its windows are never listed.
+fn is_easyisland(id: &str) -> bool {
+    std::env::current_exe().ok().is_some_and(|exe| normalize_id(&exe.to_string_lossy()) == id)
 }
 
 /// The taskbar's shortcut to open the program `id` with, when it carries
@@ -904,6 +917,13 @@ mod tests {
         for (id, name) in apps.iter().take(15) {
             println!("  {name:<40} {id}");
         }
+    }
+
+    #[test]
+    fn a_browser_web_app_stays_its_shortcut() {
+        assert!(is_web_app(r"C:\Program Files\Google\Chrome\Application\chrome_proxy.exe", "--profile-directory=Default --app-id=abc"));
+        assert!(is_web_app(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge_proxy.exe", ""));
+        assert!(!is_web_app(r"C:\Program Files\Google\Chrome\Application\chrome.exe", "--profile-directory=Default"));
     }
 
     #[test]

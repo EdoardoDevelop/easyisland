@@ -445,11 +445,10 @@ function linkDockWindow(island: Island) {
   };
   State.subscribe(push);
   void onEvent<BarSys>("bar-sys", () => push());
-  void onEvent<boolean>("fullscreen", (on) => {
-    dockFullscreen = !!on;
-    send({ kind: "dock-fullscreen", fullscreen: dockFullscreen });
-    push();
-  });
+  // The island's «full screen» (Windows' busy state) is not passed on: with the
+  // Windows taskbar hidden it flips every few seconds and closed the Dock's
+  // previews. The Dock steps away for a full-screen app on its own (taskwin.rs →
+  // dock_window::set_fullscreen).
   void onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
     State.trayIcons = icons ?? [];
     State.notify();
