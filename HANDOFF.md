@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_19 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`). Prossimo lavoro: Dock al posto della barra di Windows e Top bar (piano in corso, uscirà come 1.1.0). `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_20 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`), versione installata. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
