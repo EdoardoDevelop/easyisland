@@ -6213,5 +6213,7 @@
   "Separa gruppo": "Ungroup",
   "Aggiungi al gruppo «{name}»": "Add to group «{name}»",
   "Raggruppa con {name}": "Group with {name}",
-  "L'icona non c'è più": "The icon is gone"
+  "L'icona non c'è più": "The icon is gone",
+  "Gruppo": "Group",
+  "Importa da Windows": "Import from Windows"
 }

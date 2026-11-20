@@ -1064,13 +1064,15 @@ export const Bridge = {
   dockIcons: (ids: string[]) => call<void>("dock_icons", { ids }),
   /** What changed on the Windows taskbar's pins since last time (the first time: all of them). */
   dockPinsWindows: () => call<DockPinsChange | null>("dock_pins_windows"),
+  dockImportPinned: () =>
+    call<{ id: string; name: string; aumid?: string; path?: string; args?: string }[]>("dock_import_pinned"),
   dockRestoreTaskbar: () => call<boolean>("dock_restore_taskbar"),
   dockHoverWindow: (on: boolean) => call<void>("dock_hover", { on }),
   windowsAnimations: () => call<boolean>("windows_animations"),
   openAnimationSettings: () => call<void>("open_animation_settings"),
   trayIcons: () => call<TrayIconInfo[]>("tray_icons"),
-  trayDo: (id: string, button: "left" | "right" | "middle" | "double", x?: number, y?: number) =>
-    call<boolean>("tray_do", { id, button, x, y }),
+  trayDo: (id: string, button: "left" | "right" | "middle" | "double") =>
+    call<boolean>("tray_do", { id, button }),
 };
 
 export interface IntegrationUpdate {

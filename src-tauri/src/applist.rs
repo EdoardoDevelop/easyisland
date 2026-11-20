@@ -622,6 +622,17 @@ pub fn windows_pins_change() -> Option<Value> {
     .flatten()
 }
 
+/// Every app pinned on the Windows taskbar now, `[{ id, name }]` («Importa da
+/// Windows» in Settings → Dock); empty when the pins cannot be read.
+pub fn windows_pins_all() -> Vec<Value> {
+    on_shell(Duration::from_secs(10), || {
+        let now = taskbar_pins_if_readable()?;
+        Some(now.iter().filter(|id| app_exists(id)).map(|id| json!({ "id": id, "name": display_name(id) })).collect::<Vec<_>>())
+    })
+    .flatten()
+    .unwrap_or_default()
+}
+
 /// Unpinned from the Dock: from the Windows taskbar too, if it is there
 /// (otherwise the Dock would see it «pinned» there again). Shell thread, later.
 pub fn unpin_from_windows(id: &str) {

@@ -987,6 +987,12 @@ pub async fn dock_pins_windows() -> Value {
         .unwrap_or(Value::Null)
 }
 
+/// «Importa da Windows»: every app pinned on the Windows taskbar now.
+#[tauri::command]
+pub async fn dock_import_pinned() -> Vec<Value> {
+    tauri::async_runtime::spawn_blocking(crate::applist::windows_pins_all).await.unwrap_or_default()
+}
+
 /// An app's recent documents for its menu: not yet (phase 4), always empty.
 #[tauri::command]
 pub fn dock_recent(app: String) -> Vec<String> {

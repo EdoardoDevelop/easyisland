@@ -3587,7 +3587,7 @@ ${note}` : text };
         if (button === "left") void Bridge.barSysDo("systray");
       } else {
         const trayBtn = button === "right" ? "right" : button === "middle" ? "middle" : "left";
-        void Bridge.trayDo(traySub[3], trayBtn, x);
+        void Bridge.trayDo(traySub[3], trayBtn);
       }
       return;
     }

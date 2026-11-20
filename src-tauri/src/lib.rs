@@ -5667,6 +5667,7 @@ pub fn run() {
             taskwin::dock_windows,
             taskwin::dock_do,
             taskwin::dock_pins_windows,
+            taskwin::dock_import_pinned,
             taskwin::dock_recent,
             winthumbs::dock_thumbs,
             taskwin::dock_icons,

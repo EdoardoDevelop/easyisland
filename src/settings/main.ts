@@ -3633,14 +3633,18 @@ function appearanceSections(): HTMLElement[] {
     ],
     dock: () => {
       const restoreBtn = h("button", { text: t("Ripristina barra di Windows adesso") }) as HTMLButtonElement;
-      const restoreNote = h("span", { class: "hint note", text: t("Quando esci da EasyIsland o in caso di blocco un guardiano la rimette subito") });
+      const restoreNote = h("span", {
+        class: "hint note",
+        text: dockRestoreFeedback || t("Quando esci da EasyIsland o in caso di blocco un guardiano la rimette subito"),
+      });
       restoreBtn.addEventListener("click", async () => {
         restoreBtn.disabled = true;
         const ok = await Bridge.dockRestoreTaskbar().catch(() => false);
         settings.dockHidesTaskbar = false;
+        dockRestoreFeedback = ok ? t("Barra di Windows ripristinata.") : t("Comando inviato: se era nascosta torna visibile.");
         commit();
-        restoreBtn.disabled = false;
-        restoreNote.textContent = ok ? t("Barra di Windows ripristinata.") : t("Comando inviato: se era nascosta torna visibile.");
+        paintFixedBar();
+        render();
       });
       return [
         intro(t("Una barra in basso con le tue app fissate, le finestre aperte, le anteprime al passaggio e i widget che scegli.")),
@@ -3648,12 +3652,43 @@ function appearanceSections(): HTMLElement[] {
           h("h2", {}, h("span", { text: t("Dock") }), profileChip()),
           pictured("dock", h("div", { class: "row" },
             h("label", { text: t("Dock") }),
-            toggle(!!settings.dock, (v) => { settings.dock = v; paintFixedBar(); commit(); render(); }),
+            toggle(!!settings.dock, (v) => {
+              settings.dock = v;
+              if (v) {
+                if (settings.dockLook?.characterInDock === undefined) {
+                  settings.dockLook = { ...(settings.dockLook ?? {}), characterInDock: true };
+                }
+                if (!settings.dockItems?.length) {
+                  settings.dockItems = [
+                    { id: "sys:start", uid: "d-start", area: "end", show: "icon" },
+                    { id: "sys:clock", uid: "d-clk", area: "end", show: "value" },
+                    { id: "sys:systray", uid: "d-st", area: "end", show: "icon" },
+                  ];
+                }
+                if (!settings.dockPinned?.length) {
+                  void Bridge.dockImportPinned().then((imported) => {
+                    if (imported?.length && !settings.dockPinned?.length) {
+                      settings.dockPinned = imported;
+                      commit();
+                      render();
+                    }
+                  }).catch(() => {});
+                }
+              }
+              paintFixedBar();
+              commit();
+              render();
+            }),
             h("span", { class: "hint note", text: t("barra inferiore dedicata alle app fissate, alle finestre aperte e al rilascio rapido dei file") }),
           )),
           h("div", { class: "row dock-row" },
             h("label", { text: t("Nascondi la barra delle applicazioni di Windows") }),
-            toggle(!!settings.dockHidesTaskbar, (v) => { settings.dockHidesTaskbar = v; commit(); }),
+            toggle(!!settings.dockHidesTaskbar, (v) => {
+              dockRestoreFeedback = "";
+              settings.dockHidesTaskbar = v;
+              commit();
+              render();
+            }),
             h("span", { class: "hint note", text: t("consenso esplicito: usa la Dock al posto della barra di Windows") }),
           ),
           h("div", { class: "row dock-row" },
@@ -4261,6 +4296,7 @@ function barLookRows(commit: () => void): HTMLElement[] {
 
 /** Cached catalog of installed apps from applist.rs (populated lazily in Dock settings). */
 let cachedDockApps: DockCatalogApp[] | null = null;
+let dockRestoreFeedback = "";
 
 /** «Aspetto e comportamento della Dock» (DockLook): shape, icon size, magnification, auto-hide and windows. */
 function dockLookRows(commit: () => void): HTMLElement[] {
@@ -4383,6 +4419,16 @@ function dockPinnedEditor(commit: () => void): HTMLElement {
           }).catch(() => { cachedDockApps = []; paint(); });
         }
         paint();
+      } }),
+      h("button", { text: t("Importa da Windows"), onclick: async () => {
+        const imported = await Bridge.dockImportPinned().catch(() => null);
+        if (imported?.length) {
+          const taken = new Set(pins.map((p) => (p.aumid || p.path || p.id).toLowerCase()));
+          const merged = [...pins, ...imported.filter((x) => !taken.has((x.aumid || x.path || x.id).toLowerCase()))];
+          settings.dockPinned = merged;
+          commit();
+          paint();
+        }
       } }),
     );
     wrap.append(addRow);

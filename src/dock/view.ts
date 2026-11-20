@@ -3,6 +3,7 @@
 // (dev/scenes.ts). Zero idle timers or rAF loops when resting.
 
 import { Bridge, type DockWin, type TrayIconInfo } from "../core/bridge";
+import { barBgCss, parseBarBg } from "../core/barbg";
 import { t } from "../core/i18n";
 import type { BarPiece, DockSnapshot } from "../core/link";
 import type { DockPin } from "../core/state";
@@ -306,16 +307,40 @@ export class DockView {
 
     this.stage.style.setProperty("--dock-opacity", String(alphaPct));
     this.stage.style.setProperty("--dock-margin", `${Math.max(0, Math.min(24, look.margin ?? 8))}px`);
+    const bgRaw = (this.snap.background ?? "").trim();
+    if (!opaque && bgRaw) {
+      if (bgRaw === "transparent" || /^(gradient|glow|aurora|glass):/i.test(bgRaw) || /^#[0-9a-f]{6}$/i.test(bgRaw)) {
+        this.stage.style.setProperty("--dock-bg-custom", barBgCss(parseBarBg(bgRaw), { opacity: alphaPct }));
+      } else {
+        this.stage.style.setProperty("--dock-bg-custom", `color-mix(in srgb, ${bgRaw} ${alphaPct}%, transparent)`);
+      }
+      if (this.snap.ink) {
+        this.stage.style.setProperty("--dock-ink", this.snap.ink);
+        this.stage.style.setProperty("--dock-dim", `color-mix(in srgb, ${this.snap.ink} 68%, transparent)`);
+        this.stage.style.setProperty("--dock-dot", `color-mix(in srgb, ${this.snap.ink} 70%, transparent)`);
+      }
+    } else {
+      this.stage.style.removeProperty("--dock-bg-custom");
+      this.stage.style.removeProperty("--dock-ink");
+      this.stage.style.removeProperty("--dock-dim");
+      this.stage.style.removeProperty("--dock-dot");
+    }
     if (this.snap.accent) this.stage.style.setProperty("--dock-accent", this.snap.accent);
     if (this.snap.font?.stack) this.stage.style.setProperty("--font", this.snap.font.stack);
     this.updateHiddenAttr();
   }
 
+  private isDockEmpty(): boolean {
+    return this.slots.length === 0 && !(this.snap.items && this.snap.items.length > 0);
+  }
+
   private updateHiddenAttr() {
     const mode = this.snap.look.autoHide ?? "off";
+    const empty = this.isDockEmpty();
     const blocked = !!this.previewEl || !!this.ctxEl || !!this.groupFlyoutEl || !!this.trayFlyoutEl || this.dragActive || this.dropHighlightIdx >= 0;
-    const shouldHide = this.fullscreen || (!blocked && !this.revealed && (mode === "auto" || (mode === "smart" && this.covered)));
+    const shouldHide = this.fullscreen || empty || (!blocked && !this.revealed && (mode === "auto" || (mode === "smart" && this.covered)));
     this.stage.dataset.dockFullscreen = String(this.fullscreen);
+    this.stage.dataset.dockEmpty = String(empty);
     this.stage.dataset.dockHidden = String(shouldHide);
     this.scheduleShapeReport();
   }
@@ -621,6 +646,7 @@ export class DockView {
 
     this.metrics = { ...DEFAULT_METRICS, icon: fit.iconSize, gap };
     this.slots = finalSlots;
+    this.stage.dataset.dockEmpty = String(this.isDockEmpty());
 
     const finalEntries = this.slots
       .filter((s): s is { kind: "entry"; entry: DockEntry } => s.kind === "entry")
@@ -1673,7 +1699,7 @@ export class DockView {
   /** Sends window hit/clip rects (`dock_shape`) only on discrete state transitions, never on pointermove. */
   private reportShapeNow() {
     if (!this.ops.onShapeChange) return;
-    if (this.fullscreen) {
+    if (this.fullscreen || this.isDockEmpty()) {
       const fsKey = "[0,[]]";
       if (this.lastShapeKey !== fsKey) {
         this.lastShapeKey = fsKey;
