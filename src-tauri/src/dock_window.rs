@@ -89,16 +89,30 @@ pub fn apply(app: &AppHandle) {
         remove(app);
         return;
     }
-    let win = match app.get_webview_window(LABEL) {
-        Some(w) => w,
-        None => match build(app) {
-            Some(w) => w,
-            None => return,
-        },
-    };
-    let app2 = app.clone();
-    let _ = app.run_on_main_thread(move || place(&app2, &win));
+    if let Some(win) = app.get_webview_window(LABEL) {
+        let app2 = app.clone();
+        let _ = app.run_on_main_thread(move || place(&app2, &win));
+        return;
+    }
+    // Made on a thread of its own: from a settings save (a sync command, on
+    // the main thread) building a webview window never returned on Windows,
+    // and the Dock turned on again stayed away (Edoardo, 20 Nov 2026).
+    if BUILDING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let built = build(&app);
+        BUILDING.store(false, Ordering::SeqCst);
+        if let Some(win) = built {
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || place(&app2, &win));
+        }
+    });
 }
+
+/// A Dock window is being made (one at a time).
+static BUILDING: AtomicBool = AtomicBool::new(false);
 
 fn build(app: &AppHandle) -> Option<tauri::WebviewWindow> {
     let mut builder = WebviewWindowBuilder::new(app, LABEL, crate::page_url(app, "dock.html"));
@@ -308,8 +322,10 @@ pub fn remove(app: &AppHandle) {
         let mut abd = data(raw);
         unsafe { SHAppBarMessage(ABM_REMOVE, &mut abd) };
     }
+    // Hidden, not destroyed: made again right after, the old one still held
+    // the label. Turned on again it is only shown.
     if let Some(win) = app.get_webview_window(LABEL) {
-        let _ = win.destroy();
+        let _ = win.hide();
     }
 }
 
