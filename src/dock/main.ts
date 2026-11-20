@@ -85,8 +85,7 @@ async function main() {
         : current.filter((p) => p.id !== entry.id);
       settings = { ...settings, dockPinned: next };
       void Bridge.saveSettings(settings);
-      if (pin) void Bridge.dockIcons([entry.id]);
-      // Unpinned from the Dock: from the Windows taskbar too, or its next change would bring it back.
+      if (pin) requestIcons([entry.id]);
       else void Bridge.dockDo("unpin", { app: entry.id });
     },
     onThumbsChange: (rects) => {
@@ -107,9 +106,19 @@ async function main() {
   document.title = t("Dock — EasyIsland");
   onReducedTransparencyChange((on) => view.setReducedTransparency(on));
 
+  const knownIcons = new Set<string>();
+  const requestIcons = (ids: string[]) => {
+    if (!IS_TAURI) return;
+    const missing = ids.map((s) => s.trim()).filter((id) => id && !knownIcons.has(id.toLowerCase()));
+    if (missing.length) void Bridge.dockIcons(missing);
+  };
+
   if (IS_TAURI) {
-    // Listening first: the icons come from a cache on disk in a few ms, often
-    // before dock_windows() has even answered; heard late, they were lost.
+    // Register listeners BEFORE fetching initial state so boot-time icon pushes are never missed.
+    await onEvent<Record<string, string>>("dock-icons", (icons) => {
+      for (const k of Object.keys(icons)) knownIcons.add(k.trim().toLowerCase());
+      view.setIcons(icons);
+    });
     await onEvent<DockWindowDiff>("dock-windows", (diff) => {
       const byHwnd = new Map(windows.map((w) => [w.hwnd, w]));
       for (const hwnd of diff.remove ?? []) byHwnd.delete(hwnd);
@@ -117,30 +126,8 @@ async function main() {
       for (const w of diff.change ?? []) byHwnd.set(w.hwnd, w);
       windows = [...byHwnd.values()];
       view.setWindows(windows);
+      requestIcons(windows.map((w) => w.app));
     });
-    await onEvent<Record<string, string>>("dock-icons", (icons) => {
-      view.setIcons(icons);
-    });
-    const [initialWins, initialTray] = await Promise.all([
-      Bridge.dockWindows().catch(() => null),
-      Bridge.trayIcons().catch(() => null),
-    ]);
-    if (initialWins) {
-      windows = initialWins;
-      view.setWindows(windows);
-      // Asked again now that we listen (the Rust side reads them from its disk cache).
-      void Bridge.dockIcons([...new Set(windows.map((w) => w.app))]);
-    }
-    if (initialTray) {
-      view.setTrayIcons(initialTray);
-    }
-    void Bridge.log(`dock: pagina pronta, ${initialWins?.length ?? "nessuna risposta:"} finestre, ${(settings.dockPinned ?? []).length} fissate, ${initialTray?.length ?? 0} icone dell'area notifiche`).catch(() => {});
-    await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
-      view.setTrayIcons(icons ?? []);
-    });
-    // The Windows taskbar's pins: all of them the first time, then what is pinned
-    // or unpinned there (also while EasyIsland was off). The id is the app id its
-    // windows carry, so a pin and its windows meet.
     const applyWindowsPins = (change: DockPinsChange | null | undefined) => {
       if (!change || (!change.add?.length && !change.remove?.length)) return;
       const removed = new Set((change.remove ?? []).map((id) => id.toLowerCase()));
@@ -152,11 +139,14 @@ async function main() {
       settings = { ...settings, dockPinned: pins };
       void Bridge.log(`dock: fissate di Windows +${change.add?.length ?? 0} -${change.remove?.length ?? 0} → ${pins.length}`).catch(() => {});
       void Bridge.saveSettings(settings);
-      void Bridge.dockIcons(pins.map((p) => p.id));
+      lastSnap = { ...lastSnap, pinned: pins };
+      view.setSnapshot(lastSnap);
+      requestIcons(pins.map((p) => p.id));
     };
     await onEvent<DockPinsChange>("dock-pins-windows", applyWindowsPins);
-    applyWindowsPins(await Bridge.dockPinsWindows().catch(() => null));
-    void Bridge.dockIcons((settings.dockPinned ?? []).map((p) => p.id));
+    await onEvent<TrayIconInfo[]>("tray-icons", (icons) => {
+      view.setTrayIcons(icons ?? []);
+    });
     await onEvent<boolean>("dock-covered", (covered) => {
       view.setCovered(covered);
     });
@@ -182,7 +172,34 @@ async function main() {
         animations: (next.animations as DockSnapshot["animations"]) ?? lastSnap.animations,
       };
       view.setSnapshot(lastSnap);
+      requestIcons((lastSnap.pinned ?? []).map((p) => p.id));
     });
+
+    const [initialWins, initialTray, initialPins] = await Promise.all([
+      Bridge.dockWindows().catch(() => null),
+      Bridge.trayIcons().catch(() => null),
+      Bridge.dockPinsWindows().catch(() => null),
+    ]);
+    if (initialWins) {
+      windows = initialWins;
+      view.setWindows(windows);
+    }
+    if (initialTray) {
+      view.setTrayIcons(initialTray);
+    }
+    applyWindowsPins(initialPins);
+    void Bridge.log(`dock: pagina pronta, ${initialWins?.length ?? "nessuna risposta:"} finestre, ${(settings.dockPinned ?? []).length} fissate, ${initialTray?.length ?? 0} icone dell'area notifiche`).catch(() => {});
+    requestIcons([
+      ...(settings.dockPinned ?? []).map((p) => p.id),
+      ...windows.map((w) => w.app),
+    ]);
+    // Second-chance icon request in case applist indexed after first boot paint.
+    window.setTimeout(() => {
+      requestIcons([
+        ...(settings.dockPinned ?? []).map((p) => p.id),
+        ...windows.map((w) => w.app),
+      ]);
+    }, 1200);
   }
 
   sendToIsland({ kind: "hello" });
