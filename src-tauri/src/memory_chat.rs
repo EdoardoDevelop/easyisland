@@ -46,7 +46,9 @@ pub struct Reply {
     pub nodes: Vec<NodeRef>,
 }
 
-pub async fn ask(app: &AppHandle, question: &str, history: &[Turn]) -> Reply {
+/// `facts`: what the map shows and the lines do not (the week's news, lone
+/// notes, files to read, the page being looked at), from the Panoramica.
+pub async fn ask(app: &AppHandle, question: &str, history: &[Turn], facts: &str) -> Reply {
     let question = question.trim();
     let other = crate::memshare::source(app);
     let q = question.to_string();
@@ -80,13 +82,15 @@ pub async fn ask(app: &AppHandle, question: &str, history: &[Turn]) -> Reply {
     let listed: String = lines.iter().map(|l| format!("- {}\n", crate::memory_answer::shown(l))).collect();
     let found: String = hits.iter().map(|h| format!("- {} ({}): {}\n", h.title, h.kind, h.gist)).collect();
     let titles: String = pages.iter().take(300).map(|p| p.title.as_str()).collect::<Vec<_>>().join(", ");
+    // The map's facts leave the PC too: never a line that looks like a secret.
+    let facts: String = facts.lines().filter(|l| !crate::quick_answer::secret_like(l)).take(40).map(|l| format!("{}\n", l.chars().take(1500).collect::<String>())).collect();
     let before: String = history.iter().rev().take(MAX_TURNS).rev().map(|h| tf("Utente: {q}\nTu: {a}\n", &[("q", &h.q), ("a", &h.a)])).collect();
     let query = format!(
         "{}\n\n{}",
         t("Sei l'assistente della memoria di EasyIsland: pagine, note e fonti che l'utente ha salvato. Rispondi in italiano, breve e chiaro, usando solo quello che trovi qui sotto. Copia nomi, numeri, indirizzi IP e codici esattamente come sono scritti. Puoi riassumere, confrontare, contare e dire dove sta una cosa (il titolo della pagina). Se qui sotto non c'è, dillo. Se la domanda non riguarda la memoria, rispondi solo: «Qui rispondo solo sulla memoria: per il resto usa la chat.» Non inventare niente e non proporre di fare azioni."),
         tf(
-            "Pagine della memoria: {titles}\n\nPagine e note trovate:\n{found}\nRighe della memoria:\n{lines}\n{before}Domanda: {q}",
-            &[("titles", &titles), ("found", &found), ("lines", &listed), ("before", &before), ("q", &question)],
+            "Pagine della memoria: {titles}\n\nDalla mappa:\n{facts}\nPagine e note trovate:\n{found}\nRighe della memoria:\n{lines}\n{before}Domanda: {q}",
+            &[("titles", &titles), ("facts", &facts), ("found", &found), ("lines", &listed), ("before", &before), ("q", &question)],
         )
     );
     let chat = crate::claude::Chat::default();
@@ -113,6 +117,12 @@ pub async fn ask(app: &AppHandle, question: &str, history: &[Turn]) -> Reply {
     }
     crate::log::line(format!("chiedi alla memoria: {} righe, risposta di {engine}", lines.len()));
     Reply { text, by: crate::quick_answer::engine_name(&engine, &model), nodes }
+}
+
+/// «Apri in chat»: the island's chat with the question and the memory's answer.
+pub fn open_in_chat(app: &AppHandle, question: &str, answer: &str) {
+    use tauri::Emitter;
+    let _ = app.emit_to("island", "memory-chat-open", serde_json::json!({ "question": question, "answer": answer }));
 }
 
 /// The lines closest to the question, never one that looks like a secret.

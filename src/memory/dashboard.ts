@@ -66,6 +66,10 @@ const days = (date: string) => {
   return Number.isFinite(d) ? (Date.now() - d) / DAY : Infinity;
 };
 const isNote = (n: MemNode) => n.kind === "note" || n.kind === "old";
+/** A line of a page as text: no bold marks, [[links]] as their names. */
+const plainLine = (l: string) => l.replace(/\*\*/g, "").replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, a: string, b?: string) => b ?? a);
+/** The drag of a node (a chip, a line of the feed) into «chiedi alla memoria». */
+const NODE_DRAG = "application/x-easyisland-node";
 const isPage = (n: MemNode) => n.kind === "page" || n.kind === "missing";
 /**
  * A line of the chat diary (brain.rs: «motore · domanda → risposta»): the
@@ -110,6 +114,16 @@ export class Dashboard {
   private asked: Set<string> | null = null;
   private history: { q: string; a: string }[] = [];
   private asking = false;
+  /** Ready questions under the field, from the memory as it is. */
+  private askTips = h("div", { class: "dash-ask-tips" });
+  /** The card of a point of the nucleus (clic): its summary, lines and links. */
+  private card = h("div", { class: "dash-card", hidden: "" });
+  private cardId: string | null = null;
+  /** The days slider under the nucleus: the memory as it was that day. */
+  private when = h("input", { class: "dash-when-range", type: "range", min: "0", max: "0", value: "0", step: "1", "aria-label": t("Giorno della memoria") }) as HTMLInputElement;
+  private whenLabel = h("span", { class: "dash-when-label" });
+  private whenPlay = h("button", { class: "dash-when-play", title: t("Guarda la memoria crescere"), text: "▶" }) as HTMLButtonElement;
+  private whenTimer = 0;
 
   constructor(private host: DashHost) {
     const head = h("div", { class: "dash-box dash-top" },
@@ -124,7 +138,7 @@ export class Dashboard {
       this.feed);
     const stage = h("div", { class: "dash-core-stage" });
     this.core = new Nucleus(stage, {
-      pick: (id) => host.open(id),
+      pick: (id) => this.showCard(id),
       group: (lead) => host.openGroup(lead),
       tip: (text, sub, x, y) => this.showTip(text, sub, x, y),
       feedRows: () => this.feedRows(stage),
@@ -139,8 +153,14 @@ export class Dashboard {
     });
     this.feed.addEventListener("pointerleave", () => this.core.setHoverRow(null));
     const floats = h("div", { class: "dash-floats" }, this.filtersBox, this.weekBox);
-    stage.append(this.tip, floats);
-    const coreBox = h("div", { class: "dash-box dash-core" }, stage, this.coreNumber);
+    stage.append(this.tip, floats, this.card);
+    const whenRow = h("div", { class: "dash-when" }, this.whenPlay, this.when, this.whenLabel);
+    this.when.addEventListener("input", () => {
+      this.stopPlay();
+      this.applyWhen();
+    });
+    this.whenPlay.addEventListener("click", () => this.play());
+    const coreBox = h("div", { class: "dash-box dash-core" }, stage, whenRow, this.coreNumber);
     const stagesBox = h("div", { class: "dash-box dash-stages" },
       h("div", { class: "dash-label" }, h("span", { text: t("tappe") }), h("span", { text: t("fonti → controllo") })),
       this.stages);
@@ -153,7 +173,40 @@ export class Dashboard {
     const askBox = h("div", { class: "dash-box dash-term dash-ask" },
       h("div", { class: "dash-term-head" }, h("i"), h("i"), h("i"), h("span", { text: t("~ chiedi alla memoria") })),
       this.askLines,
+      this.askTips,
       h("label", { class: "dash-ask-row" }, h("span", { class: "dash-prompt", text: "›" }), this.askField));
+    // A chip dropped here: a question about that page (Edoardo, 21 Nov 2026).
+    askBox.addEventListener("dragover", (e) => {
+      if (!e.dataTransfer?.types.includes(NODE_DRAG)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      askBox.classList.add("drop");
+    });
+    askBox.addEventListener("dragleave", (e) => {
+      if (!askBox.contains(e.relatedTarget as Node | null)) askBox.classList.remove("drop");
+    });
+    askBox.addEventListener("drop", (e) => {
+      askBox.classList.remove("drop");
+      const id = e.dataTransfer?.getData(NODE_DRAG);
+      const n = id ? this.state?.model.byId.get(id) : undefined;
+      if (!n) return;
+      e.preventDefault();
+      void this.ask(t("Cosa so di «{name}»?", { name: n.label }));
+    });
+    // Everything with a node can be dragged into the field.
+    this.el.addEventListener("dragstart", (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-node]");
+      if (!el?.dataset.node || !e.dataTransfer) return;
+      e.dataTransfer.setData(NODE_DRAG, el.dataset.node);
+      e.dataTransfer.setData("text/plain", this.state?.model.byId.get(el.dataset.node)?.label ?? "");
+      e.dataTransfer.effectAllowed = "copy";
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !this.card.hidden && !this.el.hidden) {
+        e.stopPropagation();
+        this.hideCard();
+      }
+    }, true);
     this.askField.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.isComposing) {
         e.preventDefault();
@@ -196,6 +249,9 @@ export class Dashboard {
     this.renderStages(s);
     this.renderTokens(s);
     this.renderPeriods(s);
+    this.renderTips(s);
+    this.renderWhen(s, first);
+    if (this.cardId) this.showCard(this.cardId);
     this.applySearch();
     if (first) this.greet(s);
   }
@@ -476,7 +532,7 @@ export class Dashboard {
     for (const { n, links } of pages) {
       const color = s.colours === "group" ? s.model.groupColor(n.id) ?? KIND_COLOR[n.kind] : KIND_COLOR[n.kind];
       // The tip is the name (cut when long); the number says the links.
-      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, "data-node": n.id, style: `--tone:${color}`, title: n.kind === "missing" ? `${n.label} · ${t("Citata ma non ancora scritta")}` : n.label },
+      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, "data-node": n.id, draggable: "true", style: `--tone:${color}`, title: n.kind === "missing" ? `${n.label} · ${t("Citata ma non ancora scritta")}` : n.label },
         h("span", { text: n.label }), h("small", { text: String(links), title: tn("{n} collegamento", "{n} collegamenti", links) })) as HTMLButtonElement;
       b.addEventListener("click", () => this.host.open(n.id));
       this.tokens.append(b);
@@ -570,7 +626,7 @@ export class Dashboard {
     this.askLine("q", question);
     const wait = this.askLine("note", t("cerco nella memoria…"));
     wait.classList.add("waiting");
-    const reply = IS_TAURI ? await Bridge.memoryChat(question, this.history) : this.state ? (await import("./demo")).demoAsk(question, this.state.model.g) : null;
+    const reply = IS_TAURI ? await Bridge.memoryChat(question, this.history, this.facts()) : this.state ? (await import("./demo")).demoAsk(question, this.state.model.g) : null;
     wait.remove();
     this.asking = false;
     this.askField.disabled = false;
@@ -581,22 +637,232 @@ export class Dashboard {
     }
     this.history.push({ q: question, a: reply.text });
     if (this.history.length > 6) this.history.shift();
-    this.askLine("a", reply.text, reply.by);
     const known = new Set(this.state?.model.g.nodes.map((n) => n.id) ?? []);
     const nodes = reply.nodes.filter((n) => known.has(n.id));
+    const line = this.askLine("a", "", reply.by);
+    this.withRefs(line.children[1] as HTMLElement, reply.text, nodes);
+    const acts = h("div", { class: "dash-ask-acts" });
     if (nodes.length) {
-      const chips = h("div", { class: "dash-ask-nodes" });
-      for (const n of nodes.slice(0, 10)) {
-        const color = (this.state?.colours === "group" ? this.state.model.groupColor(n.id) : null) ?? KIND_COLOR.page;
-        const b = h("button", { class: "dash-token", style: `--tone:${color}`, title: n.title, "data-node": n.id }, h("span", { text: n.title })) as HTMLButtonElement;
-        b.addEventListener("click", () => this.host.open(n.id));
-        chips.append(b);
-      }
-      this.askLines.append(chips);
-      this.askLines.scrollTop = this.askLines.scrollHeight;
+      for (const n of nodes.slice(0, 10)) acts.append(this.nodeChip(n.id, n.title));
     }
+    const keep = h("button", { class: "dash-ask-act", text: t("Ricorda"), title: t("Salva la risposta come nota della memoria") }) as HTMLButtonElement;
+    keep.addEventListener("click", () => {
+      keep.disabled = true;
+      void Bridge.memoryNoteAdd(`${question} → ${reply.text}`)
+        .then((said) => this.askLine("note", said || t("salvata come nota")))
+        .catch((e) => {
+          keep.disabled = false;
+          this.askLine("note", String(e));
+        });
+    });
+    const chat = h("button", { class: "dash-ask-act", text: t("Apri in chat"), title: t("Continua nella chat, con i suoi strumenti") }) as HTMLButtonElement;
+    chat.addEventListener("click", () => void Bridge.memoryChatOpen(question, reply.text));
+    if (IS_TAURI) acts.append(keep, chat);
+    this.askLines.append(acts);
+    this.askLines.scrollTop = this.askLines.scrollHeight;
     this.asked = nodes.length ? new Set(nodes.map((n) => n.id)) : null;
     this.applySearch();
+  }
+
+  /** A chip of a node: draggable, opens its card, its hover draws a line to its point. */
+  private nodeChip(id: string, title: string): HTMLElement {
+    const color = (this.state?.colours === "group" ? this.state.model.groupColor(id) : null) ?? KIND_COLOR[this.state?.model.byId.get(id)?.kind ?? "page"] ?? KIND_COLOR.page;
+    const b = h("button", { class: "dash-token", style: `--tone:${color}`, title, "data-node": id, draggable: "true" }, h("span", { text: title })) as HTMLButtonElement;
+    b.addEventListener("click", () => this.showCard(id));
+    this.pointFrom(b, id);
+    return b;
+  }
+
+  /** The mouse on `el`: a line from it to the point of `id` in the nucleus. */
+  private pointFrom(el: HTMLElement, id: string) {
+    el.addEventListener("pointerenter", () => {
+      const r = el.getBoundingClientRect();
+      this.core.setPointer(id, r.left + r.width / 2, r.top);
+    });
+    el.addEventListener("pointerleave", () => this.core.setPointer(null));
+  }
+
+  /** The answer's text with the pages it names as references (hover: the line; clic: the card). */
+  private withRefs(into: HTMLElement, text: string, nodes: { id: string; title: string }[]) {
+    clear(into);
+    const named = nodes.filter((n) => n.title.length > 2).sort((a, b) => b.title.length - a.title.length);
+    if (!named.length) {
+      into.textContent = text;
+      return;
+    }
+    const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(${named.map((n) => esc(n.title)).join("|")})`, "gi");
+    let at = 0;
+    for (const m of text.matchAll(re)) {
+      const i = m.index ?? 0;
+      if (i > at) into.append(document.createTextNode(text.slice(at, i)));
+      const n = named.find((x) => x.title.toLowerCase() === m[0].toLowerCase())!;
+      const ref = h("span", { class: "dash-ask-ref", "data-node": n.id, draggable: "true", text: m[0], title: t("Clic: la scheda · trascina nel campo per chiedere") });
+      ref.addEventListener("click", () => this.showCard(n.id));
+      this.pointFrom(ref, n.id);
+      into.append(ref);
+      at = i + m[0].length;
+    }
+    if (at < text.length) into.append(document.createTextNode(text.slice(at)));
+  }
+
+  /** What the map knows and the lines do not: the week's news, lone notes, files to read. */
+  private facts(): string {
+    const s = this.state;
+    if (!s) return "";
+    const all = s.model.g.nodes.filter((n) => n.kind !== "day");
+    const week = all.filter((n) => days(n.date) <= 7).sort((a, b) => b.date.localeCompare(a.date));
+    const out: string[] = [];
+    out.push(t("Oggi è il {d}.", { d: new Date().toISOString().slice(0, 10) }));
+    out.push(t("Nella memoria: {p} pagine, {n} note, {f} fonti.", { p: all.filter(isPage).length, n: all.filter(isNote).length, f: all.filter((n) => n.kind === "source").length }));
+    if (week.length) out.push(t("Arrivati negli ultimi 7 giorni: {list}.", { list: week.slice(0, 25).map((n) => `${n.label} (${kindName(n.kind)}, ${n.date.slice(0, 10)})`).join("; ") }));
+    const lonely = s.model.lonely();
+    if (lonely.length) out.push(t("Note senza collegamenti: {list}.", { list: lonely.slice(0, 20).map((n) => n.label).join("; ") }));
+    if (s.model.g.inbox.length) out.push(t("File da leggere: {list}.", { list: s.model.g.inbox.slice(0, 10).join("; ") }));
+    const top = all.filter(isPage).map((n) => ({ n, k: s.model.neighbours(n.id).length })).sort((a, b) => b.k - a.k).slice(0, 8);
+    if (top.length) out.push(t("Pagine più collegate: {list}.", { list: top.map((x) => `${x.n.label} (${x.k})`).join("; ") }));
+    if (this.cardId) {
+      const n = s.model.byId.get(this.cardId);
+      if (n) out.push(t("L'utente sta guardando «{name}».", { name: n.label }));
+    }
+    return out.join("\n");
+  }
+
+  /** Ready questions from the memory as it is. */
+  private renderTips(s: DashState) {
+    clear(this.askTips);
+    const all = s.model.g.nodes.filter((n) => n.kind !== "day");
+    const tips: string[] = [];
+    if (all.some((n) => days(n.date) <= 7)) tips.push(t("Cosa è cambiato questa settimana?"));
+    if (s.model.lonely().length) tips.push(t("Quali note sono sole?"));
+    if (s.model.g.inbox.length) tips.push(t("Cosa c'è da leggere?"));
+    const top = all.filter((n) => n.kind === "page").sort((a, b) => s.model.neighbours(b.id).length - s.model.neighbours(a.id).length)[0];
+    if (top) tips.push(t("Cosa so di «{name}»?", { name: top.label }));
+    for (const q of tips.slice(0, 4)) {
+      const b = h("button", { class: "dash-ask-tip", text: q }) as HTMLButtonElement;
+      b.addEventListener("click", () => void this.ask(q));
+      this.askTips.append(b);
+    }
+    this.askTips.hidden = !tips.length;
+  }
+
+  // ── The card of a point ───────────────────────────────────────────────────
+
+  private showCard(id: string) {
+    const s = this.state;
+    const n = s?.model.byId.get(id);
+    if (!s || !n) return;
+    const again = this.cardId === id && !this.card.hidden;
+    this.cardId = id;
+    this.core.setPicked(id);
+    clear(this.card);
+    const color = (s.colours === "group" ? s.model.groupColor(id) : null) ?? KIND_COLOR[n.kind];
+    this.card.style.setProperty("--tone", color);
+    const close = h("button", { class: "dash-card-close", title: t("Chiudi"), "aria-label": t("Chiudi"), text: "×" }) as HTMLButtonElement;
+    close.addEventListener("click", () => this.hideCard());
+    this.card.append(
+      h("div", { class: "dash-card-head" }, h("span", { class: "dash-card-kind", text: [kindName(n.kind), shortDate(n.date), n.origin ? `· ${n.origin}` : ""].filter(Boolean).join(" · ") }), close),
+      h("b", { class: "dash-card-title", text: n.label, title: n.label }));
+    const body = h("div", { class: "dash-card-body" });
+    const lines = (n.text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+    for (const l of lines.slice(0, 8)) body.append(h("p", { text: plainLine(l) }));
+    if (lines.length > 8) body.append(h("p", { class: "dim", text: tn("… e {n} riga ancora nel file", "… e altre {n} righe nel file", lines.length - 8) }));
+    if (!lines.length) body.append(h("p", { class: "dim", text: n.kind === "missing" ? t("Citata ma non ancora scritta") : t("Niente testo") }));
+    this.card.append(body);
+    // A page: its summary from the memory (brain.rs node_brief) in place of the bare lines.
+    if (IS_TAURI && isPage(n) && n.kind !== "missing" && !again) {
+      void Bridge.memoryNodeBrief(id).then((brief) => {
+        if (!brief || this.cardId !== id) return;
+        const text = brief[1].split("\n").map((l) => l.trim()).filter(Boolean);
+        if (!text.length) return;
+        clear(body);
+        for (const l of text.slice(0, 10)) body.append(h("p", { text: plainLine(l) }));
+      });
+    }
+    const near = s.model.neighbours(id).map((x) => ({ x, n: s.model.byId.get(x.id) })).filter((x) => x.n && x.n.kind !== "day")
+      .sort((a, b) => (b.x.strength ?? 1) - (a.x.strength ?? 1)).slice(0, 8);
+    if (near.length) {
+      const links = h("div", { class: "dash-card-links" }, h("span", { class: "dash-card-kind", text: tn("{n} collegamento", "{n} collegamenti", s.model.neighbours(id).length) }));
+      for (const { n: m } of near) links.append(this.nodeChip(m!.id, m!.label));
+      this.card.append(links);
+    }
+    const ask = h("button", { class: "dash-ask-act", text: t("Chiedi"), title: t("Una domanda su questa pagina nel riquadro della memoria") }) as HTMLButtonElement;
+    ask.addEventListener("click", () => void this.ask(t("Cosa so di «{name}»?", { name: n.label })));
+    const graph = h("button", { class: "dash-ask-act", text: t("Apri nel grafo") }) as HTMLButtonElement;
+    graph.addEventListener("click", () => this.host.open(id));
+    const row = h("div", { class: "dash-card-acts" }, ask, graph);
+    if (n.kind !== "missing" && IS_TAURI) {
+      const file = h("button", { class: "dash-ask-act", text: t("Apri il file") }) as HTMLButtonElement;
+      file.addEventListener("click", () => void Bridge.memoryNodeOpen(id).catch((e) => this.askLine("note", String(e))));
+      row.append(file);
+    }
+    this.card.append(row);
+    this.card.hidden = false;
+  }
+
+  private hideCard() {
+    this.card.hidden = true;
+    this.cardId = null;
+    this.core.setPicked(null);
+  }
+
+  // ── The days slider ───────────────────────────────────────────────────────
+
+  /** Oldest date → today, one step a day; at the end: everything. */
+  private renderWhen(s: DashState, first: boolean) {
+    const ages = s.model.g.nodes.map((n) => days(n.date)).filter((d) => d !== Infinity);
+    const span = Math.max(1, Math.ceil(Math.max(0, ...ages)));
+    const atEnd = first || Number(this.when.value) >= Number(this.when.max);
+    this.when.max = String(span);
+    if (atEnd) this.when.value = String(span);
+    this.when.disabled = ages.length < 2;
+    this.applyWhen();
+  }
+
+  private applyWhen() {
+    const s = this.state;
+    if (!s) return;
+    const max = Number(this.when.max);
+    const v = Number(this.when.value);
+    const cut = max - v; // days ago
+    const all = s.model.g.nodes.filter((n) => n.kind !== "day");
+    if (v >= max) {
+      this.core.setUntil(null);
+      this.whenLabel.textContent = t("oggi · {n} cose", { n: all.length });
+      this.el.classList.remove("back-in-time");
+      return;
+    }
+    this.core.setUntil(cut);
+    const day = new Date(Date.now() - cut * DAY).toISOString().slice(0, 10);
+    const then = all.filter((n) => days(n.date) >= cut).length;
+    this.whenLabel.textContent = t("{d} · {n} cose", { d: shortDate(day), n: then });
+    this.el.classList.add("back-in-time");
+  }
+
+  /** ▶: from the first day to today in about 6 s. */
+  private play() {
+    if (this.whenTimer) {
+      this.stopPlay();
+      return;
+    }
+    const max = Number(this.when.max);
+    if (Number(this.when.value) >= max) this.when.value = "0";
+    const step = Math.max(1, Math.round(max / 120));
+    this.whenPlay.textContent = "❚❚";
+    const tick = () => {
+      const v = Math.min(max, Number(this.when.value) + step);
+      this.when.value = String(v);
+      this.applyWhen();
+      if (v >= max) this.stopPlay();
+      else this.whenTimer = window.setTimeout(tick, 50);
+    };
+    tick();
+  }
+
+  private stopPlay() {
+    window.clearTimeout(this.whenTimer);
+    this.whenTimer = 0;
+    this.whenPlay.textContent = "▶";
   }
 
   /** The first lines: what the memory is, in words. */
@@ -676,6 +942,9 @@ class Nucleus {
   private hoverRow: string | null = null;
   /** What the search found: the rest is dimmed. */
   private match: Set<string> | null = null;
+  private until: number | null = null;
+  private picked: string | null = null;
+  private pointer: { id: string; x: number; y: number } | null = null;
   /** Where each particle was drawn last (screen px), for the lines. */
   private at = new Map<string, { x: number; y: number }>();
 
@@ -746,6 +1015,24 @@ class Nucleus {
 
   setMatch(ids: Set<string> | null) {
     this.match = ids;
+    this.wake();
+  }
+
+  /** The days slider: only what existed `daysAgo` days ago (null: everything). */
+  setUntil(daysAgo: number | null) {
+    this.until = daysAgo;
+    this.wake();
+  }
+
+  /** The card's node: ringed until the card closes. */
+  setPicked(id: string | null) {
+    this.picked = id;
+    this.wake();
+  }
+
+  /** A reference under the mouse outside the nucleus (page coordinates): a line from there to its point. */
+  setPointer(id: string | null, x = 0, y = 0) {
+    this.pointer = id ? { id, x, y } : null;
     this.wake();
   }
 
@@ -894,7 +1181,9 @@ class Nucleus {
     const tilt = 0.32;
     const ct = Math.cos(tilt);
     const st = Math.sin(tilt);
-    const pts = this.parts.map((p) => {
+    const ageOf = new Map((this.model?.g.nodes ?? []).map((n) => [n.id, days(n.date)]));
+    const cut = this.until;
+    const pts = this.parts.filter((p) => cut == null || (ageOf.get(p.id) ?? Infinity) >= cut).map((p) => {
       const x = p.x * cos - p.z * sin;
       const z0 = p.x * sin + p.z * cos;
       const y = p.y * ct - z0 * st;
@@ -1064,6 +1353,37 @@ class Nucleus {
         if (!this.match.has(s.id)) continue;
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r + 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    // The card's point: a ring in its colour.
+    if (this.picked) {
+      const s = this.shown.find((x) => x.id === this.picked);
+      if (s) {
+        ctx.strokeStyle = P.accent;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    // A reference of the answer under the mouse: a line from it (below the nucleus) to its point.
+    if (this.pointer) {
+      const s = this.shown.find((x) => x.id === this.pointer!.id);
+      if (s) {
+        const r = this.canvas.getBoundingClientRect();
+        const fx = this.pointer.x - r.left;
+        const fy = Math.min(h, this.pointer.y - r.top);
+        const color = colorOf.get(s.id) ?? P.accent;
+        ctx.strokeStyle = /^#[0-9a-f]{6}$/i.test(color) ? alpha(color, 0.95) : P.accent;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(fx, fy);
+        ctx.bezierCurveTo(fx, fy - (fy - s.y) * 0.6, s.x, s.y + (fy - s.y) * 0.4, s.x, s.y);
+        ctx.stroke();
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r + 3, 0, Math.PI * 2);
         ctx.stroke();
       }
     }

@@ -2836,8 +2836,14 @@ async fn quick_answer(app: AppHandle, question: String) -> Option<quick_answer::
 
 /// «Chiedi alla memoria» in the Panoramica: an answer only from the memory (memory_chat.rs).
 #[tauri::command]
-async fn memory_chat(app: AppHandle, question: String, history: Vec<memory_chat::Turn>) -> memory_chat::Reply {
-    memory_chat::ask(&app, &question, &history).await
+async fn memory_chat(app: AppHandle, question: String, history: Vec<memory_chat::Turn>, facts: Option<String>) -> memory_chat::Reply {
+    memory_chat::ask(&app, &question, &history, facts.as_deref().unwrap_or_default()).await
+}
+
+/// «Apri in chat» under an answer of «Chiedi alla memoria».
+#[tauri::command]
+fn memory_chat_open(app: AppHandle, question: String, answer: String) {
+    memory_chat::open_in_chat(&app, &question, &answer);
 }
 
 /// The field at the top of the island: memory pages with these words.
@@ -5406,6 +5412,7 @@ pub fn run() {
             memory_find,
             quick_answer,
             memory_chat,
+            memory_chat_open,
             memory_node_brief,
             memory_window_select,
             zammad_search,

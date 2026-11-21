@@ -1032,3 +1032,181 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
 @media (max-width: 1000px) {
   .dash-term-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Ready questions, answer actions, references ── */
+
+.dash-ask-tips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 6px;
+}
+
+.dash-ask-tips[hidden] { display: none; }
+
+.dash-ask-tip,
+.dash-ask-act {
+  padding: 2px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.dash-ask-tip:hover,
+.dash-ask-act:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.dash-ask-act:disabled { opacity: 0.5; cursor: default; }
+
+.dash-ask-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 8px 18px;
+}
+
+.dash-ask-acts .dash-token { max-width: 180px; }
+
+.dash-ask-ref {
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.dash-ask.drop {
+  outline: 1px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+/* ── The card of a point of the nucleus ── */
+
+.dash-card {
+  position: absolute;
+  z-index: 4;
+  left: 12px;
+  top: 12px;
+  width: 280px;
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--tone, var(--accent)) 55%, var(--stroke-strong));
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  scrollbar-width: thin;
+}
+
+.dash-card[hidden] { display: none; }
+
+.dash-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-card-kind {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.dash-card-close {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dash-card-close:hover { background: var(--dash-faint); color: var(--ink); }
+
+.dash-card-title {
+  font-size: 14px;
+  color: var(--tone, var(--ink));
+  overflow-wrap: anywhere;
+}
+
+.dash-card-body p {
+  margin: 0 0 4px;
+  color: var(--dim);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dash-card-body p.dim { color: var(--dim-2); }
+
+.dash-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dash-card-links .dash-card-kind { flex-basis: 100%; }
+.dash-card-links .dash-token { max-width: 125px; }
+
+.dash-card-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ── The days slider under the nucleus ── */
+
+.dash-when {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-top: 1px solid var(--dash-line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-when-play {
+  width: 24px;
+  height: 20px;
+  border: 1px solid var(--stroke);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.dash-when-play:hover { border-color: var(--accent); color: var(--ink); }
+
+.dash-when-range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.dash-when-label {
+  min-width: 120px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dash.back-in-time .dash-when-label { color: var(--accent); }

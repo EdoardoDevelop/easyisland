@@ -776,7 +776,9 @@ export const Bridge = {
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
   quickAnswer: (question: string) => call<QuickAnswer | null>("quick_answer", { question }),
   /** «Chiedi alla memoria» (memory_chat.rs): an answer only from the memory. */
-  memoryChat: (question: string, history: { q: string; a: string }[]) => call<MemoryChatReply | null>("memory_chat", { question, history }),
+  memoryChat: (question: string, history: { q: string; a: string }[], facts = "") => call<MemoryChatReply | null>("memory_chat", { question, history, facts }),
+  /** «Apri in chat» under an answer: the island's chat with the question and the answer (memory-chat-open). */
+  memoryChatOpen: (question: string, answer: string) => call<void>("memory_chat_open", { question, answer }),
   /** The notices' window (notices_window.rs): `height` of toasts, placed by `place`; or hidden. */
   noticesShow: (height: number, place: string) => call<void>("notices_show", { height, place }),
   noticesHide: () => call<void>("notices_hide"),

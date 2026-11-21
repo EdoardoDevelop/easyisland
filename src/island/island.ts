@@ -3369,6 +3369,11 @@ ${note}` : text };
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
   private wirePane() {
     void onEvent<boolean>("preview-docked", (on) => this.setPaneOpen(on));
+    // «Apri in chat» under an answer of «Chiedi alla memoria» (memory window).
+    void onEvent<{ question: string; answer: string }>("memory-chat-open", ({ question, answer }) => {
+      if (State.mode !== "expanded") this.expand("prompt");
+      this.startChat(question, { label: t("Memoria · risposta"), text: answer }, false);
+    });
     // A popped-out window closed by its ✕ (lib.rs popout_window, its name): its view comes home.
     void onEvent<string>("popout-closed", (name) => poppedGone(name));
     // …and before that, while its page is still there: the view comes home with its handlers.
