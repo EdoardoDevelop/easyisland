@@ -777,6 +777,12 @@ html[data-scheme="light"] .dash-tag {
   gap: 8px;
 }
 
+/* Long lines wrap, paths and links too: never cut. */
+.dash-term-line > span:last-of-type {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .dash-term-line:last-child {
   color: var(--ink);
 }

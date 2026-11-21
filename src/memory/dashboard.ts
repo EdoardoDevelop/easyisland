@@ -398,7 +398,7 @@ export class Dashboard {
     this.live.length = Math.min(this.live.length, 6);
     this.feed.prepend(row);
     while (this.feed.children.length > 66) this.feed.lastElementChild?.remove();
-    this.log(`${kind === "write" ? t("SCRIVE") : t("LEGGE")} · ${text.replace(/\s+/g, " ").slice(0, 140)}`);
+    this.log(`${kind === "write" ? t("SCRIVE") : t("LEGGE")} · ${text.replace(/\s+/g, " ").trim()}`);
     this.core.pulse(ids);
   }
 
@@ -593,7 +593,7 @@ export class Dashboard {
     const words = line.lastElementChild as HTMLElement;
     this.term.append(line);
     while (this.term.children.length > 40) this.term.firstElementChild?.remove();
-    const instant = !animateIdle() || document.hidden || this.el.hidden || this.queue.length > 6;
+    const instant = !animateIdle() || document.hidden || this.el.hidden || this.queue.length > 6 || text.length > 400;
     let at = instant ? text.length : 0;
     const step = () => {
       at = Math.min(text.length, at + 3);

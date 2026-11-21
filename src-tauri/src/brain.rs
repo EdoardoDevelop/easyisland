@@ -1856,7 +1856,12 @@ pub fn node_file(id: &str) -> Option<PathBuf> {
 /// touched (src/memory/neural.ts). Only words go, never a file.
 pub fn activity(app: &tauri::AppHandle, kind: &str, text: &str) {
     use tauri::Emitter;
-    let text: String = text.chars().take(300).collect();
+    const MAX: usize = 2000;
+    let cut = text.chars().count() > MAX;
+    let mut text: String = text.chars().take(MAX).collect();
+    if cut {
+        text.push('…');
+    }
     if !text.trim().is_empty() {
         let _ = app.emit_to(crate::MEMORY_LABEL, "memory-activity", serde_json::json!({ "kind": kind, "text": text }));
     }
