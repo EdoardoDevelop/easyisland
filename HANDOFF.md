@@ -69,7 +69,7 @@ Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquad
 - Barra fissa: elemento «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro) che apre la finestra Memoria.
 - Poi (ramo `claude/memoria-interattiva`): scheda del punto al clic nel nucleo, domande pronte, gettoni trascinabili nel campo, «Ricorda» e «Apri in chat» sotto la risposta, linea dal riferimento al punto, linea del tempo con ▶.
 - `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).
-- Tolti i tre pallini colorati nelle intestazioni di registro e «chiedi alla memoria» (sembravano i pulsanti di chiusura di una finestra).
+- Al posto dei tre pallini colorati nelle intestazioni (sembravano i pulsanti di una finestra) un'icona del riquadro: righe per il registro, fumetto per «chiedi alla memoria».
 
 ### 21/11 — Programmi di Windows per la chat
 Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).

@@ -741,6 +741,23 @@ html[data-scheme="light"] .dash-tag {
   color: var(--dim-2);
 }
 
+/* In place of the three dots (they looked like a window's buttons): what the box is. */
+.dash-term-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 35%, transparent);
+}
+
+.dash-term-icon.log { --tone: #2dd4bf; }
+.dash-term-icon.ask { --tone: var(--accent); }
+
+.dash-ask:focus-within .dash-term-icon.ask { background: color-mix(in srgb, var(--tone) 26%, transparent); }
+
 
 .dash-term-lines {
   flex: 1;

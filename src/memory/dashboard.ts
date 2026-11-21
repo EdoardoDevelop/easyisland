@@ -60,6 +60,9 @@ const LINE = {
   inbox: "M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20M4 13.5 6.5 5h11l2.5 8.5V19H4z",
   page: "M7 3.5h7l4 4v13H7zM10 11h5M10 14.5h5M10 18h3",
   source: "M4 6.5h6l2 2h8v10H4zM4 10.5h16",
+  // The boxes' heads: the log (lines being written) and «chiedi alla memoria» (a balloon with a spark).
+  log: "M4 6h3M9 6h11M4 12h3M9 12h8M4 18h3M9 18h5",
+  ask: "M4.5 5.5h15v10h-8l-4 3.5v-3.5h-3zM12 8v4M10 10h4",
 };
 const days = (date: string) => {
   const d = Date.parse((date ?? "").slice(0, 10));
@@ -168,10 +171,10 @@ export class Dashboard {
       h("div", { class: "dash-label" }, h("span", { text: t("pagine più collegate") }), h("span", { text: t("clic per aprire") })),
       this.tokens);
     const termBox = h("div", { class: "dash-box dash-term" },
-      h("div", { class: "dash-term-head" }, h("span", { text: t("~ registro della memoria") })),
+      h("div", { class: "dash-term-head" }, h("i", { class: "dash-term-icon log" }, svg(LINE.log, 13, { stroke: 1.8 })), h("span", { text: t("~ registro della memoria") })),
       this.term);
     const askBox = h("div", { class: "dash-box dash-term dash-ask" },
-      h("div", { class: "dash-term-head" }, h("span", { text: t("~ chiedi alla memoria") })),
+      h("div", { class: "dash-term-head" }, h("i", { class: "dash-term-icon ask" }, svg(LINE.ask, 13, { stroke: 1.8 })), h("span", { text: t("~ chiedi alla memoria") })),
       this.askLines,
       this.askTips,
       h("label", { class: "dash-ask-row" }, h("span", { class: "dash-prompt", text: "›" }), this.askField));
