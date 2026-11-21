@@ -775,6 +775,8 @@ export const Bridge = {
   /** The field at the top: the nodes of the map (brain.rs find_nodes). */
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
   quickAnswer: (question: string) => call<QuickAnswer | null>("quick_answer", { question }),
+  /** «Chiedi alla memoria» (memory_chat.rs): an answer only from the memory. */
+  memoryChat: (question: string, history: { q: string; a: string }[]) => call<MemoryChatReply | null>("memory_chat", { question, history }),
   /** The notices' window (notices_window.rs): `height` of toasts, placed by `place`; or hidden. */
   noticesShow: (height: number, place: string) => call<void>("notices_show", { height, place }),
   noticesHide: () => call<void>("notices_hide"),
@@ -1069,6 +1071,13 @@ export interface MemoryInfo {
 
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
 /** A memory page found from the field at the top (brain.rs PageHit). */
+/** «Chiedi alla memoria» (memory_chat.rs): the answer, who wrote it, the nodes it comes from. */
+export interface MemoryChatReply {
+  text: string;
+  by: string;
+  nodes: { id: string; title: string }[];
+}
+
 /** An answer from the memory to a question typed in the search (quick_answer.rs). */
 export interface QuickAnswer {
   /** Written by a model, or the memory's lines themselves. */

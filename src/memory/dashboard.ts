@@ -11,6 +11,7 @@
 import { t, tn } from "../core/i18n";
 
 import { h, clear, svg } from "../views/dom";
+import { Bridge, IS_TAURI } from "../core/bridge";
 import { GROUP_COLORS, KIND_COLOR, alpha, freshness, kindName, shortDate, type MemGraph, type MemNode, type Model, type NodeKind } from "./data";
 import { animateIdle, type Colouring } from "./stage";
 import { pal } from "./theme";
@@ -103,6 +104,12 @@ export class Dashboard {
   private found: Set<string> | null = null;
   private query = "";
   private searchNote = h("div", { class: "dash-search-note", hidden: "" });
+  /** «Chiedi alla memoria»: the conversation, the field, the nodes of the last answer. */
+  private askLines = h("div", { class: "dash-term-lines dash-ask-lines", role: "log", "aria-live": "polite" });
+  private askField = h("input", { class: "dash-ask-field", type: "text", placeholder: t("chiedi qualcosa sulla memoria…"), "aria-label": t("Chiedi alla memoria"), spellcheck: "false" }) as HTMLInputElement;
+  private asked: Set<string> | null = null;
+  private history: { q: string; a: string }[] = [];
+  private asking = false;
 
   constructor(private host: DashHost) {
     const head = h("div", { class: "dash-box dash-top" },
@@ -143,8 +150,24 @@ export class Dashboard {
     const termBox = h("div", { class: "dash-box dash-term" },
       h("div", { class: "dash-term-head" }, h("i"), h("i"), h("i"), h("span", { text: t("~ registro della memoria") })),
       this.term);
+    const askBox = h("div", { class: "dash-box dash-term dash-ask" },
+      h("div", { class: "dash-term-head" }, h("i"), h("i"), h("i"), h("span", { text: t("~ chiedi alla memoria") })),
+      this.askLines,
+      h("label", { class: "dash-ask-row" }, h("span", { class: "dash-prompt", text: "›" }), this.askField));
+    this.askField.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.isComposing) {
+        e.preventDefault();
+        void this.ask(this.askField.value);
+      } else if (e.key === "Escape" && this.asked) {
+        e.stopPropagation();
+        this.asked = null;
+        this.applySearch();
+      }
+    });
+    this.askLine("note", t("rispondo solo con quello che c'è nella memoria: chi è, dove sta, cosa dice una pagina…"));
+    const termRow = h("div", { class: "dash-term-row" }, termBox, askBox);
     const cmpBox = h("div", { class: "dash-box dash-compare" }, this.periods);
-    this.el.append(head, feedBox, coreBox, stagesBox, tokensBox, termBox, cmpBox);
+    this.el.append(head, feedBox, coreBox, stagesBox, tokensBox, termRow, cmpBox);
     new ResizeObserver(() => {
       const w = coreBox.getBoundingClientRect().width;
       const narrow = w > 0 && w < 640;
@@ -191,7 +214,8 @@ export class Dashboard {
   private applySearch() {
     const ids = this.found;
     const words = this.query.toLowerCase().split(/\s+/).filter(Boolean);
-    this.core.setMatch(ids);
+    // No search: the nodes of the last answer stay lit.
+    this.core.setMatch(ids ?? this.asked);
     const hit = (el: HTMLElement) => {
       if (!ids) return true;
       const id = el.dataset.node;
@@ -451,8 +475,9 @@ export class Dashboard {
       .slice(0, 28);
     for (const { n, links } of pages) {
       const color = s.colours === "group" ? s.model.groupColor(n.id) ?? KIND_COLOR[n.kind] : KIND_COLOR[n.kind];
-      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, "data-node": n.id, style: `--tone:${color}`, title: n.kind === "missing" ? t("Citata ma non ancora scritta") : tn("{n} collegamento", "{n} collegamenti", links) },
-        h("span", { text: n.label }), h("small", { text: String(links) }), h("em", { text: n.kind === "missing" ? "!" : "✓" })) as HTMLButtonElement;
+      // The tip is the name (cut when long); the number says the links.
+      const b = h("button", { class: `dash-token ${n.kind === "missing" ? "missing" : ""}`, "data-node": n.id, style: `--tone:${color}`, title: n.kind === "missing" ? `${n.label} · ${t("Citata ma non ancora scritta")}` : n.label },
+        h("span", { text: n.label }), h("small", { text: String(links), title: tn("{n} collegamento", "{n} collegamenti", links) })) as HTMLButtonElement;
       b.addEventListener("click", () => this.host.open(n.id));
       this.tokens.append(b);
     }
@@ -524,6 +549,56 @@ export class Dashboard {
     step();
   }
 
+  // ── Bottom: «Chiedi alla memoria» ───────────────────────────────────────
+
+  private askLine(kind: "q" | "a" | "note", text: string, by?: string): HTMLElement {
+    const line = h("div", { class: `dash-term-line dash-ask-${kind}` }, h("span", { class: "dash-prompt", text: kind === "q" ? "›" : kind === "a" ? "‹" : "·" }), h("span", { text }));
+    if (by) line.append(h("small", { class: "dash-ask-by", text: by }));
+    this.askLines.append(line);
+    while (this.askLines.children.length > 60) this.askLines.firstElementChild?.remove();
+    this.askLines.scrollTop = this.askLines.scrollHeight;
+    return line;
+  }
+
+  /** A question about the memory: the answer, and its pages lit in the nucleus. */
+  private async ask(raw: string) {
+    const question = raw.trim();
+    if (!question || this.asking) return;
+    this.asking = true;
+    this.askField.value = "";
+    this.askField.disabled = true;
+    this.askLine("q", question);
+    const wait = this.askLine("note", t("cerco nella memoria…"));
+    wait.classList.add("waiting");
+    const reply = IS_TAURI ? await Bridge.memoryChat(question, this.history) : this.state ? (await import("./demo")).demoAsk(question, this.state.model.g) : null;
+    wait.remove();
+    this.asking = false;
+    this.askField.disabled = false;
+    this.askField.focus();
+    if (!reply) {
+      this.askLine("note", t("non riesco a rispondere adesso"));
+      return;
+    }
+    this.history.push({ q: question, a: reply.text });
+    if (this.history.length > 6) this.history.shift();
+    this.askLine("a", reply.text, reply.by);
+    const known = new Set(this.state?.model.g.nodes.map((n) => n.id) ?? []);
+    const nodes = reply.nodes.filter((n) => known.has(n.id));
+    if (nodes.length) {
+      const chips = h("div", { class: "dash-ask-nodes" });
+      for (const n of nodes.slice(0, 10)) {
+        const color = (this.state?.colours === "group" ? this.state.model.groupColor(n.id) : null) ?? KIND_COLOR.page;
+        const b = h("button", { class: "dash-token", style: `--tone:${color}`, title: n.title, "data-node": n.id }, h("span", { text: n.title })) as HTMLButtonElement;
+        b.addEventListener("click", () => this.host.open(n.id));
+        chips.append(b);
+      }
+      this.askLines.append(chips);
+      this.askLines.scrollTop = this.askLines.scrollHeight;
+    }
+    this.asked = nodes.length ? new Set(nodes.map((n) => n.id)) : null;
+    this.applySearch();
+  }
+
   /** The first lines: what the memory is, in words. */
   private greet(s: DashState) {
     const g = s.model.g;
@@ -537,6 +612,13 @@ export class Dashboard {
     for (const c of g.check.slice(0, 2)) this.log(t("controllo · {c}", { c }));
     this.log(t("in ascolto · qui scrivo quando la chat legge o scrive la memoria"));
   }
+}
+
+/** A steady number from an id, for the moving nodes' pace. */
+function hashOf(id: string): number {
+  let x = 2166136261;
+  for (let i = 0; i < id.length; i++) x = Math.imul(x ^ id.charCodeAt(i), 16777619);
+  return x >>> 0;
 }
 
 // ── The nucleus ────────────────────────────────────────────────────────────
@@ -904,15 +986,40 @@ class Nucleus {
       ctx.strokeStyle = /^#[0-9a-f]{6}$/i.test(color) ? alpha(color, lit ? 0.95 : dim ? 0.06 : P.light ? 0.4 : 0.32) : ink(0.2);
       ctx.beginPath();
       ctx.moveTo(0, row.y);
+      // The curve as cubic control points (a quadratic raised), for the moving nodes too.
+      let c: [number, number, number, number, number, number];
       if (end) {
         ctx.setLineDash([]);
-        ctx.bezierCurveTo(Math.min(end.x, cx - R) * 0.55, row.y, Math.min(end.x, cx - R * 0.6) - R * 0.2, end.y, end.x, end.y);
+        c = [Math.min(end.x, cx - R) * 0.55, row.y, Math.min(end.x, cx - R * 0.6) - R * 0.2, end.y, end.x, end.y];
       } else {
         const ang = Math.atan2(row.y - cy, -R);
         ctx.setLineDash([3, 4]);
-        ctx.quadraticCurveTo((cx - R) * 0.5, row.y, cx + Math.cos(ang) * R * 1.08, cy + Math.sin(ang) * R * 1.08);
+        const qx = (cx - R) * 0.5, ex = cx + Math.cos(ang) * R * 1.08, ey = cy + Math.sin(ang) * R * 1.08;
+        c = [(2 * qx) / 3, row.y + (2 * (row.y - row.y)) / 3, ex + (2 * (qx - ex)) / 3, ey + (2 * (row.y - ey)) / 3, ex, ey];
       }
+      ctx.bezierCurveTo(...c);
       ctx.stroke();
+      // Nodes running along the filament toward the nucleus: each row its own
+      // pace and start, so they never march together. Still with reduced motion.
+      if (!dim && /^#[0-9a-f]{6}$/i.test(color)) {
+        const seed = hashOf(row.id);
+        const speed = 0.00007 + (seed % 7) * 0.000012;
+        const count = lit ? 3 : 1 + (seed % 2);
+        ctx.fillStyle = alpha(color, lit ? 1 : P.light ? 0.75 : 0.85);
+        for (let k = 0; k < count; k++) {
+          const u = animateIdle() ? (now * speed + (seed % 997) / 997 + k / count) % 1 : (seed % 997) / 997;
+          const v = 1 - u;
+          const x = v * v * v * 0 + 3 * v * v * u * c[0] + 3 * v * u * u * c[2] + u * u * u * c[4];
+          const y = v * v * v * row.y + 3 * v * v * u * c[1] + 3 * v * u * u * c[3] + u * u * u * c[5];
+          // Fading in from the left edge and out on arrival.
+          const fade = Math.min(1, u * 8, (1 - u) * 6);
+          ctx.globalAlpha = fade;
+          ctx.beginPath();
+          ctx.arc(x, y, lit ? 2.4 : 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
     }
     ctx.setLineDash([]);
     ctx.lineWidth = 1;

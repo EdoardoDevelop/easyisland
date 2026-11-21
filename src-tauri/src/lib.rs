@@ -19,6 +19,7 @@ mod memory_learn;
 mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
+mod memory_chat;
 mod quick_answer;
 mod search_window;
 mod dvc_live;
@@ -2833,6 +2834,12 @@ async fn quick_answer(app: AppHandle, question: String) -> Option<quick_answer::
     quick_answer::answer(&app, &question).await
 }
 
+/// «Chiedi alla memoria» in the Panoramica: an answer only from the memory (memory_chat.rs).
+#[tauri::command]
+async fn memory_chat(app: AppHandle, question: String, history: Vec<memory_chat::Turn>) -> memory_chat::Reply {
+    memory_chat::ask(&app, &question, &history).await
+}
+
 /// The field at the top of the island: memory pages with these words.
 #[tauri::command]
 async fn memory_find(app: AppHandle, query: String) -> Vec<brain::PageHit> {
@@ -5398,6 +5405,7 @@ pub fn run() {
             chat_history_search,
             memory_find,
             quick_answer,
+            memory_chat,
             memory_node_brief,
             memory_window_select,
             zammad_search,

@@ -6191,5 +6191,15 @@
   "«{w}» non ha risposto al clic.": "«{w}» did not answer the click.",
   "«{w}» si usa solo con il mouse: lo fa l'utente.": "«{w}» works only with the mouse: the user does it.",
   "La finestra non è cambiata.": "The window did not change.",
-  "Cambiato nella finestra ({n} righe nuove; desktop_snapshot per vederla tutta):": "Changed in the window ({n} new lines; desktop_snapshot to see all of it):"
+  "Cambiato nella finestra ({n} righe nuove; desktop_snapshot per vederla tutta):": "Changed in the window ({n} new lines; desktop_snapshot to see all of it):",
+  "chiedi qualcosa sulla memoria…": "ask something about the memory…",
+  "Chiedi alla memoria": "Ask the memory",
+  "~ chiedi alla memoria": "~ ask the memory",
+  "rispondo solo con quello che c'è nella memoria: chi è, dove sta, cosa dice una pagina…": "I answer only with what is in the memory: who it is, where it is, what a page says…",
+  "cerco nella memoria…": "searching the memory…",
+  "non riesco a rispondere adesso": "I can't answer right now",
+  "Nella memoria non trovo niente su questo.": "I find nothing about this in the memory.",
+  "Utente: {q}\nTu: {a}\n": "User: {q}\nYou: {a}\n",
+  "Sei l'assistente della memoria di EasyIsland: pagine, note e fonti che l'utente ha salvato. Rispondi in italiano, breve e chiaro, usando solo quello che trovi qui sotto. Copia nomi, numeri, indirizzi IP e codici esattamente come sono scritti. Puoi riassumere, confrontare, contare e dire dove sta una cosa (il titolo della pagina). Se qui sotto non c'è, dillo. Se la domanda non riguarda la memoria, rispondi solo: «Qui rispondo solo sulla memoria: per il resto usa la chat.» Non inventare niente e non proporre di fare azioni.": "You are the assistant of EasyIsland's memory: the pages, notes and sources the user saved. Answer in English, short and clear, using only what you find below. Copy names, numbers, IP addresses and codes exactly as written. You may summarise, compare, count and say where something is (the page's title). If it is not below, say so. If the question is not about the memory, answer only: \"Here I answer only about the memory: for anything else use the chat.\" Make nothing up and do not offer to take actions.",
+  "Pagine della memoria: {titles}\n\nPagine e note trovate:\n{found}\nRighe della memoria:\n{lines}\n{before}Domanda: {q}": "Memory pages: {titles}\n\nPages and notes found:\n{found}\nMemory lines:\n{lines}\n{before}Question: {q}"
 }

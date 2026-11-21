@@ -118,7 +118,9 @@ The window opens on the **Overview**: the whole memory on one screen, with the r
 - In the middle the **nucleus**: every note and page is a point, coloured by group or kind; around it the groups' arcs (a click opens Bubbles on that group) and the freshness line. Below, how many things are to fix: lone notes, pages to write, checks.
 - Over the nucleus the **filters** (kinds, only sure links, colours), which apply to every view, and the week's numbers.
 - On the right the **stages**: to read, sources read, pages, linked, check, with **Read now**, **Link with AI** and **Check**. The first stage with work to do is highlighted.
-- Below, the **most linked pages** as chips, the memory's **log** writing line by line and three periods to compare (last month, 3 months, always): a click picks the period for every view.
+- Below, the **most linked pages** as chips (the full name on hover, the number is the links), the memory's **log** writing line by line and three periods to compare (last month, 3 months, always): a click picks the period for every view.
+- Beside the log, **ask the memory**: a question about what is in the memory ("what do I know about Rossi?", "where did I write the NAS backup?"). The quick answers' engine (or the chat's) answers only with the lines and pages it found, with no tools and changing nothing; the pages the answer comes from light up in the nucleus and open with a click. Esc turns them off. For everything else there is the chat.
+- Along the lines from the latest to the nucleus, dots run toward their note.
 
 A click on a point, a line or a chip opens the Graph on that thing; **← Overview** brings you back. The other views all stay, in the menus beside it.
 

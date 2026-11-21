@@ -42,7 +42,8 @@
 .dash-stages { grid-area: stages; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
 /* Its list scrolls inside: a long one must not stretch the rows of the log and the periods. */
 .dash-tokens { grid-area: tokens; overflow: auto; contain: size; }
-.dash-term { grid-area: term; display: flex; flex-direction: column; padding: 0; }
+.dash-term-row { grid-area: term; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1px; background: var(--dash-line); min-width: 0; }
+.dash-term { display: flex; flex-direction: column; padding: 0; }
 .dash-compare { grid-area: cmp; padding: 10px; }
 
 .dash button {
@@ -722,27 +723,8 @@ html[data-scheme="light"] .dash-tag {
   color: var(--dim-2);
 }
 
-.dash-token em {
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  border-radius: 3px;
-  background: var(--tone);
-  color: #000;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 700;
-}
-
 .dash-token.missing {
   border-style: dashed;
-}
-
-.dash-token.missing em {
-  background: transparent;
-  color: #f5a524;
-  box-shadow: inset 0 0 0 1px #f5a524;
 }
 
 /* ── Log ── */
@@ -987,4 +969,66 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
   .dash-feed-text small {
     display: none;
   }
+}
+
+/* ── «Chiedi alla memoria»: the log's twin, with a field ── */
+
+.dash-ask .dash-ask-lines {
+  white-space: pre-wrap;
+}
+
+.dash-ask .dash-term-line:last-child span:last-child::after {
+  content: none;
+}
+
+.dash-ask-q,
+.dash-ask-a { color: var(--ink); }
+.dash-ask-a .dash-prompt { color: var(--accent); }
+.dash-ask-note { color: var(--dim-2); }
+.dash-ask-note.waiting span:last-child { animation: dash-blink 1s steps(1) infinite; }
+
+.dash-ask-by {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--dim-2);
+  font-size: 10px;
+}
+
+.dash-ask-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px 18px;
+}
+
+.dash-ask-nodes .dash-token {
+  max-width: 180px;
+}
+
+.dash-ask-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--dash-line);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.dash-ask-field {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.dash-ask-field::placeholder { color: var(--dim-2); }
+.dash-ask-row:focus-within .dash-prompt { color: var(--accent); }
+
+@media (max-width: 1000px) {
+  .dash-term-row { grid-template-columns: minmax(0, 1fr); }
 }
