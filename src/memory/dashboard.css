@@ -1184,8 +1184,8 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
 }
 
 .dash-when-play {
-  width: 24px;
-  height: 20px;
+  width: 22px;
+  height: 18px;
   border: 1px solid var(--stroke);
   border-radius: 4px;
   background: transparent;
@@ -1196,12 +1196,41 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
 
 .dash-when-play:hover { border-color: var(--accent); color: var(--ink); }
 
+/* A thin line like the board's bars, not the browser's slider. */
 .dash-when-range {
   flex: 1;
   min-width: 0;
-  accent-color: var(--accent);
+  height: 14px;
+  margin: 0;
+  background: transparent;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
 }
+
+.dash-when-range::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(to right, var(--accent) var(--at, 100%), var(--dash-line) var(--at, 100%));
+}
+
+.dash-when-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.dash-when-range:hover::-webkit-slider-thumb,
+.dash-when-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.dash-when-range:focus { outline: none; }
+.dash-when-range:disabled { opacity: 0.4; cursor: default; }
 
 .dash-when-label {
   min-width: 120px;

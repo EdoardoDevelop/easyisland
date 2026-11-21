@@ -824,8 +824,9 @@ export class Dashboard {
     if (!s) return;
     const max = Number(this.when.max);
     const v = Number(this.when.value);
+    this.when.style.setProperty("--at", `${max ? (v / max) * 100 : 100}%`);
     const cut = max - v; // days ago
-    const all = s.model.g.nodes.filter((n) => n.kind !== "day");
+    const all = s.model.g.nodes;
     if (v >= max) {
       this.core.setUntil(null);
       this.whenLabel.textContent = t("oggi · {n} cose", { n: all.length });
