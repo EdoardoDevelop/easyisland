@@ -66,6 +66,7 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 21/11 — Giornata del portatile (20/11): correzioni
 - **Mappa della memoria:** due pagine si legano solo con un [[link]] scritto; tolto `pages_named_in` («VM client Winfarm» legava Iaso Farmacie a Winfarm).
 - **File creati in chat:** i prompt (anche Modalità terminale e modello sul PC) chiedono il percorso completo di ogni file creato, che diventa link (`chatpaths.rs`); prima Edoardo doveva chiedere «dov'è il documento?».
+- **Multi motore con l'Automatica:** aiutanti e controllo la seguono (`team.rs` `Turn.auto`); il controllo di Antigravity passa solo letture (`EASYISLAND_AGY_READ_ONLY`). Prima chiedeva i permessi e scadevano.
 - **Senza rete:** Telegram e Agent Chat scrivono un errore uguale una volta sola e aspettano 10→60 s (`log::Retry`); «hotkey not available» una volta sola. Devolutions: elenco vecchio riletto da solo (762aae6).
 
 ### 19/11 — Pagina cliente, stile nuovo sulle schede, Ticket e RDM rifatti

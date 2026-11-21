@@ -159,6 +159,21 @@ pub fn agy_auto(payload: &Value) -> bool {
     if !flag("easyisland_auto") {
         return false;
     }
+    // A helper that only looks: reads, read-only commands, our tools that only read.
+    if flag("easyisland_read_only") {
+        return match tool {
+            "Read" | "LS" | "Grep" | "Glob" => chat_read(payload),
+            "Bash" => {
+                let c = text("command");
+                !c.trim().is_empty() && crate::opencode::read_only(c) && !crate::opencode::secret_place(c)
+            }
+            // agent_read_only also holds what writes only inside EasyIsland (memory_page_write…): not for a check.
+            t => t.strip_prefix("mcp__easyisland__").is_some_and(|n| {
+                const WRITES: &[&str] = &["write", "note", "add", "save", "update", "create", "delete", "forget", "move", "set_", "import", "done", "run", "send"];
+                crate::claude_cli::agent_read_only().contains(&n) && !WRITES.iter().any(|w| n.contains(w))
+            }),
+        };
+    }
     match tool {
         "Bash" => {
             let c = text("command");
@@ -483,6 +498,18 @@ mod tests {
         assert!(!steps_only_read(&p(json!([]))));
         assert!(!steps_only_read(&p(json!([{ "tool": "preview_steps" }]))));
         assert!(!steps_only_read(&json!({ "tool_name": "mcp__easyisland__preview_find", "tool_input": {} })));
+    }
+
+    #[test]
+    fn antigravity_check_in_automatica_only_reads() {
+        let p = |tool: &str, input: Value| json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": true, "easyisland_auto": true, "easyisland_read_only": true });
+        assert!(agy_auto(&p("mcp__easyisland__memory_page", json!({ "title": "Iaso" }))));
+        assert!(agy_auto(&p("mcp__easyisland__memory_search", json!({ "query": "x" }))));
+        assert!(agy_auto(&p("Read", json!({ "file_path": "c:/w/a.txt" }))));
+        assert!(agy_auto(&p("Bash", json!({ "command": "git status" }))));
+        assert!(!agy_auto(&p("Write", json!({ "file_path": "c:/w/a.txt" }))));
+        assert!(!agy_auto(&p("mcp__easyisland__memory_page_write", json!({}))));
+        assert!(!agy_auto(&p("Bash", json!({ "command": "Remove-Item x" }))));
     }
 
     #[test]

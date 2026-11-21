@@ -64,6 +64,9 @@ struct Turn {
     members: Vec<(String, String)>,
     question: String,
     jobs: AtomicUsize,
+    /// The chat's «Automatica»: the helpers work as the lead does (20 Nov 2026,
+    /// Antigravity's check waited on cards nobody expected with it on).
+    auto: bool,
     /// Held by the helper that may write.
     writer: tokio::sync::Mutex<()>,
     rows: Mutex<Vec<Row>>,
@@ -290,7 +293,7 @@ async fn side_turn(app: &AppHandle, turn: &Turn, engine: &str, prompt: String, r
         *so_far.lock().unwrap() = text.to_string();
         set_row(app, turn, row, &last_block(text), "work");
     };
-    let work = Box::pin(crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::Helper, &on_text));
+    let work = Box::pin(crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, turn.auto, crate::Channel::Helper, &on_text));
     let reply = tokio::time::timeout(limit, crate::until_stopped_in(&turn.chat, crate::Channel::Island, work)).await;
     crate::opencode::forget(chat.cli_session());
     crate::claude_cli::drop_live(&chat);
@@ -417,6 +420,7 @@ pub(crate) async fn run(app: &AppHandle, chat: Arc<Chat>, sid: &str, query: Stri
         chat: chat.clone(),
         members: members.clone(),
         question: query.clone(),
+        auto,
         jobs: AtomicUsize::new(0),
         writer: tokio::sync::Mutex::new(()),
         rows: Mutex::new(Vec::new()),
