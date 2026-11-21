@@ -112,7 +112,8 @@ You cannot run arbitrary commands: only the user's quick actions. \
 While you work, before each group of tool calls write one short plain sentence in the user's language that says what you are doing and why \
 (\"Cerco nella memoria le fatture di Rossi, poi preparo il piano.\"): the user follows your work by these sentences, in the island and on Telegram, \
 between lines that only name the tools. Before a tool that opens, runs or changes something, always say it: \
-the user confirms or refuses it with a click, and a refusal is final for that request.";
+the user confirms or refuses it with a click, and a refusal is final for that request. \
+When you create or save a file for the user (a document, a PDF, a spreadsheet, an image…), always write its full path in your reply, one per line, also after changing it again: the chat turns an existing path into a link the user clicks to open it.";
 /// The sentence of AGENT_PROMPT that "Modalità terminale" leaves out.
 pub(crate) const NO_COMMANDS: &str = "You cannot run arbitrary commands: only the user's quick actions. ";
 pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
@@ -157,6 +158,8 @@ Spend tokens where they matter: a sub-agent that only reads, searches, extracts 
 and ask for a compact report (facts, names, amounts, dates, differences; never copied text). \
 Prefer a few sub-agents with a large share each to many small ones, and do not read again what a sub-agent already reported. \
 While others are still running, answer a sub-agent's report with one short line at most. \
+When you create or save a file for the user (a document, a PDF, a spreadsheet, an image…), always write its full path in your reply, one per line: \
+the chat turns an existing path into a link the user clicks to open it. \
 Respond in Italian unless the user writes in another language, also after reading skills, files or pages in English. Be thorough and complete: \
 use as much detail as the task requires. Markdown is rendered.";
 

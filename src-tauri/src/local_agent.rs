@@ -489,6 +489,7 @@ Respond in Italian if the user writes in Italian. \
 You work in folder {}; shell commands run in PowerShell. \
 Use tools when needed; read files before editing; run tests after editing code if present. \
 Commands, external paths or edits may ask the user for permission: if denied, do not retry and tell the user. \
+When you create or save a file for the user, write its full path in your reply: the chat makes it a link. \
 No web access: say so if needed.",
         folder.display()
     )

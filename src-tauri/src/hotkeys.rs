@@ -119,7 +119,10 @@ pub fn spawn(app: AppHandle) {
                         registered.push(name);
                     }
                     _ => {
-                        crate::log::line(format!("hotkey not available: {spec}"));
+                        // Once, not at every registration (25 lines a day on the notebook, 20 Nov 2026).
+                        if !FAILED.lock().unwrap().contains(&spec) {
+                            crate::log::line(format!("hotkey not available: {spec}"));
+                        }
                         failed.push(spec);
                         // Keep ids aligned with positions.
                         registered.push(String::new());

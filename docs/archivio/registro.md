@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17/11 sera — Avvisi in una finestra loro
+Messaggi, aggiornamenti, momenti (download, Vassoio, errore copiato…), fine ed errori degli agenti, riepilogo e giornata vanno in toast in una finestra che non prende il fuoco e non apre né cambia l'isola (`src/notices/notices.ts`, `notices_window.rs`).
+- Permessi, domande, card di Claude Code con le scelte e chiamate 3CX restano all'isola. Durata 8/15 s, errori finché chiusi, mouse sopra = pausa, massimo 3 + «+N».
+- Impostazioni → Notifiche → Avvisi: sotto l'isola (di serie), alto o basso a destra, nell'isola come prima. Scena `avvisi` (anche nello smoke), `docs/architettura.md`, guida 06.
+
 ### 17/11 sera — Controlli grafici nelle integrazioni personali
 Cinque tipi nuovi nella lista fissa: `slider`, `switch`, `segmented`, `progress`, `stat` (`custom.rs` `check_control`).
 - `onChange` esegue solo azioni `save`/`http`/`notice`: subito al clic, lo slider dopo 600 ms. Accanto ✓/✕, e con un errore il campo torna indietro.

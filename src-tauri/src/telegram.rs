@@ -191,6 +191,7 @@ pub fn spawn(app: AppHandle) {
         let started = unix_now();
         let mut offset: i64 = 0;
         let mut ready_for = String::new();
+        let mut retry = log::Retry::default();
         loop {
             let token = if active(&app) && !crate::integrations::PAUSED.load(Ordering::Relaxed) {
                 crate::secrets::get(SECRET)
@@ -239,6 +240,7 @@ pub fn spawn(app: AppHandle) {
             };
             match updates {
                 Ok(list) => {
+                    retry.ok("telegram");
                     set_status(|s| s.error = None);
                     let mut offline: Option<(i64, usize)> = None;
                     for u in &list {
@@ -255,9 +257,9 @@ pub fn spawn(app: AppHandle) {
                     }
                 }
                 Err(e) => {
-                    log::line(format!("telegram: {e}"));
+                    let wait = retry.failed("telegram", &e);
                     set_status(|s| s.error = Some(e));
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    tokio::time::sleep(wait).await;
                 }
             }
         }

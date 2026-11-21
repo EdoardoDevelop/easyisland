@@ -63,6 +63,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 21/11 — Giornata del portatile (20/11): correzioni
+- **Mappa della memoria:** due pagine si legano solo con un [[link]] scritto; tolto `pages_named_in` («VM client Winfarm» legava Iaso Farmacie a Winfarm).
+- **File creati in chat:** i prompt (anche Modalità terminale e modello sul PC) chiedono il percorso completo di ogni file creato, che diventa link (`chatpaths.rs`); prima Edoardo doveva chiedere «dov'è il documento?».
+- **Senza rete:** Telegram e Agent Chat scrivono un errore uguale una volta sola e aspettano 10→60 s (`log::Retry`); «hotkey not available» una volta sola. Devolutions: elenco vecchio riletto da solo (762aae6).
+
 ### 19/11 — Pagina cliente, stile nuovo sulle schede, Ticket e RDM rifatti
 - **Pagina cliente** nella memoria (`clients.rs`, `src/views/clientcard.ts`): `tipo: cliente` e sezioni fisse; scheda da Zammad, 3CX, RDM/Devolutions e ricerca; «Crea pagina cliente» già riempita, «Rendila pagina cliente» aggiunge senza togliere.
 - **Stile nuovo** su Rete, 3CX, Appunti, Agenti, Agent Chat (non Meteo né Impostazioni). Barre a tempo per password e conferme, stati vuoti con l'azione, «?» con le scorciatoie (`src/views/shortcuts.ts`).
@@ -79,9 +84,3 @@ La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle
 La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
 - Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.
 - Nucleo a 30 fps al massimo, solo a finestra visibile e a fuoco, fermo 20 s dopo l'ultimo mouse. `?few` e `?many=300` nell'anteprima; `docs/chat.md`, guida 12.
-
-### 17/11 sera — Avvisi in una finestra loro
-Messaggi, aggiornamenti, momenti (download, Vassoio, errore copiato…), fine ed errori degli agenti, riepilogo e giornata vanno in toast in una finestra che non prende il fuoco e non apre né cambia l'isola (`src/notices/notices.ts`, `notices_window.rs`).
-- Permessi, domande, card di Claude Code con le scelte e chiamate 3CX restano all'isola. Durata 8/15 s, errori finché chiusi, mouse sopra = pausa, massimo 3 + «+N».
-- Impostazioni → Notifiche → Avvisi: sotto l'isola (di serie), alto o basso a destra, nell'isola come prima. Scena `avvisi` (anche nello smoke), `docs/architettura.md`, guida 06.
-

@@ -814,6 +814,7 @@ pub fn spawn(app: AppHandle) {
         let mut offset: i64 = 0;
         let mut ready_for = String::new();
         let mut cursor_key = String::new();
+        let mut retry = log::Retry::default();
         loop {
             let on = active(&app) && config(&app).listen && !crate::integrations::PAUSED.load(Ordering::Relaxed);
             let srv = if on { server() } else { None };
@@ -889,6 +890,7 @@ pub fn spawn(app: AppHandle) {
             };
             match list {
                 Ok(list) => {
+                    retry.ok("agentchat");
                     remember(&list);
                     set_status(|s| s.error = None);
                     let before = offset;
@@ -902,13 +904,13 @@ pub fn spawn(app: AppHandle) {
                 }
                 Err(e) => {
                     let e = misplaced(e);
-                    log::line(format!("agentchat: {e}"));
+                    let wait = retry.failed("agentchat", &e);
                     let unauthorized = e.contains("401") || e.contains(&*t("Token di Agent Chat non valido: creane uno nella pagina della chat, «Agenti»."));
                     set_status(|s| s.error = Some(e));
                     if unauthorized {
                         ready_for.clear();
                     }
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    tokio::time::sleep(wait).await;
                 }
             }
         }
