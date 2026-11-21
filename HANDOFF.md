@@ -63,6 +63,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 21/11 — Programmi di Windows per la chat
+Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
+- Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
+
 ### 21/11 — Anteprima: chiusa resta chiusa, clic verificato, iframe di altri siti, domande del sito, file
 Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti segnalato da Edoardo; nessuna dipendenza nuova.
 - **Chiusa resta chiusa:** con l'Anteprima chiusa il motore lavora in una finestra nascosta (`BG` in `preview.rs`, chiusa dopo 10 min senza uso); la finestra la apre solo l'utente.
@@ -82,6 +86,3 @@ Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti s
 ### 19/11 — Ricerca nelle Impostazioni
 Campo in cima al menu delle Impostazioni (anche Ctrl+F) e gruppo «Impostazioni» nel campo unico dell'isola: un risultato apre pagina, scheda o integrazione e illumina il controllo (`src/settings/search.ts`, `src/core/settings-index.ts`).
 - L'indice si legge dai controlli veri (pagine disegnate fuori schermo), una volta per versione e lingua, e passa all'isola dal `localStorage` condiviso; niente Rust.
-
-### 18/11 — Panoramica: ricerca e linee vere
-La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.

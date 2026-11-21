@@ -112,6 +112,11 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "preview_steps" => t("Fa più passi nella pagina"),
         "preview_act" => t("Usa mouse e tastiera nella pagina"),
         "preview_upload" => t("Carica file nella pagina"),
+        "desktop_windows" => t("Guarda le finestre aperte"),
+        "desktop_snapshot" => t("Legge una finestra"),
+        "desktop_find" => t("Cerca in una finestra"),
+        "desktop_click" => t("Clicca in un programma"),
+        "desktop_type" => t("Scrive in un programma"),
         _ => return None,
     })
 }

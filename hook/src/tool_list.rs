@@ -1068,6 +1068,46 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "desktop_windows",
+            "Le finestre dei programmi di Windows aperte ora (non quelle di accesso e password, né EasyIsland): w<numero>, programma, titolo; * = quella dell'utente (in primo piano o l'ultima prima dell'isola). Per scegliere la window di desktop_snapshot.",
+            json!({ "type": "object", "properties": {} }),
+            true,
+        ),
+        (
+            "desktop_snapshot",
+            "Una finestra di un programma di Windows (window: w<numero> da desktop_windows, una parte del titolo o il programma, «outlook»; vuoto = quella dell'utente) letta come la leggono i lettori di schermo, senza fotografie: pulsanti, campi, caselle, elenchi, menu e testi in righe rientrate, ognuno con un riferimento [ref=d5] per desktop_click e desktop_type, con [disabled], [checked], [expanded=…]; le password mai. Gli stessi controlli tengono lo stesso ref finché resti su quella finestra. Per programmi senza integrazione (gestionali, pannelli, Outlook, Esplora file).",
+            json!({ "type": "object", "properties": { "window": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "desktop_find",
+            "Cerca in una finestra di un programma di Windows (window come desktop_snapshot) i controlli e i testi con tutte le parole di query: al massimo 25 righe con il ref. Molto meno caro di desktop_snapshot su una finestra grande.",
+            json!({ "type": "object", "properties": {
+                "window": { "type": "string" },
+                "query": { "type": "string" }
+            }, "required": ["query"] }),
+            true,
+        ),
+        (
+            "desktop_click",
+            "Usa un controllo di un programma di Windows per ref (da desktop_snapshot o desktop_find) senza muovere il mouse dell'utente: preme un pulsante o una voce di menu, spunta una casella, sceglie una voce di un elenco, apre o chiude un ramo o una tendina (action: invoke, toggle, select, expand, collapse; vuoto = quello che fa il controllo). Torna cosa è cambiato nella finestra e se si è aperta un'altra finestra. Mai nei terminali, nelle impostazioni di sistema, in «Esegui», su pulsanti che inviano, eliminano, pagano o acquistano: quelli li fa l'utente. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "ref": { "type": "string" },
+                "action": { "type": "string", "enum": ["invoke", "toggle", "select", "expand", "collapse"] }
+            }, "required": ["ref"] }),
+            false,
+        ),
+        (
+            "desktop_type",
+            "Scrive text in un campo di un programma di Windows per ref (da desktop_snapshot o desktop_find), senza tastiera: sostituisce il testo, o lo aggiunge in fondo con append. Mai password, mai nei terminali né in «Esegui». Torna cosa è cambiato. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "ref": { "type": "string" },
+                "text": { "type": "string" },
+                "append": { "type": "boolean" }
+            }, "required": ["ref", "text"] }),
+            false,
+        ),
+        (
             "preview_save_images",
             "Scarica nel Vassoio di EasyIsland le foto ai loro indirizzi urls (http/https, da preview_extract o portal_search; al massimo 20), con names facoltativi (il codice del prodotto): per metterle in un preventivo (document_create) o mandarle. Con tab usa la pagina di quella scheda per i siti che danno le foto solo con l'accesso. Torna i percorsi. L'utente conferma.",
             json!({ "type": "object", "properties": {

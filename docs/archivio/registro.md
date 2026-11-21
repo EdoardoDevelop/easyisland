@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 18/11 — Panoramica: ricerca e linee vere
+La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.
+
 ### 17/11 sera — Panoramica della Mappa della memoria
 La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
 - Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.

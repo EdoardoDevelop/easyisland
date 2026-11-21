@@ -35,6 +35,11 @@ Le regole che non cambiano mai:
 
 Puoi chiedere a parole: «apri Outlook e il portale fornitori», «com'è messo il PC?», «lancia il backup», «aggiungi a To Do: chiamare Rossi domani», «quanto ho speso a ottobre?» (da Notion).
 
+## I programmi di Windows
+La chat può usare anche i **programmi del PC** che non hanno un'integrazione (un gestionale, un pannello, Outlook, Esplora file): legge la finestra come i programmi per non vedenti, con pulsanti, campi, caselle ed elenchi, senza fotografarla e **senza muovere il tuo mouse** né la tastiera. Così può premere un pulsante, spuntare una casella, scegliere una voce o compilare un campo mentre tu lavori.
+- Leggere non chiede niente; ogni clic o scrittura chiede **Consenti / Nega**, anche in Automatica; con **Sempre** non lo chiede più **in quel programma** fino alla fine della conversazione.
+- Non tocca mai le finestre di accesso e delle password, non scrive password, non clicca pulsanti che inviano, eliminano, pagano o acquistano, e non agisce nei terminali, nelle impostazioni di Windows e in «Esegui»: quelli li fai tu.
+
 ## Documenti Word e PDF
 La chat legge i **documenti Word** (`.docx`) e i **PDF**: trascinali nella chat o nel Vassoio, oppure dì dove sono («leggi il contratto in Documenti\Rossi.pdf»). Dei Word legge anche intestazione, tabelle e piè di pagina; dei PDF il testo pagina per pagina. Le **scansioni** (fotografie di fogli) e i PDF protetti da password non si leggono. Lo stesso testo arriva a tutti i motori, anche quelli che da soli non aprono i documenti, e alla memoria quando metti un PDF o un Word in «da leggere».
 

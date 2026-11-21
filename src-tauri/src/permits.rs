@@ -110,7 +110,7 @@ pub fn delicate_tool(tool: &str) -> bool {
     // A remote PC (a command there, a connection opened to it), the password vault written,
     // or a quick action changed: a script in it is code that runs here.
     // A password from the vault typed into a web page asks every time too.
-    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") || tool.ends_with("preview_upload") {
+    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") || tool.ends_with("preview_upload") || tool.ends_with("desktop_click") || tool.ends_with("desktop_type") {
         return true;
     }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear", "wipe",
@@ -231,6 +231,11 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
     // Files given to a page: asked each time, never «Sempre» (Edoardo, 21 Nov 2026).
     if tool_of(payload) == Some("preview_upload") {
         return None;
+    }
+    // Clicks and typing in a Windows program: «Sempre» = that program, for the conversation.
+    if matches!(tool_of(payload), Some("desktop_click" | "desktop_type")) {
+        let r = payload.pointer("/tool_input/ref").and_then(Value::as_str).unwrap_or_default();
+        return crate::winapps::app_of_ref(r).map(|exe| (session.to_string(), format!("site:{exe}")));
     }
     let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
     let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
@@ -601,7 +606,7 @@ mod tests {
 
     #[test]
     fn delicate_for_both_automatiche() {
-        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login", "mcp__easyisland__preview_upload"] {
+        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login", "mcp__easyisland__preview_upload", "mcp__easyisland__desktop_click", "mcp__easyisland__desktop_type"] {
             assert!(delicate_tool(t), "{t}");
         }
         for t in ["mcp__easyisland__todo_add", "mcp__notion__notion-create-pages", "easyisland_list_status", "mcp__easyisland__notion_update_row"] {

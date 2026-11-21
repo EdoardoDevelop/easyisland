@@ -11,6 +11,7 @@ mod memory_ai;
 mod memory_links;
 mod preview;
 mod preview_page;
+mod winapps;
 mod pdf;
 mod antigravity;
 mod agent;
