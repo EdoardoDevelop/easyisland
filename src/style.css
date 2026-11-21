@@ -5720,6 +5720,17 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 .daily-more { font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-3, var(--dim-2)); }
 
+/* A folder of the bar (barcard.ts folder): a grid of icons with their names, or a list. */
+.barcard-folder.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--fsize, 28px) + 44px), 1fr)); gap: 4px; }
+.barcard-folder.list { display: flex; flex-direction: column; gap: 2px; }
+.barcard-folder-item { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.barcard-folder.grid .barcard-folder-item { flex-direction: column; justify-content: center; gap: 6px; padding: 10px 4px; text-align: center; }
+.barcard-folder-item:hover { background: rgba(255, 255, 255, 0.08); }
+.barcard-folder-icon { display: grid; place-items: center; flex: none; width: var(--fsize, 28px); height: var(--fsize, 28px); }
+.barcard-folder-icon img, .barcard-folder-icon svg { width: var(--fsize, 28px); height: var(--fsize, 28px); }
+.barcard-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.barcard-folder.grid .barcard-folder-name { max-width: 100%; font-size: 11px; }
+
 /* The cards of the fixed bar's system elements (src/views/barcard.ts). */
 .barcard-icon { display: grid; place-items: center; align-self: center; color: var(--ink); }
 /* The window title's card: the program's own menu (barcard.ts appMenu). */

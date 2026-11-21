@@ -12,6 +12,7 @@ import { State, type AppMenuLine } from "../core/state";
 import { renderActionIcon } from "./action-icons";
 import { actionForApp } from "./strip";
 import { BAR_KINDS } from "../core/barkinds";
+import { barItemLabel, barItemOf, keyOf } from "../island/bar";
 import type { ViewActions, ViewHost } from "./views";
 import { locale, t } from "../core/i18n";
 
@@ -338,7 +339,35 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     return [title, list, mine];
   }
 
+  /**
+   * A folder of the bar (Edoardo, 21 Nov 2026): what it holds, as a grid of
+   * icons or a list, at the size chosen in «Personalizza la barra». A click
+   * does what the element does in the bar (barClick).
+   */
+  function folder(folderKey: string): Node[] {
+    const it = barItemOf(folderKey);
+    if (!it || it.id !== "folder") return [h("div", { class: "sub", text: t("Cartella non trovata.") })];
+    const size = Math.min(48, Math.max(16, it.opts?.iconSize ?? 28));
+    const layout = it.opts?.layout === "list" ? "list" : "grid";
+    const title = h("div", { class: "recap-head" },
+      h("span", { class: "barcard-icon" }, renderActionIcon(it.icon || "i:folder", 16)),
+      h("span", { class: "recap-title", text: it.name || t("Cartella") }));
+    const box = h("div", { class: `barcard-folder ${layout}` });
+    box.style.setProperty("--fsize", `${size}px`);
+    for (const child of it.children ?? []) {
+      const { name, icon } = barItemLabel(child);
+      const b = h("button", { class: "barcard-folder-item", title: name },
+        h("span", { class: "barcard-folder-icon" }, renderActionIcon(icon, size)),
+        h("span", { class: "barcard-folder-name", text: name }));
+      b.addEventListener("click", () => actions.barClick(keyOf(child)));
+      box.append(b);
+    }
+    if (!it.children?.length) box.append(h("div", { class: "sub", text: t("Cartella vuota: aggiungi gli elementi da «Personalizza la barra».") }));
+    return [title, box];
+  }
+
   const build = (kind: string): Node[] => {
+    if (kind.startsWith("folder:")) return folder(kind.slice(7));
     switch (kind) {
       case "appmenu": return appMenu();
       case "volume": case "mic": return sound(kind);
@@ -355,7 +384,10 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     sync() {
       const kind = State.barCard ?? "clock";
       // The program's menu: drawn again for another program.
-      const key = kind === "appmenu" ? `appmenu:${State.barWindow?.exe ?? ""}:${State.barWindow?.name ?? ""}` : kind;
+      const key = kind === "appmenu" ? `appmenu:${State.barWindow?.exe ?? ""}:${State.barWindow?.name ?? ""}`
+        // A folder: drawn again when what it holds changes.
+        : kind.startsWith("folder:") ? `${kind}:${JSON.stringify(barItemOf(kind.slice(7)) ?? null)}`
+        : kind;
       if (key !== shown) {
         shown = key;
         clear(body);

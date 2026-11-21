@@ -4225,6 +4225,8 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
     {
         Ok(win) => {
             island::make_non_activating(&win.as_ref().window());
+            // Programs and files dragged onto the fixed bar (bar_pin): their paths come back here.
+            drop::install_on(app, win.as_ref(), CHARACTER_LABEL);
             // Always "compact": the low memory target of WebView2 (webview_memory.rs).
             webview_memory::set_low(win.as_ref(), true);
             let _ = win.set_ignore_cursor_events(true);
@@ -5154,6 +5156,79 @@ fn bar_edit_relay(app: AppHandle, to: String, payload: serde_json::Value) {
 
 pub const BAR_EDITOR_LABEL: &str = "barra";
 
+/// Programs, shortcuts, files or folders dragged onto the fixed bar: each a
+/// quick action «apri» with its own icon (thumbs::program_icon), put in the
+/// bar where it was let go (before `before`, in `area`) or inside the folder
+/// `folder`. One already there is not added twice. Saved like any change.
+#[tauri::command]
+async fn bar_pin(app: AppHandle, paths: Vec<String>, area: String, before: Option<String>, folder: Option<String>) -> usize {
+    let paths: Vec<String> = paths.into_iter().filter(|p| std::path::Path::new(p).exists()).take(20).collect();
+    if paths.is_empty() {
+        return 0;
+    }
+    let icons: Vec<Option<String>> = {
+        let list = paths.clone();
+        tauri::async_runtime::spawn_blocking(move || list.iter().map(|p| thumbs::program_icon(p)).collect()).await.unwrap_or_default()
+    };
+    let Some(shared) = app.try_state::<Shared>() else { return 0 };
+    let mut s = shared.settings.lock().unwrap().clone();
+    let key_of = |v: &serde_json::Value| {
+        let id = v.get("id").and_then(|x| x.as_str()).unwrap_or_default();
+        let uid = v.get("uid").and_then(|x| x.as_str()).unwrap_or_default();
+        if (id.starts_with("sys:") || id == "folder") && !uid.is_empty() { format!("{id}#{uid}") } else { id.to_string() }
+    };
+    let area = if area == "start" || area == "end" { area } else { "center".to_string() };
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    let mut added = 0;
+    for (i, path) in paths.iter().enumerate() {
+        // The same program already pinned: its action again, not a copy.
+        let existing = s.actions.iter().find(|a| {
+            a.get("kind").and_then(|x| x.as_str()) == Some("app") && a.get("target").and_then(|x| x.as_str()).is_some_and(|t| t.eq_ignore_ascii_case(path))
+        }).and_then(|a| a.get("id").and_then(|x| x.as_str()).map(str::to_string));
+        let id = match existing {
+            Some(id) => id,
+            None => {
+                let id = format!("pin{stamp}{i}");
+                let name = std::path::Path::new(path).file_stem().and_then(|n| n.to_str()).unwrap_or("App").to_string();
+                s.actions.push(serde_json::json!({
+                    "id": id, "name": name, "icon": icons.get(i).cloned().flatten().unwrap_or_else(|| "i:bolt".into()),
+                    "color": "", "kind": "app", "target": path, "args": "", "script": "", "shell": "powershell",
+                    "prompt": "", "input": "none", "confirm": false, "hotkey": "",
+                }));
+                id
+            }
+        };
+        let item_id = format!("action:{id}");
+        let in_bar = s.fixed_bar_items.iter().any(|x| key_of(x) == item_id)
+            || s.fixed_bar_items.iter().any(|x| x.get("children").and_then(|c| c.as_array()).is_some_and(|c| c.iter().any(|y| key_of(y) == item_id)));
+        if in_bar {
+            continue;
+        }
+        let item = serde_json::json!({ "id": item_id, "area": area, "show": "icon" });
+        let folder_at = folder.as_deref().filter(|f| !f.is_empty()).and_then(|f| s.fixed_bar_items.iter().position(|x| key_of(x) == f));
+        if let Some(fi) = folder_at {
+            if let Some(obj) = s.fixed_bar_items.get_mut(fi).and_then(|x| x.as_object_mut()) {
+                let children = obj.entry("children").or_insert_with(|| serde_json::json!([]));
+                if let Some(list) = children.as_array_mut() {
+                    list.push(item);
+                }
+            }
+        } else {
+            let at = before.as_deref().and_then(|b| s.fixed_bar_items.iter().position(|x| key_of(x) == b));
+            let at = at.unwrap_or_else(|| {
+                s.fixed_bar_items.iter().rposition(|x| x.get("area").and_then(|a| a.as_str()) == Some(area.as_str())).map(|p| p + 1).unwrap_or(s.fixed_bar_items.len())
+            });
+            s.fixed_bar_items.insert(at.min(s.fixed_bar_items.len()), item);
+        }
+        added += 1;
+    }
+    if added > 0 {
+        log::line(format!("barra fissa: {added} programmi aggiunti trascinandoli"));
+        apply_settings(&app, s);
+    }
+    added
+}
+
 /// The bar back to normal (its window hidden or closed).
 fn bar_edit_off(app: &AppHandle) {
     use tauri::Emitter;
@@ -5502,6 +5577,7 @@ pub fn run() {
             memory_chat,
             memory_chat_open,
             bar_edit_relay,
+            bar_pin,
             open_bar_editor,
             close_bar_editor,
             memory_node_brief,

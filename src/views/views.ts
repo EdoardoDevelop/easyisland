@@ -72,6 +72,8 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHa
   askAboutText(label: string, text: string): void;
   /** A fresh chat, nothing in it (Accesso remoto's "Apri la chat"). */
   openChat(): void;
+  /** What a click on that element of the fixed bar does (a folder's small island, barcard.ts). */
+  barClick(key: string): void;
   /** A new chat with this question sent (an integration's "chiedi alla chat"). */
   askChat(question: string): void;
   /** A notice on the island (an integration's alert or action). */

@@ -6279,5 +6279,22 @@
   "La barra fissa è spenta: accendila qui sotto.": "The fixed bar is off: turn it on below.",
   "Personalizza la barra — EasyIsland": "Customize the bar — EasyIsland",
   "Si apre una finestra: un clic su un widget lo mette nella barra; nella barra lo sposti trascinandolo, il destro apre le sue opzioni, × lo toglie. Anche col destro su un punto vuoto della barra.": "A window opens: a click on a widget puts it in the bar; on the bar you move it by dragging, right click opens its options, × removes it. Also with a right click on an empty spot of the bar.",
-  "Personalizza…": "Customize…"
+  "Personalizza…": "Customize…",
+  "Aggiungi alla barra": "Add to the bar",
+  "Un clic mette il widget nella cartella «{name}».": "A click puts the widget in the folder \"{name}\".",
+  "{n} elemento": "{n} item",
+  "Cartella non trovata.": "Folder not found.",
+  "Cartella vuota: aggiungi gli elementi da «Personalizza la barra».": "Empty folder: add elements from \"Customize the bar\".",
+  "Trascina un programma, un collegamento o una cartella di Windows sulla barra: diventa un pulsante, come nella barra delle applicazioni. Sopra una cartella della barra ci finisce dentro.": "Drag a Windows program, shortcut or folder onto the bar: it becomes a button, as on the taskbar. Onto a folder of the bar it goes inside.",
+  "Rimetti nella barra": "Put back in the bar",
+  "Ancora vuota.": "Still empty.",
+  "+ Aggiungi widget alla cartella": "+ Add widgets to the folder",
+  "Togli la cartella (e quello che contiene)": "Remove the folder (and what it holds)",
+  "Un clic sulla cartella nella barra apre una piccola isola con il suo contenuto.": "A click on the folder in the bar opens a small island with what it holds.",
+  "Come mostra il contenuto": "How it shows what it holds",
+  "Grandezza delle icone": "Icon size",
+  "Icona e nome": "Icon and name",
+  "Contenuto": "Contents",
+  "Anche trascinando un elemento della barra sopra la cartella ci finisce dentro.": "Dragging an element of the bar onto the folder also puts it inside.",
+  "Striscia": "Strip"
 }

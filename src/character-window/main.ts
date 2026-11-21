@@ -549,7 +549,7 @@ function layAreas(b: BarLook) {
 
 let editing = false;
 /** The words, from the settings page (this window has no translations of its own). */
-let editWords = { remove: "Togli", done: "Fine", hint: "" };
+let editWords = { remove: "Togli", done: "Fine", hint: "", pin: "+" };
 /** The element whose options are open in the window: outlined. */
 let optionsKey = "";
 /** An element being dragged on the bar: its key, where it started. */
@@ -731,12 +731,29 @@ document.addEventListener("pointerdown", (e) => {
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
 });
 
+/** The folder of the bar under a point (its middle part), other than `skip`. */
+function folderAt(x: number, y: number, skip = ""): HTMLElement | null {
+  const el = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest?.(".bar-btn") as HTMLElement | null;
+  const key = el?.dataset.key ?? "";
+  if (!el || !key.startsWith("folder#") || key === skip) return null;
+  const r = el.getBoundingClientRect();
+  return x > r.left + r.width * 0.2 && x < r.right - r.width * 0.2 ? el : null;
+}
+
+function lightFolder(el: HTMLElement | null) {
+  for (const f of document.querySelectorAll<HTMLElement>(".bar-btn.drop-into")) if (f !== el) f.classList.remove("drop-into");
+  el?.classList.add("drop-into");
+}
+
 document.addEventListener("pointermove", (e) => {
   if (!carrying) return;
   if (!carrying.moved && Math.abs(e.clientX - carrying.x) < 5) return;
   carrying.moved = true;
   carrying.el.classList.add("carried");
-  showDrop(dropAt(e.clientX, carrying.key).at);
+  const f = carrying.key.startsWith("folder#") ? null : folderAt(e.clientX, e.clientY, carrying.key);
+  lightFolder(f);
+  if (f) hideDrop();
+  else showDrop(dropAt(e.clientX, carrying.key).at);
 });
 document.addEventListener("pointerup", (e) => {
   const c = carrying;
@@ -744,9 +761,62 @@ document.addEventListener("pointerup", (e) => {
   if (!c) return;
   c.el.classList.remove("carried");
   hideDrop();
+  lightFolder(null);
   if (!c.moved) return;
+  const f = c.key.startsWith("folder#") ? null : folderAt(e.clientX, e.clientY, c.key);
+  if (f?.dataset.key) {
+    relay({ kind: "into", key: c.key, folder: f.dataset.key });
+    return;
+  }
   const d = dropAt(e.clientX, c.key);
   relay({ kind: "move", key: c.key, area: d.area, before: d.before });
+});
+
+// Programs, shortcuts, files and folders dragged from Windows onto the bar
+// (Edoardo, 21 Nov 2026: «come la barra delle applicazioni di Windows»): each
+// becomes a button that opens it (lib.rs bar_pin: a quick action «apri
+// programma» with its icon). Onto a folder: inside it. The page takes the drop
+// as an HTML5 drop and hands the files to Rust for their paths (drop.rs).
+let fileDrop: { area: string; before: string | null; folder: string } | null = null;
+const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+function trackFiles(e: DragEvent) {
+  if (!bar || !hasFiles(e)) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "link";
+  const f = folderAt(e.clientX, e.clientY);
+  lightFolder(f);
+  const d = dropAt(e.clientX);
+  fileDrop = { area: d.area, before: d.before, folder: f?.dataset.key ?? "" };
+  if (f) hideDrop();
+  else showDrop(d.at, editWords.pin);
+}
+window.addEventListener("dragenter", trackFiles);
+window.addEventListener("dragover", trackFiles);
+window.addEventListener("dragleave", (e) => {
+  if (e.relatedTarget) return;
+  hideDrop();
+  lightFolder(null);
+});
+window.addEventListener("drop", (e) => {
+  if (!bar || !hasFiles(e)) return;
+  e.preventDefault();
+  hideDrop();
+  lightFolder(null);
+  const files = Array.from(e.dataTransfer?.files ?? []);
+  const webview = (window as unknown as {
+    chrome?: { webview?: { postMessageWithAdditionalObjects?: (m: unknown, o: File[]) => void } };
+  }).chrome?.webview;
+  if (!files.length || !webview?.postMessageWithAdditionalObjects) return;
+  try {
+    webview.postMessageWithAdditionalObjects("easyisland-drop", files);
+  } catch {
+    fileDrop = null;
+  }
+});
+void listen<string[]>("file-drop", (ev) => {
+  const where = fileDrop ?? { area: "end", before: null, folder: "" };
+  fileDrop = null;
+  if (ev.payload?.length) void invoke("bar_pin", { paths: ev.payload, area: where.area, before: where.before, folder: where.folder }).catch(() => {});
 });
 
 /** The bar element under an event, without «…» and the strip's own buttons. */

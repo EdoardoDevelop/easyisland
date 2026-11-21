@@ -436,6 +436,7 @@ export class Island {
       askAboutPicture: (f) => this.askAboutPicture(f),
       askAboutText: (label, text) => this.startChat("", { label, text }, false),
       openChat: () => this.startChat("", null, false),
+      barClick: (key) => this.barClick(key, "left"),
       askChat: (q) => this.askChat(q),
       showNotice: (n) => this.showNotice(n),
       explainError: (text, note) => this.explainError(text, note),
@@ -3665,6 +3666,14 @@ ${note}` : text };
     } else if (act.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === act.slice(7));
       if (a) void this.runAction(a);
+    } else if (act === "card" && it.id === "folder") {
+      const which = `folder:${key}`;
+      if (State.mode === "expanded" && State.view === "barcard" && State.barCard === which) {
+        this.collapse();
+        return;
+      }
+      State.barCard = which;
+      this.openFromBarAt("barcard", x);
     } else if (act === "card") {
       if (kind) {
         // Its card in the island, against the bar; a second click closes it.

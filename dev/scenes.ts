@@ -1927,6 +1927,15 @@ export async function runScene(island: Island, scene: string) {
       State.settings.fixedBarItems = [
         { id: "sys:clock", uid: "a", area: "end", show: "both" },
         { id: "sys:clock", uid: "b", area: "end", show: "value", opts: { tz: "America/New_York" } },
+        // ?card=folder:folder#f (&list): a folder of the bar with a few elements.
+        {
+          id: "folder", uid: "f", area: "end", show: "icon", name: "Strumenti", icon: "i:wrench",
+          opts: { layout: new URLSearchParams(location.search).has("list") ? "list" : "grid", iconSize: 28 },
+          children: [
+            { id: "sys:explorer", uid: "e", area: "end" }, { id: "sys:showdesktop", uid: "d", area: "end" },
+            { id: "sys:winsettings", uid: "s", area: "end" }, { id: "sys:taskview", uid: "t", area: "end" }, { id: "sys:clock", uid: "c", area: "end" },
+          ],
+        },
       ];
       State.barSys = {
         volume: { level: 0.42, muted: false, device: "Altoparlanti (Realtek High Definition Audio)" },

@@ -25,6 +25,8 @@ let tab: "widgets" | "look" = "widgets";
 /** The element whose options are open (its key in the bar), or "". */
 let optionsKey = "";
 let query = "";
+/** A folder being filled (its key): a click on a widget puts it inside, not in the bar. */
+let fillKey = "";
 /** Our own last save: its settings-changed is not drawn again. */
 let savedAt = 0;
 const root = document.getElementById("bar-edit-root")!;
@@ -42,12 +44,31 @@ function toBar(payload: Record<string, unknown>) {
 
 /** The bar in its customize mode, with its words. */
 function barOn() {
-  toBar({ on: true, options: optionsKey, words: { remove: t("Togli"), done: t("Fine"), hint: t("Trascina per spostare, destro per le opzioni, × per togliere") } });
+  toBar({ on: true, options: optionsKey, words: { remove: t("Togli"), done: t("Fine"), hint: t("Trascina per spostare, destro per le opzioni, × per togliere"), pin: t("Aggiungi alla barra") } });
 }
 
 /** An element's key in the bar, as src/island/bar.ts keyOf. */
 function keyOf(it: BarItem): string {
-  return it.id.startsWith("sys:") && it.uid ? `${it.id}#${it.uid}` : it.id;
+  return (it.id.startsWith("sys:") || it.id === "folder") && it.uid ? `${it.id}#${it.uid}` : it.id;
+}
+
+const uid = () => Math.random().toString(36).slice(2, 8);
+
+/** A folder of the bar by its key. */
+function folderOf(key: string): BarItem | undefined {
+  return items().find((x) => x.id === "folder" && keyOf(x) === key);
+}
+
+/** A new folder at the end of the bar, its options open. */
+function newFolder() {
+  const f: BarItem = { id: "folder", uid: uid(), area: "end", show: "icon", name: t("Cartella"), icon: "i:folder", children: [], opts: { layout: "grid", iconSize: 28 } };
+  const list = [...items()];
+  place(list, f, settings.fixedBarSlot === "end" ? "center" : "end", null);
+  settings.fixedBarItems = list;
+  save();
+  optionsKey = keyOf(f);
+  toBar({ options: optionsKey });
+  draw();
 }
 
 const items = (): BarItem[] => (settings.fixedBarItems ??= []);
@@ -65,9 +86,17 @@ function place(list: BarItem[], it: BarItem, area: string, before: string | null
   list.splice(last >= 0 ? last + 1 : list.length, 0, it);
 }
 
-/** A widget clicked: at the end of the bar, lit a moment on it. */
+/** A widget clicked: at the end of the bar, lit a moment on it; or inside the folder being filled. */
 function add(id: string) {
-  const it: BarItem = { id, uid: Math.random().toString(36).slice(2, 8), area: "end", show: "both" };
+  const it: BarItem = { id, uid: uid(), area: "end", show: "both" };
+  const into = fillKey ? folderOf(fillKey) : undefined;
+  if (into) {
+    (into.children ??= []).push(it);
+    settings.fixedBarItems = [...items()];
+    save();
+    draw();
+    return;
+  }
   const list = [...items()];
   place(list, it, settings.fixedBarSlot === "end" ? "center" : "end", null);
   settings.fixedBarItems = list;
@@ -93,7 +122,12 @@ function onReply(p: { kind?: string; key?: string; area?: string; before?: strin
     return;
   }
   if (i < 0) return;
-  if (p.kind === "move") {
+  if (p.kind === "into") {
+    const f = folderOf((p as { folder?: string }).folder ?? "");
+    if (!f || f === list[i]) return;
+    const [it] = list.splice(i, 1);
+    (f.children ??= []).push(it);
+  } else if (p.kind === "move") {
     const [it] = list.splice(i, 1);
     place(list, it, p.area ?? it.area, p.before ?? null);
   } else if (p.kind === "remove") {
@@ -183,6 +217,7 @@ function catalog(): [string, Entry[]][] {
 }
 
 function nameOf(id: string): string {
+  if (id === "folder") return t("Cartella");
   for (const [, list] of catalog()) {
     const e = list.find((x) => x.id === id);
     if (e) return e.name;
@@ -191,6 +226,7 @@ function nameOf(id: string): string {
 }
 
 function iconOf(id: string): string {
+  if (id === "folder") return "i:folder";
   for (const [, list] of catalog()) {
     const e = list.find((x) => x.id === id);
     if (e) return e.icon;
@@ -203,15 +239,40 @@ function widgetsView(): HTMLElement[] {
   for (const it of items()) used.set(it.id, (used.get(it.id) ?? 0) + 1);
   const search = h("input", { class: "be-search", type: "search", placeholder: t("Cerca un widget…"), value: query, spellcheck: "false" }) as HTMLInputElement;
   const groups = h("div", { class: "be-groups" });
+  const filling = fillKey ? folderOf(fillKey) : undefined;
+  if (fillKey && !filling) fillKey = "";
+  const banner = filling
+    ? h("div", { class: "be-fill" },
+      h("span", { text: t("Un clic mette il widget nella cartella «{name}».", { name: filling.name || t("Cartella") }) }),
+      (() => {
+        const b = h("button", { class: "primary", text: t("Fatto") }) as HTMLButtonElement;
+        b.addEventListener("click", () => {
+          optionsKey = fillKey;
+          fillKey = "";
+          toBar({ options: optionsKey });
+          draw();
+        });
+        return b;
+      })())
+    : null;
   const paint = () => {
     clear(groups);
+    if (!filling && !query.trim()) {
+      const make = h("button", { class: "be-card be-new" },
+        h("span", { class: "be-card-icon" }, renderActionIcon("i:folder", 18)),
+        h("span", { class: "be-card-name", text: t("Nuova cartella") })) as HTMLButtonElement;
+      make.addEventListener("click", newFolder);
+      groups.append(h("div", { class: "be-group" }, h("h3", { text: t("Cartelle") }),
+        h("div", { class: "be-grid" }, make),
+        h("p", { class: "be-tip", text: t("Trascina un programma, un collegamento o una cartella di Windows sulla barra: diventa un pulsante, come nella barra delle applicazioni. Sopra una cartella della barra ci finisce dentro.") })));
+    }
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     for (const [title, list] of catalog()) {
       const shown = list.filter((e) => words.every((w) => e.name.toLowerCase().includes(w)));
       if (!shown.length) continue;
       const grid = h("div", { class: "be-grid" });
       for (const e of shown) {
-        const n = used.get(e.id) ?? 0;
+        const n = filling ? (filling.children ?? []).filter((c) => c.id === e.id).length : used.get(e.id) ?? 0;
         const full = n > 0 && !e.repeat;
         const card = h("button", { class: `be-card${n ? " in" : ""}`, disabled: full, title: full ? t("Già nella barra") : t("Clic: mettilo nella barra") },
           h("span", { class: "be-card-icon", style: e.color ? `--c:${e.color}` : "" }, renderActionIcon(e.icon, 18)),
@@ -229,12 +290,87 @@ function widgetsView(): HTMLElement[] {
     paint();
   });
   paint();
-  return [search, groups];
+  return banner ? [banner, search, groups] : [search, groups];
 }
 
 // ── An element's options ────────────────────────────────────────────────────
 
+/** A folder's options: name, icon, grid or list, icons' size, what it holds. */
+function folderView(it: BarItem): HTMLElement[] {
+  const o = (it.opts ??= {});
+  const commit = () => { settings.fixedBarItems = [...items()]; save(); };
+  const back = h("button", { class: "be-back", text: `← ${t("Widget")}` }) as HTMLButtonElement;
+  back.addEventListener("click", () => { optionsKey = ""; toBar({ options: "" }); draw(); });
+  const icons = ["i:folder", "i:star", "i:briefcase", "i:grid", "i:wrench", "i:code", "i:globe", "i:chart", "i:music", "i:monitor", "i:heart", "i:home"];
+  const iconRow = h("div", { class: "be-icons" });
+  for (const ic of icons) {
+    const b = h("button", { class: `be-icon-pick${(it.icon || "i:folder") === ic ? " on" : ""}` }, renderActionIcon(ic, 16)) as HTMLButtonElement;
+    b.addEventListener("click", () => { it.icon = ic; commit(); draw(); });
+    iconRow.append(b);
+  }
+  const content = h("div", { class: "be-panel" });
+  const kids = it.children ?? [];
+  kids.forEach((c, i) => {
+    const move = (d: number) => {
+      const j = i + d;
+      if (j < 0 || j >= kids.length) return;
+      [kids[i], kids[j]] = [kids[j], kids[i]];
+      commit();
+      draw();
+    };
+    const btn = (label: string, title: string, run: () => void, cls = "") => {
+      const b = h("button", { class: `be-mini ${cls}`, text: label, title }) as HTMLButtonElement;
+      b.addEventListener("click", run);
+      return b;
+    };
+    content.append(h("div", { class: "be-line" },
+      h("span", { class: "be-card-icon be-small" }, renderActionIcon(iconOf(c.id), 14)),
+      h("div", { class: "be-line-text" }, h("span", { text: nameOf(c.id) })),
+      btn("↑", t("Su"), () => move(-1)),
+      btn("↓", t("Giù"), () => move(1)),
+      btn("⤴", t("Rimetti nella barra"), () => {
+        kids.splice(i, 1);
+        const list = [...items()];
+        place(list, c, it.area, null);
+        settings.fixedBarItems = list;
+        save();
+        draw();
+      }),
+      btn("×", t("Togli"), () => { kids.splice(i, 1); commit(); draw(); }, "danger")));
+  });
+  if (!kids.length) content.append(h("p", { class: "be-empty", text: t("Ancora vuota.") }));
+  const fill = h("button", { class: "primary be-fill-btn", text: t("+ Aggiungi widget alla cartella") }) as HTMLButtonElement;
+  fill.addEventListener("click", () => {
+    fillKey = keyOf(it);
+    optionsKey = "";
+    tab = "widgets";
+    toBar({ options: fillKey });
+    draw();
+  });
+  const remove = h("button", { class: "be-remove", text: t("Togli la cartella (e quello che contiene)") }) as HTMLButtonElement;
+  remove.addEventListener("click", () => onReply({ kind: "remove", key: keyOf(it) }));
+  return [
+    back,
+    h("div", { class: "be-opt-head" },
+      h("span", { class: "be-card-icon" }, renderActionIcon(it.icon || "i:folder", 20)),
+      h("div", {}, h("b", { text: it.name || t("Cartella") }), h("small", { text: t("Un clic sulla cartella nella barra apre una piccola isola con il suo contenuto.") }))),
+    h("div", { class: "be-panel" },
+      line(t("Nome"), text(it.name, t("Cartella"), (v) => { it.name = v || t("Cartella"); commit(); draw(); })),
+      h("div", { class: "be-line be-line-col" }, h("div", { class: "be-line-text" }, h("span", { text: t("Icona") })), iconRow),
+      line(t("Come mostra il contenuto"), segmented([["grid", t("Griglia")], ["list", t("Lista")]] as ["grid" | "list", string][], o.layout === "list" ? "list" : "grid", (v) => { o.layout = v; commit(); draw(); })),
+      line(t("Grandezza delle icone"), range(16, 48, 2, o.iconSize ?? 28, " px", (v) => { o.iconSize = v; commit(); })),
+      line(t("Nella barra"), segmented([["both", t("Icona e nome")], ["icon", t("Solo icona")]] as ["both" | "icon", string][], it.show === "icon" ? "icon" : "both", (v) => { it.show = v; commit(); draw(); })),
+    ),
+    h("h3", { class: "be-sub", text: t("Contenuto") }),
+    content,
+    fill,
+    h("p", { class: "be-tip", text: t("Anche trascinando un elemento della barra sopra la cartella ci finisce dentro.") }),
+    remove,
+  ];
+}
+
 function optionsView(it: BarItem): HTMLElement[] {
+  if (it.id === "folder") return folderView(it);
   const kind = barKind(it.id);
   const o = (it.opts ??= {});
   const commit = () => {
@@ -378,6 +514,7 @@ function draw() {
       const b = h("button", { class: tab === id && !optionsKey ? "on" : "", text: label }) as HTMLButtonElement;
       b.addEventListener("click", () => {
         tab = id;
+        fillKey = "";
         if (optionsKey) { optionsKey = ""; toBar({ options: "" }); }
         draw();
       });
@@ -418,6 +555,7 @@ async function main() {
   // Shown again: the bar back in its customize mode, the settings as they are now.
   void onEvent("bar-editor-shown", () => {
     optionsKey = "";
+    fillKey = "";
     barOn();
     draw();
   });

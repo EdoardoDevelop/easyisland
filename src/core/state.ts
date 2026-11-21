@@ -137,6 +137,10 @@ export interface BarItem {
   /** Tells apart two copies of the same element (two clocks); set when added. */
   uid?: string;
   opts?: BarOpts;
+  /** A folder (id "folder"): its name, its icon and what it holds, opened in a small island. */
+  name?: string;
+  icon?: string;
+  children?: BarItem[];
 }
 
 /**
@@ -171,6 +175,9 @@ export interface BarOpts {
   max?: number;
   /** Music: the previous / play / next buttons; false hides them. */
   buttons?: boolean;
+  /** A folder's small island: a grid of icons or a list, and the icons' size in px. */
+  layout?: "grid" | "list";
+  iconSize?: number;
 }
 
 /**

@@ -227,3 +227,17 @@ body.bar-edit-window .be-remove {
 }
 
 body.bar-edit-window .be-remove:hover { background: color-mix(in srgb, var(--red) 12%, transparent); }
+
+body.bar-edit-window .be-new { border-style: dashed; }
+body.bar-edit-window .be-tip { margin: 6px 0 0; color: var(--dim-2); font-size: 11.5px; }
+body.bar-edit-window .be-sub { margin: 4px 0 -4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim-2); }
+body.bar-edit-window .be-fill { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent, #3b82f6) 16%, transparent); border: 1px solid color-mix(in srgb, var(--accent, #3b82f6) 45%, transparent); }
+body.bar-edit-window .be-fill span { flex: 1; }
+body.bar-edit-window .be-fill-btn { align-self: flex-start; }
+body.bar-edit-window .be-icons { display: flex; flex-wrap: wrap; gap: 4px; }
+body.bar-edit-window .be-icon-pick { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--hairline); border-radius: 7px; background: transparent; color: var(--ink); cursor: pointer; box-shadow: none; }
+body.bar-edit-window .be-icon-pick.on { border-color: var(--accent, #3b82f6); background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent); }
+body.bar-edit-window .be-small { width: 24px; height: 24px; border-radius: 6px; }
+body.bar-edit-window .be-mini { width: 26px; height: 24px; padding: 0; border: 1px solid var(--hairline); border-radius: 6px; background: transparent; color: var(--dim); cursor: pointer; box-shadow: none; }
+body.bar-edit-window .be-mini:hover { color: var(--ink); border-color: var(--accent, #3b82f6); }
+body.bar-edit-window .be-mini.danger:hover { color: var(--red); border-color: var(--red); }

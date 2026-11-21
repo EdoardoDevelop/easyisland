@@ -19,19 +19,38 @@ import { unreadNews } from "../views/news";
 import { appName } from "./context";
 import { State, type BarAct, type BarItem, type BarSys, type FixedBarDesign } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
-import { locale, t } from "../core/i18n";
+import { locale, t, tn } from "../core/i18n";
 import type { BarButton, BarPiece } from "../core/link";
 import type { StripItem } from "../views/strip";
 
 /** An element's key in the bar: its id, plus its uid for system elements (two clocks). */
-function keyOf(it: BarItem): string {
-  return it.id.startsWith("sys:") && it.uid ? `${it.id}#${it.uid}` : it.id;
+export function keyOf(it: BarItem): string {
+  return (it.id.startsWith("sys:") || it.id === "folder") && it.uid ? `${it.id}#${it.uid}` : it.id;
 }
 
-/** The element a key stands for (a key without uid finds the first of its id). */
+/** An element by its key: in the bar, or inside one of its folders. */
 export function barItemOf(key: string): BarItem | null {
   const items = State.settings.fixedBarItems ?? [];
-  return items.find((x) => keyOf(x) === key) ?? items.find((x) => x.id === key.split("#")[0]) ?? null;
+  const all = [...items, ...items.flatMap((x) => x.children ?? [])];
+  return all.find((x) => keyOf(x) === key) ?? all.find((x) => x.id === key.split("#")[0]) ?? null;
+}
+
+/** An element's name and icon, for a folder's small island (barcard.ts). */
+export function barItemLabel(it: BarItem): { name: string; icon: string } {
+  if (it.id === "folder") return { name: it.name || t("Cartella"), icon: it.icon || "i:folder" };
+  if (it.id === "strip") return { name: t("Striscia"), icon: "i:robot" };
+  const kind = barKind(it.id);
+  if (kind) return { name: kind.name, icon: kind.icon };
+  if (it.id.startsWith("action:")) {
+    const a = (State.settings.actions ?? []).find((x) => x.id === it.id.slice(7));
+    return { name: a?.name ?? it.id, icon: a?.icon || "i:bolt" };
+  }
+  if (it.id.startsWith("task:widget:")) {
+    const w = (State.settings.widgets ?? []).find((x) => x.id === it.id.slice(12));
+    return { name: w?.name ?? t("Widget"), icon: "i:chart" };
+  }
+  const task = State.tasks.find((x) => x.id === it.id.slice(5));
+  return { name: task?.name ?? it.id, icon: "i:plug" };
 }
 
 /** Elements showing their second text («alt»), by key. Not saved. */
@@ -483,6 +502,13 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       if (a.color) el.style.setProperty("--action", a.color);
       compose(el, formatOf(it, key), () => renderActionIcon(a.icon, 15), { value: a.name, name: a.name });
       out.push({ key, area, html: el.outerHTML, title: tip || a.name });
+    } else if (it.id === "folder") {
+      // A folder: its icon and name; a click opens its small island (barcard.ts).
+      const name = it.name || t("Cartella");
+      const n = it.children?.length ?? 0;
+      const el = h("span", { class: "bar-item bar-folder" });
+      compose(el, formatOf(it, key), () => renderActionIcon(it.icon || "i:folder", 15), { value: name, name });
+      out.push({ key, area, html: el.outerHTML, title: tip || `${name} · ${tn("{n} elemento", "{n} elementi", n)}` });
     }
   }
   return out;
