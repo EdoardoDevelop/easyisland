@@ -741,11 +741,33 @@ export class Dashboard {
     if (s.model.g.inbox.length) tips.push(t("Cosa c'è da leggere?"));
     const top = all.filter((n) => n.kind === "page").sort((a, b) => s.model.neighbours(b.id).length - s.model.neighbours(a.id).length)[0];
     if (top) tips.push(t("Cosa so di «{name}»?", { name: top.label }));
-    for (const q of tips.slice(0, 4)) {
-      const b = h("button", { class: "dash-ask-tip", text: q }) as HTMLButtonElement;
+    // One line that scrolls sideways, as the chat's tips: the wheel, ‹ › and its thin bar.
+    const strip = h("div", { class: "dash-ask-strip" });
+    for (const q of tips) {
+      const b = h("button", { class: "dash-ask-tip", text: q, title: q }) as HTMLButtonElement;
       b.addEventListener("click", () => void this.ask(q));
-      this.askTips.append(b);
+      strip.append(b);
     }
+    const prev = h("button", { class: "dash-ask-tip arrow", text: "‹", title: t("Indietro") }) as HTMLButtonElement;
+    const next = h("button", { class: "dash-ask-tip arrow", text: "›", title: t("Avanti") }) as HTMLButtonElement;
+    const arrows = () => {
+      const over = strip.scrollWidth > strip.clientWidth + 1;
+      prev.style.display = next.style.display = over ? "" : "none";
+      prev.disabled = strip.scrollLeft <= 0;
+      next.disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+    };
+    const by = (dir: number) => strip.scrollBy({ left: dir * Math.max(120, strip.clientWidth * 0.7), behavior: "smooth" });
+    prev.addEventListener("click", () => by(-1));
+    next.addEventListener("click", () => by(1));
+    strip.addEventListener("scroll", arrows, { passive: true });
+    strip.addEventListener("wheel", (e) => {
+      if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      strip.scrollLeft += e.deltaY;
+    }, { passive: false });
+    new ResizeObserver(arrows).observe(strip);
+    this.askTips.append(h("span", { class: "dash-ask-tips-label", text: t("Puoi chiedere:") }), prev, strip, next);
+    requestAnimationFrame(arrows);
     this.askTips.hidden = !tips.length;
   }
 

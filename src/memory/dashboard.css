@@ -1044,16 +1044,54 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
 
 /* ── Ready questions, answer actions, references ── */
 
+/* As the chat's tips (style.css .chat-tips): one line that scrolls sideways. */
 .dash-ask-tips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 0 12px 6px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px 4px;
 }
 
 .dash-ask-tips[hidden] { display: none; }
 
-.dash-ask-tip,
+.dash-ask-tips-label {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-ask-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 18%, transparent) transparent;
+}
+
+.dash-ask-tip {
+  flex: none;
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.28);
+  color: #c7d2fe;
+  font: 400 11px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dash-ask-tip:hover { background: rgba(129, 140, 248, 0.26); }
+.dash-ask-tip.arrow { padding: 2px 7px; background: transparent; box-shadow: none; color: var(--dim-2); }
+.dash-ask-tip.arrow:hover:not(:disabled) { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.dash-ask-tip.arrow:disabled { opacity: 0.3; cursor: default; }
+
+html[data-scheme="light"] .dash-ask-tip:not(.arrow) { color: #4338ca; }
+
 .dash-ask-act {
   padding: 2px 8px;
   border: 1px solid var(--stroke);
@@ -1065,7 +1103,6 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
   cursor: pointer;
 }
 
-.dash-ask-tip:hover,
 .dash-ask-act:hover {
   border-color: var(--accent);
   color: var(--ink);
