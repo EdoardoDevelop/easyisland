@@ -4220,6 +4220,9 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
         .minimizable(false)
         .closable(false)
         .drag_and_drop(false)
+        // Programs dragged onto the fixed bar reach the page as an HTML5 drop (bar_pin):
+        // with Tauri's own drop handler on the webview Windows showed the «no entry» sign.
+        .disable_drag_drop_handler()
         .visible(false)
         .build()
     {
