@@ -67,6 +67,7 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquadro «~ chiedi alla memoria» accanto al registro (`memory_chat.rs`: risponde un motore solo dalle righe e pagine trovate, niente strumenti, rifiuta il resto; pagine della risposta accese nel nucleo e cliccabili).
 - Punti che scorrono sulle linee ultimi arrivi → nucleo; gettoni delle pagine più collegate con tip = nome e senza spunta.
 - Barra fissa: elemento «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro) che apre la finestra Memoria.
+- Barra fissa, «Personalizza sulla barra»: dal destro sulla barra o dal pulsante in «Barra fissa»; widget trascinati dal catalogo sulla barra, elementi spostati e tolti (×) sulla barra, «Fine». Da provare dal vivo (coordinate fra due finestre, schermi con scala diversa).
 - Barra fissa, gruppo «Windows» nel catalogo: Start (destro Win+X), Cerca, Visualizzazione attività, Widget, Icone nascoste, Impostazioni rapide, Notifiche, Esplora file, Impostazioni, Mostra desktop; scorciatoie di Windows (`barsys::win_key`). Da provare dal vivo, anche con un programma da amministratore davanti.
 - Poi (ramo `claude/memoria-interattiva`): scheda del punto al clic nel nucleo, domande pronte, gettoni trascinabili nel campo, «Ricorda» e «Apri in chat» sotto la risposta, linea dal riferimento al punto, linea del tempo con ▶.
 - `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).

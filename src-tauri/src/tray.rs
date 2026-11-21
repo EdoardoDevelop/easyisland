@@ -76,7 +76,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             "settings" => crate::show_settings_window(app),
             BAR_SETTINGS => {
                 crate::show_settings_window(app);
-                let _ = app.emit_to(crate::SETTINGS_LABEL, "settings-goto", serde_json::json!({ "page": "aspetto", "item": "barra" }));
+                // The «Barra fissa» tab with the customize mode on: widgets dragged onto the bar, moved on it.
+                let _ = app.emit_to(crate::SETTINGS_LABEL, "settings-goto", serde_json::json!({ "page": "aspetto", "item": "barra-edit" }));
             }
             "presence" => {
                 let on = !crate::presence::MANUAL.load(std::sync::atomic::Ordering::Relaxed);

@@ -303,6 +303,8 @@ export const Bridge = {
   barSysWatch: (kinds: string[]) => call<void>("bar_sys_watch", { kinds }),
   /** Volume, brightness, mute, a Windows panel, the power menu (barsys.rs). */
   barSysDo: (what: string, arg?: number, path?: string) => call<void>("bar_sys_do", { what, arg, path }),
+  /** «Personalizza la barra»: settings ↔ fixed bar (lib.rs bar_edit_relay). */
+  barEditRelay: (to: "bar" | "settings", payload: Record<string, unknown>) => call<void>("bar_edit_relay", { to, payload }),
   /** The fixed bar that hides by itself: the mouse came (true) or left. */
   barReveal: (on: boolean) => call<void>("bar_reveal", { on }),
   /** «Notizie»: the subjects the memory proposes, without the excluded ones (news.rs). */

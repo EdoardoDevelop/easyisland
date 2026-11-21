@@ -9,6 +9,7 @@ import { BotEngine, hexToRGB } from "../character/engine";
 import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { addFaces } from "../core/fonts";
 import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
@@ -516,10 +517,129 @@ function layAreas(b: BarLook) {
     btn.querySelectorAll<HTMLElement>(".bar-meter-fill[data-pct]").forEach((m) => {
       m.style.width = `${m.dataset.pct}%`;
     });
+    if (editing) {
+      const x = document.createElement("span");
+      x.className = "bar-x";
+      x.textContent = "×";
+      x.title = editWords.remove;
+      btn.append(x);
+    }
     areas[p.area]?.append(btn);
+  }
+  if (editing) {
+    const done = document.createElement("div");
+    done.className = "bar-btn bar-done";
+    done.setAttribute("role", "button");
+    done.textContent = `✓ ${editWords.done}`;
+    done.title = editWords.hint;
+    (areas.end ?? areas.center)?.append(done);
   }
   fitAreas();
 }
+
+// ── «Personalizza la barra» (Edoardo, 21 Nov 2026) ─────────────────────────
+// On only while the settings say so (their «Barra fissa» tab, bar_edit_relay):
+// the elements are dragged to move them, × takes one away, «Fine» ends; a
+// widget dragged from the settings' catalog shows where it would land. What
+// changes is decided and saved by the settings page: the bar only says where.
+
+let editing = false;
+/** The words, from the settings page (this window has no translations of its own). */
+let editWords = { remove: "Togli", done: "Fine", hint: "" };
+/** An element being dragged on the bar: its key, where it started. */
+let carrying: { key: string; x: number; moved: boolean; el: HTMLElement } | null = null;
+
+const dropMark = document.createElement("div");
+dropMark.id = "bar-drop";
+const dropLabel = document.createElement("div");
+dropLabel.id = "bar-drop-label";
+document.body.append(dropMark, dropLabel);
+
+function relay(payload: Record<string, unknown>) {
+  void invoke("bar_edit_relay", { to: "settings", payload }).catch(() => {});
+}
+
+function setEditing(on: boolean) {
+  if (on === editing) return;
+  editing = on;
+  document.body.classList.toggle("editing", on);
+  hideDrop();
+  laidItems = "";
+  layBar();
+}
+
+/**
+ * Where an element dropped at `x` (this window's px) goes: the area and the
+ * element it goes before (null: at the end of that area). Near an element: its
+ * side of it; far from all: the third of the bar it is in.
+ */
+function dropAt(x: number, skip = ""): { area: "start" | "center" | "end"; before: string | null; at: number } {
+  const btns = [...document.querySelectorAll<HTMLElement>(".area .bar-btn:not(.bar-more):not(.bar-done)")]
+    .filter((b) => b.dataset.key && b.dataset.key !== skip)
+    .map((el) => ({ el, r: el.getBoundingClientRect(), area: (el.parentElement?.id ?? "a-center").slice(2) as "start" | "center" | "end" }));
+  const W = window.innerWidth;
+  const third: "start" | "center" | "end" = x < W / 3 ? "start" : x > (W * 2) / 3 ? "end" : "center";
+  let best = btns[0];
+  let dist = Infinity;
+  for (const b of btns) {
+    const d = Math.abs(b.r.left + b.r.width / 2 - x);
+    if (d < dist) {
+      dist = d;
+      best = b;
+    }
+  }
+  if (!best || (dist > 90 && !btns.some((b) => b.area === third) )) {
+    // An empty part of the bar: the end of that area.
+    return { area: third, before: null, at: third === "start" ? 12 : third === "end" ? W - 12 : W / 2 };
+  }
+  const same = btns.filter((b) => b.area === best.area);
+  if (x < best.r.left + best.r.width / 2) return { area: best.area, before: best.el.dataset.key ?? null, at: best.r.left - 2 };
+  const next = same[same.indexOf(best) + 1];
+  return { area: best.area, before: next?.el.dataset.key ?? null, at: best.r.right + 2 };
+}
+
+function showDrop(at: number, label = "") {
+  dropMark.style.left = `${Math.round(at - 1)}px`;
+  dropMark.classList.add("on");
+  dropLabel.textContent = label;
+  dropLabel.classList.toggle("on", !!label);
+  dropLabel.style.left = `${Math.round(Math.min(window.innerWidth - 160, Math.max(4, at + 6)))}px`;
+}
+
+function hideDrop() {
+  dropMark.classList.remove("on");
+  dropLabel.classList.remove("on");
+}
+
+/** A screen point (from the settings window) inside the bar, or a little under it: this window's x. */
+function onBar(sx: number, sy: number): number | null {
+  const x = sx - window.screenX;
+  const y = sy - window.screenY;
+  const t = bar?.thickness ?? window.innerHeight;
+  const bottom = document.body.classList.contains("bottom");
+  const top = bottom ? window.innerHeight - t - 40 : -40;
+  const end = bottom ? window.innerHeight + 40 : t + 40;
+  return x >= 0 && x <= window.innerWidth && y >= top && y <= end ? x : null;
+}
+
+void listen<{ on?: boolean; words?: typeof editWords; phase?: string; id?: string; label?: string; x?: number; y?: number }>("bar-edit", (e) => {
+  const p = e.payload ?? {};
+  if (p.words) editWords = { ...editWords, ...p.words };
+  if (typeof p.on === "boolean") setEditing(p.on && !!bar);
+  if (!editing || !p.phase) return;
+  // A widget dragged from the settings' catalog.
+  const x = onBar(p.x ?? -1, p.y ?? -1);
+  if (p.phase === "move") {
+    if (x === null) hideDrop();
+    else showDrop(dropAt(x).at, p.label ?? "");
+  } else if (p.phase === "drop") {
+    hideDrop();
+    if (x !== null && p.id) {
+      const d = dropAt(x);
+      relay({ kind: "add", id: p.id, area: d.area, before: d.before });
+    }
+  } else hideDrop();
+});
 
 let laidItems = "";
 /** The elements as last laid out, for the «…» menu's labels. */
@@ -561,13 +681,13 @@ function fitAreas() {
       clash = off;
     }
     // The character's area keeps its elements longest; elsewhere the wider area gives first.
-    const removable = (el: HTMLElement) => el !== float && !!el.querySelector(".bar-btn:not(.bar-more):not([data-key='strip'])");
+    const removable = (el: HTMLElement) => el !== float && !!el.querySelector(".bar-btn:not(.bar-more):not(.bar-done):not([data-key='strip'])");
     const victim = clash
       .filter(removable)
       .sort((a, b) => Number(a.id === own) - Number(b.id === own) || b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
-      ?? clash.filter((el) => el !== float && el.querySelector(".bar-btn:not(.bar-more)"))[0];
+      ?? clash.filter((el) => el !== float && el.querySelector(".bar-btn:not(.bar-more):not(.bar-done)"))[0];
     if (!victim) break;
-    const kids = [...victim.querySelectorAll<HTMLElement>(".bar-btn:not(.bar-more)")];
+    const kids = [...victim.querySelectorAll<HTMLElement>(".bar-btn:not(.bar-more):not(.bar-done)")];
     const kid = [...kids].reverse().find((k) => k.dataset.key !== "strip") ?? kids[kids.length - 1];
     if (!kid?.dataset.key) break;
     out.unshift(kid.dataset.key);
@@ -596,6 +716,19 @@ document.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
   const target = e.target as HTMLElement | null;
   const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
+  if (editing) {
+    if (btn?.classList.contains("bar-done")) {
+      relay({ kind: "done" });
+      setEditing(false);
+    } else if (target?.closest?.(".bar-x") && btn?.dataset.key) {
+      relay({ kind: "remove", key: btn.dataset.key });
+    } else if (btn?.dataset.key && !btn.classList.contains("bar-more")) {
+      carrying = { key: btn.dataset.key, x: e.clientX, moved: false, el: btn };
+      btn.setPointerCapture(e.pointerId);
+    }
+    e.preventDefault();
+    return;
+  }
   if (btn?.classList.contains("bar-more")) {
     const keys: string[] = JSON.parse(btn.dataset.keys ?? "[]");
     const entries = keys.map((k) => [k, shown.find((p) => p.key === k)?.title ?? k]);
@@ -606,6 +739,24 @@ document.addEventListener("pointerdown", (e) => {
   const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
   const r = btn.getBoundingClientRect();
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (!carrying) return;
+  if (!carrying.moved && Math.abs(e.clientX - carrying.x) < 5) return;
+  carrying.moved = true;
+  carrying.el.classList.add("carried");
+  showDrop(dropAt(e.clientX, carrying.key).at);
+});
+document.addEventListener("pointerup", (e) => {
+  const c = carrying;
+  carrying = null;
+  if (!c) return;
+  c.el.classList.remove("carried");
+  hideDrop();
+  if (!c.moved) return;
+  const d = dropAt(e.clientX, c.key);
+  relay({ kind: "move", key: c.key, area: d.area, before: d.before });
 });
 
 /** The bar element under an event, without «…» and the strip's own buttons. */
@@ -619,23 +770,24 @@ function barKey(e: Event): string | null {
 // Elsewhere on the bar (the band, the character): EasyIsland's menu (tray.rs popup_bar_context).
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
+  if (editing) return;
   const key = barKey(e);
   if (key) send({ kind: "bar", key, button: "right" });
   else if (mode === "bar" && !(e.target as HTMLElement | null)?.closest?.(".bar-more")) void invoke("bar_context_menu").catch(() => {});
 });
 document.addEventListener("auxclick", (e) => {
-  const key = e.button === 1 ? barKey(e) : null;
+  const key = e.button === 1 && !editing ? barKey(e) : null;
   if (key) send({ kind: "bar", key, button: "middle" });
 });
 document.addEventListener("wheel", (e) => {
-  const key = barKey(e);
+  const key = editing ? null : barKey(e);
   if (key && e.deltaY) send({ kind: "bar", key, button: e.deltaY < 0 ? "up" : "down" });
 }, { passive: true });
 
 // Beside the open island or in the fixed bar (the times the window takes the mouse):
 // a click closes the island, or opens it from the bar.
 canvas.addEventListener("pointerdown", (e) => {
-  if (e.button !== 0 || (mode !== "open" && mode !== "bar")) return;
+  if (e.button !== 0 || editing || (mode !== "open" && mode !== "bar")) return;
   engine.squash();
   wake(600);
   send({ kind: "open" });

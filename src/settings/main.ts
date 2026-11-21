@@ -4242,7 +4242,7 @@ function barItemsEditor(commit: () => void): HTMLElement {
     const used = new Set(items.map((x) => x.id));
     const add = (id: string) => {
       settings.fixedBarItems = [...items, { id, uid: uid(), area: settings.fixedBarSlot ?? "center", show: "both" }];
-      adding = false;
+      adding = barEdit;
       commit();
       render();
     };
@@ -4252,8 +4252,10 @@ function barItemsEditor(commit: () => void): HTMLElement {
           h("div", { class: "bar-cat-title", text: title }),
           h("div", { class: "bar-cat-list" }, ...entries.map(([id, label]) => {
             const kind = barKind(id);
-            return h("button", { class: "bar-cat-item", onclick: () => add(id) },
+            const b = h("button", { class: "bar-cat-item", title: barEdit ? t("Trascinalo sulla barra, o clic per metterlo in fondo") : label, onclick: () => add(id) },
               ...(kind ? [renderActionIcon(kind.icon, 15)] : []), h("span", { text: label }));
+            dragToBar(b, id, label);
+            return b;
           })))
         : null;
     const kinds = (g: "work" | "windows" | undefined) => Object.keys(BAR_KINDS)
@@ -4373,16 +4375,129 @@ function barItemsEditor(commit: () => void): HTMLElement {
       ));
       if (open.has(id)) list.append(options(it, save));
     });
-    list.append(h("div", { class: "row" },
-      h("label", { text: items.length ? "" : t("Widget della barra") }),
-      h("button", { text: adding ? t("Chiudi") : t("+ Aggiungi"), onclick: () => { adding = !adding; render(); } })));
-    if (adding) list.append(catalog(items));
+    if (!barEdit) {
+      list.append(h("div", { class: "row" },
+        h("label", { text: items.length ? "" : t("Widget della barra") }),
+        h("button", { text: adding ? t("Chiudi") : t("+ Aggiungi"), onclick: () => { adding = !adding; render(); } })));
+    }
+    if (adding || barEdit) list.append(catalog(items));
   };
   render();
+  const edit = h("div", { class: `row bar-edit-row${barEdit ? " on" : ""}` },
+    h("label", {},
+      h("b", { text: barEdit ? t("Personalizzazione attiva") : t("Personalizza sulla barra") }),
+      h("span", { class: "hint", text: barEdit
+        ? t("Trascina un widget dal catalogo sulla barra. Sulla barra trascina gli elementi per spostarli, × li toglie, «Fine» chiude.")
+        : t("Mostra il catalogo da trascinare sulla barra e lascia spostare gli elementi direttamente lì.") })),
+    h("button", { class: barEdit ? "" : "primary", text: barEdit ? t("Fine") : t("Personalizza"), title: settings.fixedBar ? "" : t("Prima accendi la barra fissa qui sopra"), onclick: () => setBarEdit(!barEdit) }));
   return h("div", { class: "bar-row-block" },
+    edit,
     h("div", { class: "hint", text: t("Widget della barra: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.") }),
     list,
   );
+}
+
+// ── «Personalizza la barra» (Edoardo, 21 Nov 2026) ──────────────────────────
+// On from the bar's right-click menu or the button in «Barra fissa»; off with
+// «Fine» (here or on the bar), leaving the tab, or hiding the window. While on,
+// the bar shows ×, «Fine» and takes drags; the catalog's widgets can be dragged
+// onto it. The bar only says where (bar-edit-reply): this page changes and saves.
+
+let barEdit = false;
+
+function setBarEdit(on: boolean) {
+  if (on && !settings.fixedBar) on = false;
+  const changed = on !== barEdit;
+  barEdit = on;
+  void Bridge.barEditRelay("bar", {
+    on,
+    words: { remove: t("Togli"), done: t("Fine"), hint: t("Trascina per spostare, × per togliere, Fine per chiudere") },
+  });
+  if (changed) render();
+}
+
+/** An element's key in the bar, as src/island/bar.ts keyOf. */
+function barKeyOf(it: BarItem): string {
+  return it.id.startsWith("sys:") && it.uid ? `${it.id}#${it.uid}` : it.id;
+}
+
+/** Puts `it` in `area`, before the element with key `before` (null: after the last one of that area). */
+function placeBarItem(items: BarItem[], it: BarItem, area: string, before: string | null) {
+  it.area = area === "start" || area === "end" ? area : "center";
+  const at = before ? items.findIndex((x) => barKeyOf(x) === before) : -1;
+  if (at >= 0) {
+    items.splice(at, 0, it);
+    return;
+  }
+  let last = -1;
+  items.forEach((x, i) => { if ((x.area ?? "center") === it.area) last = i; });
+  items.splice(last >= 0 ? last + 1 : items.length, 0, it);
+}
+
+/** What the bar asks while customizing: add a dragged widget, move or remove an element, done. */
+function onBarEditReply(p: { kind?: string; id?: string; key?: string; area?: string; before?: string | null }) {
+  if (p.kind === "done") {
+    setBarEdit(false);
+    return;
+  }
+  if (!barEdit) return;
+  const items = [...(settings.fixedBarItems ?? [])];
+  if (p.kind === "add" && p.id) {
+    const it: BarItem = { id: p.id, uid: Math.random().toString(36).slice(2, 8), area: "center", show: "both" };
+    placeBarItem(items, it, p.area ?? "center", p.before ?? null);
+  } else if (p.kind === "move" && p.key) {
+    const i = items.findIndex((x) => barKeyOf(x) === p.key);
+    if (i < 0) return;
+    const [it] = items.splice(i, 1);
+    placeBarItem(items, it, p.area ?? it.area ?? "center", p.before ?? null);
+  } else if (p.kind === "remove" && p.key) {
+    const i = items.findIndex((x) => barKeyOf(x) === p.key);
+    if (i < 0) return;
+    items.splice(i, 1);
+  } else return;
+  settings.fixedBarItems = items;
+  void save();
+  render();
+}
+
+/**
+ * A catalog entry dragged out of this window onto the bar: the bar is told
+ * where the mouse is (screen coordinates) and where it was let go. A press
+ * without a drag stays a click (it adds the widget, as before).
+ */
+function dragToBar(el: HTMLElement, id: string, label: string) {
+  let start: { x: number; y: number } | null = null;
+  let dragging = false;
+  let ghost: HTMLElement | null = null;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || !barEdit) return;
+    start = { x: e.clientX, y: e.clientY };
+    dragging = false;
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    if (!dragging && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
+    if (!dragging) {
+      dragging = true;
+      ghost = h("div", { class: "bar-drag-ghost", text: label });
+      document.body.append(ghost);
+    }
+    if (ghost) ghost.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 8}px)`;
+    void Bridge.barEditRelay("bar", { phase: "move", id, label, x: e.screenX, y: e.screenY });
+  });
+  const end = (e: PointerEvent, cancel: boolean) => {
+    if (!start) return;
+    start = null;
+    ghost?.remove();
+    ghost = null;
+    if (!dragging) return;
+    // A drag is not a click: the click that follows is swallowed.
+    el.addEventListener("click", (c) => { c.stopImmediatePropagation(); c.preventDefault(); }, { capture: true, once: true });
+    void Bridge.barEditRelay("bar", { phase: cancel ? "cancel" : "drop", id, label, x: e.screenX, y: e.screenY });
+  };
+  el.addEventListener("pointerup", (e) => end(e, false));
+  el.addEventListener("pointercancel", (e) => end(e, true));
 }
 
 /** The format an element uses when the user typed none (src/island/bar.ts → formatOf). */
@@ -7432,7 +7547,10 @@ async function main() {
   // The island's context menu: "Impostazioni «Zammad»" lands on its row, open.
   // Every opening starts on the first page (Generale), not the last one seen
   // (Edoardo, 24 Oct 2026) — unless it was opened on a given page (settings-goto).
+  void onEvent<Record<string, unknown>>("bar-edit-reply", (p) => onBarEditReply(p as Parameters<typeof onBarEditReply>[0]));
   document.addEventListener("visibilitychange", () => {
+    // The window hidden: the bar back to normal.
+    if (document.hidden && barEdit) setBarEdit(false);
     if (document.hidden || Date.now() - gotoAt < 3000) return;
     try { localStorage.removeItem(PAGE_KEY); } catch { /* no storage */ }
     render();
@@ -7455,6 +7573,12 @@ async function main() {
       integrationQuery = "";
       integrationGroup = "all";
       onlyActive = false;
+    }
+    if (page === "aspetto" && item === "barra-edit") {
+      lookTabNow = "barra" as LookTab;
+      render();
+      setBarEdit(true);
+      return;
     }
     // A tab of Aspetto ("aspetto" + "barra") or any createSubtabs page ("chat" + "strumenti").
     const tab = page === "aspetto" ? LOOK_TABS().find(([id]) => id === item)?.[0] : undefined;
@@ -7607,6 +7731,10 @@ function render() {
   const list = pages(boot);
   const page = currentPage(list);
   activePageId = page.id;
+  if (barEdit && !(page.id === "aspetto" && lookTab() === "barra")) {
+    barEdit = false;
+    void Bridge.barEditRelay("bar", { on: false });
+  }
   const scroller = root.querySelector(".page");
   const same = scroller?.getAttribute("data-page") === page.id;
   const scrollTop = same ? scroller!.scrollTop : 0;

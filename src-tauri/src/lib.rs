@@ -5138,6 +5138,21 @@ fn open_settings_window(app: AppHandle) {
     show_settings_window(&app);
 }
 
+/// «Personalizza la barra» (Edoardo, 21 Nov 2026): the settings window and the
+/// fixed bar talk through here. `to` = "bar": the mode on or off, a widget
+/// dragged from the catalog over the bar (screen coordinates); `to` =
+/// "settings": what the bar asks (add, move, remove, done), applied and saved
+/// by the settings page. Only these two windows, only this event each.
+#[tauri::command]
+fn bar_edit_relay(app: AppHandle, to: String, payload: serde_json::Value) {
+    use tauri::Emitter;
+    let _ = match to.as_str() {
+        "bar" => app.emit_to(CHARACTER_LABEL, "bar-edit", payload),
+        "settings" => app.emit_to(SETTINGS_LABEL, "bar-edit-reply", payload),
+        _ => Ok(()),
+    };
+}
+
 /// The island's context menu: the settings on one page, with one entry open
 /// ("integrazioni" + "integration_zammad"). The settings page takes it from the event.
 #[tauri::command]
@@ -5413,6 +5428,7 @@ pub fn run() {
             quick_answer,
             memory_chat,
             memory_chat_open,
+            bar_edit_relay,
             memory_node_brief,
             memory_window_select,
             zammad_search,

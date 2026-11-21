@@ -6242,5 +6242,13 @@
   "Mostra desktop": "Show desktop",
   "Windows": "Windows",
   "Freccia su": "Up arrow",
-  "Desktop": "Desktop"
+  "Desktop": "Desktop",
+  "Trascinalo sulla barra, o clic per metterlo in fondo": "Drag it onto the bar, or click to put it at the end",
+  "Personalizzazione attiva": "Customizing",
+  "Personalizza sulla barra": "Customize on the bar",
+  "Trascina un widget dal catalogo sulla barra. Sulla barra trascina gli elementi per spostarli, × li toglie, «Fine» chiude.": "Drag a widget from the catalog onto the bar. On the bar drag the elements to move them, × removes them, \"Done\" ends.",
+  "Mostra il catalogo da trascinare sulla barra e lascia spostare gli elementi direttamente lì.": "Shows the catalog to drag onto the bar and lets you move the elements right there.",
+  "Personalizza": "Customize",
+  "Trascina per spostare, × per togliere, Fine per chiudere": "Drag to move, × to remove, Done to finish",
+  "Prima accendi la barra fissa qui sopra": "First turn on the fixed bar above"
 }

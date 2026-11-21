@@ -1723,3 +1723,12 @@ html[data-scheme="light"] .settings-hit.on {
 html[data-scheme="light"] .settings-hit-path {
   color: #0369a1;
 }
+
+/* «Personalizza la barra»: the switch row on top of the widgets, and the label under the mouse while a widget is dragged to the bar. */
+.bar-edit-row { align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--stroke, rgba(255, 255, 255, 0.12)); border-radius: 8px; margin-bottom: 8px; }
+.bar-edit-row label { display: flex; flex-direction: column; gap: 2px; }
+.bar-edit-row.on { border-color: var(--accent, #3B82F6); background: color-mix(in srgb, var(--accent, #3B82F6) 10%, transparent); }
+.bar-edit-row .hint { font-weight: 400; }
+.bar-edit-row ~ * .bar-cat-item,
+.bar-edit-row.on ~ * .bar-cat-item { touch-action: none; }
+body .bar-drag-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; padding: 3px 10px; border-radius: 999px; background: var(--accent, #3B82F6); color: #fff; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
