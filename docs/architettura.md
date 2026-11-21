@@ -62,6 +62,7 @@ Fatta il 29/10 sopra la finestra del personaggio. Impostazioni → Posizione →
 - **Widget della barra:**
   - Catalogo in Impostazioni → Aspetto → Barra fissa (`barItemsEditor`): «+ Aggiungi» per gruppi, «Opzioni» per elemento.
   - «Cerca (la ricerca da sola)» (`sys:search`, gruppo Lavoro, 18/11): un clic apre o chiude la ricerca nella sua finestra (`onHotkey("search")`, `search-window.ts`), l'isola resta com'è.
+  - «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro, 21/11): un clic apre la finestra Memoria (`memory_window_open`, come il pulsante nell'intestazione); icona `i:mindmap`.
   - Opzioni comuni: formato con segnaposto (`{icon}`, `{value}`, `{time}`, `{down}`…), secondo testo («alt»), suggerimento, clic/centrale/destro (`BarAct`: niente, card, secondo testo, menu, muto, azione rapida), rotella. `compose` usa solo nodi di testo.
   - Valori da `barsys.rs`: thread COM fermo finché nessun `sys:` è nella barra (`bar_sys_watch`); ogni 2 s volume e microfono (Core Audio) e rete (`GetIfTable2`, schede fisiche), 30 s batteria, 15 s luminosità (DDC/CI, altrimenti WMI); `bar-sys` solo ai cambi. Orologio dell'isola (`barClockDelay`, solo se presente).
   - Comandi `bar_sys_do`: rotella (sommata 60/250 ms in `barWheel`), cursori (`volume-set`, `mic-set`, `brightness-set`), muto, pannelli di Windows (`panel:…`), spegnimento (sospendi/riavvia/spegni con conferma di Windows, blocca no).

@@ -308,6 +308,8 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
     }
     case "search":
       return { v: { value: "" }, icon: k.icon, tip: t("Cerca: apre la ricerca nella sua finestra, l'isola resta com'è") };
+    case "memory":
+      return { v: { value: "" }, icon: k.icon, tip: t("Memoria: apre la mappa della memoria") };
     case "news": {
       const n = unreadNews();
       const title = State.news[0]?.title ?? "";

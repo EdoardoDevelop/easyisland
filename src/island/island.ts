@@ -3616,6 +3616,11 @@ ${note}` : text };
       void this.onHotkey("search");
       return;
     }
+    // «Memoria» in the bar: the memory window, as the button in the island's header.
+    if (it.id === "sys:memory" && button === "left") {
+      void Bridge.memoryWindowOpen();
+      return;
+    }
     if (button === "up" || button === "down") {
       if (kind && barWheels(it)) this.barWheel(it.id.slice(4), button === "up" ? 1 : -1);
       return;

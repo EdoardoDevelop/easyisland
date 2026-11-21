@@ -107,6 +107,11 @@ export const BAR_KINDS: Record<string, BarKind> = {
     name: t("Cerca (la ricerca da sola)"), icon: "i:search", tokens: [],
     left: "card", middle: "none", right: "none", group: "work",
   },
+  memory: {
+    // The memory window (Panoramica, «chiedi alla memoria»), opened from the bar (Edoardo, 21 Nov 2026).
+    name: t("Memoria (la mappa)"), icon: "i:mindmap", tokens: [],
+    left: "card", middle: "none", right: "none", group: "work",
+  },
   appbar: {
     name: t("Barra dell'app in uso"), icon: "i:grid", tokens: [["app", t("programma")]],
     left: "none", middle: "none", right: "none", group: "work",

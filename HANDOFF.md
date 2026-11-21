@@ -66,6 +66,7 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 21/11 — Memoria: chiedi alla memoria, punti sulle linee, gettoni
 Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquadro «~ chiedi alla memoria» accanto al registro (`memory_chat.rs`: risponde un motore solo dalle righe e pagine trovate, niente strumenti, rifiuta il resto; pagine della risposta accese nel nucleo e cliccabili).
 - Punti che scorrono sulle linee ultimi arrivi → nucleo; gettoni delle pagine più collegate con tip = nome e senza spunta.
+- Barra fissa: elemento «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro) che apre la finestra Memoria.
 - `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).
 - Da decidere con Edoardo: i cerchi del nucleo (freschezza, archi dei gruppi) gli sembrano fuorvianti.
 
