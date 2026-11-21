@@ -779,10 +779,19 @@ document.addEventListener("pointerup", (e) => {
 // as an HTML5 drop and hands the files to Rust for their paths (drop.rs).
 let fileDrop: { area: string; before: string | null; folder: string } | null = null;
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+/** The log says once per drag that it reached the bar (21 Nov 2026: refused with no trace). */
+let dragLogged = false;
 function trackFiles(e: DragEvent) {
-  if (!bar || !hasFiles(e)) return;
+  if (!bar) return;
+  if (!dragLogged) {
+    dragLogged = true;
+    void invoke("log_line", { message: `barra fissa: trascinamento sulla barra (${Array.from(e.dataTransfer?.types ?? []).join(", ") || "nessun tipo"})` }).catch(() => {});
+  }
+  // Always taken while over the bar: a refused dragover is Windows' «no entry» sign.
   e.preventDefault();
-  if (e.dataTransfer) e.dataTransfer.dropEffect = "link";
+  if (!hasFiles(e)) return;
+  // «copy», as the island's drop (bridge.ts onDragDrop): «link» can be refused by the source.
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
   const f = folderAt(e.clientX, e.clientY);
   lightFolder(f);
   const d = dropAt(e.clientX);
@@ -794,23 +803,27 @@ window.addEventListener("dragenter", trackFiles);
 window.addEventListener("dragover", trackFiles);
 window.addEventListener("dragleave", (e) => {
   if (e.relatedTarget) return;
+  dragLogged = false;
   hideDrop();
   lightFolder(null);
 });
 window.addEventListener("drop", (e) => {
-  if (!bar || !hasFiles(e)) return;
+  if (!bar) return;
   e.preventDefault();
+  dragLogged = false;
   hideDrop();
   lightFolder(null);
   const files = Array.from(e.dataTransfer?.files ?? []);
   const webview = (window as unknown as {
     chrome?: { webview?: { postMessageWithAdditionalObjects?: (m: unknown, o: File[]) => void } };
   }).chrome?.webview;
+  void invoke("log_line", { message: `barra fissa: lasciati ${files.length} file sulla barra` }).catch(() => {});
   if (!files.length || !webview?.postMessageWithAdditionalObjects) return;
   try {
     webview.postMessageWithAdditionalObjects("easyisland-drop", files);
-  } catch {
+  } catch (err) {
     fileDrop = null;
+    void invoke("log_line", { message: `barra fissa: file non passati (${err})` }).catch(() => {});
   }
 });
 void listen<string[]>("file-drop", (ev) => {

@@ -499,6 +499,9 @@ function lookView(): HTMLElement[] {
 
 // ── The page ────────────────────────────────────────────────────────────────
 
+/** The view drawn last: the same one keeps its scroll, another starts at the top. */
+let drawnView = "";
+
 function draw() {
   const scroller = root.querySelector(".be-body");
   const top = scroller?.scrollTop ?? 0;
@@ -527,7 +530,10 @@ function draw() {
       h("div", { class: "be-panel" }, line(t("Barra fissa"), segmented([["", t("Spenta")], ["top", t("Sopra")], ["bottom", t("Sotto")]] as ["" | "top" | "bottom", string][], "", (v) => { settings.fixedBar = v; save(); barOn(); draw(); })))]
     : it ? optionsView(it) : tab === "look" ? lookView() : widgetsView()));
   root.append(head, tabs, body);
-  body.scrollTop = it ? 0 : top;
+  // A click on a switch, a choice or a button redraws the page: the same view stays where it was.
+  const view = `${tab}|${optionsKey}|${fillKey}`;
+  body.scrollTop = view === drawnView ? top : 0;
+  drawnView = view;
 }
 
 async function main() {
