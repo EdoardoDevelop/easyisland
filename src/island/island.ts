@@ -5,7 +5,7 @@ import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
 import { MIRRORED_CALLS, type BarButton, type CharacterMode, type IslandToCharacter } from "../core/link";
 import { barAct, barItemOf, barMenuOf, barWheels, musicButtons, toggleAlt } from "./bar";
-import { barKind } from "../core/barkinds";
+import { WIN_KEYS, barKind } from "../core/barkinds";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, TOPBAR_H, PANEL_H, PANEL_W,
   RAIL_COMPACT_W, RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -3619,6 +3619,11 @@ ${note}` : text };
     // «Cerca» in the bar: the search in its own window, opened or closed (Edoardo, 18 Nov 2026).
     if (it.id === "sys:search" && button === "left") {
       void this.onHotkey("search");
+      return;
+    }
+    // «Windows» elements: Windows' own shortcut (Start, Win+N, Win+A…), as its taskbar does.
+    if (kind && WIN_KEYS.has(it.id.slice(4)) && (button === "left" || (button === "right" && it.id === "sys:start"))) {
+      void Bridge.barSysDo(button === "right" ? "win:winx" : `win:${it.id.slice(4)}`);
       return;
     }
     // «Memoria» in the bar: the memory window, as the button in the island's header.

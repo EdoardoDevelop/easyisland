@@ -4256,12 +4256,13 @@ function barItemsEditor(commit: () => void): HTMLElement {
               ...(kind ? [renderActionIcon(kind.icon, 15)] : []), h("span", { text: label }));
           })))
         : null;
-    const kinds = (work: boolean) => Object.keys(BAR_KINDS)
-      .filter((k) => (BAR_KINDS[k].group === "work") === work)
+    const kinds = (g: "work" | "windows" | undefined) => Object.keys(BAR_KINDS)
+      .filter((k) => BAR_KINDS[k].group === g)
       .map((k) => [`sys:${k}`, BAR_KINDS[k].name] as [string, string]);
     const groups = [
-      group(t("Sistema"), kinds(false)),
-      group(t("Lavoro"), [...kinds(true), ...integrations().filter(([id]) => !used.has(id))]),
+      group(t("Windows"), kinds("windows")),
+      group(t("Sistema"), kinds(undefined)),
+      group(t("Lavoro"), [...kinds("work"), ...integrations().filter(([id]) => !used.has(id))]),
       group(t("Agenti"), used.has("strip") ? [] : [["strip", nameOf("strip")]]),
       group(t("Le mie azioni"), actions().filter(([id]) => !used.has(id))),
     ].filter((x): x is HTMLDivElement => !!x);

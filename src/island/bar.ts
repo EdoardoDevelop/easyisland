@@ -310,6 +310,9 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
       return { v: { value: "" }, icon: k.icon, tip: t("Cerca: apre la ricerca nella sua finestra, l'isola resta com'è") };
     case "memory":
       return { v: { value: "" }, icon: k.icon, tip: t("Memoria: apre la mappa della memoria") };
+    case "start": case "winsearch": case "taskview": case "widgets": case "systray":
+    case "quicksettings": case "notifications": case "explorer": case "winsettings": case "showdesktop":
+      return { v: { value: "" }, icon: k.icon, tip: k.name };
     case "news": {
       const n = unreadNews();
       const title = State.news[0]?.title ?? "";

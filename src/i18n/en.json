@@ -6230,5 +6230,17 @@
   "{d} · {n} cose": "{d} · {n} things",
   "… e {n} riga ancora nel file": "… and {n} more line in the file",
   "… e altre {n} righe nel file": "… and {n} more lines in the file",
-  "Pagine della memoria: {titles}\n\nDalla mappa:\n{facts}\nPagine e note trovate:\n{found}\nRighe della memoria:\n{lines}\n{before}Domanda: {q}": "Memory pages: {titles}\n\nFrom the map:\n{facts}\nPages and notes found:\n{found}\nMemory lines:\n{lines}\n{before}Question: {q}"
+  "Pagine della memoria: {titles}\n\nDalla mappa:\n{facts}\nPagine e note trovate:\n{found}\nRighe della memoria:\n{lines}\n{before}Domanda: {q}": "Memory pages: {titles}\n\nFrom the map:\n{facts}\nPages and notes found:\n{found}\nMemory lines:\n{lines}\n{before}Question: {q}",
+  "Start": "Start",
+  "Cerca di Windows": "Windows search",
+  "Visualizzazione attività": "Task view",
+  "Widget di Windows": "Windows widgets",
+  "Icone nascoste (area di notifica)": "Hidden icons (notification area)",
+  "Impostazioni rapide (rete, audio, batteria)": "Quick settings (network, sound, battery)",
+  "Notifiche e calendario": "Notifications and calendar",
+  "Impostazioni di Windows": "Windows settings",
+  "Mostra desktop": "Show desktop",
+  "Windows": "Windows",
+  "Freccia su": "Up arrow",
+  "Desktop": "Desktop"
 }
