@@ -489,6 +489,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             crate::preview::tool(app, tool, args).await
         }
         "portal_list" | "portal_save" | "portal_search" => crate::portals::tool(app, tool, args).await,
+        "desktop_windows" | "desktop_snapshot" | "desktop_find" | "desktop_click" | "desktop_type" => crate::winapps::tool(tool, args).await,
         "show_notice" => {
             let level = match arg(args, "level") {
                 "ok" | "warn" | "error" => arg(args, "level"),

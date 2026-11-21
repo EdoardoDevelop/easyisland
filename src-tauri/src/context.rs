@@ -34,7 +34,7 @@ static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
 /// The program last sent to the island: a new window of the same one is not news.
 static SENT: Mutex<String> = Mutex::new(String::new());
 
-fn is_ours(hwnd: HWND) -> bool {
+pub(crate) fn is_ours(hwnd: HWND) -> bool {
     exe_of(hwnd).is_none_or(|e| e == "easyisland.exe")
 }
 
@@ -104,7 +104,7 @@ pub fn spawn(app: tauri::AppHandle) {
 }
 
 /// The user's window: the one in front, or the last one before the island took over.
-fn target() -> Option<HWND> {
+pub(crate) fn target() -> Option<HWND> {
     unsafe {
         let now = GetForegroundWindow();
         if !now.0.is_null() && !is_ours(now) {
@@ -123,7 +123,7 @@ pub struct Foreground {
     pub title: String,
 }
 
-fn exe_of(hwnd: HWND) -> Option<String> {
+pub(crate) fn exe_of(hwnd: HWND) -> Option<String> {
     let path = exe_path(hwnd)?;
     Some(path.rsplit('\\').next().unwrap_or(&path).to_lowercase())
 }

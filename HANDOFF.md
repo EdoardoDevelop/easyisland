@@ -63,6 +63,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 21/11 — Programmi di Windows per la chat
+Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
+- Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
+
 ### 21/11 — Giornata del portatile (20/11): correzioni
 - **Mappa della memoria:** due pagine si legano solo con un [[link]] scritto; tolto `pages_named_in` («VM client Winfarm» legava Iaso Farmacie a Winfarm).
 - **File creati in chat:** i prompt (anche Modalità terminale e modello sul PC) chiedono il percorso completo di ogni file creato, che diventa link (`chatpaths.rs`); prima Edoardo doveva chiedere «dov'è il documento?».
@@ -80,8 +84,3 @@ Campo in cima al menu delle Impostazioni (anche Ctrl+F) e gruppo «Impostazioni�
 
 ### 18/11 — Panoramica: ricerca e linee vere
 La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.
-
-### 17/11 sera — Panoramica della Mappa della memoria
-La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
-- Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.
-- Nucleo a 30 fps al massimo, solo a finestra visibile e a fuoco, fermo 20 s dopo l'ultimo mouse. `?few` e `?many=300` nell'anteprima; `docs/chat.md`, guida 12.
