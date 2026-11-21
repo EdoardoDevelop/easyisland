@@ -168,10 +168,10 @@ export class Dashboard {
       h("div", { class: "dash-label" }, h("span", { text: t("pagine più collegate") }), h("span", { text: t("clic per aprire") })),
       this.tokens);
     const termBox = h("div", { class: "dash-box dash-term" },
-      h("div", { class: "dash-term-head" }, h("i"), h("i"), h("i"), h("span", { text: t("~ registro della memoria") })),
+      h("div", { class: "dash-term-head" }, h("span", { text: t("~ registro della memoria") })),
       this.term);
     const askBox = h("div", { class: "dash-box dash-term dash-ask" },
-      h("div", { class: "dash-term-head" }, h("i"), h("i"), h("i"), h("span", { text: t("~ chiedi alla memoria") })),
+      h("div", { class: "dash-term-head" }, h("span", { text: t("~ chiedi alla memoria") })),
       this.askLines,
       this.askTips,
       h("label", { class: "dash-ask-row" }, h("span", { class: "dash-prompt", text: "›" }), this.askField));

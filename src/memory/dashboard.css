@@ -12,7 +12,7 @@
   overflow: auto;
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr) 300px;
-  grid-template-rows: max-content minmax(400px, 1fr) max-content max-content;
+  grid-template-rows: max-content minmax(470px, 1fr) max-content max-content;
   grid-template-areas:
     "top top top"
     "feed core stages"
@@ -272,7 +272,7 @@ html[data-scheme="light"] .dash-tag {
 .dash-core-stage {
   position: relative;
   flex: 1;
-  min-height: 300px;
+  min-height: 290px;
 }
 
 .dash-core-stage canvas {
@@ -309,6 +309,7 @@ html[data-scheme="light"] .dash-tag {
 }
 
 .dash-core-number {
+  flex: none;
   display: grid;
   justify-items: center;
   gap: 6px;
@@ -740,15 +741,6 @@ html[data-scheme="light"] .dash-tag {
   color: var(--dim-2);
 }
 
-.dash-term-head i {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #fb7185;
-}
-
-.dash-term-head i:nth-child(2) { background: #f5a524; }
-.dash-term-head i:nth-child(3) { background: #22c55e; margin-right: 6px; }
 
 .dash-term-lines {
   flex: 1;
@@ -1173,6 +1165,7 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
 /* ── The days slider under the nucleus ── */
 
 .dash-when {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
