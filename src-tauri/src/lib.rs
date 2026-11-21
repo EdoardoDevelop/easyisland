@@ -5138,19 +5138,92 @@ fn open_settings_window(app: AppHandle) {
     show_settings_window(&app);
 }
 
-/// «Personalizza la barra» (Edoardo, 21 Nov 2026): the settings window and the
-/// fixed bar talk through here. `to` = "bar": the mode on or off, a widget
-/// dragged from the catalog over the bar (screen coordinates); `to` =
-/// "settings": what the bar asks (add, move, remove, done), applied and saved
-/// by the settings page. Only these two windows, only this event each.
+/// «Personalizza la barra» (Edoardo, 21 Nov 2026): its window and the fixed
+/// bar talk through here. `to` = "bar": the mode on or off and its words;
+/// `to` = "editor": what the bar asks (move, remove, an element's options,
+/// done), applied and saved by the window's page. Only these two windows.
 #[tauri::command]
 fn bar_edit_relay(app: AppHandle, to: String, payload: serde_json::Value) {
     use tauri::Emitter;
     let _ = match to.as_str() {
         "bar" => app.emit_to(CHARACTER_LABEL, "bar-edit", payload),
-        "settings" => app.emit_to(SETTINGS_LABEL, "bar-edit-reply", payload),
+        "editor" => app.emit_to(BAR_EDITOR_LABEL, "bar-edit-reply", payload),
         _ => Ok(()),
     };
+}
+
+pub const BAR_EDITOR_LABEL: &str = "barra";
+
+/// The bar back to normal (its window hidden or closed).
+fn bar_edit_off(app: &AppHandle) {
+    use tauri::Emitter;
+    let _ = app.emit_to(CHARACTER_LABEL, "bar-edit", serde_json::json!({ "on": false }));
+}
+
+/// «Personalizza la barra»: its window, made the first time (async: a window
+/// made from a synchronous command blocked the main thread), always above the
+/// others beside the bar; the bar in its customize mode while it is shown.
+#[tauri::command]
+async fn open_bar_editor(app: AppHandle) -> Result<(), String> {
+    show_bar_editor(&app)
+}
+
+pub(crate) fn show_bar_editor(app: &AppHandle) -> Result<(), String> {
+    use tauri::Emitter;
+    if let Some(win) = app.get_webview_window(BAR_EDITOR_LABEL) {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = win.emit("bar-editor-shown", ());
+        return Ok(());
+    }
+    let mut builder = WebviewWindowBuilder::new(app, BAR_EDITOR_LABEL, page_url(app, "barra.html"));
+    if let Some(Some(dir)) = WEBVIEW_DIR.get() {
+        builder = builder.data_directory(dir.clone());
+    }
+    let (w, h) = (440.0, 640.0);
+    let win = builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title(i18n::t("Personalizza la barra — EasyIsland"))
+        .theme(Some(tauri::Theme::Dark))
+        .inner_size(w, h)
+        .min_inner_size(380.0, 420.0)
+        .resizable(true)
+        .always_on_top(true)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    // On the right of the screen with the bar, just inside the room the bar leaves.
+    let top = app.try_state::<Shared>().map(|s| s.settings.lock().unwrap().fixed_bar != "bottom").unwrap_or(true);
+    if let Some(m) = app.get_webview_window(CHARACTER_LABEL).and_then(|c| c.current_monitor().ok().flatten()).or_else(|| win.primary_monitor().ok().flatten()) {
+        let scale = m.scale_factor();
+        let (mx, my) = (m.position().x as f64, m.position().y as f64);
+        let (mw, mh) = (m.size().width as f64, m.size().height as f64);
+        let x = mx + mw - (w + 24.0) * scale;
+        let y = if top { my + 96.0 * scale } else { my + mh - (h + 120.0) * scale };
+        let _ = win.set_position(tauri::PhysicalPosition::new(x.round() as i32, y.max(my).round() as i32));
+    }
+    let hidden = win.clone();
+    let handle = app.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = hidden.hide();
+            bar_edit_off(&handle);
+        }
+    });
+    let _ = win.show();
+    let _ = win.set_focus();
+    Ok(())
+}
+
+/// «Fine»: the window hidden, the bar back to normal.
+#[tauri::command]
+fn close_bar_editor(app: AppHandle) {
+    if let Some(win) = app.get_webview_window(BAR_EDITOR_LABEL) {
+        let _ = win.hide();
+    }
+    bar_edit_off(&app);
 }
 
 /// The island's context menu: the settings on one page, with one entry open
@@ -5429,6 +5502,8 @@ pub fn run() {
             memory_chat,
             memory_chat_open,
             bar_edit_relay,
+            open_bar_editor,
+            close_bar_editor,
             memory_node_brief,
             memory_window_select,
             zammad_search,

@@ -500,7 +500,10 @@ function layAreas(b: BarLook) {
     }
   }
   const key = JSON.stringify([b.items, b.look]);
-  if (key === laidItems) return;
+  if (key === laidItems) {
+    markOptions();
+    return;
+  }
   laidItems = key;
   shown = b.items;
   for (const el of Object.values(areas)) el?.replaceChildren();
@@ -535,17 +538,20 @@ function layAreas(b: BarLook) {
     (areas.end ?? areas.center)?.append(done);
   }
   fitAreas();
+  markOptions();
 }
 
 // ── «Personalizza la barra» (Edoardo, 21 Nov 2026) ─────────────────────────
-// On only while the settings say so (their «Barra fissa» tab, bar_edit_relay):
-// the elements are dragged to move them, × takes one away, «Fine» ends; a
-// widget dragged from the settings' catalog shows where it would land. What
-// changes is decided and saved by the settings page: the bar only says where.
+// On while its window is shown (lib.rs show_bar_editor, bar_edit_relay): the
+// elements are dragged to move them, × takes one away, the right button opens
+// an element's options in the window, «Fine» ends. What changes is decided and
+// saved by the window's page (src/bar-edit/main.ts): the bar only says where.
 
 let editing = false;
 /** The words, from the settings page (this window has no translations of its own). */
 let editWords = { remove: "Togli", done: "Fine", hint: "" };
+/** The element whose options are open in the window: outlined. */
+let optionsKey = "";
 /** An element being dragged on the bar: its key, where it started. */
 let carrying: { key: string; x: number; moved: boolean; el: HTMLElement } | null = null;
 
@@ -556,7 +562,7 @@ dropLabel.id = "bar-drop-label";
 document.body.append(dropMark, dropLabel);
 
 function relay(payload: Record<string, unknown>) {
-  void invoke("bar_edit_relay", { to: "settings", payload }).catch(() => {});
+  void invoke("bar_edit_relay", { to: "editor", payload }).catch(() => {});
 }
 
 function setEditing(on: boolean) {
@@ -611,34 +617,19 @@ function hideDrop() {
   dropLabel.classList.remove("on");
 }
 
-/** A screen point (from the settings window) inside the bar, or a little under it: this window's x. */
-function onBar(sx: number, sy: number): number | null {
-  const x = sx - window.screenX;
-  const y = sy - window.screenY;
-  const t = bar?.thickness ?? window.innerHeight;
-  const bottom = document.body.classList.contains("bottom");
-  const top = bottom ? window.innerHeight - t - 40 : -40;
-  const end = bottom ? window.innerHeight + 40 : t + 40;
-  return x >= 0 && x <= window.innerWidth && y >= top && y <= end ? x : null;
+/** The outline of the element whose options are open (and of one just added). */
+function markOptions() {
+  for (const el of document.querySelectorAll<HTMLElement>(".bar-btn.optioned")) el.classList.remove("optioned");
+  if (!editing || !optionsKey) return;
+  document.querySelector<HTMLElement>(`.bar-btn[data-key="${CSS.escape(optionsKey)}"]`)?.classList.add("optioned");
 }
 
-void listen<{ on?: boolean; words?: typeof editWords; phase?: string; id?: string; label?: string; x?: number; y?: number }>("bar-edit", (e) => {
+void listen<{ on?: boolean; words?: typeof editWords; options?: string }>("bar-edit", (e) => {
   const p = e.payload ?? {};
   if (p.words) editWords = { ...editWords, ...p.words };
+  if (typeof p.options === "string") optionsKey = p.options;
   if (typeof p.on === "boolean") setEditing(p.on && !!bar);
-  if (!editing || !p.phase) return;
-  // A widget dragged from the settings' catalog.
-  const x = onBar(p.x ?? -1, p.y ?? -1);
-  if (p.phase === "move") {
-    if (x === null) hideDrop();
-    else showDrop(dropAt(x).at, p.label ?? "");
-  } else if (p.phase === "drop") {
-    hideDrop();
-    if (x !== null && p.id) {
-      const d = dropAt(x);
-      relay({ kind: "add", id: p.id, area: d.area, before: d.before });
-    }
-  } else hideDrop();
+  markOptions();
 });
 
 let laidItems = "";
@@ -719,7 +710,6 @@ document.addEventListener("pointerdown", (e) => {
   if (editing) {
     if (btn?.classList.contains("bar-done")) {
       relay({ kind: "done" });
-      setEditing(false);
     } else if (target?.closest?.(".bar-x") && btn?.dataset.key) {
       relay({ kind: "remove", key: btn.dataset.key });
     } else if (btn?.dataset.key && !btn.classList.contains("bar-more")) {
@@ -770,7 +760,12 @@ function barKey(e: Event): string | null {
 // Elsewhere on the bar (the band, the character): EasyIsland's menu (tray.rs popup_bar_context).
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
-  if (editing) return;
+  if (editing) {
+    // An element's options, in the window.
+    const key = barKey(e);
+    if (key && key !== "strip") relay({ kind: "options", key });
+    return;
+  }
   const key = barKey(e);
   if (key) send({ kind: "bar", key, button: "right" });
   else if (mode === "bar" && !(e.target as HTMLElement | null)?.closest?.(".bar-more")) void invoke("bar_context_menu").catch(() => {});
