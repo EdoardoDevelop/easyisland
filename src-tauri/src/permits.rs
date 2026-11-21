@@ -110,7 +110,7 @@ pub fn delicate_tool(tool: &str) -> bool {
     // A remote PC (a command there, a connection opened to it), the password vault written,
     // or a quick action changed: a script in it is code that runs here.
     // A password from the vault typed into a web page asks every time too.
-    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") {
+    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") || tool.ends_with("preview_upload") {
         return true;
     }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear", "wipe",
@@ -227,6 +227,10 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
     // Clicks and keys in the preview: the site, never the tool (Edoardo, 12 Nov 2026).
     if tool_of(payload).is_some_and(|t| SITE_TOOLS.contains(&t)) {
         return site_key(payload, crate::preview::site_of, crate::preview::as_url).map(|h| (session.to_string(), format!("site:{h}")));
+    }
+    // Files given to a page: asked each time, never «Sempre» (Edoardo, 21 Nov 2026).
+    if tool_of(payload) == Some("preview_upload") {
+        return None;
     }
     let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
     let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
@@ -597,7 +601,7 @@ mod tests {
 
     #[test]
     fn delicate_for_both_automatiche() {
-        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login"] {
+        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login", "mcp__easyisland__preview_upload"] {
             assert!(delicate_tool(t), "{t}");
         }
         for t in ["mcp__easyisland__todo_add", "mcp__notion__notion-create-pages", "easyisland_list_status", "mcp__easyisland__notion_update_row"] {

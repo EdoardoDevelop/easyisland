@@ -111,6 +111,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "preview_extract" => t("Legge i prodotti della pagina"),
         "preview_steps" => t("Fa più passi nella pagina"),
         "preview_act" => t("Usa mouse e tastiera nella pagina"),
+        "preview_upload" => t("Carica file nella pagina"),
         _ => return None,
     })
 }

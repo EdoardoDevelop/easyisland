@@ -50,6 +50,14 @@ La chat vede la pagina come la leggono i programmi per non vedenti: titoli, test
 
 Può anche **cliccare**, **scrivere**, premere tasti (Invio, Esc, frecce), scorrere, passare col mouse sui menu, scegliere nelle tendine e trascinare, come faresti tu. Ogni volta chiede **Consenti / Nega** nell'isola; con **Sempre** non lo chiede più **su quel sito**, fino alla fine della conversazione. Non scrive mai password né dati di pagamento e **non clicca mai** «Aggiungi al carrello», «Acquista», «Ordina» o «Paga», nemmeno con Sempre: quelli li fai tu.
 
+La chat **non apre l'Anteprima da sola**: se è chiusa, le pagine che le servono si caricano dietro, senza finestra, e la chat ci lavora lo stesso. Se vuoi guardare, apri l'Anteprima e trovi le sue schede (ricaricate). Le pagine dietro che la chat non usa da 10 minuti si chiudono da sole.
+
+Clicca come una persona: se il pulsante è coperto da qualcosa (un avviso dei cookie, una finestra), nascosto o disattivato, il clic non parte e la chat sa cosa lo copre. Legge anche le parti della pagina che vengono da un altro sito (una mappa, un modulo di pagamento, un pannello dentro la pagina).
+
+Se un sito chiede una conferma («Eliminare?», «Lasciare la pagina?»), la domanda arriva a te come card nell'isola con **OK** e **Annulla**: decidi tu, mai la chat; senza risposta in due minuti vale Annulla. Gli avvisi semplici del sito si chiudono con OK e la chat li legge.
+
+Può mettere **file** in un campo «Scegli file» della pagina (dal Vassoio o file che le indichi): chiede conferma ogni volta, anche con Sempre, e non tocca mai i file di chiavi e password. Inviarli resta un clic sul pulsante della pagina.
+
 Per risparmiare, la chat legge solo quello che serve: cerca nella pagina le parole che le interessano, legge i prodotti già pronti nella pagina (nome, codice, prezzo, foto) o i dati che il sito riceve, e fa più passi in una volta sola («apri, scrivi, Invio, aspetta, leggi»). Le schermate le usa solo per controllare l'aspetto.
 
 ## Portali dei fornitori e preventivi
@@ -69,4 +77,4 @@ Le foto dei prodotti finiscono nel **Vassoio** e il preventivo si fa dal tuo mod
 | Ctrl+Tab | Scheda successiva |
 | Alt+← / Alt+→ | Indietro / avanti |
 
-Chiusa la finestra non resta niente in esecuzione; le schede si riaprono uguali la volta dopo.
+Chiusa la finestra non resta niente in esecuzione, salvo le pagine che la chat sta usando dietro (si chiudono dopo 10 minuti senza uso); le schede si riaprono uguali la volta dopo.

@@ -897,7 +897,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_snapshot",
-            "La pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la leggono i lettori di schermo: titoli, testi, link, pulsanti e campi in righe rientrate, ognuno con un riferimento [ref=e5] da passare a preview_click e preview_type. Il modo migliore per capire e usare una pagina; con una finestra in primo piano si vede solo quella. Gli iframe dello stesso sito (iLO, iDRAC, console di gestione) si leggono dentro: [frame=f1] e riferimenti come f1e5, usabili come gli altri da click, type, act, find, wait; quelli di un altro sito no. I riferimenti restano validi finché l'elemento è nella pagina.",
+            "La pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la leggono i lettori di schermo: titoli, testi, link, pulsanti e campi in righe rientrate, ognuno con un riferimento [ref=e5] da passare a preview_click e preview_type. Il modo migliore per capire e usare una pagina; con una finestra in primo piano si vede solo quella. Gli iframe si leggono dentro: dello stesso sito (iLO, iDRAC, console di gestione) [frame=f1] e riferimenti come f1e5, di un altro sito (mappe, moduli di pagamento, widget) [frame=x2] e riferimenti come x2e5; tutti usabili come gli altri da click, type, act, find. I riferimenti restano validi finché l'elemento è nella pagina.",
             json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
             true,
         ),
@@ -996,7 +996,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_click",
-            "Clicca un elemento della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): ref (da preview_snapshot, il modo più sicuro), oppure selector (CSS) o text_match (il testo, l'etichetta o il segnaposto di un pulsante, link o campo). Torna la pagina dopo il clic. L'utente conferma.",
+            "Clicca un elemento della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): ref (da preview_snapshot, il modo più sicuro), oppure selector (CSS) o text_match (il testo, l'etichetta o il segnaposto di un pulsante, link o campo). Come una persona: se l'elemento è nascosto, disattivato, fuori schermo o coperto da altro (avviso dei cookie, finestra) il clic non si fa e la risposta dice cosa lo copre. Torna la pagina dopo il clic. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
                 "ref": { "type": "string" },
@@ -1034,7 +1034,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_act",
-            "Un'azione con mouse o tastiera veri nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva), sull'elemento ref (da preview_snapshot), selector o text_match, oppure sul punto x, y (pixel della schermata di preview_screenshot). action: click, double_click, right_click; key con keys («Enter», «Tab», «Escape», «ArrowDown», «Control+a»; più tasti separati da spazi), dopo aver messo il fuoco sull'elemento se c'è; type_keys scrive text come da tastiera (per le ricerche che suggeriscono mentre scrivi); select sceglie value (testo o valore) in una tendina <select>; check e uncheck per caselle e interruttori; drag trascina fino a to_ref, to_selector, to_text_match o to_x, to_y. Acquisti, ordini, carrello e pagamenti non si cliccano mai; password e dati di pagamento non si scrivono. Torna la pagina dopo, o solo l'esito con quiet. L'utente conferma.",
+            "Un'azione con mouse o tastiera veri nella pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva), sull'elemento ref (da preview_snapshot), selector o text_match, oppure sul punto x, y (pixel della schermata di preview_screenshot). action: click, double_click, right_click; key con keys («Enter», «Tab», «Escape», «ArrowDown», «Control+a»; più tasti separati da spazi), dopo aver messo il fuoco sull'elemento se c'è; type_keys scrive text come da tastiera (per le ricerche che suggeriscono mentre scrivi); select sceglie value (testo o valore) in una tendina <select>; check e uncheck per caselle e interruttori; drag trascina fino a to_ref, to_selector, to_text_match o to_x, to_y. I clic su un elemento coperto o nascosto non si fanno (la risposta dice da cosa). Acquisti, ordini, carrello e pagamenti non si cliccano mai; password e dati di pagamento non si scrivono. Torna la pagina dopo, o solo l'esito con quiet. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
                 "action": { "type": "string", "enum": ["click", "double_click", "right_click", "key", "type_keys", "select", "check", "uncheck", "drag"] },
@@ -1053,6 +1053,18 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "to_y": { "type": "number" },
                 "quiet": { "type": "boolean" }
             }, "required": ["action"] }),
+            false,
+        ),
+        (
+            "preview_upload",
+            "Carica file in un campo «Scegli file» della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): files sono i percorsi (dal Vassoio, list_uploaded_files, o indicati dall'utente; al massimo 10), il campo con ref, selector o text_match (anche il pulsante «Carica» o «Allega» vicino al campo; senza, il campo della pagina). I file vanno nel campo come scelti dall'utente; inviarli resta un clic sul pulsante della pagina. Mai file di chiavi e password. L'utente conferma ogni volta.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "files": { "type": "array", "items": { "type": "string" } },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" }
+            }, "required": ["files"] }),
             false,
         ),
         (

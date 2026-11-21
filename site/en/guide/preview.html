@@ -25,7 +25,7 @@
 <header class="top">
 <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
 <a href="../../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
-<span class="badge">Guide · 1.0.51</span>
+<span class="badge">Guide · 1.0.53</span>
 <div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
 <nav class="links"><a href="../../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/anteprima.html" hreflang="it">Italiano</a></nav>
 </header>
@@ -54,6 +54,10 @@
 <p>With EasyIsland's tools on, the chat can open a page or a file in the Preview, read its text, take a screenshot, read the console errors and try it at phone size or in dark mode. So after changing your site it checks by itself that it works before telling you.</p>
 <p>The chat sees the page the way screen readers read it: headings, texts, buttons and fields, each with its own reference. So it clicks exactly the right element, even when two buttons have the same text, it can wait for a page to finish loading and it sees the failed network requests. When the Preview is open, the chat knows by itself what is in it: you do not need to tell it.</p>
 <p>It can also <strong>click</strong>, <strong>type</strong>, press keys (Enter, Esc, arrows), scroll, hover over menus, pick in drop-downs and drag, as you would. Every time it asks <strong>Allow / Deny</strong> in the island; with <strong>Always</strong> it no longer asks <strong>on that site</strong>, until the end of the conversation. It never types passwords or payment details and <strong>never clicks</strong> “Add to cart”, “Buy”, “Order” or “Pay”, not even with Always: those are yours.</p>
+<p>The chat <strong>does not open the Preview by itself</strong>: when it is closed, the pages it needs load behind, without a window, and the chat works on them anyway. To watch, open the Preview and you find its tabs (loaded again). Pages behind that the chat has not used for 10 minutes close by themselves.</p>
+<p>It clicks like a person: when the button is covered by something (a cookie notice, a window), hidden or disabled, the click is not made and the chat knows what covers it. It also reads the parts of a page that come from another site (a map, a payment form, a panel inside the page).</p>
+<p>When a site asks for a confirmation (“Delete?”, “Leave the page?”), the question reaches you as a card in the island with <strong>OK</strong> and <strong>Cancel</strong>: you decide, never the chat; with no answer in two minutes it is Cancel. The site's plain alerts are closed with OK and the chat reads them.</p>
+<p>It can put <strong>files</strong> in a page's “Choose file” field (from the Tray or files you name): it asks every time, even with Always, and never touches key and password files. Sending them is still a click on the page's button.</p>
 <p>To save tokens, the chat reads only what it needs: it looks for the words it wants in the page, reads the products already in the page (name, code, price, photos) or the data the site receives, and takes several steps at once (“open, type, Enter, wait, read”). It uses screenshots only to check how things look.</p>
 <h2 id="suppliers-portals-and-quotes"><a class="anchor" href="#suppliers-portals-and-quotes">#</a>Suppliers' portals and quotes</h2>
 <p>You can teach the chat your suppliers' portals: open the portal in the Preview and ask “learn to search this portal”. The chat runs a test search, shows you what it found (code, price, photos) and you correct it (“the right price is the net one”, “prices include VAT”). The <strong>recipe</strong> stays in your data, not in the program: you see it in <strong>Settings → Chat → Portals</strong>, where you can delete it or export it for another EasyIsland.</p>
@@ -61,9 +65,9 @@
 <p>Product photos go to the <strong>Tray</strong> and the quote is made from your Word template: give the supplier's cost and the markup, and EasyIsland works out prices, VAT (also taken out of prices that include it) and totals.</p>
 <h2 id="shortcuts"><a class="anchor" href="#shortcuts">#</a>Shortcuts</h2>
 <div class="table"><table><thead><tr><th>Keys</th><th>What it does</th></tr></thead><tbody><tr><td>Ctrl+L</td><td>Goes to the address bar</td></tr><tr><td>Ctrl+R or F5</td><td>Reload</td></tr><tr><td>Ctrl+T</td><td>New tab</td></tr><tr><td>Ctrl+W</td><td>Closes the tab</td></tr><tr><td>Ctrl+Tab</td><td>Next tab</td></tr><tr><td>Alt+← / Alt+→</td><td>Back / forward</td></tr></tbody></table></div>
-<p>Once the window is closed nothing keeps running; the tabs come back the same the next time.</p>
+<p>Once the window is closed nothing keeps running, except the pages the chat is using behind (they close after 10 minutes unused); the tabs come back the same the next time.</p>
 <div class="pager"><a class="prev" href="engines.html"><small>Previous</small>AI engines</a><a class="next" href="ai-tools.html"><small>Next</small>Terminal mode and tools</a></div>
-<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland 1.0.51 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/10-preview.md">Edit this page on GitHub</a></footer>
+<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland 1.0.53 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/10-preview.md">Edit this page on GitHub</a></footer>
 </main>
 <nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#how-it-opens">How it opens</a></li><li class="l2"><a href="#files">Files</a></li><li class="l2"><a href="#web-pages">Web pages</a></li><li class="l2"><a href="#the-chat-uses-the-preview">The chat uses the Preview</a></li><li class="l2"><a href="#suppliers-portals-and-quotes">Suppliers' portals and quotes</a></li><li class="l2"><a href="#shortcuts">Shortcuts</a></li></ul></nav>
 </div>

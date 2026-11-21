@@ -10,6 +10,7 @@ mod collect;
 mod memory_ai;
 mod memory_links;
 mod preview;
+mod preview_page;
 mod pdf;
 mod antigravity;
 mod agent;
@@ -4431,7 +4432,7 @@ pub(crate) fn webview_dir() -> Option<std::path::PathBuf> {
 async fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
     let place = if new_tab.unwrap_or(false) { preview::Place::NewTab } else { preview::Place::Reuse };
     preview::closed_by_user(false);
-    preview::open(&app, &target, place, true)
+    preview::open(&app, &target, place, true, true)
 }
 
 #[tauri::command]

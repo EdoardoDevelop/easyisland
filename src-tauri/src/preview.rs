@@ -28,6 +28,15 @@
 //   preview_read, preview_screenshot, preview_console, preview_resize read or
 //   show only; preview_click and preview_type act on the page and ask
 //   Consenti / Nega like every tool that changes something.
+// - Closed stays closed (Edoardo, 21 Nov 2026): what the chat opens while the
+//   Anteprima is closed loads in a hidden window of its own (BG) and the tools
+//   work there; the Anteprima opened by the user shows those tabs (loaded
+//   again). Hidden pages unused for BG_IDLE go; their tabs stay and come back
+//   at the next tool.
+// - Clicks are checked first (`__eiHit`): hidden, disabled, off screen or
+//   covered by something else (a cookie banner, a modal) = not clicked, with
+//   what covers it.
+// - Frames of other sites and the page's dialogs: preview_page.rs.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -43,6 +52,17 @@ use crate::i18n::{t, tf};
 pub const LABEL: &str = "anteprima";
 pub const UI: &str = "anteprima-ui";
 const WEB: &str = "anteprima-web-";
+/// The hidden window of the tabs the chat uses while the Anteprima is closed.
+const BG: &str = "anteprima-fondo";
+/// Its size: a desktop's.
+const BG_SIZE: (f64, f64) = (1280.0, 800.0);
+/// Hidden pages unused this long go (no memory, no CPU for nothing).
+const BG_IDLE: Duration = Duration::from_secs(10 * 60);
+/// The error of a tool that met a question of the page (preview_page.rs).
+const ASKING: &str = "\u{1}asking";
+/// preview_upload: files at most, and how big each.
+const MAX_UPLOADS: usize = 10;
+const MAX_UPLOAD_BYTES: u64 = 200 * 1024 * 1024;
 /// Tabs, at most: the oldest one that is not active goes.
 const MAX_TABS: usize = 12;
 /// Console lines kept per tab.
@@ -192,6 +212,111 @@ pub fn init(app: &AppHandle) {
     let _ = APP.set(app.clone());
 }
 
+pub(crate) fn app() -> Option<AppHandle> {
+    APP.get().cloned()
+}
+
+/// When a tool last used a tab's page, seconds since the app started.
+static LAST_USE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static STARTED: LazyLock<std::time::Instant> = LazyLock::new(std::time::Instant::now);
+
+fn now_secs() -> u64 {
+    STARTED.elapsed().as_secs()
+}
+
+/// One browser made at a time (the tools and `sync`, from several threads).
+static MAKING: Mutex<()> = Mutex::new(());
+
+/// The hidden window for the tabs while the Anteprima is closed, made the
+/// first time; it goes when unused (`BG_IDLE`) or when the Anteprima opens.
+fn bg_window(app: &AppHandle) -> Result<tauri::Window, String> {
+    if let Some(w) = app.get_window(BG) {
+        return Ok(w);
+    }
+    let w = tauri::window::WindowBuilder::new(app, BG)
+        .title(t("Anteprima — EasyIsland"))
+        .inner_size(BG_SIZE.0, BG_SIZE.1)
+        .visible(false)
+        .focused(false)
+        .skip_taskbar(true)
+        .decorations(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    LAST_USE.store(now_secs(), std::sync::atomic::Ordering::Relaxed);
+    let app = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(60));
+        let Some(w) = app.get_window(BG) else { return };
+        let idle = now_secs().saturating_sub(LAST_USE.load(std::sync::atomic::Ordering::Relaxed));
+        if idle >= BG_IDLE.as_secs() {
+            crate::log::line("anteprima: pagine nascoste chiuse (non usate)".to_string());
+            close_bg(&app, &w);
+            return;
+        }
+    });
+    Ok(w)
+}
+
+/// The hidden window goes with its pages; the tabs stay in STATE.
+fn close_bg(app: &AppHandle, w: &tauri::Window) {
+    let ids: Vec<u32> = state().tabs.iter().map(|tb| tb.id).collect();
+    for id in &ids {
+        close_web(app, *id);
+    }
+    let _ = w.destroy();
+    // Their labels free again before the Anteprima makes them.
+    for _ in 0..60 {
+        if ids.iter().all(|id| app.get_webview(&web_label(*id)).is_none()) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// The tab's page, made when it is not there (the Anteprima closed meanwhile,
+/// a hidden page gone unused, a tab never shown): in the Anteprima if open,
+/// else in the hidden window, and waited for until loaded (15 s at most).
+async fn web_of(app: &AppHandle, id: u32) -> Result<Webview, String> {
+    LAST_USE.store(now_secs(), std::sync::atomic::Ordering::Relaxed);
+    if let Some(w) = app.get_webview(&web_label(id)) {
+        return Ok(w);
+    }
+    let no_page = || t("Questa scheda non ha una pagina web aperta.").to_string();
+    let tab = state().tabs.iter().find(|tb| tb.id == id && tb.browser).cloned().ok_or_else(no_page)?;
+    let made = {
+        let _one = MAKING.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(w) = app.get_webview(&web_label(id)) {
+            w
+        } else {
+            let (win, bounds) = if is_open(app) {
+                let win = host(app).ok_or_else(no_page)?;
+                let s = state();
+                (win, (s.rect.x + s.origin.0, s.rect.y + s.origin.1, s.rect.w.max(1.0), s.rect.h.max(1.0)))
+            } else {
+                (bg_window(app)?, (0.0, 0.0, BG_SIZE.0, BG_SIZE.1))
+            };
+            if let Some(tb) = state().tabs.iter_mut().find(|tb| tb.id == id) {
+                tb.loading = true;
+            }
+            let w = make_web(app, &win, &tab, bounds)?;
+            // Not the tab in sight: there, but hidden.
+            let in_sight = is_open(app) && state().active == id && state().shown;
+            if !in_sight && win.label() != BG {
+                let _ = w.hide();
+            }
+            w
+        }
+    };
+    let until = std::time::Instant::now() + Duration::from_secs(15);
+    while std::time::Instant::now() < until {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        if !state().tabs.iter().find(|tb| tb.id == id).is_some_and(|tb| tb.loading) {
+            break;
+        }
+    }
+    Ok(made)
+}
+
 fn state() -> std::sync::MutexGuard<'static, State> {
     STATE.lock().unwrap_or_else(|e| e.into_inner())
 }
@@ -317,9 +442,11 @@ pub enum Place {
     Active,
 }
 
-/// Opens a file or an address in the preview, showing the window. `focus`:
-/// in front of the other windows (a click), or not (a file the chat edited).
-pub fn open(app: &AppHandle, target: &str, place: Place, focus: bool) -> Result<u32, String> {
+/// Opens a file or an address in the preview. `reveal`: the window shows
+/// (the user asked); else it shows only when already open, and a closed
+/// Anteprima stays closed: the tab loads in the hidden window. `focus`: in
+/// front of the other windows (a click), or not (a file the chat edited).
+pub fn open(app: &AppHandle, target: &str, place: Place, focus: bool, reveal: bool) -> Result<u32, String> {
     let target = target.trim();
     if target.is_empty() {
         return Err(t("Scrivi un indirizzo o il percorso di un file.").into());
@@ -375,7 +502,11 @@ pub fn open(app: &AppHandle, target: &str, place: Place, focus: bool) -> Result<
             }
         }
     };
-    show(app, focus)?;
+    if reveal || is_open(app) {
+        show(app, focus)?;
+    } else {
+        bg_window(app)?;
+    }
     sync(app);
     emit_tabs(app);
     Ok(id)
@@ -396,7 +527,11 @@ fn host(app: &AppHandle) -> Option<tauri::Window> {
     if let Some(w) = app.get_window(LABEL) {
         return Some(w);
     }
-    is_open(app).then(|| dock_window(app)).flatten()
+    if is_open(app) {
+        return dock_window(app);
+    }
+    // Closed: the hidden window, when the chat is using tabs.
+    app.get_window(BG)
 }
 
 fn docked_setting(app: &AppHandle) -> bool {
@@ -484,6 +619,10 @@ pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
             }
         }
         return Ok(());
+    }
+    // The tabs the chat used while it was closed come here (loaded again).
+    if let Some(bg) = app.get_window(BG) {
+        close_bg(app, &bg);
     }
     let mut ui = WebviewBuilder::new(UI, crate::page_url(app, "anteprima.html"))
         .additional_browser_args(crate::BROWSER_ARGS)
@@ -603,6 +742,7 @@ fn close_web(app: &AppHandle, id: u32) {
     if let Some(w) = app.get_webview(&web_label(id)) {
         let _ = w.close();
     }
+    crate::preview_page::forget(app, id);
 }
 
 /// The page's content area, in logical pixels of the window.
@@ -644,7 +784,7 @@ pub fn nav(app: &AppHandle, id: u32, action: &str) -> Result<(), String> {
                 navigate_web(app, id, &url);
                 emit_tabs(app);
             } else {
-                open(app, target, Place::Reuse, true)?;
+                open(app, target, Place::Reuse, true, is_open(app))?;
             }
         }
     }
@@ -652,8 +792,17 @@ pub fn nav(app: &AppHandle, id: u32, action: &str) -> Result<(), String> {
 }
 
 fn navigate_web(app: &AppHandle, id: u32, url: &str) {
-    if let (Some(w), Ok(u)) = (app.get_webview(&web_label(id)), tauri::Url::parse(url)) {
-        let _ = w.navigate(u);
+    match (app.get_webview(&web_label(id)), tauri::Url::parse(url)) {
+        (Some(w), Ok(u)) => {
+            let _ = w.navigate(u);
+        }
+        // No page now (closed, gone unused): made there at the next tool (web_of).
+        (None, Ok(_)) => {
+            if let Some(tb) = state().tabs.iter_mut().find(|tb| tb.id == id && tb.kind == "web") {
+                tb.target = url.to_string();
+            }
+        }
+        _ => {}
     }
 }
 
@@ -725,6 +874,9 @@ fn sync_once(app: &AppHandle) {
         (s.tabs.clone(), s.active, s.rect, s.covered, s.view.clone(), s.origin, s.shown)
     };
     let rect = Rect { x: rect.x + origin.0, y: rect.y + origin.1, ..rect };
+    // The hidden window: all of it, as if in sight.
+    let (rect, covered, shown) = if win.label() == BG { (Rect { x: 0.0, y: 0.0, w: BG_SIZE.0, h: BG_SIZE.1 }, false, true) } else { (rect, covered, shown) };
+    let _one = MAKING.lock().unwrap_or_else(|e| e.into_inner());
     for tb in &tabs {
         let label = web_label(tb.id);
         let wanted = shown && tb.id == active && tb.browser && rect.w > 1.0 && rect.h > 1.0;
@@ -831,6 +983,7 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
         .add_child(b, tauri::LogicalPosition::new(bounds.0, bounds.1), tauri::LogicalSize::new(bounds.2, bounds.3))
         .map_err(|e| e.to_string())?;
     devtools_and_console(&w, id);
+    crate::preview_page::install(&w, id);
     let _ = app;
     Ok(w)
 }
@@ -863,7 +1016,9 @@ fn new_window(url: tauri::Url, features: tauri::webview::NewWindowFeatures) -> t
     };
     if !is_popup(&target, features.size().is_some()) {
         std::thread::spawn(move || {
-            let _ = open(&app, &target, Place::NewTab, true);
+            // A page of a closed Anteprima opens its tab behind too.
+            let reveal = is_open(&app);
+            let _ = open(&app, &target, Place::NewTab, reveal, reveal);
         });
         return tauri::webview::NewWindowResponse::Deny;
     }
@@ -1058,6 +1213,9 @@ pub fn hint() -> Option<String> {
             }
             None => String::new(),
         }
+    } else if app.get_window(BG).is_some() && !state().tabs.is_empty() {
+        let n = state().tabs.len().to_string();
+        tf("[Anteprima chiusa: {n} schede aperte dietro, senza finestra; gli strumenti preview_* ci lavorano lo stesso. Non chiedere di aprirla: la apre l'utente se vuole vedere.]\n\n", &[("n", &n)])
     } else {
         String::new()
     };
@@ -1197,18 +1355,15 @@ pub fn devtools(app: &AppHandle, id: u32) -> Result<(), String> {
 
 /// The tab's page (or the preview's own page for a file shown by it) as PNG.
 async fn screenshot_of(app: &AppHandle, id: u32) -> Result<Vec<u8>, String> {
-    let w = app
-        .get_webview(&web_label(id))
-        .filter(|_| state().tabs.iter().any(|tb| tb.id == id && tb.browser))
-        .or_else(|| app.get_webview(UI))
-        .ok_or_else(|| t("L'anteprima non è aperta.").to_string())?;
+    let browser = state().tabs.iter().any(|tb| tb.id == id && tb.browser);
+    let w = if browser { web_of(app, id).await? } else { app.get_webview(UI).ok_or_else(|| t("L'anteprima non è aperta: un file si fotografa solo con l'Anteprima aperta.").to_string())? };
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<String, String>>();
     with_core(&w, move |core| {
         cdp(&core, "Page.captureScreenshot", &json!({ "format": "png" }), move |r| {
             let _ = tx.send(r);
         });
     })?;
-    let json = tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())??;
+    let json = answer_of(id, rx).await??;
     let v: Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
     let data = v.get("data").and_then(Value::as_str).ok_or_else(|| t("Schermata non riuscita.").to_string())?;
     crate::backup::base64_decode(data).ok_or_else(|| t("Schermata non riuscita.").to_string())
@@ -1216,7 +1371,7 @@ async fn screenshot_of(app: &AppHandle, id: u32) -> Result<Vec<u8>, String> {
 
 /// A script on the tab's page; its value as JSON text.
 async fn eval(app: &AppHandle, id: u32, script: &str) -> Result<String, String> {
-    let w = app.get_webview(&web_label(id)).ok_or_else(|| t("Questa scheda non ha una pagina web aperta.").to_string())?;
+    let w = web_of(app, id).await?;
     let (tx, rx) = tokio::sync::oneshot::channel::<String>();
     let tx = Mutex::new(Some(tx));
     w.eval_with_callback(script, move |out| {
@@ -1225,19 +1380,40 @@ async fn eval(app: &AppHandle, id: u32, script: &str) -> Result<String, String> 
         }
     })
     .map_err(|e| e.to_string())?;
-    tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())
+    answer_of(id, rx).await
+}
+
+/// The page's answer, 15 s at most; a question of the page (confirm, leave
+/// the page…) stops every script there until the user answers its card: then
+/// at once the ASKING error, which `tool` turns into what to tell the chat.
+async fn answer_of<T>(id: u32, mut rx: tokio::sync::oneshot::Receiver<T>) -> Result<T, String> {
+    let until = std::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        match tokio::time::timeout(Duration::from_millis(200), &mut rx).await {
+            Ok(Ok(v)) => return Ok(v),
+            Ok(Err(_)) => return Err(t("La pagina non ha risposto.").into()),
+            Err(_) => {
+                if crate::preview_page::waiting(id).is_some() {
+                    return Err(format!("{ASKING}{id}"));
+                }
+                if std::time::Instant::now() >= until {
+                    return Err(t("La pagina non ha risposto.").into());
+                }
+            }
+        }
+    }
 }
 
 /// One DevTools protocol call on the tab's page, waited for: its answer.
 async fn cdp_on(app: &AppHandle, id: u32, method: &'static str, params: Value) -> Result<Value, String> {
-    let w = app.get_webview(&web_label(id)).ok_or_else(|| t("Questa scheda non ha una pagina web aperta.").to_string())?;
+    let w = web_of(app, id).await?;
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<String, String>>();
     with_core(&w, move |core| {
         cdp(&core, method, &params, move |r| {
             let _ = tx.send(r);
         });
     })?;
-    let json = tokio::time::timeout(Duration::from_secs(15), rx).await.map_err(|_| t("La pagina non ha risposto.").to_string())?.map_err(|e| e.to_string())??;
+    let json = answer_of(id, rx).await??;
     Ok(serde_json::from_str(&json).unwrap_or(Value::Null))
 }
 
@@ -1341,19 +1517,91 @@ async fn mouse(app: &AppHandle, id: u32, kind: &'static str, x: f64, y: f64, but
 
 /// Where an element is on the screen (its centre, in CSS pixels of the
 /// viewport, after bringing it into view), found like preview_click finds it.
+/// With `guard` (a click, a drag) also checked as a person would see it
+/// (`__eiHit`): the point is one where it is on top, else no click.
 async fn point_of(app: &AppHandle, id: u32, target: &Value, guard: bool) -> Result<(f64, f64, String), String> {
-    let script = format!(
-        "{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center', inline: 'center'}}); const r = el.getBoundingClientRect(); const o = window.__eiOff(el); return [r.left + r.width / 2 + o[0], r.top + r.height / 2 + o[1]]; }}, false, {guard})"
-    );
-    let raw = eval(app, id, &script).await?;
-    let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
-    if let Some(e) = v.get("error").and_then(Value::as_str) {
-        return Err(e.to_string());
+    let act = "(el) => { el.scrollIntoView({block: 'center', inline: 'center'}); const r = el.getBoundingClientRect(); const o = window.__eiOff(el); let x = r.left + r.width / 2, y = r.top + r.height / 2; if (GUARD) { const h = window.__eiHit(el); if (h.why) return { hit: h }; x = h.x; y = h.y; } return [x + o[0], y + o[1], location.href]; }"
+        .replace("GUARD", if guard { "true" } else { "false" });
+    let (v, frame) = find_eval(app, id, target, &act, false, guard).await?;
+    let what = v.get("what").and_then(Value::as_str).unwrap_or_default().to_string();
+    if let Some(hit) = v.pointer("/out/hit") {
+        return Err(not_clickable(&what, hit));
     }
     let p = v.get("out").and_then(Value::as_array).ok_or_else(|| t("Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find.").to_string())?;
     let n = |i: usize| p.get(i).and_then(Value::as_f64).unwrap_or(0.0);
-    Ok((n(0), n(1), v.get("what").and_then(Value::as_str).unwrap_or_default().to_string()))
+    let (mut x, mut y) = (n(0), n(1));
+    // In a frame of another site: where that frame is on the page.
+    if frame.is_some() {
+        let href = p.get(2).and_then(Value::as_str).unwrap_or_default();
+        let off: Value = serde_json::from_str(&eval(app, id, &format!("{FRAMES}window.__eiXOff({})", json!(href))).await?).unwrap_or(Value::Null);
+        let o = off.as_array().ok_or_else(|| t("Questo elemento è in una parte della pagina di un altro sito che non trovo sullo schermo: usa preview_click o preview_type.").to_string())?;
+        x += o.first().and_then(Value::as_f64).unwrap_or(0.0);
+        y += o.get(1).and_then(Value::as_f64).unwrap_or(0.0);
+    }
+    Ok((x, y, what))
 }
+
+/// `body` (an expression using the scripts here) in a frame of another site,
+/// numbered `n` (preview_page.rs); null in a frame of the same site as its
+/// parent: that one is read with its parent (FRAMES).
+fn frame_script(n: u32, body: &str) -> String {
+    format!("(() => {{ try {{ if (window.parent !== window && window.parent.document) return null; }} catch (e) {{}} window.__eiX = 'x{n}'; {FRAMES} return {body}; }})()")
+}
+
+/// FIND on the tab's page with `act` (a JS function of the element): in the
+/// frame of another site its ref names (x2e5), else on the page and, when it
+/// has no such element, in those frames. The answer and the frame it was in.
+async fn find_eval(app: &AppHandle, id: u32, target: &Value, act: &str, typing: bool, guard: bool) -> Result<(Value, Option<u32>), String> {
+    let call = format!("({FIND})({target}, {act}, {typing}, {guard})");
+    let parse = |raw: &str| serde_json::from_str::<Value>(raw).unwrap_or(Value::Null);
+    let r = target.get("ref").and_then(Value::as_str).unwrap_or_default().to_string();
+    if let Some(n) = crate::preview_page::frame_of_ref(&r) {
+        let call2 = call.clone();
+        let out = crate::preview_page::eval_frames(app, id, Some(n), move |n| frame_script(n, &call2)).await;
+        let v = out.first().map(|(_, raw)| parse(raw)).ok_or_else(|| tf("La parte della pagina con {r} non c'è più: rifai preview_snapshot.", &[("r", &r)]))?;
+        if let Some(e) = v.get("error").and_then(Value::as_str) {
+            return Err(e.to_string());
+        }
+        return Ok((v, Some(n)));
+    }
+    let v = parse(&eval(app, id, &format!("{FRAMES}{call}")).await?);
+    if v.get("missing").and_then(Value::as_bool) == Some(true) && r.is_empty() {
+        let call2 = call.clone();
+        for (n, raw) in crate::preview_page::eval_frames(app, id, None, move |n| frame_script(n, &call2)).await {
+            let fv = parse(&raw);
+            if fv.get("missing").and_then(Value::as_bool) == Some(true) {
+                continue;
+            }
+            if let Some(e) = fv.get("error").and_then(Value::as_str) {
+                return Err(e.to_string());
+            }
+            return Ok((fv, Some(n)));
+        }
+    }
+    if let Some(e) = v.get("error").and_then(Value::as_str) {
+        return Err(e.to_string());
+    }
+    Ok((v, None))
+}
+
+/// Why a click was not made (`__eiHit`), in words.
+fn not_clickable(what: &str, hit: &Value) -> String {
+    let what = if what.is_empty() { t("l'elemento").to_string() } else { format!("«{what}»") };
+    match hit.get("why").and_then(Value::as_str).unwrap_or_default() {
+        "disabled" => tf("Clic non fatto: {w} è disattivato (la pagina non lo fa usare adesso: forse manca un campo da compilare).", &[("w", &what)]),
+        "hidden" => tf("Clic non fatto: {w} è nascosto. Guarda la pagina con preview_snapshot: forse va aperto un menu prima.", &[("w", &what)]),
+        "offscreen" => tf("Clic non fatto: {w} resta fuori dallo schermo anche scorrendo.", &[("w", &what)]),
+        _ => {
+            let by = hit.get("by").and_then(Value::as_str).unwrap_or_default();
+            tf("Clic non fatto: {w} è coperto da «{b}». Chiudi prima quello (un avviso dei cookie, una finestra) o aspetta che sparisca, poi riprova.", &[("w", &what), ("b", &by)])
+        }
+    }
+}
+
+/// The JS that clicks the element as a person would: only where it is on top.
+/// The click itself after the answer: a question of the page (confirm) would
+/// stop the script until the user answers it.
+const CLICK: &str = "(el) => { el.scrollIntoView({block: 'center', inline: 'center'}); const h = window.__eiHit(el); if (h.why) return { hit: h }; setTimeout(() => el.click(), 0); return 'ok'; }";
 
 /// The element named by ref, selector or text_match in the arguments (prefix
 /// "to_" for a drag's end); None when none is given.
@@ -1492,7 +1740,7 @@ pub fn touched(path: &str) {
     std::thread::spawn(move || {
         for _ in 0..240 {
             if full.is_file() {
-                let _ = open(&app, &full.display().to_string(), Place::Reuse, false);
+                let _ = open(&app, &full.display().to_string(), Place::Reuse, false, true);
                 return;
             }
             std::thread::sleep(Duration::from_millis(500));
@@ -1602,7 +1850,33 @@ fn tab_line(tb: &Tab, active: u32) -> String {
     format!("{mark}{} [{}] {} — {}{errors}", tb.id, tb.kind, tb.title, tb.target)
 }
 
+/// A preview tool of the chat. What the pages asked or said since the last
+/// time (alert, confirm: preview_page.rs) comes before the answer; a tool
+/// stopped by a question of the page says it instead of an error.
 pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, String> {
+    let out = run_tool(app, name, args).await;
+    let out = match out {
+        Err(e) if e.starts_with(ASKING) => Ok(asking_text(&e)),
+        other => other,
+    };
+    let news = crate::preview_page::news();
+    if news.is_empty() {
+        return out;
+    }
+    let news = news.join("\n");
+    match out {
+        Ok(text) => Ok(format!("{news}\n\n{text}")),
+        Err(e) => Err(format!("{news}\n\n{e}")),
+    }
+}
+
+/// The ASKING error of a tab in words.
+fn asking_text(e: &str) -> String {
+    let id: u32 = e.trim_start_matches(ASKING).parse().unwrap_or(0);
+    crate::preview_page::waiting(id).map(|d| crate::preview_page::describe(&d)).unwrap_or_else(|| t("La pagina ha chiesto qualcosa all'utente: guardala di nuovo.").to_string())
+}
+
+async fn run_tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, String> {
     let s = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
     match name {
         "preview_open" => {
@@ -1637,12 +1911,15 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let background = args.get("background").and_then(Value::as_bool).unwrap_or(false);
             let place = if background || args.get("new_tab").and_then(Value::as_bool).unwrap_or(false) { Place::NewTab } else { Place::Active };
             let before = state().active;
-            let id = open(app, &target, place, false)?;
+            let id = open(app, &target, place, false, false)?;
             // Behind the tab the user is looking at: it loads, the chat reads it.
             if background && before != 0 && before != id {
                 select(app, before);
             }
             let tb = tab_for(&id.to_string())?;
+            if !is_open(app) {
+                return Ok(tf("Aperto dietro, senza finestra (l'Anteprima resta chiusa), scheda {id}: {what}. Gli altri strumenti preview_* ci lavorano lo stesso.", &[("id", &id.to_string()), ("what", &tb.target)]));
+            }
             Ok(tf("Aperto nell'anteprima, scheda {id}: {what}", &[("id", &id.to_string()), ("what", &tb.target)]))
         }
         "preview_read" => {
@@ -1674,6 +1951,15 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 v.get("url").and_then(Value::as_str).unwrap_or_default(),
                 v.get("text").and_then(Value::as_str).unwrap_or_default()
             );
+            // Frames of other sites: their text after the page's.
+            for (n, raw) in crate::preview_page::eval_frames(app, tb.id, None, |n| frame_script(n, "({ href: location.href, text: document.body ? document.body.innerText : '' })")).await {
+                let fv: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+                let text = fv.get("text").and_then(Value::as_str).unwrap_or_default().trim().to_string();
+                if !text.is_empty() {
+                    let site = fv.get("href").and_then(Value::as_str).and_then(host_of).unwrap_or_default();
+                    out.push_str(&format!("\n\n[frame x{n} ({site})]\n{text}"));
+                }
+            }
             for (key, head) in [("links", t("Link")), ("fields", t("Campi e pulsanti"))] {
                 if let Some(list) = v.get(key).and_then(Value::as_array).filter(|l| !l.is_empty()) {
                     out.push_str(&format!("\n\n{head}:\n{}", list.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("\n")));
@@ -1685,7 +1971,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let tb = tab_for(&s("tab"))?;
             let asked = args.get("scale").and_then(Value::as_f64).map(|v| v.clamp(0.1, 1.0));
             let mut scale = asked.unwrap_or(1.0);
-            let png = if tb.browser && app.get_webview(&web_label(tb.id)).is_some() {
+            let png = if tb.browser {
                 // In CSS pixels (× scale): what preview_act's x, y mean. A zone: one element.
                 let zone = match target_of(args, "") {
                     Some(target) => {
@@ -1782,9 +2068,15 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                         obj.insert("quiet".into(), json!(true));
                     }
                 }
-                match Box::pin(tool(app, &tool_name, &a)).await {
+                match Box::pin(run_tool(app, &tool_name, &a)).await {
                     Ok(text) if i == last || READS.contains(&tool_name.as_str()) => out.push(format!("{}. {tool_name}:\n{text}", i + 1)),
                     Ok(text) => out.push(format!("{}. {tool_name}: {}", i + 1, text.lines().next().unwrap_or_default())),
+                    // The page asks the user: no step more until they answer.
+                    Err(e) if e.starts_with(ASKING) => {
+                        out.push(format!("{}. {tool_name}: {}", i + 1, asking_text(&e)));
+                        out.push(tf("Fermo al passo {n} di {tot}.", &[("n", &(i + 1).to_string()), ("tot", &steps.len().to_string())]));
+                        break;
+                    }
                     Err(e) => {
                         out.push(format!("{}. {tool_name}: {} {e}", i + 1, t("ERRORE:")));
                         out.push(tf("Fermo al passo {n} di {tot}.", &[("n", &(i + 1).to_string()), ("tot", &steps.len().to_string())]));
@@ -1864,6 +2156,57 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             }
             Ok(format!("{}\n{}", t("Foto nel Vassoio:"), out.join("\n")))
         }
+        "preview_upload" => {
+            let tb = tab_for(&s("tab"))?;
+            let files: Vec<String> = args.get("files").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+            if files.is_empty() {
+                return Err(t("Manca files: i percorsi dei file da caricare (dal Vassoio o indicati dall'utente).").into());
+            }
+            if files.len() > MAX_UPLOADS {
+                return Err(tf("Al massimo {n} file per volta.", &[("n", &MAX_UPLOADS.to_string())]));
+            }
+            let mut paths = Vec::new();
+            for f in &files {
+                let p = resolve_path(app, f);
+                let shown = p.display().to_string();
+                if crate::opencode::secret_place(&shown) {
+                    return Err(tf("«{p}» è fra i file delle chiavi e delle password: non si carica in una pagina.", &[("p", &shown)]));
+                }
+                let meta = std::fs::metadata(&p).map_err(|_| tf("Non trovo «{p}».", &[("p", &shown)]))?;
+                if !meta.is_file() {
+                    return Err(tf("«{p}» non è un file.", &[("p", &shown)]));
+                }
+                if meta.len() > MAX_UPLOAD_BYTES {
+                    return Err(tf("«{p}» è troppo grande (più di 200 MB).", &[("p", &shown)]));
+                }
+                paths.push(shown);
+            }
+            let target = target_of(args, "").unwrap_or_else(|| json!({ "ref": "", "selector": "input[type=file]", "text": "" }));
+            if target.get("ref").and_then(Value::as_str).and_then(crate::preview_page::frame_of_ref).is_some() {
+                return Err(t("Il campo è in una parte della pagina di un altro sito: lì i file li carica l'utente.").into());
+            }
+            // The file field: the one named, its label's, one inside it or in its form.
+            let pick = format!(
+                "{FRAMES}(() => {{ const r = ({FIND})({target}, (el) => {{ const f = (e) => e && e.tagName === 'INPUT' && e.type === 'file' ? e : null; const form = el.closest && el.closest('form'); return f(el) || f(el.control) || (el.querySelector && f(el.querySelector('input[type=file]'))) || (form && f(form.querySelector('input[type=file]'))) || null; }}, false, false); if (r.error) return r.error; if (!r.out) return 'no-file'; if (r.out.disabled) return 'disabled'; if (!r.out.multiple && {n} > 1) return 'one'; return r.out; }})()",
+                n = paths.len()
+            );
+            let v = cdp_on(app, tb.id, "Runtime.evaluate", json!({ "expression": pick, "returnByValue": false })).await?;
+            let result = v.get("result").cloned().unwrap_or(Value::Null);
+            if result.get("type").and_then(Value::as_str) == Some("string") {
+                return Err(match result.get("value").and_then(Value::as_str).unwrap_or_default() {
+                    "no-file" => t("Lì non c'è un campo per caricare file: indica il pulsante o il campo «Scegli file» (preview_find «carica» o «allega»).").to_string(),
+                    "disabled" => t("Il campo per caricare file è disattivato.").to_string(),
+                    "one" => t("Il campo accetta un file solo.").to_string(),
+                    other => other.to_string(),
+                });
+            }
+            let object = result.get("objectId").and_then(Value::as_str).ok_or_else(|| t("Campo per caricare file non trovato.").to_string())?.to_string();
+            cdp_on(app, tb.id, "DOM.setFileInputFiles", json!({ "files": paths, "objectId": object })).await?;
+            let names: Vec<String> = paths.iter().map(|p| file_title(Path::new(p))).collect();
+            crate::log::line(format!("anteprima: {} file messi in un campo di {}", names.len(), host_of(&tb.target).unwrap_or_default()));
+            let done = tf("File messi nel campo della pagina: {f}. La pagina non li ha ancora inviati: serve il suo pulsante (Invia, Carica…).", &[("f", &names.join(", "))]);
+            after(app, tb.id, done, args).await
+        }
         "preview_find" => {
             let tb = tab_for(&s("tab"))?;
             let q = s("query");
@@ -1872,12 +2215,20 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             }
             let raw = eval(app, tb.id, &format!("{FRAMES}({FIND_ALL})({})", json!(q))).await?;
             let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
-            let lines: Vec<&str> = v.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            let mut lines: Vec<String> = v.as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+            // And in the frames of other sites (their refs start with x).
+            if lines.len() < 25 {
+                let call = format!("({FIND_ALL})({})", json!(q));
+                for (_, raw) in crate::preview_page::eval_frames(app, tb.id, None, move |n| frame_script(n, &call)).await {
+                    let fv: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+                    lines.extend(fv.as_array().into_iter().flatten().filter_map(Value::as_str).map(str::to_string));
+                }
+                lines.truncate(25);
+            }
             if lines.is_empty() {
                 return Ok(tf("Nella pagina non c'è «{q}».", &[("q", &q)]));
             }
-            Ok(lines.join("
-"))
+            Ok(lines.join("\n"))
         }
         "preview_snapshot" => {
             let tb = tab_for(&s("tab"))?;
@@ -1920,10 +2271,10 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             let script = format!("{FRAMES}({WAIT})({q})");
             loop {
                 // During a navigation the page does not answer: tried again.
-                if let Ok(raw) = eval(app, tb.id, &script).await {
-                    if raw.trim() == "true" {
-                        break;
-                    }
+                match eval(app, tb.id, &script).await {
+                    Ok(raw) if raw.trim() == "true" => break,
+                    Err(e) if e.starts_with(ASKING) => return Err(e),
+                    _ => {}
                 }
                 if stopped() {
                     return Err(t("Attesa interrotta.").into());
@@ -1972,21 +2323,21 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         "preview_click" | "preview_type" => {
             let tb = tab_for(&s("tab"))?;
             let target = json!({ "ref": s("ref"), "selector": s("selector"), "text": s("text_match") });
-            let script = if name == "preview_click" {
-                format!("{FRAMES}({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }}, false, true)")
+            let (v, _) = if name == "preview_click" {
+                find_eval(app, tb.id, &target, CLICK, false, true).await?
             } else {
                 let value = json!(s("text"));
                 let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(false);
-                format!(
-                    "{FRAMES}({FIND})({target}, (el) => {{ el.focus(); const W = el.ownerDocument.defaultView; const proto = el instanceof W.HTMLTextAreaElement ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof W.HTMLInputElement || el instanceof W.HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true, {submit})"
-                )
+                let act = format!(
+                    "(el) => {{ el.focus(); const W = el.ownerDocument.defaultView; const proto = el instanceof W.HTMLTextAreaElement ? W.HTMLTextAreaElement.prototype : W.HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof W.HTMLInputElement || el instanceof W.HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; setTimeout(() => {{ if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }}, 0); }} return 'ok'; }}"
+                );
+                find_eval(app, tb.id, &target, &act, true, submit).await?
             };
-            let raw = eval(app, tb.id, &script).await?;
-            let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
-            if let Some(e) = v.get("error").and_then(Value::as_str) {
-                return Err(e.to_string());
+            let what = v.get("what").and_then(Value::as_str).unwrap_or_default().to_string();
+            if let Some(hit) = v.pointer("/out/hit") {
+                return Err(not_clickable(&what, hit));
             }
-            let done = tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]);
+            let done = tf("Fatto su «{what}».", &[("what", &what)]);
             after(app, tb.id, done, args).await
         }
         "preview_scroll" => {
@@ -2065,11 +2416,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     }
                     // On an element: focused first (and guarded: Invio on «Acquista» is a click).
                     if let Some(target) = at("") {
-                        let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.focus(); return 'ok'; }}, false, true)");
-                        let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
-                        if let Some(e) = v.get("error").and_then(Value::as_str) {
-                            return Err(e.to_string());
-                        }
+                        find_eval(app, tb.id, &target, "(el) => { el.focus(); return 'ok'; }", false, true).await?;
                     }
                     for combo in keys.split_whitespace() {
                         press(app, tb.id, combo).await?;
@@ -2079,11 +2426,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 "type_keys" => {
                     // As typed on the keyboard: for search boxes that suggest while you write.
                     let target = at("").ok_or_else(|| t("Manca il campo: ref, selector o text_match.").to_string())?;
-                    let script = format!("{FRAMES}({FIND})({target}, (el) => {{ el.focus(); if (el.select) el.select(); return 'ok'; }}, true, false)");
-                    let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
-                    if let Some(e) = v.get("error").and_then(Value::as_str) {
-                        return Err(e.to_string());
-                    }
+                    let (v, _) = find_eval(app, tb.id, &target, "(el) => { el.focus(); if (el.select) el.select(); return 'ok'; }", true, false).await?;
                     cdp_on(app, tb.id, "Input.insertText", json!({ "text": s("text") })).await?;
                     tf("Scritto in «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())])
                 }
@@ -2092,12 +2435,11 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     let want = json!(s("value"));
                     let body = match action.as_str() {
                         "select" => format!("if (el.tagName !== 'SELECT') return 'not-select'; const w = String({want}).trim().toLowerCase(); const o = Array.from(el.options).find((o) => o.value.toLowerCase() === w || o.text.trim().toLowerCase() === w) || Array.from(el.options).find((o) => o.text.toLowerCase().includes(w)); if (!o) return 'no-option'; el.value = o.value; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); return o.text;"),
-                        _ => format!("const on = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true'; if (on !== {}) el.click(); return 'ok';", action == "check"),
+                        _ => format!("const on = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true'; if (on === {}) return 'ok'; el.scrollIntoView({{block: 'center'}}); const h = window.__eiHit(el); if (h.why) return {{ hit: h }}; el.click(); return 'ok';", action == "check"),
                     };
-                    let script = format!("{FRAMES}({FIND})({target}, (el) => {{ {body} }}, false, true)");
-                    let v: Value = serde_json::from_str(&eval(app, tb.id, &script).await?).unwrap_or(Value::Null);
-                    if let Some(e) = v.get("error").and_then(Value::as_str) {
-                        return Err(e.to_string());
+                    let (v, _) = find_eval(app, tb.id, &target, &format!("(el) => {{ {body} }}"), false, true).await?;
+                    if let Some(hit) = v.pointer("/out/hit") {
+                        return Err(not_clickable(v.get("what").and_then(Value::as_str).unwrap_or_default(), hit));
                     }
                     match v.get("out").and_then(Value::as_str).unwrap_or_default() {
                         "not-select" => return Err(t("Non è una tendina <select>: aprila con un clic e scegli la voce.").into()),
@@ -2128,7 +2470,7 @@ pub(crate) async fn load_behind(app: &AppHandle, key: &str, url: &str, secs: u64
         }
         None => {
             let before = state().active;
-            let id = open(app, url, Place::NewTab, false)?;
+            let id = open(app, url, Place::NewTab, false, false)?;
             if before != 0 && before != id {
                 select(app, before);
             }
@@ -2353,8 +2695,55 @@ async fn page_snapshot(app: &AppHandle, id: u32) -> Result<String, String> {
         out.push('\n');
     }
     out.push('\n');
-    out.push_str(v.get("tree").and_then(Value::as_str).unwrap_or_default());
+    let tree = v.get("tree").and_then(Value::as_str).unwrap_or_default().to_string();
+    let tree = if tree.contains('\u{1}') { with_other_sites(app, id, &tree).await } else { tree };
+    out.push_str(&tree);
     Ok(cut(&out))
+}
+
+/// The tree with the frames of other sites read inside (preview_page.rs):
+/// SNAPSHOT marks each such iframe with its address between \u{1}.
+async fn with_other_sites(app: &AppHandle, id: u32, tree: &str) -> String {
+    let raw = crate::preview_page::eval_frames(app, id, None, |n| frame_script(n, &format!("{{ href: location.href, tree: ({SNAPSHOT})().tree }}"))).await;
+    let frames: Vec<(u32, String, String)> = raw
+        .iter()
+        .filter_map(|(n, j)| {
+            let v: Value = serde_json::from_str(j).ok()?;
+            Some((*n, v.get("href")?.as_str()?.to_string(), v.get("tree")?.as_str()?.to_string()))
+        })
+        .collect();
+    let mut used = Vec::new();
+    expand_frames(tree, &frames, &mut used, 0)
+}
+
+/// Each marked iframe line: the frame at that address (else one of the same
+/// site) put under it, indented, its own marks expanded too (3 levels).
+fn expand_frames(tree: &str, frames: &[(u32, String, String)], used: &mut Vec<u32>, depth: usize) -> String {
+    let mut out = Vec::new();
+    for line in tree.lines() {
+        let Some((head, rest)) = line.split_once('\u{1}') else {
+            out.push(line.to_string());
+            continue;
+        };
+        let src = rest.split('\u{1}').next().unwrap_or_default();
+        let host = host_of(src);
+        let pick = frames
+            .iter()
+            .find(|(n, href, _)| !used.contains(n) && href == src)
+            .or_else(|| frames.iter().find(|(n, href, _)| !used.contains(n) && host.is_some() && host_of(href) == host));
+        match pick {
+            Some((n, href, inner)) if depth < 3 => {
+                used.push(*n);
+                let site = host_of(href).unwrap_or_default();
+                out.push(format!("{head}[frame=x{n}] ({site}):"));
+                let pad: String = line.chars().take_while(|c| *c == ' ').collect::<String>() + "  ";
+                let inner = expand_frames(inner, frames, used, depth + 1);
+                out.extend(inner.lines().map(|l| format!("{pad}{l}")));
+            }
+            _ => out.push(format!("{head}{}", t("(altro sito: contenuto non letto)"))),
+        }
+    }
+    out.join("\n")
 }
 
 /// After a click or typing: a moment for the page to react, then until it has
@@ -2396,7 +2785,46 @@ const FRAMES: &str = r#"(() => {
     }
     return out;
   });
-  def("__eiPrefix", (el) => { const v = el.ownerDocument && el.ownerDocument.defaultView; return v && v !== window && v.frameElement ? window.__eiFrameId(v.frameElement) : ""; });
+  def("__eiPrefix", (el) => { const v = el.ownerDocument && el.ownerDocument.defaultView; return (window.__eiX || "") + (v && v !== window && v.frameElement ? window.__eiFrameId(v.frameElement) : ""); });
+  // Can a person click it? A point of it where it is the element on top (or
+  // a part of it, or its label): { x, y } in its own frame; else why not.
+  def("__eiHit", (el) => {
+    const W = el.ownerDocument.defaultView;
+    const say = (e) => { const t = (e.innerText || e.getAttribute("aria-label") || e.getAttribute("title") || e.id || "").replace(/\s+/g, " ").trim(); return (t.length > 60 ? t.slice(0, 60) + "…" : t) + " (" + e.tagName.toLowerCase() + ")"; };
+    if (el.disabled || el.getAttribute("aria-disabled") === "true") return { why: "disabled" };
+    let box = el;
+    const r0 = el.getBoundingClientRect();
+    const st = W.getComputedStyle(el);
+    if (st.display === "none" || st.visibility === "hidden" || r0.width < 1 || r0.height < 1) {
+      // A hidden checkbox or file field drawn by its label.
+      const lab = el.labels && Array.from(el.labels).find((l) => l.getClientRects().length > 0);
+      if (!lab) return { why: "hidden" };
+      box = lab;
+    }
+    const r = box.getBoundingClientRect();
+    const root = el.getRootNode && el.getRootNode().elementFromPoint ? el.getRootNode() : el.ownerDocument;
+    const ours = (h) => h && (h === el || h === box || el.contains(h) || box.contains(h) || h.contains(el) || (h.closest && h.closest("label") && h.closest("label").control === el));
+    let cover = null, inside = false;
+    for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.5], [0.75, 0.5], [0.5, 0.25], [0.5, 0.75], [0.15, 0.15], [0.85, 0.85]]) {
+      const x = r.left + r.width * fx, y = r.top + r.height * fy;
+      if (x < 0 || y < 0 || x >= W.innerWidth || y >= W.innerHeight) continue;
+      inside = true;
+      const h = root.elementFromPoint(x, y);
+      if (ours(h)) return { x, y };
+      if (h && !cover) cover = h;
+    }
+    if (!inside) return { why: "offscreen" };
+    return { why: "covered", by: cover ? say(cover) : "" };
+  });
+  // Where a frame of another site, at `href`, is on this page (its content's corner).
+  def("__eiXOff", (href) => {
+    const all = window.__eiDocs().flatMap((x) => Array.from(x.doc.querySelectorAll("iframe, frame")));
+    const origin = (u) => { try { return new URL(u, location.href).origin; } catch (e) { return ""; } };
+    const f = all.find((f) => f.src === href) || all.find((f) => !window.__eiDocOf(f) && origin(f.src) === origin(href));
+    if (!f) return null;
+    const r = f.getBoundingClientRect(); const o = window.__eiOff(f);
+    return [r.left + f.clientLeft + o[0], r.top + f.clientTop + o[1]];
+  });
   def("__eiOff", (el) => {
     let x = 0, y = 0;
     let v = el.ownerDocument && el.ownerDocument.defaultView;
@@ -2493,7 +2921,8 @@ const SNAPSHOT: &str = r#"() => {
       if (role === "iframe") {
         const d = window.__eiDocOf(el);
         const name = JSON.stringify(clip(el.getAttribute("title") || el.getAttribute("name") || el.src, 80));
-        if (!d) { lines.push(pad + "- iframe " + name + " (altro sito: contenuto non letto)"); continue; }
+        // Another site's: read by WebView2 (preview_page.rs), put here by page_snapshot.
+        if (!d) { lines.push(pad + "- iframe " + name + " \u0001" + el.src + "\u0001"); continue; }
         lines.push(pad + "- iframe " + name + " [frame=" + window.__eiFrameId(el) + "]:");
         walk(d.body, depth + 1);
         continue;
@@ -2949,7 +3378,7 @@ const FIND: &str = r#"(q, act, typing, guard) => {
     el = all.find((e) => name(e) === want) || all.find((e) => name(e).includes(want));
     if (el && el.tagName === "LABEL" && el.control) el = el.control;
   }
-  if (!el) return { error: "Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find." };
+  if (!el) return { missing: true, error: "Elemento non trovato nella pagina: se è cambiata (ricaricata, un'altra schermata), guardala di nuovo con preview_snapshot o preview_find." };
   if (typing && (el.type === "password" || /cc-|card|cvc|iban/i.test(el.getAttribute("autocomplete") || "") || /card|cvc|cvv|iban/i.test(el.name || ""))) return { error: "Password e dati di pagamento li scrive l'utente." };
   const what = ((el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.tagName) + "").trim().slice(0, 60);
   if (guard) {
@@ -2975,6 +3404,29 @@ fn cut(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn other_site_frames_go_under_their_iframe() {
+        let tree = "- main:\n  - iframe \"Mappa\" \u{1}https://maps.esempio.com/embed?q=1\u{1}\n  - iframe \"Pub\" \u{1}https://ads.esempio.net/x\u{1}";
+        let frames = vec![
+            (3, "https://maps.esempio.com/embed?q=1".to_string(), "- button \"Zoom\" [ref=x3e1]".to_string()),
+            (4, "https://altro.it/".to_string(), "- text: \"x\"".to_string()),
+        ];
+        let out = expand_frames(tree, &frames, &mut Vec::new(), 0);
+        assert!(out.contains("- iframe \"Mappa\" [frame=x3] (maps.esempio.com):\n    - button \"Zoom\" [ref=x3e1]"), "{out}");
+        assert!(out.contains("- iframe \"Pub\" (altro sito: contenuto non letto)"), "{out}");
+        assert!(!out.contains('\u{1}'));
+        // Same site, another address (a redirect): still under it.
+        let moved = vec![(5, "https://maps.esempio.com/other".to_string(), "- text: \"ok\"".to_string())];
+        assert!(expand_frames(tree, &moved, &mut Vec::new(), 0).contains("[frame=x5]"));
+    }
+
+    #[test]
+    fn clicks_not_made_say_why() {
+        assert!(not_clickable("Invia", &json!({ "why": "covered", "by": "Accetta i cookie (div)" })).contains("Accetta i cookie"));
+        assert!(not_clickable("Invia", &json!({ "why": "disabled" })).contains("disattivato"));
+        assert!(not_clickable("", &json!({ "why": "hidden" })).contains("nascosto"));
+    }
 
     #[test]
     fn popups_only_with_a_size_or_blank() {
