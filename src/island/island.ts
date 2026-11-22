@@ -971,6 +971,8 @@ export class Island {
     if (key === "chat") {
       const host = this.views.get("prompt");
       if (!host) return;
+      // The conversations and the terminal in the island's panels go with the chat.
+      this.dock?.release();
       const title = `${t("Chat")} — EasyIsland`;
       const ok = popOut("chat", title, host, this.islandBackground, () => {
         // Home again, among the island's views; the Anteprima docks beside it again.
@@ -3424,6 +3426,7 @@ ${note}` : text };
       placePreview,
       previewWidth: () => State.settings.previewWidth || PANE_W,
       sideWidth: () => chatSideWidth(),
+      log: (line) => void Bridge.log(line).catch(() => {}),
     };
   }
 

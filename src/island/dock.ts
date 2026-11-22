@@ -36,6 +36,8 @@ export interface DockHooks {
   /** First widths (the island's own settings). */
   previewWidth(): number;
   sideWidth(): number;
+  /** A line in EasyIsland's log (which panels, from where). */
+  log(line: string): void;
 }
 
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -123,6 +125,7 @@ export class ChatDock {
       this.home();
       return;
     }
+    if (!this.views.isConnected || this.views.parentElement !== this.boxes.get("chat")) this.box("chat").append(this.views);
     const have = this.api.panels.map((p) => p.id as DockPanelId).sort();
     if (want.join() !== have.join()) this.build(want);
     // The conversations and the terminal into their panels (chat.ts lays them
@@ -130,6 +133,14 @@ export class ChatDock {
     this.adopt(".chat-side", "cronologia", want);
     this.adopt(".chat-term", "terminale", want);
     this.placeSoon();
+  }
+
+  /**
+   * The chat is leaving this page (into its window, or back): the
+   * conversations and the terminal go with its view, not left in a panel here.
+   */
+  release() {
+    this.home();
   }
 
   /** The Anteprima moved or reopened (island.ts paneGen): its place told again even if the same. */
@@ -238,6 +249,7 @@ export class ChatDock {
       }
       // The chat stays the one in front where it shares a group.
       this.api.getPanel("chat")?.api.setActive();
+      this.hooks.log(`pannelli (${this.hooks.place}): ${want.join(", ")}${done ? " come li avevi messi" : ""}`);
     } finally {
       this.quiet = false;
     }
