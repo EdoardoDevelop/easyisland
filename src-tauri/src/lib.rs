@@ -264,7 +264,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         let shadow_changed = (current.bar_shadow(), current.bar_margin()) != (settings.bar_shadow(), settings.bar_margin());
         let autostart_changed = current.autostart != settings.autostart;
         if current.hide_windows_taskbar != settings.hide_windows_taskbar {
-            taskbar_hide::apply(settings.hide_windows_taskbar);
+            taskbar_hide::apply(app, settings.hide_windows_taskbar);
         }
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
@@ -470,8 +470,8 @@ fn pc_window_focus(id: i64) -> bool {
 /// «Rimetti adesso» (Impostazioni → Barra fissa): the Windows taskbar back now
 /// (the page turns the setting off too). True when it is visible again.
 #[tauri::command]
-fn windows_taskbar_restore() -> bool {
-    taskbar_hide::apply(false);
+fn windows_taskbar_restore(app: AppHandle) -> bool {
+    taskbar_hide::apply(&app, false);
     taskbar_hide::give_back();
     !taskbar_hide::taken()
 }
@@ -5973,7 +5973,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
             // Hidden if chosen; given back if a run before left it hidden and it is not chosen now.
-            taskbar_hide::apply(loaded.hide_windows_taskbar);
+            taskbar_hide::apply(&handle, loaded.hide_windows_taskbar);
             news::start(handle.clone());
             ticket_advice::start_watch(handle.clone());
             giornata::start(handle.clone());

@@ -93,6 +93,7 @@ Fatta il 29/10 sopra la finestra del personaggio. Impostazioni → Posizione →
   - Come: nascondi automaticamente (libera l'area di lavoro) + finestre della barra invisibili e trasparenti al mouse. `SW_HIDE` non regge su Windows 11.
   - Sempre indietro: lo stato dell'utente (il suo «nascondi automaticamente») salvato in `%LOCALAPPDATA%\EasyIsland\barra-windows` prima di toccarla, tolto solo quando la rimette; guardiano `easyisland.exe --guardia-barra <pid>` (processo a parte, priorità minima) che la rimette se l'app finisce o non risponde da 20 s; `--ripristina-barra` a mano e nel disinstallatore (`nsis/hooks.nsh`); «Rimetti adesso» nella pagina. Allo spegnimento di Windows con l'avvio automatico resta nascosta (altrimenti compariva a ogni accesso).
   - Un controllo ogni 5 s (`apply`) la riprende dopo un riavvio di Explorer e rilancia il guardiano; nessun lavoro se è già nascosta.
+  - Tutto sul thread principale, come `appbar.rs`, e il primo controllo 2 s dopo l'avvio: da un altro thread, con la barra fissa in basso (stesso bordo), nasconderla mentre la barra si registrava bloccava EasyIsland all'avvio (22/11).
   - Senza barra: Start col tasto Windows, icone nascoste con Win+B (o l'elemento «Icone nascoste» della barra fissa), finestre aperte nel campo dell'isola.
 
 ## Viste, menu e barra in alto

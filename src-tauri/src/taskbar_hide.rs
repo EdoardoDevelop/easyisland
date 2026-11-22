@@ -56,32 +56,42 @@ const KEEP_EVERY: Duration = Duration::from_secs(5);
 
 /// Follows the setting: hidden and kept hidden, or given back (also when a
 /// run before left it hidden and the setting is now off).
-pub fn apply(hide: bool) {
+///
+/// Every talk with the taskbar (SHAppBarMessage, its windows) happens on the
+/// main thread, as the fixed bar's (appbar.rs): from another thread, hiding it
+/// while the bar registered on the same edge locked both up at start (22 Nov
+/// 2026, the bar at the bottom: EasyIsland stopped answering). The first look
+/// waits for the bar to settle.
+pub fn apply(app: &tauri::AppHandle, hide: bool) {
     let gen = KEEPER.fetch_add(1, Ordering::SeqCst).wrapping_add(1);
     if !hide {
         if taken() {
-            std::thread::spawn(|| {
+            let _ = app.run_on_main_thread(|| {
                 give_back();
                 crate::log::line("barra di Windows: rimessa");
             });
         }
         return;
     }
+    let app = app.clone();
     std::thread::spawn(move || {
-        let mut said = false;
+        std::thread::sleep(FIRST_LOOK);
         while KEEPER.load(Ordering::SeqCst) == gen {
             ensure_guard();
-            if !held() {
-                let ok = take_over();
-                if ok && !said {
+            let _ = app.run_on_main_thread(|| {
+                if !held() && take_over() && !SAID.swap(true, Ordering::SeqCst) {
                     crate::log::line("barra di Windows: nascosta");
-                    said = true;
                 }
-            }
+            });
             std::thread::sleep(KEEP_EVERY);
         }
     });
 }
+
+/// The first look after `apply`: the fixed bar registers itself first.
+const FIRST_LOOK: Duration = Duration::from_secs(2);
+/// «nascosta» written in the log once per run.
+static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// At exit (the guard would do it too).
 pub fn shutdown() {
