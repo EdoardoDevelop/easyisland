@@ -1893,6 +1893,11 @@ html[data-scheme="light"] .chat-term-find { border-color: rgba(0, 0, 0, 0.15); b
 .chat-row {
   display: flex;
 }
+/* A long conversation: the browser lays out and draws only the messages on
+   screen (22 Nov 2026). The last ones always, so going to the bottom lands
+   exactly; the others keep the size they had once drawn ("auto"). */
+.chat-log > .chat-row:not(:nth-last-child(-n + 8)) { content-visibility: auto; contain-intrinsic-size: auto 160px; }
+.chat-side .history-rows > .history-item { content-visibility: auto; contain-intrinsic-size: auto 30px; }
 
 /* A permission the chat waits for, at the end of the conversation (chat.ts). */
 .chat-ask {
@@ -2192,6 +2197,11 @@ html[data-scheme="light"] .chat-term-find { border-color: rgba(0, 0, 0, 0.15); b
 .md-copy:hover {
   background: rgba(167, 139, 250, 0.22);
 }
+/* «▶ Nel terminale» and «Salva» beside «Copia» (markdown.ts codeBlock): the first pushes them right. */
+.md-pre-head > .md-copy ~ .md-copy { margin-left: 4px; }
+.md-run { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.md-run:hover { background: rgba(74, 222, 128, 0.22); }
+html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61, 0.1); }
 
 .md-pre pre {
   margin: 0;

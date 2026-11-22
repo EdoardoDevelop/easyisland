@@ -453,6 +453,8 @@ export const Bridge = {
   chatClaudeSessionImport: (id: string) => callOrThrow<string>("chat_claude_session_import", { id }),
   /** «Terminale» in the chat: the user's PowerShell in the project folder. */
   terminalOpen: (folder: string | null, shell: string, cols: number, rows: number) => callOrThrow<number>("terminal_open", { folder, shell, cols, rows }),
+  /** «Salva» under a block of code: Windows' Save dialog named `name`; the path, or null when cancelled. */
+  saveCodeAs: (name: string, text: string) => callOrThrow<string | null>("save_code_as", { name, text }),
   /** The shells the terminal offers (terminal.rs shells): [id, name]. */
   terminalShells: () => call<[string, string][]>("terminal_shells"),
   terminalWrite: (id: number, data: string) => callOrThrow<void>("terminal_write", { id, data }),
