@@ -820,6 +820,8 @@ export interface Settings {
   overTaskbar: boolean;
   /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
   fixedBar?: "" | "top" | "bottom";
+  /** The Windows taskbar hidden (taskbar_hide.rs); off by default. */
+  hideWindowsTaskbar?: boolean;
   /** Where the character sits in the fixed bar. */
   fixedBarSlot?: "start" | "center" | "end";
   /** What else the fixed bar shows, in order (BarItem). */

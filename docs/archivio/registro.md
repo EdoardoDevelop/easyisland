@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 21/11 — Programmi di Windows per la chat
+Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
+- Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
+
 ### 21/11 — Anteprima: chiusa resta chiusa, clic verificato, iframe di altri siti, domande del sito, file
 Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti segnalato da Edoardo; nessuna dipendenza nuova.
 - **Chiusa resta chiusa:** con l'Anteprima chiusa il motore lavora in una finestra nascosta (`BG` in `preview.rs`, chiusa dopo 10 min senza uso); la finestra la apre solo l'utente.

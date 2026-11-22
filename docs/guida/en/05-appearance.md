@@ -45,6 +45,8 @@ Four dot-matrix and retro fonts ship with the app (SIL Open Font License): **Dot
 
 ## Fixed bar
 With **Fixed bar** at the top or the bottom, Windows keeps a band free at the edge of the screen, as for the taskbar, and windows stop there.
+
+At the bottom of the tab, **Windows taskbar** → **Hidden** removes the Windows taskbar (for the PC, not the profile). Start stays on the <kbd>Windows</kbd> key, hidden icons on <kbd>Win</kbd>+<kbd>B</kbd> (or with the fixed bar's "Hidden icons" element) and open windows are found by typing their name in the island's field. It always comes back when EasyIsland closes, hangs or is uninstalled; **Bring it back now** restores it at once.
 - **In the bar:** what sits in the bar, even different from the island: as in the island, Ezzy (the EasyIsland logo animated), the still logo, your logo, the weather or one of the characters.
 - **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
 - **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.

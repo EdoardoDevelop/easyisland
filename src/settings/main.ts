@@ -3621,6 +3621,25 @@ function appearanceSections(): HTMLElement[] {
           barBackground(commit),
         )),
       ),
+      // Of the PC, not of a profile (settings.rs PROFILE_KEYS).
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Barra delle applicazioni di Windows") })),
+        h("div", { class: "row" },
+          h("label", { text: t("Barra delle applicazioni") }),
+          select([["", t("Visibile")], ["hide", t("Nascosta")]], settings.hideWindowsTaskbar ? "hide" : "",
+            (v) => { settings.hideWindowsTaskbar = v === "hide"; commit(); }),
+          h("button", {
+            text: t("Rimetti adesso"),
+            onclick: () => {
+              settings.hideWindowsTaskbar = false;
+              commit();
+              void Bridge.windowsTaskbarRestore();
+              render();
+            },
+          }),
+          h("span", { class: "hint note", text: t("nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla") }),
+        ),
+      ),
       h("section", { class: "bar-row-block" },
         h("h2", {}, h("span", { text: t("Aspetto della barra") }), profileChip()),
         ...barLookRows(commit),

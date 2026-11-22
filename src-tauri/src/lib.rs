@@ -130,6 +130,7 @@ mod renew;
 mod richtext;
 mod start_apps;
 mod pcfind;
+mod taskbar_hide;
 mod threecx;
 mod speech;
 mod brain_watch;
@@ -262,6 +263,9 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         // The shadow's look: only the shadow is laid again (sync_character).
         let shadow_changed = (current.bar_shadow(), current.bar_margin()) != (settings.bar_shadow(), settings.bar_margin());
         let autostart_changed = current.autostart != settings.autostart;
+        if current.hide_windows_taskbar != settings.hide_windows_taskbar {
+            taskbar_hide::apply(settings.hide_windows_taskbar);
+        }
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
@@ -461,6 +465,15 @@ async fn pc_windows() -> Vec<pcfind::OpenWindow> {
 #[tauri::command]
 fn pc_window_focus(id: i64) -> bool {
     pcfind::focus(id)
+}
+
+/// «Rimetti adesso» (Impostazioni → Barra fissa): the Windows taskbar back now
+/// (the page turns the setting off too). True when it is visible again.
+#[tauri::command]
+fn windows_taskbar_restore() -> bool {
+    taskbar_hide::apply(false);
+    taskbar_hide::give_back();
+    !taskbar_hide::taken()
 }
 
 /// One of Windows' own pages (pcfind::PAGES), by its id.
@@ -5358,6 +5371,10 @@ fn open_settings_at(app: AppHandle, page: String, item: Option<String>) {
 }
 
 pub fn run() {
+    // The taskbar's guard and «give it back» run without the app (taskbar_hide.rs).
+    if taskbar_hide::handle_args() {
+        return;
+    }
     jumplist::set_app_id();
     // The release build aborts on a panic (panic = "abort"): without this the
     // reason is lost and Windows only reports 0xc0000409.
@@ -5748,6 +5765,7 @@ pub fn run() {
             pc_windows,
             pc_window_focus,
             pc_page,
+            windows_taskbar_restore,
             recap::recap_history,
             recap::recap_mark_shown,
             recap::recap_clear,
@@ -5953,6 +5971,8 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
+            // Hidden if chosen; given back if a run before left it hidden and it is not chosen now.
+            taskbar_hide::apply(loaded.hide_windows_taskbar);
             news::start(handle.clone());
             ticket_advice::start_watch(handle.clone());
             giornata::start(handle.clone());
@@ -6009,6 +6029,7 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 tasks::on_exit();
                 appbar::shutdown();
+                taskbar_hide::shutdown();
                 opencode::shutdown();
                 claude_cli::shutdown();
                 terminal::close(None);

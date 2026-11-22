@@ -6354,5 +6354,11 @@
   "Connessioni di rete": "Network connections",
   "Programmi e funzionalità": "Programs and features",
   "Gestione dispositivi": "Device Manager",
-  "Invio apre · Maiusc+Invio mostra nella cartella": "Enter opens · Shift+Enter shows it in its folder"
+  "Invio apre · Maiusc+Invio mostra nella cartella": "Enter opens · Shift+Enter shows it in its folder",
+  "Barra delle applicazioni di Windows": "Windows taskbar",
+  "Barra delle applicazioni": "Taskbar",
+  "Visibile": "Visible",
+  "Nascosta": "Hidden",
+  "Rimetti adesso": "Bring it back now",
+  "nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla": "when hidden, Start stays on the Windows key, hidden icons on Win+B and windows in the island's field; it always comes back when EasyIsland closes, hangs or is uninstalled"
 }

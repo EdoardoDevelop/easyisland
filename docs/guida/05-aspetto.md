@@ -45,6 +45,8 @@ Nell'app ci sono quattro font a puntini e retrò (licenza SIL Open Font License)
 
 ## Barra fissa
 Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bordo dello schermo, come per la barra delle applicazioni, e le finestre si fermano lì.
+
+In fondo alla scheda, **Barra delle applicazioni di Windows** → **Nascosta** toglie la barra di Windows (vale per il PC, non per il profilo). Start resta sul tasto <kbd>Windows</kbd>, le icone nascoste su <kbd>Win</kbd>+<kbd>B</kbd> (o con l'elemento «Icone nascoste» della barra fissa) e le finestre aperte si trovano scrivendone il nome nel campo dell'isola. Torna sempre quando EasyIsland si chiude, si blocca o si disinstalla; **Rimetti adesso** la riporta subito.
 - **Nella barra:** chi sta nella barra, anche diverso dall'isola: come nell'isola, il logo di EasyIsland animato o fermo, il tuo logo, il meteo o uno dei personaggi.
 - **Personaggio nella barra:** all'inizio, al centro o alla fine. Non si trascina; un clic apre l'isola subito sotto la barra (sopra, se la barra è in basso) e un altro la chiude. Da chiusa l'isola non c'è: c'è la barra.
 - **Altezza della barra:** automatica (alta quanto la vista compatta) o scelta da te; il personaggio, le icone e i testi si adattano.

@@ -5,6 +5,7 @@ _20 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`), versione installata. **
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Barra di Windows nascosta** (22/11, `docs/architettura.md` → Barra fissa): test di `taskbar_hide` passati, codice già provato con la Dock; da provare nell'app: Nascosta/Visibile, «Rimetti adesso», chiusura dell'app (torna), riavvio di Explorer (si rinasconde), più schermi.
 - [ ] **Il PC dal campo** (22/11, `docs/architettura.md` → Campo unico): ricerca dei file provata dal vivo (test `pcfind::tests::live_files`), il resto nell'anteprima (scena `search`, `?q=bluet`, `?q=rossi`); da provare nell'app: finestra portata davanti (anche ridotta e con un programma da amministratore), Maiusc+Invio, pagine di Windows, velocità della prima ricerca.
 - [ ] **Chat fluida e blocchi di codice** (22/11, `docs/chat.md` → Campo e azioni): da provare dal vivo con risposte lunghe, «▶ Nel terminale» con codice di più righe (incolla trattenuta o appunti) e «Salva». Proposte in attesa di scelta: cerca nella conversazione, tasti dei pannelli, avviso a turno finito, messaggi segnati.
 - [ ] **Pannelli della chat** (22/11, `docs/chat.md` → Pannelli): provati dal vivo terminale e finestra; da guardare con l'uso la pagina dell'Anteprima dentro il pannello dopo spostamenti, modalità chiara, isola stretta.
@@ -66,6 +67,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 22/11 — Barra di Windows nascosta
+- Ramo `claude/barra-windows` (da `claude/campo`): `taskbar_hide.rs` ripreso dalla Dock accantonata, da solo; Impostazioni → Barra fissa → «Barra delle applicazioni di Windows», guardiano, ripristino nel disinstallatore. `docs/decisioni.md`.
+
 ### 22/11 — Il PC dal campo dell'isola
 - Ramo `claude/campo`, `pcfind.rs` (`docs/architettura.md` → Campo unico): file (recenti e indice di Windows, Maiusc+Invio nella cartella, interruttore «File del PC»), finestre aperte portate davanti, pagine e comandi di Windows. Nessuna dipendenza.
 - Il resto delle proposte in `docs/idee.md` → «Il PC dal campo dell'isola, seguiti».
@@ -91,8 +95,4 @@ Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquad
 - Poi (ramo `claude/memoria-interattiva`): scheda del punto al clic nel nucleo, domande pronte, gettoni trascinabili nel campo, «Ricorda» e «Apri in chat» sotto la risposta, linea dal riferimento al punto, linea del tempo con ▶.
 - `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).
 - Al posto dei tre pallini colorati nelle intestazioni (sembravano i pulsanti di una finestra) un'icona del riquadro: righe per il registro, fumetto per «chiedi alla memoria».
-
-### 21/11 — Programmi di Windows per la chat
-Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
-- Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
 

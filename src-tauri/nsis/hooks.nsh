@@ -11,6 +11,8 @@
 ; printing anything, so a leftover entry costs nothing beyond a dead path.
 
 !macro NSIS_HOOK_PREUNINSTALL
+  ; The Windows taskbar back, if EasyIsland hid it (taskbar_hide.rs).
+  ExecWait '"$INSTDIR\easyisland.exe" --ripristina-barra'
   RMDir /r "$LOCALAPPDATA\EasyIsland\bin"
   RMDir /r "$LOCALAPPDATA\EasyIsland\inbox"
   Delete "$LOCALAPPDATA\EasyIsland\easyisland.log"

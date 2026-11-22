@@ -606,6 +606,8 @@ export const Bridge = {
   pcWindowFocus: (id: number) => call<boolean>("pc_window_focus", { id }),
   /** One of Windows' own pages (pcfind.rs PAGES), by its id. */
   pcPage: (id: string) => call<boolean>("pc_page", { id }),
+  /** The Windows taskbar back now (taskbar_hide.rs); true when it is visible. */
+  windowsTaskbarRestore: () => call<boolean>("windows_taskbar_restore"),
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
