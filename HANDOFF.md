@@ -5,6 +5,7 @@ _20 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`), versione installata. **
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Chat fluida e blocchi di codice** (22/11, `docs/chat.md` → Campo e azioni): da provare dal vivo con risposte lunghe, «▶ Nel terminale» con codice di più righe (incolla trattenuta o appunti) e «Salva». Proposte in attesa di scelta: cerca nella conversazione, tasti dei pannelli, avviso a turno finito, messaggi segnati.
 - [ ] **Pannelli della chat** (22/11, `docs/chat.md` → Pannelli): provati dal vivo terminale e finestra; da guardare con l'uso la pagina dell'Anteprima dentro il pannello dopo spostamenti, modalità chiara, isola stretta.
 - [ ] **Ricerca nelle Impostazioni** (19/11, `docs/architettura.md` → Impostazioni): provata nell'anteprima (italiano e inglese, Telegram aperto e illuminato, risultati nel campo dell'isola); da provare nell'app che l'indice si costruisca all'avvio a finestra nascosta e che il clic dall'isola apra le Impostazioni sul controllo.
 - [ ] **Panoramica della memoria** (17/11, `docs/chat.md` → Finestra Memoria): provata nell'anteprima (scuro, chiaro, `few`, `many=300`, 900 px); da guardare nell'app con la memoria vera, CPU a finestra aperta e ferma, righe dal vivo quando la chat legge o scrive.
@@ -65,6 +66,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 22/11 — Migliorie da librerie collaudate
+- Blocchi di codice: «▶ Nel terminale» (scritto, mai eseguito) e «Salva» (`docs/chat.md` → Campo e azioni).
 - Chat fluida: risposte lette una volta, risposta in arrivo riletta solo nell'ultimo pezzo (`chat-live.ts`), messaggi fuori schermo non disegnati. «Domanda a parte» nelle idee.
 - Terminale: più schede (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F (`docs/chat.md` → Terminale). Codice colorato nelle risposte (`highlight.ts`). Ricerca che perdona (`fuzzy.ts`). Pannelli: menu della scheda, ingrandisci, annulla/ripeti (storia nostra: quella di dockview è a pagamento).
 - Nuove dipendenze decise da Edoardo (`docs/decisioni.md`); CodeMirror e Mermaid in `docs/idee.md`.
