@@ -69,16 +69,54 @@ fn shell_exe() -> String {
     if found { "pwsh.exe".into() } else { "powershell.exe".into() }
 }
 
+/// WSL, when Windows has it (its program in System32).
+#[cfg(windows)]
+fn wsl_exe() -> Option<std::path::PathBuf> {
+    let root = std::env::var_os("SystemRoot").map(std::path::PathBuf::from)?;
+    let p = root.join("System32").join("wsl.exe");
+    p.is_file().then_some(p)
+}
+
+/// The shells the chat's terminal offers, from a fixed list (never a command
+/// of the user's or of an engine): `(id, name)`. PowerShell first.
+#[cfg(windows)]
+pub fn shells() -> Vec<(&'static str, String)> {
+    let mut list = vec![
+        ("powershell", if shell_exe() == "pwsh.exe" { "PowerShell 7".to_string() } else { "PowerShell".to_string() }),
+        ("cmd", t("Prompt dei comandi").to_string()),
+    ];
+    if wsl_exe().is_some() {
+        list.push(("wsl", "WSL".to_string()));
+    }
+    list
+}
+
+#[cfg(not(windows))]
+pub fn shells() -> Vec<(&'static str, String)> {
+    Vec::new()
+}
+
+/// The command line of the shell `kind` (shells()); anything else is PowerShell.
+#[cfg(windows)]
+fn shell_line(kind: &str) -> String {
+    match kind {
+        "cmd" => "cmd.exe".to_string(),
+        "wsl" => wsl_exe().map(|p| format!("\"{}\"", p.display())).unwrap_or_else(|| format!("{} -NoLogo", shell_exe())),
+        _ => format!("{} -NoLogo", shell_exe()),
+    }
+}
+
 /// Where a shell's output goes: `(id, text, closed)`.
 type Sink = std::sync::Arc<dyn Fn(u32, String, bool) + Send + Sync>;
 
 /// A new shell in `folder` (the user's folder when it is not there), `cols`×`rows`; its id.
 /// Its output goes to the chat as `terminal-out` events.
 #[cfg(windows)]
-pub fn open(app: &AppHandle, folder: Option<&str>, cols: u16, rows: u16) -> Result<u32, String> {
+pub fn open(app: &AppHandle, folder: Option<&str>, shell: &str, cols: u16, rows: u16) -> Result<u32, String> {
     let app = app.clone();
     spawn(
         folder,
+        shell,
         cols,
         rows,
         std::sync::Arc::new(move |id, data, closed| {
@@ -88,7 +126,7 @@ pub fn open(app: &AppHandle, folder: Option<&str>, cols: u16, rows: u16) -> Resu
 }
 
 #[cfg(windows)]
-fn spawn(folder: Option<&str>, cols: u16, rows: u16, sink: Sink) -> Result<u32, String> {
+fn spawn(folder: Option<&str>, shell: &str, cols: u16, rows: u16, sink: Sink) -> Result<u32, String> {
     use windows::core::{PCWSTR, PWSTR};
 
     let dir = folder.map(std::path::PathBuf::from).filter(|d| d.is_dir()).or_else(|| std::env::var_os("USERPROFILE").map(std::path::PathBuf::from));
@@ -141,7 +179,7 @@ fn spawn(folder: Option<&str>, cols: u16, rows: u16, sink: Sink) -> Result<u32, 
             si.StartupInfo.hStdInput = INVALID_HANDLE_VALUE;
             si.StartupInfo.hStdOutput = INVALID_HANDLE_VALUE;
             si.StartupInfo.hStdError = INVALID_HANDLE_VALUE;
-            let mut cmd: Vec<u16> = format!("{} -NoLogo", shell_exe()).encode_utf16().chain(std::iter::once(0)).collect();
+            let mut cmd: Vec<u16> = shell_line(shell).encode_utf16().chain(std::iter::once(0)).collect();
             let cwd: Option<Vec<u16>> = dir.as_ref().map(|d| d.as_os_str().to_string_lossy().encode_utf16().chain(std::iter::once(0)).collect());
             let mut pi = PROCESS_INFORMATION::default();
             CreateProcessW(
@@ -218,7 +256,7 @@ fn spawn(folder: Option<&str>, cols: u16, rows: u16, sink: Sink) -> Result<u32, 
 }
 
 #[cfg(not(windows))]
-pub fn open(_app: &AppHandle, _folder: Option<&str>, _cols: u16, _rows: u16) -> Result<u32, String> {
+pub fn open(_app: &AppHandle, _folder: Option<&str>, _shell: &str, _cols: u16, _rows: u16) -> Result<u32, String> {
     Err(t("Il terminale c'è solo su Windows.").to_string())
 }
 
@@ -300,7 +338,7 @@ mod tests {
         let (s2, c2) = (seen.clone(), closed.clone());
         // A folder of its own: the hooks test points USERPROFILE elsewhere for a while.
         let folder = std::env::temp_dir().to_string_lossy().into_owned();
-        let id = spawn(Some(&folder), 100, 30, Arc::new(move |_, text, done| {
+        let id = spawn(Some(&folder), "powershell", 100, 30, Arc::new(move |_, text, done| {
             s2.lock().unwrap().push_str(&text);
             if done {
                 *c2.lock().unwrap() = true;

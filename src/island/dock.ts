@@ -11,7 +11,7 @@
 // (preview.rs preview_pane): this file only says where the panel is, and
 // hides the page while a tab is dragged (the drop zones would be under it).
 
-import { createDockview, themeDark, type DockviewApi, type IContentRenderer, type ITabRenderer, type SerializedDockview } from "dockview-core";
+import { createDockview, themeDark, type ContextMenuItem, type DockviewApi, type IContentRenderer, type ITabRenderer, type SerializedDockview } from "dockview-core";
 import "../vendor/dockview.css";
 import { t } from "../core/i18n";
 import { svg } from "../views/dom";
@@ -43,6 +43,7 @@ export interface DockHooks {
 export interface Rect { x: number; y: number; w: number; h: number }
 
 const SAVED = "easyisland.chatDock.";
+const HISTORY = 30;
 const NONE: Rect = { x: 0, y: 0, w: 0, h: 0 };
 const ORDER: DockPanelId[] = ["chat", "cronologia", "anteprima", "terminale"];
 
@@ -59,6 +60,15 @@ export class ChatDock {
   private soon = 0;
   /** Panels being added or removed by us: their ✕ hooks are not the user's. */
   private quiet = false;
+  /** dockview's menu on a tab is open: the Anteprima's page would cover it. */
+  private menuOpen = false;
+  /**
+   * Arrangements the user made with this set of panels, the last one now (the
+   * tab's menu undoes and redoes them). dockview's own history is in its paid
+   * edition: these are its saved layouts (toJSON), at most HISTORY.
+   */
+  private past: string[] = [];
+  private undone: string[] = [];
   private watch: ResizeObserver;
 
   /** `views` (#views) goes into the chat's panel; the dock takes its place in its parent. */
@@ -78,6 +88,8 @@ export class ChatDock {
     this.api = createDockview(this.el, {
       createComponent: (o) => renderer(boxes.get(o.name as DockPanelId) ?? doc.createElement("div")),
       createTabComponent: (o) => tab(doc, o.name as DockPanelId),
+      // Right click on a tab: bigger, undo or redo a move, the usual arrangement, close.
+      getTabContextMenuItems: (p) => this.menu(p.panel.id as DockPanelId),
       // Ours on dockview's dark one (src/style.css .dockview-theme-easy), with room between the panels.
       theme: { ...themeDark, name: "easy", className: "dockview-theme-easy", gap: 6, dndTabIndicator: "line" },
       // The panels are parts of the chat, not documents: no floating groups or
@@ -92,6 +104,24 @@ export class ChatDock {
     this.api.onWillDragGroup(() => this.startDrag());
     this.api.onDidDrop(() => this.endDrag());
     for (const ev of ["pointerup", "pointercancel", "dragend", "drop"]) doc.addEventListener(ev, () => this.endDrag(), true);
+    // A right click on the tabs is dockview's menu only, not the island's too.
+    this.el.addEventListener("contextmenu", (e) => {
+      if (!(e.target as HTMLElement).closest(".dv-tabs-and-actions-container, .dv-context-menu")) return;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    // The tab's menu goes with the next click or Esc: the page comes back.
+    const menuGone = () => {
+      if (!this.menuOpen) return;
+      window.setTimeout(() => {
+        this.menuOpen = false;
+        this.placeSoon();
+      }, 120);
+    };
+    doc.addEventListener("pointerdown", menuGone, true);
+    doc.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") menuGone();
+    }, true);
     // After the browser has laid the panels out (dockview tells before).
     this.api.onDidLayoutChange(() => {
       this.placeSoon();
@@ -224,6 +254,8 @@ export class ChatDock {
 
   /** The panels again: the arrangement saved for this set, or the usual one. */
   private build(want: DockPanelId[]) {
+    this.past = [];
+    this.undone = [];
     this.quiet = true;
     try {
       const saved = load(this.key(want));
@@ -264,6 +296,68 @@ export class ChatDock {
     });
   }
 
+  /** The tab's menu (dockview draws it; the page of the Anteprima hides meanwhile). */
+  private menu(id: DockPanelId): ContextMenuItem[] {
+    const p = this.api.getPanel(id);
+    if (!p) return [];
+    this.menuOpen = true;
+    this.place();
+    const big = p.api.isMaximized();
+    const items: ContextMenuItem[] = [
+      { label: big ? t("Riduci il pannello") : t("Ingrandisci il pannello"), action: () => (big ? p.api.exitMaximized() : p.api.maximize()) },
+      "separator",
+      { label: t("Annulla lo spostamento"), disabled: this.past.length < 2, action: () => this.undo() },
+      { label: t("Ripeti lo spostamento"), disabled: !this.undone.length, action: () => this.redo() },
+      { label: t("Disposizione di partenza"), action: () => this.reset() },
+    ];
+    if (id !== "chat") items.push("separator", { label: t("Chiudi"), action: () => p.api.close() });
+    return items;
+  }
+
+  private undo() {
+    const now = this.past.pop();
+    const before = this.past[this.past.length - 1];
+    if (!now || !before) {
+      if (now) this.past.push(now);
+      return;
+    }
+    this.undone.push(now);
+    this.load(before);
+  }
+
+  private redo() {
+    const next = this.undone.pop();
+    if (!next) return;
+    this.past.push(next);
+    this.load(next);
+  }
+
+  /** A layout of the history back on screen (not a new step of it). */
+  private load(json: string) {
+    this.quiet = true;
+    try {
+      this.api.fromJSON(JSON.parse(json) as SerializedDockview);
+    } catch {
+      /* a layout that no longer fits: left as it is */
+    } finally {
+      this.quiet = false;
+    }
+    this.resend();
+    this.placeSoon();
+  }
+
+  /** The usual arrangement for the panels open now; the one saved for them is forgotten. */
+  private reset() {
+    const want = this.wanted();
+    try {
+      localStorage.removeItem(this.key(want));
+    } catch {
+      /* no storage */
+    }
+    if (this.api.hasMaximizedGroup()) this.api.exitMaximizedGroup();
+    this.build(want);
+  }
+
   private startDrag() {
     if (this.dragging) return;
     this.dragging = true;
@@ -295,7 +389,7 @@ export class ChatDock {
     let next = NONE;
     const p = this.api.getPanel("anteprima");
     const b = this.boxes.get("anteprima");
-    if (p && b && p.api.isVisible && !this.dragging && b.isConnected) {
+    if (p && b && p.api.isVisible && !this.dragging && !this.menuOpen && b.isConnected) {
       const r = b.getBoundingClientRect();
       if (r.width > 40 && r.height > 40) next = { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
     }
@@ -311,7 +405,15 @@ export class ChatDock {
       if (!this.active) return;
       try {
         const ids = this.api.panels.map((p) => p.id).sort();
-        if (ids.join() === this.wanted().join()) localStorage.setItem(this.key(ids), JSON.stringify(this.api.toJSON()));
+        if (ids.join() !== this.wanted().join()) return;
+        const json = JSON.stringify(this.api.toJSON());
+        if (this.past[this.past.length - 1] !== json) {
+          // A new move by the user: what was undone cannot be redone any more.
+          if (this.past.length && this.undone[this.undone.length - 1] !== json) this.undone = [];
+          this.past.push(json);
+          if (this.past.length > HISTORY) this.past.shift();
+        }
+        localStorage.setItem(this.key(ids), json);
       } catch {
         /* no storage */
       }
@@ -355,6 +457,13 @@ function tab(doc: Document, id: DockPanelId): ITabRenderer {
     element,
     init: (p) => {
       name.textContent = p.title ?? "";
+      // Double click: the panel takes the whole place, again to give it back.
+      element.addEventListener("dblclick", (e) => {
+        if ((e.target as HTMLElement).closest(".dock-tab-x")) return;
+        if (p.api.isMaximized()) p.api.exitMaximized();
+        else p.api.maximize();
+      });
+      element.title = t("Doppio clic: ingrandisci o riduci · clic destro: altre scelte");
       if (id === "chat") return;
       const x = doc.createElement("button");
       x.className = "dock-tab-x";

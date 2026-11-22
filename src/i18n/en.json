@@ -6298,5 +6298,17 @@
   "Anche trascinando un elemento della barra sopra la cartella ci finisce dentro.": "Dragging an element of the bar onto the folder also puts it inside.",
   "Striscia": "Strip",
   "Conversazioni": "Conversations",
-  "Nascondi le conversazioni": "Hide the conversations"
+  "Nascondi le conversazioni": "Hide the conversations",
+  "Annulla lo spostamento": "Undo the move",
+  "Ripeti lo spostamento": "Redo the move",
+  "Disposizione di partenza": "Default arrangement",
+  "Doppio clic: ingrandisci o riduci · clic destro: altre scelte": "Double-click: enlarge or restore · right-click: more choices",
+  "Nuovo terminale": "New terminal",
+  "Cerca nel terminale": "Search the terminal",
+  "Cerca nel terminale (Ctrl+F)": "Search the terminal (Ctrl+F)",
+  "Chiude questo terminale (anche un comando bloccato) e ne apre un altro uguale": "Closes this terminal (even a stuck command) and opens another of the same kind",
+  "Chiudi tutti i terminali": "Close all terminals",
+  "Chiudi questo terminale": "Close this terminal",
+  "Ingrandisci il pannello": "Maximize the panel",
+  "Riduci il pannello": "Restore the panel"
 }

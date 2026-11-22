@@ -1430,7 +1430,32 @@ input[type="range"]::-webkit-slider-thumb {
   flex-direction: column;
 }
 .chat-term-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-2); }
-.chat-term-head span { flex: 1; }
+.chat-term-gap { flex: 1; }
+/* Its terminals as tabs (chat.ts drawTermTabs), «+» with the shells, the search field. */
+.chat-term { position: relative; }
+.chat-term-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.chat-term-tab { display: flex; align-items: center; gap: 6px; max-width: 160px; height: 22px; padding: 0 6px 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font: inherit; cursor: pointer; }
+.chat-term-tab:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
+.chat-term-tab.on { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.chat-term-tab.ended .chat-term-tab-name { text-decoration: line-through; opacity: 0.6; }
+.chat-term-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-term-tab-x { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; font-size: 9px; opacity: 0; }
+.chat-term-tab:hover .chat-term-tab-x, .chat-term-tab.on .chat-term-tab-x { opacity: 0.6; }
+.chat-term-tab-x:hover { opacity: 1 !important; background: rgba(255, 255, 255, 0.12); }
+.chat-term-add { flex: none; width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font-size: 15px; line-height: 1; cursor: pointer; }
+.chat-term-add:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+.chat-term-menu { position: absolute; z-index: 5; top: 30px; left: 8px; display: flex; flex-direction: column; min-width: 180px; padding: 4px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; background: var(--card); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4); }
+.chat-term-menu-item { padding: 6px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.chat-term-menu-item:hover { background: rgba(255, 255, 255, 0.07); }
+.chat-term-find { width: 160px; height: 22px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; background: rgba(0, 0, 0, 0.3); color: var(--ink); font: inherit; font-size: 12px; outline: none; }
+.chat-term-find:focus { border-color: var(--win-accent, #4cc2ff); }
+.chat-term-find.miss { border-color: var(--red); }
+.chat-term-find-btn { display: grid; place-items: center; }
+.chat-term-find-btn.on { color: var(--win-accent, #4cc2ff); }
+html[data-scheme="light"] .chat-term-menu { border-color: rgba(0, 0, 0, 0.1); background: #fff; }
+html[data-scheme="light"] :is(.chat-term-tab:hover, .chat-term-add:hover, .chat-term-menu-item:hover) { background: rgba(0, 0, 0, 0.05); }
+html[data-scheme="light"] .chat-term-tab.on { background: rgba(0, 0, 0, 0.08); }
+html[data-scheme="light"] .chat-term-find { border-color: rgba(0, 0, 0, 0.15); background: #fff; }
 /* xterm.js inside (chat-terminal.ts): the box takes what the head leaves. */
 .chat-term-box { flex: 1 1 auto; min-height: 120px; padding: 2px 4px 4px 8px; display: flex; }
 .chat-xterm { flex: 1 1 auto; min-width: 0; min-height: 0; }
@@ -10000,5 +10025,15 @@ html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockvie
 .dock-cronologia > .chat-side { display: flex; flex: 1 1 auto; border: 0; background: transparent; padding-top: 8px; }
 .dock-cronologia .chat-side-grip { display: none; }
 .dock-terminale > .chat-term { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
-.dock-terminale > .chat-term > .chat-term-head > span { visibility: hidden; }
 .dock-terminale > .chat-term .chat-term-box { min-height: 0; }
+/* dockview's menu on a tab (right click), as the island's menus. */
+.dockview-theme-easy .dv-context-menu, .chat-dock .dv-context-menu {
+  min-width: 190px; padding: 4px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px;
+  background: var(--card); color: var(--ink); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); font-family: var(--font);
+}
+.chat-dock .dv-context-menu-item { height: 28px; padding: 0 10px; border-radius: 6px; font-size: 12px; }
+.chat-dock .dv-context-menu-item:hover { background: rgba(255, 255, 255, 0.07); }
+.chat-dock .dv-context-menu-separator { margin: 4px 6px; background: rgba(255, 255, 255, 0.08); }
+html[data-scheme="light"] .chat-dock .dv-context-menu { border-color: rgba(0, 0, 0, 0.1); background: #fff; }
+html[data-scheme="light"] .chat-dock .dv-context-menu-item:hover { background: rgba(0, 0, 0, 0.05); }
+html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rgba(0, 0, 0, 0.08); }

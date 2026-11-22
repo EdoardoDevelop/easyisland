@@ -3,7 +3,13 @@
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
 ## Terminale vero nella chat (9/11/2026)
-Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale). Restano: più schede di terminale, scelta della shell (cmd, WSL), link cliccabili (`@xterm/addon-web-links`, altra dipendenza).
+Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale); il 22/11 più schede, shell (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F. Restano: un terminale come pannello a sé (oggi le schede stanno in un pannello solo), profili della shell scelti dall'utente.
+
+## Editor e confronto veri nell'Anteprima (22/11/2026)
+Proposto il 22/11, messo da parte da Edoardo. CodeMirror 6 (più leggero dell'editor di VS Code) per «Codice» e «Modifiche»: confronto affiancato, numeri di riga, ricerca, modifica a mano del file prima di accettare. Da valutare: peso, temi scuro/chiaro, commenti sulle righe che ci sono già (`lineComments`).
+
+## Diagrammi nelle risposte (22/11/2026)
+Proposto il 22/11, messo da parte da Edoardo. Mermaid: un blocco ```mermaid della risposta disegnato come diagramma (flussi, sequenze, schemi di rete). Pesante (~2 MB): caricato solo alla prima risposta che ne ha uno. Mai script dal testo (modalità `strict`).
 
 ## Importare abilità da file e cartelle (11/11/2026)
 Fatto l'11/11 nella 1.0.43 (`docs/chat.md` → Abilità → Importa), partendo da The Agency (`github.com/msitarzewski/agency-agents`, MIT). Restano:

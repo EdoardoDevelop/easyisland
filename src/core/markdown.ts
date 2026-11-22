@@ -1,8 +1,11 @@
+import { highlightInto } from "./highlight";
 import { t } from "./i18n";
 // Claude's replies in the chat, read as markdown (HANDOFF 6.6, point 4).
 //
 // A small renderer, no library: it builds DOM nodes and never touches
-// innerHTML, so nothing in a reply can become markup or script. What it knows:
+// innerHTML, so nothing in a reply can become markup or script (the one
+// exception: the colours of fenced code, highlight.ts, whose HTML highlight.js
+// escapes itself). What it knows:
 // headings, paragraphs, bullet and numbered lists, quotes, tables, rules,
 // fenced code (with a "Copia" button), and inline **bold**, *italic*,
 // ~~strike~~, `code`, [links](https://…) and bare http(s) addresses. Links
@@ -206,9 +209,14 @@ function codeBlock(code: string, lang: string): HTMLElement {
     window.setTimeout(() => (copy.textContent = t("Copia")), 1600);
 
   });
-  head.append(el("span", "md-lang", lang), copy);
+  const label = el("span", "md-lang", lang);
+  head.append(label, copy);
   const pre = el("pre");
-  pre.append(el("code", undefined, code));
+  const body = el("code");
+  // Colours by language (highlight.ts); a guessed one is named in the head.
+  const used = highlightInto(body, code, lang);
+  if (!lang && used) label.textContent = used;
+  pre.append(body);
   box.append(head, pre);
   return box;
 }
