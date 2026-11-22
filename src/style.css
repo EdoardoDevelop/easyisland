@@ -5652,6 +5652,12 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A file's folder, a window's program: after the name, dim (search.ts). */
+.search-sub {
+  margin-left: 8px;
+  color: var(--dim-3);
+  font-weight: 400;
+}
 .search-kind {
   flex: 0 0 auto;
   font: 400 calc(10px + var(--fs-up, 0px)) var(--font);

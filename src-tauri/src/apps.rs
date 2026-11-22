@@ -81,6 +81,11 @@ fn find_window(names: &[&str]) -> Option<HWND> {
 /// Brings the first main window of any of `names` to the front. False if none is open.
 pub fn focus_app(names: &[&str]) -> bool {
     let Some(hwnd) = find_window(names) else { return false };
+    bring_front(hwnd)
+}
+
+/// A window to the front, restored if minimised.
+pub fn bring_front(hwnd: HWND) -> bool {
     unsafe {
         if IsIconic(hwnd).as_bool() {
             let _ = ShowWindow(hwnd, SW_RESTORE);

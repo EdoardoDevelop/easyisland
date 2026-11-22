@@ -3746,6 +3746,11 @@ function appearanceSections(): HTMLElement[] {
             h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
           ),
           h("div", { class: "row" },
+            h("label", { text: t("File del PC") }),
+            toggle(settings.searchFiles !== false, (v) => { settings.searchFiles = v; commit(); }),
+            h("span", { class: "hint note", text: t("il campo cerca anche i file aperti di recente e quelli dell'indice di Windows; Maiusc+Invio mostra il file nella sua cartella") }),
+          ),
+          h("div", { class: "row" },
             h("label", { text: t("Ricerca da sola") }),
             choice([
               ["alto", t("In alto")],

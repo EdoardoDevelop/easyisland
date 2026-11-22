@@ -4,6 +4,9 @@
 // the day of today or tomorrow (asked to the chat, `day_prompt` in telegram.rs),
 // and, as the user stops typing, the memory's pages (brain.rs), the past
 // conversations (chat_log.rs) and Zammad's tickets (zammad.rs, when it is on);
+// the PC itself (22 Nov 2026, pcfind.rs): the open windows (Enter brings one
+// forward), the files (Windows' Recent and its index; Shift+Enter shows one in
+// its folder), Windows' pages and commands (blocca, riavvia, bluetooth…);
 // last the chat, asked what was typed. A question the memory answers for sure
 // gets its answer above the results, as the user stops typing (quick_answer.rs,
 // Impostazioni → Chat → «Risposte rapide»): not a result, so Enter and the
@@ -20,7 +23,8 @@ import { calculate, formatResult, plainResult } from "../core/calc";
 import { Sound } from "../core/sound";
 import { Constellation } from "./constellation";
 import { Model } from "../memory/data";
-import { Bridge, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type QuickAnswer, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
+import { fileBadge } from "./filekind";
+import { Bridge, type PcFile, type PcWindow, type ChatSummary, type DvcItem, type MemoryHit, type NotionPage, type QuickAnswer, type RdmEntry, type ThreecxContact, type TicketHit } from "../core/bridge";
 import { cloudOn, kindLabel, rdmShowEntry } from "./rdm";
 import type { ClientSeed } from "./clientcard";
 import { t, tn } from "../core/i18n";
@@ -63,14 +67,68 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Calcolo" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Impostazioni" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Cliente" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
+  kind: "Calcolo" | "Finestra" | "File" | "Windows" | "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Impostazioni" | "Notion" | "RDM" | "Cloud" | "Contatto" | "Cliente" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
   score: number;
   /** The node of the memory it shows in the constellation. */
   node?: string;
+  /** Dim, after the name: a file's folder, a window's program. */
+  sub?: string;
+  /** Shift+Enter: a file shown in its folder. */
+  alt?: () => void;
+  /** The row's tooltip. */
+  tip?: string;
 }
+
+/**
+ * Windows' pages and commands in the search (pcfind.rs PAGES, barsys.rs):
+ * `page` opens a page of Windows, `sys` a command of the bar (sleep, restart
+ * and shut down ask in Windows' own box first). Found by name and `words`.
+ */
+const PC_COMMANDS: { name: string; words: string; page?: string; sys?: string }[] = [
+  { name: t("Blocca il PC"), words: "lock blocca schermo", sys: "lock" },
+  { name: t("Sospendi il PC"), words: "sleep sospensione standby", sys: "sleep" },
+  { name: t("Riavvia il PC"), words: "restart reboot riavvio", sys: "restart" },
+  { name: t("Spegni il PC"), words: "shutdown spegnimento", sys: "shutdown" },
+  { name: t("Svuota il cestino"), words: "cestino recycle empty", sys: "recycle-empty" },
+  { name: t("Apri il cestino"), words: "cestino recycle bin", sys: "recycle-open" },
+  { name: t("Gestione attività"), words: "task manager processi programmi bloccati", sys: "panel:taskmgr" },
+  { name: t("Bluetooth e dispositivi"), words: "bluetooth cuffie auricolari mouse", page: "bluetooth" },
+  { name: t("Wi-Fi"), words: "wifi wireless rete senza fili", page: "wifi" },
+  { name: t("Rete e Internet"), words: "network rete internet ethernet", page: "network" },
+  { name: t("VPN"), words: "vpn", page: "vpn" },
+  { name: t("Audio"), words: "sound audio suono volume altoparlanti microfono cuffie", page: "sound" },
+  { name: t("Schermo"), words: "display schermo monitor risoluzione luminosità scala", page: "display" },
+  { name: t("Luce notturna"), words: "night light luce notturna", page: "nightlight" },
+  { name: t("Stampanti e scanner"), words: "printers stampanti stampante scanner", page: "printers" },
+  { name: t("Mouse e touchpad"), words: "mouse touchpad puntatore", page: "mouse" },
+  { name: t("Tastiera e digitazione"), words: "keyboard tastiera digitazione", page: "keyboard" },
+  { name: t("Notifiche di Windows"), words: "notifications notifiche", page: "notifications" },
+  { name: t("Sfondo del desktop"), words: "background sfondo wallpaper personalizzazione", page: "background" },
+  { name: t("Colori di Windows"), words: "colors colori tema scuro chiaro", page: "colors" },
+  { name: t("App installate"), words: "apps app installate disinstalla programmi", page: "apps" },
+  { name: t("App predefinite"), words: "default apps predefinite browser predefinito", page: "defaultapps" },
+  { name: t("App all'avvio"), words: "startup avvio esecuzione automatica", page: "startup" },
+  { name: t("Alimentazione"), words: "power alimentazione energia sospensione", page: "power" },
+  { name: t("Batteria"), words: "battery batteria risparmio", page: "battery" },
+  { name: t("Archiviazione"), words: "storage archiviazione spazio disco", page: "storage" },
+  { name: t("Windows Update"), words: "update aggiornamenti windows update", page: "update" },
+  { name: t("Data e ora"), words: "date time data ora orologio fuso", page: "datetime" },
+  { name: t("Lingua e area geografica"), words: "language lingua area geografica", page: "language" },
+  { name: t("Account"), words: "account utente", page: "accounts" },
+  { name: t("Privacy e sicurezza"), words: "privacy sicurezza permessi", page: "privacy" },
+  { name: t("Sicurezza di Windows"), words: "security antivirus defender sicurezza firewall", page: "security" },
+  { name: t("Informazioni sul PC"), words: "about informazioni sistema nome pc versione", page: "about" },
+  { name: t("Appunti di Windows"), words: "clipboard appunti", page: "clipboard" },
+  { name: t("Multitasking"), words: "multitasking snap finestre", page: "multitasking" },
+  { name: t("Impostazioni di Windows"), words: "settings impostazioni windows", page: "settings" },
+  { name: t("Pannello di controllo"), words: "control panel pannello controllo", page: "control" },
+  { name: t("Connessioni di rete"), words: "schede di rete adattatori ncpa", page: "netconn" },
+  { name: t("Programmi e funzionalità"), words: "programmi funzionalità disinstalla appwiz", page: "programs" },
+  { name: t("Gestione dispositivi"), words: "device manager gestione dispositivi driver", page: "devices" },
+];
 
 /** Lower case, no accents: "Città" is found typing "citta". */
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -83,11 +141,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Impostazioni: t("Impostazioni"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Cliente: t("Cliente"), Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Calcolo: t("Copia"), Finestra: t("Finestra"), File: t("File"), Windows: "Windows", Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Impostazioni: t("Impostazioni"), Notion: "Notion", RDM: "RDM", Cloud: "RDM", Contatto: "3CX", Cliente: t("Cliente"), Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Impostazioni: 4, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Cliente: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Calcolo: 1, Finestra: 4, File: 6, Windows: 3, Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Impostazioni: 4, Notion: 5, RDM: 5, Cloud: 6, Contatto: 4, Cliente: 4, Memoria: 5, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -187,7 +245,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
 
   // The memory, the past conversations and Zammad: asked together as the user
   // stops typing; each answers when it can.
-  let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[]; contacts: ThreecxContact[] } = { q: "", pages: [], chats: [], tickets: [], contacts: [] };
+  let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[]; contacts: ThreecxContact[]; files: PcFile[] } = { q: "", pages: [], chats: [], tickets: [], contacts: [], files: [] };
   let moreTimer = 0;
   let clientTitles: string[] = [];
   let clientFold = new Set<string>();
@@ -249,9 +307,12 @@ export function buildSearch(actions: SearchActions): SearchHost {
     if (q.length >= 3) loadMemory();
     if (q.length < 3 || more.q === q) return;
     moreTimer = window.setTimeout(() => {
-      more = { q, pages: [], chats: [], tickets: [], contacts: [] };
+      more = { q, pages: [], chats: [], tickets: [], contacts: [], files: [] };
       const show = () => { if (more.q === q && input.value.trim() === q) refresh(true); };
       void Bridge.memoryFind(q).then((pages) => { if (more.q === q && pages?.length) { more.pages = pages; show(); } });
+      if (State.settings.searchFiles !== false) {
+        void Bridge.pcFiles(q).then((files) => { if (more.q === q && files.length) { more.files = files; show(); } });
+      }
       if (State.settings.chatHistory !== false) {
         void Bridge.chatHistorySearch(q).then((chats) => { if (more.q === q && chats?.length) { more.chats = chats; show(); } });
       }
@@ -324,6 +385,23 @@ export function buildSearch(actions: SearchActions): SearchHost {
     }, 400);
   };
 
+  // The open windows: read again when the typing starts, they change all the time.
+  let wins: PcWindow[] = [];
+  let winsAt = 0;
+  const loadWindows = () => {
+    if (performance.now() - winsAt < 2000 && winsAt > 0) return;
+    winsAt = performance.now();
+    void Bridge.pcWindows().then((list) => {
+      wins = list;
+      if (input.value.trim()) refresh(true);
+    });
+  };
+  // Hits that leave for another program: the island closes behind them.
+  const leaveFor = (f: () => void) => () => {
+    f();
+    actions.onDone?.();
+  };
+
   const loadApps = () => {
     if (performance.now() - appsAt < APPS_TTL_MS && appsAt > 0) return;
     appsAt = performance.now();
@@ -359,6 +437,22 @@ export function buildSearch(actions: SearchActions): SearchHost {
           doneIfSearchOnly();
         },
       });
+    }
+    // An open window above the program of the same name: Enter brings it forward, no second copy.
+    for (const w of wins) {
+      const s = Math.max(score(w.title, q), score(w.appName, q));
+      if (!s) continue;
+      const same = w.appName && fold(w.title).includes(fold(w.appName));
+      out.push({ kind: "Finestra", name: w.title, sub: same ? undefined : w.appName, score: s + 0.5,
+        icon: () => svg(ICONS.maximize, 12),
+        run: leaveFor(() => void Bridge.pcWindowFocus(w.id)) });
+    }
+    for (const c of PC_COMMANDS) {
+      const s = Math.max(score(c.name, q), score(c.words, q));
+      if (!s) continue;
+      out.push({ kind: "Windows", name: c.name, score: s,
+        icon: () => svg(c.sys ? ICONS.bolt : ICONS.sliders, 13),
+        run: leaveFor(() => void (c.page ? Bridge.pcPage(c.page) : Bridge.barSysDo(c.sys!))) });
     }
     for (const t of State.tasks) {
       const s = score(t.name, q);
@@ -449,6 +543,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
       });
     }
     if (more.q === rawQ) {
+      // Files: below the programs at equal match; the recent ones a little higher.
+      for (const f of more.files) {
+        out.push({ kind: "File", name: f.name, sub: f.folder, score: Math.max(1, score(f.name, q)) + (f.recent ? 0.25 : 0),
+          tip: t("Invio apre · Maiusc+Invio mostra nella cartella"),
+          icon: () => fileBadge(f.name, f.path, { dir: f.dir }),
+          run: leaveFor(() => void Bridge.pcFileOpen(f.path, false).catch(() => {})),
+          alt: leaveFor(() => void Bridge.pcFileOpen(f.path, true).catch(() => {})) });
+      }
       for (const p of more.pages) {
         if (clientFold.has(fold(p.title))) {
           if (seenClients.has(fold(p.title))) continue;
@@ -504,7 +606,8 @@ export function buildSearch(actions: SearchActions): SearchHost {
         onpointerenter: () => { sel = i; mark(); },
         onclick: () => choose(hit) },
       h("span", { class: "search-icon" }, hit.icon()),
-      h("span", { class: "search-name", text: hit.name }),
+      h("span", { class: "search-name", title: hit.tip ?? (hit.sub ? `${hit.name} · ${hit.sub}` : ""), text: hit.name },
+        ...(hit.sub ? [h("span", { class: "search-sub", text: hit.sub })] : [])),
       h("span", { class: "search-kind", text: KIND_LABEL[hit.kind] })));
     });
     countPill.textContent = hits.length ? tn("{n} risultato", "{n} risultati", hits.length, { n: hits.length }) : "";
@@ -599,7 +702,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
     if (!allow) return;
     focusInput();
   });
-  input.addEventListener("input", () => refresh());
+  input.addEventListener("input", () => {
+    loadWindows();
+    refresh();
+  });
   input.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.stopPropagation();
@@ -619,6 +725,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
         return;
       }
       const hit = e.ctrlKey ? hits.find((x) => x.kind === "Chat") : e.altKey ? hits.find((x) => x.kind === "Web") : hits[sel];
+      // Shift+Enter: the second thing a hit does (a file shown in its folder).
+      if (hit && e.shiftKey && hit.alt) {
+        const alt = hit.alt;
+        reset(true);
+        input.blur();
+        alt();
+        return;
+      }
       if (hit) choose(hit);
     }
   });

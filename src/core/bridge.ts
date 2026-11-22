@@ -227,6 +227,11 @@ export function inIslandPage(from: Event | Node): boolean {
   return node === document || node.ownerDocument === document;
 }
 
+/** A file found by the search field (pcfind.rs). */
+export interface PcFile { name: string; path: string; folder: string; dir: boolean; recent: boolean }
+/** An open window of another program (pcfind.rs). */
+export interface PcWindow { id: number; appName: string; title: string }
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -593,6 +598,14 @@ export const Bridge = {
   inboxClear: () => call<number>("inbox_clear"),
   /** The programs of the Start menu (shortcuts), for the search bar. Empty in the browser preview. */
   startApps: async () => (await call<{ name: string; path: string }[]>("start_apps")) ?? [],
+  /** The search field: files whose name has the words, the recent ones first (pcfind.rs). */
+  pcFiles: async (q: string) => (await call<PcFile[]>("pc_files", { q })) ?? [],
+  pcFileOpen: (path: string, reveal: boolean) => callOrThrow<void>("pc_file_open", { path, reveal }),
+  /** The open windows of the other programs, front to back. */
+  pcWindows: async () => (await call<PcWindow[]>("pc_windows")) ?? [],
+  pcWindowFocus: (id: number) => call<boolean>("pc_window_focus", { id }),
+  /** One of Windows' own pages (pcfind.rs PAGES), by its id. */
+  pcPage: (id: string) => call<boolean>("pc_page", { id }),
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),

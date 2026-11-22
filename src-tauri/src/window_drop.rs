@@ -46,7 +46,7 @@ const MAX_SIDE: u32 = 1600;
 const THUMB: u32 = 64;
 
 /// Desktop and taskbar: not a window to talk about.
-const SKIPPED_CLASSES: &[&str] = &["Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"];
+pub(crate) const SKIPPED_CLASSES: &[&str] = &["Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"];
 
 #[derive(Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -215,7 +215,7 @@ unsafe extern "system" fn visit(hwnd: HWND, lparam: LPARAM) -> BOOL {
     BOOL(0)
 }
 
-unsafe fn cloaked(hwnd: HWND) -> bool {
+pub(crate) unsafe fn cloaked(hwnd: HWND) -> bool {
     let mut value = 0u32;
     DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &mut value as *mut u32 as *mut c_void, 4).is_ok() && value != 0
 }
@@ -227,13 +227,13 @@ pub(crate) unsafe fn frame(hwnd: HWND) -> Option<RECT> {
     (r.right > r.left && r.bottom > r.top).then_some(r)
 }
 
-fn title(hwnd: HWND) -> String {
+pub(crate) fn title(hwnd: HWND) -> String {
     let mut buf = [0u16; 512];
     let n = unsafe { GetWindowTextW(hwnd, &mut buf) };
     String::from_utf16_lossy(&buf[..n.max(0) as usize])
 }
 
-unsafe fn class_name(hwnd: HWND) -> String {
+pub(crate) unsafe fn class_name(hwnd: HWND) -> String {
     let mut buf = [0u16; 64];
     let n = GetClassNameW(hwnd, &mut buf) as usize;
     String::from_utf16_lossy(&buf[..n])
@@ -241,7 +241,7 @@ unsafe fn class_name(hwnd: HWND) -> String {
 
 /// "Microsoft Excel", "Google Chrome": the program's description; else its
 /// file name without ".exe".
-fn app_name(hwnd: HWND) -> String {
+pub(crate) fn app_name(hwnd: HWND) -> String {
     let Some(path) = crate::context::exe_path(hwnd) else { return String::new() };
     if let Some(desc) = file_description(&path) {
         return desc;

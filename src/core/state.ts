@@ -768,6 +768,8 @@ export interface Settings {
   localCompose?: boolean;
   /** Quick answers in the island's search: "potion" (default), "off", "local" or an engine (quick_answer.rs). */
   quickAnswers?: string;
+  /** The search field finds the PC's files too (pcfind.rs, Windows' index and Recent); on by default. */
+  searchFiles?: boolean;
   /** The Anteprima opens by itself on a file the chat creates or edits; off by default. */
   previewEdits?: boolean;
   /** Where notices go (notices.ts): "isola" (default), "alto-destra", "basso-destra", "dentro" (in the island). */

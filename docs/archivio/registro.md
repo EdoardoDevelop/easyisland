@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 21/11 — Anteprima: chiusa resta chiusa, clic verificato, iframe di altri siti, domande del sito, file
+Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti segnalato da Edoardo; nessuna dipendenza nuova.
+- **Chiusa resta chiusa:** con l'Anteprima chiusa il motore lavora in una finestra nascosta (`BG` in `preview.rs`, chiusa dopo 10 min senza uso); la finestra la apre solo l'utente.
+- **Clic verificato** (`__eiHit`): coperto, nascosto, disattivato o fuori schermo = nessun clic, con cosa lo copre. **Iframe di altri siti** e **domande del sito** (confirm → card OK/Annulla dell'utente) in `preview_page.rs`; **`preview_upload`** chiede sempre. Da provare dal vivo (`docs/chat.md` → Anteprima).
+
 ### 21/11 — Giornata del portatile (20/11): correzioni
 - **Mappa della memoria:** due pagine si legano solo con un [[link]] scritto; tolto `pages_named_in` («VM client Winfarm» legava Iaso Farmacie a Winfarm).
 - **File creati in chat:** i prompt (anche Modalità terminale e modello sul PC) chiedono il percorso completo di ogni file creato, che diventa link (`chatpaths.rs`); prima Edoardo doveva chiedere «dov'è il documento?».

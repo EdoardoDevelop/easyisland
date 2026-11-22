@@ -129,6 +129,7 @@ mod remote;
 mod renew;
 mod richtext;
 mod start_apps;
+mod pcfind;
 mod threecx;
 mod speech;
 mod brain_watch;
@@ -437,6 +438,35 @@ async fn daily_ai_write(app: AppHandle, which: String) -> Result<(), String> {
 #[tauri::command]
 async fn start_apps() -> Vec<start_apps::StartApp> {
     tauri::async_runtime::spawn_blocking(start_apps::list).await.unwrap_or_default()
+}
+
+/// The search field: files whose name has the words (pcfind.rs).
+#[tauri::command]
+async fn pc_files(q: String) -> Vec<pcfind::FoundFile> {
+    tauri::async_runtime::spawn_blocking(move || pcfind::files(&q)).await.unwrap_or_default()
+}
+
+/// A file found by the search: opened, or selected in its folder.
+#[tauri::command]
+async fn pc_file_open(path: String, reveal: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || pcfind::open(&path, reveal)).await.map_err(|e| e.to_string())?
+}
+
+/// The search field: the open windows of the other programs.
+#[tauri::command]
+async fn pc_windows() -> Vec<pcfind::OpenWindow> {
+    tauri::async_runtime::spawn_blocking(pcfind::windows).await.unwrap_or_default()
+}
+
+#[tauri::command]
+fn pc_window_focus(id: i64) -> bool {
+    pcfind::focus(id)
+}
+
+/// One of Windows' own pages (pcfind::PAGES), by its id.
+#[tauri::command]
+fn pc_page(id: String) -> bool {
+    pcfind::page(&id)
 }
 
 /// Runs a script the user just confirmed in the island.
@@ -5713,6 +5743,11 @@ pub fn run() {
             inbox_clear,
             inbox_keep,
             start_apps,
+            pc_files,
+            pc_file_open,
+            pc_windows,
+            pc_window_focus,
+            pc_page,
             recap::recap_history,
             recap::recap_mark_shown,
             recap::recap_clear,

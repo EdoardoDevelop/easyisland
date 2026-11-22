@@ -5,6 +5,7 @@ _20 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`), versione installata. **
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Il PC dal campo** (22/11, `docs/architettura.md` → Campo unico): ricerca dei file provata dal vivo (test `pcfind::tests::live_files`), il resto nell'anteprima (scena `search`, `?q=bluet`, `?q=rossi`); da provare nell'app: finestra portata davanti (anche ridotta e con un programma da amministratore), Maiusc+Invio, pagine di Windows, velocità della prima ricerca.
 - [ ] **Chat fluida e blocchi di codice** (22/11, `docs/chat.md` → Campo e azioni): da provare dal vivo con risposte lunghe, «▶ Nel terminale» con codice di più righe (incolla trattenuta o appunti) e «Salva». Proposte in attesa di scelta: cerca nella conversazione, tasti dei pannelli, avviso a turno finito, messaggi segnati.
 - [ ] **Pannelli della chat** (22/11, `docs/chat.md` → Pannelli): provati dal vivo terminale e finestra; da guardare con l'uso la pagina dell'Anteprima dentro il pannello dopo spostamenti, modalità chiara, isola stretta.
 - [ ] **Ricerca nelle Impostazioni** (19/11, `docs/architettura.md` → Impostazioni): provata nell'anteprima (italiano e inglese, Telegram aperto e illuminato, risultati nel campo dell'isola); da provare nell'app che l'indice si costruisca all'avvio a finestra nascosta e che il clic dall'isola apra le Impostazioni sul controllo.
@@ -65,6 +66,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 22/11 — Il PC dal campo dell'isola
+- Ramo `claude/campo`, `pcfind.rs` (`docs/architettura.md` → Campo unico): file (recenti e indice di Windows, Maiusc+Invio nella cartella, interruttore «File del PC»), finestre aperte portate davanti, pagine e comandi di Windows. Nessuna dipendenza.
+- Il resto delle proposte in `docs/idee.md` → «Il PC dal campo dell'isola, seguiti».
+
 ### 22/11 — Migliorie da librerie collaudate
 - Blocchi di codice: «▶ Nel terminale» (scritto, mai eseguito) e «Salva» (`docs/chat.md` → Campo e azioni).
 - Chat fluida: risposte lette una volta, risposta in arrivo riletta solo nell'ultimo pezzo (`chat-live.ts`), messaggi fuori schermo non disegnati. «Domanda a parte» nelle idee.
@@ -90,9 +95,4 @@ Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquad
 ### 21/11 — Programmi di Windows per la chat
 Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
 - Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
-
-### 21/11 — Anteprima: chiusa resta chiusa, clic verificato, iframe di altri siti, domande del sito, file
-Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti segnalato da Edoardo; nessuna dipendenza nuova.
-- **Chiusa resta chiusa:** con l'Anteprima chiusa il motore lavora in una finestra nascosta (`BG` in `preview.rs`, chiusa dopo 10 min senza uso); la finestra la apre solo l'utente.
-- **Clic verificato** (`__eiHit`): coperto, nascosto, disattivato o fuori schermo = nessun clic, con cosa lo copre. **Iframe di altri siti** e **domande del sito** (confirm → card OK/Annulla dell'utente) in `preview_page.rs`; **`preview_upload`** chiede sempre. Da provare dal vivo (`docs/chat.md` → Anteprima).
 
