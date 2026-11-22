@@ -5,6 +5,7 @@ _20 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`), versione installata. **
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Pannelli della chat** (22/11, `docs/chat.md` → Pannelli): provati dal vivo terminale e finestra; da guardare con l'uso la pagina dell'Anteprima dentro il pannello dopo spostamenti, modalità chiara, isola stretta.
 - [ ] **Ricerca nelle Impostazioni** (19/11, `docs/architettura.md` → Impostazioni): provata nell'anteprima (italiano e inglese, Telegram aperto e illuminato, risultati nel campo dell'isola); da provare nell'app che l'indice si costruisca all'avvio a finestra nascosta e che il clic dall'isola apra le Impostazioni sul controllo.
 - [ ] **Panoramica della memoria** (17/11, `docs/chat.md` → Finestra Memoria): provata nell'anteprima (scuro, chiaro, `few`, `many=300`, 900 px); da guardare nell'app con la memoria vera, CPU a finestra aperta e ferma, righe dal vivo quando la chat legge o scrive.
 - [ ] **Avvisi in una finestra loro** (17/11, `docs/architettura.md` → Avvisi): provati nell'anteprima (scena `avvisi`) e con i test di `spot`; da provare nell'app che la finestra non prenda il fuoco né resti bianca, i tre posti con l'isola aperta e chiusa, un download mentre una card di Claude Code aspetta, «+N», schermo intero e davanti al cliente.
@@ -63,6 +64,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 22/11 — Pannelli della chat (dockview)
+- Conversazioni, Anteprima e Terminale come pannelli attorno alla chat, nell'isola e nella finestra (`src/island/dock.ts`, `docs/chat.md` → Anteprima → Pannelli): schede trascinabili, divisori, disposizione per luogo e insieme. Con la sola chat niente pannelli.
+- Nuova dipendenza `dockview-core` decisa da Edoardo (`docs/decisioni.md`); CSS in `src/vendor/dockview.css`.
+- Barra fissa: file trascinati sulla barra non finiscono più nell'isola (`file-drop` ascoltato per pagina).
+
 ### 21/11 — Memoria: chiedi alla memoria, punti sulle linee, gettoni
 Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquadro «~ chiedi alla memoria» accanto al registro (`memory_chat.rs`: risponde un motore solo dalle righe e pagine trovate, niente strumenti, rifiuta il resto; pagine della risposta accese nel nucleo e cliccabili).
 - Punti che scorrono sulle linee ultimi arrivi → nucleo; gettoni delle pagine più collegate con tip = nome e senza spunta.
@@ -89,7 +95,3 @@ Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti s
 - **Multi motore con l'Automatica:** aiutanti e controllo la seguono (`team.rs` `Turn.auto`); il controllo di Antigravity passa solo letture (`EASYISLAND_AGY_READ_ONLY`). Prima chiedeva i permessi e scadevano.
 - **Senza rete:** Telegram e Agent Chat scrivono un errore uguale una volta sola e aspettano 10→60 s (`log::Retry`); «hotkey not available» una volta sola. Devolutions: elenco vecchio riletto da solo (762aae6).
 
-### 19/11 — Pagina cliente, stile nuovo sulle schede, Ticket e RDM rifatti
-- **Pagina cliente** nella memoria (`clients.rs`, `src/views/clientcard.ts`): `tipo: cliente` e sezioni fisse; scheda da Zammad, 3CX, RDM/Devolutions e ricerca; «Crea pagina cliente» già riempita, «Rendila pagina cliente» aggiunge senza togliere.
-- **Stile nuovo** su Rete, 3CX, Appunti, Agenti, Agent Chat (non Meteo né Impostazioni). Barre a tempo per password e conferme, stati vuoti con l'azione, «?» con le scorciatoie (`src/views/shortcuts.ts`).
-- **Zammad:** immagini al loro posto (`[[img:ID]]`, mai remote), allegati in Download, cc, contatti, tag, Salva unico (`zammad_save`). **Devolutions:** connessione pronta (`dvc_live.rs`) e scheda a tre zone.

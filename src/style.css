@@ -9914,3 +9914,91 @@ html:not([data-ui="classic"]) .summary-status { padding-right: 0; }
   cursor: pointer;
 }
 .cli-ref-chip:hover { color: var(--ink); border-color: rgba(255, 255, 255, 0.25); }
+
+/* Panels around the chat (src/island/dock.ts, dockview), in the island and in
+   the chat's window: the dock takes #views' place in #body. Tabs as small
+   pills with their icon on a line of their own, the island's accent on the one
+   in front; the dividers light up in the accent when held. */
+.chat-dock { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; }
+#island.docked #preview-pane { display: none; }
+:is(.dockview-theme-dark.dockview-theme-easy, .dockview-theme-dark .dockview-theme-easy) {
+  --dock-accent: var(--win-accent, #4cc2ff);
+  --dv-group-view-background-color: rgba(0, 0, 0, 0.18);
+  --dv-tabs-and-actions-container-background-color: rgba(255, 255, 255, 0.025);
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-activegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--ink);
+  --dv-activegroup-hiddenpanel-tab-color: var(--dim);
+  --dv-inactivegroup-visiblepanel-tab-color: color-mix(in srgb, var(--ink) 80%, transparent);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--dim);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: transparent;
+  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.06);
+  --dv-paneview-active-outline-color: transparent;
+  --dv-drag-over-background-color: color-mix(in srgb, var(--dock-accent) 18%, transparent);
+  --dv-drag-over-border: 1.5px solid color-mix(in srgb, var(--dock-accent) 75%, transparent);
+  --dv-active-sash-color: var(--dock-accent);
+  --dv-icon-hover-background-color: rgba(255, 255, 255, 0.1);
+  --dv-tab-border-radius: 0;
+  --dv-border-radius: 12px;
+  --dv-tab-margin: 0;
+  --dv-spacing-padding: 0px;
+  --dv-tab-font-size: 12px;
+  --dock-pill: rgba(255, 255, 255, 0.075);
+  --dock-pill-hover: rgba(255, 255, 255, 0.05);
+  --dock-edge: rgba(255, 255, 255, 0.07);
+  font-family: var(--font);
+  color: var(--ink);
+}
+html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockview-theme-dark .dockview-theme-easy) {
+  color-scheme: light;
+  --dv-group-view-background-color: rgba(255, 255, 255, 0.6);
+  --dv-tabs-and-actions-container-background-color: rgba(0, 0, 0, 0.025);
+  --dv-paneview-header-border-color: rgba(0, 0, 0, 0.07);
+  --dv-icon-hover-background-color: rgba(0, 0, 0, 0.08);
+  --dock-pill: rgba(0, 0, 0, 0.07);
+  --dock-pill-hover: rgba(0, 0, 0, 0.045);
+  --dock-edge: rgba(0, 0, 0, 0.08);
+}
+/* Each group a card, as the island's cards. */
+.dockview-theme-easy .dv-groupview { border-radius: 12px; overflow: hidden; border: 1px solid var(--dock-edge); }
+.dockview-theme-easy .dv-groupview.dv-active-group { border-color: color-mix(in srgb, var(--dock-accent) 28%, var(--dock-edge)); }
+.dockview-theme-easy .dv-tabs-and-actions-container { padding: 0 5px; border-bottom: 1px solid var(--dock-edge); }
+.dockview-theme-easy .dv-tabs-container { gap: 2px; align-items: center; }
+.dockview-theme-easy .dv-tab { padding: 0 !important; background: transparent !important; display: flex; align-items: center; }
+.dockview-theme-easy .dv-tab:focus-visible { outline: none; }
+.dock-tab {
+  display: flex; align-items: center; gap: 7px; height: 24px; padding: 0 8px 0 9px; border-radius: 7px;
+  color: inherit; transition: background-color 0.12s, color 0.12s;
+}
+.dock-tab:hover { background: var(--dock-pill-hover); }
+.dv-tab.dv-active-tab .dock-tab { background: var(--dock-pill); }
+.dock-tab-icon { display: grid; place-items: center; width: 14px; height: 14px; opacity: 0.75; }
+.dv-tab.dv-active-tab .dock-tab-icon { opacity: 1; }
+.dv-active-group .dv-tab.dv-active-tab .dock-tab-icon { color: var(--dock-accent); }
+.dock-tab-name { white-space: nowrap; font-weight: 500; letter-spacing: 0.1px; }
+.dock-tab-x {
+  display: grid; place-items: center; width: 16px; height: 16px; margin-right: -3px; padding: 0; border: 0; border-radius: 4px;
+  background: transparent; color: var(--dim); cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.dock-tab:hover .dock-tab-x, .dv-tab.dv-active-tab .dock-tab-x { opacity: 0.7; }
+.dock-tab-x:hover { opacity: 1 !important; background: var(--dv-icon-hover-background-color); color: var(--ink); }
+/* The dividers: invisible until the pointer is on them, then the accent. */
+.dockview-theme-easy .dv-sash { border-radius: 3px; }
+.dockview-theme-easy .dv-sash:hover, .dockview-theme-easy .dv-sash.dv-active { background: color-mix(in srgb, var(--dock-accent) 60%, transparent); }
+/* The panels' contents fill them. */
+.dock-box { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.dock-chat > #views { position: relative; flex: 1 1 auto; min-height: 0; }
+.dock-chat #views > .view { left: 0 !important; right: 0 !important; width: auto !important; transform: none; }
+.dock-chat .chat-card, .dock-chat .chat-body { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+/* The Anteprima's page is a webview over this box; hidden while a tab is dragged. */
+.dock-anteprima { background: rgba(0, 0, 0, 0.18); }
+.dock-cronologia > .chat-side { display: flex; flex: 1 1 auto; border: 0; background: transparent; padding-top: 8px; }
+.dock-cronologia .chat-side-grip { display: none; }
+.dock-terminale > .chat-term { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.dock-terminale > .chat-term > .chat-term-head > span { visibility: hidden; }
+.dock-terminale > .chat-term .chat-term-box { min-height: 0; }
