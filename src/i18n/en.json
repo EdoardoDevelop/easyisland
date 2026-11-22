@@ -6310,5 +6310,14 @@
   "Chiudi tutti i terminali": "Close all terminals",
   "Chiudi questo terminale": "Close this terminal",
   "Ingrandisci il pannello": "Maximize the panel",
-  "Riduci il pannello": "Restore the panel"
+  "Riduci il pannello": "Restore the panel",
+  "Nel terminale": "In the terminal",
+  "Scrive il codice nel terminale della chat: lo esegui tu con Invio": "Writes the code in the chat's terminal: you run it with Enter",
+  "Salva il codice in un file": "Save the code to a file",
+  "codice": "code",
+  "Scritto nel terminale: premi Invio per eseguirlo.": "Written in the terminal: press Enter to run it.",
+  "{n} righe copiate: nel terminale Ctrl+V le incolla e le esegue una dopo l'altra.": "{n} lines copied: in the terminal Ctrl+V pastes them and runs them one after another.",
+  "Salva il codice": "Save the code",
+  "Tutti i file": "All files",
+  "Non riesco a salvare il file: {e}": "I can't save the file: {e}"
 }

@@ -3189,6 +3189,15 @@ async fn chat_pick(folders: bool, accept: Option<String>) -> Result<Vec<files::C
     .map_err(|e| e.to_string())?
 }
 
+/// «Salva come file» under a block of code in the chat: the path saved, None when cancelled.
+#[tauri::command]
+async fn save_code_as(name: String, text: String) -> Result<Option<String>, String> {
+    // A name only (the dialog picks the folder), never a path from the page.
+    let name: String = name.chars().filter(|c| !matches!(c, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|')).take(80).collect();
+    let name = if name.trim().is_empty() { "codice.txt".to_string() } else { name };
+    tauri::async_runtime::spawn_blocking(move || workdir::save_text(&name, &text)).await.map_err(|e| e.to_string())?
+}
+
 /// A `file` field's `accept` as extensions, to show only those files of the Vassoio.
 #[tauri::command]
 fn custom_accept_extensions(accept: String) -> Vec<String> {
@@ -5515,6 +5524,7 @@ pub fn run() {
             chat_claude_commands,
             terminal_open,
             terminal_shells,
+            save_code_as,
             terminal_write,
             terminal_resize,
             terminal_close,

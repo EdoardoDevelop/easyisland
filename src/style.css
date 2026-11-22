@@ -2197,6 +2197,11 @@ html[data-scheme="light"] .chat-term-find { border-color: rgba(0, 0, 0, 0.15); b
 .md-copy:hover {
   background: rgba(167, 139, 250, 0.22);
 }
+/* «▶ Nel terminale» and «Salva» beside «Copia» (markdown.ts codeBlock): the first pushes them right. */
+.md-pre-head > .md-copy ~ .md-copy { margin-left: 4px; }
+.md-run { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.md-run:hover { background: rgba(74, 222, 128, 0.22); }
+html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61, 0.1); }
 
 .md-pre pre {
   margin: 0;

@@ -121,6 +121,25 @@ export class ChatTerm {
     this.refit();
   }
 
+  /**
+   * `text` written where the shell reads, never run: one line goes in as typed
+   * (Enter is the user's); more lines only when the shell holds a paste until
+   * Enter (bracketed paste). False when it cannot be done that way.
+   */
+  insert(text: string): boolean {
+    const clean = text.replace(/\r\n/g, "\n").replace(/\n+$/, "");
+    if (!this.term || this.closed || !clean) return false;
+    if (!clean.includes("\n")) {
+      this.send(clean);
+      return true;
+    }
+    if (this.term.modes.bracketedPasteMode) {
+      this.term.paste(clean);
+      return true;
+    }
+    return false;
+  }
+
   /** Looks for `text` in what it printed, forward or back; false when it is not there. */
   find(text: string, back = false): boolean {
     if (!this.finder || !text) return false;

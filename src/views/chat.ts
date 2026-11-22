@@ -262,7 +262,41 @@ const MD_HOOKS = {
     else void Bridge.previewOpen(url).catch(() => void Bridge.openUrl(url));
   },
   openPath: (path: string, e?: MouseEvent) => openChatPath(path, e?.currentTarget instanceof HTMLElement ? e.currentTarget : null, e?.ctrlKey),
+  // Under a block of code (22 Nov 2026): into the chat's terminal, or into a file.
+  canRun: (lang: string) => codeShell(lang) !== null,
+  runCode: (code: string, lang: string) => codeHooks.run(code, lang),
+  saveCode: (code: string, lang: string) => codeHooks.save(code, lang),
 };
+
+/** What the chat's view does with a block of code (set by buildPrompt, which has the terminal). */
+const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; wsl: boolean } = {
+  run: () => {},
+  save: () => {},
+  wsl: false,
+};
+
+/** The terminal's shell for a block's language (terminal.rs shells); null: not a shell's code. */
+function codeShell(lang: string): string | null {
+  const l = lang.trim().toLowerCase();
+  if (["powershell", "ps1", "ps", "pwsh", "posh"].includes(l)) return "powershell";
+  if (["cmd", "bat", "batch", "dos"].includes(l)) return "cmd";
+  if (["bash", "sh", "shell", "zsh", "console"].includes(l)) return codeHooks.wsl ? "wsl" : null;
+  return null;
+}
+
+/** A file name for a block of code: «codice» with its language's extension. */
+function codeFileName(lang: string): string {
+  const l = lang.trim().toLowerCase();
+  const ext: Record<string, string> = {
+    powershell: "ps1", ps1: "ps1", ps: "ps1", pwsh: "ps1", cmd: "bat", bat: "bat", batch: "bat", dos: "bat",
+    bash: "sh", sh: "sh", shell: "sh", zsh: "sh", javascript: "js", js: "js", typescript: "ts", ts: "ts",
+    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml",
+    svg: "svg", css: "css", yaml: "yml", yml: "yml", ini: "ini", toml: "toml", csharp: "cs", cs: "cs", go: "go",
+    java: "java", php: "php", cpp: "cpp", c: "c", markdown: "md", md: "md", diff: "diff", nginx: "conf", env: "env",
+  };
+  if (l === "dockerfile") return "Dockerfile";
+  return `${t("codice")}.${ext[l] ?? "txt"}`;
+}
 
 // ── Files and folders in a reply (src-tauri/src/chatpaths.rs) ────────────────
 // Only those that exist stay links: Rust resolves them (absolute, "~\…", or
@@ -3254,6 +3288,39 @@ export function buildPrompt(
     if (terms.has(State.chat.sid)) closeAllTerminals();
     else void openTerminal();
   });
+  // «▶ Nel terminale» under a block of code: a terminal of its shell, the code written in, Enter left to the user.
+  codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
+  codeHooks.save = (code, lang) => {
+    void Bridge.saveCodeAs(codeFileName(lang), code)
+      .then((path) => { if (path) flash(t("Salvato in {path}", { path })); })
+      .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
+  };
+  // WSL only when Windows has it: then bash code goes there too.
+  void loadShells().then((list) => { codeHooks.wsl = list.some(([id]) => id === "wsl"); });
+  async function codeToTerminal(code: string, lang: string) {
+    const shell = codeShell(lang) ?? "powershell";
+    const sid = State.chat.sid;
+    const set = terms.get(sid);
+    const i = set ? set.list.findIndex((x) => x.shell === shell && !x.closed && x.id) : -1;
+    if (set && i >= 0) {
+      set.on = i;
+      placeTerminal();
+    } else {
+      await openTerminal(shell);
+      // Its prompt first: what is written before it would be shown before it.
+      await new Promise((r) => window.setTimeout(r, 600));
+    }
+    const term = activeTerm(sid);
+    if (!term?.id) return;
+    term.focus();
+    if (term.insert(code)) {
+      flash(t("Scritto nel terminale: premi Invio per eseguirlo."));
+      return;
+    }
+    // More lines and a shell that would run each at once: the user pastes them, knowing it.
+    await navigator.clipboard.writeText(code).catch(() => undefined);
+    flash(t("{n} righe copiate: nel terminale Ctrl+V le incolla e le esegue una dopo l'altra.", { n: code.split("\n").length }));
+  }
   void onEvent<{ id: number; data: string; closed?: boolean }>("terminal-out", (p) => {
     const term = [...terms.values()].flatMap((s) => s.list).find((x) => x.id === p.id);
     if (!term) {

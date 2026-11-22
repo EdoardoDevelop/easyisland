@@ -379,6 +379,66 @@ fn pick(folders: bool, title: &str, filter: Option<(&str, &[String])>) -> Result
     }
 }
 
+/// «Salva come file» under a block of code in the chat (22 Nov 2026): Windows'
+/// own Save dialog, named `name`, then the text written there. PowerShell
+/// scripts in UTF-8 with its mark (Windows PowerShell reads them as ANSI
+/// otherwise), Windows' line ends for scripts of Windows; None when cancelled.
+pub fn save_text(name: &str, text: &str) -> Result<Option<String>, String> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
+    use windows::Win32::UI::Shell::Common::COMDLG_FILTERSPEC;
+    use windows::Win32::UI::Shell::{FileSaveDialog, IFileSaveDialog, FOS_FORCEFILESYSTEM, FOS_OVERWRITEPROMPT, SIGDN_FILESYSPATH};
+    let wide = |s: &str| -> Vec<u16> { s.encode_utf16().chain([0]).collect() };
+    let ext = Path::new(name).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let picked = unsafe {
+        let init = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let result = (|| -> windows::core::Result<Option<String>> {
+            let dialog: IFileSaveDialog = CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER)?;
+            dialog.SetOptions(dialog.GetOptions()? | FOS_FORCEFILESYSTEM | FOS_OVERWRITEPROMPT)?;
+            let title = wide(t("Salva il codice"));
+            dialog.SetTitle(windows::core::PCWSTR(title.as_ptr()))?;
+            let file = wide(name);
+            dialog.SetFileName(windows::core::PCWSTR(file.as_ptr()))?;
+            // Its kind first, then any file.
+            let (kind, pattern) = (wide(&format!("{} (*.{ext})", ext.to_uppercase())), wide(&format!("*.{ext}")));
+            let (all, star) = (wide(t("Tutti i file")), wide("*.*"));
+            let mut types = Vec::new();
+            if !ext.is_empty() {
+                types.push(COMDLG_FILTERSPEC { pszName: windows::core::PCWSTR(kind.as_ptr()), pszSpec: windows::core::PCWSTR(pattern.as_ptr()) });
+            }
+            types.push(COMDLG_FILTERSPEC { pszName: windows::core::PCWSTR(all.as_ptr()), pszSpec: windows::core::PCWSTR(star.as_ptr()) });
+            dialog.SetFileTypes(&types)?;
+            dialog.SetFileTypeIndex(1)?;
+            if !ext.is_empty() {
+                let def = wide(&ext);
+                dialog.SetDefaultExtension(windows::core::PCWSTR(def.as_ptr()))?;
+            }
+            if dialog.Show(None).is_err() {
+                return Ok(None); // cancelled
+            }
+            let item = dialog.GetResult()?;
+            let shown = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+            let path = shown.to_string().unwrap_or_default();
+            CoTaskMemFree(Some(shown.0 as *const _));
+            Ok(Some(path))
+        })();
+        if init.is_ok() {
+            CoUninitialize();
+        }
+        result.map_err(|e| e.message().to_string())?
+    };
+    let Some(path) = picked.filter(|p| !p.is_empty()) else { return Ok(None) };
+    let saved_ext = Path::new(&path).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let windows_script = matches!(saved_ext.as_str(), "ps1" | "psm1" | "bat" | "cmd");
+    let body = if windows_script { text.replace("\r\n", "\n").replace('\n', "\r\n") } else { text.to_string() };
+    let mut bytes = Vec::with_capacity(body.len() + 3);
+    if matches!(saved_ext.as_str(), "ps1" | "psm1") {
+        bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
+    }
+    bytes.extend_from_slice(body.as_bytes());
+    std::fs::write(&path, bytes).map_err(|e| tf("Non riesco a salvare il file: {e}", &[("e", &e)]))?;
+    Ok(Some(path))
+}
+
 /// A short text listing for the tools and Telegram: "📁 nome/" and "nome (12 KB)".
 pub fn describe(l: &Listing) -> String {
     let mut out = String::new();
