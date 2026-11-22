@@ -15,3 +15,15 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# Quick tests on this PC (`npm run prova`, docs/sviluppo.md): as release
+# (panic = "abort" included) but without the whole-program LTO, which cannot be
+# split or reused and took over ten minutes; incremental, so a second build only
+# redoes what changed. Never for the installer.
+[profile.prova]
+inherits = "release"
+opt-level = 1
+lto = false
+codegen-units = 16
+incremental = true
+strip = false
