@@ -52,6 +52,7 @@ import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
 import * as Notices from "../notices/notices";
 import { momentHeadline } from "../views/moment";
+import { ChatDock } from "./dock";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -976,8 +977,8 @@ export class Island {
         this.placePane();
       }, {
         at,
-        // The Anteprima beside the chat in its window, as in the island.
-        decorate: (doc, body) => this.paneInWindow(doc, body),
+        // The chat, the Anteprima and the terminal as panels to arrange (dock.ts).
+        decorate: (doc, body) => this.dockInWindow(doc, body),
         named: (name) => {
           void Bridge.popoutChat(name);
           // The chat's window opens maximized, as an app would.
@@ -3364,6 +3365,41 @@ ${note}` : text };
       gen = this.paneGen;
       sent = next;
       void Bridge.previewPane(next.x, next.y, next.w, next.h);
+    };
+  }
+
+  /**
+   * The chat's own window as panels (dock.ts, 22 Nov 2026): the chat, the
+   * Anteprima and the terminal dragged beside, under or into one another.
+   * Without the chat's views in the page, the panel of before (paneInWindow).
+   */
+  private dockInWindow(doc: Document, body: HTMLElement): () => void {
+    const views = body.querySelector<HTMLElement>("#views");
+    if (!views) return this.paneInWindow(doc, body);
+    let gen = this.paneGen;
+    let dock: ChatDock;
+    try {
+      dock = new ChatDock(doc, body, {
+        chat: views,
+        previewOpen: () => State.previewOpen,
+        termOpen: () => State.chatTermOpen,
+        closePreview: () => void Bridge.previewHide().catch(() => undefined),
+        closeTerm: () => doc.querySelector(".chat-term")?.dispatchEvent(new CustomEvent("dock-close")),
+        placePreview: (r) => void Bridge.previewPane(r.x, r.y, r.w, r.h).catch(() => undefined),
+        previewWidth: () => State.settings.previewWidth || PANE_W,
+      });
+    } catch (e) {
+      void Bridge.log(`pannelli della chat: ${e}`).catch(() => {});
+      if (!body.contains(views)) body.prepend(views);
+      return this.paneInWindow(doc, body);
+    }
+    doc.defaultView?.addEventListener("pagehide", () => dock.dispose());
+    return () => {
+      if (gen !== this.paneGen) {
+        gen = this.paneGen;
+        dock.resend();
+      }
+      dock.sync();
     };
   }
 

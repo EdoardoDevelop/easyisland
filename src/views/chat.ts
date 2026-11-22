@@ -3024,8 +3024,10 @@ export function buildPrompt(
     const open = terms.has(State.chat.sid);
     termRow.style.display = open ? "" : "none";
     termBtn.classList.toggle("on", open);
+    // The chat's window as panels (island/dock.ts): the terminal's own panel.
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-term-home]");
     const pane = layout.ownerDocument.getElementById("preview-pane");
-    const home = open && pane ? pane : layout;
+    const home = open ? dockHome ?? pane ?? layout : layout;
     if (termRow.parentElement !== home) home.append(termRow);
     // The conversation's own terminal (another conversation, another window: chat-terminal.ts mount).
     const term = terms.get(State.chat.sid);
@@ -3078,6 +3080,10 @@ export function buildPrompt(
     closeTerminal();
     await openTerminal();
   }
+  // The ✕ of its tab in the chat's window as panels (island/dock.ts).
+  termRow.addEventListener("dock-close", () => {
+    if (terms.has(State.chat.sid)) closeTerminal();
+  });
   termBtn.addEventListener("click", () => {
     if (terms.has(State.chat.sid)) closeTerminal();
     else void openTerminal();

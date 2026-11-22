@@ -9914,3 +9914,60 @@ html:not([data-ui="classic"]) .summary-status { padding-right: 0; }
   cursor: pointer;
 }
 .cli-ref-chip:hover { color: var(--ink); border-color: rgba(255, 255, 255, 0.25); }
+
+/* The chat's window as panels (src/island/dock.ts, dockview): chat, Anteprima
+   and terminal as tabs on the island's background, the island's accent on the
+   tab in front and on the divider being moved. */
+.chat-dock { position: absolute; inset: 0; }
+:is(.dockview-theme-dark.dockview-theme-easy, .dockview-theme-dark .dockview-theme-easy) {
+  --dv-group-view-background-color: rgba(0, 0, 0, 0.16);
+  --dv-tabs-and-actions-container-background-color: transparent;
+  --dv-tabs-and-actions-container-height: 32px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-activegroup-visiblepanel-tab-background-color: rgba(255, 255, 255, 0.07);
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: rgba(255, 255, 255, 0.035);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--ink);
+  --dv-activegroup-hiddenpanel-tab-color: var(--dim);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--dim);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--dim);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: transparent;
+  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.08);
+  --dv-paneview-active-outline-color: transparent;
+  --dv-drag-over-background-color: color-mix(in srgb, var(--win-accent, #4cc2ff) 22%, transparent);
+  --dv-drag-over-border: 1px solid color-mix(in srgb, var(--win-accent, #4cc2ff) 70%, transparent);
+  --dv-active-sash-color: var(--win-accent, #4cc2ff);
+  --dv-icon-hover-background-color: rgba(255, 255, 255, 0.1);
+  --dv-tab-border-radius: 6px 6px 0 0;
+  --dv-border-radius: 10px;
+  --dv-tab-margin: 0 2px 0 0;
+  --dv-spacing-padding: 0px;
+  --dv-tab-font-size: 12px;
+  font-family: var(--font);
+  color: var(--ink);
+}
+html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockview-theme-dark .dockview-theme-easy) {
+  color-scheme: light;
+  --dv-group-view-background-color: rgba(255, 255, 255, 0.55);
+  --dv-activegroup-visiblepanel-tab-background-color: rgba(0, 0, 0, 0.07);
+  --dv-inactivegroup-visiblepanel-tab-background-color: rgba(0, 0, 0, 0.035);
+  --dv-paneview-header-border-color: rgba(0, 0, 0, 0.08);
+  --dv-icon-hover-background-color: rgba(0, 0, 0, 0.08);
+}
+.dockview-theme-easy .dv-groupview { border-radius: 10px; overflow: hidden; }
+.dockview-theme-easy .dv-tab { padding: 0 10px; }
+.dockview-theme-easy .dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tab.dv-active-tab { box-shadow: inset 0 -2px 0 var(--win-accent, #4cc2ff); }
+.dockview-theme-easy .dv-sash:hover { background: color-mix(in srgb, var(--win-accent, #4cc2ff) 55%, transparent); }
+/* The chat's views fill their panel (in the window they are laid absolute, popout.ts). */
+.dock-box { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.dock-chat > #views { position: relative; flex: 1 1 auto; min-height: 0; }
+/* The Anteprima's page is a webview over this box; while a tab is dragged it is hidden. */
+.dock-anteprima { background: rgba(0, 0, 0, 0.2); }
+.dock-terminale > .chat-term { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.dock-terminale > .chat-term .chat-term-box { min-height: 0; }
+.dock-tab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 2px; }
+.dock-tab-name { white-space: nowrap; }
+.dock-tab-x { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--dim); font-size: 10px; cursor: pointer; opacity: 0.6; }
+.dock-tab-x:hover { opacity: 1; background: var(--dv-icon-hover-background-color); color: var(--ink); }
