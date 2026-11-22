@@ -10,6 +10,7 @@ import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../c
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { addFaces } from "../core/fonts";
 import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
@@ -826,7 +827,8 @@ window.addEventListener("drop", (e) => {
     void invoke("log_line", { message: `barra fissa: file non passati (${err})` }).catch(() => {});
   }
 });
-void listen<string[]>("file-drop", (ev) => {
+// Only the drops on the bar (the global listen also hears the island's).
+void getCurrentWebview().listen<string[]>("file-drop", (ev) => {
   const where = fileDrop ?? { area: "end", before: null, folder: "" };
   fileDrop = null;
   if (ev.payload?.length) void invoke("bar_pin", { paths: ev.payload, area: where.area, before: where.before, folder: where.folder }).catch(() => {});

@@ -4,6 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
@@ -1497,7 +1498,8 @@ export async function onDragDrop(handler: (e: DragDropPayload) => void, accepts:
       handler({ type: "drop", paths: [] });
     }
   });
-  return listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
+  // This page's own drops only: the global listen also hears the fixed bar's (drop.rs emit_to).
+  return getCurrentWebview().listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
 }
 
 /** What the morning and end-of-day card shows (daily.rs). */
