@@ -382,20 +382,18 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     const pinned = () => (State.settings.appsPinned ?? []).some((p) => same(p.id));
     const name = (State.settings.appsPinned ?? []).find((p) => same(p.id))?.name
       || (id.split(/[\\/]/).pop() ?? id).replace(/\.(exe|lnk)$/i, "");
-    const title = h("div", { class: "recap-head" },
-      h("span", { class: "barcard-icon" }, renderActionIcon("i:window", 16)),
-      h("span", { class: "recap-title", text: name }));
+    const title = h("div", { class: "apps-head", text: name });
     const grid = h("div", { class: "apps-wins" });
     const recent = h("div", { class: "apps-recent" });
-    const pin = h("button", { class: "btn secondary" }) as HTMLButtonElement;
+    const pin = h("button", { class: "apps-act" }) as HTMLButtonElement;
     const drawPin = () => { pin.textContent = pinned() ? t("Togli dalla barra") : t("Fissa alla barra"); };
     pin.addEventListener("click", () => {
       void (pinned() ? Bridge.appsUnpin(id) : Bridge.appsPin(id, name, null));
       window.setTimeout(drawPin, 300);
     });
     drawPin();
-    const buttons = h("div", { class: "actions" },
-      h("button", { class: "btn secondary", onclick: () => { actions.collapse(); void Bridge.appsDo("launch-new", null, id); } }, h("span", { text: t("Nuova finestra") })),
+    const buttons = h("div", { class: "apps-acts" },
+      h("button", { class: "apps-act", onclick: () => { actions.collapse(); void Bridge.appsDo("launch-new", null, id); } }, h("span", { text: t("Nuova finestra") })),
       pin);
     let laid = "";
     let previews: { hwnd: number; box: HTMLElement }[] = [];
@@ -425,12 +423,13 @@ export function buildBarCard(actions: ViewActions): ViewHost {
         previews = [];
         for (const w of mine) {
           const box = h("div", { class: "apps-thumb" });
-          const close = h("button", { class: "apps-close", title: t("Chiudi la finestra"), text: "×" });
+          // No tooltips in this card (Edoardo, 22 Nov 2026: «i tip danno fastidio»).
+          const close = h("button", { class: "apps-close", "aria-label": t("Chiudi la finestra"), text: "×" });
           close.addEventListener("click", (e) => {
             e.stopPropagation();
             void Bridge.appsDo("close", w.hwnd, null);
           });
-          const tile = h("button", { class: `apps-win${w.active ? " on" : ""}`, title: w.title },
+          const tile = h("button", { class: `apps-win${w.active ? " on" : ""}`, "aria-label": w.title },
             h("span", { class: "apps-win-title", text: w.title }), close, box);
           tile.addEventListener("click", () => {
             actions.collapse();
@@ -439,15 +438,15 @@ export function buildBarCard(actions: ViewActions): ViewHost {
           grid.append(tile);
           previews.push({ hwnd: w.hwnd, box });
         }
-        if (!mine.length) grid.append(h("div", { class: "sub", text: t("Nessuna finestra aperta.") }));
+        if (!mine.length) grid.append(h("div", { class: "apps-empty", text: t("Nessuna finestra aperta.") }));
         State.notify();
       });
     };
     void Bridge.appsRecentFiles(id).then((files) => {
       if (!files.length) return;
-      recent.append(h("div", { class: "sub", text: t("Recenti") }));
+      recent.append(h("div", { class: "apps-label", text: t("Recenti") }));
       for (const f of files.slice(0, 6)) {
-        const b = h("button", { class: "apps-file", title: f, text: f.split(/[\\/]/).pop() ?? f });
+        const b = h("button", { class: "apps-file", "aria-label": f, text: f.split(/[\\/]/).pop() ?? f });
         b.addEventListener("click", () => { actions.collapse(); void Bridge.appsDo("open-files", null, id, [f]); });
         recent.append(b);
       }
@@ -463,7 +462,7 @@ export function buildBarCard(actions: ViewActions): ViewHost {
       read();
     }, 400);
     window.setTimeout(place, 60);
-    return [title, grid, recent, buttons];
+    return [h("div", { class: "apps-card" }, title, grid, recent, buttons)];
   }
 
   const build = (kind: string): Node[] => {
