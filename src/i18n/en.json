@@ -6360,5 +6360,7 @@
   "Visibile": "Visible",
   "Nascosta": "Hidden",
   "Rimetti adesso": "Bring it back now",
-  "nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla": "when hidden, Start stays on the Windows key, hidden icons on Win+B and windows in the island's field; it always comes back when EasyIsland closes, hangs or is uninstalled"
+  "nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla": "when hidden, Start stays on the Windows key, hidden icons on Win+B and windows in the island's field; it always comes back when EasyIsland closes, hangs or is uninstalled",
+  "Vuota: compare quando c'è un permesso, una chiamata, un agente al lavoro…": "Empty: it shows when there is a permission, a call, an agent at work…",
+  "Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)": "Empty: it shows when the program in front has quick actions of yours (\"In the bar with\")"
 }

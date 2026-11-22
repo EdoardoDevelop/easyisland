@@ -463,11 +463,15 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
     const tip = it.opts?.tip?.trim();
     if (it.id === "strip") {
       if (strip) out.push(stripPiece(strip, area));
+      else out.push(emptyPiece(key, area, "i:robot", t("Striscia"), t("Vuota: compare quando c'è un permesso, una chiamata, un agente al lavoro…")));
     } else if (it.id.startsWith("sys:")) {
       const kind = it.id.slice(4);
       if (!BAR_KINDS[kind]) continue;
-      // The bar of the app in use: nothing when the program in front has no actions.
-      if (kind === "appbar" && !appBar?.buttons.length) continue;
+      // The bar of the app in use: empty when the program in front has no actions of the user.
+      if (kind === "appbar" && !appBar?.buttons.length) {
+        out.push(emptyPiece(key, area, BAR_KINDS[kind].icon, BAR_KINDS[kind].name, t("Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)")));
+        continue;
+      }
       const sv = sysValues(kind, it, design);
       const el = h("span", { class: `bar-item bar-sys${sv.dim ? " dim" : ""}` });
       // A program's own icon (the window title) is a picture; the others are drawn.
@@ -512,6 +516,17 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
     }
   }
   return out;
+}
+
+/**
+ * An element with nothing to show now (the strip, the bar of the app in use):
+ * sent anyway, hidden in the bar and shown with its name while the bar is
+ * customized, or it could be neither seen nor removed (Edoardo, 22 Nov 2026).
+ */
+function emptyPiece(key: string, area: BarPiece["area"], icon: string, name: string, tip: string): BarPiece {
+  const el = h("span", { class: "bar-item bar-empty" });
+  compose(el, "{icon} {value}", () => renderActionIcon(icon, 15), { value: name, name });
+  return { key, area, html: el.outerHTML, title: tip };
 }
 
 /** The system elements barsys.rs has to read now (none while the bar is off). Graphs of the
