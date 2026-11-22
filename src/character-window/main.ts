@@ -272,7 +272,7 @@ function layBar() {
   paintBand();
   // With the blur, the window cut to the band (margins, rounded ends) at rest
   // too; at the bottom edge, with the character that grows, always tall (reach).
-  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur, reach()]);
+  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur, reach(), midShift]);
   if (shapeKey !== laidShape && !grown) {
     laidShape = shapeKey;
     void invoke("bar_grow", { px: reach(), shape: restShape() }).catch(() => {});
@@ -281,11 +281,42 @@ function layBar() {
   document.body.style.setProperty("--s", String(Math.min(1.6, Math.max(0.8, t / 40))));
   document.body.style.setProperty("--ts", String(look.text));
   document.body.style.setProperty("--gap", `${look.gap}px`);
-  const left = bar.slot === "start" ? `${m + 8}px` : bar.slot === "end" ? `calc(100% - ${t + 8 + m}px)` : `calc(50% - ${t / 2}px)`;
+  const left = bar.slot === "start" ? `${m + 8}px` : bar.slot === "end" ? `calc(100% - ${t + 8 + m}px)` : `calc(50% + ${midShift - t / 2}px)`;
   float.style.cssText = `inset: auto; ${bar.edge === "bottom" ? "bottom" : "top"}: 0; left: ${left}; width: ${t}px; height: ${t}px;`;
   document.body.style.setProperty("--ink", bar.ink);
   autoHide(look.autoHide);
   layAreas(bar);
+}
+
+/**
+ * The character in the middle: how far it sits left of the screen's centre so
+ * that it and the middle area's elements, together, are centred (Edoardo,
+ * 22 Nov 2026: «l'area centrale deve essere centrale con il suo contenuto»).
+ * Measured whenever that area changes size (the apps opening, closing…).
+ */
+let midShift = 0;
+function measureMid(): boolean {
+  const c = document.getElementById("a-center");
+  let s = 0;
+  if (bar && bar.slot === "center" && c) {
+    const t = bar.thickness;
+    if (lookOf(bar).islands) {
+      // One island: the character inside its padding, the elements after it.
+      s = t / 2 + 6 - c.offsetWidth / 2;
+    } else if (c.childElementCount) {
+      s = -(6 + c.offsetWidth) / 2;
+    }
+  }
+  s = Math.round(s);
+  if (s === midShift) return false;
+  midShift = s;
+  return true;
+}
+{
+  const c = document.getElementById("a-center");
+  if (c) new ResizeObserver(() => {
+    if (measureMid() && bar) layBar();
+  }).observe(c);
 }
 
 /**
@@ -301,7 +332,7 @@ function bandPath(p: number): string {
   const m = look.margin;
   const W = window.innerWidth;
   const r = m > 0 ? Math.min(t / 2, 12) : 0;
-  const cx = bar.slot === "start" ? m + 8 + t / 2 : bar.slot === "end" ? W - m - 8 - t / 2 : W / 2;
+  const cx = bar.slot === "start" ? m + 8 + t / 2 : bar.slot === "end" ? W - m - 8 - t / 2 : W / 2 + midShift;
   const bw = t * 0.78;
   const s = t * 0.5;
   // The inner edge: the band's height, plus what Windows reserved past it (bandExtra).
@@ -349,7 +380,7 @@ function paintBandLayers(b: BarLook, margin: number, op: number) {
     const fxGrad = document.getElementById("bandFxGrad");
     const t = b.thickness;
     const W = window.innerWidth;
-    const cx = b.slot === "start" ? margin + 8 + t / 2 : b.slot === "end" ? W - margin - 8 - t / 2 : W / 2;
+    const cx = b.slot === "start" ? margin + 8 + t / 2 : b.slot === "end" ? W - margin - 8 - t / 2 : W / 2 + midShift;
     const r = Math.max(140, t * 4.5);
     fxGrad?.setAttribute("gradientUnits", "userSpaceOnUse");
     fxGrad?.setAttribute("cx", String(cx));
@@ -549,7 +580,7 @@ function layAreas(b: BarLook) {
     if (areas.end) areas.end.style.cssText = b.slot === "end" ? `right: ${m + 2}px; padding-right: ${pad}px;` : `right: ${m + 8}px;`;
     if (areas.center) {
       areas.center.style.cssText = b.slot === "center"
-        ? `left: calc(50% - ${b.thickness / 2 + 6}px); padding-left: ${pad}px;`
+        ? `left: calc(50% + ${midShift - b.thickness / 2 - 6}px); padding-left: ${pad}px;`
         : "left: 50%; transform: translateX(-50%);";
     }
   } else {
@@ -557,7 +588,7 @@ function layAreas(b: BarLook) {
     if (areas.end) areas.end.style.cssText = `right: ${b.slot === "end" ? beside : m + 8}px;`;
     if (areas.center) {
       areas.center.style.cssText = b.slot === "center"
-        ? `left: calc(50% + ${b.thickness / 2 + 6}px);`
+        ? `left: calc(50% + ${midShift + b.thickness / 2 + 6}px);`
         : "left: 50%; transform: translateX(-50%);";
     }
   }
@@ -575,7 +606,8 @@ function layAreas(b: BarLook) {
     btn.setAttribute("role", "button");
     btn.className = `bar-btn${p.tone === "warn" || p.tone === "error" ? ` ${p.tone}` : ""}`;
     btn.dataset.key = p.key;
-    btn.title = p.title;
+    // No tooltip on «App»: its icons are the element (Edoardo, 22 Nov 2026: «i tip danno fastidio»).
+    if (!p.html.includes("bar-apps")) btn.title = p.title;
     // Built by the island with the DOM (src/island/bar.ts): icons and escaped text only.
     btn.innerHTML = p.html;
     // Set fill widths via CSSOM so strict style-src CSP hashes cannot strip inline style="width:...".

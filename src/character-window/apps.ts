@@ -133,7 +133,6 @@ export function fillApps(host: HTMLElement) {
       g.windows.some((w) => w.attention) ? "attention" : "",
     ].filter(Boolean).join(" ");
     el.dataset.app = g.id;
-    el.title = n === 1 ? `${g.name} — ${g.windows[0].title}` : n > 1 ? `${g.name} (${n})` : g.name;
     const url = icons.get(low(g.id));
     if (url) {
       const img = document.createElement("img");
@@ -212,7 +211,11 @@ document.addEventListener("mouseover", (e) => {
   if (!el || !id || !groupOf(id)?.windows.length) return;
   hoverTimer = window.setTimeout(() => {
     hoverTimer = 0;
-    if (hovered === id) send({ kind: "bar", key: `apps:show:${id}`, x: centre(el) });
+    // The icon now, not the one under the mouse then: the bar is redrawn at
+    // every change of the windows, and a detached icon is at x 0 (the card
+    // went to the screen's left side the second time, Edoardo 22 Nov 2026).
+    const now = [...document.querySelectorAll<HTMLElement>(".app-ico")].find((a) => a.dataset.app === id);
+    if (hovered === id && now) send({ kind: "bar", key: `apps:show:${id}`, x: centre(now) });
   }, HOVER_MS);
 });
 
