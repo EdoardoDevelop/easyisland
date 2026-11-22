@@ -89,6 +89,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 crate::presence::recheck(app);
                 refresh(app);
             }
+            id if id.starts_with(crate::barapps::MENU_PREFIX) => crate::barapps::menu_pick(app, &id[crate::barapps::MENU_PREFIX.len()..]),
             id if id.starts_with(PROFILE_PREFIX) => {
                 crate::activate_profile(app, &id[PROFILE_PREFIX.len()..], "menu");
             }

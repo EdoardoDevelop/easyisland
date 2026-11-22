@@ -3640,6 +3640,11 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla") }),
         ),
       ),
+      // «App» of the bar: its pinned apps (barapps.rs), of the PC.
+      h("section", {},
+        h("h2", {}, h("span", { text: t("App nella barra") })),
+        appsPinsBlock(),
+      ),
       h("section", { class: "bar-row-block" },
         h("h2", {}, h("span", { text: t("Aspetto della barra") }), profileChip()),
         ...barLookRows(commit),
@@ -4157,6 +4162,70 @@ function barBackground(commit: () => void): HTMLElement {
  * «Aspetto della barra» (FixedBarLook): every choice of how the bar looks, each
  * one optional and back to its default with the value it starts from.
  */
+/**
+ * The apps pinned to the bar's «App» (barapps.rs): in order, up, down, away;
+ * «Aggiungi» from the installed apps. Each change is saved by Rust (also on
+ * the Windows taskbar's side for an app taken away) and mirrored here.
+ */
+function appsPinsBlock(): HTMLElement {
+  const box = h("div", { class: "apps-pins" });
+  let catalog: { id: string; name: string }[] | null = null;
+  let query = "";
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const draw = () => {
+    box.replaceChildren();
+    const list = settings.appsPinned ?? [];
+    box.append(h("p", { class: "hint note", text: t("L'elemento «App (aperte e fissate)» della barra mostra queste app e quelle aperte. Sono allineate con le app fissate sulla barra di Windows; un programma trascinato sulla barra si aggiunge qui.") }));
+    list.forEach((p, i) => {
+      const move = (before: string | null, to: number) => {
+        void Bridge.appsMove(p.id, before);
+        const next = list.filter((x) => x !== p);
+        next.splice(Math.min(to, next.length), 0, p);
+        settings.appsPinned = next;
+        draw();
+      };
+      box.append(h("div", { class: "row" },
+        h("label", { text: p.name || p.id, title: p.id }),
+        h("button", { text: "↑", title: t("Prima"), disabled: i === 0, onclick: () => move(list[i - 1]?.id ?? null, i - 1) }),
+        h("button", { text: "↓", title: t("Dopo"), disabled: i === list.length - 1, onclick: () => move(list[i + 2]?.id ?? null, i + 1) }),
+        h("button", { text: "×", title: t("Togli dalla barra"), onclick: () => {
+          void Bridge.appsUnpin(p.id);
+          settings.appsPinned = list.filter((x) => x !== p);
+          draw();
+        } })));
+    });
+    if (!list.length) box.append(h("p", { class: "hint", text: t("Nessuna app fissata.") }));
+    const input = h("input", { type: "search", placeholder: t("Aggiungi un'app: scrivi il nome…"), value: query }) as HTMLInputElement;
+    const found = h("div", { class: "apps-pins-found" });
+    const show = () => {
+      found.replaceChildren();
+      const q = query.trim().toLowerCase();
+      if (!q) return;
+      if (!catalog) {
+        found.append(h("span", { class: "hint", text: t("Leggo le app installate…") }));
+        return;
+      }
+      for (const a of catalog.filter((x) => x.name.toLowerCase().includes(q) && !list.some((p) => same(p.id, x.id))).slice(0, 8)) {
+        found.append(h("button", { text: `+ ${a.name}`, onclick: () => {
+          void Bridge.appsPin(a.id, a.name, null);
+          settings.appsPinned = [...list, { id: a.id, name: a.name }];
+          query = "";
+          draw();
+        } }));
+      }
+    };
+    input.addEventListener("input", () => {
+      query = input.value;
+      if (!catalog) void Bridge.appsCatalog().then((c) => { catalog = c; show(); });
+      show();
+    });
+    box.append(h("div", { class: "row" }, h("label", { text: t("Aggiungi") }), input), found);
+    show();
+  };
+  draw();
+  return box;
+}
+
 function barLookRows(commit: () => void): HTMLElement[] {
   const look = (): FixedBarLook => (settings.fixedBarLook ??= {});
   const set = <K extends keyof FixedBarLook>(k: K, v: FixedBarLook[K]) => {

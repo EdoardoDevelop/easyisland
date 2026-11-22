@@ -822,6 +822,8 @@ export interface Settings {
   fixedBar?: "" | "top" | "bottom";
   /** The Windows taskbar hidden (taskbar_hide.rs); off by default. */
   hideWindowsTaskbar?: boolean;
+  /** The apps pinned to the bar's «App», in order (barapps.rs). Of the PC. */
+  appsPinned?: { id: string; name: string }[];
   /** Where the character sits in the fixed bar. */
   fixedBarSlot?: "start" | "center" | "end";
   /** What else the fixed bar shows, in order (BarItem). */

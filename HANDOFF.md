@@ -5,6 +5,7 @@ _20 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`), versione installata. **
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **«App» nella barra** (22/11, `docs/architettura.md` → Barra fissa → «App»): compilato con `npm run prova`; da provare dal vivo: import delle fissate di Windows, clic (apri, davanti, riduci), più finestre e anteprime, hover, destro (Recenti, amministratore, Fissa/Togli), trascinare un programma, programmi da amministratore davanti, con la barra di Windows nascosta.
 - [ ] **Barra di Windows nascosta** (22/11, `docs/architettura.md` → Barra fissa): test di `taskbar_hide` passati, codice già provato con la Dock; da provare nell'app: Nascosta/Visibile, «Rimetti adesso», chiusura dell'app (torna), riavvio di Explorer (si rinasconde), più schermi.
 - [ ] **Il PC dal campo** (22/11, `docs/architettura.md` → Campo unico): ricerca dei file provata dal vivo (test `pcfind::tests::live_files`), il resto nell'anteprima (scena `search`, `?q=bluet`, `?q=rossi`); da provare nell'app: finestra portata davanti (anche ridotta e con un programma da amministratore), Maiusc+Invio, pagine di Windows, velocità della prima ricerca.
 - [ ] **Chat fluida e blocchi di codice** (22/11, `docs/chat.md` → Campo e azioni): da provare dal vivo con risposte lunghe, «▶ Nel terminale» con codice di più righe (incolla trattenuta o appunti) e «Salva». Proposte in attesa di scelta: cerca nella conversazione, tasti dei pannelli, avviso a turno finito, messaggi segnati.
@@ -67,6 +68,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 22/11 — «App» nella barra fissa
+- Ramo `claude/app` (da `claude/barra-windows`): app fissate e aperte come sulla barra di Windows (`taskwin.rs`, `applist.rs`, `barapps.rs`, `winthumbs.rs`, `regwatch.rs`, relay `avvia`, `src/character-window/apps.ts`, scheda `apps:` in `barcard.ts`). Riusato il codice della Dock senza la sua finestra.
+- Profilo `prova` (`npm run prova`, 4 min la prima volta invece di 13). Elementi vuoti visibili in «Personalizza la barra». Barra in basso: riga trasparente in cima e blocco all'avvio con la barra di Windows nascosta corretti.
+
 ### 22/11 — Barra di Windows nascosta
 - Ramo `claude/barra-windows` (da `claude/campo`): `taskbar_hide.rs` ripreso dalla Dock accantonata, da solo; Impostazioni → Barra fissa → «Barra delle applicazioni di Windows», guardiano, ripristino nel disinstallatore. `docs/decisioni.md`.
 
@@ -84,15 +89,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 - Conversazioni, Anteprima e Terminale come pannelli attorno alla chat, nell'isola e nella finestra (`src/island/dock.ts`, `docs/chat.md` → Anteprima → Pannelli): schede trascinabili, divisori, disposizione per luogo e insieme. Con la sola chat niente pannelli.
 - Nuova dipendenza `dockview-core` decisa da Edoardo (`docs/decisioni.md`); CSS in `src/vendor/dockview.css`.
 - Barra fissa: file trascinati sulla barra non finiscono più nell'isola (`file-drop` ascoltato per pagina).
-
-### 21/11 — Memoria: chiedi alla memoria, punti sulle linee, gettoni
-Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquadro «~ chiedi alla memoria» accanto al registro (`memory_chat.rs`: risponde un motore solo dalle righe e pagine trovate, niente strumenti, rifiuta il resto; pagine della risposta accese nel nucleo e cliccabili).
-- Punti che scorrono sulle linee ultimi arrivi → nucleo; gettoni delle pagine più collegate con tip = nome e senza spunta.
-- Barra fissa: elemento «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro) che apre la finestra Memoria.
-- Barra fissa: cartelle (piccola isola a griglia o lista, grandezza icone; si riempiono dal catalogo o trascinando sulla cartella) e programmi trascinati da Windows sulla barra (azioni rapide con l'icona, `bar_pin`). Da provare dal vivo: il drop dalla barra delle app e dal menu Start può non dare un percorso.
-- Barra fissa, «Personalizza la barra»: finestra sua (`barra`, dal destro sulla barra o da Impostazioni → Barra fissa → «Personalizza…»): clic su un widget = nella barra; nella barra trascina per spostare, destro = opzioni nella finestra, × toglie, «Fine». Da provare dal vivo.
-- Barra fissa, gruppo «Windows» nel catalogo: Start (destro Win+X), Cerca, Visualizzazione attività, Widget, Icone nascoste, Impostazioni rapide, Notifiche, Esplora file, Impostazioni, Mostra desktop; scorciatoie di Windows (`barsys::win_key`). Da provare dal vivo, anche con un programma da amministratore davanti.
-- Poi (ramo `claude/memoria-interattiva`): scheda del punto al clic nel nucleo, domande pronte, gettoni trascinabili nel campo, «Ricorda» e «Apri in chat» sotto la risposta, linea dal riferimento al punto, linea del tempo con ▶.
-- `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).
-- Al posto dei tre pallini colorati nelle intestazioni (sembravano i pulsanti di una finestra) un'icona del riquadro: righe per il registro, fumetto per «chiedi alla memoria».
-

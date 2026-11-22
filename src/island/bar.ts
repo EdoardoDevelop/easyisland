@@ -467,6 +467,11 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
     } else if (it.id.startsWith("sys:")) {
       const kind = it.id.slice(4);
       if (!BAR_KINDS[kind]) continue;
+      // «App»: an empty place, filled by the bar's page with the apps (character-window/apps.ts).
+      if (kind === "apps") {
+        out.push({ key, area, html: h("span", { class: "bar-item bar-apps-host" }, h("span", { class: "bar-apps" })).outerHTML, title: "" });
+        continue;
+      }
       // The bar of the app in use: empty when the program in front has no actions of the user.
       if (kind === "appbar" && !appBar?.buttons.length) {
         out.push(emptyPiece(key, area, BAR_KINDS[kind].icon, BAR_KINDS[kind].name, t("Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)")));

@@ -131,6 +131,11 @@ mod richtext;
 mod start_apps;
 mod pcfind;
 mod taskbar_hide;
+mod applist;
+mod regwatch;
+mod taskwin;
+mod winthumbs;
+mod barapps;
 mod threecx;
 mod speech;
 mod brain_watch;
@@ -5232,6 +5237,11 @@ async fn bar_pin(app: AppHandle, paths: Vec<String>, area: String, before: Optio
         let list = paths.clone();
         tauri::async_runtime::spawn_blocking(move || list.iter().map(|p| thumbs::program_icon(p)).collect()).await.unwrap_or_default()
     };
+    // With «App» in the bar, programs and their shortcuts go among its apps.
+    let paths = barapps::pin_dropped(&app, paths);
+    if paths.is_empty() {
+        return 1;
+    }
     let Some(shared) = app.try_state::<Shared>() else { return 0 };
     let mut s = shared.settings.lock().unwrap().clone();
     let key_of = |v: &serde_json::Value| {
@@ -5767,6 +5777,17 @@ pub fn run() {
             pc_window_focus,
             pc_page,
             windows_taskbar_restore,
+            taskwin::apps_windows,
+            taskwin::apps_do,
+            taskwin::apps_icons,
+            taskwin::apps_catalog,
+            winthumbs::apps_thumbs,
+            barapps::apps_start,
+            barapps::apps_pin,
+            barapps::apps_unpin,
+            barapps::apps_move,
+            barapps::apps_menu,
+            barapps::apps_recent_files,
             recap::recap_history,
             recap::recap_mark_shown,
             recap::recap_clear,

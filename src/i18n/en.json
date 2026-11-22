@@ -6362,5 +6362,17 @@
   "Rimetti adesso": "Bring it back now",
   "nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla": "when hidden, Start stays on the Windows key, hidden icons on Win+B and windows in the island's field; it always comes back when EasyIsland closes, hangs or is uninstalled",
   "Vuota: compare quando c'è un permesso, una chiamata, un agente al lavoro…": "Empty: it shows when there is a permission, a call, an agent at work…",
-  "Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)": "Empty: it shows when the program in front has quick actions of yours (\"In the bar with\")"
+  "Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)": "Empty: it shows when the program in front has quick actions of yours (\"In the bar with\")",
+  "App (aperte e fissate)": "Apps (open and pinned)",
+  "App nella barra": "Apps in the bar",
+  "L'elemento «App (aperte e fissate)» della barra mostra queste app e quelle aperte. Sono allineate con le app fissate sulla barra di Windows; un programma trascinato sulla barra si aggiunge qui.": "The bar's \"Apps (open and pinned)\" element shows these apps and the open ones. They follow the apps pinned to the Windows taskbar; a program dragged onto the bar is added here.",
+  "Nessuna app fissata.": "No pinned apps.",
+  "Aggiungi un'app: scrivi il nome…": "Add an app: type its name…",
+  "Leggo le app installate…": "Reading the installed apps…",
+  "Fissa alla barra": "Pin to the bar",
+  "Nuova finestra": "New window",
+  "Chiudi la finestra": "Close window",
+  "Esegui come amministratore": "Run as administrator",
+  "Aggiungi app…": "Add apps…",
+  "Chiudi tutte le finestre": "Close all windows"
 }

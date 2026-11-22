@@ -3687,7 +3687,47 @@ ${note}` : text };
    * or a widget opens its card (closes it, if it is already the one open), an
    * action runs.
    */
+  /** «App»: the card of an app's windows opened by a click (stays) or by the mouse resting (goes with it). */
+  private appsSticky = false;
+  private appsLeave = 0;
+
+  /**
+   * «App» in the bar (character-window/apps.ts): `apps:show:<id>` the mouse
+   * rests on an app, `apps:list:<id>` a click on one with several windows,
+   * `apps:leave` the mouse went away (from the app or from its card).
+   */
+  private appsBar(key: string, x?: number) {
+    const [, what, ...rest] = key.split(":");
+    const id = rest.join(":");
+    const shown = () => State.mode === "expanded" && State.view === "barcard" && (State.barCard ?? "").startsWith("apps:");
+    window.clearTimeout(this.appsLeave);
+    if (what === "leave") {
+      if (this.appsSticky || !shown()) return;
+      this.appsLeave = window.setTimeout(() => {
+        if (!this.appsSticky && shown() && !document.querySelector(".barcard:hover")) this.collapse();
+      }, 450);
+      return;
+    }
+    if (what === "show") {
+      if (shown() && this.appsSticky) return;
+      this.appsSticky = false;
+    } else {
+      if (shown() && State.barCard === `apps:${id}` && this.appsSticky) {
+        this.collapse();
+        return;
+      }
+      this.appsSticky = true;
+    }
+    if (shown() && State.barCard === `apps:${id}`) return;
+    State.barCard = `apps:${id}`;
+    this.openFromBarAt("barcard", x);
+  }
+
   barClick(key: string, button: BarButton = "left", x?: number) {
+    if (key.startsWith("apps:")) {
+      this.appsBar(key, x);
+      return;
+    }
     // A small button inside an element: music's, or one of the app in use.
     const inner = /^(sys:(music|appbar)[^:]*):btn:(\d+)$/.exec(key);
     if (inner) {

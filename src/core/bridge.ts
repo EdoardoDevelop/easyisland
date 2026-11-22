@@ -606,6 +606,17 @@ export const Bridge = {
   pcWindowFocus: (id: number) => call<boolean>("pc_window_focus", { id }),
   /** One of Windows' own pages (pcfind.rs PAGES), by its id. */
   pcPage: (id: string) => call<boolean>("pc_page", { id }),
+  /** «App» of the bar (taskwin.rs, applist.rs, barapps.rs): every open window, `{ hwnd, app, title, … }`. */
+  appsWindows: async () => (await call<{ hwnd: number; app: string; title: string; minimized: boolean; active: boolean }[]>("apps_windows")) ?? [],
+  /** `click`, `activate`, `minimize`, `close` (a window, or the app's), `close-all`, `launch`, `launch-new`, `open-files`. */
+  appsDo: (what: string, hwnd: number | null, app: string | null, files?: string[]) => call<boolean>("apps_do", { what, hwnd, app, files }),
+  /** Live previews of these windows at these places of the island's window ([] takes them away). */
+  appsThumbs: (rects: { hwnd: number; x: number; y: number; w: number; h: number }[]) => call<void>("apps_thumbs", { rects }),
+  appsRecentFiles: async (id: string) => (await call<string[]>("apps_recent_files", { id })) ?? [],
+  appsCatalog: async () => (await call<{ id: string; name: string }[]>("apps_catalog")) ?? [],
+  appsPin: (id: string, name: string | null, before: string | null) => call<void>("apps_pin", { id, name, before }),
+  appsUnpin: (id: string) => call<void>("apps_unpin", { id }),
+  appsMove: (id: string, before: string | null) => call<void>("apps_move", { id, before }),
   /** The Windows taskbar back now (taskbar_hide.rs); true when it is visible. */
   windowsTaskbarRestore: () => call<boolean>("windows_taskbar_restore"),
   /** Pins a file of the tray: it stays across restarts and "Svuota". */

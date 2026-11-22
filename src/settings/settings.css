@@ -1724,3 +1724,6 @@ html[data-scheme="light"] .settings-hit-path {
   color: #0369a1;
 }
 
+
+/* «App nella barra» (main.ts appsPinsBlock): apps found to add. */
+.apps-pins-found { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }

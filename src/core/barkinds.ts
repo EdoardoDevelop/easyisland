@@ -143,6 +143,11 @@ export const BAR_KINDS: Record<string, BarKind> = {
     name: t("Mostra desktop"), icon: "i:desktop", tokens: [],
     left: "card", middle: "none", right: "none", group: "windows",
   },
+  // The apps, pinned and open, as on the Windows taskbar (src/character-window/apps.ts).
+  apps: {
+    name: t("App (aperte e fissate)"), icon: "i:window", tokens: [],
+    left: "none", middle: "none", right: "none", group: "windows",
+  },
   // «Lavoro»: things of the island brought into the bar.
   search: {
     // The search on its own, in its window (search-window.ts): the island stays as it is.

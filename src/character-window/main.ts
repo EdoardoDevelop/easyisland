@@ -13,6 +13,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { addFaces } from "../core/fonts";
 import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
+import { appsMenu, appsPress, appsStart, fillApps, setPins } from "./apps";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -126,6 +127,16 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   size = m.size;
   paused = m.paused;
   bar = m.mode === "bar" ? m.bar : null;
+  // «App» in the bar: its pins, and the windows followed from the first time it shows.
+  if (bar) {
+    setPins(bar.apps);
+    if (bar.items.some((p) => p.key.startsWith("sys:apps"))) {
+      appsStart(() => {
+        laidItems = "";
+        if (bar) layAreas(bar);
+      }, send);
+    }
+  }
   layBar();
   // As the island's rest icon (dimmed when paused); the compact character at full
   // strength. Beside the open island it has no badge under it: the rest icon's shadow.
@@ -571,6 +582,7 @@ function layAreas(b: BarLook) {
     btn.querySelectorAll<HTMLElement>(".bar-meter-fill[data-pct]").forEach((m) => {
       m.style.width = `${m.dataset.pct}%`;
     });
+    btn.querySelectorAll<HTMLElement>(".bar-apps").forEach(fillApps);
     if (editing) {
       const x = document.createElement("span");
       x.className = "bar-x";
@@ -757,6 +769,11 @@ window.addEventListener("resize", () => {
 // (the log of 31 Oct 2026), and the card opened at the second.
 document.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
+  // An app of «App»: opened, brought forward or minimized (character-window/apps.ts).
+  if (!editing && appsPress(e)) {
+    e.preventDefault();
+    return;
+  }
   const target = e.target as HTMLElement | null;
   const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
   if (editing) {
@@ -896,6 +913,7 @@ function barKey(e: Event): string | null {
 // Elsewhere on the bar (the band, the character): EasyIsland's menu (tray.rs popup_bar_context).
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
+  if (!editing && appsMenu(e)) return;
   if (editing) {
     // An element's options, in the window.
     const key = barKey(e);
@@ -907,6 +925,7 @@ document.addEventListener("contextmenu", (e) => {
   else if (mode === "bar" && !(e.target as HTMLElement | null)?.closest?.(".bar-more")) void invoke("bar_context_menu").catch(() => {});
 });
 document.addEventListener("auxclick", (e) => {
+  if (e.button === 1 && !editing && appsPress(e)) return;
   const key = e.button === 1 && !editing ? barKey(e) : null;
   if (key) send({ kind: "bar", key, button: "middle" });
 });

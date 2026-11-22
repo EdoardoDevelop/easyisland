@@ -865,6 +865,9 @@ pub struct Settings {
     /// The Windows taskbar hidden (taskbar_hide.rs): off unless chosen. Of the PC, not of a profile.
     #[serde(default)]
     pub hide_windows_taskbar: bool,
+    /// The apps pinned to the bar's «App», in order: `{ id, name }` (applist.rs ids). Of the PC.
+    #[serde(default)]
+    pub apps_pinned: Vec<Value>,
     /// «Aspetto della barra» (src/core/state.ts FixedBarLook): style, opacity, blur,
     /// margins, text, spacing, hide by itself. Rust reads `autoHide` and `blur`.
     #[serde(default)]
@@ -1363,6 +1366,7 @@ impl Default for Settings {
             fixed_bar_background: String::new(),
             fixed_bar_height: 0.0,
             hide_windows_taskbar: false,
+            apps_pinned: Vec::new(),
             fixed_bar_look: Value::Null,
             island_width: default_island_width(),
             island_height: 0.0,

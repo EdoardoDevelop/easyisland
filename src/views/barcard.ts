@@ -34,6 +34,9 @@ function minutes(m: number): string {
   return hh ? t("circa {h} h {m} min", { h: hh, m: m % 60 }) : t("circa {m} min", { m });
 }
 
+/** The latest card of an app's windows: an older one leaves the previews alone. */
+let appsGen = 0;
+
 export function buildBarCard(actions: ViewActions): ViewHost {
   const body = h("div", { class: "stack recap-stack barcard" });
   const card = h("div", { class: "card recap-card" }, body);
@@ -366,7 +369,105 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     return [title, box];
   }
 
+  /**
+   * An app of «App» in the bar (Edoardo, 22 Nov 2026, «come su Windows»): its
+   * windows with live previews (DWM draws them into the empty boxes,
+   * winthumbs.rs), a click brings one forward, × closes it; its recent files;
+   * a new window, pin or unpin. Read again every half second while shown;
+   * the previews go when the card does.
+   */
+  function apps(id: string): Node[] {
+    const gen = ++appsGen;
+    const same = (a: string) => a.toLowerCase() === id.toLowerCase();
+    const pinned = () => (State.settings.appsPinned ?? []).some((p) => same(p.id));
+    const name = (State.settings.appsPinned ?? []).find((p) => same(p.id))?.name
+      || (id.split(/[\\/]/).pop() ?? id).replace(/\.(exe|lnk)$/i, "");
+    const title = h("div", { class: "recap-head" },
+      h("span", { class: "barcard-icon" }, renderActionIcon("i:window", 16)),
+      h("span", { class: "recap-title", text: name }));
+    const grid = h("div", { class: "apps-wins" });
+    const recent = h("div", { class: "apps-recent" });
+    const pin = h("button", { class: "btn secondary" }) as HTMLButtonElement;
+    const drawPin = () => { pin.textContent = pinned() ? t("Togli dalla barra") : t("Fissa alla barra"); };
+    pin.addEventListener("click", () => {
+      void (pinned() ? Bridge.appsUnpin(id) : Bridge.appsPin(id, name, null));
+      window.setTimeout(drawPin, 300);
+    });
+    drawPin();
+    const buttons = h("div", { class: "actions" },
+      h("button", { class: "btn secondary", onclick: () => { actions.collapse(); void Bridge.appsDo("launch-new", null, id); } }, h("span", { text: t("Nuova finestra") })),
+      pin);
+    let laid = "";
+    let previews: { hwnd: number; box: HTMLElement }[] = [];
+    let sent = "";
+    const place = () => {
+      // Another app's card took over: its own previews are not touched.
+      if (gen !== appsGen) return false;
+      const open = State.mode === "expanded" && State.view === "barcard" && State.barCard === `apps:${id}` && grid.isConnected;
+      const rects = open ? previews.map(({ hwnd, box }) => {
+        const r = box.getBoundingClientRect();
+        return { hwnd, x: r.left, y: r.top, w: r.width, h: r.height };
+      }).filter((r) => r.w > 4 && r.h > 4) : [];
+      const key = JSON.stringify(rects.map((r) => [r.hwnd, Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h)]));
+      if (key !== sent) {
+        sent = key;
+        void Bridge.appsThumbs(rects);
+      }
+      return open;
+    };
+    const read = () => {
+      void Bridge.appsWindows().then((all) => {
+        const mine = all.filter((w) => same(w.app));
+        const key = JSON.stringify(mine.map((w) => [w.hwnd, w.title]));
+        if (key === laid) return;
+        laid = key;
+        clear(grid);
+        previews = [];
+        for (const w of mine) {
+          const box = h("div", { class: "apps-thumb" });
+          const close = h("button", { class: "apps-close", title: t("Chiudi la finestra"), text: "×" });
+          close.addEventListener("click", (e) => {
+            e.stopPropagation();
+            void Bridge.appsDo("close", w.hwnd, null);
+          });
+          const tile = h("button", { class: `apps-win${w.active ? " on" : ""}`, title: w.title },
+            h("span", { class: "apps-win-title", text: w.title }), close, box);
+          tile.addEventListener("click", () => {
+            actions.collapse();
+            void Bridge.appsDo("activate", w.hwnd, null);
+          });
+          grid.append(tile);
+          previews.push({ hwnd: w.hwnd, box });
+        }
+        if (!mine.length) grid.append(h("div", { class: "sub", text: t("Nessuna finestra aperta.") }));
+        State.notify();
+      });
+    };
+    void Bridge.appsRecentFiles(id).then((files) => {
+      if (!files.length) return;
+      recent.append(h("div", { class: "sub", text: t("Recenti") }));
+      for (const f of files.slice(0, 6)) {
+        const b = h("button", { class: "apps-file", title: f, text: f.split(/[\\/]/).pop() ?? f });
+        b.addEventListener("click", () => { actions.collapse(); void Bridge.appsDo("open-files", null, id, [f]); });
+        recent.append(b);
+      }
+      State.notify();
+    });
+    read();
+    // While shown: windows read again, previews kept on their boxes (the card moves as it opens).
+    const tick = window.setInterval(() => {
+      if (!place()) {
+        window.clearInterval(tick);
+        return;
+      }
+      read();
+    }, 400);
+    window.setTimeout(place, 60);
+    return [title, grid, recent, buttons];
+  }
+
   const build = (kind: string): Node[] => {
+    if (kind.startsWith("apps:")) return apps(kind.slice(5));
     if (kind.startsWith("folder:")) return folder(kind.slice(7));
     switch (kind) {
       case "appmenu": return appMenu();
@@ -377,6 +478,11 @@ export function buildBarCard(actions: ViewActions): ViewHost {
       default: return clock();
     }
   };
+
+  // The mouse leaving the card of an app's windows: the island decides (Island.appsBar).
+  card.addEventListener("pointerleave", () => {
+    if ((State.barCard ?? "").startsWith("apps:")) actions.barClick("apps:leave");
+  });
 
   let minute = -1;
   return {
