@@ -2542,7 +2542,25 @@ export function buildPrompt(
     else showSearch(false);
   }
 
+  /**
+   * The conversations as a panel of their own (island/dock.ts) while the
+   * panels are showing, in the chat's layout otherwise.
+   */
+  function placeSide() {
+    const home = sideOpen ? layout.ownerDocument.querySelector<HTMLElement>("[data-side-home]") : null;
+    if (home) {
+      if (side.parentElement !== home) home.append(side);
+    } else if (side.parentElement !== layout) layout.prepend(side);
+  }
+  /** In its own panel: never floating over the conversation. */
+  const sideDocked = () => !!side.parentElement?.hasAttribute("data-side-home");
+  // The ✕ of its tab (island/dock.ts).
+  side.addEventListener("dock-close", () => showSide(false));
+  // In a panel of the chat's window: taken home before that window goes (popout.ts rescue).
+  side.dataset.followsView = "";
+
   function applySide(quiet = false) {
+    placeSide();
     const open = narrow ? overlay : sideOpen;
     layout.classList.toggle("side-open", open);
     layout.classList.toggle("narrow", narrow);
@@ -2564,7 +2582,7 @@ export function buildPrompt(
     narrowTimer = window.setTimeout(() => {
       const w = layout.clientWidth;
       if (!w) return;
-      const now = sideOpen && w < sideWidth + 340;
+      const now = sideOpen && !sideDocked() && w < sideWidth + 340;
       if (now === narrow) return;
       narrow = now;
       overlay = false;

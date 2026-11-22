@@ -52,7 +52,7 @@ import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
 import * as Notices from "../notices/notices";
 import { momentHeadline } from "../views/moment";
-import { ChatDock } from "./dock";
+import { ChatDock, type DockHooks, type Rect } from "./dock";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -188,6 +188,10 @@ export class Island {
   private paneGen = 0;
   private paneGrip = h("div", { class: "preview-pane-grip", title: t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita") });
   private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
+  /** The panels on the chat (dock.ts), made the first time they are asked for. */
+  private dock: ChatDock | null = null;
+  private dockFailed = false;
+  private dockGen = -1;
   private paneSent = { x: 0, y: 0, w: 0, h: 0 };
   private resizeGrip = h("div", { id: "island-resize", title: t("Trascina per cambiare larghezza e altezza · doppio clic: predefinite") });
   private restCanvas!: HTMLCanvasElement;
@@ -3273,6 +3277,16 @@ ${note}` : text };
     // The chat in its own window: the panel is there (paneInWindow), never told from here.
     if (isPopped("chat")) {
       this.islandEl.classList.remove("paned");
+      if (!this.dockFailed) this.syncDock();
+      return;
+    }
+    // The panels (dock.ts) place the Anteprima themselves.
+    if (!this.dockFailed && this.syncDock()) {
+      this.islandEl.classList.remove("paned");
+      if (this.paneGen !== this.dockGen) {
+        this.dockGen = this.paneGen;
+        this.dock?.resend();
+      }
       return;
     }
     const shown = this.paneShown;
@@ -3379,15 +3393,7 @@ ${note}` : text };
     let gen = this.paneGen;
     let dock: ChatDock;
     try {
-      dock = new ChatDock(doc, body, {
-        chat: views,
-        previewOpen: () => State.previewOpen,
-        termOpen: () => State.chatTermOpen,
-        closePreview: () => void Bridge.previewHide().catch(() => undefined),
-        closeTerm: () => doc.querySelector(".chat-term")?.dispatchEvent(new CustomEvent("dock-close")),
-        placePreview: (r) => void Bridge.previewPane(r.x, r.y, r.w, r.h).catch(() => undefined),
-        previewWidth: () => State.settings.previewWidth || PANE_W,
-      });
+      dock = new ChatDock(doc, views, this.dockHooks(doc, "finestra", () => true, () => State.chatSideOpen, (r) => void Bridge.previewPane(r.x, r.y, r.w, r.h).catch(() => undefined)));
     } catch (e) {
       void Bridge.log(`pannelli della chat: ${e}`).catch(() => {});
       if (!body.contains(views)) body.prepend(views);
@@ -3401,6 +3407,63 @@ ${note}` : text };
       }
       dock.sync();
     };
+  }
+
+  /** What the panels (dock.ts) ask of the chat, in the island or in its window's page `doc`. */
+  private dockHooks(doc: Document, place: string, enabled: () => boolean, sideOpen: () => boolean, placePreview: (r: Rect) => void): DockHooks {
+    const tell = (selector: string) => doc.querySelector(selector)?.dispatchEvent(new CustomEvent("dock-close"));
+    return {
+      place,
+      enabled,
+      sideOpen,
+      previewOpen: () => State.previewOpen,
+      termOpen: () => State.chatTermOpen,
+      closeSide: () => tell(".chat-side"),
+      closePreview: () => void Bridge.previewHide().catch(() => undefined),
+      closeTerm: () => tell(".chat-term"),
+      placePreview,
+      previewWidth: () => State.settings.previewWidth || PANE_W,
+      sideWidth: () => chatSideWidth(),
+    };
+  }
+
+  /**
+   * The panels in the island (dock.ts): on the chat, when its conversations,
+   * the Anteprima or the terminal are open beside it. The island's width is
+   * the same as with the fixed panel (paneSplit, chatSideRoom); the panels
+   * share it as the user arranged them.
+   */
+  private syncDock(): boolean {
+    if (!this.dock) {
+      try {
+        this.dock = new ChatDock(document, this.viewsEl, this.dockHooks(document, "isola",
+          () => State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat"),
+          // Only where the island makes room for them (the chat itself, not a permission's card).
+          () => this.chatSideRoom > 0,
+          (r) => {
+            // Never out of the island nor of the window (a webview there is cut by the screen).
+            const box = this.islandEl.getBoundingClientRect();
+            const right = Math.min(r.x + r.w, box.right - 10, window.innerWidth);
+            const bottom = Math.min(r.y + r.h, box.bottom - 10, window.innerHeight);
+            const next = r.w > 0 && right - r.x > 40 && bottom - r.y > 40 ? { x: r.x, y: r.y, w: Math.round(right - r.x), h: Math.round(bottom - r.y) } : { x: 0, y: 0, w: 0, h: 0 };
+            this.paneSent = next;
+            void Bridge.previewPane(next.x, next.y, next.w, next.h).catch(() => undefined);
+          }));
+      } catch (e) {
+        void Bridge.log(`pannelli della chat: ${e}`).catch(() => {});
+        this.dockFailed = true;
+      }
+    }
+    if (!this.dock) return false;
+    const was = this.dock.active;
+    this.dock.sync();
+    if (was !== this.dock.active) {
+      // The fixed panel and the panels never tell Rust at the same time: the one now in charge starts afresh.
+      this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
+      this.dock.resend();
+    }
+    this.islandEl.classList.toggle("docked", this.dock.active);
+    return this.dock.active;
   }
 
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
