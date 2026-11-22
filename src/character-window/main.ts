@@ -255,8 +255,9 @@ function layBar() {
   document.body.style.setProperty("--g", `${g}px`);
   document.body.style.setProperty("--k", String(1 + g / t));
   band.style.display = look.islands ? "none" : "";
-  band.style.height = `${t + g}px`;
+  band.style.height = `${t + g + 8}px`;
   if (!look.grow) setGrown(false);
+  measureBand();
   paintBand();
   // With the blur, the window cut to the band (margins, rounded ends) at rest
   // too; at the bottom edge, with the character that grows, always tall (reach).
@@ -292,13 +293,15 @@ function bandPath(p: number): string {
   const cx = bar.slot === "start" ? m + 8 + t / 2 : bar.slot === "end" ? W - m - 8 - t / 2 : W / 2;
   const bw = t * 0.78;
   const s = t * 0.5;
-  const y = t + Math.round(t * GROW) * p;
+  // The inner edge: the band's height, plus what Windows reserved past it (bandExtra).
+  const e = t + bandExtra;
+  const y = e + Math.round(t * GROW) * p;
   const f = (n: number) => Math.round(n * 10) / 10;
   return [
-    `M ${f(m)} 0 H ${f(W - m)} V ${f(t - r)} Q ${f(W - m)} ${f(t)} ${f(W - m - r)} ${f(t)}`,
-    `H ${f(cx + bw + s)} C ${f(cx + bw)} ${f(t)} ${f(cx + bw)} ${f(y)} ${f(cx + bw * 0.35)} ${f(y)}`,
-    `H ${f(cx - bw * 0.35)} C ${f(cx - bw)} ${f(y)} ${f(cx - bw)} ${f(t)} ${f(cx - bw - s)} ${f(t)}`,
-    `H ${f(m + r)} Q ${f(m)} ${f(t)} ${f(m)} ${f(t - r)} Z`,
+    `M ${f(m)} 0 H ${f(W - m)} V ${f(e - r)} Q ${f(W - m)} ${f(e)} ${f(W - m - r)} ${f(e)}`,
+    `H ${f(cx + bw + s)} C ${f(cx + bw)} ${f(e)} ${f(cx + bw)} ${f(y)} ${f(cx + bw * 0.35)} ${f(y)}`,
+    `H ${f(cx - bw * 0.35)} C ${f(cx - bw)} ${f(y)} ${f(cx - bw)} ${f(e)} ${f(cx - bw - s)} ${f(e)}`,
+    `H ${f(m + r)} Q ${f(m)} ${f(e)} ${f(m)} ${f(e - r)} Z`,
   ].join(" ");
 }
 
@@ -388,6 +391,21 @@ function paintBandLayers(b: BarLook, margin: number, op: number) {
   }
 }
 
+/**
+ * What the band's window has past the band's height (logical px): Windows
+ * reserves whole pixels and the screen's scale rounds, so the band at rest
+ * could be a pixel or two shorter than its place, and the desktop showed
+ * through that line (Edoardo, 22 Nov 2026). Measured on the window at rest.
+ */
+let bandExtra = 0;
+function measureBand() {
+  if (!bar || grown || mode !== "bar") return;
+  const want = Math.max(0, Math.min(8, window.innerHeight - reach() - bar.thickness));
+  if (Math.abs(want - bandExtra) < 0.05) return;
+  bandExtra = want;
+  paintBand();
+}
+
 /** The band drawn as it is now: swollen or not. */
 function paintBand() {
   const d = `path("${bandPath(grown ? 1 : 0)}")`;
@@ -407,7 +425,7 @@ function bandShape(p: number, tall = 0): number[][] | null {
   const len = el.getTotalLength();
   const g = Math.round(bar.thickness * GROW) * p;
   // The window's height: the band (and its swelling), or always the tall one (reach).
-  const H = bar.thickness + Math.max(g, tall);
+  const H = bar.thickness + bandExtra + Math.max(g, tall);
   const out: number[][] = [];
   const n = 160;
   for (let i = 0; i < n; i++) {
@@ -437,7 +455,8 @@ function restShape(): number[][] | null {
   if (!r || !bar) return bandShape(0);
   const W = window.innerWidth;
   const t = bar.thickness;
-  return bandShape(0, r) ?? [[0, r], [W, r], [W, r + t], [0, r + t]];
+  // Down past the window's bottom: the window itself ends the cut there.
+  return bandShape(0, r) ?? [[0, r], [W, r], [W, r + t + 100], [0, r + t + 100]];
 }
 
 /**
@@ -725,6 +744,7 @@ function fitAreas() {
 // growing past the band under the character is not one.
 let laidWidth = 0;
 window.addEventListener("resize", () => {
+  measureBand();
   if (!bar || window.innerWidth === laidWidth) return;
   laidWidth = window.innerWidth;
   laidItems = "";
