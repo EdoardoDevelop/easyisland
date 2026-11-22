@@ -400,7 +400,7 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     // The previous card's previews go at once: DWM drew them where its boxes were.
     let sent = "[]";
     void Bridge.appsThumbs([]);
-    let seen = "";
+    let seen: number[][] = [];
     const place = () => {
       // Another app's card took over: its own previews are not touched.
       if (gen !== appsGen) return false;
@@ -409,13 +409,16 @@ export function buildBarCard(actions: ViewActions): ViewHost {
         const r = box.getBoundingClientRect();
         return { hwnd, x: r.left, y: r.top, w: r.width, h: r.height };
       }).filter((r) => r.w > 4 && r.h > 4) : [];
-      const key = JSON.stringify(rects.map((r) => [r.hwnd, Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h)]));
+      const now = rects.map((r) => [r.hwnd, Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h)]);
+      const key = JSON.stringify(now);
       // Boxes still moving (the island growing, the card changing): no previews
       // until they stay put, or DWM drew them at the old place and they jumped
-      // (Edoardo, 22 Nov 2026, from one app's card to another's).
-      const moving = key !== seen;
-      seen = key;
-      const want = moving || !open ? "[]" : key;
+      // (Edoardo, 22 Nov 2026, from one app's card to another's). A pixel or
+      // two is not moving: hiding for that made the previews blink.
+      const moving = now.length !== seen.length
+        || now.some((r, i) => r[0] !== seen[i]?.[0] || r.slice(1).some((v, k) => Math.abs(v - (seen[i]?.[k + 1] ?? -99)) > 3));
+      seen = now;
+      const want = !open || moving ? "[]" : key;
       if (want !== sent) {
         sent = want;
         void Bridge.appsThumbs(want === "[]" ? [] : rects);
