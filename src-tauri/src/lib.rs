@@ -3734,8 +3734,14 @@ async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, Strin
 
 /// «Terminale» in the chat: the user's own PowerShell in the project's folder (terminal.rs).
 #[tauri::command]
-fn terminal_open(app: AppHandle, folder: Option<String>, cols: u16, rows: u16) -> Result<u32, String> {
-    terminal::open(&app, folder.as_deref(), cols, rows)
+fn terminal_open(app: AppHandle, folder: Option<String>, shell: Option<String>, cols: u16, rows: u16) -> Result<u32, String> {
+    terminal::open(&app, folder.as_deref(), shell.as_deref().unwrap_or("powershell"), cols, rows)
+}
+
+/// The shells the chat's terminal can open (terminal.rs shells): `[id, name]`.
+#[tauri::command]
+fn terminal_shells() -> Vec<(String, String)> {
+    terminal::shells().into_iter().map(|(id, name)| (id.to_string(), name)).collect()
 }
 
 /// Keys and pasted text, raw (xterm.js in chat.ts).
@@ -5508,6 +5514,7 @@ pub fn run() {
             chat_history_open,
             chat_claude_commands,
             terminal_open,
+            terminal_shells,
             terminal_write,
             terminal_resize,
             terminal_close,

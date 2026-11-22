@@ -4,6 +4,8 @@
 // page shares (same WebView2 profile): the field at the top of the settings
 // and the island's one field search the same entries.
 
+import { fuzzyFilter } from "./fuzzy";
+
 /** One control of the settings: where it is and what it says. */
 export interface SettingsEntry {
   /** page|tab|label#n|item: found again among the drawn controls (search.ts gotoEntry); item = the integration it is in. */
@@ -87,11 +89,18 @@ export function scoreEntry(e: SettingsEntry, query: string): number {
 
 /** The best entries for the words typed, best first. */
 export function searchSettings(entries: SettingsEntry[], query: string, max = 30): { entry: SettingsEntry; score: number }[] {
-  return entries
+  const exact = entries
     .map((entry) => ({ entry, score: scoreEntry(entry, query) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || a.entry.label.length - b.entry.label.length)
     .slice(0, max);
+  if (exact.length >= max) return exact;
+  // Few found: the ones a typo would have missed («notifiche» typed «notifche»), after them (fuzzy.ts).
+  const seen = new Set(exact.map((x) => x.entry));
+  const more = fuzzyFilter(entries, (e) => `${e.label} ${e.section} ${e.tabLabel} ${e.pageLabel}`, query, max)
+    .filter((e) => !seen.has(e))
+    .map((entry) => ({ entry, score: 0.5 }));
+  return [...exact, ...more].slice(0, max);
 }
 
 /** «Impostazioni → Aspetto → Posizione»: where an entry lives, for a result's second line. */

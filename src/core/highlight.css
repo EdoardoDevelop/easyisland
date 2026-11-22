@@ -1,0 +1,26 @@
+/* Colours of the code in the answers (highlight.ts, highlight.js classes):
+   calm, readable on the island's dark card; light ones in the light scheme.
+   Here, not in style.css: the Anteprima's page shows answers too. */
+.md-pre .hljs-keyword, .md-pre .hljs-selector-tag, .md-pre .hljs-built_in.hljs-keyword { color: #c792ea; }
+.md-pre .hljs-built_in, .md-pre .hljs-type, .md-pre .hljs-class .hljs-title, .md-pre .hljs-title.class_ { color: #82aaff; }
+.md-pre .hljs-title, .md-pre .hljs-title.function_, .md-pre .hljs-section { color: #7fdbca; }
+.md-pre .hljs-string, .md-pre .hljs-regexp, .md-pre .hljs-addition, .md-pre .hljs-meta .hljs-string { color: #c3e88d; }
+.md-pre .hljs-number, .md-pre .hljs-literal, .md-pre .hljs-symbol, .md-pre .hljs-bullet { color: #f78c6c; }
+.md-pre .hljs-variable, .md-pre .hljs-template-variable, .md-pre .hljs-attr, .md-pre .hljs-property { color: #ffcb6b; }
+.md-pre .hljs-comment, .md-pre .hljs-quote { color: #7f8794; font-style: italic; }
+.md-pre .hljs-meta, .md-pre .hljs-doctag, .md-pre .hljs-tag { color: #89ddff; }
+.md-pre .hljs-name, .md-pre .hljs-selector-id, .md-pre .hljs-selector-class { color: #f07178; }
+.md-pre .hljs-deletion { color: #ff8d97; }
+.md-pre .hljs-params { color: #e8e9ec; }
+.md-pre .hljs-emphasis { font-style: italic; }
+.md-pre .hljs-strong { font-weight: 600; }
+html[data-scheme="light"] .md-pre :is(.hljs-keyword, .hljs-selector-tag) { color: #7c3aed; }
+html[data-scheme="light"] .md-pre :is(.hljs-built_in, .hljs-type, .hljs-title.class_) { color: #1d4ed8; }
+html[data-scheme="light"] .md-pre :is(.hljs-title, .hljs-title.function_, .hljs-section) { color: #0f766e; }
+html[data-scheme="light"] .md-pre :is(.hljs-string, .hljs-regexp, .hljs-addition) { color: #15803d; }
+html[data-scheme="light"] .md-pre :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet) { color: #c2410c; }
+html[data-scheme="light"] .md-pre :is(.hljs-variable, .hljs-template-variable, .hljs-attr, .hljs-property) { color: #a16207; }
+html[data-scheme="light"] .md-pre :is(.hljs-comment, .hljs-quote) { color: #6b7280; }
+html[data-scheme="light"] .md-pre :is(.hljs-meta, .hljs-doctag, .hljs-tag) { color: #0369a1; }
+html[data-scheme="light"] .md-pre :is(.hljs-name, .hljs-selector-id, .hljs-selector-class, .hljs-deletion) { color: #be123c; }
+html[data-scheme="light"] .md-pre .hljs-params { color: inherit; }

@@ -452,7 +452,9 @@ export const Bridge = {
   /** One of them into the history: the conversation's id, to reopen. */
   chatClaudeSessionImport: (id: string) => callOrThrow<string>("chat_claude_session_import", { id }),
   /** «Terminale» in the chat: the user's PowerShell in the project folder. */
-  terminalOpen: (folder: string | null, cols: number, rows: number) => callOrThrow<number>("terminal_open", { folder, cols, rows }),
+  terminalOpen: (folder: string | null, shell: string, cols: number, rows: number) => callOrThrow<number>("terminal_open", { folder, shell, cols, rows }),
+  /** The shells the terminal offers (terminal.rs shells): [id, name]. */
+  terminalShells: () => call<[string, string][]>("terminal_shells"),
   terminalWrite: (id: number, data: string) => callOrThrow<void>("terminal_write", { id, data }),
   terminalResize: (id: number, cols: number, rows: number) => call<void>("terminal_resize", { id, cols, rows }),
   terminalClose: (id: number) => call<void>("terminal_close", { id }),
