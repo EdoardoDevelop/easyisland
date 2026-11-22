@@ -3053,6 +3053,8 @@ export function buildPrompt(
     else termBox.replaceChildren();
     if (State.chatTermOpen !== open) {
       State.chatTermOpen = open;
+      // The panels (island/dock.ts) follow the state: the chat's window redraws only on a notify.
+      State.notify();
       onHeightChange();
     }
   }
