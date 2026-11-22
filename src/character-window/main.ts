@@ -219,6 +219,11 @@ function layBar() {
   if (!bar) {
     float.style.cssText = "";
     setGrown(false);
+    // No longer the bar: the window's cut and its reach given back.
+    if (laidShape) {
+      laidShape = "";
+      void invoke("bar_grow", { px: 0, shape: null }).catch(() => {});
+    }
     document.body.classList.remove("islands", "see-through", "bottom", "bar-pills", "bar-compact");
     return;
   }
@@ -253,11 +258,12 @@ function layBar() {
   band.style.height = `${t + g}px`;
   if (!look.grow) setGrown(false);
   paintBand();
-  // With the blur, the window cut to the band (margins, rounded ends) at rest too.
-  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur]);
+  // With the blur, the window cut to the band (margins, rounded ends) at rest
+  // too; at the bottom edge, with the character that grows, always tall (reach).
+  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur, reach()]);
   if (shapeKey !== laidShape && !grown) {
     laidShape = shapeKey;
-    void invoke("bar_grow", { px: 0, shape: bandShape(0) }).catch(() => {});
+    void invoke("bar_grow", { px: reach(), shape: restShape() }).catch(() => {});
   }
   // Text and icons follow the bar's height (Impostazioni → Barra fissa → Altezza); the text also its own size.
   document.body.style.setProperty("--s", String(Math.min(1.6, Math.max(0.8, t / 40))));
@@ -392,7 +398,7 @@ function paintBand() {
  * With the blur on, the window's outline for Rust to cut it to (logical px in
  * the window, `swell` deep): the blur fills the whole window otherwise.
  */
-function bandShape(p: number): number[][] | null {
+function bandShape(p: number, tall = 0): number[][] | null {
   if (!bar) return null;
   const look = lookOf(bar);
   if (!look.blur) return null;
@@ -400,7 +406,8 @@ function bandShape(p: number): number[][] | null {
   el.setAttribute("d", bandPath(p));
   const len = el.getTotalLength();
   const g = Math.round(bar.thickness * GROW) * p;
-  const H = bar.thickness + g;
+  // The window's height: the band (and its swelling), or always the tall one (reach).
+  const H = bar.thickness + Math.max(g, tall);
   const out: number[][] = [];
   const n = 160;
   for (let i = 0; i < n; i++) {
@@ -408,6 +415,29 @@ function bandShape(p: number): number[][] | null {
     out.push([pt.x, bar.edge === "bottom" ? H - pt.y : pt.y]);
   }
   return out;
+}
+
+/**
+ * At the bottom edge, with the character that grows: how far the window always
+ * reaches past the band (logical px), 0 otherwise. Growing upwards at the
+ * hover moved the window's top edge, and WebView2 showed the old picture a
+ * frame higher: the whole bar jumped (Edoardo, 22 Nov 2026, a video). Tall
+ * from the start, the hover only changes the window's cut (SetWindowRgn),
+ * which neither moves nor resizes it; outside the cut the mouse goes through.
+ */
+function reach(): number {
+  if (!bar || mode !== "bar" || bar.edge !== "bottom") return 0;
+  const look = lookOf(bar);
+  return look.grow && !look.autoHide ? Math.round(bar.thickness * GROW) : 0;
+}
+
+/** The window's cut at rest: the band (its outline with the blur); null = the whole window. */
+function restShape(): number[][] | null {
+  const r = reach();
+  if (!r || !bar) return bandShape(0);
+  const W = window.innerWidth;
+  const t = bar.thickness;
+  return bandShape(0, r) ?? [[0, r], [W, r], [W, r + t], [0, r + t]];
 }
 
 /**
@@ -425,8 +455,9 @@ function setGrown(on: boolean) {
   if (shrinkTimer !== null) window.clearTimeout(shrinkTimer);
   shrinkTimer = null;
   const g = bar ? Math.round(bar.thickness * GROW) : 0;
+  const r = reach();
   if (on) {
-    void invoke("bar_grow", { px: g, shape: bandShape(1) }).catch(() => {});
+    void invoke("bar_grow", { px: r || g, shape: bandShape(1, r) }).catch(() => {});
     requestAnimationFrame(() => {
       document.body.classList.add("grown");
       paintBand();
@@ -436,7 +467,7 @@ function setGrown(on: boolean) {
     paintBand();
     shrinkTimer = window.setTimeout(() => {
       shrinkTimer = null;
-      void invoke("bar_grow", { px: 0, shape: bandShape(0) }).catch(() => {});
+      void invoke("bar_grow", { px: r, shape: restShape() }).catch(() => {});
     }, SHRINK_MS);
   }
 }

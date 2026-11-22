@@ -4311,9 +4311,10 @@ fn bar_reveal(app: AppHandle, on: bool) {
 
 /// The mouse came on the character in the bar (or left it): the window reaches
 /// `px` (logical) past the band, where the band swells around the bigger
-/// character (src/character-window/main.ts). With the blur on, `shape` is the
-/// band's outline (logical px in the window): the window is cut to it, or the
-/// blur would fill the whole rectangle.
+/// character (src/character-window/main.ts). `shape` (logical px in the
+/// window) cuts the window: the band's outline with the blur on (or the blur
+/// would fill the whole rectangle); at the bottom edge the band alone at rest,
+/// the window staying tall so the hover never resizes it. None: the whole window.
 #[tauri::command]
 fn bar_grow(app: AppHandle, px: f64, shape: Option<Vec<[f64; 2]>>) {
     let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
@@ -4331,7 +4332,7 @@ fn bar_grow(app: AppHandle, px: f64, shape: Option<Vec<[f64; 2]>>) {
             }
         }
     }
-    character_shape(hwnd, shape.filter(|_| CHARACTER_BLUR.load(Ordering::Relaxed)), scale);
+    character_shape(hwnd, shape, scale);
 }
 
 /// Cuts the bar's window to `shape` (logical px), or gives it back its rectangle.
