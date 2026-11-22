@@ -592,7 +592,9 @@ struct SeenFile {
 static SEEN: Mutex<()> = Mutex::new(());
 
 fn seen_path() -> PathBuf {
-    crate::settings::config_dir().join("dock-windows-pins.json")
+    // Not the parked Dock's file (dock-windows-pins.json): that one said «already
+    // imported», and the bar's «App» started with no pins (22 Nov 2026).
+    crate::settings::config_dir().join("app-windows-pins.json")
 }
 
 /// What changed on the Windows taskbar since last time: `(added, removed)`;

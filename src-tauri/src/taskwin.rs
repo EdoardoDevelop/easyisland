@@ -180,6 +180,14 @@ fn is_cloaked(hwnd: HWND) -> bool {
 /// not cloaked, not EasyIsland's own.
 fn is_app_window(hwnd: HWND) -> bool {
     unsafe {
+        // EasyIsland's own first: asking one of its windows for its title is a
+        // message to the main thread, which may be waiting for this thread's
+        // state (22 Nov 2026: the app stopped answering with the previews open).
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        if pid == GetCurrentProcessId() {
+            return false;
+        }
         if !IsWindowVisible(hwnd).as_bool() || GetWindowTextLengthW(hwnd) == 0 {
             return false;
         }
@@ -192,12 +200,7 @@ fn is_app_window(hwnd: HWND) -> bool {
         if (owned || has(WS_EX_NOACTIVATE.0)) && !has(WS_EX_APPWINDOW.0) {
             return false;
         }
-        if is_cloaked(hwnd) {
-            return false;
-        }
-        let mut pid = 0u32;
-        GetWindowThreadProcessId(hwnd, Some(&mut pid));
-        pid != GetCurrentProcessId()
+        !is_cloaked(hwnd)
     }
 }
 
@@ -873,8 +876,14 @@ pub async fn apps_windows(app: AppHandle) -> Value {
 /// taskbar too), or a system button: `start`, `quick-settings`,
 /// `notifications`, `search`, `task-view`, `widgets`, `sound`, `show-desktop`.
 /// False when there was nothing to do it on.
+/// Never on the main thread (a sync command would be): see `is_app_window`.
 #[tauri::command]
-pub fn apps_do(what: String, hwnd: Option<isize>, app: Option<String>, files: Option<Vec<String>>) -> bool {
+pub async fn apps_do(what: String, hwnd: Option<isize>, app: Option<String>, files: Option<Vec<String>>) -> bool {
+    tauri::async_runtime::spawn_blocking(move || act(what, hwnd, app, files)).await.unwrap_or(false)
+}
+
+/// What `apps_do` does, for Rust callers too (barapps.rs menu).
+pub fn act(what: String, hwnd: Option<isize>, app: Option<String>, files: Option<Vec<String>>) -> bool {
     let target = app.unwrap_or_default();
     // The Dock's own words for the same things.
     let what = match what.as_str() {
@@ -942,7 +951,7 @@ pub fn apps_do(what: String, hwnd: Option<isize>, app: Option<String>, files: Op
 
 /// Icons of these apps (pins, the catalog), sent in `dock-icons` as they are read.
 #[tauri::command]
-pub fn apps_icons(app: AppHandle, ids: Vec<String>) {
+pub async fn apps_icons(app: AppHandle, ids: Vec<String>) {
     crate::applist::request_icons(&app, ids.into_iter().take(500).collect());
 }
 

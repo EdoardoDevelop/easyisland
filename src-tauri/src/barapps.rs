@@ -103,7 +103,12 @@ pub async fn apps_pin(app: AppHandle, id: String, name: Option<String>, before: 
 
 /// Unpins an app: from the Windows taskbar too, or it would come back from there.
 #[tauri::command]
-pub fn apps_unpin(app: AppHandle, id: String) {
+pub async fn apps_unpin(app: AppHandle, id: String) {
+    unpin(&app, &id);
+}
+
+fn unpin(app: &AppHandle, id: &str) {
+    let id = id.to_string();
     let mut list = pins(&app);
     let before = list.len();
     list.retain(|p| !same(id_of(p), &id));
@@ -115,7 +120,7 @@ pub fn apps_unpin(app: AppHandle, id: String) {
 
 /// A pinned app dragged along the bar: before `before`, or last.
 #[tauri::command]
-pub fn apps_move(app: AppHandle, id: String, before: Option<String>) {
+pub async fn apps_move(app: AppHandle, id: String, before: Option<String>) {
     let mut list = pins(&app);
     let Some(from) = list.iter().position(|p| same(id_of(p), &id)) else { return };
     let item = list.remove(from);
@@ -217,7 +222,8 @@ pub fn menu_pick(app: &AppHandle, what: &str) {
     let Some(m) = MENU.lock().unwrap().take() else { return };
     let index = |p: &str| what.strip_prefix(p).and_then(|i| i.parse::<usize>().ok());
     if let Some(w) = index("win:").and_then(|i| m.windows.get(i).copied()) {
-        crate::taskwin::apps_do("activate".into(), Some(w), None, None);
+        // Off the main thread (the menu's click is there): taskwin.rs may be busy with a slow window.
+        std::thread::spawn(move || crate::taskwin::act("activate".into(), Some(w), None, None));
     } else if let Some(f) = index("file:").and_then(|i| m.files.get(i).cloned()) {
         crate::applist::launch(crate::applist::Launch::Files { app: m.app, files: vec![f] });
     } else {
@@ -225,9 +231,10 @@ pub fn menu_pick(app: &AppHandle, what: &str) {
             "open" => crate::applist::launch(crate::applist::Launch::Open { id: m.app }),
             "admin" => crate::applist::launch(crate::applist::Launch::Admin { id: m.app }),
             "close" => {
-                crate::taskwin::apps_do("close-all".into(), None, Some(m.app), None);
+                let id = m.app;
+                std::thread::spawn(move || crate::taskwin::act("close-all".into(), None, Some(id), None));
             }
-            "unpin" => apps_unpin(app.clone(), m.app),
+            "unpin" => unpin(app, &m.app),
             "pin" => {
                 let (app, id, name) = (app.clone(), m.app, m.name);
                 tauri::async_runtime::spawn(async move { apps_pin(app, id, Some(name), None).await });

@@ -64,7 +64,7 @@ fn fit(rect: RECT, source: (i32, i32)) -> RECT {
 
 /// Shows these previews and only these: `[]` takes them all away (the card closed).
 #[tauri::command]
-pub fn apps_thumbs(app: AppHandle, rects: Vec<ThumbRect>) {
+pub async fn apps_thumbs(app: AppHandle, rects: Vec<ThumbRect>) {
     let Some(dock) = crate::island::window(&app) else {
         clear();
         return;
