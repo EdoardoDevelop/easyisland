@@ -65,6 +65,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 22/11 — Migliorie da librerie collaudate
+- Chat fluida: risposte lette una volta, risposta in arrivo riletta solo nell'ultimo pezzo (`chat-live.ts`), messaggi fuori schermo non disegnati. «Domanda a parte» nelle idee.
 - Terminale: più schede (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F (`docs/chat.md` → Terminale). Codice colorato nelle risposte (`highlight.ts`). Ricerca che perdona (`fuzzy.ts`). Pannelli: menu della scheda, ingrandisci, annulla/ripeti (storia nostra: quella di dockview è a pagamento).
 - Nuove dipendenze decise da Edoardo (`docs/decisioni.md`); CodeMirror e Mermaid in `docs/idee.md`.
 

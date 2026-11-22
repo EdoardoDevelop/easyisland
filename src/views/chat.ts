@@ -12,9 +12,10 @@ import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
-import { TypeLine, foldSteps, splitStatus } from "./typeline";
+import { TypeLine, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
+import { ReplyBlocks } from "./chat-live";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
@@ -244,11 +245,14 @@ function bubble(message: ChatMessage, live = false): HTMLElement {
         h("div", { class: "second-head", text: `⇄ ${t("Seconda opinione · {e}", { e: message.reviewer })}` }),
         ...renderMarkdown(message.content, MD_HOOKS)));
   }
-  const reply = h("div", { class: "reply md" }, ...foldSteps(renderMarkdown(message.content, MD_HOOKS), !live));
+  const reply = h("div", { class: "reply md" }, ...(live ? replyBlocks.live(message.content) : replyBlocks.done(message)));
   // While it streams this runs many times a second: the finished reply checks them.
   if (!live) void checkPaths(reply);
   return h("div", { class: "chat-row" }, reply);
 }
+
+/** The replies' blocks, read as little as possible (chat-live.ts). */
+const replyBlocks = new ReplyBlocks(() => MD_HOOKS);
 
 // Links and file paths of a reply open in the preview (src/preview/), or in
 // the browser with Ctrl+clic or with Impostazioni → Chat → Anteprima off.

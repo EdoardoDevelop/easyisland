@@ -5,6 +5,9 @@ Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò 
 ## Terminale vero nella chat (9/11/2026)
 Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale); il 22/11 più schede, shell (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F. Restano: un terminale come pannello a sé (oggi le schede stanno in un pannello solo), profili della shell scelti dall'utente.
 
+## Domanda a parte (22/11/2026)
+Proposta il 22/11 (come la «side chat» della nuova app desktop di Claude Code), messa da parte da Edoardo. Un pannello dei pannelli della chat (`dock.ts`) per una domanda veloce sulla conversazione in corso, che la legge ma non ci scrive; un clic riporta la risposta nella conversazione.
+
 ## Editor e confronto veri nell'Anteprima (22/11/2026)
 Proposto il 22/11, messo da parte da Edoardo. CodeMirror 6 (più leggero dell'editor di VS Code) per «Codice» e «Modifiche»: confronto affiancato, numeri di riga, ricerca, modifica a mano del file prima di accettare. Da valutare: peso, temi scuro/chiaro, commenti sulle righe che ci sono già (`lineComments`).
 
