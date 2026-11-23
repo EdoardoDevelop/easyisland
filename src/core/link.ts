@@ -21,6 +21,12 @@ export interface BarPiece {
   tone?: "ok" | "warn" | "error";
 }
 
+/** An app pinned to the bar's «App» (barapps.rs, settings `appsPinned`). */
+export interface AppPin {
+  id: string;
+  name: string;
+}
+
 /** The fixed bar as the character's window draws it. */
 export interface BarLook {
   /** Where the character sits along the band. */
@@ -38,6 +44,8 @@ export interface BarLook {
   look: import("./state").FixedBarLook;
   /** Aspetto → Font in the bar (fonts.ts barFont); null = the bar's own. */
   font?: { stack: string; weight: number } | null;
+  /** «App»: the pinned apps, in order (src/character-window/apps.ts). */
+  apps?: AppPin[];
 }
 
 export type IslandToCharacter =

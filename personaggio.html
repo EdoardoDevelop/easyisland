@@ -111,6 +111,23 @@
       body.editing .area .bar-btn:not(.bar-done):not(.bar-more) { position: relative; outline: 1px dashed color-mix(in srgb, var(--ink, #fff) 45%, transparent); outline-offset: -2px; cursor: grab; }
       body.editing .bar-btn.carried { opacity: 0.35; cursor: grabbing; }
       .bar-x { position: absolute; top: 1px; right: 1px; width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center; font: 600 11px/1 system-ui, sans-serif; color: #fff; background: #F4505E; cursor: pointer; }
+      /* «App» (character-window/apps.ts): one icon per app, a mark under the open ones. */
+      .bar-btn:has(.bar-apps) { padding: 0 calc(2px * var(--s, 1)); max-width: none; }
+      .bar-btn:has(.bar-apps):hover { background: none; }
+      .bar-apps { display: flex; align-items: center; gap: calc(2px * var(--s, 1)); }
+      .app-ico { position: relative; width: calc(32px * var(--s, 1)); height: calc(32px * var(--s, 1)); display: grid; place-items: center; border-radius: calc(7px * var(--s, 1)); cursor: pointer; }
+      .app-ico:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
+      .app-ico.active { background: color-mix(in srgb, var(--ink, #fff) 16%, transparent); }
+      .app-ico img { width: calc(22px * var(--s, 1)); height: calc(22px * var(--s, 1)); pointer-events: none; }
+      .app-letter { width: calc(22px * var(--s, 1)); height: calc(22px * var(--s, 1)); display: grid; place-items: center; border-radius: 6px; font-weight: 600; background: color-mix(in srgb, var(--ink, #fff) 18%, transparent); }
+      .app-ico.open::after { content: ""; position: absolute; bottom: 1px; left: 50%; width: 6px; height: 3px; margin-left: -3px; border-radius: 2px; background: color-mix(in srgb, var(--ink, #fff) 60%, transparent); }
+      .app-ico.open.many::after { box-shadow: 5px 0 0 color-mix(in srgb, var(--ink, #fff) 35%, transparent); }
+      .app-ico.active::after { width: 14px; margin-left: -7px; background: #38bdf8; }
+      .app-ico.attention { background: color-mix(in srgb, #F5A524 30%, transparent); }
+      .app-ico.attention::after { background: #F5A524; }
+      /* An element with nothing to show now (bar.ts emptyPiece): only while customizing. */
+      .bar-btn:has(.bar-empty) { display: none; }
+      body.editing .bar-btn:has(.bar-empty) { display: flex; opacity: 0.6; font-style: italic; }
       .bar-done { color: #fff; background: #3B82F6; border-radius: 6px; padding: 0 10px; font-weight: 600; cursor: pointer; }
       .bar-done:hover { background: #2563EB; }
       #bar-drop { position: absolute; top: 12%; height: 76%; width: 3px; border-radius: 2px; background: #3B82F6; box-shadow: 0 0 6px #3B82F6; display: none; pointer-events: none; z-index: 9; }

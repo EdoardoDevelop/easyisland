@@ -2,6 +2,26 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 21/11 — Memoria: chiedi alla memoria, punti sulle linee, gettoni
+Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquadro «~ chiedi alla memoria» accanto al registro (`memory_chat.rs`: risponde un motore solo dalle righe e pagine trovate, niente strumenti, rifiuta il resto; pagine della risposta accese nel nucleo e cliccabili).
+- Punti che scorrono sulle linee ultimi arrivi → nucleo; gettoni delle pagine più collegate con tip = nome e senza spunta.
+- Barra fissa: elemento «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro) che apre la finestra Memoria.
+- Barra fissa: cartelle (piccola isola a griglia o lista, grandezza icone; si riempiono dal catalogo o trascinando sulla cartella) e programmi trascinati da Windows sulla barra (azioni rapide con l'icona, `bar_pin`). Da provare dal vivo: il drop dalla barra delle app e dal menu Start può non dare un percorso.
+- Barra fissa, «Personalizza la barra»: finestra sua (`barra`, dal destro sulla barra o da Impostazioni → Barra fissa → «Personalizza…»): clic su un widget = nella barra; nella barra trascina per spostare, destro = opzioni nella finestra, × toglie, «Fine». Da provare dal vivo.
+- Barra fissa, gruppo «Windows» nel catalogo: Start (destro Win+X), Cerca, Visualizzazione attività, Widget, Icone nascoste, Impostazioni rapide, Notifiche, Esplora file, Impostazioni, Mostra desktop; scorciatoie di Windows (`barsys::win_key`). Da provare dal vivo, anche con un programma da amministratore davanti.
+- Poi (ramo `claude/memoria-interattiva`): scheda del punto al clic nel nucleo, domande pronte, gettoni trascinabili nel campo, «Ricorda» e «Apri in chat» sotto la risposta, linea dal riferimento al punto, linea del tempo con ▶.
+- `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).
+- Al posto dei tre pallini colorati nelle intestazioni (sembravano i pulsanti di una finestra) un'icona del riquadro: righe per il registro, fumetto per «chiedi alla memoria».
+
+### 21/11 — Programmi di Windows per la chat
+Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
+- Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
+
+### 21/11 — Anteprima: chiusa resta chiusa, clic verificato, iframe di altri siti, domande del sito, file
+Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti segnalato da Edoardo; nessuna dipendenza nuova.
+- **Chiusa resta chiusa:** con l'Anteprima chiusa il motore lavora in una finestra nascosta (`BG` in `preview.rs`, chiusa dopo 10 min senza uso); la finestra la apre solo l'utente.
+- **Clic verificato** (`__eiHit`): coperto, nascosto, disattivato o fuori schermo = nessun clic, con cosa lo copre. **Iframe di altri siti** e **domande del sito** (confirm → card OK/Annulla dell'utente) in `preview_page.rs`; **`preview_upload`** chiede sempre. Da provare dal vivo (`docs/chat.md` → Anteprima).
+
 ### 21/11 — Giornata del portatile (20/11): correzioni
 - **Mappa della memoria:** due pagine si legano solo con un [[link]] scritto; tolto `pages_named_in` («VM client Winfarm» legava Iaso Farmacie a Winfarm).
 - **File creati in chat:** i prompt (anche Modalità terminale e modello sul PC) chiedono il percorso completo di ogni file creato, che diventa link (`chatpaths.rs`); prima Edoardo doveva chiedere «dov'è il documento?».

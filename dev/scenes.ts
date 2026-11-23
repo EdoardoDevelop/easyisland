@@ -1833,6 +1833,16 @@ export async function runScene(island: Island, scene: string) {
           { id: "d1", name: "Admin NAS Rossi", kind: "Credential", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.20", user: "admin", cred: "Default", vault: "v" },
         ],
         threecxContacts: async () => [{ name: "Mario Rossi", company: "Rossi Srl", numbers: ["+39 0583 123456"], colleague: false }],
+        // The PC (pcfind.rs): files of the index and Recent, open windows (?q=outlook, ?q=bluetooth).
+        pcFiles: async (query: string) => [
+          { name: "Preventivo Rossi 2026.docx", path: "C:\\Users\\demo\\Documents\\Preventivo Rossi 2026.docx", folder: "C:\\Users\\demo\\Documents", dir: false, recent: true },
+          { name: "Rossi", path: "C:\\Users\\demo\\Documents\\Clienti\\Rossi", folder: "C:\\Users\\demo\\Documents\\Clienti", dir: true, recent: false },
+          { name: "Fattura Rossi 118.pdf", path: "C:\\Users\\demo\\Downloads\\Fattura Rossi 118.pdf", folder: "C:\\Users\\demo\\Downloads", dir: false, recent: false },
+        ].filter((f) => f.name.toLowerCase().includes(query.toLowerCase().split(" ")[0] ?? "")),
+        pcWindows: async () => [
+          { id: 1, appName: "Microsoft Outlook", title: "Posta in arrivo - mario@rossi.it - Outlook" },
+          { id: 2, appName: "Esplora file", title: "Rossi" },
+        ],
         ...mockClients(),
       });
       State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };

@@ -5,6 +5,16 @@ Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò 
 ## Terminale vero nella chat (9/11/2026)
 Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale); il 22/11 più schede, shell (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F. Restano: un terminale come pannello a sé (oggi le schede stanno in un pannello solo), profili della shell scelti dall'utente.
 
+## Il PC dal campo dell'isola, seguiti (22/11/2026)
+Fatti file, finestre aperte e pagine/comandi di Windows (`architettura.md` → Campo unico). Proposti e lasciati qui da Edoardo:
+- **Testo dallo schermo:** «Copia il testo» in «Riquadra e chiedi» con l'OCR di Windows (`Windows.Media.Ocr`, nessuna dipendenza); per errori, finestre, immagini non selezionabili (diverso dalle scansioni escluse per i documenti).
+- **Incolla dalla cronologia degli appunti:** una scorciatoia apre la cronologia vicino al cursore, la voce scelta si incolla nell'app in uso.
+- **Posta e calendario nel campo:** email e appuntamenti di Outlook classico (COM, come To Do).
+- **Conversioni nel campo:** unità, date («tra 30 giorni», «quanti giorni al 15/1»), fusi orari. Le valute no (servirebbe un servizio non configurato).
+- **Testi pronti e dettatura:** frasi salvate da richiamare; dettatura con whisper.cpp dentro l'app (modelli solo interni).
+- **File trascinato dal campo nella chat.**
+- L'**estensione per Chrome ed Edge** (sotto) porterebbe nel campo anche le schede del browser.
+
 ## Domanda a parte (22/11/2026)
 Proposta il 22/11 (come la «side chat» della nuova app desktop di Claude Code), messa da parte da Edoardo. Un pannello dei pannelli della chat (`dock.ts`) per una domanda veloce sulla conversazione in corso, che la legge ma non ci scrive; un clic riporta la risposta nella conversazione.
 

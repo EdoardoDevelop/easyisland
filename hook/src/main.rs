@@ -52,6 +52,7 @@ const MAX_FIELD_LEN: usize = 2_000;
 mod agents;
 mod console;
 mod diff;
+mod launch;
 mod mcp;
 mod statusline;
 mod testrun;
@@ -100,6 +101,10 @@ fn main() {
     // Before anything reads stdin: from a console that would wait forever.
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));
+    }
+    // The bar's «App» opens apps, files and folders here, never in its own process (launch.rs).
+    if std::env::args().nth(1).as_deref() == Some("avvia") {
+        std::process::exit(launch::run());
     }
     // Open the island's standalone search bar immediately (`easyisland-hook search`).
     if matches!(std::env::args().nth(1).as_deref(), Some("search" | "cerca")) {
