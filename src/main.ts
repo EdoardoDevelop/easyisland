@@ -340,12 +340,24 @@ function linkCharacterWindow(island: Island) {
   // clock is redrawn at the turn of each minute (or second) while one is there.
   let watched = "";
   let tick: number | null = null;
+  /** barsys.rs answered at least once since the elements were last asked for. */
+  let heard = false;
   const watch = () => {
     const kinds = barSysKinds();
     const k = kinds.join(",");
     if (k !== watched) {
       watched = k;
+      heard = false;
       void Bridge.barSysWatch(kinds);
+      // No answer in 3 s: asked again. Asked once only, the values could stay
+      // «—» until the bar changed (Edoardo, 23 Nov 2026).
+      if (kinds.length) {
+        window.setTimeout(() => {
+          if (heard || watched !== k) return;
+          watched = "";
+          watch();
+        }, 3000);
+      }
     }
     const delay = barClockDelay();
     if (delay === null) {
@@ -377,6 +389,7 @@ function linkCharacterWindow(island: Island) {
     push();
   });
   void onEvent<BarSys>("bar-sys", (v) => {
+    heard = true;
     State.barSys = v ?? {};
     recordBarSys(State.barSys);
     push();
