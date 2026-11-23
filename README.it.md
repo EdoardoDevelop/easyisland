@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.54** — **il PC dal campo dell'isola** (file, finestre, pagine di Windows); la barra fissa fa da **barra delle applicazioni** con l'elemento **App** (fissate e aperte, anteprime, menu col destro) e la barra di Windows si può **nascondere**; cartelle e gruppo Windows nella barra; **chat a pannelli**, terminale a schede, blocchi di codice «Nel terminale» e «Salva»; «chiedi alla memoria».
 - **1.0.53** — corregge la **finestra degli avvisi** che restava trasparente davanti e prendeva i clic.
 - **1.0.52** — **ricerca in una finestra sua** con **risposte rapide** dalla memoria e ricerca nelle Impostazioni; **Devolutions, RDM e Zammad** rifatti (messaggi completi con immagini, allegati, Salva); **pagina cliente** nella memoria; avvisi in una finestra loro.
 - **1.0.51** — corregge il **blocco all'avvio** della 1.0.50 (dopo la chiusura o un riavvio del PC).
-- **1.0.50** — **barra di ricerca rinnovata** al centro dello schermo (`searchOnly`, scura e chiara) con fuoco immediato, tutte le pagine delle Impostazioni riordinate a sotto-schede, chiusura senza finestre nascoste nella barra delle applicazioni, clic sul personaggio che riporta in primo piano l'isola e avvio di app Store, collegamenti e Pannello di controllo dalla ricerca.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
