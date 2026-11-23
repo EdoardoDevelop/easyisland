@@ -10210,19 +10210,26 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 .board-chart-line { fill: none; stroke: var(--win-accent, #4cc2ff); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .board-chart-area { fill: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); stroke: none; }
 .board-blocks > .board-chart { flex: 1 1 240px; }
-/* The open island's foot (isola.json): buttons of `footer`, values of the PC, buttons of `corner`. */
+/* The open island's footer (isola.json): left, center and right, each a row of buttons and values of the PC.
+   Under the views only, beside the menu (island.ts sets `left` to the menu's width); the views and the
+   Anteprima leave it room. */
 #island-foot {
-  flex: 0 0 28px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
   height: 28px;
-  margin-top: 8px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
-#island-foot .foot-group { display: flex; gap: 4px; flex: 0 0 auto; }
-#island-foot .foot-corner { margin-left: auto; }
-#island-foot .foot-values { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; overflow: hidden; justify-content: center; }
+#island.footed #body > #views,
+#island.footed #body > #preview-pane { margin-bottom: 36px; }
+#island-foot .foot-side { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+#island-foot .foot-left { justify-content: flex-start; }
+#island-foot .foot-center { justify-content: center; }
+#island-foot .foot-right { justify-content: flex-end; }
 #island-foot .own-btn {
   width: 30px;
   height: 28px;

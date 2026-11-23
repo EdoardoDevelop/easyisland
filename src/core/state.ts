@@ -2264,11 +2264,11 @@ export interface LayoutButton {
   label: string;
   icon?: string;
   color?: string;
-  /** Only on the island's own buttons: the foot of the menu, the header, the island's foot (left) or its right corner. */
+  /** Only on the island's own buttons: the foot of the menu or the header (the footer's are in `footer`). */
   zone?: LayoutZone;
   action: LayoutAction;
 }
-export type LayoutZone = "menu-bottom" | "header" | "footer" | "corner";
+export type LayoutZone = "menu-bottom" | "header";
 /** Where a grid or a list of a tab takes its items (island_layout.rs `SOURCES`). */
 export type LayoutSource = { kind: "apps" | "windows" | "quick" | "recent" | "tray" | "clipboard" | "vscode" }
   | { kind: "folder"; path: string }
@@ -2292,9 +2292,11 @@ export interface LayoutTab { id: string; name: string; icon?: string; buttons: L
 export interface LayoutParts { order?: string[]; hidden?: string[] }
 /** The Panoramica: its parts' order and those hidden (`tile:<id>` too), the tiles named first, its own blocks. */
 export interface LayoutOverview extends LayoutParts { tiles?: string[]; blocks?: LayoutBlock[] }
-/** The open island's foot: values of the PC between the buttons of `footer` and `corner`. */
-export interface LayoutFoot { values?: { what: string; drive?: string }[] }
-export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; foot?: LayoutFoot }
+/** One thing of the footer: a button, or a value of the PC. */
+export type LayoutFooterItem = LayoutButton | { what: string; drive?: string };
+/** The open island's footer: three sides, each a row of buttons and values in the order given. */
+export interface LayoutFooter { left?: LayoutFooterItem[]; center?: LayoutFooterItem[]; right?: LayoutFooterItem[] }
+export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; footer?: LayoutFooter }
 
 export interface Custom {
   id: string;

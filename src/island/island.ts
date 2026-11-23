@@ -168,7 +168,7 @@ export class Island {
   /** The menu on the left of the open island (src/views/rail.ts), and the height/width it last needed. */
   private rail!: ViewHost;
   private railNeed = 0;
-  /** The open island's foot (isola.json: buttons of `footer` and `corner`, values of the PC) and the room it takes. */
+  /** The open island's footer (isola.json: three sides of buttons and values), under the views only, and the room it takes. */
   private foot!: { el: HTMLElement; sync(): boolean };
   private footNeed = 0;
   private lastRailW = 0;
@@ -580,7 +580,7 @@ export class Island {
       runSuggestion: (s) => void this.runSuggestion(s, ""),
     };
     this.strip = buildStrip(this.stripActions);
-    this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl, this.paneEl), this.foot.el);
+    this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl, this.paneEl, this.foot.el));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
     // the header, which stays visible on top of it exactly as on macOS.
@@ -2946,7 +2946,7 @@ ${note}` : text };
     // The user's size of the open island (its corner, or Impostazioni → Posizione).
     // Greeting and drop sequence are drawn at a fixed size and keep theirs.
     const max = islandMax(this.limits);
-    // The island's foot, under the menu and the views: room of its own.
+    // The footer, under the views (the menu keeps its whole height): room of its own.
     const foot = this.railShown ? this.footNeed : 0;
     if (State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) {
       h = Math.min(max.h, h + foot);
@@ -3020,7 +3020,7 @@ ${note}` : text };
 
   /** The open island's least height with the menu: all its rows in sight. */
   private get railMinH(): number {
-    return Math.ceil(ISLAND_CHROME_H + BODY_GAP + (this.rail.fitHeight?.() ?? 0) + this.footNeed);
+    return Math.ceil(ISLAND_CHROME_H + BODY_GAP + (this.rail.fitHeight?.() ?? 0));
   }
 
   /**
@@ -3035,7 +3035,7 @@ ${note}` : text };
     const max = islandMax(this.limits);
     const w = Math.min(max.w, this.paneSplit(max.w).views + RAIL_W + RAIL_GAP + this.paneRoom);
     const user = s.islandHeight > 0 ? s.islandHeight : 0;
-    const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed + this.footNeed : 0;
+    const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
     const h = Math.min(max.h, Math.max(user, menu, this.paneShown ? PANE_MIN_H : 0));
     // Full screen: the whole room (work area) is the window.
     const next = State.maximized ? { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) } : panelFor(w, Math.min(h, max.h), this.limits);
@@ -4852,10 +4852,13 @@ ${note}` : text };
     } else {
       this.lastRailW = 0;
     }
-    // The foot: only with the menu (not on the greeting, the drop, a card out of the bar).
+    // The footer: only with the menu (not on the greeting, the drop, a card out of the bar),
+    // beside the menu and under the views and the Anteprima, which leave it room (style.css .footed).
     let footed = false;
     if (railed) guard("foot", () => { footed = this.foot.sync(); });
     this.foot.el.style.display = footed ? "" : "none";
+    this.islandEl.classList.toggle("footed", footed);
+    if (footed) this.foot.el.style.left = `${this.currentRailW + RAIL_GAP}px`;
     const footNeed = footed ? FOOT_H : 0;
     if (footNeed !== this.footNeed) {
       const shrinking = footNeed < this.footNeed;

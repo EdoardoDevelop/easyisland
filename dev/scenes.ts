@@ -1994,11 +1994,11 @@ export async function runScene(island: Island, scene: string) {
             { id: "clienti", kind: "list" as const, title: "Clienti", source: { kind: "records" as const, integration: "clienti" }, search: true },
           ],
         } as never);
-        layout.buttons.push(
-          { id: "cattura", label: "Cattura", icon: "i:camera", zone: "footer" as never, action: { kind: "view" as const, view: "files" } } as never,
-          { id: "impostazioni", label: "Impostazioni", icon: "i:settings", zone: "corner" as never, action: { kind: "view" as const, view: "settings" } } as never,
-        );
-        Object.assign(layout, { foot: { values: [{ what: "cpu" }, { what: "ram" }, { what: "disk", drive: "C" }, { what: "ip" }] } });
+        Object.assign(layout, { footer: {
+          left: [{ id: "cattura", label: "Cattura", icon: "i:camera", action: { kind: "view", view: "files" } }, { what: "ip" }],
+          center: [{ what: "cpu" }, { what: "ram" }, { what: "disk", drive: "C" }],
+          right: [{ what: "battery" }, { id: "blocca-f", label: "Blocca", icon: "i:lock", action: { kind: "system", what: "lock" } }],
+        } });
         boardSample("recent", [{ name: "Preventivo Rossi.docx", sub: "C:\\Users\\me\\Documents", icon: "i:file" }, { name: "Listino 2026.xlsx", sub: "C:\\Users\\me\\Desktop", icon: "i:file" }, { name: "Foto cantiere.jpg", sub: "C:\\Users\\me\\Pictures", icon: "i:file" }]);
         boardSample("vscode", [{ name: "EasyIsland_0.2.0", icon: "i:code" }, { name: "agentchat", icon: "i:code" }, { name: "sito", icon: "i:code" }]);
         boardSample("records", [{ name: "Rossi Impianti srl", sub: "22 nov" }, { name: "Bianchi & figli", sub: "20 nov" }, { name: "Studio Verdi", sub: "18 nov" }]);

@@ -12,11 +12,11 @@
 // (open the app, bring the window forward, run the action, open the file).
 // Second round (23/11): more sources (recent files, the Vassoio, the clipboard's
 // history, VS Code's projects, an integrazione personale's records, Notion), a
-// chart of a value of the PC, and the open island's foot (`buildFoot`): buttons
-// of `footer` on the left, of `corner` on the right, values of the PC between.
+// chart of a value of the PC, and the open island's footer (`buildFoot`): three
+// sides, left, center and right, each a row of buttons and values of the PC.
 
 import { h } from "./dom";
-import { State, type LayoutAction, type LayoutBlock, type LayoutButton, type LayoutTab, type LayoutZone } from "../core/state";
+import { State, type LayoutAction, type LayoutBlock, type LayoutButton, type LayoutFooterItem, type LayoutTab, type LayoutZone } from "../core/state";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import { t } from "../core/i18n";
 import { chartHistory, sysValueText } from "../island/bar";
@@ -589,37 +589,41 @@ export function buildBoard(actions: ViewActions): ViewHost {
 }
 
 /**
- * The open island's foot, under the menu and the views: the buttons of
- * `footer` on the left, the values of the PC (`foot.values`, read by barsys.rs
- * while the island is open: bar.ts `barSysKinds`), the buttons of `corner` in
- * the right corner. `sync` says whether it has anything (island.ts makes room).
+ * The open island's footer, under the menu and the views: three sides (left,
+ * center, right), each a row of buttons and values of the PC in the order of
+ * isola.json. The values are read by barsys.rs while the island is open
+ * (bar.ts `barSysKinds`). `sync` says whether it has anything (island.ts
+ * makes room for it).
  */
 export function buildFoot(actions: ViewActions): { el: HTMLElement; sync(): boolean } {
   listen();
-  const left = h("div", { class: "foot-group" });
-  const values = h("div", { class: "foot-values" });
-  const right = h("div", { class: "foot-group foot-corner" });
-  const el = h("div", { id: "island-foot" }, left, values, right);
+  const sides = { left: h("div", { class: "foot-side foot-left" }), center: h("div", { class: "foot-side foot-center" }), right: h("div", { class: "foot-side foot-right" }) };
+  const el = h("div", { id: "island-foot" }, sides.left, sides.center, sides.right);
   let key = "";
   let parts: Part[] = [];
   let shown = false;
   onData.add(() => {
     if (shown) for (const p of parts) p.refresh(false);
   });
+  const item = (it: LayoutFooterItem, i: number): HTMLElement => {
+    if ("action" in it) return layoutIconButton(it, actions, 15);
+    const p = valueBlock({ id: `foot-${i}`, kind: "value", what: it.what, drive: it.drive });
+    p.el.classList.add("foot-value");
+    parts.push(p);
+    return p.el;
+  };
   return {
     el,
     sync() {
-      const vals = State.layout.foot?.values ?? [];
-      const k = `${zoneKey("footer")}|${zoneKey("corner")}|${JSON.stringify(vals)}`;
+      const f = State.layout.footer ?? {};
+      const k = JSON.stringify(f);
       if (k !== key) {
         key = k;
-        left.replaceChildren(...zoneButtons("footer").map((b) => layoutIconButton(b, actions, 15)));
-        right.replaceChildren(...zoneButtons("corner").map((b) => layoutIconButton(b, actions, 15)));
-        parts = vals.map((v, i) => valueBlock({ id: `foot-${i}`, kind: "value", what: v.what, drive: v.drive }));
-        for (const p of parts) p.el.classList.add("foot-value");
-        values.replaceChildren(...parts.map((p) => p.el));
+        parts = [];
+        let n = 0;
+        for (const side of ["left", "center", "right"] as const) sides[side].replaceChildren(...(f[side] ?? []).map((it) => item(it, n++)));
       }
-      const has = !!(left.childElementCount || right.childElementCount || parts.length);
+      const has = !!(f.left?.length || f.center?.length || f.right?.length);
       shown = has;
       if (has) for (const p of parts) p.refresh(false);
       return has;

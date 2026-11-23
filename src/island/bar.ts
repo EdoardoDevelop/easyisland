@@ -588,7 +588,10 @@ function boardSysKinds(): string[] {
     if ((b.kind === "grid" || b.kind === "list") && b.source.kind === "vscode") return ["vscode"];
     return [];
   });
-  if (!State.popover && !State.searchOnly) for (const v of State.layout.foot?.values ?? []) out.push(kindOf(v.what));
+  if (!State.popover && !State.searchOnly) {
+    const f = State.layout.footer;
+    for (const it of [...(f?.left ?? []), ...(f?.center ?? []), ...(f?.right ?? [])]) if ("what" in it) out.push(kindOf(it.what));
+  }
   return out;
 }
 

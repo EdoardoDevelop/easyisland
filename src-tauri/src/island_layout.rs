@@ -25,8 +25,10 @@
 //! Then (23/11, second round): more sources (recent files, the Vassoio, the
 //! clipboard's history, VS Code's projects, an integrazione personale's
 //! records, a Notion search), a `chart` block (the last minutes of a value of
-//! the PC) and the open island's foot: buttons on the left (`footer`) and in
-//! the right corner (`corner`), values of the PC in between (`foot.values`).
+//! the PC) and the open island's footer (`footer`): three sides, `left`,
+//! `center` and `right`, each a row of buttons and values of the PC in the
+//! order given. Older files (`foot.values`, buttons with zone `footer` or
+//! `corner`) are read into it.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -37,7 +39,9 @@ use tauri::{AppHandle, Emitter};
 use crate::i18n::{t, tf};
 
 /// Where a button of the island may stand.
-pub const ZONES: &[&str] = &["menu-bottom", "header", "footer", "corner"];
+pub const ZONES: &[&str] = &["menu-bottom", "header"];
+/// The footer's sides, left to right.
+pub const FOOTER_SIDES: &[&str] = &["left", "center", "right"];
 /// What a button may do (`action.kind`), with what it needs.
 pub const ACTIONS: &[&str] = &["system", "windows", "quick", "app", "url", "view", "chat"];
 /// `system` commands: the restart, sleep and shutdown ones ask in a window of their own.
@@ -67,8 +71,8 @@ const ALWAYS_SHOWN: &[&str] = &["overview", "settings"];
 
 const MAX_ZONE: usize = 12;
 const MAX_BLOCKS: usize = 12;
-/// Values of the PC in the open island's foot.
-const MAX_FOOT_VALUES: usize = 6;
+/// What one side of the footer holds at most.
+const MAX_FOOTER_SIDE: usize = 8;
 const MAX_TABS: usize = 12;
 const MAX_TAB_BUTTONS: usize = 40;
 const KEEP_VERSIONS: usize = 30;
@@ -363,7 +367,22 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
     let tab_ids: Vec<String> = tabs_in.iter().map(|x| text(x, "id").to_string()).collect();
     let mut seen: Vec<String> = Vec::new();
     let mut buttons = Vec::new();
+    // Before the footer had three sides (23/11): its buttons had zones of their own.
+    let (mut old_left, mut old_right) = (Vec::new(), Vec::new());
+    let mut zoned = Vec::new();
     for b in list("buttons") {
+        let mut nb = b.clone();
+        match text(&b, "zone") {
+            "footer" | "corner" => {
+                if let Some(o) = nb.as_object_mut() {
+                    o.remove("zone");
+                }
+                if text(&b, "zone") == "footer" { old_left.push(nb) } else { old_right.push(nb) }
+            }
+            _ => zoned.push(b),
+        }
+    }
+    for b in zoned {
         let b = button(&b, true, &tab_ids)?;
         let id = text(&b, "id").to_string();
         if seen.contains(&id) {
@@ -426,40 +445,83 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
     if let Some(ov) = overview(v.get("overview"))? {
         out["overview"] = ov;
     }
-    if let Some(ft) = foot(v.get("foot"))? {
-        out["foot"] = ft;
+    let mut fv = v.get("footer").filter(|x| x.is_object()).cloned();
+    let old_values = v.get("foot").and_then(|f| f.get("values")).and_then(Value::as_array).cloned().unwrap_or_default();
+    if fv.is_none() && !(old_left.is_empty() && old_right.is_empty() && old_values.is_empty()) {
+        fv = Some(json!({ "left": old_left, "center": old_values, "right": old_right }));
+    }
+    if let Some(ft) = footer(fv.as_ref(), &tab_ids, &seen)? {
+        out["footer"] = ft;
     }
     Ok(out)
 }
 
-/// The open island's foot: `values`, values of the PC between the buttons of
-/// `footer` and `corner` (`{ what, drive? }` or just the name, as a `value`
-/// block). None when empty.
-fn foot(v: Option<&Value>) -> Result<Option<Value>, String> {
+/// The open island's footer: `left`, `center`, `right`, each a row of buttons
+/// (as the zones' ones, without `zone`) and values of the PC (`"cpu"` or
+/// `{ what, drive? }`, checked as a `value` block), in the order given. None
+/// when empty. `taken`: the ids of the island's other buttons.
+fn footer(v: Option<&Value>, tabs: &[String], taken: &[String]) -> Result<Option<Value>, String> {
     let Some(v) = v.filter(|x| x.is_object()) else { return Ok(None) };
-    let list = v.get("values").and_then(Value::as_array).cloned().unwrap_or_default();
-    if list.len() > MAX_FOOT_VALUES {
-        return Err(tf("Troppi valori nel piede: al massimo {n}.", &[("n", &MAX_FOOT_VALUES)]));
+    if let Some(k) = v.as_object().and_then(|o| o.keys().find(|k| !FOOTER_SIDES.contains(&k.as_str()))) {
+        return Err(tf("«footer» ha solo left, center e right, non «{k}».", &[("k", &k)]));
     }
-    let mut out = Vec::new();
-    for (i, x) in list.iter().enumerate() {
-        // Checked as a value block, kept without its id and kind.
-        let mut b = x.as_str().map(|s| json!({ "what": s })).unwrap_or_else(|| x.clone());
-        if !b.is_object() {
-            return Err(t("Ogni valore del piede è un nome (cpu, ram…) o { what, drive }.").into());
+    let mut ids: Vec<String> = taken.to_vec();
+    let mut o = Map::new();
+    for side in FOOTER_SIDES {
+        let list = v.get(*side).and_then(Value::as_array).cloned().unwrap_or_default();
+        if list.len() > MAX_FOOTER_SIDE {
+            return Err(tf("Troppe cose nel footer ({side}): al massimo {n}.", &[("side", side), ("n", &MAX_FOOTER_SIDE)]));
         }
-        b["id"] = json!(format!("v{i}"));
-        b["kind"] = json!("value");
-        let b = block(&b, "foot")?;
-        let mut o = json!({ "what": text(&b, "what") });
-        if !text(&b, "drive").is_empty() {
-            o["drive"] = json!(text(&b, "drive"));
+        let mut out: Vec<Value> = Vec::new();
+        for (i, x) in list.iter().enumerate() {
+            if x.get("action").is_some() {
+                let b = button(x, false, tabs)?;
+                let id = text(&b, "id").to_string();
+                if ids.contains(&id) {
+                    return Err(tf("Due pulsanti con l'id «{id}».", &[("id", &id)]));
+                }
+                ids.push(id);
+                out.push(b);
+                continue;
+            }
+            // A value: checked as a value block, kept without its id and kind.
+            let mut b = x.as_str().map(|s| json!({ "what": s })).unwrap_or_else(|| x.clone());
+            if !b.is_object() || text(&b, "what").is_empty() {
+                return Err(t("Nel footer va un pulsante (con action) o un valore del PC (cpu, ram… o { what, drive }).").into());
+            }
+            b["id"] = json!(format!("v{i}"));
+            b["kind"] = json!("value");
+            let b = block(&b, "footer")?;
+            let mut val = json!({ "what": text(&b, "what") });
+            if !text(&b, "drive").is_empty() {
+                val["drive"] = json!(text(&b, "drive"));
+            }
+            if !out.contains(&val) {
+                out.push(val);
+            }
         }
-        if !out.contains(&o) {
-            out.push(o);
+        if !out.is_empty() {
+            o.insert(side.to_string(), Value::Array(out));
         }
     }
-    Ok(if out.is_empty() { None } else { Some(json!({ "values": out })) })
+    Ok(if o.is_empty() { None } else { Some(Value::Object(o)) })
+}
+
+/// A footer's side in words, for the card: «Spegni» (spegne il PC), cpu, disk D:.
+fn footer_words(items: &[Value]) -> String {
+    items
+        .iter()
+        .map(|x| {
+            if x.get("action").is_some() {
+                format!("«{}» ({})", text(x, "label"), x.get("action").map(action_words).unwrap_or_default())
+            } else if text(x, "drive").is_empty() {
+                text(x, "what").to_string()
+            } else {
+                format!("{} {}:", text(x, "what"), text(x, "drive"))
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The Panoramica: `order` of its parts and of its own blocks (`block:<id>`),
@@ -677,9 +739,18 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
     v["tabs"] = Value::Array(tabs);
     v["buttons"] = Value::Array(buttons);
     // The island's own parts: given whole (order and hidden), or back as usual.
-    for key in ["menu", "header", "foot"] {
+    for key in ["menu", "header"] {
         if let Some(x) = args.get(key).filter(|x| x.is_object()) {
             v[key] = x.clone();
+        }
+    }
+    // The footer: the sides given are replaced, the others stay.
+    if let Some(x) = args.get("footer").and_then(Value::as_object) {
+        if !v.get("footer").is_some_and(Value::is_object) {
+            v["footer"] = json!({});
+        }
+        for (k, val) in x {
+            v["footer"][k.as_str()] = val.clone();
         }
     }
     // The Panoramica: given whole but for its blocks, which stay unless given
@@ -714,9 +785,13 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
         order.retain(|x| x.as_str().and_then(|s| s.strip_prefix("tab:")).is_none_or(|t| !gone_tabs.iter().any(|g| g == t)));
     }
     for key in strings("reset") {
-        if key == "menu" || key == "header" || key == "overview" || key == "foot" {
+        if key == "menu" || key == "header" || key == "overview" || key == "footer" {
             if let Some(o) = v.as_object_mut() {
                 o.remove(&key);
+                // The older form, read into the footer.
+                if key == "footer" {
+                    o.remove("foot");
+                }
             }
         }
     }
@@ -732,8 +807,6 @@ fn names(v: &Value, key: &str, name_key: &str) -> Vec<(String, String, String)> 
 fn zone_name(z: &str) -> String {
     match z {
         "menu-bottom" => t("in fondo al menu"),
-        "footer" => t("nel piede dell'isola, a sinistra"),
-        "corner" => t("nell'angolo in basso a destra"),
         _ => t("in alto, nella testata"),
     }
     .to_string()
@@ -872,14 +945,16 @@ pub fn changes(old: &Value, new: &Value) -> Vec<String> {
         let list: Vec<&str> = now.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
         out.push(if list.is_empty() { t("Panoramica: riquadri nell'ordine del menu").to_string() } else { tf("Panoramica: per primi i riquadri {list}", &[("list", &list.join(", "))]) });
     }
-    let fv = |v: &Value| v.get("foot").and_then(|f| f.get("values")).cloned().unwrap_or(Value::Null);
-    if fv(old) != fv(new) {
-        let now = fv(new);
-        let list: Vec<String> = now.as_array().map(|a| a.iter().map(|x| {
-            let d = text(x, "drive");
-            if d.is_empty() { text(x, "what").to_string() } else { format!("{} {d}:", text(x, "what")) }
-        }).collect()).unwrap_or_default();
-        out.push(if list.is_empty() { t("Piede: nessun valore del PC").to_string() } else { tf("Piede: valori del PC {list}", &[("list", &list.join(", "))]) });
+    for (side, name) in [("left", t("a sinistra")), ("center", t("al centro")), ("right", t("a destra"))] {
+        let items = |v: &Value| v.get("footer").and_then(|f| f.get(side)).and_then(Value::as_array).cloned().unwrap_or_default();
+        let (was, now) = (items(old), items(new));
+        if was != now {
+            out.push(if now.is_empty() {
+                tf("Footer {side}: vuoto", &[("side", &name)])
+            } else {
+                tf("Footer {side}: {list}", &[("side", &name), ("list", &footer_words(&now))])
+            });
+        }
     }
     for (key, head) in [("menu", t("Menu")), ("header", t("Testata")), ("overview", t("Panoramica"))] {
         // Only an order asked for: a new tab or block takes its usual place without a line.
@@ -1037,7 +1112,7 @@ pub fn tool_get() -> String {
         BLOCKS.join(", "),
         t("Fonti di grid e list"),
         SOURCES.join(", "),
-        t("Valori di value e di foot.values"),
+        t("Valori di value e del footer"),
         VALUES.join(", "),
         t("Valori di chart"),
         CHARTS.join(", "),
@@ -1053,8 +1128,8 @@ pub fn tool_get() -> String {
         if active.is_empty() { t("nessuna").to_string() } else { active.join(", ") },
         t("Integrazioni personali (per la fonte records)"),
         if customs.is_empty() { t("nessuna").to_string() } else { customs },
-        t("Piede (foot)"),
-        t("pulsanti con zone footer (a sinistra) e corner (angolo a destra); foot.values: valori del PC in mezzo"),
+        t("Footer (footer)"),
+        t("left, center e right: in ognuna pulsanti (come quelli delle zone, senza zone) e valori del PC (\"cpu\" o { what, drive }), nell'ordine dato"),
     )
 }
 
@@ -1111,7 +1186,7 @@ pub fn island_layout_remove(app: AppHandle, kind: String, id: String) -> Result<
     let old = load();
     let args = match kind.as_str() {
         "tab" => json!({ "remove_tabs": [id] }),
-        "menu" | "header" | "overview" | "foot" => json!({ "reset": [kind] }),
+        "menu" | "header" | "overview" | "footer" => json!({ "reset": [kind] }),
         _ => json!({ "remove_buttons": [id] }),
     };
     let new = apply(&old, &args)?;
@@ -1301,14 +1376,27 @@ mod tests {
         let chart = |w: &str| normalize(&json!({ "overview": { "blocks": [{ "id": "g", "kind": "chart", "what": w }] } }));
         assert!(chart("cpu").is_ok());
         assert!(chart("disk").is_err());
-        // The foot: buttons in its zones, values by name or with a drive.
-        let b = json!({ "id": "spegni", "label": "Spegni", "zone": "corner", "action": { "kind": "system", "what": "shutdown" } });
-        let v = apply(&json!({ "buttons": [], "tabs": [] }), &json!({ "button": b, "foot": { "values": ["cpu", { "what": "disk", "drive": "c" }, "cpu"] } })).unwrap();
-        assert_eq!(v["foot"], json!({ "values": [{ "what": "cpu" }, { "what": "disk", "drive": "C" }] }));
-        assert!(changes(&json!({ "buttons": [], "tabs": [] }), &v).iter().any(|l| l.contains("Piede")));
-        assert!(apply(&v, &json!({ "foot": { "values": ["password"] } })).is_err());
-        assert!(apply(&v, &json!({ "foot": { "values": ["cpu", "ram", "gpu", "net", "ip", "battery", "disk"] } })).is_err());
-        assert!(apply(&v, &json!({ "reset": ["foot"] })).unwrap().get("foot").is_none());
+        // The footer: three sides, buttons and values mixed, in order.
+        let off = json!({ "buttons": [], "tabs": [] });
+        let b = json!({ "id": "spegni", "label": "Spegni", "action": { "kind": "system", "what": "shutdown" } });
+        let v = apply(&off, &json!({ "footer": { "left": [b, "ip"], "center": ["cpu", { "what": "disk", "drive": "c" }, "cpu"] } })).unwrap();
+        assert_eq!(v["footer"]["center"], json!([{ "what": "cpu" }, { "what": "disk", "drive": "C" }]));
+        assert_eq!(v["footer"]["left"][0]["id"], "spegni");
+        assert_eq!(v["footer"]["left"][1], json!({ "what": "ip" }));
+        assert!(changes(&off, &v).iter().any(|l| l.contains("Footer") && l.contains("Spegni")));
+        // A side given alone leaves the others as they are.
+        let r = apply(&v, &json!({ "footer": { "right": ["ram"] } })).unwrap();
+        assert_eq!(r["footer"]["center"], v["footer"]["center"]);
+        assert_eq!(r["footer"]["right"], json!([{ "what": "ram" }]));
+        assert!(apply(&v, &json!({ "footer": { "center": ["password"] } })).is_err());
+        assert!(apply(&v, &json!({ "footer": { "middle": ["cpu"] } })).is_err());
+        assert!(apply(&v, &json!({ "footer": { "right": vec!["cpu"; 9] } })).is_err());
+        assert!(apply(&v, &json!({ "reset": ["footer"] })).unwrap().get("footer").is_none());
+        // The older form: foot.values in the middle, zones footer and corner on the sides.
+        let old = normalize(&json!({ "buttons": [{ "id": "x", "label": "X", "zone": "corner", "action": { "kind": "system", "what": "lock" } }], "tabs": [], "foot": { "values": [{ "what": "cpu" }] } })).unwrap();
+        assert_eq!(old["footer"]["center"], json!([{ "what": "cpu" }]));
+        assert_eq!(old["footer"]["right"][0]["id"], "x");
+        assert!(old["buttons"].as_array().unwrap().is_empty());
     }
 
     #[test]
