@@ -251,6 +251,7 @@ Ricette insegnate dall'utente, mai nel codice né nel repo: `%APPDATA%\…\porta
 ## Connettori MCP (chat con l'abbonamento)
 - Senza connettori: solo WebSearch/WebFetch/Read/ToolSearch, `dontAsk`, `--strict-mcp-config`.
 - **ToolSearch anche fuori dalla Modalità terminale** (`TOOLS`, 12/11): senza, le definizioni dei ~100 strumenti di EasyIsland erano rilette a ogni passo. Misurato con «ok» (Claude Code 2.1.318 e 2.1.322): 34,8k → 9,9k token a passo; una domanda che usa `list_status` funziona con un passo in più (3 da ~11k). Il prompt chiede di caricare con una sola ToolSearch tutti gli strumenti che servono.
+- **Strumenti nuovi solo nelle conversazioni nuove** (23/11): Claude Code registra l'elenco degli strumenti differiti al primo turno e con --resume cerca solo lì; dopo un aggiornamento dell'hook che aggiunge strumenti, una conversazione già aperta risponde «No matching deferred tools found». Si apre una conversazione nuova.
 - Con connettori del profilo (`mcpServers`): `--permission-mode default`; non scelti in `--disallowedTools`, senza conferma in `--allowedTools`; il resto via hook `PermissionRequest --chat` → Consenti/Nega nella chat. Il relay ignora i processi con `EASYISLAND_INTERNAL` tranne `--chat`.
 - Connettori di claude.ai non funzionano in `claude -p`.
 - MCP dei **plugin** attivi (`enabledPlugins`, `plugins/installed_plugins.json`, `.mcp.json` o `plugin.json`) come `plugin:<plugin>:<server>` (`plugin_servers`), strumenti `mcp__plugin_<plugin>_<server>__…` (`tool_prefix`).
