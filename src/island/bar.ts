@@ -20,6 +20,7 @@ import { appName } from "./context";
 import { State, type BarAct, type BarItem, type BarSys, type FixedBarDesign } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 import { locale, t, tn } from "../core/i18n";
+import { clockText, zonedNow } from "../core/clock";
 import type { BarButton, BarPiece } from "../core/link";
 import type { StripItem } from "../views/strip";
 
@@ -207,22 +208,30 @@ function speed(n: number): string {
 }
 
 /** A clock's time and date, in its time zone (an unknown zone falls back to the PC's). */
-function clockText(it: BarItem): Record<string, string> {
-  const now = new Date();
-  const fmt = (o: Intl.DateTimeFormatOptions) => {
-    try {
-      return new Intl.DateTimeFormat(locale(), { ...o, timeZone: it.opts?.tz || undefined }).format(now);
-    } catch {
-      return new Intl.DateTimeFormat(locale(), o).format(now);
-    }
+/** A small dial with the hands at the clock's time (the «Quadrante» option), drawn in the text's colour. */
+function clockDial(it: BarItem, size = 15): SVGElement {
+  const NS = "http://www.w3.org/2000/svg";
+  const z = zonedNow(it.opts?.tz);
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("class", "bar-dial");
+  const el = (name: string, attrs: Record<string, string>) => {
+    const e = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    svg.append(e);
   };
-  const time = fmt({ hour: "2-digit", minute: "2-digit", ...(it.opts?.seconds ? { second: "2-digit" } : {}) });
-  return {
-    time, value: time,
-    date: fmt({ weekday: "short", day: "numeric", month: "short" }),
-    day: fmt({ weekday: "long" }),
-    full: fmt({ weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+  el("circle", { cx: "12", cy: "12", r: "10", fill: "none", stroke: "currentColor", "stroke-width": "1.8" });
+  const hand = (turn: number, len: number, w: string, opacity = "1") => {
+    const a = turn * 2 * Math.PI;
+    el("line", { x1: "12", y1: "12", x2: (12 + Math.sin(a) * len).toFixed(2), y2: (12 - Math.cos(a) * len).toFixed(2),
+      stroke: "currentColor", "stroke-width": w, "stroke-linecap": "round", opacity });
   };
+  hand(((z.h % 12) + z.m / 60) / 12, 5.2, "2.2");
+  hand((z.m + z.s / 60) / 60, 7.6, "1.6");
+  if (it.opts?.seconds) hand(z.s / 60, 8, "0.9", "0.7");
+  return svg;
 }
 
 /** What a system element shows now: its placeholders, the icon, the tooltip, how it looks. */
@@ -235,7 +244,8 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
   switch (kind) {
     case "clock": {
       const v = clockText(it);
-      return { v, icon: k.icon, tip: `${v.full}${it.opts?.tz ? ` · ${it.opts.tz.replace(/_/g, " ")}` : ""}` };
+      const zone = it.opts?.label?.trim() || it.opts?.tz?.replace(/_/g, " ");
+      return { v, icon: k.icon, tip: `${v.full}${zone ? ` · ${zone}` : ""}` };
     }
     case "volume": {
       const muted = !!s.volume?.muted;
@@ -504,7 +514,8 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       const sv = sysValues(kind, it, design);
       const el = h("span", { class: `bar-item bar-sys${sv.dim ? " dim" : ""}` });
       // A program's own icon (the window title) is a picture; the others are drawn.
-      const icon = () => sv.icon.startsWith("data:image/png")
+      const icon = () => kind === "clock" && it.opts?.analog ? clockDial(it)
+        : sv.icon.startsWith("data:image/png")
         ? h("img", { class: "bar-app-icon", src: sv.icon, alt: "" })
         : renderActionIcon(sv.icon, 15);
       compose(el, formatOf(it, key), icon, sv.v, true);

@@ -35,7 +35,8 @@ export interface BarKind {
 export const BAR_KINDS: Record<string, BarKind> = {
   clock: {
     name: t("Orologio e data"), icon: "i:clock",
-    tokens: [["time", t("ora")], ["date", t("data")], ["day", t("giorno della settimana")]],
+    tokens: [["time", t("ora")], ["date", t("data")], ["day", t("giorno della settimana")], ["daynum", t("giorno del mese")],
+      ["month", t("mese")], ["year", t("anno")], ["week", t("settimana dell'anno")], ["label", t("nome del fuso")]],
     alt: "{icon} {date}", left: "alt", middle: "none", right: "card", card: true,
   },
   volume: {

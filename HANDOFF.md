@@ -73,6 +73,7 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 23/11 — Isola da JSON: fonti, grafici, piede
 - Ramo `claude/isola-fonti` (da `claude/sviluppo`): fonti `recent`, `tray`, `clipboard`, `vscode`, `records` (integrazione personale), `notion`; blocco `chart` (ultimi 5 minuti, `bar.ts` `chartHistory`); footer dell'isola aperta in tre zone `left`, `center`, `right`, ognuna con pulsanti e valori del PC (`buildFoot`, 36 px in `island.ts`; il formato `foot` del primo giro si converte). Valori letti anche per Panoramica e footer.
 - Isola per profilo scartata: Edoardo non usa i profili.
+- Orologio della barra (23/11, sera): 12/24 ore, zero davanti, cinque stili di data, nome del fuso `{label}`, `{week}` `{daynum}` `{month}` `{year}`, quadrante con le lancette, modelli pronti (`src/core/clock.ts`). Footer: pulsanti del menu in basso fissi, con poco spazio scorrono le sezioni.
 
 ### 23/11 — Isola da JSON, tappe 1–3
 - `isola.json` (`island_layout.rs`, `src/views/island-layout.ts`): pulsanti in fondo al menu e nella testata, schede proprie con griglia di pulsanti, azioni da elenco fisso (mai codice). Strumenti `island_layout`, `island_layout_set`, `island_layout_undo`; card con cosa cambia e bozza visibile nell'isola; versioni in `isola-versioni\`, Annulla anche in Impostazioni.

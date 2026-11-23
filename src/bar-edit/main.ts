@@ -13,7 +13,8 @@ import "./bar-edit.css";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 import { BAR_BG_PRESETS, barBgCss, parseBarBg } from "../core/barbg";
-import { DEFAULT_SETTINGS, INTEGRATION_AGENTS, barThickness, type BarAct, type BarItem, type FixedBarLook, type Settings } from "../core/state";
+import { DEFAULT_SETTINGS, INTEGRATION_AGENTS, barThickness, type BarAct, type BarItem, type BarOpts, type FixedBarLook, type Settings } from "../core/state";
+import { clockText } from "../core/clock";
 import { syncLanguage, t } from "../core/i18n";
 import { applyUiStyle } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
@@ -428,9 +429,37 @@ function optionsView(it: BarItem): HTMLElement[] {
   if (it.id === "sys:music") rows.push(line(t("Pulsanti precedente, pausa, successivo"), switchEl(o.buttons !== false, (v) => { o.buttons = v ? undefined : false; commit(); })));
   if (it.id === "sys:clock") {
     const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["Europe/Rome", "Europe/London", "America/New_York", "Asia/Tokyo", "UTC"];
+    // Examples of today, as each choice would read.
+    const sample = (extra: BarOpts) => clockText({ ...it, opts: { ...o, ...extra } });
+    const styles: [NonNullable<BarOpts["dateStyle"]>, string][] = [
+      ["short", t("Breve")], ["numeric", t("Numeri")], ["numericYear", t("Numeri con l'anno")], ["long", t("Lunga")], ["iso", "ISO"],
+    ];
+    // Ready-made texts: the format field below stays free.
+    const models: [string, string][] = [
+      ["{icon} {time}", t("Ora")],
+      ["{icon} {time}  {date}", t("Ora e data")],
+      ["{date}  {time}", t("Data e ora")],
+      ["{day} {daynum} {month}  {time}", t("Giorno, data e ora")],
+      ["{time}  {week}", t("Ora e settimana")],
+      ["{label} {time}", t("Nome del fuso e ora")],
+    ];
     rows.push(
+      line(t("Modello"), pick([["", t("Scegli…")], ...models.map(([f, n]) => [f, n] as [string, string])], "", (v) => {
+        if (!v) return;
+        o.format = v;
+        it.show = undefined;
+        redraw();
+      }), t("Mette il testo nel campo «Formato», che puoi cambiare ancora")),
       line(t("Fuso orario"), pick([["", t("Quello del PC")], ...zones.map((z) => [z, z.replace(/_/g, " ")] as [string, string])], o.tz ?? "", (v) => { o.tz = v || undefined; commit(); })),
+      line(t("Nome del fuso"), text(o.label, (o.tz ?? "").split("/").pop()?.replace(/_/g, " ") || t("per esempio Milano"), (v) => { o.label = v || undefined; commit(); }), t("Per {label} e per la card dei fusi orari")),
+      line(t("Formato dell'ora"), segmented([["24", t("24 ore")], ["12", t("12 ore")]] as ["24" | "12", string][], o.h12 ? "12" : "24", (v) => { o.h12 = v === "12" || undefined; redraw(); })),
+      line(t("Zero davanti all'ora"), switchEl(o.pad !== false, (v) => { o.pad = v ? undefined : false; redraw(); }), t("09:05 o 9:05")),
       line(t("Con i secondi"), switchEl(!!o.seconds, (v) => { o.seconds = v || undefined; commit(); })),
+      line(t("Data"), pick(styles.map(([k, n]) => [k, sample({ dateStyle: k }).date || n] as [string, string]), o.dateStyle ?? "short", (v) => {
+        o.dateStyle = v === "short" ? undefined : v as BarOpts["dateStyle"];
+        commit();
+      })),
+      line(t("Quadrante al posto dell'icona"), switchEl(!!o.analog, (v) => { o.analog = v || undefined; commit(); })),
     );
   }
   const remove = h("button", { class: "be-remove", text: t("Togli dalla barra") }) as HTMLButtonElement;

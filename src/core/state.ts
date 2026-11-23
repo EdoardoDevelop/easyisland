@@ -167,6 +167,12 @@ export interface BarOpts {
   /** Clock: an IANA time zone ("" = the PC's) and whether it shows seconds. */
   tz?: string;
   seconds?: boolean;
+  /** Clock: 12 hours with AM/PM; the hour without its leading zero (false); how the date reads; a name for {label}; a small dial instead of the icon. */
+  h12?: boolean;
+  pad?: boolean;
+  dateStyle?: "short" | "numeric" | "numericYear" | "long" | "iso";
+  label?: string;
+  analog?: boolean;
   /** CPU, memory, GPU, network: a small graph of the last minute beside the value. */
   graph?: boolean;
   /** Disk: its letter ("" = C). */

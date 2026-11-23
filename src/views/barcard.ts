@@ -218,10 +218,10 @@ export function buildBarCard(actions: ViewActions): ViewHost {
         for (const c of clocks) {
           let v = "";
           try {
-            v = new Intl.DateTimeFormat(locale(), { hour: "2-digit", minute: "2-digit", weekday: "short", timeZone: c.opts?.tz }).format(now);
+            v = new Intl.DateTimeFormat(locale(), { hour: c.opts?.pad === false ? "numeric" : "2-digit", minute: "2-digit", weekday: "short", hour12: !!c.opts?.h12, timeZone: c.opts?.tz }).format(now);
           } catch { v = "—"; }
           others.append(h("div", { class: "daily-row" },
-            h("span", { class: "daily-main", text: (c.opts?.tz ?? "").split("/").pop()?.replace(/_/g, " ") ?? "" }),
+            h("span", { class: "daily-main", text: c.opts?.label?.trim() || ((c.opts?.tz ?? "").split("/").pop()?.replace(/_/g, " ") ?? "") }),
             h("span", { class: "daily-side", text: v })));
         }
       }
