@@ -23,7 +23,7 @@
 
 ## Installare su questo PC
 - **Mai** lanciare installer o app dalla shell di Claude (MSIX reindirizza AppData).
-- **Prova veloce** (22/11): `npm run prova` → `target\prova\easyisland.exe` (profilo `prova` in `Cargo.toml`: come release ma senza LTO, incrementale; la prima volta qualche minuto, poi solo ciò che cambia). Chiudere EasyIsland, copiare l'exe in `%LOCALAPPDATA%\EasyIsland\`, riavviarlo tramite Esplora file. Mai per l'installer: `npm run pack` usa `release` con LTO (oltre 10 minuti).
+- **Prova veloce** (22/11): `npm run prova` → `target\prova\easyisland.exe` (profilo `prova` in `Cargo.toml`: come release ma senza LTO, incrementale; la prima volta qualche minuto, poi solo ciò che cambia). Chiudere EasyIsland, copiare l'exe in `%LOCALAPPDATA%\EasyIsland\` e `target\prova\easyisland-hook.exe` **sia** lì **sia** in `bin\` (all'avvio `hooks::ensure_hook_exe` ricopia in `bin\` l'hook accanto all'exe: con solo `bin\` aggiornato tornava quello dell'installer e la chat perdeva gli strumenti nuovi, 23/11), riavviarlo tramite Esplora file. Mai per l'installer: `npm run pack` usa `release` con LTO (oltre 10 minuti).
 - Dopo `npm run pack`, avvia `release\installa.cmd` (installa `EasyIsland-Windows-setup.exe`, copia senza versione) tramite Esplora file:
   `Start-Process explorer.exe -ArgumentList "`"$PWD\release\installa.cmd`""`
 - Verifica: `\\localhost\C$\Users\Edoardo\AppData\Local\EasyIsland\` (data dell'exe, riga `started` in `easyisland.log`).
