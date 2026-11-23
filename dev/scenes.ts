@@ -8,6 +8,7 @@ import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import { openClientCard } from "../src/views/clientcard";
+import { boardSample } from "../src/views/island-layout";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge, type ClientCard } from "../src/core/bridge";
@@ -1938,15 +1939,33 @@ export async function runScene(island: Island, scene: string) {
           { id: "blocca", label: "Blocca", icon: "i:lock", zone: "menu-bottom" as const, action: { kind: "system" as const, what: "lock" } },
           { id: "posta", label: "Posta", icon: "i:mail", color: "#38bdf8", zone: "header" as const, action: { kind: "url" as const, url: "https://outlook.office.com" } },
         ],
-        tabs: [pc],
+        tabs: [pc, {
+          // Step 2: blocks read from sources (?tab=app or ?tab=stato).
+          id: "app", name: "App", icon: "i:widgets", buttons: [],
+          blocks: [{ id: "tutte", kind: "grid" as const, source: { kind: "apps" as const }, search: true }],
+        }, {
+          id: "stato", name: "Stato", icon: "i:chart", buttons: [],
+          blocks: [
+            { id: "cpu", kind: "value" as const, what: "cpu" },
+            { id: "ram", kind: "value" as const, what: "ram" },
+            { id: "disco", kind: "value" as const, what: "disk", title: "Disco C:" },
+            { id: "ip", kind: "value" as const, what: "ip" },
+            { id: "finestre", kind: "list" as const, title: "Finestre aperte", source: { kind: "windows" as const } },
+            { id: "nota", kind: "text" as const, text: "Le finestre si rileggono a ogni apertura della scheda." },
+          ],
+        }],
       };
+      boardSample("apps", ["Calcolatrice", "Excel", "Esplora file", "Microsoft Edge", "Outlook", "Paint", "PowerShell", "Teams", "Terminale", "Visual Studio Code", "Word", "Blocco note"]
+        .map((name, i) => ({ name, icon: ["i:calculator", "i:table", "i:folder", "i:globe", "i:mail", "i:palette", "i:terminal", "i:users", "i:terminal", "i:code", "i:file", "i:note"][i] })));
+      boardSample("windows", [{ name: "Preventivo 2026.docx", sub: "Word" }, { name: "Posta in arrivo", sub: "Outlook" }, { name: "EasyIsland — HANDOFF.md", sub: "Visual Studio Code" }]);
+      State.barSys = { cpu: 23, ram: { percent: 61, used: 19.5e9, total: 32e9 }, disks: { C: { free: 212e9, total: 1000e9 } }, net: { down: 1200, up: 300, wifi: true, ip: "192.168.1.20" } };
       const q = new URLSearchParams(location.search);
       if (q.has("draft")) {
         State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };
       } else State.islandLayout = layout;
       await wait(300);
-      if (q.has("board")) {
-        State.boardTab = "pc";
+      if (q.has("board") || q.has("tab")) {
+        State.boardTab = q.get("tab") || "pc";
         island.setView("board");
       } else island.setView("overview");
       island.setPinned(true);

@@ -7,6 +7,11 @@
 //! what changes), the version before is kept in `isola-versioni\` and
 //! `undo` brings it back. A file that does not read as a valid layout (edited
 //! by hand) gives way to the newest valid version.
+//! Step 2: a tab may also hold blocks (`BLOCKS`): a grid or a list of what a
+//! source gives (`SOURCES`: installed apps, open windows, quick actions, a
+//! folder), a value of the PC (`VALUES`, read by barsys.rs only while the tab is
+//! open) or a text. What a block's item does comes from its source, never
+//! from the JSON.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -25,7 +30,15 @@ pub const SYSTEM: &[&str] = &["lock", "sleep", "restart", "shutdown", "recycle-e
 /// `view` targets besides `tab:<id>`.
 pub const VIEWS: &[&str] = &["overview", "agents", "chat", "actions", "files", "news", "settings", "memory"];
 
+/// What a tab's block may be.
+pub const BLOCKS: &[&str] = &["grid", "list", "value", "text"];
+/// Where a grid or a list takes its items from.
+pub const SOURCES: &[&str] = &["apps", "windows", "quick", "folder"];
+/// The PC's values a `value` block shows (barsys.rs).
+pub const VALUES: &[&str] = &["cpu", "ram", "gpu", "disk", "battery", "net", "ip", "recycle", "updates"];
+
 const MAX_ZONE: usize = 12;
+const MAX_BLOCKS: usize = 12;
 const MAX_TABS: usize = 12;
 const MAX_TAB_BUTTONS: usize = 40;
 const KEEP_VERSIONS: usize = 30;
@@ -143,6 +156,84 @@ fn action(v: &Value, what: &str, tabs: &[String]) -> Result<Value, String> {
     })
 }
 
+/// A folder of a `folder` source: a full path (`C:\…`, `\\server\…`) or one
+/// starting with an environment variable (`%USERPROFILE%\Desktop`); never a
+/// place of keys and passwords.
+fn folder_ok(p: &str) -> bool {
+    let drive = matches!(p.as_bytes().get(..3), Some([l, b':', b'\\' | b'/']) if l.is_ascii_alphabetic());
+    let var = p.strip_prefix('%').is_some_and(|rest| rest.contains('%'));
+    let full = drive || p.starts_with("\\\\") || var;
+    full && p.chars().count() <= 260 && !crate::opencode::secret_place(p)
+}
+
+/// One block of a tab, checked; only the keys its kind needs are kept.
+fn block(v: &Value, tab: &str) -> Result<Value, String> {
+    let id = text(v, "id");
+    if !id_ok(id) {
+        return Err(tf("id del blocco non valido: «{id}» (minuscole, cifre, trattini).", &[("id", &id)]));
+    }
+    let what = tf("blocco «{id}» della scheda «{tab}»", &[("id", &id), ("tab", &tab)]);
+    let kind = text(v, "kind");
+    if !BLOCKS.contains(&kind) {
+        return Err(tf("«kind» di {what}: {list}.", &[("what", &what), ("list", &BLOCKS.join(", "))]));
+    }
+    let mut o = Map::new();
+    o.insert("id".into(), json!(id));
+    o.insert("kind".into(), json!(kind));
+    if !text(v, "title").is_empty() {
+        o.insert("title".into(), json!(label(v, "title", 40, &what)?));
+    }
+    match kind {
+        "grid" | "list" => {
+            let src = v.get("source").filter(|x| x.is_object()).ok_or_else(|| tf("Manca «source» in {what}.", &[("what", &what)]))?;
+            let sk = text(src, "kind");
+            if !SOURCES.contains(&sk) {
+                return Err(tf("«source.kind» di {what}: {list}.", &[("what", &what), ("list", &SOURCES.join(", "))]));
+            }
+            let mut so = json!({ "kind": sk });
+            if sk == "folder" {
+                let path = text(src, "path");
+                if !folder_ok(path) {
+                    return Err(tf("Cartella non ammessa in {what}: un percorso completo (C:\\…, \\\\server\\…, %USERPROFILE%\\…).", &[("what", &what)]));
+                }
+                so["path"] = json!(path);
+            }
+            o.insert("source".into(), so);
+            let filter = text(v, "filter");
+            if filter.chars().count() > 60 {
+                return Err(tf("«filter» di {what} è troppo lungo (al massimo {n} caratteri).", &[("what", &what), ("n", &60)]));
+            }
+            if !filter.is_empty() {
+                o.insert("filter".into(), json!(filter));
+            }
+            if let Some(n) = v.get("limit").and_then(Value::as_u64) {
+                o.insert("limit".into(), json!(n.clamp(1, 500)));
+            }
+            if v.get("search").and_then(Value::as_bool) == Some(true) {
+                o.insert("search".into(), json!(true));
+            }
+        }
+        "value" => {
+            let w = text(v, "what");
+            if !VALUES.contains(&w) {
+                return Err(tf("«what» di {what}: {list}.", &[("what", &what), ("list", &VALUES.join(", "))]));
+            }
+            o.insert("what".into(), json!(w));
+            let drive = text(v, "drive").trim_end_matches([':', '\\']).to_ascii_uppercase();
+            if w == "disk" && !drive.is_empty() {
+                if drive.len() != 1 || !drive.chars().all(|c| c.is_ascii_uppercase()) {
+                    return Err(tf("«drive» di {what}: una lettera (C, D…).", &[("what", &what)]));
+                }
+                o.insert("drive".into(), json!(drive));
+            }
+        }
+        _ => {
+            o.insert("text".into(), json!(label(v, "text", 500, &what)?));
+        }
+    }
+    Ok(Value::Object(o))
+}
+
 /// One button; `zone` only for the island's own (a tab's buttons have none).
 fn button(v: &Value, zoned: bool, tabs: &[String]) -> Result<Value, String> {
     let id = text(v, "id");
@@ -226,6 +317,24 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
             out.push(b);
         }
         o.insert("buttons".into(), Value::Array(out));
+        let blocks_in = tab.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default();
+        if blocks_in.len() > MAX_BLOCKS {
+            return Err(tf("Troppi blocchi in {what}: al massimo {n}.", &[("what", &what), ("n", &MAX_BLOCKS)]));
+        }
+        let mut bids: Vec<String> = Vec::new();
+        let mut blocks = Vec::new();
+        for b in &blocks_in {
+            let b = block(b, &id)?;
+            let bid = text(&b, "id").to_string();
+            if bids.contains(&bid) {
+                return Err(tf("Due blocchi con l'id «{id}» in {what}.", &[("id", &bid), ("what", &what)]));
+            }
+            bids.push(bid);
+            blocks.push(b);
+        }
+        if !blocks.is_empty() {
+            o.insert("blocks".into(), Value::Array(blocks));
+        }
         tabs.push(Value::Object(o));
     }
     Ok(json!({ "buttons": buttons, "tabs": tabs }))
@@ -330,6 +439,18 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
         }
         tab["buttons"] = Value::Array(inner);
     }
+    // Blocks of one tab, the same way.
+    if let Some(tb) = args.get("tab_blocks").filter(|x| x.is_object()) {
+        let tid = text(tb, "tab");
+        let tab = tabs.iter_mut().find(|x| text(x, "id") == tid).ok_or_else(|| tf("Nessuna scheda con l'id «{id}».", &[("id", &tid)]))?;
+        let mut inner = tab.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default();
+        let gone: Vec<&str> = tb.get("remove").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+        inner.retain(|x| !gone.contains(&text(x, "id")));
+        for b in tb.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default() {
+            upsert(&mut inner, b);
+        }
+        tab["blocks"] = Value::Array(inner);
+    }
 
     let mut buttons = arr(&mut v, "buttons");
     let gone = strings("remove_buttons");
@@ -379,6 +500,27 @@ pub fn action_words(a: &Value) -> String {
     }
 }
 
+/// What a block shows, in words, for the card.
+pub fn block_words(b: &Value) -> String {
+    let title = text(b, "title");
+    let head = if title.is_empty() { String::new() } else { format!("«{title}»: ") };
+    let filter = text(b, "filter");
+    let only = if filter.is_empty() { String::new() } else { tf(" (solo «{f}»)", &[("f", &filter)]) };
+    let src = b.get("source").map(|s| match text(s, "kind") {
+        "apps" => t("le app installate").to_string(),
+        "windows" => t("le finestre aperte").to_string(),
+        "quick" => t("le azioni rapide").to_string(),
+        _ => tf("i file di {path}", &[("path", &text(s, "path"))]),
+    }).unwrap_or_default();
+    let body = match text(b, "kind") {
+        "grid" => tf("griglia con {src}{only}", &[("src", &src), ("only", &only)]),
+        "list" => tf("elenco con {src}{only}", &[("src", &src), ("only", &only)]),
+        "value" => tf("valore del PC «{what}»", &[("what", &text(b, "what"))]),
+        _ => tf("testo «{text}»", &[("text", &text(b, "text").chars().take(60).collect::<String>())]),
+    };
+    format!("{head}{body}")
+}
+
 /// What goes from `old` to `new`, one line each, for the Consenti / Nega card.
 pub fn changes(old: &Value, new: &Value) -> Vec<String> {
     let mut out = Vec::new();
@@ -405,9 +547,22 @@ pub fn changes(old: &Value, new: &Value) -> Vec<String> {
         let tab = obj(new, "tabs", &id).unwrap_or_default();
         let n = tab.get("buttons").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
         match names(old, "tabs", "name").into_iter().find(|x| x.0 == id) {
+            None if n == 0 => out.push(tf("Nuova scheda «{name}» nel menu", &[("name", &name)])),
             None => out.push(tf("Nuova scheda «{name}» nel menu, con {n} pulsanti", &[("name", &name), ("n", &n)])),
             Some((_, _, json_old)) if json_old != json_new => out.push(tf("Cambia la scheda «{name}» ({n} pulsanti)", &[("name", &name), ("n", &n)])),
             _ => {}
+        }
+        let before_blocks = obj(old, "tabs", &id).and_then(|t| t.get("blocks").and_then(Value::as_array).cloned()).unwrap_or_default();
+        let now_blocks = tab.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default();
+        for b in &now_blocks {
+            if before_blocks.iter().find(|x| text(x, "id") == text(b, "id")) != Some(b) {
+                out.push(format!("  ▦ {}", block_words(b)));
+            }
+        }
+        for b in &before_blocks {
+            if !now_blocks.iter().any(|x| text(x, "id") == text(b, "id")) {
+                out.push(format!("  {}", tf("tolto il blocco {desc}", &[("desc", &block_words(b))])));
+            }
         }
         if let Some(bs) = tab.get("buttons").and_then(Value::as_array) {
             let before = obj(old, "tabs", &id);
@@ -470,7 +625,7 @@ pub fn tool_get() -> String {
         .collect::<Vec<_>>()
         .join(", ");
     format!(
-        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
+        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
         serde_json::to_string_pretty(&now).unwrap_or_default(),
         t("Zone dei pulsanti"),
         ZONES.join(", "),
@@ -482,6 +637,12 @@ pub fn tool_get() -> String {
         VIEWS.join(", "),
         t("Azioni rapide dell'utente per quick"),
         if quick.is_empty() { t("nessuna").to_string() } else { quick },
+        t("Blocchi delle schede"),
+        BLOCKS.join(", "),
+        t("Fonti di grid e list"),
+        SOURCES.join(", "),
+        t("Valori di value"),
+        VALUES.join(", "),
     )
 }
 
@@ -544,6 +705,68 @@ pub fn island_layout_remove(app: AppHandle, kind: String, id: String) -> Result<
     Ok(())
 }
 
+/// A `folder` block: what is in it, folders first, by name; hidden files left out.
+#[tauri::command]
+pub async fn island_folder(path: String) -> Result<Vec<Value>, String> {
+    if !folder_ok(&path) {
+        return Err(t("Cartella non ammessa.").into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let full = expand_vars(&path);
+        let rd = std::fs::read_dir(&full).map_err(|e| tf("Non riesco a leggere {path}: {e}", &[("path", &full), ("e", &e)]))?;
+        let mut out: Vec<(bool, String, String)> = Vec::new();
+        for e in rd.flatten().take(2000) {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') || name.eq_ignore_ascii_case("desktop.ini") || name.starts_with("~$") {
+                continue;
+            }
+            {
+                use std::os::windows::fs::MetadataExt;
+                const HIDDEN: u32 = 0x2;
+                if e.metadata().is_ok_and(|m| m.file_attributes() & HIDDEN != 0) {
+                    continue;
+                }
+            }
+            let dir = e.file_type().is_ok_and(|t| t.is_dir());
+            out.push((!dir, name, e.path().to_string_lossy().into_owned()));
+        }
+        out.sort_by(|a, b| (a.0, a.1.to_lowercase()).cmp(&(b.0, b.1.to_lowercase())));
+        Ok(out.into_iter().take(500).map(|(file, name, path)| json!({ "name": name, "path": path, "dir": !file })).collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// `%NAME%` replaced by the environment variable (left as it is when unknown).
+fn expand_vars(p: &str) -> String {
+    let mut out = String::new();
+    let mut rest = p;
+    while let Some(i) = rest.find('%') {
+        out.push_str(rest.get(..i).unwrap_or_default());
+        let after = rest.get(i + 1..).unwrap_or_default();
+        match after.find('%') {
+            Some(j) => {
+                let name = after.get(..j).unwrap_or_default();
+                match std::env::var(name) {
+                    Ok(v) if !name.is_empty() => out.push_str(&v),
+                    _ => {
+                        out.push('%');
+                        out.push_str(name);
+                        out.push('%');
+                    }
+                }
+                rest = after.get(j + 1..).unwrap_or_default();
+            }
+            None => {
+                out.push('%');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// How many older versions «Annulla» can go back to.
 #[tauri::command]
 pub fn island_layout_versions() -> usize {
@@ -590,6 +813,27 @@ mod tests {
         assert_eq!(v4["tabs"][0]["buttons"].as_array().unwrap().len(), 2);
         let v5 = apply(&v4, &json!({ "remove_tabs": ["pc"], "remove_buttons": ["spegni"] })).unwrap();
         assert_eq!(v5, empty());
+    }
+
+    #[test]
+    fn blocks_take_only_known_sources() {
+        let apps = json!({ "id": "app", "name": "App", "blocks": [{ "id": "tutte", "kind": "grid", "source": { "kind": "apps" }, "search": true, "extra": 1 }] });
+        let v = normalize(&json!({ "tabs": [apps] })).unwrap();
+        assert_eq!(v["tabs"][0]["blocks"][0], json!({ "id": "tutte", "kind": "grid", "source": { "kind": "apps" }, "search": true }));
+        let src = |s: Value| normalize(&json!({ "tabs": [{ "id": "x", "name": "X", "blocks": [{ "id": "b", "kind": "list", "source": s }] }] }));
+        assert!(src(json!({ "kind": "folder", "path": "%USERPROFILE%\\Desktop" })).is_ok());
+        assert!(src(json!({ "kind": "folder", "path": "C:\\Users\\me\\.ssh" })).is_err());
+        assert!(src(json!({ "kind": "folder", "path": "Desktop" })).is_err());
+        assert!(src(json!({ "kind": "shell", "cmd": "dir" })).is_err());
+        let val = |w: &str| normalize(&json!({ "tabs": [{ "id": "x", "name": "X", "blocks": [{ "id": "b", "kind": "value", "what": w, "drive": "d:" }] }] }));
+        assert_eq!(val("disk").unwrap()["tabs"][0]["blocks"][0]["drive"], "D");
+        assert!(val("password").is_err());
+        let one = apply(&v, &json!({ "tab_blocks": { "tab": "app", "blocks": [{ "id": "nota", "kind": "text", "text": "Ciao" }] } })).unwrap();
+        assert_eq!(one["tabs"][0]["blocks"].as_array().unwrap().len(), 2);
+        assert!(changes(&v, &one).iter().any(|l| l.contains("Ciao")));
+        let none = apply(&one, &json!({ "tab_blocks": { "tab": "app", "remove": ["nota", "tutte"] } })).unwrap();
+        assert!(none["tabs"][0].get("blocks").is_none());
+        assert!(expand_vars("%NO_SUCH_VAR_X%\\a").starts_with("%NO_SUCH_VAR_X%"));
     }
 
     #[test]

@@ -2268,7 +2268,15 @@ export interface LayoutButton {
   zone?: "menu-bottom" | "header";
   action: LayoutAction;
 }
-export interface LayoutTab { id: string; name: string; icon?: string; buttons: LayoutButton[] }
+/** Where a grid or a list of a tab takes its items (island_layout.rs `SOURCES`). */
+export type LayoutSource = { kind: "apps" } | { kind: "windows" } | { kind: "quick" } | { kind: "folder"; path: string };
+/** A block of a tab (step 2, island_layout.rs `BLOCKS`): what an item does comes from its source. */
+export type LayoutBlock = { id: string; title?: string } & (
+  | { kind: "grid" | "list"; source: LayoutSource; filter?: string; limit?: number; search?: boolean }
+  | { kind: "value"; what: string; drive?: string }
+  | { kind: "text"; text: string }
+);
+export interface LayoutTab { id: string; name: string; icon?: string; buttons: LayoutButton[]; blocks?: LayoutBlock[] }
 /** The island built from a JSON (isola.json, island_layout.rs): what the user added from the chat. */
 export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[] }
 

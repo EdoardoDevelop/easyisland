@@ -689,6 +689,10 @@ export const Bridge = {
   islandLayoutUndo: () => callOrThrow<string>("island_layout_undo"),
   islandLayoutRemove: (kind: "button" | "tab", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
   islandLayoutVersions: () => call<number>("island_layout_versions"),
+  /** A folder block of a tab: folders first, hidden files left out. */
+  islandFolder: (path: string) => callOrThrow<{ name: string; path: string; dir: boolean }[]>("island_folder", { path }),
+  /** Icons of installed apps, sent back in `apps-icons` as they are read (applist.rs). */
+  appsIcons: (ids: string[]) => call<void>("apps_icons", { ids }),
   customSave: (definition: Custom) => callOrThrow<Custom>("custom_save", { definition }),
   customDelete: (id: string) => callOrThrow<void>("custom_delete", { id }),
   customRecords: (id: string) => call<CustomRecord[]>("custom_records", { id }),
