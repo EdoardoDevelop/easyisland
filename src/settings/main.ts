@@ -11,9 +11,8 @@ import { LOGO_CHARACTER } from "../character/logo-anim";
 /** The animated logo's character id (logo-anim.ts). */
 const LOGO_ID = LOGO_CHARACTER.id;
 import { type DoneItem, type LocalModelStatus, type MemoryInfo, type MeaningLocalStatus, type SkillCandidate, type SkillPick, type SkillScan, Bridge, IS_TAURI, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_BG_PRESETS, barBgCss, parseBarBg } from "../core/barbg";
-import { BAR_KINDS, barKind } from "../core/barkinds";
 
 import { h, clear, hasMark, svg, TAB_ICONS } from "../views/dom";
 import { ICONS } from "../views/icons";
@@ -3622,13 +3621,41 @@ function appearanceSections(): HTMLElement[] {
           barBackground(commit),
         )),
       ),
+      // Of the PC, not of a profile (settings.rs PROFILE_KEYS).
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Barra delle applicazioni di Windows") })),
+        h("div", { class: "row" },
+          h("label", { text: t("Barra delle applicazioni") }),
+          select([["", t("Visibile")], ["hide", t("Nascosta")]], settings.hideWindowsTaskbar ? "hide" : "",
+            (v) => { settings.hideWindowsTaskbar = v === "hide"; commit(); }),
+          h("button", {
+            text: t("Rimetti adesso"),
+            onclick: () => {
+              settings.hideWindowsTaskbar = false;
+              commit();
+              void Bridge.windowsTaskbarRestore();
+              render();
+            },
+          }),
+          h("span", { class: "hint note", text: t("nascosta, Start resta sul tasto Windows, le icone nascoste su Win+B e le finestre nel campo dell'isola; torna sempre quando EasyIsland si chiude, si blocca o si disinstalla") }),
+        ),
+      ),
+      // «App» of the bar: its pinned apps (barapps.rs), of the PC.
+      h("section", {},
+        h("h2", {}, h("span", { text: t("App nella barra") })),
+        appsPinsBlock(),
+      ),
       h("section", { class: "bar-row-block" },
         h("h2", {}, h("span", { text: t("Aspetto della barra") }), profileChip()),
         ...barLookRows(commit),
       ),
       h("section", { class: "bar-row-block" },
         h("h2", {}, h("span", { text: t("Widget della barra") }), profileChip()),
-        barItemsEditor(commit),
+        h("div", { class: "row bar-row" },
+          h("label", {},
+            h("span", { text: t("Personalizza la barra") }),
+            h("span", { class: "hint", text: t("Si apre una finestra: un clic su un widget lo mette nella barra; nella barra lo sposti trascinandolo, il destro apre le sue opzioni, × lo toglie. Anche col destro su un punto vuoto della barra.") })),
+          h("button", { class: "primary", text: t("Personalizza…"), onclick: () => void Bridge.openBarEditor() })),
       ),
     ],
     chiusa: () => [
@@ -3741,6 +3768,11 @@ function appearanceSections(): HTMLElement[] {
             h("label", { text: t("Campo in alto") }),
             toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
             h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("File del PC") }),
+            toggle(settings.searchFiles !== false, (v) => { settings.searchFiles = v; commit(); }),
+            h("span", { class: "hint note", text: t("il campo cerca anche i file aperti di recente e quelli dell'indice di Windows; Maiusc+Invio mostra il file nella sua cartella") }),
           ),
           h("div", { class: "row" },
             h("label", { text: t("Ricerca da sola") }),
@@ -4130,6 +4162,70 @@ function barBackground(commit: () => void): HTMLElement {
  * «Aspetto della barra» (FixedBarLook): every choice of how the bar looks, each
  * one optional and back to its default with the value it starts from.
  */
+/**
+ * The apps pinned to the bar's «App» (barapps.rs): in order, up, down, away;
+ * «Aggiungi» from the installed apps. Each change is saved by Rust (also on
+ * the Windows taskbar's side for an app taken away) and mirrored here.
+ */
+function appsPinsBlock(): HTMLElement {
+  const box = h("div", { class: "apps-pins" });
+  let catalog: { id: string; name: string }[] | null = null;
+  let query = "";
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const draw = () => {
+    box.replaceChildren();
+    const list = settings.appsPinned ?? [];
+    box.append(h("p", { class: "hint note", text: t("L'elemento «App (aperte e fissate)» della barra mostra queste app e quelle aperte. Sono allineate con le app fissate sulla barra di Windows; un programma trascinato sulla barra si aggiunge qui.") }));
+    list.forEach((p, i) => {
+      const move = (before: string | null, to: number) => {
+        void Bridge.appsMove(p.id, before);
+        const next = list.filter((x) => x !== p);
+        next.splice(Math.min(to, next.length), 0, p);
+        settings.appsPinned = next;
+        draw();
+      };
+      box.append(h("div", { class: "row" },
+        h("label", { text: p.name || p.id, title: p.id }),
+        h("button", { text: "↑", title: t("Prima"), disabled: i === 0, onclick: () => move(list[i - 1]?.id ?? null, i - 1) }),
+        h("button", { text: "↓", title: t("Dopo"), disabled: i === list.length - 1, onclick: () => move(list[i + 2]?.id ?? null, i + 1) }),
+        h("button", { text: "×", title: t("Togli dalla barra"), onclick: () => {
+          void Bridge.appsUnpin(p.id);
+          settings.appsPinned = list.filter((x) => x !== p);
+          draw();
+        } })));
+    });
+    if (!list.length) box.append(h("p", { class: "hint", text: t("Nessuna app fissata.") }));
+    const input = h("input", { type: "search", placeholder: t("Aggiungi un'app: scrivi il nome…"), value: query }) as HTMLInputElement;
+    const found = h("div", { class: "apps-pins-found" });
+    const show = () => {
+      found.replaceChildren();
+      const q = query.trim().toLowerCase();
+      if (!q) return;
+      if (!catalog) {
+        found.append(h("span", { class: "hint", text: t("Leggo le app installate…") }));
+        return;
+      }
+      for (const a of catalog.filter((x) => x.name.toLowerCase().includes(q) && !list.some((p) => same(p.id, x.id))).slice(0, 8)) {
+        found.append(h("button", { text: `+ ${a.name}`, onclick: () => {
+          void Bridge.appsPin(a.id, a.name, null);
+          settings.appsPinned = [...list, { id: a.id, name: a.name }];
+          query = "";
+          draw();
+        } }));
+      }
+    };
+    input.addEventListener("input", () => {
+      query = input.value;
+      if (!catalog) void Bridge.appsCatalog().then((c) => { catalog = c; show(); });
+      show();
+    });
+    box.append(h("div", { class: "row" }, h("label", { text: t("Aggiungi") }), input), found);
+    show();
+  };
+  draw();
+  return box;
+}
+
 function barLookRows(commit: () => void): HTMLElement[] {
   const look = (): FixedBarLook => (settings.fixedBarLook ??= {});
   const set = <K extends keyof FixedBarLook>(k: K, v: FixedBarLook[K]) => {
@@ -4205,189 +4301,6 @@ function barLookRows(commit: () => void): HTMLElement[] {
       toggle(look().grow !== false, (v) => set("grow", v)),
       h("span", { class: "hint note", text: t("la barra si allarga attorno a lui") })),
   ];
-}
-
-/**
- * «Widget della barra»: what the fixed bar shows (src/island/bar.ts), each in
- * its area and with how it shows, in order. «+ Aggiungi» opens the catalog by
- * group; the system elements may be added more than once (two clocks with
- * different zones). «Opzioni» opens an element's format, second text, tooltip,
- * buttons and wheel. Moved with ↑ ↓, removed with ✕.
- */
-function barItemsEditor(commit: () => void): HTMLElement {
-  const list = h("div", { class: "bar-items" });
-  let adding = false;
-  /** Opened «Opzioni», by uid (or id for elements from before uids). */
-  const open = new Set<string>();
-  const integrations = (): [string, string][] => [
-    // Only integrations with a tab in the island: the bar shows those (Telegram has none, and stays out).
-    ...settings.activeIntegrations
-      .filter((id) => INTEGRATION_AGENTS.some((x) => x.id === id))
-      .map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
-    ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
-  ];
-  const actions = (): [string, string][] =>
-    (settings.actions ?? []).map((a) => [`action:${a.id}`, `${a.icon && !a.icon.startsWith("i:") ? `${a.icon} ` : ""}${a.name}`] as [string, string]);
-  const nameOf = (id: string): string => {
-    const k = barKind(id);
-    if (k) return k.name;
-    if (id === "strip") return t("Striscia: permessi, chiamate, agente al lavoro, app in uso");
-    const found = [...integrations(), ...actions()].find(([x]) => x === id);
-    return found ? found[1] : id;
-  };
-  const uid = () => Math.random().toString(36).slice(2, 8);
-
-  /** The catalog: «Sistema» always, the others only with what is not in the bar yet. */
-  const catalog = (items: BarItem[]): HTMLElement => {
-    const used = new Set(items.map((x) => x.id));
-    const add = (id: string) => {
-      settings.fixedBarItems = [...items, { id, uid: uid(), area: settings.fixedBarSlot ?? "center", show: "both" }];
-      adding = false;
-      commit();
-      render();
-    };
-    const group = (title: string, entries: [string, string][]) =>
-      entries.length
-        ? h("div", { class: "bar-cat-group" },
-          h("div", { class: "bar-cat-title", text: title }),
-          h("div", { class: "bar-cat-list" }, ...entries.map(([id, label]) => {
-            const kind = barKind(id);
-            return h("button", { class: "bar-cat-item", onclick: () => add(id) },
-              ...(kind ? [renderActionIcon(kind.icon, 15)] : []), h("span", { text: label }));
-          })))
-        : null;
-    const kinds = (work: boolean) => Object.keys(BAR_KINDS)
-      .filter((k) => (BAR_KINDS[k].group === "work") === work)
-      .map((k) => [`sys:${k}`, BAR_KINDS[k].name] as [string, string]);
-    const groups = [
-      group(t("Sistema"), kinds(false)),
-      group(t("Lavoro"), [...kinds(true), ...integrations().filter(([id]) => !used.has(id))]),
-      group(t("Agenti"), used.has("strip") ? [] : [["strip", nameOf("strip")]]),
-      group(t("Le mie azioni"), actions().filter(([id]) => !used.has(id))),
-    ].filter((x): x is HTMLDivElement => !!x);
-    return h("div", { class: "bar-catalog" }, ...groups);
-  };
-
-  /** An element's «Opzioni». */
-  const options = (it: BarItem, save: () => void): HTMLElement => {
-    const kind = barKind(it.id);
-    const o = (it.opts ??= {});
-    const tokens = ["{icon}", "{value}", ...(kind ? kind.tokens.map(([k]) => `{${k}}`) : it.id === "strip" ? [] : ["{name}"])];
-    const text = (value: string | undefined, placeholder: string, set: (v: string) => void) => {
-      const el = h("input", { type: "text", value: value ?? "", placeholder, spellcheck: "false" }) as HTMLInputElement;
-      el.addEventListener("change", () => { set(el.value.trim()); save(); });
-      return el;
-    };
-    const what = (b: "left" | "middle" | "right"): [string, string][] => {
-      const own = kind ? kind[b] : b === "left" ? (it.id.startsWith("action:") ? "action" : "card") : "none";
-      const labels: Record<string, string> = {
-        none: t("Niente"), card: t("Apri la card"), alt: t("Mostra il secondo testo"),
-        menu: t("Menu"), mute: t("Muto sì / no"), action: t("Esegui l'azione"),
-      };
-      const label = (a: string) => labels[a] ?? a;
-      const out: [string, string][] = [["", `${t("Predefinito")} (${label(own)})`], ["none", label("none")]];
-      if (kind ? kind.card : !it.id.startsWith("action:")) out.push(["card", label("card")]);
-      out.push(["alt", label("alt")]);
-      if (kind?.menu) out.push(["menu", label("menu")]);
-      if (it.id === "sys:volume" || it.id === "sys:mic") out.push(["mute", label("mute")]);
-      for (const [id, name] of actions()) out.push([id, `${t("Azione")} · ${name}`]);
-      return out;
-    };
-    const buttons: Record<"left" | "middle" | "right", string> = { left: t("Clic"), middle: t("Clic centrale"), right: t("Clic destro") };
-    const rows: HTMLElement[] = [
-      h("div", { class: "row" }, h("label", { text: t("Formato") }),
-        text(o.format, formatHint(it), (v) => { o.format = v || undefined; })),
-      h("div", { class: "hint bar-tokens", text: `${t("Segnaposto")}: ${tokens.join(" ")}` }),
-      h("div", { class: "row" }, h("label", { text: t("Secondo testo (al clic)") }),
-        text(o.alt, kind?.alt ?? "", (v) => { o.alt = v || undefined; })),
-      h("div", { class: "row" }, h("label", { text: t("Suggerimento") }),
-        text(o.tip, t("Quello dell'elemento"), (v) => { o.tip = v || undefined; })),
-      ...(["left", "middle", "right"] as const).map((b) =>
-        h("div", { class: "row" }, h("label", { text: buttons[b] }),
-          select(what(b), (o[b] ?? "") as string, (v) => { o[b] = (v || undefined) as BarAct | undefined; save(); }))),
-    ];
-    if (kind?.wheel) {
-      rows.push(h("div", { class: "row" }, h("label", { text: it.id === "sys:brightness" ? t("Rotella: luminosità") : t("Rotella: volume") }),
-        toggle(o.wheel !== false, (v) => { o.wheel = v ? undefined : false; save(); })));
-    }
-    if (kind?.graph) {
-      rows.push(h("div", { class: "row" }, h("label", { text: t("Grafico dell'ultimo minuto") }),
-        toggle(!!o.graph, (v) => { o.graph = v || undefined; save(); })));
-    }
-    if (it.id === "sys:disk") {
-      const letters = "CDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => [l, `${l}:`] as [string, string]);
-      rows.push(h("div", { class: "row" }, h("label", { text: t("Disco") }),
-        select(letters, (o.drive || "C").toUpperCase(), (v) => { o.drive = v === "C" ? undefined : v; save(); })));
-    }
-    if (it.id === "sys:title" || it.id === "sys:vscode") {
-      const title = it.id === "sys:title";
-      rows.push(h("div", { class: "row" },
-        h("label", { text: title ? t("Lettere al massimo") : t("Progetti nel menu") }),
-        slider(title ? 10 : 1, title ? 200 : 15, 1, o.max ?? (title ? 60 : 10), "", (v) => { o.max = v; save(); })));
-    }
-    if (it.id === "sys:music") {
-      rows.push(h("div", { class: "row" }, h("label", { text: t("Pulsanti precedente, pausa, successivo") }),
-        toggle(o.buttons !== false, (v) => { o.buttons = v ? undefined : false; save(); })));
-    }
-    if (it.id === "sys:clock") {
-      const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["Europe/Rome", "Europe/London", "America/New_York", "Asia/Tokyo", "UTC"];
-      rows.push(
-        h("div", { class: "row" }, h("label", { text: t("Fuso orario") }),
-          select([["", t("Quello del PC")], ...zones.map((z) => [z, z.replace(/_/g, " ")] as [string, string])], o.tz ?? "",
-            (v) => { o.tz = v || undefined; save(); })),
-        h("div", { class: "row" }, h("label", { text: t("Con i secondi") }),
-          toggle(!!o.seconds, (v) => { o.seconds = v || undefined; save(); })),
-      );
-    }
-    return h("div", { class: "bar-opts" }, ...rows);
-  };
-
-  const render = () => {
-    const items = settings.fixedBarItems ?? [];
-    list.replaceChildren();
-    items.forEach((it, i) => {
-      const save = () => { settings.fixedBarItems = [...items]; commit(); render(); };
-      const move = (d: number) => {
-        const j = i + d;
-        if (j < 0 || j >= items.length) return;
-        [items[i], items[j]] = [items[j], items[i]];
-        save();
-      };
-      const id = it.uid ?? it.id;
-      const kind = barKind(it.id);
-      list.append(h("div", { class: "row bar-item-row" },
-        h("label", {}, ...(kind ? [renderActionIcon(kind.icon, 14)] : []), h("span", { text: nameOf(it.id) })),
-        select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], it.area,
-          (v) => { it.area = v; save(); }),
-        select([["both", t("Icona e valore")], ["icon", t("Solo icona")], ["value", t("Solo valore")]], it.show ?? "both",
-          (v) => { it.show = v; save(); }),
-        h("button", { text: t("Opzioni"), class: open.has(id) ? "on" : "", onclick: () => {
-          if (open.has(id)) open.delete(id);
-          else open.add(id);
-          render();
-        } }),
-        h("button", { text: "↑", title: t("Su"), onclick: () => move(-1) }),
-        h("button", { text: "↓", title: t("Giù"), onclick: () => move(1) }),
-        h("button", { class: "danger", text: "✕", title: t("Togli"), onclick: () => { items.splice(i, 1); save(); } }),
-      ));
-      if (open.has(id)) list.append(options(it, save));
-    });
-    list.append(h("div", { class: "row" },
-      h("label", { text: items.length ? "" : t("Widget della barra") }),
-      h("button", { text: adding ? t("Chiudi") : t("+ Aggiungi"), onclick: () => { adding = !adding; render(); } })));
-    if (adding) list.append(catalog(items));
-  };
-  render();
-  return h("div", { class: "bar-row-block" },
-    h("div", { class: "hint", text: t("Widget della barra: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.") }),
-    list,
-  );
-}
-
-/** The format an element uses when the user typed none (src/island/bar.ts → formatOf). */
-function formatHint(it: BarItem): string {
-  const show = it.show ?? "both";
-  return show === "icon" ? "{icon}" : show === "value" ? "{value}" : "{icon} {value}";
 }
 
 /** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */

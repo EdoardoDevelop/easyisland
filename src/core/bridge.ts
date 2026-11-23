@@ -4,6 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
@@ -226,6 +227,11 @@ export function inIslandPage(from: Event | Node): boolean {
   return node === document || node.ownerDocument === document;
 }
 
+/** A file found by the search field (pcfind.rs). */
+export interface PcFile { name: string; path: string; folder: string; dir: boolean; recent: boolean }
+/** An open window of another program (pcfind.rs). */
+export interface PcWindow { id: number; appName: string; title: string }
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -303,6 +309,11 @@ export const Bridge = {
   barSysWatch: (kinds: string[]) => call<void>("bar_sys_watch", { kinds }),
   /** Volume, brightness, mute, a Windows panel, the power menu (barsys.rs). */
   barSysDo: (what: string, arg?: number, path?: string) => call<void>("bar_sys_do", { what, arg, path }),
+  /** «Personalizza la barra»: settings ↔ fixed bar (lib.rs bar_edit_relay). */
+  barEditRelay: (to: "bar" | "editor", payload: Record<string, unknown>) => call<void>("bar_edit_relay", { to, payload }),
+  /** The «Personalizza la barra» window (bar_editor.rs): shown, the bar in its customize mode. */
+  openBarEditor: () => call<void>("open_bar_editor"),
+  closeBarEditor: () => call<void>("close_bar_editor"),
   /** The fixed bar that hides by itself: the mouse came (true) or left. */
   barReveal: (on: boolean) => call<void>("bar_reveal", { on }),
   /** «Notizie»: the subjects the memory proposes, without the excluded ones (news.rs). */
@@ -446,7 +457,11 @@ export const Bridge = {
   /** One of them into the history: the conversation's id, to reopen. */
   chatClaudeSessionImport: (id: string) => callOrThrow<string>("chat_claude_session_import", { id }),
   /** «Terminale» in the chat: the user's PowerShell in the project folder. */
-  terminalOpen: (folder: string | null, cols: number, rows: number) => callOrThrow<number>("terminal_open", { folder, cols, rows }),
+  terminalOpen: (folder: string | null, shell: string, cols: number, rows: number) => callOrThrow<number>("terminal_open", { folder, shell, cols, rows }),
+  /** «Salva» under a block of code: Windows' Save dialog named `name`; the path, or null when cancelled. */
+  saveCodeAs: (name: string, text: string) => callOrThrow<string | null>("save_code_as", { name, text }),
+  /** The shells the terminal offers (terminal.rs shells): [id, name]. */
+  terminalShells: () => call<[string, string][]>("terminal_shells"),
   terminalWrite: (id: number, data: string) => callOrThrow<void>("terminal_write", { id, data }),
   terminalResize: (id: number, cols: number, rows: number) => call<void>("terminal_resize", { id, cols, rows }),
   terminalClose: (id: number) => call<void>("terminal_close", { id }),
@@ -583,6 +598,27 @@ export const Bridge = {
   inboxClear: () => call<number>("inbox_clear"),
   /** The programs of the Start menu (shortcuts), for the search bar. Empty in the browser preview. */
   startApps: async () => (await call<{ name: string; path: string }[]>("start_apps")) ?? [],
+  /** The search field: files whose name has the words, the recent ones first (pcfind.rs). */
+  pcFiles: async (q: string) => (await call<PcFile[]>("pc_files", { q })) ?? [],
+  pcFileOpen: (path: string, reveal: boolean) => callOrThrow<void>("pc_file_open", { path, reveal }),
+  /** The open windows of the other programs, front to back. */
+  pcWindows: async () => (await call<PcWindow[]>("pc_windows")) ?? [],
+  pcWindowFocus: (id: number) => call<boolean>("pc_window_focus", { id }),
+  /** One of Windows' own pages (pcfind.rs PAGES), by its id. */
+  pcPage: (id: string) => call<boolean>("pc_page", { id }),
+  /** «App» of the bar (taskwin.rs, applist.rs, barapps.rs): every open window, `{ hwnd, app, title, … }`. */
+  appsWindows: async () => (await call<{ hwnd: number; app: string; title: string; minimized: boolean; active: boolean }[]>("apps_windows")) ?? [],
+  /** `click`, `activate`, `minimize`, `close` (a window, or the app's), `close-all`, `launch`, `launch-new`, `open-files`. */
+  appsDo: (what: string, hwnd: number | null, app: string | null, files?: string[]) => call<boolean>("apps_do", { what, hwnd, app, files }),
+  /** Live previews of these windows at these places of the island's window ([] takes them away). */
+  appsThumbs: (rects: { hwnd: number; x: number; y: number; w: number; h: number }[]) => call<void>("apps_thumbs", { rects }),
+  appsRecentFiles: async (id: string) => (await call<string[]>("apps_recent_files", { id })) ?? [],
+  appsCatalog: async () => (await call<{ id: string; name: string }[]>("apps_catalog")) ?? [],
+  appsPin: (id: string, name: string | null, before: string | null) => call<void>("apps_pin", { id, name, before }),
+  appsUnpin: (id: string) => call<void>("apps_unpin", { id }),
+  appsMove: (id: string, before: string | null) => call<void>("apps_move", { id, before }),
+  /** The Windows taskbar back now (taskbar_hide.rs); true when it is visible. */
+  windowsTaskbarRestore: () => call<boolean>("windows_taskbar_restore"),
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
@@ -775,6 +811,10 @@ export const Bridge = {
   /** The field at the top: the nodes of the map (brain.rs find_nodes). */
   memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
   quickAnswer: (question: string) => call<QuickAnswer | null>("quick_answer", { question }),
+  /** «Chiedi alla memoria» (memory_chat.rs): an answer only from the memory. */
+  memoryChat: (question: string, history: { q: string; a: string }[], facts = "") => call<MemoryChatReply | null>("memory_chat", { question, history, facts }),
+  /** «Apri in chat» under an answer: the island's chat with the question and the answer (memory-chat-open). */
+  memoryChatOpen: (question: string, answer: string) => call<void>("memory_chat_open", { question, answer }),
   /** The notices' window (notices_window.rs): `height` of toasts, placed by `place`; or hidden. */
   noticesShow: (height: number, place: string) => call<void>("notices_show", { height, place }),
   noticesHide: () => call<void>("notices_hide"),
@@ -1069,6 +1109,13 @@ export interface MemoryInfo {
 
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
 /** A memory page found from the field at the top (brain.rs PageHit). */
+/** «Chiedi alla memoria» (memory_chat.rs): the answer, who wrote it, the nodes it comes from. */
+export interface MemoryChatReply {
+  text: string;
+  by: string;
+  nodes: { id: string; title: string }[];
+}
+
 /** An answer from the memory to a question typed in the search (quick_answer.rs). */
 export interface QuickAnswer {
   /** Written by a model, or the memory's lines themselves. */
@@ -1481,7 +1528,8 @@ export async function onDragDrop(handler: (e: DragDropPayload) => void, accepts:
       handler({ type: "drop", paths: [] });
     }
   });
-  return listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
+  // This page's own drops only: the global listen also hears the fixed bar's (drop.rs emit_to).
+  return getCurrentWebview().listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
 }
 
 /** What the morning and end-of-day card shows (daily.rs). */

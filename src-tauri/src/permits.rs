@@ -110,7 +110,7 @@ pub fn delicate_tool(tool: &str) -> bool {
     // A remote PC (a command there, a connection opened to it), the password vault written,
     // or a quick action changed: a script in it is code that runs here.
     // A password from the vault typed into a web page asks every time too.
-    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") {
+    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") || tool.contains("quick_action_") || tool.ends_with("preview_login") || tool.ends_with("preview_upload") || tool.ends_with("desktop_click") || tool.ends_with("desktop_type") {
         return true;
     }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear", "wipe",
@@ -158,6 +158,21 @@ pub fn agy_auto(payload: &Value) -> bool {
     }
     if !flag("easyisland_auto") {
         return false;
+    }
+    // A helper that only looks: reads, read-only commands, our tools that only read.
+    if flag("easyisland_read_only") {
+        return match tool {
+            "Read" | "LS" | "Grep" | "Glob" => chat_read(payload),
+            "Bash" => {
+                let c = text("command");
+                !c.trim().is_empty() && crate::opencode::read_only(c) && !crate::opencode::secret_place(c)
+            }
+            // agent_read_only also holds what writes only inside EasyIsland (memory_page_write…): not for a check.
+            t => t.strip_prefix("mcp__easyisland__").is_some_and(|n| {
+                const WRITES: &[&str] = &["write", "note", "add", "save", "update", "create", "delete", "forget", "move", "set_", "import", "done", "run", "send"];
+                crate::claude_cli::agent_read_only().contains(&n) && !WRITES.iter().any(|w| n.contains(w))
+            }),
+        };
     }
     match tool {
         "Bash" => {
@@ -212,6 +227,15 @@ fn session_key(payload: &Value) -> Option<(String, String)> {
     // Clicks and keys in the preview: the site, never the tool (Edoardo, 12 Nov 2026).
     if tool_of(payload).is_some_and(|t| SITE_TOOLS.contains(&t)) {
         return site_key(payload, crate::preview::site_of, crate::preview::as_url).map(|h| (session.to_string(), format!("site:{h}")));
+    }
+    // Files given to a page: asked each time, never «Sempre» (Edoardo, 21 Nov 2026).
+    if tool_of(payload) == Some("preview_upload") {
+        return None;
+    }
+    // Clicks and typing in a Windows program: «Sempre» = that program, for the conversation.
+    if matches!(tool_of(payload), Some("desktop_click" | "desktop_type")) {
+        let r = payload.pointer("/tool_input/ref").and_then(Value::as_str).unwrap_or_default();
+        return crate::winapps::app_of_ref(r).map(|exe| (session.to_string(), format!("site:{exe}")));
     }
     let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
     let text = |k: &str| payload.pointer(&format!("/tool_input/{k}")).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
@@ -486,6 +510,18 @@ mod tests {
     }
 
     #[test]
+    fn antigravity_check_in_automatica_only_reads() {
+        let p = |tool: &str, input: Value| json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": true, "easyisland_auto": true, "easyisland_read_only": true });
+        assert!(agy_auto(&p("mcp__easyisland__memory_page", json!({ "title": "Iaso" }))));
+        assert!(agy_auto(&p("mcp__easyisland__memory_search", json!({ "query": "x" }))));
+        assert!(agy_auto(&p("Read", json!({ "file_path": "c:/w/a.txt" }))));
+        assert!(agy_auto(&p("Bash", json!({ "command": "git status" }))));
+        assert!(!agy_auto(&p("Write", json!({ "file_path": "c:/w/a.txt" }))));
+        assert!(!agy_auto(&p("mcp__easyisland__memory_page_write", json!({}))));
+        assert!(!agy_auto(&p("Bash", json!({ "command": "Remove-Item x" }))));
+    }
+
+    #[test]
     fn antigravity_automatica_lets_through_only_what_is_not_delicate() {
         let p = |tool: &str, input: Value, auto: bool| json!({ "tool_name": tool, "tool_input": input, "easyisland_chat": true, "easyisland_auto": auto });
         assert!(agy_auto(&p("Bash", json!({ "command": "git status" }), true)));
@@ -570,7 +606,7 @@ mod tests {
 
     #[test]
     fn delicate_for_both_automatiche() {
-        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login"] {
+        for t in ["mcp__easyisland__notion_delete_row", "easyisland_remote_run", "mcp__easyisland__remote_run", "mcp__gmail__send_email", "drive_share_file", "mcp__notion__notion-delete-pages", "mcp__easyisland__preview_login", "mcp__easyisland__preview_upload", "mcp__easyisland__desktop_click", "mcp__easyisland__desktop_type"] {
             assert!(delicate_tool(t), "{t}");
         }
         for t in ["mcp__easyisland__todo_add", "mcp__notion__notion-create-pages", "easyisland_list_status", "mcp__easyisland__notion_update_row"] {

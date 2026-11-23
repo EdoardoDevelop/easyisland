@@ -50,6 +50,14 @@ The chat sees the page the way screen readers read it: headings, texts, buttons 
 
 It can also **click**, **type**, press keys (Enter, Esc, arrows), scroll, hover over menus, pick in drop-downs and drag, as you would. Every time it asks **Allow / Deny** in the island; with **Always** it no longer asks **on that site**, until the end of the conversation. It never types passwords or payment details and **never clicks** “Add to cart”, “Buy”, “Order” or “Pay”, not even with Always: those are yours.
 
+The chat **does not open the Preview by itself**: when it is closed, the pages it needs load behind, without a window, and the chat works on them anyway. To watch, open the Preview and you find its tabs (loaded again). Pages behind that the chat has not used for 10 minutes close by themselves.
+
+It clicks like a person: when the button is covered by something (a cookie notice, a window), hidden or disabled, the click is not made and the chat knows what covers it. It also reads the parts of a page that come from another site (a map, a payment form, a panel inside the page).
+
+When a site asks for a confirmation (“Delete?”, “Leave the page?”), the question reaches you as a card in the island with **OK** and **Cancel**: you decide, never the chat; with no answer in two minutes it is Cancel. The site's plain alerts are closed with OK and the chat reads them.
+
+It can put **files** in a page's “Choose file” field (from the Tray or files you name): it asks every time, even with Always, and never touches key and password files. Sending them is still a click on the page's button.
+
 To save tokens, the chat reads only what it needs: it looks for the words it wants in the page, reads the products already in the page (name, code, price, photos) or the data the site receives, and takes several steps at once (“open, type, Enter, wait, read”). It uses screenshots only to check how things look.
 
 ## Suppliers' portals and quotes
@@ -69,4 +77,4 @@ Product photos go to the **Tray** and the quote is made from your Word template:
 | Ctrl+Tab | Next tab |
 | Alt+← / Alt+→ | Back / forward |
 
-Once the window is closed nothing keeps running; the tabs come back the same the next time.
+Once the window is closed nothing keeps running, except the pages the chat is using behind (they close after 10 minutes unused); the tabs come back the same the next time.

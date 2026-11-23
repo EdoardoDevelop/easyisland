@@ -5,7 +5,7 @@ import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
 import { MIRRORED_CALLS, type BarButton, type CharacterMode, type IslandToCharacter } from "../core/link";
 import { barAct, barItemOf, barMenuOf, barWheels, musicButtons, toggleAlt } from "./bar";
-import { barKind } from "../core/barkinds";
+import { WIN_KEYS, barKind } from "../core/barkinds";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, TOPBAR_H, PANEL_H, PANEL_W,
   RAIL_COMPACT_W, RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -52,6 +52,7 @@ import { applyFonts } from "../core/fonts";
 import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
 import * as Notices from "../notices/notices";
 import { momentHeadline } from "../views/moment";
+import { ChatDock, type DockHooks, type Rect } from "./dock";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -187,6 +188,10 @@ export class Island {
   private paneGen = 0;
   private paneGrip = h("div", { class: "preview-pane-grip", title: t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita") });
   private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
+  /** The panels on the chat (dock.ts), made the first time they are asked for. */
+  private dock: ChatDock | null = null;
+  private dockFailed = false;
+  private dockGen = -1;
   private paneSent = { x: 0, y: 0, w: 0, h: 0 };
   private resizeGrip = h("div", { id: "island-resize", title: t("Trascina per cambiare larghezza e altezza · doppio clic: predefinite") });
   private restCanvas!: HTMLCanvasElement;
@@ -436,6 +441,7 @@ export class Island {
       askAboutPicture: (f) => this.askAboutPicture(f),
       askAboutText: (label, text) => this.startChat("", { label, text }, false),
       openChat: () => this.startChat("", null, false),
+      barClick: (key) => this.barClick(key, "left"),
       askChat: (q) => this.askChat(q),
       showNotice: (n) => this.showNotice(n),
       explainError: (text, note) => this.explainError(text, note),
@@ -965,6 +971,8 @@ export class Island {
     if (key === "chat") {
       const host = this.views.get("prompt");
       if (!host) return;
+      // The conversations and the terminal in the island's panels go with the chat.
+      this.dock?.release();
       const title = `${t("Chat")} — EasyIsland`;
       const ok = popOut("chat", title, host, this.islandBackground, () => {
         // Home again, among the island's views; the Anteprima docks beside it again.
@@ -975,8 +983,8 @@ export class Island {
         this.placePane();
       }, {
         at,
-        // The Anteprima beside the chat in its window, as in the island.
-        decorate: (doc, body) => this.paneInWindow(doc, body),
+        // The chat, the Anteprima and the terminal as panels to arrange (dock.ts).
+        decorate: (doc, body) => this.dockInWindow(doc, body),
         named: (name) => {
           void Bridge.popoutChat(name);
           // The chat's window opens maximized, as an app would.
@@ -3271,6 +3279,16 @@ ${note}` : text };
     // The chat in its own window: the panel is there (paneInWindow), never told from here.
     if (isPopped("chat")) {
       this.islandEl.classList.remove("paned");
+      if (!this.dockFailed) this.syncDock();
+      return;
+    }
+    // The panels (dock.ts) place the Anteprima themselves.
+    if (!this.dockFailed && this.syncDock()) {
+      this.islandEl.classList.remove("paned");
+      if (this.paneGen !== this.dockGen) {
+        this.dockGen = this.paneGen;
+        this.dock?.resend();
+      }
       return;
     }
     const shown = this.paneShown;
@@ -3366,9 +3384,99 @@ ${note}` : text };
     };
   }
 
+  /**
+   * The chat's own window as panels (dock.ts, 22 Nov 2026): the chat, the
+   * Anteprima and the terminal dragged beside, under or into one another.
+   * Without the chat's views in the page, the panel of before (paneInWindow).
+   */
+  private dockInWindow(doc: Document, body: HTMLElement): () => void {
+    const views = body.querySelector<HTMLElement>("#views");
+    if (!views) return this.paneInWindow(doc, body);
+    let gen = this.paneGen;
+    let dock: ChatDock;
+    try {
+      dock = new ChatDock(doc, views, this.dockHooks(doc, "finestra", () => true, () => State.chatSideOpen, (r) => void Bridge.previewPane(r.x, r.y, r.w, r.h).catch(() => undefined)));
+    } catch (e) {
+      void Bridge.log(`pannelli della chat: ${e}`).catch(() => {});
+      if (!body.contains(views)) body.prepend(views);
+      return this.paneInWindow(doc, body);
+    }
+    doc.defaultView?.addEventListener("pagehide", () => dock.dispose());
+    return () => {
+      if (gen !== this.paneGen) {
+        gen = this.paneGen;
+        dock.resend();
+      }
+      dock.sync();
+    };
+  }
+
+  /** What the panels (dock.ts) ask of the chat, in the island or in its window's page `doc`. */
+  private dockHooks(doc: Document, place: string, enabled: () => boolean, sideOpen: () => boolean, placePreview: (r: Rect) => void): DockHooks {
+    const tell = (selector: string) => doc.querySelector(selector)?.dispatchEvent(new CustomEvent("dock-close"));
+    return {
+      place,
+      enabled,
+      sideOpen,
+      previewOpen: () => State.previewOpen,
+      termOpen: () => State.chatTermOpen,
+      closeSide: () => tell(".chat-side"),
+      closePreview: () => void Bridge.previewHide().catch(() => undefined),
+      closeTerm: () => tell(".chat-term"),
+      placePreview,
+      previewWidth: () => State.settings.previewWidth || PANE_W,
+      sideWidth: () => chatSideWidth(),
+      log: (line) => void Bridge.log(line).catch(() => {}),
+    };
+  }
+
+  /**
+   * The panels in the island (dock.ts): on the chat, when its conversations,
+   * the Anteprima or the terminal are open beside it. The island's width is
+   * the same as with the fixed panel (paneSplit, chatSideRoom); the panels
+   * share it as the user arranged them.
+   */
+  private syncDock(): boolean {
+    if (!this.dock) {
+      try {
+        this.dock = new ChatDock(document, this.viewsEl, this.dockHooks(document, "isola",
+          () => State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat"),
+          // Only where the island makes room for them (the chat itself, not a permission's card).
+          () => this.chatSideRoom > 0,
+          (r) => {
+            // Never out of the island nor of the window (a webview there is cut by the screen).
+            const box = this.islandEl.getBoundingClientRect();
+            const right = Math.min(r.x + r.w, box.right - 10, window.innerWidth);
+            const bottom = Math.min(r.y + r.h, box.bottom - 10, window.innerHeight);
+            const next = r.w > 0 && right - r.x > 40 && bottom - r.y > 40 ? { x: r.x, y: r.y, w: Math.round(right - r.x), h: Math.round(bottom - r.y) } : { x: 0, y: 0, w: 0, h: 0 };
+            this.paneSent = next;
+            void Bridge.previewPane(next.x, next.y, next.w, next.h).catch(() => undefined);
+          }));
+      } catch (e) {
+        void Bridge.log(`pannelli della chat: ${e}`).catch(() => {});
+        this.dockFailed = true;
+      }
+    }
+    if (!this.dock) return false;
+    const was = this.dock.active;
+    this.dock.sync();
+    if (was !== this.dock.active) {
+      // The fixed panel and the panels never tell Rust at the same time: the one now in charge starts afresh.
+      this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
+      this.dock.resend();
+    }
+    this.islandEl.classList.toggle("docked", this.dock.active);
+    return this.dock.active;
+  }
+
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
   private wirePane() {
     void onEvent<boolean>("preview-docked", (on) => this.setPaneOpen(on));
+    // «Apri in chat» under an answer of «Chiedi alla memoria» (memory window).
+    void onEvent<{ question: string; answer: string }>("memory-chat-open", ({ question, answer }) => {
+      if (State.mode !== "expanded") this.expand("prompt");
+      this.startChat(question, { label: t("Memoria · risposta"), text: answer }, false);
+    });
     // A popped-out window closed by its ✕ (lib.rs popout_window, its name): its view comes home.
     void onEvent<string>("popout-closed", (name) => poppedGone(name));
     // …and before that, while its page is still there: the view comes home with its handlers.
@@ -3579,7 +3687,47 @@ ${note}` : text };
    * or a widget opens its card (closes it, if it is already the one open), an
    * action runs.
    */
+  /** «App»: the card of an app's windows opened by a click (stays) or by the mouse resting (goes with it). */
+  private appsSticky = false;
+  private appsLeave = 0;
+
+  /**
+   * «App» in the bar (character-window/apps.ts): `apps:show:<id>` the mouse
+   * rests on an app, `apps:list:<id>` a click on one with several windows,
+   * `apps:leave` the mouse went away (from the app or from its card).
+   */
+  private appsBar(key: string, x?: number) {
+    const [, what, ...rest] = key.split(":");
+    const id = rest.join(":");
+    const shown = () => State.mode === "expanded" && State.view === "barcard" && (State.barCard ?? "").startsWith("apps:");
+    window.clearTimeout(this.appsLeave);
+    if (what === "leave") {
+      if (this.appsSticky || !shown()) return;
+      this.appsLeave = window.setTimeout(() => {
+        if (!this.appsSticky && shown() && !document.querySelector(".barcard:hover")) this.collapse();
+      }, 450);
+      return;
+    }
+    if (what === "show") {
+      if (shown() && this.appsSticky) return;
+      this.appsSticky = false;
+    } else {
+      if (shown() && State.barCard === `apps:${id}` && this.appsSticky) {
+        this.collapse();
+        return;
+      }
+      this.appsSticky = true;
+    }
+    if (shown() && State.barCard === `apps:${id}`) return;
+    State.barCard = `apps:${id}`;
+    this.openFromBarAt("barcard", x);
+  }
+
   barClick(key: string, button: BarButton = "left", x?: number) {
+    if (key.startsWith("apps:")) {
+      this.appsBar(key, x);
+      return;
+    }
     // A small button inside an element: music's, or one of the app in use.
     const inner = /^(sys:(music|appbar)[^:]*):btn:(\d+)$/.exec(key);
     if (inner) {
@@ -3616,6 +3764,16 @@ ${note}` : text };
       void this.onHotkey("search");
       return;
     }
+    // «Windows» elements: Windows' own shortcut (Start, Win+N, Win+A…), as its taskbar does.
+    if (kind && WIN_KEYS.has(it.id.slice(4)) && (button === "left" || (button === "right" && it.id === "sys:start"))) {
+      void Bridge.barSysDo(button === "right" ? "win:winx" : `win:${it.id.slice(4)}`);
+      return;
+    }
+    // «Memoria» in the bar: the memory window, as the button in the island's header.
+    if (it.id === "sys:memory" && button === "left") {
+      void Bridge.memoryWindowOpen();
+      return;
+    }
     if (button === "up" || button === "down") {
       if (kind && barWheels(it)) this.barWheel(it.id.slice(4), button === "up" ? 1 : -1);
       return;
@@ -3650,6 +3808,14 @@ ${note}` : text };
     } else if (act.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === act.slice(7));
       if (a) void this.runAction(a);
+    } else if (act === "card" && it.id === "folder") {
+      const which = `folder:${key}`;
+      if (State.mode === "expanded" && State.view === "barcard" && State.barCard === which) {
+        this.collapse();
+        return;
+      }
+      State.barCard = which;
+      this.openFromBarAt("barcard", x);
     } else if (act === "card") {
       if (kind) {
         // Its card in the island, against the bar; a second click closes it.

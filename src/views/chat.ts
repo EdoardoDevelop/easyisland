@@ -12,9 +12,11 @@ import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
-import { TypeLine, foldSteps, splitStatus } from "./typeline";
+import { TypeLine, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
+import { ReplyBlocks } from "./chat-live";
+import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
 
@@ -243,11 +245,14 @@ function bubble(message: ChatMessage, live = false): HTMLElement {
         h("div", { class: "second-head", text: `⇄ ${t("Seconda opinione · {e}", { e: message.reviewer })}` }),
         ...renderMarkdown(message.content, MD_HOOKS)));
   }
-  const reply = h("div", { class: "reply md" }, ...foldSteps(renderMarkdown(message.content, MD_HOOKS), !live));
+  const reply = h("div", { class: "reply md" }, ...(live ? replyBlocks.live(message.content) : replyBlocks.done(message)));
   // While it streams this runs many times a second: the finished reply checks them.
   if (!live) void checkPaths(reply);
   return h("div", { class: "chat-row" }, reply);
 }
+
+/** The replies' blocks, read as little as possible (chat-live.ts). */
+const replyBlocks = new ReplyBlocks(() => MD_HOOKS);
 
 // Links and file paths of a reply open in the preview (src/preview/), or in
 // the browser with Ctrl+clic or with Impostazioni → Chat → Anteprima off.
@@ -257,7 +262,41 @@ const MD_HOOKS = {
     else void Bridge.previewOpen(url).catch(() => void Bridge.openUrl(url));
   },
   openPath: (path: string, e?: MouseEvent) => openChatPath(path, e?.currentTarget instanceof HTMLElement ? e.currentTarget : null, e?.ctrlKey),
+  // Under a block of code (22 Nov 2026): into the chat's terminal, or into a file.
+  canRun: (lang: string) => codeShell(lang) !== null,
+  runCode: (code: string, lang: string) => codeHooks.run(code, lang),
+  saveCode: (code: string, lang: string) => codeHooks.save(code, lang),
 };
+
+/** What the chat's view does with a block of code (set by buildPrompt, which has the terminal). */
+const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; wsl: boolean } = {
+  run: () => {},
+  save: () => {},
+  wsl: false,
+};
+
+/** The terminal's shell for a block's language (terminal.rs shells); null: not a shell's code. */
+function codeShell(lang: string): string | null {
+  const l = lang.trim().toLowerCase();
+  if (["powershell", "ps1", "ps", "pwsh", "posh"].includes(l)) return "powershell";
+  if (["cmd", "bat", "batch", "dos"].includes(l)) return "cmd";
+  if (["bash", "sh", "shell", "zsh", "console"].includes(l)) return codeHooks.wsl ? "wsl" : null;
+  return null;
+}
+
+/** A file name for a block of code: «codice» with its language's extension. */
+function codeFileName(lang: string): string {
+  const l = lang.trim().toLowerCase();
+  const ext: Record<string, string> = {
+    powershell: "ps1", ps1: "ps1", ps: "ps1", pwsh: "ps1", cmd: "bat", bat: "bat", batch: "bat", dos: "bat",
+    bash: "sh", sh: "sh", shell: "sh", zsh: "sh", javascript: "js", js: "js", typescript: "ts", ts: "ts",
+    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml",
+    svg: "svg", css: "css", yaml: "yml", yml: "yml", ini: "ini", toml: "toml", csharp: "cs", cs: "cs", go: "go",
+    java: "java", php: "php", cpp: "cpp", c: "c", markdown: "md", md: "md", diff: "diff", nginx: "conf", env: "env",
+  };
+  if (l === "dockerfile") return "Dockerfile";
+  return `${t("codice")}.${ext[l] ?? "txt"}`;
+}
 
 // ── Files and folders in a reply (src-tauri/src/chatpaths.rs) ────────────────
 // Only those that exist stay links: Rust resolves them (absolute, "~\…", or
@@ -502,16 +541,33 @@ export function buildPrompt(
   const termBtn = h("button", { class: "history-btn", title: t("Terminale: un PowerShell tuo nella cartella del progetto") }, svg(ICONS.lineTerminal, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // xterm.js draws the conversation's terminal here (chat-terminal.ts).
   const termBox = h("div", { class: "chat-term-box" });
+  // More terminals in the same panel, each a tab (22 Nov 2026): PowerShell, Command Prompt, WSL.
+  const termTabs = h("div", { class: "chat-term-tabs" });
+  const termAdd = h("button", { class: "chat-term-add", title: t("Nuovo terminale"), text: "+" }) as HTMLButtonElement;
+  const termMenu = h("div", { class: "chat-term-menu" });
+  termMenu.style.display = "none";
+  // Ctrl+F in the terminal (or 🔍): a field that looks through what it printed.
+  const termFind = h("input", { class: "chat-term-find", placeholder: t("Cerca nel terminale") }) as HTMLInputElement;
+  termFind.style.display = "none";
+  const termFindBtn = h("button", { class: "chat-queued-btn chat-term-find-btn", title: t("Cerca nel terminale (Ctrl+F)") }, svg(ICONS.search, 11)) as HTMLButtonElement;
   const termRow = h("div", { class: "chat-term" },
-    h("div", { class: "chat-term-head" }, h("span", { text: t("Terminale") }),
-      h("button", { class: "chat-queued-btn", text: t("Riavvia"), title: t("Chiude questo PowerShell (anche un comando bloccato) e ne apre un altro"), onclick: () => void restartTerminal() }),
-      h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiudi il terminale"), onclick: () => closeTerminal() })),
+    h("div", { class: "chat-term-head" }, termTabs, termAdd, h("span", { class: "chat-term-gap" }), termFind, termFindBtn,
+      h("button", { class: "chat-queued-btn", text: t("Riavvia"), title: t("Chiude questo terminale (anche un comando bloccato) e ne apre un altro uguale"), onclick: () => void restartTerminal() }),
+      h("button", { class: "chat-queued-btn", text: "✕", title: t("Chiudi tutti i terminali"), onclick: () => closeAllTerminals() })),
+    termMenu,
     termBox);
   termRow.style.display = "none";
   // Out of the view (in the Anteprima's panel): taken home before its window goes (popout.ts rescue).
   termRow.dataset.followsView = "";
-  /** One terminal per conversation (chat-terminal.ts), with what it printed. */
-  const terms = new Map<string, ChatTerm>();
+  /** The terminals of each conversation (chat-terminal.ts), with what they printed, and the one in front. */
+  const terms = new Map<string, { list: ChatTerm[]; on: number }>();
+  /** The terminal in front in the conversation `sid`. */
+  const activeTerm = (sid = State.chat.sid): ChatTerm | undefined => {
+    const set = terms.get(sid);
+    return set?.list[set.on];
+  };
+  /** The shells offered (terminal.rs shells), asked once. */
+  let shells: [string, string][] = [];
   /** Output of a terminal that arrived before its id came back from terminal_open. */
   const early = new Map<number, string>();
   // «Cosa so fare»: the panel of what the chat can do (also /aiuto).
@@ -2542,7 +2598,25 @@ export function buildPrompt(
     else showSearch(false);
   }
 
+  /**
+   * The conversations as a panel of their own (island/dock.ts) while the
+   * panels are showing, in the chat's layout otherwise.
+   */
+  function placeSide() {
+    const home = sideOpen ? layout.ownerDocument.querySelector<HTMLElement>("[data-side-home]") : null;
+    if (home) {
+      if (side.parentElement !== home) home.append(side);
+    } else if (side.parentElement !== layout) layout.prepend(side);
+  }
+  /** In its own panel: never floating over the conversation. */
+  const sideDocked = () => !!side.parentElement?.hasAttribute("data-side-home");
+  // The ✕ of its tab (island/dock.ts).
+  side.addEventListener("dock-close", () => showSide(false));
+  // In a panel of the chat's window: taken home before that window goes (popout.ts rescue).
+  side.dataset.followsView = "";
+
   function applySide(quiet = false) {
+    placeSide();
     const open = narrow ? overlay : sideOpen;
     layout.classList.toggle("side-open", open);
     layout.classList.toggle("narrow", narrow);
@@ -2564,7 +2638,7 @@ export function buildPrompt(
     narrowTimer = window.setTimeout(() => {
       const w = layout.clientWidth;
       if (!w) return;
-      const now = sideOpen && w < sideWidth + 340;
+      const now = sideOpen && !sideDocked() && w < sideWidth + 340;
       if (now === narrow) return;
       narrow = now;
       overlay = false;
@@ -2588,11 +2662,16 @@ export function buildPrompt(
   async function loadHistory(query: string): Promise<ChatSummary[]> {
     const q = query.trim();
     const found = q ? await Bridge.chatHistorySearch(q) : await Bridge.chatHistoryList();
+    // Titles a typo or another word order would have missed, after the ones with the words as typed (fuzzy.ts).
+    if (found && q) {
+      const all = await Bridge.chatHistoryList();
+      return all ? withFuzzy(found, all, (c) => c.title, q, (c) => c.id, 200) : found;
+    }
     if (found) return found;
     // The preview: the demo list, filtered by title.
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return historyDemo
-      .filter((c) => words.every((w) => c.title.toLowerCase().includes(w)))
+    const exact = historyDemo.filter((c) => words.every((w) => c.title.toLowerCase().includes(w)));
+    return (q ? withFuzzy(exact, historyDemo, (c) => c.title, q, (c) => c.id) : exact)
       .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
   }
 
@@ -2763,7 +2842,8 @@ export function buildPrompt(
     list.filter((c) => !c.pinned && !c.folder).forEach(dated);
     // Sessions of Claude Code started elsewhere: a click takes one in and resumes it here.
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const others = outside.filter((s) => words.every((w) => s.title.toLowerCase().includes(w) || s.folder.toLowerCase().includes(w)));
+    const exactOthers = outside.filter((s) => words.every((w) => s.title.toLowerCase().includes(w) || s.folder.toLowerCase().includes(w)));
+    const others = words.length ? withFuzzy(exactOthers, outside, (s) => `${s.title} ${s.folder}`, query, (s) => s.id) : exactOthers;
     if (others.length) historyRows.append(h("div", { class: "side-group", text: t("Claude Code fuori da EasyIsland") }));
     for (const s of others) {
       historyRows.append(h("div", { class: "history-item", title: `${when(s.updated)} · ${s.folder}`, onclick: () => void takeSession(s.id) },
@@ -3021,76 +3101,238 @@ export function buildPrompt(
    * waits hidden in the view; it follows the chat into its own window.
    */
   function placeTerminal() {
-    const open = terms.has(State.chat.sid);
+    const set = terms.get(State.chat.sid);
+    const open = !!set?.list.length;
     termRow.style.display = open ? "" : "none";
     termBtn.classList.toggle("on", open);
+    // The chat's panels (island/dock.ts): the terminal's own panel.
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-term-home]");
     const pane = layout.ownerDocument.getElementById("preview-pane");
-    const home = open && pane ? pane : layout;
+    const home = open ? dockHome ?? pane ?? layout : layout;
     if (termRow.parentElement !== home) home.append(termRow);
-    // The conversation's own terminal (another conversation, another window: chat-terminal.ts mount).
-    const term = terms.get(State.chat.sid);
+    drawTermTabs();
+    // The conversation's terminal in front (another conversation, another window: chat-terminal.ts mount).
+    const term = activeTerm();
     if (term) term.mount(termBox);
     else termBox.replaceChildren();
     if (State.chatTermOpen !== open) {
       State.chatTermOpen = open;
+      // The panels (island/dock.ts) follow the state: the chat's window redraws only on a notify.
+      State.notify();
       onHeightChange();
     }
+  }
+  /** The tabs of the conversation's terminals: name (numbered when two share it), ✕ on each. */
+  function drawTermTabs() {
+    const set = terms.get(State.chat.sid);
+    const list = set?.list ?? [];
+    termTabs.replaceChildren(...list.map((term, i) => {
+      const same = list.filter((x) => x.name === term.name);
+      const label = same.length > 1 ? `${term.name} ${same.indexOf(term) + 1}` : term.name;
+      const x = h("span", { class: "chat-term-tab-x", title: t("Chiudi questo terminale"), text: "✕" });
+      const tab = h("button", { class: `chat-term-tab${i === set?.on ? " on" : ""}${term.closed ? " ended" : ""}`, title: label }, h("span", { class: "chat-term-tab-name", text: label }), x) as HTMLButtonElement;
+      tab.addEventListener("click", (e) => {
+        if (x.contains(e.target as Node)) {
+          closeTerminal(term);
+          return;
+        }
+        if (!set || set.on === i) return;
+        set.on = i;
+        placeTerminal();
+        term.focus();
+      });
+      return tab;
+    }));
   }
   function drawTerminal() {
     placeTerminal();
     onHeightChange();
   }
-  async function openTerminal() {
+  async function loadShells(): Promise<[string, string][]> {
+    if (shells.length) return shells;
+    const got = await Bridge.terminalShells().catch(() => null);
+    shells = got?.length ? got : [["powershell", "PowerShell"], ["cmd", t("Prompt dei comandi")]];
+    return shells;
+  }
+  /** A new terminal of the shell `shell` in the conversation, in front of the others (at `at` when given). */
+  async function openTerminal(shell = "powershell", at?: number) {
     const c = State.chat;
+    const list = await loadShells();
     const term: ChatTerm = new ChatTerm(
       (data) => { if (term.id) void Bridge.terminalWrite(term.id, data).catch(() => undefined); },
       (cols, rows) => { if (term.id) void Bridge.terminalResize(term.id, cols, rows); },
+      // A web link printed in it: opened in the browser (never a file or a command).
+      (url) => { if (/^https?:\/\//i.test(url)) void Bridge.openUrl(url).catch(() => undefined); },
+      () => showTermFind(true),
     );
-    terms.set(c.sid, term);
+    term.shell = shell;
+    term.name = list.find(([id]) => id === shell)?.[1] ?? "PowerShell";
+    const set = terms.get(c.sid) ?? { list: [], on: 0 };
+    if (at !== undefined && at <= set.list.length) set.list.splice(at, 0, term);
+    else set.list.push(term);
+    set.on = set.list.indexOf(term);
+    terms.set(c.sid, set);
     drawTerminal();
     // Its size once the panel has made room for it.
     await new Promise((r) => window.setTimeout(r, 150));
     term.refit();
     const { cols, rows } = term.size();
     try {
-      term.id = await Bridge.terminalOpen(c.folder ?? (State.settings.chatFolder || null), cols, rows);
+      term.id = await Bridge.terminalOpen(c.folder ?? (State.settings.chatFolder || null), shell, cols, rows);
       const first = early.get(term.id);
       early.delete(term.id);
       if (first) term.output(first);
       term.refit();
-      if (terms.get(State.chat.sid) === term) term.focus();
+      if (activeTerm() === term) term.focus();
     } catch (e) {
-      terms.delete(c.sid);
-      term.unmount();
+      drop(c.sid, term);
       drawTerminal();
       flash(String(e).replace(/^Error:\s*/, ""));
     }
   }
-  function closeTerminal() {
-    const term = terms.get(State.chat.sid);
-    if (term?.id) void Bridge.terminalClose(term.id);
-    term?.unmount();
+  /** `term` out of its conversation's list (the one in front moves to its neighbour). */
+  function drop(sid: string, term: ChatTerm) {
+    const set = terms.get(sid);
+    if (!set) return;
+    const i = set.list.indexOf(term);
+    if (i < 0) return;
+    set.list.splice(i, 1);
+    if (set.on > i || set.on >= set.list.length) set.on = Math.max(0, set.on - 1);
+    if (!set.list.length) terms.delete(sid);
+    term.unmount();
+  }
+  /** One terminal closed (its tab's ✕); the panel goes with the last. */
+  function closeTerminal(term = activeTerm()) {
+    if (!term) return;
+    if (term.id) void Bridge.terminalClose(term.id);
+    drop(State.chat.sid, term);
+    drawTerminal();
+    if (!terms.has(State.chat.sid)) input.focus();
+    else activeTerm()?.focus();
+  }
+  /** All the conversation's terminals closed (the panel's ✕, the head's ✕, the chat's button). */
+  function closeAllTerminals() {
+    for (const term of [...(terms.get(State.chat.sid)?.list ?? [])]) {
+      if (term.id) void Bridge.terminalClose(term.id);
+      term.unmount();
+    }
     terms.delete(State.chat.sid);
+    showTermFind(false);
     drawTerminal();
     input.focus();
   }
+  /** The one in front closed and opened again: the same shell in the same place. */
   async function restartTerminal() {
-    closeTerminal();
-    await openTerminal();
+    const term = activeTerm();
+    if (!term) return;
+    const at = terms.get(State.chat.sid)?.on ?? 0;
+    if (term.id) void Bridge.terminalClose(term.id);
+    drop(State.chat.sid, term);
+    await openTerminal(term.shell, at);
   }
+  function showTermFind(on: boolean) {
+    termFind.style.display = on ? "" : "none";
+    termFindBtn.classList.toggle("on", on);
+    if (on) {
+      termFind.focus();
+      termFind.select();
+      return;
+    }
+    termFind.classList.remove("miss");
+    activeTerm()?.clearFind();
+    activeTerm()?.focus();
+  }
+  termFindBtn.addEventListener("click", () => showTermFind(termFind.style.display === "none"));
+  termFind.addEventListener("keydown", (e) => {
+    // Its keys are its own (Esc closes the field, not the island).
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      showTermFind(false);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const found = activeTerm()?.find(termFind.value, e.shiftKey) ?? false;
+      termFind.classList.toggle("miss", !found && !!termFind.value);
+    }
+  });
+  termFind.addEventListener("input", () => {
+    const found = activeTerm()?.find(termFind.value) ?? false;
+    termFind.classList.toggle("miss", !found && !!termFind.value);
+  });
+  // «+»: which shell, in a menu drawn in the panel (a native one would open behind the Anteprima's page).
+  termAdd.addEventListener("click", async () => {
+    if (termMenu.style.display !== "none") {
+      termMenu.style.display = "none";
+      return;
+    }
+    const list = await loadShells();
+    termMenu.replaceChildren(...list.map(([id, name]) => {
+      const b = h("button", { class: "chat-term-menu-item", text: name }) as HTMLButtonElement;
+      b.addEventListener("click", () => {
+        termMenu.style.display = "none";
+        void openTerminal(id);
+      });
+      return b;
+    }));
+    termMenu.style.display = "";
+  });
+  termRow.addEventListener("pointerdown", (e) => {
+    const at = e.target as Node;
+    if (termMenu.style.display !== "none" && !termMenu.contains(at) && !termAdd.contains(at)) termMenu.style.display = "none";
+  });
+  // The ✕ of its tab in the chat's panels (island/dock.ts).
+  termRow.addEventListener("dock-close", () => {
+    if (terms.has(State.chat.sid)) closeAllTerminals();
+  });
   termBtn.addEventListener("click", () => {
-    if (terms.has(State.chat.sid)) closeTerminal();
+    if (terms.has(State.chat.sid)) closeAllTerminals();
     else void openTerminal();
   });
+  // «▶ Nel terminale» under a block of code: a terminal of its shell, the code written in, Enter left to the user.
+  codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
+  codeHooks.save = (code, lang) => {
+    void Bridge.saveCodeAs(codeFileName(lang), code)
+      .then((path) => { if (path) flash(t("Salvato in {path}", { path })); })
+      .catch((e) => flash(String(e).replace(/^Error:\s*/, "")));
+  };
+  // WSL only when Windows has it: then bash code goes there too.
+  void loadShells().then((list) => { codeHooks.wsl = list.some(([id]) => id === "wsl"); });
+  async function codeToTerminal(code: string, lang: string) {
+    const shell = codeShell(lang) ?? "powershell";
+    const sid = State.chat.sid;
+    const set = terms.get(sid);
+    const i = set ? set.list.findIndex((x) => x.shell === shell && !x.closed && x.id) : -1;
+    if (set && i >= 0) {
+      set.on = i;
+      placeTerminal();
+    } else {
+      await openTerminal(shell);
+      // Its prompt first: what is written before it would be shown before it.
+      await new Promise((r) => window.setTimeout(r, 600));
+    }
+    const term = activeTerm(sid);
+    if (!term?.id) return;
+    term.focus();
+    if (term.insert(code)) {
+      flash(t("Scritto nel terminale: premi Invio per eseguirlo."));
+      return;
+    }
+    // More lines and a shell that would run each at once: the user pastes them, knowing it.
+    await navigator.clipboard.writeText(code).catch(() => undefined);
+    flash(t("{n} righe copiate: nel terminale Ctrl+V le incolla e le esegue una dopo l'altra.", { n: code.split("\n").length }));
+  }
   void onEvent<{ id: number; data: string; closed?: boolean }>("terminal-out", (p) => {
-    const term = [...terms.values()].find((x) => x.id === p.id);
+    const term = [...terms.values()].flatMap((s) => s.list).find((x) => x.id === p.id);
     if (!term) {
       // Before terminal_open answered: kept for it (a little, never forever).
       if (early.size < 8) early.set(p.id, (early.get(p.id) ?? "") + p.data);
       return;
     }
     term.output(p.data);
-    if (p.closed) term.closed = true;
+    if (p.closed && !term.closed) {
+      term.closed = true;
+      drawTermTabs();
+    }
   });
   // A piece of work Claude proposed and the user allowed (agent.rs chat_start): a conversation of its own, beside this one.
   void onEvent<{ title: string; prompt: string; folder?: string | null }>("chat-new", (p) => {

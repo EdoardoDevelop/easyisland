@@ -76,14 +76,6 @@ export class ConceptView implements View {
       if (!set.has(e.from) || !set.has(e.to) || (e.strength ?? 3) < 3) continue; // only what is written
       add(e, false);
     }
-    // A page with no written relation would float alone (14 Nov 2026): it hangs
-    // from the pages it names or that name it (brain.rs pages_named_in, strength 2), dashed.
-    const written = new Set(arrows.flatMap(([a, b]) => [a, b]));
-    for (const e of m.g.edges) {
-      if (!set.has(e.from) || !set.has(e.to) || e.strength !== 2) continue;
-      if (written.has(e.from) && written.has(e.to)) continue;
-      add(e, true);
-    }
     // Layers: longest path from the pages nobody points to (cycles cut).
     const layer = new Map<string, number>();
     const visiting = new Set<string>();

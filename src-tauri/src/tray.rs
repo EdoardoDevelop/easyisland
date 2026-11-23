@@ -75,8 +75,13 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             "quit" => app.exit(0),
             "settings" => crate::show_settings_window(app),
             BAR_SETTINGS => {
-                crate::show_settings_window(app);
-                let _ = app.emit_to(crate::SETTINGS_LABEL, "settings-goto", serde_json::json!({ "page": "aspetto", "item": "barra" }));
+                // Its own window, the bar in its customize mode (lib.rs show_bar_editor).
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = crate::show_bar_editor(&handle) {
+                        crate::log::line(format!("personalizza la barra: {e}"));
+                    }
+                });
             }
             "presence" => {
                 let on = !crate::presence::MANUAL.load(std::sync::atomic::Ordering::Relaxed);
@@ -84,6 +89,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 crate::presence::recheck(app);
                 refresh(app);
             }
+            id if id.starts_with(crate::barapps::MENU_PREFIX) => crate::barapps::menu_pick(app, &id[crate::barapps::MENU_PREFIX.len()..]),
             id if id.starts_with(PROFILE_PREFIX) => {
                 crate::activate_profile(app, &id[PROFILE_PREFIX.len()..], "menu");
             }

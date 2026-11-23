@@ -7,6 +7,9 @@
 
 import { Terminal, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 
 /** What it printed, kept to draw it again in another page (characters). */
@@ -24,11 +27,15 @@ function theme(doc: Document): ITheme {
 export class ChatTerm {
   /** terminal.rs' id, 0 while it starts. */
   id = 0;
+  /** Which shell (terminal.rs shells) and its name on the tab. */
+  shell = "powershell";
+  name = "PowerShell";
   /** The shell ended: what it printed stays, keys go nowhere. */
   closed = false;
   private host: HTMLDivElement | null = null;
   private term: Terminal | null = null;
   private fitter: FitAddon | null = null;
+  private finder: SearchAddon | null = null;
   private watch: ResizeObserver | null = null;
   private raw = "";
   private told = { cols: 0, rows: 0 };
@@ -36,6 +43,10 @@ export class ChatTerm {
   constructor(
     private readonly send: (data: string) => void,
     private readonly resized: (cols: number, rows: number) => void,
+    /** A link clicked in its output (opened by the chat, never by the page). */
+    private readonly openLink: (url: string) => void = () => {},
+    /** Ctrl+F in it: the chat shows its search field. */
+    private readonly askFind: () => void = () => {},
   ) {}
 
   /** Shown in `box`; made again when `box` is in another page than before. */
@@ -56,11 +67,22 @@ export class ChatTerm {
       lineHeight: 1.15,
       cursorBlink: true,
       scrollback: 5000,
-      allowProposedApi: false,
+      // The Unicode 11 widths (emoji, CJK) are a «proposed» API of xterm.js.
+      allowProposedApi: true,
       theme: theme(doc),
     });
     const fitter = new FitAddon();
     term.loadAddon(fitter);
+    // Links in what it prints: a click opens them (Ctrl not needed, as in Windows Terminal with the mouse).
+    term.loadAddon(new WebLinksAddon((e, uri) => {
+      e.preventDefault();
+      this.openLink(uri);
+    }));
+    const finder = new SearchAddon();
+    term.loadAddon(finder);
+    const wide = new Unicode11Addon();
+    term.loadAddon(wide);
+    term.unicode.activeVersion = "11";
     term.open(host);
     term.onData((d) => {
       if (!this.closed) this.send(d);
@@ -69,6 +91,11 @@ export class ChatTerm {
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown" || !e.ctrlKey || e.altKey) return true;
       const k = e.key.toLowerCase();
+      if (k === "f" && !e.shiftKey) {
+        e.preventDefault();
+        this.askFind();
+        return false;
+      }
       if (k === "c" && term.hasSelection()) {
         void navigator.clipboard.writeText(term.getSelection()).catch(() => undefined);
         term.clearSelection();
@@ -90,7 +117,40 @@ export class ChatTerm {
     this.host = host;
     this.term = term;
     this.fitter = fitter;
+    this.finder = finder;
     this.refit();
+  }
+
+  /**
+   * `text` written where the shell reads, never run: one line goes in as typed
+   * (Enter is the user's); more lines only when the shell holds a paste until
+   * Enter (bracketed paste). False when it cannot be done that way.
+   */
+  insert(text: string): boolean {
+    const clean = text.replace(/\r\n/g, "\n").replace(/\n+$/, "");
+    if (!this.term || this.closed || !clean) return false;
+    if (!clean.includes("\n")) {
+      this.send(clean);
+      return true;
+    }
+    if (this.term.modes.bracketedPasteMode) {
+      this.term.paste(clean);
+      return true;
+    }
+    return false;
+  }
+
+  /** Looks for `text` in what it printed, forward or back; false when it is not there. */
+  find(text: string, back = false): boolean {
+    if (!this.finder || !text) return false;
+    const opts = { caseSensitive: false, decorations: { matchOverviewRuler: "#888", activeMatchColorOverviewRuler: "#4cc2ff", matchBackground: "#5a5a2a", activeMatchBackground: "#1f6feb" } };
+    return back ? this.finder.findPrevious(text, opts) : this.finder.findNext(text, opts);
+  }
+
+  /** The search's marks off. */
+  clearFind(): void {
+    this.finder?.clearDecorations();
+    this.term?.clearSelection();
   }
 
   /** Its size in characters now (80×24 before it has room). */
@@ -139,6 +199,7 @@ export class ChatTerm {
     }
     this.term = null;
     this.fitter = null;
+    this.finder = null;
     this.host?.remove();
     this.host = null;
   }

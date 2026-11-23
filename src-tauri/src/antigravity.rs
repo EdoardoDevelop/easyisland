@@ -336,6 +336,10 @@ async fn run(
     // (permits::agy_auto); «Accetta modifiche»: the file edits.
     if mode == Some("auto") {
         cmd.env("EASYISLAND_AGY_AUTO", "1");
+        // A helper that only looks (the multi agent's check): «Automatica» lets only reads through.
+        if chat.read_only() {
+            cmd.env("EASYISLAND_AGY_READ_ONLY", "1");
+        }
     }
     if mode == Some("accept-edits") {
         cmd.env("EASYISLAND_AGY_EDITS", "1");

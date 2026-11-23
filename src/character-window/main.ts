@@ -9,8 +9,11 @@ import { BotEngine, hexToRGB } from "../character/engine";
 import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { addFaces } from "../core/fonts";
 import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
+import { appsMenu, appsPress, appsStart, fillApps, setPins } from "./apps";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -124,6 +127,16 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   size = m.size;
   paused = m.paused;
   bar = m.mode === "bar" ? m.bar : null;
+  // «App» in the bar: its pins, and the windows followed from the first time it shows.
+  if (bar) {
+    setPins(bar.apps);
+    if (bar.items.some((p) => p.key.startsWith("sys:apps"))) {
+      appsStart(() => {
+        laidItems = "";
+        if (bar) layAreas(bar);
+      }, send);
+    }
+  }
   layBar();
   // As the island's rest icon (dimmed when paused); the compact character at full
   // strength. Beside the open island it has no badge under it: the rest icon's shadow.
@@ -217,6 +230,11 @@ function layBar() {
   if (!bar) {
     float.style.cssText = "";
     setGrown(false);
+    // No longer the bar: the window's cut and its reach given back.
+    if (laidShape) {
+      laidShape = "";
+      void invoke("bar_grow", { px: 0, shape: null }).catch(() => {});
+    }
     document.body.classList.remove("islands", "see-through", "bottom", "bar-pills", "bar-compact");
     return;
   }
@@ -248,24 +266,57 @@ function layBar() {
   document.body.style.setProperty("--g", `${g}px`);
   document.body.style.setProperty("--k", String(1 + g / t));
   band.style.display = look.islands ? "none" : "";
-  band.style.height = `${t + g}px`;
+  band.style.height = `${t + g + 8}px`;
   if (!look.grow) setGrown(false);
+  measureBand();
   paintBand();
-  // With the blur, the window cut to the band (margins, rounded ends) at rest too.
-  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur]);
+  // With the blur, the window cut to the band (margins, rounded ends) at rest
+  // too; at the bottom edge, with the character that grows, always tall (reach).
+  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur, reach(), midShift]);
   if (shapeKey !== laidShape && !grown) {
     laidShape = shapeKey;
-    void invoke("bar_grow", { px: 0, shape: bandShape(0) }).catch(() => {});
+    void invoke("bar_grow", { px: reach(), shape: restShape() }).catch(() => {});
   }
   // Text and icons follow the bar's height (Impostazioni → Barra fissa → Altezza); the text also its own size.
   document.body.style.setProperty("--s", String(Math.min(1.6, Math.max(0.8, t / 40))));
   document.body.style.setProperty("--ts", String(look.text));
   document.body.style.setProperty("--gap", `${look.gap}px`);
-  const left = bar.slot === "start" ? `${m + 8}px` : bar.slot === "end" ? `calc(100% - ${t + 8 + m}px)` : `calc(50% - ${t / 2}px)`;
+  const left = bar.slot === "start" ? `${m + 8}px` : bar.slot === "end" ? `calc(100% - ${t + 8 + m}px)` : `calc(50% + ${midShift - t / 2}px)`;
   float.style.cssText = `inset: auto; ${bar.edge === "bottom" ? "bottom" : "top"}: 0; left: ${left}; width: ${t}px; height: ${t}px;`;
   document.body.style.setProperty("--ink", bar.ink);
   autoHide(look.autoHide);
   layAreas(bar);
+}
+
+/**
+ * The character in the middle: how far it sits left of the screen's centre so
+ * that it and the middle area's elements, together, are centred (Edoardo,
+ * 22 Nov 2026: «l'area centrale deve essere centrale con il suo contenuto»).
+ * Measured whenever that area changes size (the apps opening, closing…).
+ */
+let midShift = 0;
+function measureMid(): boolean {
+  const c = document.getElementById("a-center");
+  let s = 0;
+  if (bar && bar.slot === "center" && c) {
+    const t = bar.thickness;
+    if (lookOf(bar).islands) {
+      // One island: the character inside its padding, the elements after it.
+      s = t / 2 + 6 - c.offsetWidth / 2;
+    } else if (c.childElementCount) {
+      s = -(6 + c.offsetWidth) / 2;
+    }
+  }
+  s = Math.round(s);
+  if (s === midShift) return false;
+  midShift = s;
+  return true;
+}
+{
+  const c = document.getElementById("a-center");
+  if (c) new ResizeObserver(() => {
+    if (measureMid() && bar) layBar();
+  }).observe(c);
 }
 
 /**
@@ -281,16 +332,18 @@ function bandPath(p: number): string {
   const m = look.margin;
   const W = window.innerWidth;
   const r = m > 0 ? Math.min(t / 2, 12) : 0;
-  const cx = bar.slot === "start" ? m + 8 + t / 2 : bar.slot === "end" ? W - m - 8 - t / 2 : W / 2;
+  const cx = bar.slot === "start" ? m + 8 + t / 2 : bar.slot === "end" ? W - m - 8 - t / 2 : W / 2 + midShift;
   const bw = t * 0.78;
   const s = t * 0.5;
-  const y = t + Math.round(t * GROW) * p;
+  // The inner edge: the band's height, plus what Windows reserved past it (bandExtra).
+  const e = t + bandExtra;
+  const y = e + Math.round(t * GROW) * p;
   const f = (n: number) => Math.round(n * 10) / 10;
   return [
-    `M ${f(m)} 0 H ${f(W - m)} V ${f(t - r)} Q ${f(W - m)} ${f(t)} ${f(W - m - r)} ${f(t)}`,
-    `H ${f(cx + bw + s)} C ${f(cx + bw)} ${f(t)} ${f(cx + bw)} ${f(y)} ${f(cx + bw * 0.35)} ${f(y)}`,
-    `H ${f(cx - bw * 0.35)} C ${f(cx - bw)} ${f(y)} ${f(cx - bw)} ${f(t)} ${f(cx - bw - s)} ${f(t)}`,
-    `H ${f(m + r)} Q ${f(m)} ${f(t)} ${f(m)} ${f(t - r)} Z`,
+    `M ${f(m)} 0 H ${f(W - m)} V ${f(e - r)} Q ${f(W - m)} ${f(e)} ${f(W - m - r)} ${f(e)}`,
+    `H ${f(cx + bw + s)} C ${f(cx + bw)} ${f(e)} ${f(cx + bw)} ${f(y)} ${f(cx + bw * 0.35)} ${f(y)}`,
+    `H ${f(cx - bw * 0.35)} C ${f(cx - bw)} ${f(y)} ${f(cx - bw)} ${f(e)} ${f(cx - bw - s)} ${f(e)}`,
+    `H ${f(m + r)} Q ${f(m)} ${f(e)} ${f(m)} ${f(e - r)} Z`,
   ].join(" ");
 }
 
@@ -327,7 +380,7 @@ function paintBandLayers(b: BarLook, margin: number, op: number) {
     const fxGrad = document.getElementById("bandFxGrad");
     const t = b.thickness;
     const W = window.innerWidth;
-    const cx = b.slot === "start" ? margin + 8 + t / 2 : b.slot === "end" ? W - margin - 8 - t / 2 : W / 2;
+    const cx = b.slot === "start" ? margin + 8 + t / 2 : b.slot === "end" ? W - margin - 8 - t / 2 : W / 2 + midShift;
     const r = Math.max(140, t * 4.5);
     fxGrad?.setAttribute("gradientUnits", "userSpaceOnUse");
     fxGrad?.setAttribute("cx", String(cx));
@@ -380,6 +433,21 @@ function paintBandLayers(b: BarLook, margin: number, op: number) {
   }
 }
 
+/**
+ * What the band's window has past the band's height (logical px): Windows
+ * reserves whole pixels and the screen's scale rounds, so the band at rest
+ * could be a pixel or two shorter than its place, and the desktop showed
+ * through that line (Edoardo, 22 Nov 2026). Measured on the window at rest.
+ */
+let bandExtra = 0;
+function measureBand() {
+  if (!bar || grown || mode !== "bar") return;
+  const want = Math.max(0, Math.min(8, window.innerHeight - reach() - bar.thickness));
+  if (Math.abs(want - bandExtra) < 0.05) return;
+  bandExtra = want;
+  paintBand();
+}
+
 /** The band drawn as it is now: swollen or not. */
 function paintBand() {
   const d = `path("${bandPath(grown ? 1 : 0)}")`;
@@ -390,7 +458,7 @@ function paintBand() {
  * With the blur on, the window's outline for Rust to cut it to (logical px in
  * the window, `swell` deep): the blur fills the whole window otherwise.
  */
-function bandShape(p: number): number[][] | null {
+function bandShape(p: number, tall = 0): number[][] | null {
   if (!bar) return null;
   const look = lookOf(bar);
   if (!look.blur) return null;
@@ -398,7 +466,8 @@ function bandShape(p: number): number[][] | null {
   el.setAttribute("d", bandPath(p));
   const len = el.getTotalLength();
   const g = Math.round(bar.thickness * GROW) * p;
-  const H = bar.thickness + g;
+  // The window's height: the band (and its swelling), or always the tall one (reach).
+  const H = bar.thickness + bandExtra + Math.max(g, tall);
   const out: number[][] = [];
   const n = 160;
   for (let i = 0; i < n; i++) {
@@ -406,6 +475,30 @@ function bandShape(p: number): number[][] | null {
     out.push([pt.x, bar.edge === "bottom" ? H - pt.y : pt.y]);
   }
   return out;
+}
+
+/**
+ * At the bottom edge, with the character that grows: how far the window always
+ * reaches past the band (logical px), 0 otherwise. Growing upwards at the
+ * hover moved the window's top edge, and WebView2 showed the old picture a
+ * frame higher: the whole bar jumped (Edoardo, 22 Nov 2026, a video). Tall
+ * from the start, the hover only changes the window's cut (SetWindowRgn),
+ * which neither moves nor resizes it; outside the cut the mouse goes through.
+ */
+function reach(): number {
+  if (!bar || mode !== "bar" || bar.edge !== "bottom") return 0;
+  const look = lookOf(bar);
+  return look.grow && !look.autoHide ? Math.round(bar.thickness * GROW) : 0;
+}
+
+/** The window's cut at rest: the band (its outline with the blur); null = the whole window. */
+function restShape(): number[][] | null {
+  const r = reach();
+  if (!r || !bar) return bandShape(0);
+  const W = window.innerWidth;
+  const t = bar.thickness;
+  // Down past the window's bottom: the window itself ends the cut there.
+  return bandShape(0, r) ?? [[0, r], [W, r], [W, r + t + 100], [0, r + t + 100]];
 }
 
 /**
@@ -423,8 +516,9 @@ function setGrown(on: boolean) {
   if (shrinkTimer !== null) window.clearTimeout(shrinkTimer);
   shrinkTimer = null;
   const g = bar ? Math.round(bar.thickness * GROW) : 0;
+  const r = reach();
   if (on) {
-    void invoke("bar_grow", { px: g, shape: bandShape(1) }).catch(() => {});
+    void invoke("bar_grow", { px: r || g, shape: bandShape(1, r) }).catch(() => {});
     requestAnimationFrame(() => {
       document.body.classList.add("grown");
       paintBand();
@@ -434,7 +528,7 @@ function setGrown(on: boolean) {
     paintBand();
     shrinkTimer = window.setTimeout(() => {
       shrinkTimer = null;
-      void invoke("bar_grow", { px: 0, shape: bandShape(0) }).catch(() => {});
+      void invoke("bar_grow", { px: r, shape: restShape() }).catch(() => {});
     }, SHRINK_MS);
   }
 }
@@ -486,7 +580,7 @@ function layAreas(b: BarLook) {
     if (areas.end) areas.end.style.cssText = b.slot === "end" ? `right: ${m + 2}px; padding-right: ${pad}px;` : `right: ${m + 8}px;`;
     if (areas.center) {
       areas.center.style.cssText = b.slot === "center"
-        ? `left: calc(50% - ${b.thickness / 2 + 6}px); padding-left: ${pad}px;`
+        ? `left: calc(50% + ${midShift - b.thickness / 2 - 6}px); padding-left: ${pad}px;`
         : "left: 50%; transform: translateX(-50%);";
     }
   } else {
@@ -494,12 +588,15 @@ function layAreas(b: BarLook) {
     if (areas.end) areas.end.style.cssText = `right: ${b.slot === "end" ? beside : m + 8}px;`;
     if (areas.center) {
       areas.center.style.cssText = b.slot === "center"
-        ? `left: calc(50% + ${b.thickness / 2 + 6}px);`
+        ? `left: calc(50% + ${midShift + b.thickness / 2 + 6}px);`
         : "left: 50%; transform: translateX(-50%);";
     }
   }
   const key = JSON.stringify([b.items, b.look]);
-  if (key === laidItems) return;
+  if (key === laidItems) {
+    markOptions();
+    return;
+  }
   laidItems = key;
   shown = b.items;
   for (const el of Object.values(areas)) el?.replaceChildren();
@@ -509,17 +606,126 @@ function layAreas(b: BarLook) {
     btn.setAttribute("role", "button");
     btn.className = `bar-btn${p.tone === "warn" || p.tone === "error" ? ` ${p.tone}` : ""}`;
     btn.dataset.key = p.key;
-    btn.title = p.title;
+    // No tooltip on «App»: its icons are the element (Edoardo, 22 Nov 2026: «i tip danno fastidio»).
+    if (!p.html.includes("bar-apps")) btn.title = p.title;
     // Built by the island with the DOM (src/island/bar.ts): icons and escaped text only.
     btn.innerHTML = p.html;
     // Set fill widths via CSSOM so strict style-src CSP hashes cannot strip inline style="width:...".
     btn.querySelectorAll<HTMLElement>(".bar-meter-fill[data-pct]").forEach((m) => {
       m.style.width = `${m.dataset.pct}%`;
     });
+    btn.querySelectorAll<HTMLElement>(".bar-apps").forEach(fillApps);
+    if (editing) {
+      const x = document.createElement("span");
+      x.className = "bar-x";
+      x.textContent = "×";
+      x.title = editWords.remove;
+      btn.append(x);
+    }
     areas[p.area]?.append(btn);
   }
+  if (editing) {
+    const done = document.createElement("div");
+    done.className = "bar-btn bar-done";
+    done.setAttribute("role", "button");
+    done.textContent = `✓ ${editWords.done}`;
+    done.title = editWords.hint;
+    (areas.end ?? areas.center)?.append(done);
+  }
   fitAreas();
+  markOptions();
 }
+
+// ── «Personalizza la barra» (Edoardo, 21 Nov 2026) ─────────────────────────
+// On while its window is shown (lib.rs show_bar_editor, bar_edit_relay): the
+// elements are dragged to move them, × takes one away, the right button opens
+// an element's options in the window, «Fine» ends. What changes is decided and
+// saved by the window's page (src/bar-edit/main.ts): the bar only says where.
+
+let editing = false;
+/** The words, from the settings page (this window has no translations of its own). */
+let editWords = { remove: "Togli", done: "Fine", hint: "", pin: "+" };
+/** The element whose options are open in the window: outlined. */
+let optionsKey = "";
+/** An element being dragged on the bar: its key, where it started. */
+let carrying: { key: string; x: number; moved: boolean; el: HTMLElement } | null = null;
+
+const dropMark = document.createElement("div");
+dropMark.id = "bar-drop";
+const dropLabel = document.createElement("div");
+dropLabel.id = "bar-drop-label";
+document.body.append(dropMark, dropLabel);
+
+function relay(payload: Record<string, unknown>) {
+  void invoke("bar_edit_relay", { to: "editor", payload }).catch(() => {});
+}
+
+function setEditing(on: boolean) {
+  if (on === editing) return;
+  editing = on;
+  document.body.classList.toggle("editing", on);
+  hideDrop();
+  laidItems = "";
+  layBar();
+}
+
+/**
+ * Where an element dropped at `x` (this window's px) goes: the area and the
+ * element it goes before (null: at the end of that area). Near an element: its
+ * side of it; far from all: the third of the bar it is in.
+ */
+function dropAt(x: number, skip = ""): { area: "start" | "center" | "end"; before: string | null; at: number } {
+  const btns = [...document.querySelectorAll<HTMLElement>(".area .bar-btn:not(.bar-more):not(.bar-done)")]
+    .filter((b) => b.dataset.key && b.dataset.key !== skip)
+    .map((el) => ({ el, r: el.getBoundingClientRect(), area: (el.parentElement?.id ?? "a-center").slice(2) as "start" | "center" | "end" }));
+  const W = window.innerWidth;
+  const third: "start" | "center" | "end" = x < W / 3 ? "start" : x > (W * 2) / 3 ? "end" : "center";
+  let best = btns[0];
+  let dist = Infinity;
+  for (const b of btns) {
+    const d = Math.abs(b.r.left + b.r.width / 2 - x);
+    if (d < dist) {
+      dist = d;
+      best = b;
+    }
+  }
+  if (!best || (dist > 90 && !btns.some((b) => b.area === third) )) {
+    // An empty part of the bar: the end of that area.
+    return { area: third, before: null, at: third === "start" ? 12 : third === "end" ? W - 12 : W / 2 };
+  }
+  const same = btns.filter((b) => b.area === best.area);
+  if (x < best.r.left + best.r.width / 2) return { area: best.area, before: best.el.dataset.key ?? null, at: best.r.left - 2 };
+  const next = same[same.indexOf(best) + 1];
+  return { area: best.area, before: next?.el.dataset.key ?? null, at: best.r.right + 2 };
+}
+
+function showDrop(at: number, label = "") {
+  dropMark.style.left = `${Math.round(at - 1)}px`;
+  dropMark.classList.add("on");
+  dropLabel.textContent = label;
+  dropLabel.classList.toggle("on", !!label);
+  dropLabel.style.left = `${Math.round(Math.min(window.innerWidth - 160, Math.max(4, at + 6)))}px`;
+}
+
+function hideDrop() {
+  dropMark.classList.remove("on");
+  dropLabel.classList.remove("on");
+}
+
+/** The outline of the element whose options are open (and of one just added). */
+function markOptions() {
+  for (const el of document.querySelectorAll<HTMLElement>(".bar-btn.optioned")) el.classList.remove("optioned");
+  if (!editing || !optionsKey) return;
+  document.querySelector<HTMLElement>(`.bar-btn[data-key="${CSS.escape(optionsKey)}"]`)?.classList.add("optioned");
+}
+
+void listen<{ on?: boolean; words?: typeof editWords; options?: string }>("bar-edit", (e) => {
+  const p = e.payload ?? {};
+  if (p.words) editWords = { ...editWords, ...p.words };
+  if (typeof p.options === "string") optionsKey = p.options;
+  if (typeof p.on === "boolean") setEditing(p.on && !!bar);
+  markOptions();
+});
 
 let laidItems = "";
 /** The elements as last laid out, for the «…» menu's labels. */
@@ -561,13 +767,13 @@ function fitAreas() {
       clash = off;
     }
     // The character's area keeps its elements longest; elsewhere the wider area gives first.
-    const removable = (el: HTMLElement) => el !== float && !!el.querySelector(".bar-btn:not(.bar-more):not([data-key='strip'])");
+    const removable = (el: HTMLElement) => el !== float && !!el.querySelector(".bar-btn:not(.bar-more):not(.bar-done):not([data-key='strip'])");
     const victim = clash
       .filter(removable)
       .sort((a, b) => Number(a.id === own) - Number(b.id === own) || b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
-      ?? clash.filter((el) => el !== float && el.querySelector(".bar-btn:not(.bar-more)"))[0];
+      ?? clash.filter((el) => el !== float && el.querySelector(".bar-btn:not(.bar-more):not(.bar-done)"))[0];
     if (!victim) break;
-    const kids = [...victim.querySelectorAll<HTMLElement>(".bar-btn:not(.bar-more)")];
+    const kids = [...victim.querySelectorAll<HTMLElement>(".bar-btn:not(.bar-more):not(.bar-done)")];
     const kid = [...kids].reverse().find((k) => k.dataset.key !== "strip") ?? kids[kids.length - 1];
     if (!kid?.dataset.key) break;
     out.unshift(kid.dataset.key);
@@ -582,6 +788,7 @@ function fitAreas() {
 // growing past the band under the character is not one.
 let laidWidth = 0;
 window.addEventListener("resize", () => {
+  measureBand();
   if (!bar || window.innerWidth === laidWidth) return;
   laidWidth = window.innerWidth;
   laidItems = "";
@@ -594,8 +801,25 @@ window.addEventListener("resize", () => {
 // (the log of 31 Oct 2026), and the card opened at the second.
 document.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
+  // An app of «App»: opened, brought forward or minimized (character-window/apps.ts).
+  if (!editing && appsPress(e)) {
+    e.preventDefault();
+    return;
+  }
   const target = e.target as HTMLElement | null;
   const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
+  if (editing) {
+    if (btn?.classList.contains("bar-done")) {
+      relay({ kind: "done" });
+    } else if (target?.closest?.(".bar-x") && btn?.dataset.key) {
+      relay({ kind: "remove", key: btn.dataset.key });
+    } else if (btn?.dataset.key && !btn.classList.contains("bar-more")) {
+      carrying = { key: btn.dataset.key, x: e.clientX, moved: false, el: btn };
+      btn.setPointerCapture(e.pointerId);
+    }
+    e.preventDefault();
+    return;
+  }
   if (btn?.classList.contains("bar-more")) {
     const keys: string[] = JSON.parse(btn.dataset.keys ?? "[]");
     const entries = keys.map((k) => [k, shown.find((p) => p.key === k)?.title ?? k]);
@@ -606,6 +830,108 @@ document.addEventListener("pointerdown", (e) => {
   const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
   const r = btn.getBoundingClientRect();
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
+});
+
+/** The folder of the bar under a point (its middle part), other than `skip`. */
+function folderAt(x: number, y: number, skip = ""): HTMLElement | null {
+  const el = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest?.(".bar-btn") as HTMLElement | null;
+  const key = el?.dataset.key ?? "";
+  if (!el || !key.startsWith("folder#") || key === skip) return null;
+  const r = el.getBoundingClientRect();
+  return x > r.left + r.width * 0.2 && x < r.right - r.width * 0.2 ? el : null;
+}
+
+function lightFolder(el: HTMLElement | null) {
+  for (const f of document.querySelectorAll<HTMLElement>(".bar-btn.drop-into")) if (f !== el) f.classList.remove("drop-into");
+  el?.classList.add("drop-into");
+}
+
+document.addEventListener("pointermove", (e) => {
+  if (!carrying) return;
+  if (!carrying.moved && Math.abs(e.clientX - carrying.x) < 5) return;
+  carrying.moved = true;
+  carrying.el.classList.add("carried");
+  const f = carrying.key.startsWith("folder#") ? null : folderAt(e.clientX, e.clientY, carrying.key);
+  lightFolder(f);
+  if (f) hideDrop();
+  else showDrop(dropAt(e.clientX, carrying.key).at);
+});
+document.addEventListener("pointerup", (e) => {
+  const c = carrying;
+  carrying = null;
+  if (!c) return;
+  c.el.classList.remove("carried");
+  hideDrop();
+  lightFolder(null);
+  if (!c.moved) return;
+  const f = c.key.startsWith("folder#") ? null : folderAt(e.clientX, e.clientY, c.key);
+  if (f?.dataset.key) {
+    relay({ kind: "into", key: c.key, folder: f.dataset.key });
+    return;
+  }
+  const d = dropAt(e.clientX, c.key);
+  relay({ kind: "move", key: c.key, area: d.area, before: d.before });
+});
+
+// Programs, shortcuts, files and folders dragged from Windows onto the bar
+// (Edoardo, 21 Nov 2026: «come la barra delle applicazioni di Windows»): each
+// becomes a button that opens it (lib.rs bar_pin: a quick action «apri
+// programma» with its icon). Onto a folder: inside it. The page takes the drop
+// as an HTML5 drop and hands the files to Rust for their paths (drop.rs).
+let fileDrop: { area: string; before: string | null; folder: string } | null = null;
+const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+/** The log says once per drag that it reached the bar (21 Nov 2026: refused with no trace). */
+let dragLogged = false;
+function trackFiles(e: DragEvent) {
+  if (!bar) return;
+  if (!dragLogged) {
+    dragLogged = true;
+    void invoke("log_line", { message: `barra fissa: trascinamento sulla barra (${Array.from(e.dataTransfer?.types ?? []).join(", ") || "nessun tipo"})` }).catch(() => {});
+  }
+  // Always taken while over the bar: a refused dragover is Windows' «no entry» sign.
+  e.preventDefault();
+  if (!hasFiles(e)) return;
+  // «copy», as the island's drop (bridge.ts onDragDrop): «link» can be refused by the source.
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  const f = folderAt(e.clientX, e.clientY);
+  lightFolder(f);
+  const d = dropAt(e.clientX);
+  fileDrop = { area: d.area, before: d.before, folder: f?.dataset.key ?? "" };
+  if (f) hideDrop();
+  else showDrop(d.at, editWords.pin);
+}
+window.addEventListener("dragenter", trackFiles);
+window.addEventListener("dragover", trackFiles);
+window.addEventListener("dragleave", (e) => {
+  if (e.relatedTarget) return;
+  dragLogged = false;
+  hideDrop();
+  lightFolder(null);
+});
+window.addEventListener("drop", (e) => {
+  if (!bar) return;
+  e.preventDefault();
+  dragLogged = false;
+  hideDrop();
+  lightFolder(null);
+  const files = Array.from(e.dataTransfer?.files ?? []);
+  const webview = (window as unknown as {
+    chrome?: { webview?: { postMessageWithAdditionalObjects?: (m: unknown, o: File[]) => void } };
+  }).chrome?.webview;
+  void invoke("log_line", { message: `barra fissa: lasciati ${files.length} file sulla barra` }).catch(() => {});
+  if (!files.length || !webview?.postMessageWithAdditionalObjects) return;
+  try {
+    webview.postMessageWithAdditionalObjects("easyisland-drop", files);
+  } catch (err) {
+    fileDrop = null;
+    void invoke("log_line", { message: `barra fissa: file non passati (${err})` }).catch(() => {});
+  }
+});
+// Only the drops on the bar (the global listen also hears the island's).
+void getCurrentWebview().listen<string[]>("file-drop", (ev) => {
+  const where = fileDrop ?? { area: "end", before: null, folder: "" };
+  fileDrop = null;
+  if (ev.payload?.length) void invoke("bar_pin", { paths: ev.payload, area: where.area, before: where.before, folder: where.folder }).catch(() => {});
 });
 
 /** The bar element under an event, without «…» and the strip's own buttons. */
@@ -619,23 +945,31 @@ function barKey(e: Event): string | null {
 // Elsewhere on the bar (the band, the character): EasyIsland's menu (tray.rs popup_bar_context).
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
+  if (!editing && appsMenu(e)) return;
+  if (editing) {
+    // An element's options, in the window.
+    const key = barKey(e);
+    if (key && key !== "strip") relay({ kind: "options", key });
+    return;
+  }
   const key = barKey(e);
   if (key) send({ kind: "bar", key, button: "right" });
   else if (mode === "bar" && !(e.target as HTMLElement | null)?.closest?.(".bar-more")) void invoke("bar_context_menu").catch(() => {});
 });
 document.addEventListener("auxclick", (e) => {
-  const key = e.button === 1 ? barKey(e) : null;
+  if (e.button === 1 && !editing && appsPress(e)) return;
+  const key = e.button === 1 && !editing ? barKey(e) : null;
   if (key) send({ kind: "bar", key, button: "middle" });
 });
 document.addEventListener("wheel", (e) => {
-  const key = barKey(e);
+  const key = editing ? null : barKey(e);
   if (key && e.deltaY) send({ kind: "bar", key, button: e.deltaY < 0 ? "up" : "down" });
 }, { passive: true });
 
 // Beside the open island or in the fixed bar (the times the window takes the mouse):
 // a click closes the island, or opens it from the bar.
 canvas.addEventListener("pointerdown", (e) => {
-  if (e.button !== 0 || (mode !== "open" && mode !== "bar")) return;
+  if (e.button !== 0 || editing || (mode !== "open" && mode !== "bar")) return;
   engine.squash();
   wake(600);
   send({ kind: "open" });

@@ -27,8 +27,8 @@ export interface BarKind {
   menu?: boolean;
   /** Draws a small graph when asked (BarOpts.graph). */
   graph?: boolean;
-  /** Its group in the catalog. */
-  group?: "work";
+  /** Its group in the catalog: «Lavoro» (the island's things) or «Windows» (its own controls). */
+  group?: "work" | "windows";
 }
 
 /** The catalog's «Sistema» and «Lavoro» groups (Impostazioni → Barra fissa → + Aggiungi). */
@@ -101,10 +101,62 @@ export const BAR_KINDS: Record<string, BarKind> = {
     name: t("Menu di spegnimento"), icon: "i:power", tokens: [],
     left: "menu", middle: "none", right: "menu", menu: true,
   },
+  // «Windows»: its own controls, opened with its shortcuts (barsys.rs `win_key`; Edoardo, 21 Nov 2026).
+  start: {
+    // Right click: Windows' quick menu (Win+X), as on its Start button.
+    name: t("Start"), icon: "i:windows", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  winsearch: {
+    name: t("Cerca di Windows"), icon: "i:search", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  taskview: {
+    name: t("Visualizzazione attività"), icon: "i:layers", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  widgets: {
+    name: t("Widget di Windows"), icon: "i:widgets", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  systray: {
+    name: t("Icone nascoste (area di notifica)"), icon: "i:chevron-up", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  quicksettings: {
+    name: t("Impostazioni rapide (rete, audio, batteria)"), icon: "i:sliders", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  notifications: {
+    name: t("Notifiche e calendario"), icon: "i:bell", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  explorer: {
+    name: t("Esplora file"), icon: "i:folder", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  winsettings: {
+    name: t("Impostazioni di Windows"), icon: "i:settings", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  showdesktop: {
+    name: t("Mostra desktop"), icon: "i:desktop", tokens: [],
+    left: "card", middle: "none", right: "none", group: "windows",
+  },
+  // The apps, pinned and open, as on the Windows taskbar (src/character-window/apps.ts).
+  apps: {
+    name: t("App (aperte e fissate)"), icon: "i:window", tokens: [],
+    left: "none", middle: "none", right: "none", group: "windows",
+  },
   // «Lavoro»: things of the island brought into the bar.
   search: {
     // The search on its own, in its window (search-window.ts): the island stays as it is.
     name: t("Cerca (la ricerca da sola)"), icon: "i:search", tokens: [],
+    left: "card", middle: "none", right: "none", group: "work",
+  },
+  memory: {
+    // The memory window (Panoramica, «chiedi alla memoria»), opened from the bar (Edoardo, 21 Nov 2026).
+    name: t("Memoria (la mappa)"), icon: "i:mindmap", tokens: [],
     left: "card", middle: "none", right: "none", group: "work",
   },
   appbar: {
@@ -124,6 +176,9 @@ export const BAR_KINDS: Record<string, BarKind> = {
     left: "menu", middle: "none", right: "none", native: true, menu: true, group: "work",
   },
 };
+
+/** The «Windows» elements: a left click presses Windows' own shortcut (barsys.rs `win_key`). */
+export const WIN_KEYS = new Set(Object.keys(BAR_KINDS).filter((k) => BAR_KINDS[k].group === "windows"));
 
 /** The kind of a system element ("sys:clock" → its BarKind). */
 export function barKind(id: string): BarKind | null {

@@ -4,6 +4,7 @@
 import { h, clear, emptyState } from "./dom";
 import { ICONS } from "./icons";
 import { Bridge } from "../core/bridge";
+import { withFuzzy } from "../core/fuzzy";
 import { renderActionIcon } from "./action-icons";
 import { suggestionsFor, type Suggestion } from "../island/context";
 import { State, folderLook, type QuickAction } from "../core/state";
@@ -90,7 +91,11 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
   let folder: string | null = null;
   const matches = () => {
     const q = search.value.trim().toLowerCase();
-    return q ? tabActions().filter((a) => `${a.name} ${folderLook(a.folder).name}`.toLowerCase().includes(q)) : [];
+    if (!q) return [];
+    const all = tabActions();
+    const text = (a: (typeof all)[number]) => `${a.name} ${folderLook(a.folder).name}`;
+    // As typed first, then the ones a typo or another word order would have missed (fuzzy.ts).
+    return withFuzzy(all.filter((a) => text(a).toLowerCase().includes(q)), all, text, q, (a) => a.id);
   };
   const el = h("div", { class: "view" }, card);
   // The buttons wrap differently while the island is still widening: measure

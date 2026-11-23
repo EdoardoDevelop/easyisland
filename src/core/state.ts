@@ -137,6 +137,10 @@ export interface BarItem {
   /** Tells apart two copies of the same element (two clocks); set when added. */
   uid?: string;
   opts?: BarOpts;
+  /** A folder (id "folder"): its name, its icon and what it holds, opened in a small island. */
+  name?: string;
+  icon?: string;
+  children?: BarItem[];
 }
 
 /**
@@ -171,6 +175,9 @@ export interface BarOpts {
   max?: number;
   /** Music: the previous / play / next buttons; false hides them. */
   buttons?: boolean;
+  /** A folder's small island: a grid of icons or a list, and the icons' size in px. */
+  layout?: "grid" | "list";
+  iconSize?: number;
 }
 
 /**
@@ -761,6 +768,8 @@ export interface Settings {
   localCompose?: boolean;
   /** Quick answers in the island's search: "potion" (default), "off", "local" or an engine (quick_answer.rs). */
   quickAnswers?: string;
+  /** The search field finds the PC's files too (pcfind.rs, Windows' index and Recent); on by default. */
+  searchFiles?: boolean;
   /** The Anteprima opens by itself on a file the chat creates or edits; off by default. */
   previewEdits?: boolean;
   /** Where notices go (notices.ts): "isola" (default), "alto-destra", "basso-destra", "dentro" (in the island). */
@@ -811,6 +820,10 @@ export interface Settings {
   overTaskbar: boolean;
   /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
   fixedBar?: "" | "top" | "bottom";
+  /** The Windows taskbar hidden (taskbar_hide.rs); off by default. */
+  hideWindowsTaskbar?: boolean;
+  /** The apps pinned to the bar's «App», in order (barapps.rs). Of the PC. */
+  appsPinned?: { id: string; name: string }[];
   /** Where the character sits in the fixed bar. */
   fixedBarSlot?: "start" | "center" | "end";
   /** What else the fixed bar shows, in order (BarItem). */

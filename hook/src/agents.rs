@@ -234,6 +234,9 @@ fn antigravity(map: &mut Map<String, Value>) {
                 if std::env::var_os("EASYISLAND_AGY_AUTO").is_some() {
                     map.insert("easyisland_auto".into(), Value::Bool(true));
                 }
+                if std::env::var_os("EASYISLAND_AGY_READ_ONLY").is_some() {
+                    map.insert("easyisland_read_only".into(), Value::Bool(true));
+                }
                 if std::env::var_os("EASYISLAND_AGY_EDITS").is_some() {
                     map.insert("easyisland_edits".into(), Value::Bool(true));
                 }

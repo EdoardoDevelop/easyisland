@@ -2,8 +2,35 @@
 
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
+## Isola costruita da un JSON (23/11/2026, Edoardo)
+Obiettivo: «l'isola si costruisce di sana pianta da una sorgente json», così dalla chat si cambia ogni aspetto. Proposta a tappe, sul modello delle integrazioni personali (`custom.rs`: card da JSON, modifiche dalla chat con anteprima e Consenti/Nega):
+1. **Cornice e aspetto** in `isola.json`: colori, raggi, font, spaziature, dimensioni; barra in alto (fumetto, campo), menu (voci, ordine, gruppi), Panoramica e riquadri, posizione.
+2. **Schermate a blocchi**: card, liste, righe, pulsanti, campi, grafici, icone, testi legati ai dati dello stato; azioni da elenco fisso, mai codice nel JSON. Viste semplici convertite una alla volta.
+3. **Componenti nativi** (chat, terminale, Anteprima, schede di Claude Code, card dei permessi): il JSON decide posto e opzioni, non il comportamento.
+- Vincoli: card Consenti/Nega, password e chiavi mai modificabili dalla chat; ogni modifica con anteprima, Consenti, «Annulla» e storico; JSON non valido → ultima versione buona; testi tradotti; isola chiusa a CPU ~0.
+- Da decidere: JSON come unica fonte (impostazioni attuali migrate dentro, consigliato) o strato sopra; partire dalla tappa 1 o piano completo prima.
+
 ## Terminale vero nella chat (9/11/2026)
-Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale). Restano: più schede di terminale, scelta della shell (cmd, WSL), link cliccabili (`@xterm/addon-web-links`, altra dipendenza).
+Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale); il 22/11 più schede, shell (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F. Restano: un terminale come pannello a sé (oggi le schede stanno in un pannello solo), profili della shell scelti dall'utente.
+
+## Il PC dal campo dell'isola, seguiti (22/11/2026)
+Fatti file, finestre aperte e pagine/comandi di Windows (`architettura.md` → Campo unico). Proposti e lasciati qui da Edoardo:
+- **Testo dallo schermo:** «Copia il testo» in «Riquadra e chiedi» con l'OCR di Windows (`Windows.Media.Ocr`, nessuna dipendenza); per errori, finestre, immagini non selezionabili (diverso dalle scansioni escluse per i documenti).
+- **Incolla dalla cronologia degli appunti:** una scorciatoia apre la cronologia vicino al cursore, la voce scelta si incolla nell'app in uso.
+- **Posta e calendario nel campo:** email e appuntamenti di Outlook classico (COM, come To Do).
+- **Conversioni nel campo:** unità, date («tra 30 giorni», «quanti giorni al 15/1»), fusi orari. Le valute no (servirebbe un servizio non configurato).
+- **Testi pronti e dettatura:** frasi salvate da richiamare; dettatura con whisper.cpp dentro l'app (modelli solo interni).
+- **File trascinato dal campo nella chat.**
+- L'**estensione per Chrome ed Edge** (sotto) porterebbe nel campo anche le schede del browser.
+
+## Domanda a parte (22/11/2026)
+Proposta il 22/11 (come la «side chat» della nuova app desktop di Claude Code), messa da parte da Edoardo. Un pannello dei pannelli della chat (`dock.ts`) per una domanda veloce sulla conversazione in corso, che la legge ma non ci scrive; un clic riporta la risposta nella conversazione.
+
+## Editor e confronto veri nell'Anteprima (22/11/2026)
+Proposto il 22/11, messo da parte da Edoardo. CodeMirror 6 (più leggero dell'editor di VS Code) per «Codice» e «Modifiche»: confronto affiancato, numeri di riga, ricerca, modifica a mano del file prima di accettare. Da valutare: peso, temi scuro/chiaro, commenti sulle righe che ci sono già (`lineComments`).
+
+## Diagrammi nelle risposte (22/11/2026)
+Proposto il 22/11, messo da parte da Edoardo. Mermaid: un blocco ```mermaid della risposta disegnato come diagramma (flussi, sequenze, schemi di rete). Pesante (~2 MB): caricato solo alla prima risposta che ne ha uno. Mai script dal testo (modalità `strict`).
 
 ## Importare abilità da file e cartelle (11/11/2026)
 Fatto l'11/11 nella 1.0.43 (`docs/chat.md` → Abilità → Importa), partendo da The Agency (`github.com/msitarzewski/agency-agents`, MIT). Restano:

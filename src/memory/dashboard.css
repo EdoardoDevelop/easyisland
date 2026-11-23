@@ -12,7 +12,7 @@
   overflow: auto;
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr) 300px;
-  grid-template-rows: max-content minmax(400px, 1fr) max-content max-content;
+  grid-template-rows: max-content minmax(470px, 1fr) max-content max-content;
   grid-template-areas:
     "top top top"
     "feed core stages"
@@ -42,7 +42,8 @@
 .dash-stages { grid-area: stages; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
 /* Its list scrolls inside: a long one must not stretch the rows of the log and the periods. */
 .dash-tokens { grid-area: tokens; overflow: auto; contain: size; }
-.dash-term { grid-area: term; display: flex; flex-direction: column; padding: 0; }
+.dash-term-row { grid-area: term; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1px; background: var(--dash-line); min-width: 0; }
+.dash-term { display: flex; flex-direction: column; padding: 0; }
 .dash-compare { grid-area: cmp; padding: 10px; }
 
 .dash button {
@@ -271,7 +272,7 @@ html[data-scheme="light"] .dash-tag {
 .dash-core-stage {
   position: relative;
   flex: 1;
-  min-height: 300px;
+  min-height: 290px;
 }
 
 .dash-core-stage canvas {
@@ -308,6 +309,7 @@ html[data-scheme="light"] .dash-tag {
 }
 
 .dash-core-number {
+  flex: none;
   display: grid;
   justify-items: center;
   gap: 6px;
@@ -722,27 +724,8 @@ html[data-scheme="light"] .dash-tag {
   color: var(--dim-2);
 }
 
-.dash-token em {
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  border-radius: 3px;
-  background: var(--tone);
-  color: #000;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 700;
-}
-
 .dash-token.missing {
   border-style: dashed;
-}
-
-.dash-token.missing em {
-  background: transparent;
-  color: #f5a524;
-  box-shadow: inset 0 0 0 1px #f5a524;
 }
 
 /* ── Log ── */
@@ -758,15 +741,23 @@ html[data-scheme="light"] .dash-tag {
   color: var(--dim-2);
 }
 
-.dash-term-head i {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #fb7185;
+/* In place of the three dots (they looked like a window's buttons): what the box is. */
+.dash-term-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 35%, transparent);
 }
 
-.dash-term-head i:nth-child(2) { background: #f5a524; }
-.dash-term-head i:nth-child(3) { background: #22c55e; margin-right: 6px; }
+.dash-term-icon.log { --tone: #2dd4bf; }
+.dash-term-icon.ask { --tone: var(--accent); }
+
+.dash-ask:focus-within .dash-term-icon.ask { background: color-mix(in srgb, var(--tone) 26%, transparent); }
+
 
 .dash-term-lines {
   flex: 1;
@@ -784,6 +775,12 @@ html[data-scheme="light"] .dash-tag {
 .dash-term-line {
   display: flex;
   gap: 8px;
+}
+
+/* Long lines wrap, paths and links too: never cut. */
+.dash-term-line > span:last-of-type {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .dash-term-line:last-child {
@@ -988,3 +985,310 @@ html[data-motion="reduced"] .dash-term-line:last-child span:last-child::after {
     display: none;
   }
 }
+
+/* ── «Chiedi alla memoria»: the log's twin, with a field ── */
+
+.dash-ask .dash-ask-lines {
+  white-space: pre-wrap;
+}
+
+.dash-ask .dash-term-line:last-child span:last-child::after {
+  content: none;
+}
+
+.dash-ask-q,
+.dash-ask-a { color: var(--ink); }
+.dash-ask-a .dash-prompt { color: var(--accent); }
+.dash-ask-note { color: var(--dim-2); }
+.dash-ask-note.waiting span:last-child { animation: dash-blink 1s steps(1) infinite; }
+
+.dash-ask-by {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--dim-2);
+  font-size: 10px;
+}
+
+.dash-ask-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px 18px;
+}
+
+.dash-ask-nodes .dash-token {
+  max-width: 180px;
+}
+
+.dash-ask-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--dash-line);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.dash-ask-field {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.dash-ask-field::placeholder { color: var(--dim-2); }
+.dash-ask-row:focus-within .dash-prompt { color: var(--accent); }
+
+@media (max-width: 1000px) {
+  .dash-term-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Ready questions, answer actions, references ── */
+
+/* As the chat's tips (style.css .chat-tips): one line that scrolls sideways. */
+.dash-ask-tips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px 4px;
+}
+
+.dash-ask-tips[hidden] { display: none; }
+
+.dash-ask-tips-label {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-ask-strip {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 18%, transparent) transparent;
+}
+
+.dash-ask-tip {
+  flex: none;
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.28);
+  color: #c7d2fe;
+  font: 400 11px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dash-ask-tip:hover { background: rgba(129, 140, 248, 0.26); }
+.dash-ask-tip.arrow { padding: 2px 7px; background: transparent; box-shadow: none; color: var(--dim-2); }
+.dash-ask-tip.arrow:hover:not(:disabled) { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.dash-ask-tip.arrow:disabled { opacity: 0.3; cursor: default; }
+
+html[data-scheme="light"] .dash-ask-tip:not(.arrow) { color: #4338ca; }
+
+.dash-ask-act {
+  padding: 2px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.dash-ask-act:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.dash-ask-act:disabled { opacity: 0.5; cursor: default; }
+
+.dash-ask-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 8px 18px;
+}
+
+.dash-ask-acts .dash-token { max-width: 180px; }
+
+.dash-ask-ref {
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.dash-ask.drop {
+  outline: 1px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+/* ── The card of a point of the nucleus ── */
+
+.dash-card {
+  position: absolute;
+  z-index: 4;
+  left: 12px;
+  top: 12px;
+  width: 280px;
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--tone, var(--accent)) 55%, var(--stroke-strong));
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  scrollbar-width: thin;
+}
+
+.dash-card[hidden] { display: none; }
+
+.dash-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-card-kind {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.dash-card-close {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dash-card-close:hover { background: var(--dash-faint); color: var(--ink); }
+
+.dash-card-title {
+  font-size: 14px;
+  color: var(--tone, var(--ink));
+  overflow-wrap: anywhere;
+}
+
+.dash-card-body p {
+  margin: 0 0 4px;
+  color: var(--dim);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dash-card-body p.dim { color: var(--dim-2); }
+
+.dash-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dash-card-links .dash-card-kind { flex-basis: 100%; }
+.dash-card-links .dash-token { max-width: 125px; }
+
+.dash-card-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ── The days slider under the nucleus ── */
+
+.dash-when {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-top: 1px solid var(--dash-line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim-2);
+}
+
+.dash-when-play {
+  width: 22px;
+  height: 18px;
+  border: 1px solid var(--stroke);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.dash-when-play:hover { border-color: var(--accent); color: var(--ink); }
+
+/* A thin line like the board's bars, not the browser's slider. */
+.dash-when-range {
+  flex: 1;
+  min-width: 0;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.dash-when-range::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(to right, var(--accent) var(--at, 100%), var(--dash-line) var(--at, 100%));
+}
+
+.dash-when-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.dash-when-range:hover::-webkit-slider-thumb,
+.dash-when-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.dash-when-range:focus { outline: none; }
+.dash-when-range:disabled { opacity: 0.4; cursor: default; }
+
+.dash-when-label {
+  min-width: 120px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dash.back-in-time .dash-when-label { color: var(--accent); }

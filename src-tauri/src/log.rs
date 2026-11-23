@@ -103,9 +103,48 @@ pub fn scrub_once() {
     let _ = std::fs::write(&mark, "");
 }
 
+/// The errors of a loop that keeps reaching a server (Telegram, Agent Chat).
+/// The same error is logged once and the wait grows 10, 20, 40, 60 s: with
+/// no network on 20 Nov 2026 each wrote a line every 10 s for 15 minutes.
+#[derive(Default)]
+pub struct Retry {
+    fails: u32,
+    last: String,
+}
+
+impl Retry {
+    /// One more failure: logs it if new, and says how long to wait.
+    pub fn failed(&mut self, area: &str, error: &str) -> std::time::Duration {
+        self.fails += 1;
+        if self.fails == 1 || error != self.last {
+            line(format!("{area}: {error}"));
+            self.last = error.to_string();
+        }
+        std::time::Duration::from_secs((10u64 << (self.fails - 1).min(3)).min(60))
+    }
+
+    /// It answered: after failures, says so once.
+    pub fn ok(&mut self, area: &str) {
+        if self.fails > 1 {
+            line(format!("{area}: di nuovo raggiungibile dopo {} tentativi", self.fails));
+        }
+        self.fails = 0;
+        self.last.clear();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::mask;
+
+    #[test]
+    fn retry_waits_longer_and_resets() {
+        let mut r = super::Retry::default();
+        let waits: Vec<u64> = (0..5).map(|_| r.failed("prova", "rete").as_secs()).collect();
+        assert_eq!(waits, [10, 20, 40, 60, 60]);
+        r.ok("prova");
+        assert_eq!(r.failed("prova", "rete").as_secs(), 10);
+    }
 
     #[test]
     fn tokens_and_keys_never_reach_the_log() {

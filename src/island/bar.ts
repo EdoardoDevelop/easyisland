@@ -19,19 +19,38 @@ import { unreadNews } from "../views/news";
 import { appName } from "./context";
 import { State, type BarAct, type BarItem, type BarSys, type FixedBarDesign } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
-import { locale, t } from "../core/i18n";
+import { locale, t, tn } from "../core/i18n";
 import type { BarButton, BarPiece } from "../core/link";
 import type { StripItem } from "../views/strip";
 
 /** An element's key in the bar: its id, plus its uid for system elements (two clocks). */
-function keyOf(it: BarItem): string {
-  return it.id.startsWith("sys:") && it.uid ? `${it.id}#${it.uid}` : it.id;
+export function keyOf(it: BarItem): string {
+  return (it.id.startsWith("sys:") || it.id === "folder") && it.uid ? `${it.id}#${it.uid}` : it.id;
 }
 
-/** The element a key stands for (a key without uid finds the first of its id). */
+/** An element by its key: in the bar, or inside one of its folders. */
 export function barItemOf(key: string): BarItem | null {
   const items = State.settings.fixedBarItems ?? [];
-  return items.find((x) => keyOf(x) === key) ?? items.find((x) => x.id === key.split("#")[0]) ?? null;
+  const all = [...items, ...items.flatMap((x) => x.children ?? [])];
+  return all.find((x) => keyOf(x) === key) ?? all.find((x) => x.id === key.split("#")[0]) ?? null;
+}
+
+/** An element's name and icon, for a folder's small island (barcard.ts). */
+export function barItemLabel(it: BarItem): { name: string; icon: string } {
+  if (it.id === "folder") return { name: it.name || t("Cartella"), icon: it.icon || "i:folder" };
+  if (it.id === "strip") return { name: t("Striscia"), icon: "i:robot" };
+  const kind = barKind(it.id);
+  if (kind) return { name: kind.name, icon: kind.icon };
+  if (it.id.startsWith("action:")) {
+    const a = (State.settings.actions ?? []).find((x) => x.id === it.id.slice(7));
+    return { name: a?.name ?? it.id, icon: a?.icon || "i:bolt" };
+  }
+  if (it.id.startsWith("task:widget:")) {
+    const w = (State.settings.widgets ?? []).find((x) => x.id === it.id.slice(12));
+    return { name: w?.name ?? t("Widget"), icon: "i:chart" };
+  }
+  const task = State.tasks.find((x) => x.id === it.id.slice(5));
+  return { name: task?.name ?? it.id, icon: "i:plug" };
 }
 
 /** Elements showing their second text («alt»), by key. Not saved. */
@@ -308,6 +327,11 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
     }
     case "search":
       return { v: { value: "" }, icon: k.icon, tip: t("Cerca: apre la ricerca nella sua finestra, l'isola resta com'è") };
+    case "memory":
+      return { v: { value: "" }, icon: k.icon, tip: t("Memoria: apre la mappa della memoria") };
+    case "start": case "winsearch": case "taskview": case "widgets": case "systray":
+    case "quicksettings": case "notifications": case "explorer": case "winsettings": case "showdesktop":
+      return { v: { value: "" }, icon: k.icon, tip: k.name };
     case "news": {
       const n = unreadNews();
       const title = State.news[0]?.title ?? "";
@@ -439,11 +463,20 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
     const tip = it.opts?.tip?.trim();
     if (it.id === "strip") {
       if (strip) out.push(stripPiece(strip, area));
+      else out.push(emptyPiece(key, area, "i:robot", t("Striscia"), t("Vuota: compare quando c'è un permesso, una chiamata, un agente al lavoro…")));
     } else if (it.id.startsWith("sys:")) {
       const kind = it.id.slice(4);
       if (!BAR_KINDS[kind]) continue;
-      // The bar of the app in use: nothing when the program in front has no actions.
-      if (kind === "appbar" && !appBar?.buttons.length) continue;
+      // «App»: an empty place, filled by the bar's page with the apps (character-window/apps.ts).
+      if (kind === "apps") {
+        out.push({ key, area, html: h("span", { class: "bar-item bar-apps-host" }, h("span", { class: "bar-apps" })).outerHTML, title: "" });
+        continue;
+      }
+      // The bar of the app in use: empty when the program in front has no actions of the user.
+      if (kind === "appbar" && !appBar?.buttons.length) {
+        out.push(emptyPiece(key, area, BAR_KINDS[kind].icon, BAR_KINDS[kind].name, t("Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)")));
+        continue;
+      }
       const sv = sysValues(kind, it, design);
       const el = h("span", { class: `bar-item bar-sys${sv.dim ? " dim" : ""}` });
       // A program's own icon (the window title) is a picture; the others are drawn.
@@ -478,9 +511,27 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       if (a.color) el.style.setProperty("--action", a.color);
       compose(el, formatOf(it, key), () => renderActionIcon(a.icon, 15), { value: a.name, name: a.name });
       out.push({ key, area, html: el.outerHTML, title: tip || a.name });
+    } else if (it.id === "folder") {
+      // A folder: its icon and name; a click opens its small island (barcard.ts).
+      const name = it.name || t("Cartella");
+      const n = it.children?.length ?? 0;
+      const el = h("span", { class: "bar-item bar-folder" });
+      compose(el, formatOf(it, key), () => renderActionIcon(it.icon || "i:folder", 15), { value: name, name });
+      out.push({ key, area, html: el.outerHTML, title: tip || `${name} · ${tn("{n} elemento", "{n} elementi", n)}` });
     }
   }
   return out;
+}
+
+/**
+ * An element with nothing to show now (the strip, the bar of the app in use):
+ * sent anyway, hidden in the bar and shown with its name while the bar is
+ * customized, or it could be neither seen nor removed (Edoardo, 22 Nov 2026).
+ */
+function emptyPiece(key: string, area: BarPiece["area"], icon: string, name: string, tip: string): BarPiece {
+  const el = h("span", { class: "bar-item bar-empty" });
+  compose(el, "{icon} {value}", () => renderActionIcon(icon, 15), { value: name, name });
+  return { key, area, html: el.outerHTML, title: tip };
 }
 
 /** The system elements barsys.rs has to read now (none while the bar is off). Graphs of the

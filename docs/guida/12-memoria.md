@@ -118,7 +118,11 @@ La finestra si apre sulla **Panoramica**: tutta la memoria in una schermata, con
 - Al centro il **nucleo**: ogni nota e pagina è un punto, colorato per gruppo o per tipo; intorno gli archi dei gruppi (un clic apre le Bolle su quel gruppo) e la linea della freschezza. Sotto, quante cose sono da sistemare: note sole, pagine da scrivere, controlli.
 - Sopra il nucleo i **filtri** (tipi, solo collegamenti sicuri, colori), che valgono per tutte le viste, e i numeri della settimana.
 - A destra le **tappe**: da leggere, fonti lette, pagine, collegate, controllo, con **Leggi adesso**, **Collega con l'IA** e **Controlla**. È evidenziata la prima tappa con del lavoro da fare.
-- Sotto, le **pagine più collegate** come gettoni, il **registro** della memoria che scrive riga per riga e tre periodi a confronto (ultimo mese, 3 mesi, sempre): un clic sceglie il periodo per tutte le viste.
+- Sotto, le **pagine più collegate** come gettoni (il nome intero passandoci sopra, il numero sono i collegamenti), il **registro** della memoria che scrive riga per riga e tre periodi a confronto (ultimo mese, 3 mesi, sempre): un clic sceglie il periodo per tutte le viste.
+- Accanto al registro **chiedi alla memoria**: una domanda su quello che c'è nella memoria («cosa so di Rossi?», «dove ho scritto il backup del NAS?»). Risponde il motore delle risposte rapide (o quello della chat) solo con le righe e le pagine trovate, senza strumenti e senza cambiare niente; le pagine da cui viene la risposta si accendono nel nucleo e si aprono con un clic; passandoci sopra una linea va fino al loro punto. Esc le spegne. Sotto il campo ci sono domande pronte prese dalla tua memoria («Cosa è cambiato questa settimana?», «Quali note sono sole?»…), e puoi trascinare nel campo un gettone o una pagina per chiedere di quella. Sotto ogni risposta **Ricorda** la salva come nota e **Apri in chat** continua nella chat, con i suoi strumenti. Per tutto il resto c'è la chat.
+- Un clic su un punto del nucleo apre la sua **scheda**: riassunto, righe, collegamenti (cliccabili), **Chiedi**, **Apri nel grafo** e **Apri il file**. Esc la chiude.
+- Sotto il nucleo la **linea del tempo**: trascinala per vedere la memoria com'era quel giorno, ▶ la fa crescere dal primo giorno a oggi.
+- Lungo le linee che vanno dagli ultimi arrivi al nucleo scorrono dei punti verso la loro nota.
 
 Un clic su un punto, una riga o un gettone apre il Grafo su quella cosa; **← Panoramica** riporta qui. Le altre viste restano tutte, nelle tendine accanto.
 

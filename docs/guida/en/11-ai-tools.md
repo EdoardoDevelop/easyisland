@@ -35,6 +35,11 @@ Rules that never change:
 
 You can ask in plain words: "open Outlook and the suppliers' portal", "how is the PC doing?", "run the backup", "add to To Do: call Rossi tomorrow", "how much did I spend in October?" (from Notion).
 
+## Windows programs
+The chat can also use the **PC's programs** that have no integration (a management program, a control panel, Outlook, File Explorer): it reads the window as screen readers do, with buttons, fields, checkboxes and lists, without taking pictures and **without moving your mouse** or keyboard. So it can press a button, tick a box, choose an item or fill a field while you work.
+- Reading asks nothing; every click or typing asks **Allow / Deny**, also in Automatic; with **Always** it stops asking **in that program** until the end of the conversation.
+- It never touches sign-in and password windows, never types passwords, never clicks buttons that send, delete, pay or buy, and never acts in terminals, Windows settings or «Run»: those are yours.
+
 ## Word and PDF documents
 The chat reads **Word documents** (`.docx`) and **PDFs**: drag them into the chat or the Tray, or say where they are ("read the contract in Documents\Rossi.pdf"). In Word files it also reads the header, tables and footer; in PDFs the text page by page. **Scans** (photos of paper) and password-protected PDFs cannot be read. The same text reaches every engine, even those that cannot open documents themselves, and the memory when you put a PDF or a Word file in "to read".
 

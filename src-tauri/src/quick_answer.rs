@@ -300,13 +300,13 @@ async fn by_engine(app: &AppHandle, engine: &str, question: &str, lines: &[Strin
 }
 
 /// A line that names a password, a key or a token: it stays on the PC.
-fn secret_like(line: &str) -> bool {
+pub(crate) fn secret_like(line: &str) -> bool {
     const WORDS: &[&str] = &["password", "passwd", "pwd", "passphrase", "token", "api key", "apikey", "api_key", "secret", "segreto", "chiave", "credenzial", "pin:", "otp", "id_rsa", ".ssh", "private key"];
     let l = line.to_lowercase();
     WORDS.iter().any(|w| l.contains(w)) || crate::opencode::secret_place(&l)
 }
 
-fn engine_name(engine: &str, model: &str) -> String {
+pub(crate) fn engine_name(engine: &str, model: &str) -> String {
     let who = match engine {
         "api" => "Claude",
         "openrouter" => "OpenRouter",

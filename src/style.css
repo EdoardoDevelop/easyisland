@@ -1430,7 +1430,32 @@ input[type="range"]::-webkit-slider-thumb {
   flex-direction: column;
 }
 .chat-term-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-2); }
-.chat-term-head span { flex: 1; }
+.chat-term-gap { flex: 1; }
+/* Its terminals as tabs (chat.ts drawTermTabs), «+» with the shells, the search field. */
+.chat-term { position: relative; }
+.chat-term-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.chat-term-tab { display: flex; align-items: center; gap: 6px; max-width: 160px; height: 22px; padding: 0 6px 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font: inherit; cursor: pointer; }
+.chat-term-tab:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
+.chat-term-tab.on { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.chat-term-tab.ended .chat-term-tab-name { text-decoration: line-through; opacity: 0.6; }
+.chat-term-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-term-tab-x { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; font-size: 9px; opacity: 0; }
+.chat-term-tab:hover .chat-term-tab-x, .chat-term-tab.on .chat-term-tab-x { opacity: 0.6; }
+.chat-term-tab-x:hover { opacity: 1 !important; background: rgba(255, 255, 255, 0.12); }
+.chat-term-add { flex: none; width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font-size: 15px; line-height: 1; cursor: pointer; }
+.chat-term-add:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+.chat-term-menu { position: absolute; z-index: 5; top: 30px; left: 8px; display: flex; flex-direction: column; min-width: 180px; padding: 4px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; background: var(--card); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4); }
+.chat-term-menu-item { padding: 6px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.chat-term-menu-item:hover { background: rgba(255, 255, 255, 0.07); }
+.chat-term-find { width: 160px; height: 22px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; background: rgba(0, 0, 0, 0.3); color: var(--ink); font: inherit; font-size: 12px; outline: none; }
+.chat-term-find:focus { border-color: var(--win-accent, #4cc2ff); }
+.chat-term-find.miss { border-color: var(--red); }
+.chat-term-find-btn { display: grid; place-items: center; }
+.chat-term-find-btn.on { color: var(--win-accent, #4cc2ff); }
+html[data-scheme="light"] .chat-term-menu { border-color: rgba(0, 0, 0, 0.1); background: #fff; }
+html[data-scheme="light"] :is(.chat-term-tab:hover, .chat-term-add:hover, .chat-term-menu-item:hover) { background: rgba(0, 0, 0, 0.05); }
+html[data-scheme="light"] .chat-term-tab.on { background: rgba(0, 0, 0, 0.08); }
+html[data-scheme="light"] .chat-term-find { border-color: rgba(0, 0, 0, 0.15); background: #fff; }
 /* xterm.js inside (chat-terminal.ts): the box takes what the head leaves. */
 .chat-term-box { flex: 1 1 auto; min-height: 120px; padding: 2px 4px 4px 8px; display: flex; }
 .chat-xterm { flex: 1 1 auto; min-width: 0; min-height: 0; }
@@ -1868,6 +1893,11 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-row {
   display: flex;
 }
+/* A long conversation: the browser lays out and draws only the messages on
+   screen (22 Nov 2026). The last ones always, so going to the bottom lands
+   exactly; the others keep the size they had once drawn ("auto"). */
+.chat-log > .chat-row:not(:nth-last-child(-n + 8)) { content-visibility: auto; contain-intrinsic-size: auto 160px; }
+.chat-side .history-rows > .history-item { content-visibility: auto; contain-intrinsic-size: auto 30px; }
 
 /* A permission the chat waits for, at the end of the conversation (chat.ts). */
 .chat-ask {
@@ -2167,6 +2197,11 @@ input[type="range"]::-webkit-slider-thumb {
 .md-copy:hover {
   background: rgba(167, 139, 250, 0.22);
 }
+/* «▶ Nel terminale» and «Salva» beside «Copia» (markdown.ts codeBlock): the first pushes them right. */
+.md-pre-head > .md-copy ~ .md-copy { margin-left: 4px; }
+.md-run { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.md-run:hover { background: rgba(74, 222, 128, 0.22); }
+html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61, 0.1); }
 
 .md-pre pre {
   margin: 0;
@@ -5617,6 +5652,12 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A file's folder, a window's program: after the name, dim (search.ts). */
+.search-sub {
+  margin-left: 8px;
+  color: var(--dim-3);
+  font-weight: 400;
+}
 .search-kind {
   flex: 0 0 auto;
   font: 400 calc(10px + var(--fs-up, 0px)) var(--font);
@@ -5719,6 +5760,17 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .daily-side { font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
 
 .daily-more { font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-3, var(--dim-2)); }
+
+/* A folder of the bar (barcard.ts folder): a grid of icons with their names, or a list. */
+.barcard-folder.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--fsize, 28px) + 44px), 1fr)); gap: 4px; }
+.barcard-folder.list { display: flex; flex-direction: column; gap: 2px; }
+.barcard-folder-item { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.barcard-folder.grid .barcard-folder-item { flex-direction: column; justify-content: center; gap: 6px; padding: 10px 4px; text-align: center; }
+.barcard-folder-item:hover { background: rgba(255, 255, 255, 0.08); }
+.barcard-folder-icon { display: grid; place-items: center; flex: none; width: var(--fsize, 28px); height: var(--fsize, 28px); }
+.barcard-folder-icon img, .barcard-folder-icon svg { width: var(--fsize, 28px); height: var(--fsize, 28px); }
+.barcard-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.barcard-folder.grid .barcard-folder-name { max-width: 100%; font-size: 11px; }
 
 /* The cards of the fixed bar's system elements (src/views/barcard.ts). */
 .barcard-icon { display: grid; place-items: center; align-self: center; color: var(--ink); }
@@ -9903,3 +9955,125 @@ html:not([data-ui="classic"]) .summary-status { padding-right: 0; }
   cursor: pointer;
 }
 .cli-ref-chip:hover { color: var(--ink); border-color: rgba(255, 255, 255, 0.25); }
+
+/* Panels around the chat (src/island/dock.ts, dockview), in the island and in
+   the chat's window: the dock takes #views' place in #body. Tabs as small
+   pills with their icon on a line of their own, the island's accent on the one
+   in front; the dividers light up in the accent when held. */
+.chat-dock { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; }
+#island.docked #preview-pane { display: none; }
+:is(.dockview-theme-dark.dockview-theme-easy, .dockview-theme-dark .dockview-theme-easy) {
+  --dock-accent: var(--win-accent, #4cc2ff);
+  --dv-group-view-background-color: rgba(0, 0, 0, 0.18);
+  --dv-tabs-and-actions-container-background-color: rgba(255, 255, 255, 0.025);
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-activegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--ink);
+  --dv-activegroup-hiddenpanel-tab-color: var(--dim);
+  --dv-inactivegroup-visiblepanel-tab-color: color-mix(in srgb, var(--ink) 80%, transparent);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--dim);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: transparent;
+  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.06);
+  --dv-paneview-active-outline-color: transparent;
+  --dv-drag-over-background-color: color-mix(in srgb, var(--dock-accent) 18%, transparent);
+  --dv-drag-over-border: 1.5px solid color-mix(in srgb, var(--dock-accent) 75%, transparent);
+  --dv-active-sash-color: var(--dock-accent);
+  --dv-icon-hover-background-color: rgba(255, 255, 255, 0.1);
+  --dv-tab-border-radius: 0;
+  --dv-border-radius: 12px;
+  --dv-tab-margin: 0;
+  --dv-spacing-padding: 0px;
+  --dv-tab-font-size: 12px;
+  --dock-pill: rgba(255, 255, 255, 0.075);
+  --dock-pill-hover: rgba(255, 255, 255, 0.05);
+  --dock-edge: rgba(255, 255, 255, 0.07);
+  font-family: var(--font);
+  color: var(--ink);
+}
+html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockview-theme-dark .dockview-theme-easy) {
+  color-scheme: light;
+  --dv-group-view-background-color: rgba(255, 255, 255, 0.6);
+  --dv-tabs-and-actions-container-background-color: rgba(0, 0, 0, 0.025);
+  --dv-paneview-header-border-color: rgba(0, 0, 0, 0.07);
+  --dv-icon-hover-background-color: rgba(0, 0, 0, 0.08);
+  --dock-pill: rgba(0, 0, 0, 0.07);
+  --dock-pill-hover: rgba(0, 0, 0, 0.045);
+  --dock-edge: rgba(0, 0, 0, 0.08);
+}
+/* Each group a card, as the island's cards. */
+.dockview-theme-easy .dv-groupview { border-radius: 12px; overflow: hidden; border: 1px solid var(--dock-edge); }
+.dockview-theme-easy .dv-groupview.dv-active-group { border-color: color-mix(in srgb, var(--dock-accent) 28%, var(--dock-edge)); }
+.dockview-theme-easy .dv-tabs-and-actions-container { padding: 0 5px; border-bottom: 1px solid var(--dock-edge); }
+.dockview-theme-easy .dv-tabs-container { gap: 2px; align-items: center; }
+.dockview-theme-easy .dv-tab { padding: 0 !important; background: transparent !important; display: flex; align-items: center; }
+.dockview-theme-easy .dv-tab:focus-visible { outline: none; }
+.dock-tab {
+  display: flex; align-items: center; gap: 7px; height: 24px; padding: 0 8px 0 9px; border-radius: 7px;
+  color: inherit; transition: background-color 0.12s, color 0.12s;
+}
+.dock-tab:hover { background: var(--dock-pill-hover); }
+.dv-tab.dv-active-tab .dock-tab { background: var(--dock-pill); }
+.dock-tab-icon { display: grid; place-items: center; width: 14px; height: 14px; opacity: 0.75; }
+.dv-tab.dv-active-tab .dock-tab-icon { opacity: 1; }
+.dv-active-group .dv-tab.dv-active-tab .dock-tab-icon { color: var(--dock-accent); }
+.dock-tab-name { white-space: nowrap; font-weight: 500; letter-spacing: 0.1px; }
+.dock-tab-x {
+  display: grid; place-items: center; width: 16px; height: 16px; margin-right: -3px; padding: 0; border: 0; border-radius: 4px;
+  background: transparent; color: var(--dim); cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.dock-tab:hover .dock-tab-x, .dv-tab.dv-active-tab .dock-tab-x { opacity: 0.7; }
+.dock-tab-x:hover { opacity: 1 !important; background: var(--dv-icon-hover-background-color); color: var(--ink); }
+/* The dividers: invisible until the pointer is on them, then the accent. */
+.dockview-theme-easy .dv-sash { border-radius: 3px; }
+.dockview-theme-easy .dv-sash:hover, .dockview-theme-easy .dv-sash.dv-active { background: color-mix(in srgb, var(--dock-accent) 60%, transparent); }
+/* The panels' contents fill them. */
+.dock-box { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.dock-chat > #views { position: relative; flex: 1 1 auto; min-height: 0; }
+.dock-chat #views > .view { left: 0 !important; right: 0 !important; width: auto !important; transform: none; }
+.dock-chat .chat-card, .dock-chat .chat-body { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+/* The Anteprima's page is a webview over this box; hidden while a tab is dragged. */
+.dock-anteprima { background: rgba(0, 0, 0, 0.18); }
+.dock-cronologia > .chat-side { display: flex; flex: 1 1 auto; border: 0; background: transparent; padding-top: 8px; }
+.dock-cronologia .chat-side-grip { display: none; }
+.dock-terminale > .chat-term { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.dock-terminale > .chat-term .chat-term-box { min-height: 0; }
+/* dockview's menu on a tab (right click), as the island's menus. */
+.dockview-theme-easy .dv-context-menu, .chat-dock .dv-context-menu {
+  min-width: 190px; padding: 4px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px;
+  background: var(--card); color: var(--ink); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); font-family: var(--font);
+}
+.chat-dock .dv-context-menu-item { height: 28px; padding: 0 10px; border-radius: 6px; font-size: 12px; }
+.chat-dock .dv-context-menu-item:hover { background: rgba(255, 255, 255, 0.07); }
+.chat-dock .dv-context-menu-separator { margin: 4px 6px; background: rgba(255, 255, 255, 0.08); }
+html[data-scheme="light"] .chat-dock .dv-context-menu { border-color: rgba(0, 0, 0, 0.1); background: #fff; }
+html[data-scheme="light"] .chat-dock .dv-context-menu-item:hover { background: rgba(0, 0, 0, 0.05); }
+html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rgba(0, 0, 0, 0.08); }
+
+/* «App» of the bar: an app's windows with live previews (barcard.ts apps; DWM draws into .apps-thumb). */
+.apps-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 2px 0; }
+.apps-head { font: 600 calc(13px + var(--fs-up, 0px)) var(--font); color: var(--ink); text-align: center; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.apps-label { font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); text-transform: uppercase; letter-spacing: 0.06em; text-align: center; width: 100%; }
+.apps-empty { font: 400 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); text-align: center; padding: 6px 0; }
+.apps-wins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; }
+.apps-win { all: unset; box-sizing: border-box; position: relative; width: 200px; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 12px; cursor: pointer; background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); transition: background 0.15s ease, box-shadow 0.15s ease; }
+.apps-win:hover { background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.apps-win.on { box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.55); }
+.apps-win-title { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 18px; line-height: 18px; }
+.apps-thumb { height: 108px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); }
+.apps-close { all: unset; position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 6px; display: grid; place-items: center; font: 600 13px/1 var(--font); color: var(--dim-2, #aab); cursor: pointer; opacity: 0; transition: opacity 0.15s ease; }
+.apps-win:hover .apps-close, .apps-close:focus-visible { opacity: 1; }
+.apps-close:hover { background: #F4505E; color: #fff; }
+.apps-recent { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; width: 100%; }
+.apps-recent:empty { display: none; }
+.apps-file { all: unset; padding: 3px 10px; border-radius: 999px; font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); background: rgba(255, 255, 255, 0.06); cursor: pointer; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.apps-file:hover { background: rgba(255, 255, 255, 0.12); }
+.apps-acts { display: flex; justify-content: center; gap: 6px; }
+.apps-act { all: unset; padding: 4px 11px; border-radius: 999px; font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); background: rgba(255, 255, 255, 0.06); cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+.apps-act:hover { background: rgba(255, 255, 255, 0.12); color: var(--ink); }
+.apps-act:focus-visible, .apps-file:focus-visible, .apps-win:focus-visible { outline: 2px solid rgba(56, 189, 248, 0.7); outline-offset: 1px; }
+

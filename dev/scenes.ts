@@ -1833,6 +1833,16 @@ export async function runScene(island: Island, scene: string) {
           { id: "d1", name: "Admin NAS Rossi", kind: "Credential", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.20", user: "admin", cred: "Default", vault: "v" },
         ],
         threecxContacts: async () => [{ name: "Mario Rossi", company: "Rossi Srl", numbers: ["+39 0583 123456"], colleague: false }],
+        // The PC (pcfind.rs): files of the index and Recent, open windows (?q=outlook, ?q=bluetooth).
+        pcFiles: async (query: string) => [
+          { name: "Preventivo Rossi 2026.docx", path: "C:\\Users\\demo\\Documents\\Preventivo Rossi 2026.docx", folder: "C:\\Users\\demo\\Documents", dir: false, recent: true },
+          { name: "Rossi", path: "C:\\Users\\demo\\Documents\\Clienti\\Rossi", folder: "C:\\Users\\demo\\Documents\\Clienti", dir: true, recent: false },
+          { name: "Fattura Rossi 118.pdf", path: "C:\\Users\\demo\\Downloads\\Fattura Rossi 118.pdf", folder: "C:\\Users\\demo\\Downloads", dir: false, recent: false },
+        ].filter((f) => f.name.toLowerCase().includes(query.toLowerCase().split(" ")[0] ?? "")),
+        pcWindows: async () => [
+          { id: 1, appName: "Microsoft Outlook", title: "Posta in arrivo - mario@rossi.it - Outlook" },
+          { id: 2, appName: "Esplora file", title: "Rossi" },
+        ],
         ...mockClients(),
       });
       State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };
@@ -1927,6 +1937,15 @@ export async function runScene(island: Island, scene: string) {
       State.settings.fixedBarItems = [
         { id: "sys:clock", uid: "a", area: "end", show: "both" },
         { id: "sys:clock", uid: "b", area: "end", show: "value", opts: { tz: "America/New_York" } },
+        // ?card=folder:folder#f (&list): a folder of the bar with a few elements.
+        {
+          id: "folder", uid: "f", area: "end", show: "icon", name: "Strumenti", icon: "i:wrench",
+          opts: { layout: new URLSearchParams(location.search).has("list") ? "list" : "grid", iconSize: 28 },
+          children: [
+            { id: "sys:explorer", uid: "e", area: "end" }, { id: "sys:showdesktop", uid: "d", area: "end" },
+            { id: "sys:winsettings", uid: "s", area: "end" }, { id: "sys:taskview", uid: "t", area: "end" }, { id: "sys:clock", uid: "c", area: "end" },
+          ],
+        },
       ];
       State.barSys = {
         volume: { level: 0.42, muted: false, device: "Altoparlanti (Realtek High Definition Audio)" },

@@ -1,10 +1,15 @@
 # Handoff — EasyIsland
 
-_19 novembre 2026. **1.0.53** in `main` (tag `v1.0.53`). Prossimo lavoro: Dock al posto della barra di Windows e Top bar (piano in corso, uscirà come 1.1.0). `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_23 novembre 2026. **1.0.54** in `main` (tag `v1.0.54`): il PC dal campo, barra di Windows nascosta, «App» nella barra fissa, pannelli della chat; installata qui la build di prova della stessa versione. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **«App» nella barra** (22/11, `docs/architettura.md` → Barra fissa → «App»): compilato con `npm run prova`; da provare dal vivo: import delle fissate di Windows, clic (apri, davanti, riduci), più finestre e anteprime, hover, destro (Recenti, amministratore, Fissa/Togli), trascinare un programma, programmi da amministratore davanti, con la barra di Windows nascosta.
+- [ ] **Barra di Windows nascosta** (22/11, `docs/architettura.md` → Barra fissa): test di `taskbar_hide` passati, codice già provato con la Dock; da provare nell'app: Nascosta/Visibile, «Rimetti adesso», chiusura dell'app (torna), riavvio di Explorer (si rinasconde), più schermi.
+- [ ] **Il PC dal campo** (22/11, `docs/architettura.md` → Campo unico): ricerca dei file provata dal vivo (test `pcfind::tests::live_files`), il resto nell'anteprima (scena `search`, `?q=bluet`, `?q=rossi`); da provare nell'app: finestra portata davanti (anche ridotta e con un programma da amministratore), Maiusc+Invio, pagine di Windows, velocità della prima ricerca.
+- [ ] **Chat fluida e blocchi di codice** (22/11, `docs/chat.md` → Campo e azioni): da provare dal vivo con risposte lunghe, «▶ Nel terminale» con codice di più righe (incolla trattenuta o appunti) e «Salva». Proposte in attesa di scelta: cerca nella conversazione, tasti dei pannelli, avviso a turno finito, messaggi segnati.
+- [ ] **Pannelli della chat** (22/11, `docs/chat.md` → Pannelli): provati dal vivo terminale e finestra; da guardare con l'uso la pagina dell'Anteprima dentro il pannello dopo spostamenti, modalità chiara, isola stretta.
 - [ ] **Ricerca nelle Impostazioni** (19/11, `docs/architettura.md` → Impostazioni): provata nell'anteprima (italiano e inglese, Telegram aperto e illuminato, risultati nel campo dell'isola); da provare nell'app che l'indice si costruisca all'avvio a finestra nascosta e che il clic dall'isola apra le Impostazioni sul controllo.
 - [ ] **Panoramica della memoria** (17/11, `docs/chat.md` → Finestra Memoria): provata nell'anteprima (scuro, chiaro, `few`, `many=300`, 900 px); da guardare nell'app con la memoria vera, CPU a finestra aperta e ferma, righe dal vivo quando la chat legge o scrive.
 - [ ] **Avvisi in una finestra loro** (17/11, `docs/architettura.md` → Avvisi): provati nell'anteprima (scena `avvisi`) e con i test di `spot`; da provare nell'app che la finestra non prenda il fuoco né resti bianca, i tre posti con l'isola aperta e chiusa, un download mentre una card di Claude Code aspetta, «+N», schermo intero e davanti al cliente.
@@ -63,25 +68,25 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 19/11 — Pagina cliente, stile nuovo sulle schede, Ticket e RDM rifatti
-- **Pagina cliente** nella memoria (`clients.rs`, `src/views/clientcard.ts`): `tipo: cliente` e sezioni fisse; scheda da Zammad, 3CX, RDM/Devolutions e ricerca; «Crea pagina cliente» già riempita, «Rendila pagina cliente» aggiunge senza togliere.
-- **Stile nuovo** su Rete, 3CX, Appunti, Agenti, Agent Chat (non Meteo né Impostazioni). Barre a tempo per password e conferme, stati vuoti con l'azione, «?» con le scorciatoie (`src/views/shortcuts.ts`).
-- **Zammad:** immagini al loro posto (`[[img:ID]]`, mai remote), allegati in Download, cc, contatti, tag, Salva unico (`zammad_save`). **Devolutions:** connessione pronta (`dvc_live.rs`) e scheda a tre zone.
+### 22/11 — «App» nella barra fissa
+- Ramo `claude/app` (da `claude/barra-windows`): app fissate e aperte come sulla barra di Windows (`taskwin.rs`, `applist.rs`, `barapps.rs`, `winthumbs.rs`, `regwatch.rs`, relay `avvia`, `src/character-window/apps.ts`, scheda `apps:` in `barcard.ts`). Riusato il codice della Dock senza la sua finestra.
+- 23/11: personaggio e app centrati insieme, scheda delle finestre rifatta e senza scatti, finestre di EasyIsland sotto la sua icona (provato da Edoardo). Animazioni proprie delle finestre provate e tolte (`docs/decisioni.md`). Unito in `claude/sviluppo`.
+- Profilo `prova` (`npm run prova`, 4 min la prima volta invece di 13). Elementi vuoti visibili in «Personalizza la barra». Barra in basso: riga trasparente in cima e blocco all'avvio con la barra di Windows nascosta corretti.
 
-### 19/11 — Ricerca nelle Impostazioni
-Campo in cima al menu delle Impostazioni (anche Ctrl+F) e gruppo «Impostazioni» nel campo unico dell'isola: un risultato apre pagina, scheda o integrazione e illumina il controllo (`src/settings/search.ts`, `src/core/settings-index.ts`).
-- L'indice si legge dai controlli veri (pagine disegnate fuori schermo), una volta per versione e lingua, e passa all'isola dal `localStorage` condiviso; niente Rust.
+### 22/11 — Barra di Windows nascosta
+- Ramo `claude/barra-windows` (da `claude/campo`): `taskbar_hide.rs` ripreso dalla Dock accantonata, da solo; Impostazioni → Barra fissa → «Barra delle applicazioni di Windows», guardiano, ripristino nel disinstallatore. `docs/decisioni.md`.
 
-### 18/11 — Panoramica: ricerca e linee vere
-La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.
+### 22/11 — Il PC dal campo dell'isola
+- Ramo `claude/campo`, `pcfind.rs` (`docs/architettura.md` → Campo unico): file (recenti e indice di Windows, Maiusc+Invio nella cartella, interruttore «File del PC»), finestre aperte portate davanti, pagine e comandi di Windows. Nessuna dipendenza.
+- Il resto delle proposte in `docs/idee.md` → «Il PC dal campo dell'isola, seguiti».
 
-### 17/11 sera — Panoramica della Mappa della memoria
-La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
-- Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.
-- Nucleo a 30 fps al massimo, solo a finestra visibile e a fuoco, fermo 20 s dopo l'ultimo mouse. `?few` e `?many=300` nell'anteprima; `docs/chat.md`, guida 12.
+### 22/11 — Migliorie da librerie collaudate
+- Blocchi di codice: «▶ Nel terminale» (scritto, mai eseguito) e «Salva» (`docs/chat.md` → Campo e azioni).
+- Chat fluida: risposte lette una volta, risposta in arrivo riletta solo nell'ultimo pezzo (`chat-live.ts`), messaggi fuori schermo non disegnati. «Domanda a parte» nelle idee.
+- Terminale: più schede (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F (`docs/chat.md` → Terminale). Codice colorato nelle risposte (`highlight.ts`). Ricerca che perdona (`fuzzy.ts`). Pannelli: menu della scheda, ingrandisci, annulla/ripeti (storia nostra: quella di dockview è a pagamento).
+- Nuove dipendenze decise da Edoardo (`docs/decisioni.md`); CodeMirror e Mermaid in `docs/idee.md`.
 
-### 17/11 sera — Avvisi in una finestra loro
-Messaggi, aggiornamenti, momenti (download, Vassoio, errore copiato…), fine ed errori degli agenti, riepilogo e giornata vanno in toast in una finestra che non prende il fuoco e non apre né cambia l'isola (`src/notices/notices.ts`, `notices_window.rs`).
-- Permessi, domande, card di Claude Code con le scelte e chiamate 3CX restano all'isola. Durata 8/15 s, errori finché chiusi, mouse sopra = pausa, massimo 3 + «+N».
-- Impostazioni → Notifiche → Avvisi: sotto l'isola (di serie), alto o basso a destra, nell'isola come prima. Scena `avvisi` (anche nello smoke), `docs/architettura.md`, guida 06.
-
+### 22/11 — Pannelli della chat (dockview)
+- Conversazioni, Anteprima e Terminale come pannelli attorno alla chat, nell'isola e nella finestra (`src/island/dock.ts`, `docs/chat.md` → Anteprima → Pannelli): schede trascinabili, divisori, disposizione per luogo e insieme. Con la sola chat niente pannelli.
+- Nuova dipendenza `dockview-core` decisa da Edoardo (`docs/decisioni.md`); CSS in `src/vendor/dockview.css`.
+- Barra fissa: file trascinati sulla barra non finiscono più nell'isola (`file-drop` ascoltato per pagina).

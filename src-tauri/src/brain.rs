@@ -1381,48 +1381,6 @@ fn stamp_dir(dir: &Path, depth: u32) -> Stamp {
     out
 }
 
-/// Text as « word word », lowercase: a name is found as whole words.
-fn as_words(text: &str) -> String {
-    format!(" {} ", fold(text).split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "))
-}
-
-/// (page, page it names) by title or alias as whole words in its summary or
-/// text. A name found in more than a third of the pages («Clienti») says
-/// nothing and is skipped; at most 5 per page, the longest names first.
-pub(crate) fn pages_named_in(all: &[Page]) -> Vec<(String, String)> {
-    let texts: Vec<String> = all.iter().map(|p| as_words(&format!("{} {}", p.summary, p.body))).collect();
-    let mut names: Vec<(usize, String)> = Vec::new();
-    for (i, p) in all.iter().enumerate() {
-        for n in std::iter::once(&p.title).chain(p.aliases.iter()) {
-            let w = as_words(n);
-            if w.trim().chars().count() >= 4 && !names.iter().any(|(j, m)| *j == i && *m == w) {
-                names.push((i, w));
-            }
-        }
-    }
-    let common = (all.len() / 3).max(3);
-    names.retain(|(i, w)| texts.iter().enumerate().filter(|(j, t)| j != i && t.contains(w.as_str())).count() <= common);
-    names.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
-    let mut out = Vec::new();
-    for (i, text) in texts.iter().enumerate() {
-        let mut found: Vec<usize> = Vec::new();
-        for (j, w) in &names {
-            if *j != i && !found.contains(j) && text.contains(w.as_str()) {
-                found.push(*j);
-            }
-            if found.len() >= 5 {
-                break;
-            }
-        }
-        for j in found {
-            if let (Some(a), Some(b)) = (all.get(i), all.get(j)) {
-                out.push((a.slug.clone(), b.slug.clone()));
-            }
-        }
-    }
-    out
-}
-
 fn stamp_file(path: &Path) -> Stamp {
     std::fs::metadata(path).map(|m| vec![(path.to_path_buf(), m.modified().unwrap_or(std::time::UNIX_EPOCH), m.len())]).unwrap_or_default()
 }
@@ -1462,11 +1420,10 @@ fn make_graph(dir: &Path) -> Graph {
             add_edge(&mut edges, &mut seen, &mut degree, id.clone(), sid, t("fonte").into());
         }
     }
-    // Pages that name another one in their text (14 Nov 2026: pages created by
-    // the evening pass with no relation written floated alone on the map).
-    for (from, to) in pages_named_in(&all) {
-        add_edge_at(&mut edges, &mut seen, &mut degree, format!("p:{from}"), format!("p:{to}"), String::new(), 2);
-    }
+    // Two pages are tied only by a link written in one of them. Until 21 Nov
+    // 2026 a page naming another in its text was tied to it too, and «VM client
+    // Winfarm» drew Iaso Farmacie → Winfarm (Edoardo: «quelli dedotti non
+    // bisognava inserirli»).
     // The sources read, with when they were moved.
     if let Ok(r) = std::fs::read_dir(dir.join("fonti")) {
         for e in r.flatten() {
@@ -1899,7 +1856,12 @@ pub fn node_file(id: &str) -> Option<PathBuf> {
 /// touched (src/memory/neural.ts). Only words go, never a file.
 pub fn activity(app: &tauri::AppHandle, kind: &str, text: &str) {
     use tauri::Emitter;
-    let text: String = text.chars().take(300).collect();
+    const MAX: usize = 2000;
+    let cut = text.chars().count() > MAX;
+    let mut text: String = text.chars().take(MAX).collect();
+    if cut {
+        text.push('…');
+    }
     if !text.trim().is_empty() {
         let _ = app.emit_to(crate::MEMORY_LABEL, "memory-activity", serde_json::json!({ "kind": kind, "text": text }));
     }
@@ -2345,25 +2307,5 @@ Commercialisti.
         assert_eq!(super::slug("nul"), "nul-pagina");
         assert_eq!(super::slug("COM10"), "com10");
         assert_eq!(super::slug("Compiti"), "compiti");
-    }
-
-    #[test]
-    fn pages_that_name_each_other() {
-        let page = |slug: &str, text: &str| super::parse(slug, text);
-        let all = vec![
-            page("easytech", "# Easytech\n\nAzienda di Edoardo con molti clienti."),
-            page("allnet-italia", "# Allnet-Italia\nalias: Allnet\n\nPortale usato da Easytech per i prezzi ai clienti."),
-            page("wisp-store", "# Wisp.store\n\nPortale: dopo l'accesso con l'account Easytech i prezzi per i clienti sono IVA esclusa."),
-            page("clienti", "# Clienti\n\nRubrica dei clienti."),
-            page("rossi", "# Rossi\n\nUno dei clienti, compra su Allnet."),
-            page("h2o", "# H2O Tecno Impianti\nalias: H2O\n\nOutlook rifatto."),
-        ];
-        let got = super::pages_named_in(&all);
-        assert!(got.contains(&("allnet-italia".into(), "easytech".into())));
-        assert!(got.contains(&("wisp-store".into(), "easytech".into())));
-        assert!(got.contains(&("rossi".into(), "allnet-italia".into())));
-        // «clienti» is in four texts of six: too common to mean the page.
-        assert!(!got.iter().any(|(_, to)| to == "clienti"));
-        assert!(!got.iter().any(|(a, b)| a == b));
     }
 }

@@ -312,6 +312,7 @@ function linkCharacterWindow(island: Island) {
           items: barPieces(island.barStrip(), island.barAppBar()),
           look: State.settings.fixedBarLook ?? {},
           font: State.settings.fixedBarLook?.font === false ? null : barFont(State.settings.theme?.fonts),
+          apps: State.settings.appsPinned ?? [],
         }
         : null,
     };

@@ -10,6 +10,8 @@ mod collect;
 mod memory_ai;
 mod memory_links;
 mod preview;
+mod preview_page;
+mod winapps;
 mod pdf;
 mod antigravity;
 mod agent;
@@ -17,6 +19,7 @@ mod memory_learn;
 mod memory_meaning;
 mod meaning_local;
 mod memory_answer;
+mod memory_chat;
 mod quick_answer;
 mod search_window;
 mod dvc_live;
@@ -126,6 +129,13 @@ mod remote;
 mod renew;
 mod richtext;
 mod start_apps;
+mod pcfind;
+mod taskbar_hide;
+mod applist;
+mod regwatch;
+mod taskwin;
+mod winthumbs;
+mod barapps;
 mod threecx;
 mod speech;
 mod brain_watch;
@@ -258,6 +268,9 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         // The shadow's look: only the shadow is laid again (sync_character).
         let shadow_changed = (current.bar_shadow(), current.bar_margin()) != (settings.bar_shadow(), settings.bar_margin());
         let autostart_changed = current.autostart != settings.autostart;
+        if current.hide_windows_taskbar != settings.hide_windows_taskbar {
+            taskbar_hide::apply(app, settings.hide_windows_taskbar);
+        }
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
@@ -434,6 +447,44 @@ async fn daily_ai_write(app: AppHandle, which: String) -> Result<(), String> {
 #[tauri::command]
 async fn start_apps() -> Vec<start_apps::StartApp> {
     tauri::async_runtime::spawn_blocking(start_apps::list).await.unwrap_or_default()
+}
+
+/// The search field: files whose name has the words (pcfind.rs).
+#[tauri::command]
+async fn pc_files(q: String) -> Vec<pcfind::FoundFile> {
+    tauri::async_runtime::spawn_blocking(move || pcfind::files(&q)).await.unwrap_or_default()
+}
+
+/// A file found by the search: opened, or selected in its folder.
+#[tauri::command]
+async fn pc_file_open(path: String, reveal: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || pcfind::open(&path, reveal)).await.map_err(|e| e.to_string())?
+}
+
+/// The search field: the open windows of the other programs.
+#[tauri::command]
+async fn pc_windows() -> Vec<pcfind::OpenWindow> {
+    tauri::async_runtime::spawn_blocking(pcfind::windows).await.unwrap_or_default()
+}
+
+#[tauri::command]
+fn pc_window_focus(id: i64) -> bool {
+    pcfind::focus(id)
+}
+
+/// «Rimetti adesso» (Impostazioni → Barra fissa): the Windows taskbar back now
+/// (the page turns the setting off too). True when it is visible again.
+#[tauri::command]
+fn windows_taskbar_restore(app: AppHandle) -> bool {
+    taskbar_hide::apply(&app, false);
+    taskbar_hide::give_back();
+    !taskbar_hide::taken()
+}
+
+/// One of Windows' own pages (pcfind::PAGES), by its id.
+#[tauri::command]
+fn pc_page(id: String) -> bool {
+    pcfind::page(&id)
 }
 
 /// Runs a script the user just confirmed in the island.
@@ -2568,6 +2619,8 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
         .build();
     match built {
         Ok(window) => {
+            // On the bar's «App», under EasyIsland's icon.
+            taskwin::own_window(&window);
             *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.clone());
             // Closed with its ✕ while the Anteprima is docked in it: the preview goes back to the island first.
             // Gone: the island is told (popout-closed, with the window's name), so its
@@ -2829,6 +2882,18 @@ fn memory_window_open(app: AppHandle) {
 #[tauri::command]
 async fn quick_answer(app: AppHandle, question: String) -> Option<quick_answer::QuickAnswer> {
     quick_answer::answer(&app, &question).await
+}
+
+/// «Chiedi alla memoria» in the Panoramica: an answer only from the memory (memory_chat.rs).
+#[tauri::command]
+async fn memory_chat(app: AppHandle, question: String, history: Vec<memory_chat::Turn>, facts: Option<String>) -> memory_chat::Reply {
+    memory_chat::ask(&app, &question, &history, facts.as_deref().unwrap_or_default()).await
+}
+
+/// «Apri in chat» under an answer of «Chiedi alla memoria».
+#[tauri::command]
+fn memory_chat_open(app: AppHandle, question: String, answer: String) {
+    memory_chat::open_in_chat(&app, &question, &answer);
 }
 
 /// The field at the top of the island: memory pages with these words.
@@ -3172,6 +3237,15 @@ async fn chat_pick(folders: bool, accept: Option<String>) -> Result<Vec<files::C
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// «Salva come file» under a block of code in the chat: the path saved, None when cancelled.
+#[tauri::command]
+async fn save_code_as(name: String, text: String) -> Result<Option<String>, String> {
+    // A name only (the dialog picks the folder), never a path from the page.
+    let name: String = name.chars().filter(|c| !matches!(c, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|')).take(80).collect();
+    let name = if name.trim().is_empty() { "codice.txt".to_string() } else { name };
+    tauri::async_runtime::spawn_blocking(move || workdir::save_text(&name, &text)).await.map_err(|e| e.to_string())?
 }
 
 /// A `file` field's `accept` as extensions, to show only those files of the Vassoio.
@@ -3719,8 +3793,14 @@ async fn chat_pick_folder(start: Option<String>) -> Result<Option<String>, Strin
 
 /// «Terminale» in the chat: the user's own PowerShell in the project's folder (terminal.rs).
 #[tauri::command]
-fn terminal_open(app: AppHandle, folder: Option<String>, cols: u16, rows: u16) -> Result<u32, String> {
-    terminal::open(&app, folder.as_deref(), cols, rows)
+fn terminal_open(app: AppHandle, folder: Option<String>, shell: Option<String>, cols: u16, rows: u16) -> Result<u32, String> {
+    terminal::open(&app, folder.as_deref(), shell.as_deref().unwrap_or("powershell"), cols, rows)
+}
+
+/// The shells the chat's terminal can open (terminal.rs shells): `[id, name]`.
+#[tauri::command]
+fn terminal_shells() -> Vec<(String, String)> {
+    terminal::shells().into_iter().map(|(id, name)| (id.to_string(), name)).collect()
 }
 
 /// Keys and pasted text, raw (xterm.js in chat.ts).
@@ -4126,6 +4206,7 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         .build()
     {
         Ok(win) => {
+            taskwin::own_window(&win);
             // Closing it must only hide it, or it could never be reopened.
             let hidden = win.clone();
             let handle = app.clone();
@@ -4205,11 +4286,16 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
         .minimizable(false)
         .closable(false)
         .drag_and_drop(false)
+        // Programs dragged onto the fixed bar reach the page as an HTML5 drop (bar_pin):
+        // with Tauri's own drop handler on the webview Windows showed the «no entry» sign.
+        .disable_drag_drop_handler()
         .visible(false)
         .build()
     {
         Ok(win) => {
             island::make_non_activating(&win.as_ref().window());
+            // Programs and files dragged onto the fixed bar (bar_pin): their paths come back here.
+            drop::install_on(app, win.as_ref(), CHARACTER_LABEL);
             // Always "compact": the low memory target of WebView2 (webview_memory.rs).
             webview_memory::set_low(win.as_ref(), true);
             let _ = win.set_ignore_cursor_events(true);
@@ -4233,9 +4319,10 @@ fn bar_reveal(app: AppHandle, on: bool) {
 
 /// The mouse came on the character in the bar (or left it): the window reaches
 /// `px` (logical) past the band, where the band swells around the bigger
-/// character (src/character-window/main.ts). With the blur on, `shape` is the
-/// band's outline (logical px in the window): the window is cut to it, or the
-/// blur would fill the whole rectangle.
+/// character (src/character-window/main.ts). `shape` (logical px in the
+/// window) cuts the window: the band's outline with the blur on (or the blur
+/// would fill the whole rectangle); at the bottom edge the band alone at rest,
+/// the window staying tall so the hover never resizes it. None: the whole window.
 #[tauri::command]
 fn bar_grow(app: AppHandle, px: f64, shape: Option<Vec<[f64; 2]>>) {
     let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
@@ -4253,7 +4340,7 @@ fn bar_grow(app: AppHandle, px: f64, shape: Option<Vec<[f64; 2]>>) {
             }
         }
     }
-    character_shape(hwnd, shape.filter(|_| CHARACTER_BLUR.load(Ordering::Relaxed)), scale);
+    character_shape(hwnd, shape, scale);
 }
 
 /// Cuts the bar's window to `shape` (logical px), or gives it back its rectangle.
@@ -4431,7 +4518,7 @@ pub(crate) fn webview_dir() -> Option<std::path::PathBuf> {
 async fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
     let place = if new_tab.unwrap_or(false) { preview::Place::NewTab } else { preview::Place::Reuse };
     preview::closed_by_user(false);
-    preview::open(&app, &target, place, true)
+    preview::open(&app, &target, place, true, true)
 }
 
 #[tauri::command]
@@ -4582,6 +4669,7 @@ async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), Str
         .center()
         .build()
         .map_err(|e| e.to_string())?;
+    taskwin::own_window(&win);
     let hidden = win.clone();
     let handle = app.clone();
     win.on_window_event(move |event| {
@@ -4706,6 +4794,7 @@ fn create_memory_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         .build()
     {
         Ok(win) => {
+            taskwin::own_window(&win);
             let hidden = win.clone();
             let handle = app.clone();
             win.on_window_event(move |event| {
@@ -5123,6 +5212,173 @@ fn open_settings_window(app: AppHandle) {
     show_settings_window(&app);
 }
 
+/// «Personalizza la barra» (Edoardo, 21 Nov 2026): its window and the fixed
+/// bar talk through here. `to` = "bar": the mode on or off and its words;
+/// `to` = "editor": what the bar asks (move, remove, an element's options,
+/// done), applied and saved by the window's page. Only these two windows.
+#[tauri::command]
+fn bar_edit_relay(app: AppHandle, to: String, payload: serde_json::Value) {
+    use tauri::Emitter;
+    let _ = match to.as_str() {
+        "bar" => app.emit_to(CHARACTER_LABEL, "bar-edit", payload),
+        "editor" => app.emit_to(BAR_EDITOR_LABEL, "bar-edit-reply", payload),
+        _ => Ok(()),
+    };
+}
+
+pub const BAR_EDITOR_LABEL: &str = "barra";
+
+/// Programs, shortcuts, files or folders dragged onto the fixed bar: each a
+/// quick action «apri» with its own icon (thumbs::program_icon), put in the
+/// bar where it was let go (before `before`, in `area`) or inside the folder
+/// `folder`. One already there is not added twice. Saved like any change.
+#[tauri::command]
+async fn bar_pin(app: AppHandle, paths: Vec<String>, area: String, before: Option<String>, folder: Option<String>) -> usize {
+    let paths: Vec<String> = paths.into_iter().filter(|p| std::path::Path::new(p).exists()).take(20).collect();
+    if paths.is_empty() {
+        return 0;
+    }
+    let icons: Vec<Option<String>> = {
+        let list = paths.clone();
+        tauri::async_runtime::spawn_blocking(move || list.iter().map(|p| thumbs::program_icon(p)).collect()).await.unwrap_or_default()
+    };
+    // With «App» in the bar, programs and their shortcuts go among its apps.
+    let paths = barapps::pin_dropped(&app, paths);
+    if paths.is_empty() {
+        return 1;
+    }
+    let Some(shared) = app.try_state::<Shared>() else { return 0 };
+    let mut s = shared.settings.lock().unwrap().clone();
+    let key_of = |v: &serde_json::Value| {
+        let id = v.get("id").and_then(|x| x.as_str()).unwrap_or_default();
+        let uid = v.get("uid").and_then(|x| x.as_str()).unwrap_or_default();
+        if (id.starts_with("sys:") || id == "folder") && !uid.is_empty() { format!("{id}#{uid}") } else { id.to_string() }
+    };
+    let area = if area == "start" || area == "end" { area } else { "center".to_string() };
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    let mut added = 0;
+    for (i, path) in paths.iter().enumerate() {
+        // The same program already pinned: its action again, not a copy.
+        let existing = s.actions.iter().find(|a| {
+            a.get("kind").and_then(|x| x.as_str()) == Some("app") && a.get("target").and_then(|x| x.as_str()).is_some_and(|t| t.eq_ignore_ascii_case(path))
+        }).and_then(|a| a.get("id").and_then(|x| x.as_str()).map(str::to_string));
+        let id = match existing {
+            Some(id) => id,
+            None => {
+                let id = format!("pin{stamp}{i}");
+                let name = std::path::Path::new(path).file_stem().and_then(|n| n.to_str()).unwrap_or("App").to_string();
+                s.actions.push(serde_json::json!({
+                    "id": id, "name": name, "icon": icons.get(i).cloned().flatten().unwrap_or_else(|| "i:bolt".into()),
+                    "color": "", "kind": "app", "target": path, "args": "", "script": "", "shell": "powershell",
+                    "prompt": "", "input": "none", "confirm": false, "hotkey": "",
+                }));
+                id
+            }
+        };
+        let item_id = format!("action:{id}");
+        let in_bar = s.fixed_bar_items.iter().any(|x| key_of(x) == item_id)
+            || s.fixed_bar_items.iter().any(|x| x.get("children").and_then(|c| c.as_array()).is_some_and(|c| c.iter().any(|y| key_of(y) == item_id)));
+        if in_bar {
+            continue;
+        }
+        let item = serde_json::json!({ "id": item_id, "area": area, "show": "icon" });
+        let folder_at = folder.as_deref().filter(|f| !f.is_empty()).and_then(|f| s.fixed_bar_items.iter().position(|x| key_of(x) == f));
+        if let Some(fi) = folder_at {
+            if let Some(obj) = s.fixed_bar_items.get_mut(fi).and_then(|x| x.as_object_mut()) {
+                let children = obj.entry("children").or_insert_with(|| serde_json::json!([]));
+                if let Some(list) = children.as_array_mut() {
+                    list.push(item);
+                }
+            }
+        } else {
+            let at = before.as_deref().and_then(|b| s.fixed_bar_items.iter().position(|x| key_of(x) == b));
+            let at = at.unwrap_or_else(|| {
+                s.fixed_bar_items.iter().rposition(|x| x.get("area").and_then(|a| a.as_str()) == Some(area.as_str())).map(|p| p + 1).unwrap_or(s.fixed_bar_items.len())
+            });
+            s.fixed_bar_items.insert(at.min(s.fixed_bar_items.len()), item);
+        }
+        added += 1;
+    }
+    if added > 0 {
+        log::line(format!("barra fissa: {added} programmi aggiunti trascinandoli"));
+        apply_settings(&app, s);
+    }
+    added
+}
+
+/// The bar back to normal (its window hidden or closed).
+fn bar_edit_off(app: &AppHandle) {
+    use tauri::Emitter;
+    let _ = app.emit_to(CHARACTER_LABEL, "bar-edit", serde_json::json!({ "on": false }));
+}
+
+/// «Personalizza la barra»: its window, made the first time (async: a window
+/// made from a synchronous command blocked the main thread), always above the
+/// others beside the bar; the bar in its customize mode while it is shown.
+#[tauri::command]
+async fn open_bar_editor(app: AppHandle) -> Result<(), String> {
+    show_bar_editor(&app)
+}
+
+pub(crate) fn show_bar_editor(app: &AppHandle) -> Result<(), String> {
+    use tauri::Emitter;
+    if let Some(win) = app.get_webview_window(BAR_EDITOR_LABEL) {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = win.emit("bar-editor-shown", ());
+        return Ok(());
+    }
+    let mut builder = WebviewWindowBuilder::new(app, BAR_EDITOR_LABEL, page_url(app, "barra.html"));
+    if let Some(Some(dir)) = WEBVIEW_DIR.get() {
+        builder = builder.data_directory(dir.clone());
+    }
+    let (w, h) = (440.0, 640.0);
+    let win = builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title(i18n::t("Personalizza la barra — EasyIsland"))
+        .theme(Some(tauri::Theme::Dark))
+        .inner_size(w, h)
+        .min_inner_size(380.0, 420.0)
+        .resizable(true)
+        .always_on_top(true)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    // On the right of the screen with the bar, just inside the room the bar leaves.
+    let top = app.try_state::<Shared>().map(|s| s.settings.lock().unwrap().fixed_bar != "bottom").unwrap_or(true);
+    if let Some(m) = app.get_webview_window(CHARACTER_LABEL).and_then(|c| c.current_monitor().ok().flatten()).or_else(|| win.primary_monitor().ok().flatten()) {
+        let scale = m.scale_factor();
+        let (mx, my) = (m.position().x as f64, m.position().y as f64);
+        let (mw, mh) = (m.size().width as f64, m.size().height as f64);
+        let x = mx + mw - (w + 24.0) * scale;
+        let y = if top { my + 96.0 * scale } else { my + mh - (h + 120.0) * scale };
+        let _ = win.set_position(tauri::PhysicalPosition::new(x.round() as i32, y.max(my).round() as i32));
+    }
+    taskwin::own_window(&win);
+    let hidden = win.clone();
+    let handle = app.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = hidden.hide();
+            bar_edit_off(&handle);
+        }
+    });
+    let _ = win.show();
+    let _ = win.set_focus();
+    Ok(())
+}
+
+/// «Fine»: the window hidden, the bar back to normal.
+#[tauri::command]
+fn close_bar_editor(app: AppHandle) {
+    if let Some(win) = app.get_webview_window(BAR_EDITOR_LABEL) {
+        let _ = win.hide();
+    }
+    bar_edit_off(&app);
+}
+
 /// The island's context menu: the settings on one page, with one entry open
 /// ("integrazioni" + "integration_zammad"). The settings page takes it from the event.
 #[tauri::command]
@@ -5132,6 +5388,10 @@ fn open_settings_at(app: AppHandle, page: String, item: Option<String>) {
 }
 
 pub fn run() {
+    // The taskbar's guard and «give it back» run without the app (taskbar_hide.rs).
+    if taskbar_hide::handle_args() {
+        return;
+    }
     jumplist::set_app_id();
     // The release build aborts on a panic (panic = "abort"): without this the
     // reason is lost and Windows only reports 0xc0000409.
@@ -5327,6 +5587,8 @@ pub fn run() {
             chat_history_open,
             chat_claude_commands,
             terminal_open,
+            terminal_shells,
+            save_code_as,
             terminal_write,
             terminal_resize,
             terminal_close,
@@ -5396,6 +5658,12 @@ pub fn run() {
             chat_history_search,
             memory_find,
             quick_answer,
+            memory_chat,
+            memory_chat_open,
+            bar_edit_relay,
+            bar_pin,
+            open_bar_editor,
+            close_bar_editor,
             memory_node_brief,
             memory_window_select,
             zammad_search,
@@ -5509,6 +5777,23 @@ pub fn run() {
             inbox_clear,
             inbox_keep,
             start_apps,
+            pc_files,
+            pc_file_open,
+            pc_windows,
+            pc_window_focus,
+            pc_page,
+            windows_taskbar_restore,
+            taskwin::apps_windows,
+            taskwin::apps_do,
+            taskwin::apps_icons,
+            taskwin::apps_catalog,
+            winthumbs::apps_thumbs,
+            barapps::apps_start,
+            barapps::apps_pin,
+            barapps::apps_unpin,
+            barapps::apps_move,
+            barapps::apps_menu,
+            barapps::apps_recent_files,
             recap::recap_history,
             recap::recap_mark_shown,
             recap::recap_clear,
@@ -5714,6 +5999,8 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
+            // Hidden if chosen; given back if a run before left it hidden and it is not chosen now.
+            taskbar_hide::apply(&handle, loaded.hide_windows_taskbar);
             news::start(handle.clone());
             ticket_advice::start_watch(handle.clone());
             giornata::start(handle.clone());
@@ -5770,6 +6057,7 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 tasks::on_exit();
                 appbar::shutdown();
+                taskbar_hide::shutdown();
                 opencode::shutdown();
                 claude_cli::shutdown();
                 terminal::close(None);

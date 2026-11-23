@@ -1,8 +1,11 @@
+import { highlightInto } from "./highlight";
 import { t } from "./i18n";
 // Claude's replies in the chat, read as markdown (HANDOFF 6.6, point 4).
 //
 // A small renderer, no library: it builds DOM nodes and never touches
-// innerHTML, so nothing in a reply can become markup or script. What it knows:
+// innerHTML, so nothing in a reply can become markup or script (the one
+// exception: the colours of fenced code, highlight.ts, whose HTML highlight.js
+// escapes itself). What it knows:
 // headings, paragraphs, bullet and numbered lists, quotes, tables, rules,
 // fenced code (with a "Copia" button), and inline **bold**, *italic*,
 // ~~strike~~, `code`, [links](https://…) and bare http(s) addresses. Links
@@ -36,6 +39,12 @@ export interface MarkdownHooks {
   openUrl(url: string, e?: MouseEvent): void;
   /** A file path (in `code`, a link or bare absolute); `e`: the click. */
   openPath?(path: string, e?: MouseEvent): void;
+  /** A block of code in a shell's language: «▶ Nel terminale» shown when true (the chat's terminal). */
+  canRun?(lang: string): boolean;
+  /** «▶ Nel terminale»: the code written in the chat's terminal, never run by itself. */
+  runCode?(code: string, lang: string): void;
+  /** «Salva»: the code into a file the user names (Windows' Save dialog). */
+  saveCode?(code: string, lang: string): void;
 }
 
 /** "C:\a\b.ts", "src/app.ts", "./x.md", "~/n.txt": a path, not a word or a command. */
@@ -192,7 +201,7 @@ function cellNodes(text: string, hooks: MarkdownHooks): Node[] {
   return out;
 }
 
-function codeBlock(code: string, lang: string): HTMLElement {
+function codeBlock(code: string, lang: string, hooks: MarkdownHooks): HTMLElement {
   const box = el("div", "md-pre");
   const head = el("div", "md-pre-head");
   const copy = el("button", "md-copy", t("Copia"));
@@ -206,9 +215,29 @@ function codeBlock(code: string, lang: string): HTMLElement {
     window.setTimeout(() => (copy.textContent = t("Copia")), 1600);
 
   });
-  head.append(el("span", "md-lang", lang), copy);
+  const label = el("span", "md-lang", lang);
+  head.append(label);
+  // The outputs of a step (claude_cli.rs result_block) are not code to keep or run.
+  const output = lang === "esito" || lang === "errore";
+  if (!output && hooks.runCode && hooks.canRun?.(lang)) {
+    const run = el("button", "md-copy md-run", `▶ ${t("Nel terminale")}`);
+    run.title = t("Scrive il codice nel terminale della chat: lo esegui tu con Invio");
+    run.addEventListener("click", () => hooks.runCode?.(code, lang));
+    head.append(run);
+  }
+  if (!output && hooks.saveCode) {
+    const save = el("button", "md-copy md-save", t("Salva"));
+    save.title = t("Salva il codice in un file");
+    save.addEventListener("click", () => hooks.saveCode?.(code, lang));
+    head.append(save);
+  }
+  head.append(copy);
   const pre = el("pre");
-  pre.append(el("code", undefined, code));
+  const body = el("code");
+  // Colours by language (highlight.ts); a guessed one is named in the head.
+  const used = highlightInto(body, code, lang);
+  if (!lang && used) label.textContent = used;
+  pre.append(body);
   box.append(head, pre);
   return box;
 }
@@ -238,7 +267,7 @@ export function renderMarkdown(text: string, hooks: MarkdownHooks): HTMLElement[
       flush();
       const body: string[] = [];
       for (i++; i < lines.length && !lines[i].trim().startsWith(fence[1]); i++) body.push(lines[i]);
-      blocks.push(codeBlock(body.join("\n"), fence[2]));
+      blocks.push(codeBlock(body.join("\n"), fence[2], hooks));
       continue;
     }
     if (!line.trim()) {

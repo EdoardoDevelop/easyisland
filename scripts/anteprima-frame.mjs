@@ -48,7 +48,8 @@ const snap = await ev(`${FRAMES}(${SNAPSHOT})()`);
 console.log(snap.tree);
 check("snapshot legge l'iframe dello stesso sito", /\[frame=f1\]:/.test(snap.tree) && /Update Firmware/.test(snap.tree));
 check("ref dentro il frame con prefisso", /button "Update Firmware" \[ref=f1e\d+\]/.test(snap.tree));
-check("iframe di un altro sito non letto", /altro sito: contenuto non letto/.test(snap.tree) && !/Segreto/.test(snap.tree));
+// Another site's frame: the page script only marks it (address); WebView2 reads it (preview_page.rs).
+check("iframe di un altro sito segnato, non letto dallo script", /iframe "altro" [^]*other\.html/.test(snap.tree) && !/Segreto/.test(snap.tree));
 
 const found = await ev(`${FRAMES}(${FIND_ALL})("update firmware")`);
 check("preview_find trova nel frame", found.some((l) => /f1e\d+/.test(l)), found.join(" | "));

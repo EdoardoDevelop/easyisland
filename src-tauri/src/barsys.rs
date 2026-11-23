@@ -244,9 +244,17 @@ pub fn bar_sys_watch(kinds: Vec<String>) {
 /// the recycle bin's `recycle-open` / `recycle-empty`, the updates' `updates-check` /
 /// `updates-all`, or `vscode-open` with `path`, one of VS Code's recent folders.
 #[tauri::command]
-pub fn bar_sys_do(what: String, arg: Option<f64>, path: Option<String>) {
+pub fn bar_sys_do(app: tauri::AppHandle, what: String, arg: Option<f64>, path: Option<String>) {
     let arg = arg.unwrap_or(0.0);
     match what.as_str() {
+        // The «Windows» elements of the bar: its own shortcuts, off this thread
+        // (the hidden icons need a pause between two keys).
+        w if w.starts_with("win:") => {
+            let which = w.trim_start_matches("win:").to_string();
+            if win_keys(&which).is_some() {
+                std::thread::spawn(move || win_key(&app, &which));
+            }
+        }
         // Shown by Windows itself: not on the COM thread, which would wait for the answer.
         "sleep" | "restart" | "shutdown" | "updates-all" => {
             std::thread::spawn(move || power(&what));
@@ -796,6 +804,76 @@ fn panel(which: &str) {
         _ => return,
     };
     press(keys);
+}
+
+/// The keys of a «Windows» element of the bar (barkinds.ts, group «windows»).
+fn win_keys(which: &str) -> Option<&'static [windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY]> {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{VK_A, VK_B, VK_D, VK_E, VK_I, VK_LWIN, VK_N, VK_S, VK_TAB, VK_W, VK_X};
+    Some(match which {
+        "start" => &[VK_LWIN],
+        "winx" => &[VK_LWIN, VK_X],
+        "winsearch" => &[VK_LWIN, VK_S],
+        "taskview" => &[VK_LWIN, VK_TAB],
+        "widgets" => &[VK_LWIN, VK_W],
+        // Win+B moves the focus to the arrow of the hidden icons; Enter opens them (win_key).
+        "systray" => &[VK_LWIN, VK_B],
+        "quicksettings" => &[VK_LWIN, VK_A],
+        "notifications" => &[VK_LWIN, VK_N],
+        "explorer" => &[VK_LWIN, VK_E],
+        "winsettings" => &[VK_LWIN, VK_I],
+        "showdesktop" => &[VK_LWIN, VK_D],
+        _ => return None,
+    })
+}
+
+/// Presses a «Windows» element's shortcut. Windows drops simulated keys while
+/// a program run as administrator is in front: then the bar takes the focus
+/// first (the user's click on it allows it), and the keys go to Windows.
+fn win_key(app: &tauri::AppHandle, which: &str) {
+    use tauri::Manager;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow};
+    let Some(keys) = win_keys(which) else { return };
+    unsafe {
+        let front = GetForegroundWindow();
+        let mut pid = 0u32;
+        if !front.is_invalid() {
+            GetWindowThreadProcessId(front, Some(&mut pid));
+        }
+        if pid != 0 && pid != std::process::id() && elevated(pid) {
+            if let Some(bar) = app.get_webview_window(crate::CHARACTER_LABEL).and_then(|w| w.hwnd().ok()) {
+                let _ = SetForegroundWindow(HWND(bar.0));
+                std::thread::sleep(std::time::Duration::from_millis(40));
+            }
+        }
+    }
+    press(keys);
+    if which == "systray" {
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        press(&[windows::Win32::UI::Input::KeyboardAndMouse::VK_RETURN]);
+    }
+    crate::log::line(format!("barra fissa: {which} di Windows"));
+}
+
+/// Whether a process runs as administrator; one that cannot be opened counts as one.
+fn elevated(pid: u32) -> bool {
+    use windows::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows::Win32::System::Threading::{OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION};
+    unsafe {
+        let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else { return true };
+        let mut token = HANDLE::default();
+        let opened = OpenProcessToken(process, TOKEN_QUERY, &mut token).is_ok();
+        let _ = CloseHandle(process);
+        if !opened {
+            return true;
+        }
+        let mut e = TOKEN_ELEVATION::default();
+        let mut len = 0u32;
+        let ok = GetTokenInformation(token, TokenElevation, Some((&raw mut e).cast()), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut len).is_ok();
+        let _ = CloseHandle(token);
+        !ok || e.TokenIsElevated != 0
+    }
 }
 
 fn press(keys: &[windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY]) {

@@ -173,6 +173,13 @@ export const ACTION_ICONS: ActionIcon[] = [
   { name: "robot", label: t("Robot"), d: "M5 8h14v11H5z M12 4v4 M12 3h.01 M9 12.5h.01 M15 12.5h.01 M9.5 16h5 M2.5 12v3 M21.5 12v3" },
   { name: "repo", label: t("Repository"), d: "M6 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6 8v8 M6 16a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M18 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M18 8c0 5-6 4-12 8" },
   { name: "api", label: t("API"), d: "M4 12h4 M16 12h4 M8 8h8v8H8z M12 4v4 M12 16v4" },
+  // Windows' own controls in the fixed bar (barkinds.ts, group «Windows»).
+  { name: "windows", label: t("Windows"), d: "M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" },
+  { name: "chevron-up", label: t("Freccia su"), d: "M6 15l6-6 6 6" },
+  { name: "desktop", label: t("Desktop"), d: "M3 4h18v12H3z M12 16v4 M8 20h8 M20 4v12" },
+  { name: "widgets", label: t("Widget"), d: "M4 4h7v9H4z M13 4h7v5h-7z M13 11h7v9h-7z M4 15h7v5H4z" },
+  // The memory map (as the island's header button): three linked nodes.
+  { name: "mindmap", label: t("Mappa della memoria"), d: "M6 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M18 4a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M12 15.5a2.75 2.75 0 1 0 0 5.5 2.75 2.75 0 0 0 0-5.5z M8.4 7.5l7.2-.6 M7.2 9.3l3.6 6.6 M16.8 8.8l-3.6 7" },
 ];
 
 const BY_NAME = new Map(ACTION_ICONS.map((i) => [i.name, i]));

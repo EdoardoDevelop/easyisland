@@ -245,3 +245,16 @@ function grow(g: MemGraph, count: number) {
   for (const n of g.nodes) n.weight = degree.get(n.id) ?? 0;
   g.events.sort((a, b) => a.date.localeCompare(b.date));
 }
+
+/** «Chiedi alla memoria» in the browser preview: the pages whose name has a word of the question. */
+export function demoAsk(question: string, g: MemGraph): { text: string; by: string; nodes: { id: string; title: string }[] } {
+  const words = question.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2);
+  const pages = g.nodes.filter((n) => n.kind === "page");
+  const hit = pages.filter((n) => words.some((w) => n.label.toLowerCase().includes(w)));
+  const nodes = (hit.length ? hit : pages.slice(0, 3)).slice(0, 4).map((n) => ({ id: n.id, title: n.label }));
+  const text = hit.length
+    ? `Nella memoria ${hit[0].label} ha ${g.edges.filter((e) => e.from === hit[0].id || e.to === hit[0].id).length} collegamenti; ne parlano anche ${nodes.slice(1).map((n) => n.title).join(", ") || "nessun'altra pagina"}.`
+    : "Nella memoria non trovo niente su questo: sono le pagine più vicine.";
+  return { text, by: "anteprima · finta", nodes };
+}
+

@@ -1,7 +1,7 @@
 {
   "name": "easyisland",
   "private": true,
-  "version": "1.0.53",
+  "version": "1.0.54",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
     "tauri": "tauri",
     "predev": "cargo build --release -p easyisland-hook",
     "prebuild": "cargo build --release -p easyisland-hook",
+    "prova": "npm run build && cargo build --profile prova -p easyisland --features tauri/custom-protocol",
     "pack": "cargo clean --release -p easyisland-hook && tauri build && node scripts/pack.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:rapido": "node scripts/smoke.mjs chat overview agenti agentchat impostazioni/chat"
@@ -23,8 +24,14 @@
     "vite": "^6"
   },
   "dependencies": {
+    "@leeoniya/ufuzzy": "1.0.19",
     "@tauri-apps/api": "^2",
     "@xterm/addon-fit": "^0.10.0",
-    "@xterm/xterm": "^5.5.0"
+    "@xterm/addon-search": "0.15.0",
+    "@xterm/addon-unicode11": "0.8.0",
+    "@xterm/addon-web-links": "0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "dockview-core": "8.9.1",
+    "highlight.js": "11.11.1"
   }
 }

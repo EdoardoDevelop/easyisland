@@ -2,6 +2,54 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 21/11 — Memoria: chiedi alla memoria, punti sulle linee, gettoni
+Ramo `claude/memoria-chiedi`. Panoramica (Edoardo: «poco interattiva»): riquadro «~ chiedi alla memoria» accanto al registro (`memory_chat.rs`: risponde un motore solo dalle righe e pagine trovate, niente strumenti, rifiuta il resto; pagine della risposta accese nel nucleo e cliccabili).
+- Punti che scorrono sulle linee ultimi arrivi → nucleo; gettoni delle pagine più collegate con tip = nome e senza spunta.
+- Barra fissa: elemento «Memoria (la mappa)» (`sys:memory`, gruppo Lavoro) che apre la finestra Memoria.
+- Barra fissa: cartelle (piccola isola a griglia o lista, grandezza icone; si riempiono dal catalogo o trascinando sulla cartella) e programmi trascinati da Windows sulla barra (azioni rapide con l'icona, `bar_pin`). Da provare dal vivo: il drop dalla barra delle app e dal menu Start può non dare un percorso.
+- Barra fissa, «Personalizza la barra»: finestra sua (`barra`, dal destro sulla barra o da Impostazioni → Barra fissa → «Personalizza…»): clic su un widget = nella barra; nella barra trascina per spostare, destro = opzioni nella finestra, × toglie, «Fine». Da provare dal vivo.
+- Barra fissa, gruppo «Windows» nel catalogo: Start (destro Win+X), Cerca, Visualizzazione attività, Widget, Icone nascoste, Impostazioni rapide, Notifiche, Esplora file, Impostazioni, Mostra desktop; scorciatoie di Windows (`barsys::win_key`). Da provare dal vivo, anche con un programma da amministratore davanti.
+- Poi (ramo `claude/memoria-interattiva`): scheda del punto al clic nel nucleo, domande pronte, gettoni trascinabili nel campo, «Ricorda» e «Apri in chat» sotto la risposta, linea dal riferimento al punto, linea del tempo con ▶.
+- `style-windows.css`: ripristinato il selettore `.rail-meta.count` perso nel ridisegno (avviso CSS della build).
+- Al posto dei tre pallini colorati nelle intestazioni (sembravano i pulsanti di una finestra) un'icona del riquadro: righe per il registro, fumetto per «chiedi alla memoria».
+
+### 21/11 — Programmi di Windows per la chat
+Ramo `claude/desktop`. `winapps.rs`: finestre lette con UI Automation come albero con ref (`desktop_windows`, `desktop_snapshot`, `desktop_find`), clic e scrittura per ref con i pattern dei controlli, senza mouse né tastiera (`desktop_click`, `desktop_type`, Consenti/Nega ogni volta).
+- Mai accessi/password, terminali, impostazioni, «Esegui», pulsanti che inviano/eliminano/pagano. Lettura provata dal vivo; clic e scrittura da provare (`docs/prove-dal-vivo.md`).
+
+### 21/11 — Anteprima: chiusa resta chiusa, clic verificato, iframe di altri siti, domande del sito, file
+Ramo `claude/anteprima` (non `barra-ricerca`). Spunti da un browser per agenti segnalato da Edoardo; nessuna dipendenza nuova.
+- **Chiusa resta chiusa:** con l'Anteprima chiusa il motore lavora in una finestra nascosta (`BG` in `preview.rs`, chiusa dopo 10 min senza uso); la finestra la apre solo l'utente.
+- **Clic verificato** (`__eiHit`): coperto, nascosto, disattivato o fuori schermo = nessun clic, con cosa lo copre. **Iframe di altri siti** e **domande del sito** (confirm → card OK/Annulla dell'utente) in `preview_page.rs`; **`preview_upload`** chiede sempre. Da provare dal vivo (`docs/chat.md` → Anteprima).
+
+### 21/11 — Giornata del portatile (20/11): correzioni
+- **Mappa della memoria:** due pagine si legano solo con un [[link]] scritto; tolto `pages_named_in` («VM client Winfarm» legava Iaso Farmacie a Winfarm).
+- **File creati in chat:** i prompt (anche Modalità terminale e modello sul PC) chiedono il percorso completo di ogni file creato, che diventa link (`chatpaths.rs`); prima Edoardo doveva chiedere «dov'è il documento?».
+- **Multi motore con l'Automatica:** aiutanti e controllo la seguono (`team.rs` `Turn.auto`); il controllo di Antigravity passa solo letture (`EASYISLAND_AGY_READ_ONLY`). Prima chiedeva i permessi e scadevano.
+- **Senza rete:** Telegram e Agent Chat scrivono un errore uguale una volta sola e aspettano 10→60 s (`log::Retry`); «hotkey not available» una volta sola. Devolutions: elenco vecchio riletto da solo (762aae6).
+
+### 19/11 — Pagina cliente, stile nuovo sulle schede, Ticket e RDM rifatti
+- **Pagina cliente** nella memoria (`clients.rs`, `src/views/clientcard.ts`): `tipo: cliente` e sezioni fisse; scheda da Zammad, 3CX, RDM/Devolutions e ricerca; «Crea pagina cliente» già riempita, «Rendila pagina cliente» aggiunge senza togliere.
+- **Stile nuovo** su Rete, 3CX, Appunti, Agenti, Agent Chat (non Meteo né Impostazioni). Barre a tempo per password e conferme, stati vuoti con l'azione, «?» con le scorciatoie (`src/views/shortcuts.ts`).
+- **Zammad:** immagini al loro posto (`[[img:ID]]`, mai remote), allegati in Download, cc, contatti, tag, Salva unico (`zammad_save`). **Devolutions:** connessione pronta (`dvc_live.rs`) e scheda a tre zone.
+
+### 19/11 — Ricerca nelle Impostazioni
+Campo in cima al menu delle Impostazioni (anche Ctrl+F) e gruppo «Impostazioni» nel campo unico dell'isola: un risultato apre pagina, scheda o integrazione e illumina il controllo (`src/settings/search.ts`, `src/core/settings-index.ts`).
+- L'indice si legge dai controlli veri (pagine disegnate fuori schermo), una volta per versione e lingua, e passa all'isola dal `localStorage` condiviso; niente Rust.
+
+### 18/11 — Panoramica: ricerca e linee vere
+La ricerca in alto non arrivava alla Panoramica (`applySearch` parlava solo alle viste su canvas): ora accende le particelle trovate, filtra feed e gettoni, conta i risultati; Invio apre il risultato migliore nel Grafo. Le linee da «Ultimi arrivi» vanno alla particella vera di ogni riga (diario → giorno di chat), seguono lo scorrimento e si accendono al passaggio del mouse, in tutti e due i versi.
+
+### 17/11 sera — Panoramica della Mappa della memoria
+La finestra Memoria si apre su un cruscotto con i dati veri (`src/memory/dashboard.ts`, `dashboard.css`): numeri, ultimi arrivi, nucleo di particelle con gli archi dei gruppi, filtri, tappe con Leggi/Collega/Controlla, pagine più collegate, registro dal vivo, tre periodi.
+- Ogni clic porta al Grafo (o alle Bolle) su quella cosa, «← Panoramica» torna; le 14 viste restano. Niente Rust nuovo.
+- Nucleo a 30 fps al massimo, solo a finestra visibile e a fuoco, fermo 20 s dopo l'ultimo mouse. `?few` e `?many=300` nell'anteprima; `docs/chat.md`, guida 12.
+
+### 17/11 sera — Avvisi in una finestra loro
+Messaggi, aggiornamenti, momenti (download, Vassoio, errore copiato…), fine ed errori degli agenti, riepilogo e giornata vanno in toast in una finestra che non prende il fuoco e non apre né cambia l'isola (`src/notices/notices.ts`, `notices_window.rs`).
+- Permessi, domande, card di Claude Code con le scelte e chiamate 3CX restano all'isola. Durata 8/15 s, errori finché chiusi, mouse sopra = pausa, massimo 3 + «+N».
+- Impostazioni → Notifiche → Avvisi: sotto l'isola (di serie), alto o basso a destra, nell'isola come prima. Scena `avvisi` (anche nello smoke), `docs/architettura.md`, guida 06.
+
 ### 17/11 sera — Controlli grafici nelle integrazioni personali
 Cinque tipi nuovi nella lista fissa: `slider`, `switch`, `segmented`, `progress`, `stat` (`custom.rs` `check_control`).
 - `onChange` esegue solo azioni `save`/`http`/`notice`: subito al clic, lo slider dopo 600 ms. Accanto ✓/✕, e con un errore il campo torna indietro.
