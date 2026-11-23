@@ -123,6 +123,11 @@ function groupOf(id: string): Group | undefined {
 
 /** The apps drawn into their place in the bar. */
 export function fillApps(host: HTMLElement) {
+  // An icon being dragged stays where the mouse put it: drawn again once it is let go.
+  if (press?.dragging) {
+    redrawLater = true;
+    return;
+  }
   host.replaceChildren();
   for (const g of groups()) {
     const el = document.createElement("span");
@@ -157,26 +162,117 @@ function centre(el: HTMLElement): number {
   return Math.round(r.left + r.width / 2);
 }
 
-/**
- * A press on an app (true: handled). Left: one window → front or minimized,
- * none → opened, several → their card in the island. Middle: a new window.
- */
+/** Left click on an app: one window → front or minimized, none → opened, several → their card. */
+function leftClick(id: string, el: HTMLElement, ctrl: boolean) {
+  const g = groupOf(id);
+  // Ctrl+click: the app's next window, as on the Windows taskbar (23 Nov 2026).
+  if (ctrl && g && g.windows.length > 1) cycle(id, 1);
+  else if (g && g.windows.length > 1) send({ kind: "bar", key: `apps:list:${id}`, x: centre(el) });
+  else void invoke("apps_do", { what: "click", app: id }).catch(() => {});
+}
+
+// Apps put in order by dragging them along the bar (Edoardo, 23 Nov 2026).
+// The left button acts on its release, as on the Windows taskbar, so a press
+// that moves is a drag; a press whose release never comes (another app in
+// front can keep it, the log of 31 Oct 2026) acts after HOLD_MS all the same.
+interface Press { id: string; el: HTMLElement; x: number; ctrl: boolean; dragging: boolean; done: boolean; timer: number }
+let press: Press | null = null;
+/** The bar drawn again while dragging: deferred to the drop. */
+let redrawLater = false;
+const HOLD_MS = 600;
+const DRAG_PX = 6;
+
+function act(p: Press) {
+  window.clearTimeout(p.timer);
+  if (p.done || p.dragging) return;
+  p.done = true;
+  leftClick(p.id, p.el, p.ctrl);
+}
+
+/** Where the dragged icon goes among the others: moved in the DOM as it passes their centres. */
+function dragTo(p: Press, x: number) {
+  const host = p.el.parentElement;
+  if (!host) return;
+  const others = [...host.querySelectorAll<HTMLElement>(".app-ico")].filter((a) => a !== p.el);
+  const next = others.find((a) => x < centre(a)) ?? null;
+  if (next !== p.el.nextElementSibling) host.insertBefore(p.el, next);
+}
+
+/** The new order kept: pinned apps in the settings (barapps.rs `apps_move`), the others here. */
+function drop(p: Press) {
+  const host = p.el.parentElement;
+  p.el.classList.remove("dragging");
+  if (!host) return;
+  const order = [...host.querySelectorAll<HTMLElement>(".app-ico")].map((a) => a.dataset.app ?? "");
+  const pinnedIds = new Set(pins.map((x) => low(x.id)));
+  if (pinnedIds.has(low(p.id))) {
+    const newPins = order.filter((id) => pinnedIds.has(low(id)));
+    const at = newPins.findIndex((id) => low(id) === low(p.id));
+    const before = newPins[at + 1] ?? null;
+    // At once here; the settings come back with the same order.
+    pins = newPins.map((id) => pins.find((x) => low(x.id) === low(id))).filter((x): x is AppPin => !!x);
+    void invoke("apps_move", { id: p.id, before }).catch(() => {});
+  } else {
+    order.filter((id) => !pinnedIds.has(low(id))).forEach((id, i) => seen.set(low(id), i));
+  }
+  redrawLater = false;
+  redraw();
+}
+
+/** A press on an app (true: handled). Left: acts on release unless dragged. Middle: a new window. */
 export function appsPress(e: PointerEvent | MouseEvent): boolean {
   const el = (e.target as HTMLElement | null)?.closest?.(".app-ico") as HTMLElement | null;
   const id = el?.dataset.app;
   if (!el || !id) return false;
   cancelHover();
-  const g = groupOf(id);
   if (e.button === 1) {
     void invoke("apps_do", { what: "launch-new", app: id }).catch(() => {});
   } else if (e.button === 0) {
-    // Ctrl+click: the app's next window, as on the Windows taskbar (23 Nov 2026).
-    if (e.ctrlKey && g && g.windows.length > 1) cycle(id, 1);
-    else if (g && g.windows.length > 1) send({ kind: "bar", key: `apps:list:${id}`, x: centre(el) });
-    else void invoke("apps_do", { what: "click", app: id }).catch(() => {});
+    if (press) window.clearTimeout(press.timer);
+    const p: Press = { id, el, x: e.clientX, ctrl: e.ctrlKey, dragging: false, done: false, timer: 0 };
+    p.timer = window.setTimeout(() => act(p), HOLD_MS);
+    press = p;
+    if ("pointerId" in e) {
+      try { el.setPointerCapture(e.pointerId); } catch { /* the pointer is gone */ }
+    }
   }
   return true;
 }
+
+document.addEventListener("pointermove", (e) => {
+  const p = press;
+  if (!p) return;
+  if (!p.dragging) {
+    if (Math.abs(e.clientX - p.x) < DRAG_PX || p.done) return;
+    p.dragging = true;
+    window.clearTimeout(p.timer);
+    p.el.classList.add("dragging");
+    if (hovered) send({ kind: "bar", key: "apps:leave" });
+  }
+  dragTo(p, e.clientX);
+});
+
+function release() {
+  const p = press;
+  if (!p) return;
+  press = null;
+  if (p.dragging) drop(p);
+  else act(p);
+  if (redrawLater) {
+    redrawLater = false;
+    redraw();
+  }
+}
+document.addEventListener("pointerup", (e) => { if (e.button === 0) release(); });
+document.addEventListener("lostpointercapture", release, true);
+document.addEventListener("pointercancel", () => {
+  const p = press;
+  press = null;
+  if (p) {
+    window.clearTimeout(p.timer);
+    if (p.dragging) drop(p);
+  }
+});
 
 /**
  * The app's next (`dir` 1) or previous (-1) window in front. The order is the

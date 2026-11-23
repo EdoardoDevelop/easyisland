@@ -44,16 +44,31 @@ static UPDATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::
 
 static TX: OnceLock<Mutex<Sender<Cmd>>> = OnceLock::new();
 
+/// The elements asked for before the thread started: the island's page can
+/// load first, and it asks only once, so the values stayed «—» (23 Nov 2026).
+static EARLY: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+
 fn send(cmd: Cmd) {
+    // Held while deciding, as in `start`: nothing falls between the two.
+    let mut early = EARLY.lock().unwrap();
     if let Some(tx) = TX.get() {
+        drop(early);
         let _ = tx.lock().unwrap().send(cmd);
+    } else if let Cmd::Watch(w) = cmd {
+        *early = Some(w);
     }
 }
 
 pub fn start(app: AppHandle) {
     let (tx, rx) = channel::<Cmd>();
-    if TX.set(Mutex::new(tx)).is_err() {
-        return;
+    {
+        let mut early = EARLY.lock().unwrap();
+        if let Some(w) = early.take() {
+            let _ = tx.send(Cmd::Watch(w));
+        }
+        if TX.set(Mutex::new(tx)).is_err() {
+            return;
+        }
     }
     std::thread::spawn(move || {
         unsafe {

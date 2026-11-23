@@ -59,7 +59,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GW_OWNER, MSG, OBJID_WINDOW, SMTO_ABORTIFHUNG, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOOWNERZORDER, SWP_NOSIZE, SW_MINIMIZE, SW_RESTORE, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_APP,
     WM_CLOSE, WM_NULL, WM_SYSCOMMAND, WM_TIMER, WNDCLASSW, WS_CAPTION, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-    WS_EX_TOPMOST, GWL_STYLE, SC_RESTORE,
+    WS_EX_TOPMOST, GWL_STYLE, SC_CLOSE, SC_RESTORE,
 };
 
 /// The window the apps are shown in: the fixed bar (the character's window).
@@ -786,11 +786,17 @@ fn minimize(windows: &[isize]) {
     }
 }
 
-/// As the close button: each app may ask to save first.
+/// As the close button: each app may ask to save first. The system command, as
+/// the Windows taskbar sends: it passes where UIPI stops WM_CLOSE (a program run
+/// as administrator) and apps that ignore WM_CLOSE from outside still close
+/// (Edoardo, 23 Nov 2026: the × on the preview did nothing).
 fn close(windows: &[isize]) {
     for &h in windows {
+        let hwnd = HWND(h as *mut _);
         unsafe {
-            let _ = PostMessageW(Some(HWND(h as *mut _)), WM_CLOSE, WPARAM(0), LPARAM(0));
+            let sent = PostMessageW(Some(hwnd), WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), LPARAM(0)).is_ok()
+                || PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0)).is_ok();
+            crate::log::line(if sent { format!("App: chiusa la finestra {h:#x}") } else { format!("App: chiusura della finestra {h:#x} rifiutata da Windows") });
         }
     }
 }
