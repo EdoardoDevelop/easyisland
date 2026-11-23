@@ -113,13 +113,37 @@ function valueOf(taskId: string): { value: string; level?: "ok" | "warn" | "erro
 const history: Record<string, number[]> = {};
 const HISTORY = 30;
 
+/** The last minutes, timed, for the island's `chart` blocks (src/views/island-layout.ts). */
+const longHistory: Record<string, { t: number; v: number }[]> = {};
+const LONG_MS = 5 * 60_000;
+
+/** A chart's points: only the last five minutes (a pause in the readings leaves a gap, not a line across it). */
+export function chartHistory(kind: string): { t: number; v: number }[] {
+  const now = Date.now();
+  const list = longHistory[kind] ?? [];
+  // After a pause (the island closed) only what came since.
+  let start = 0;
+  for (let i = 1; i < list.length; i++) if ((list[i]?.t ?? 0) - (list[i - 1]?.t ?? 0) > 15_000) start = i;
+  return list.slice(start).filter((p) => now - p.t <= LONG_MS);
+}
+
+/** The browser preview (dev/scenes.ts): made-up readings, one every 2 s up to now. */
+export function chartSample(kind: string, values: number[]) {
+  const now = Date.now();
+  longHistory[kind] = values.map((v, i) => ({ t: now - (values.length - 1 - i) * 2000, v }));
+}
+
 /** A new reading of barsys.rs: the graphs get their next point. */
 export function recordBarSys(v: BarSys) {
+  const now = Date.now();
   const push = (k: string, n: number | null | undefined) => {
     if (typeof n !== "number" || !Number.isFinite(n)) return;
     const list = (history[k] ??= []);
     list.push(n);
     if (list.length > HISTORY) list.shift();
+    const long = (longHistory[k] ??= []);
+    long.push({ t: now, v: n });
+    while (long.length && now - (long[0]?.t ?? now) > LONG_MS) long.shift();
   };
   push("cpu", v.cpu);
   push("ram", v.ram?.percent);
@@ -547,11 +571,25 @@ export function barSysKinds(): string[] {
   return [...kinds].sort();
 }
 
-/** The PC's values of the user's tab open now (island_layout.rs `VALUES`): read only while it shows. */
+/**
+ * The PC's values the open island shows now (island_layout.rs `VALUES`,
+ * `CHARTS`): of the user's tab open, of the Panoramica's own blocks, of the
+ * island's foot; VS Code's projects for a block that lists them. Read only
+ * while they show.
+ */
 function boardSysKinds(): string[] {
-  if (State.view !== "board" || State.mode !== "expanded") return [];
-  const tab = State.layout.tabs.find((x) => x.id === State.boardTab);
-  return (tab?.blocks ?? []).flatMap((b) => (b.kind === "value" ? [b.what === "ip" ? "net" : b.what] : []));
+  if (State.mode !== "expanded") return [];
+  const kindOf = (w: string) => (w === "ip" ? "net" : w);
+  const blocks = State.view === "board" ? State.layout.tabs.find((x) => x.id === State.boardTab)?.blocks ?? []
+    : State.view === "overview" ? State.layout.overview?.blocks ?? []
+    : [];
+  const out = blocks.flatMap((b) => {
+    if (b.kind === "value" || b.kind === "chart") return [kindOf(b.what)];
+    if ((b.kind === "grid" || b.kind === "list") && b.source.kind === "vscode") return ["vscode"];
+    return [];
+  });
+  if (!State.popover && !State.searchOnly) for (const v of State.layout.foot?.values ?? []) out.push(kindOf(v.what));
+  return out;
 }
 
 /** A value block of a tab (src/views/island-layout.ts): the text, the icon, the tooltip, as the bar shows it. */

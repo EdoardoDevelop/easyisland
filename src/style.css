@@ -10199,3 +10199,42 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 }
 .board-piece-card .int-card { padding: 0; }
 .summary-block.board-value { width: fit-content; min-width: 160px; }
+/* A chart of a value of the PC: the last five minutes (bar.ts chartHistory). */
+.board-chart {
+  padding: 8px 12px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.board-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.board-chart-svg { display: block; width: 100%; height: 64px; overflow: visible; }
+.board-chart-line { fill: none; stroke: var(--win-accent, #4cc2ff); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.board-chart-area { fill: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); stroke: none; }
+.board-blocks > .board-chart { flex: 1 1 240px; }
+/* The open island's foot (isola.json): buttons of `footer`, values of the PC, buttons of `corner`. */
+#island-foot {
+  flex: 0 0 28px;
+  height: 28px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+#island-foot .foot-group { display: flex; gap: 4px; flex: 0 0 auto; }
+#island-foot .foot-corner { margin-left: auto; }
+#island-foot .foot-values { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; overflow: hidden; justify-content: center; }
+#island-foot .own-btn {
+  width: 30px;
+  height: 28px;
+  border: 0;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--c, var(--dim-2));
+  background: color-mix(in srgb, var(--c, #fff) 10%, transparent);
+  cursor: default;
+}
+#island-foot .own-btn:hover { background: color-mix(in srgb, var(--c, #fff) 24%, transparent); color: var(--c, var(--ink)); }
+#island-foot .foot-value { padding: 3px 10px; gap: 6px; border-radius: 9px; height: 28px; box-sizing: border-box; flex: 0 1 auto; min-width: 0; }
+#island-foot .foot-value .board-block-title { display: none; }
+#island-foot .foot-value .board-value-text { font-size: calc(12px + var(--fs-up, 0px)); white-space: nowrap; }
