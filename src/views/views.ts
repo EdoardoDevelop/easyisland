@@ -37,7 +37,7 @@ import { buildMoment, momentHeadline, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
-import { buildBoard, layoutIconButton, partHidden, partsOrder, zoneButtons, zoneKey } from "./island-layout";
+import { buildBoard, layoutIconButton, overviewBlocks, overviewTiles, partHidden, partsOrder, setPieceMaker, syncOverviewBlocks, zoneButtons, zoneKey, type Part } from "./island-layout";
 import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, tabActions, type ActionHandlers } from "./actions";
@@ -591,7 +591,9 @@ function buildOverview(actions: ViewActions): ViewHost {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
           + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`
           + `~actions:${tabActions().map((a) => `${a.id}:${a.name}:${a.icon ?? ""}:${a.color ?? ""}`).join(",")}`
-          + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`;
+          + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`
+          // isola.json's Panoramica: its order, what is hidden, its blocks (kept, not rebuilt).
+          + `~layout:${JSON.stringify(State.layout.overview ?? null)}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
         if (key !== cardKey && !sorting) {
@@ -625,6 +627,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
 
+      // The Panoramica's own blocks: read when it opens, pieces kept up to date while it shows.
+      syncOverviewBlocks(showsSummary() && State.view === "overview" && State.mode === "expanded");
       jump.style.display = detailOpen || showsSummary() || !canOpen(task) ? "none" : "";
       askJump.style.display = mode === "ticker" && !showsSummary() && canAskSession(task) ? "" : "none";
       // Integrations only (agents stay in the island), beside ↗ when that shows.
@@ -645,15 +649,25 @@ function buildOverview(actions: ViewActions): ViewHost {
  * the island shows, redrawn when its data changes, whatever the island shows.
  */
 export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
-  const body = h("div", { class: "left-body" });
+  const live = liveCard(id, actions);
   // «Rimetti nell'isola»: the window closes, the island opens on this card.
   const dock = h(
     "button",
     { class: "icon-btn jump", title: t("Rimetti nell'isola"), onclick: () => actions.dockBack(id) },
     svg(ICONS.popIn, 12),
   );
-  const left = card(body, dock);
+  const left = card(live.body, dock);
   const el = h("div", { class: "view overview solo on detached" }, h("div", { class: "left" }, left));
+  return { el, sync: live.sync };
+}
+
+/**
+ * An integration's card that redraws itself when its data changes, wherever
+ * it stands: a window of its own (popout.ts) or a block of the user's
+ * (island-layout.ts `piece`).
+ */
+function liveCard(id: string, actions: ViewActions): { body: HTMLElement; sync(): void } {
+  const body = h("div", { class: "left-body" });
   let detailOpen = false;
   let cardKey = "";
   const hooks: IntegrationCardHooks = {
@@ -684,7 +698,7 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
     prepareTicket: (m) => actions.prepareTicket({ kind: "ticket", ...m }),
   };
   return {
-    el,
+    body,
     sync() {
       const task = State.tasks.find((x) => x.id === id);
       if (!task) {
@@ -778,7 +792,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
   })) : null;
 
   const grid = h("div", { class: "summary" });
-  for (const tsk of visible) {
+  // isola.json: the tiles named first, those hidden left out (island-layout.ts).
+  for (const tsk of overviewTiles(visible)) {
     const label = pillLabel(tsk);
     const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : stateWord(tsk.state);
     const stateText = tsk.pillBadge === "approval"
@@ -823,43 +838,80 @@ function renderSummary(actions: ViewActions): HTMLElement {
     }));
   }
 
-  const quick = tabActions();
-  const actionsRow = quick.length
-    ? h(
-        "div",
-        { class: "pan-actions" },
-        h("span", { class: "pan-actions-label", text: t("Azioni rapide") }),
-        h(
-          "div",
-          { class: "pan-actions-list" },
-          ...quick.map((a) => {
-            const pill = h(
-              "button",
-              {
-                class: "pan-action-pill",
-                title: a.hotkey ? `${a.name} (${a.hotkey})` : a.name,
-                onclick: () => actions.runAction(a),
-              },
-              h("span", { class: "pan-action-ico", "aria-hidden": "true" }, renderActionIcon(a.icon, 13)),
-              h("span", { text: a.name }),
-            );
-            if (a.color) pill.style.setProperty("--c", a.color);
-            return pill;
-          }),
-        ),
-      )
-    : null;
+  const actionsRow = quickRow(actions);
 
   // Dragged into the order the user wants: the same order as the menu.
   sortable(grid, {
     enabled: () => !State.settings.lockOrder,
     onReorder: (ids) => actions.reorder(ids),
   });
-  return h("div", { class: "today" }, head, nowStrip, grid, actionsRow, summaryNews(actions));
+  // The parts in isola.json's order, hidden ones left out, its own blocks among them.
+  const own = overviewBlocks(actions);
+  const parts: Record<string, HTMLElement | null> = { now: nowStrip, tiles: grid, quick: actionsRow, news: summaryNews(actions) };
+  const body = partsOrder("overview")
+    .filter((id) => !partHidden("overview", id))
+    .map((id) => (id.startsWith("block:") ? own.get(id.slice(6)) ?? null : parts[id] ?? null))
+    .filter((x): x is HTMLElement => !!x);
+  const ownBlocks = body.filter((x) => x.classList.contains("board-block"));
+  for (const b of ownBlocks) b.classList.add("summary-block");
+  return h("div", { class: "today" }, head, ...body);
 }
 
 /** Headlines in the Panoramica's «Notizie» box. */
 const SUMMARY_NEWS = 3;
+
+/** The Panoramica's row of quick actions; null without any. */
+function quickRow(actions: ViewActions): HTMLElement | null {
+  const quick = tabActions();
+  if (!quick.length) return null;
+  return h(
+    "div",
+    { class: "pan-actions" },
+    h("span", { class: "pan-actions-label", text: t("Azioni rapide") }),
+    h(
+      "div",
+      { class: "pan-actions-list" },
+      ...quick.map((a) => {
+        const pill = h(
+          "button",
+          {
+            class: "pan-action-pill",
+            title: a.hotkey ? `${a.name} (${a.hotkey})` : a.name,
+            onclick: () => actions.runAction(a),
+          },
+          h("span", { class: "pan-action-ico", "aria-hidden": "true" }, renderActionIcon(a.icon, 13)),
+          h("span", { text: a.name }),
+        );
+        if (a.color) pill.style.setProperty("--c", a.color);
+        return pill;
+      }),
+    ),
+  );
+}
+
+// Existing pieces as blocks of a tab or of the Panoramica (island-layout.ts, isola.json).
+setPieceMaker((b, actions): Part => {
+  const title = b.title ? [h("div", { class: "board-block-title", text: b.title })] : [];
+  if (b.piece === "integration") {
+    const live = liveCard(b.integration ?? "", actions);
+    const el = h("section", { class: "board-block board-piece" }, ...title, h("div", { class: "board-piece-card" }, live.body));
+    return { el, refresh: () => live.sync(), live: () => live.sync() };
+  }
+  // News and quick actions: drawn again only when what they show changes.
+  const box = h("div");
+  const el = h("section", { class: "board-block board-piece" }, ...title, box);
+  let key: string | null = null;
+  const draw = () => {
+    const k = b.piece === "news"
+      ? `${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}`
+      : tabActions().map((a) => `${a.id}:${a.name}:${a.icon ?? ""}:${a.color ?? ""}`).join(",");
+    if (k === key) return;
+    key = k;
+    const part = b.piece === "news" ? summaryNews(actions) : quickRow(actions);
+    box.replaceChildren(part ?? h("div", { class: "sub", text: b.piece === "news" ? t("Nessuna notizia per ora.") : t("Nessuna azione rapida.") }));
+  };
+  return { el, refresh: draw, live: draw };
+});
 
 /** «Notizie» under the tiles: the latest headlines; the head opens the view, a row the article. */
 function summaryNews(actions: ViewActions): HTMLElement | null {

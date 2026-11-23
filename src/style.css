@@ -10191,3 +10191,11 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 .board-value-body { display: flex; flex-direction: column; min-width: 0; }
 .board-value-text { font: 600 calc(15px + var(--fs-up, 0px)) var(--font); color: var(--ink); font-variant-numeric: tabular-nums; }
 .board-text { color: var(--ink); font: 400 calc(12.5px + var(--fs-up, 0px)) var(--font); white-space: pre-wrap; line-height: 1.45; }
+/* Existing pieces as blocks, and blocks in the Panoramica (isola.json). */
+.board-piece-card {
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.board-piece-card .int-card { padding: 0; }
+.summary-block.board-value { width: fit-content; min-width: 160px; }

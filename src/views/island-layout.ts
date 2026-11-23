@@ -124,24 +124,35 @@ export function layoutTabs(): LayoutTab[] {
   return State.layout.tabs;
 }
 
-/** The usual order of the menu's sections and of the header's buttons (island_layout.rs). */
+/** The usual order of the menu's sections, the header's buttons, the Panoramica's parts (island_layout.rs). */
 const MENU_USUAL = ["overview", "agents", "chat", "actions", "files", "news"];
 const HEADER_USUAL = ["usage", "own", "pin", "memory", "settings", "sound"];
+const OVERVIEW_USUAL = ["now", "tiles", "quick", "news"];
 
 /**
- * Step 3: the order the menu's rows (`tab:<id>` for the user's tabs) or the
- * header's buttons stand in: those the JSON names first, then the rest as usual.
+ * Step 3: the order the menu's rows (`tab:<id>` for the user's tabs), the
+ * header's buttons or the Panoramica's parts (`block:<id>` for its own blocks)
+ * stand in: those the JSON names first, then the rest as usual.
  */
-export function partsOrder(which: "menu" | "header"): string[] {
+export function partsOrder(which: "menu" | "header" | "overview"): string[] {
   const parts = State.layout[which];
-  const usual = which === "menu" ? [...MENU_USUAL, ...State.layout.tabs.map((x) => `tab:${x.id}`)] : HEADER_USUAL;
+  const usual = which === "menu" ? [...MENU_USUAL, ...State.layout.tabs.map((x) => `tab:${x.id}`)]
+    : which === "overview" ? [...OVERVIEW_USUAL, ...(State.layout.overview?.blocks ?? []).map((b) => `block:${b.id}`)]
+    : HEADER_USUAL;
   const named = (parts?.order ?? []).filter((x) => usual.includes(x));
   return [...named, ...usual.filter((x) => !named.includes(x))];
 }
 
-/** A part of the menu or the header hidden from the chat (never Panoramica or Impostazioni). */
-export function partHidden(which: "menu" | "header", id: string): boolean {
+/** A part hidden from the chat (`tile:<id>` for a tile of the Panoramica); never Panoramica or Impostazioni. */
+export function partHidden(which: "menu" | "header" | "overview", id: string): boolean {
   return id !== "overview" && id !== "settings" && !!State.layout[which]?.hidden?.includes(id);
+}
+
+/** The Panoramica's tiles: those the JSON names first, in its order, then the rest as the menu has them. */
+export function overviewTiles<T extends { id: string }>(tasks: T[]): T[] {
+  const first = State.layout.overview?.tiles ?? [];
+  const named = first.map((id) => tasks.find((x) => x.id === id)).filter((x): x is T => !!x);
+  return [...named, ...tasks.filter((x) => !first.includes(x.id))].filter((x) => !partHidden("overview", `tile:${x.id}`));
 }
 
 /** A key that changes when what `zone` shows changes (no redraw otherwise). */
@@ -160,7 +171,14 @@ interface Item {
 }
 
 type ItemsBlock = Extract<LayoutBlock, { kind: "grid" | "list" }>;
-type Part = { el: HTMLElement; refresh(read: boolean): void };
+/** A block on screen: `refresh(true)` reads its source again, `live` follows the island's state (pieces). */
+export type Part = { el: HTMLElement; refresh(read: boolean): void; live?(): void };
+type PieceBlock = Extract<LayoutBlock, { kind: "piece" }>;
+/** Existing pieces as blocks (an integration's card, the news, the quick actions): made in views.ts, where they live. */
+let pieceMaker: ((b: PieceBlock, actions: ViewActions) => Part) | null = null;
+export function setPieceMaker(make: (b: PieceBlock, actions: ViewActions) => Part) {
+  pieceMaker = make;
+}
 
 /** Installed apps, read once (Start's list: applist.rs `apps_catalog`, some seconds the first time). */
 let apps: { id: string; name: string }[] | null = null;
@@ -168,8 +186,8 @@ let appsLoading: Promise<void> | null = null;
 /** Their icons by id in lower case, as applist.rs sends them in `apps-icons`. */
 const appIcons = new Map<string, string>();
 const iconsAsked = new Set<string>();
-/** Called when icons or values arrive while the tab is open. */
-let onData: (() => void) | null = null;
+/** Called when icons or values arrive: the tab open and the Panoramica follow. */
+const onData = new Set<() => void>();
 let listening = false;
 
 function listen() {
@@ -183,9 +201,9 @@ function listen() {
         got = true;
       }
     }
-    if (got) onData?.();
+    if (got) for (const f of onData) f();
   });
-  void onEvent("bar-sys", () => onData?.());
+  void onEvent("bar-sys", () => { for (const f of onData) f(); });
 }
 
 function askIcons(ids: string[]) {
@@ -323,6 +341,53 @@ function valueBlock(b: Extract<LayoutBlock, { kind: "value" }>): Part {
   };
 }
 
+/** One block of a tab (`owner` its id) or of the Panoramica ("overview"). */
+export function blockPart(b: LayoutBlock, owner: string, actions: ViewActions): Part {
+  listen();
+  if (b.kind === "value") return valueBlock(b);
+  if (b.kind === "text") return { el: h("section", { class: "board-block board-text", text: b.text }), refresh() {} };
+  if (b.kind === "piece") {
+    if (pieceMaker) return pieceMaker(b, actions);
+    return { el: h("section", { class: "board-block" }), refresh() {} };
+  }
+  return itemsBlock(b, owner, actions);
+}
+
+/** The Panoramica's own blocks, kept while they do not change: it is redrawn often, they are not. */
+const overviewParts = new Map<string, { key: string; part: Part }>();
+let overviewOpen = false;
+onData.add(() => {
+  if (overviewOpen) for (const x of overviewParts.values()) x.part.refresh(false);
+});
+
+/** The Panoramica's blocks by id, made or kept (overview.blocks in isola.json). */
+export function overviewBlocks(actions: ViewActions): Map<string, HTMLElement> {
+  const blocks = State.layout.overview?.blocks ?? [];
+  const out = new Map<string, HTMLElement>();
+  for (const b of blocks) {
+    const key = JSON.stringify(b);
+    let had = overviewParts.get(b.id);
+    if (!had || had.key !== key) {
+      had = { key, part: blockPart(b, "overview", actions) };
+      overviewParts.set(b.id, had);
+      if (overviewOpen) had.part.refresh(true);
+    }
+    out.set(b.id, had.part.el);
+  }
+  for (const id of [...overviewParts.keys()]) if (!out.has(id)) overviewParts.delete(id);
+  return out;
+}
+
+/** Every sync of the Panoramica: its blocks read again when it opens, its pieces follow. */
+export function syncOverviewBlocks(shown: boolean) {
+  const opened = shown && !overviewOpen;
+  overviewOpen = shown;
+  for (const x of overviewParts.values()) {
+    if (opened) x.part.refresh(true);
+    else if (shown) x.part.live?.();
+  }
+}
+
 /** «board»: a tab of the user's, its name, its buttons and its blocks. */
 export function buildBoard(actions: ViewActions): ViewHost {
   listen();
@@ -333,9 +398,9 @@ export function buildBoard(actions: ViewActions): ViewHost {
   let key = "";
   let open = false;
   let parts: Part[] = [];
-  onData = () => {
+  onData.add(() => {
     if (open) for (const p of parts) p.refresh(false);
-  };
+  });
   return {
     el: h("div", { class: "view" }, card),
     sync() {
@@ -360,16 +425,13 @@ export function buildBoard(actions: ViewActions): ViewHost {
         const blocks = tab.blocks ?? [];
         if (!tab.buttons.length && !blocks.length) grid.append(h("div", { class: "sub", text: t("Ancora nessun pulsante: chiedili alla chat.") }));
         grid.hidden = !grid.childElementCount;
-        parts = blocks.map((b): Part => {
-          if (b.kind === "value") return valueBlock(b);
-          if (b.kind === "text") return { el: h("section", { class: "board-block board-text", text: b.text }), refresh() {} };
-          return itemsBlock(b, tab.id, actions);
-        });
+        parts = blocks.map((b) => blockPart(b, tab.id, actions));
         blocksEl.replaceChildren(...parts.map((p) => p.el));
         if (open) for (const p of parts) p.refresh(true);
         return;
       }
       if (opened) for (const p of parts) p.refresh(true);
+      else if (open) for (const p of parts) p.live?.();
     },
     fitHeight: () => card.scrollHeight + 2,
   };

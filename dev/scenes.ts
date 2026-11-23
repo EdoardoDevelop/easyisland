@@ -1967,6 +1967,20 @@ export async function runScene(island: Island, scene: string) {
           header: { order: ["sound", "own"], hidden: ["memory"] },
         });
       }
+      // The Panoramica from the JSON (?ov): GitHub first, Vercel hidden, GitHub's card and the CPU as blocks on top.
+      if (q.has("ov")) {
+        Object.assign(layout, {
+          overview: {
+            order: ["block:stato", "tiles", "block:github"],
+            hidden: ["tile:integration_vercel"],
+            tiles: ["integration_github"],
+            blocks: [
+              { id: "stato", kind: "value" as const, what: "cpu" },
+              { id: "github", kind: "piece" as const, piece: "integration" as const, integration: "integration_github", title: "GitHub" },
+            ],
+          },
+        });
+      }
       if (q.has("draft")) {
         State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };
       } else State.islandLayout = layout;

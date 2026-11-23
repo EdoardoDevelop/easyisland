@@ -3841,6 +3841,7 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
         )),
       ),
+      overviewSection(),
       ownLayoutSection(),
     ],
     chat: () => [
@@ -3879,6 +3880,48 @@ type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa
  * (island_layout.rs), each with «Togli», and «Annulla l'ultima modifica».
  * Made in the chat only: here they are looked at and taken away.
  */
+/**
+ * «Panoramica»: which parts and which tiles it shows (isola.json `overview.hidden`,
+ * the same the chat changes). Blocks and order are asked to the chat in words.
+ */
+function overviewSection(): HTMLElement {
+  // Its rows as the section's own (the settings' row style is for a section's children).
+  const rows = h("div", { style: "display: contents" });
+  const status = h("span", { class: "hint note" });
+  const fill = async () => {
+    const layout = await Bridge.islandLayout();
+    const ov = layout?.overview ?? {};
+    const hidden = new Set(ov.hidden ?? []);
+    const save = async () => {
+      status.textContent = "";
+      await Bridge.islandLayoutApply({ overview: { order: ov.order ?? [], tiles: ov.tiles ?? [], hidden: [...hidden] } })
+        .catch((e: unknown) => { status.textContent = String(e).replace(/^Error:\s*/, ""); });
+    };
+    const row = (id: string, label: string, hint = "") => h("div", { class: "row" },
+      h("label", { text: label }),
+      toggle(!hidden.has(id), (on) => { if (on) hidden.delete(id); else hidden.add(id); void save(); }),
+      ...(hint ? [h("span", { class: "hint note", text: hint })] : []));
+    const parts: [string, string, string][] = [
+      ["now", t("Adesso"), t("le due cose più urgenti in cima")],
+      ["tiles", t("Riquadri delle integrazioni"), ""],
+      ["quick", t("Azioni rapide"), ""],
+      ["news", t("Notizie"), t("i titoli sotto i riquadri")],
+    ];
+    const name = (id: string) => INTEGRATIONS.find((d) => d.id === id)?.name ?? id.replace(/^(integration_|widget:|custom:)/, "");
+    const tiles = settings.activeIntegrations.filter((id) => id !== "integration_recorder");
+    rows.replaceChildren(
+      ...parts.map(([id, label, hint]) => row(id, label, hint)),
+      ...(tiles.length ? [h("div", { class: "hint", style: "margin-top: 10px", text: t("Riquadri da mostrare") }), ...tiles.map((id) => row(`tile:${id}`, name(id)))] : []),
+    );
+  };
+  void fill();
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Panoramica") })),
+    h("div", { class: "hint", text: t("Cosa mostra la Panoramica. Ordine e blocchi propri (musica, una card, i valori del PC…) si chiedono alla chat: «metti la musica in cima alla panoramica».") }),
+    rows,
+    h("div", { class: "row" }, status));
+}
+
 function ownLayoutSection(): HTMLElement {
   const list = h("div", { class: "own-layout" });
   const status = h("span", { class: "hint note" });
@@ -3888,7 +3931,7 @@ function ownLayoutSection(): HTMLElement {
     const [layout, versions] = await Promise.all([Bridge.islandLayout(), Bridge.islandLayoutVersions()]);
     undo.disabled = !versions;
     const where = (z?: string) => (z === "header" ? t("in alto, nella testata") : t("in fondo al menu"));
-    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header", id: string, act = t("Togli")) =>
+    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header" | "overview", id: string, act = t("Togli")) =>
       h("div", { class: "row" },
         h("label", { text }),
         h("span", { class: "hint note", text: sub }),
@@ -3902,7 +3945,7 @@ function ownLayoutSection(): HTMLElement {
         ? t("scheda nel menu, {n} pulsanti e {b} blocchi", { n: x.buttons.length, b: x.blocks.length })
         : t("scheda nel menu, {n} pulsanti", { n: x.buttons.length }), "tab", x.id)),
       // Step 3: the island's own parts moved or hidden.
-      ...(["menu", "header"] as const).filter((k) => layout?.[k]).map((k) => line(k === "menu" ? t("Menu") : t("Testata"),
+      ...(["menu", "header", "overview"] as const).filter((k) => layout?.[k]).map((k) => line(k === "menu" ? t("Menu") : k === "header" ? t("Testata") : t("Panoramica"),
         [layout?.[k]?.order?.length ? t("ordine cambiato") : "", layout?.[k]?.hidden?.length ? t("{n} parti nascoste", { n: layout[k]!.hidden!.length }) : ""].filter(Boolean).join(", "),
         k, k, t("Rimetti come di serie"))),
     ];

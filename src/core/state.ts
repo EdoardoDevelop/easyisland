@@ -2275,12 +2275,16 @@ export type LayoutBlock = { id: string; title?: string } & (
   | { kind: "grid" | "list"; source: LayoutSource; filter?: string; limit?: number; search?: boolean }
   | { kind: "value"; what: string; drive?: string }
   | { kind: "text"; text: string }
+  /** An existing piece as it is: an integration's card, the news, the quick actions. */
+  | { kind: "piece"; piece: "integration" | "news" | "quick"; integration?: string }
 );
 export interface LayoutTab { id: string; name: string; icon?: string; buttons: LayoutButton[]; blocks?: LayoutBlock[] }
 /** The island built from a JSON (isola.json, island_layout.rs): what the user added from the chat. */
 /** Step 3: the order of the island's own parts and those hidden (island_layout.rs `MENU_PARTS`, `HEADER_PARTS`). */
 export interface LayoutParts { order?: string[]; hidden?: string[] }
-export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts }
+/** The Panoramica: its parts' order and those hidden (`tile:<id>` too), the tiles named first, its own blocks. */
+export interface LayoutOverview extends LayoutParts { tiles?: string[]; blocks?: LayoutBlock[] }
+export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview }
 
 export interface Custom {
   id: string;

@@ -18,6 +18,10 @@
 //! and visibility: what the parts do does not change. Panoramica and
 //! Impostazioni never hide (the way back). `island_layout` gives the whole
 //! island as it is, defaults included.
+//! Then (23/11): the Panoramica too (`overview`: order and hidden of its parts
+//! `OVERVIEW_PARTS`, order and hidden of the tiles, blocks of its own among
+//! them), and existing pieces as blocks (`piece`: an integration's card, the
+//! news, the quick actions), in a tab or in the Panoramica.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -37,7 +41,11 @@ pub const SYSTEM: &[&str] = &["lock", "sleep", "restart", "shutdown", "recycle-e
 pub const VIEWS: &[&str] = &["overview", "agents", "chat", "actions", "files", "news", "settings", "memory"];
 
 /// What a tab's block may be.
-pub const BLOCKS: &[&str] = &["grid", "list", "value", "text"];
+pub const BLOCKS: &[&str] = &["grid", "list", "value", "text", "piece"];
+/// Existing pieces of the island a `piece` block shows as they are.
+pub const PIECES: &[&str] = &["integration", "news", "quick"];
+/// The Panoramica's parts, in their usual order: «Adesso», the tiles, the quick actions, the news.
+pub const OVERVIEW_PARTS: &[&str] = &["now", "tiles", "quick", "news"];
 /// Where a grid or a list takes its items from.
 pub const SOURCES: &[&str] = &["apps", "windows", "quick", "folder"];
 /// The PC's values a `value` block shows (barsys.rs).
@@ -240,11 +248,49 @@ fn block(v: &Value, tab: &str) -> Result<Value, String> {
                 o.insert("drive".into(), json!(drive));
             }
         }
+        "piece" => {
+            let pc = text(v, "piece");
+            if !PIECES.contains(&pc) {
+                return Err(tf("«piece» di {what}: {list}.", &[("what", &what), ("list", &PIECES.join(", "))]));
+            }
+            o.insert("piece".into(), json!(pc));
+            if pc == "integration" {
+                let iid = text(v, "integration");
+                if !integration_id_ok(iid) {
+                    return Err(tf("«integration» di {what}: l'id di un'integrazione attiva (island_layout le elenca).", &[("what", &what)]));
+                }
+                o.insert("integration".into(), json!(iid));
+            }
+        }
         _ => {
             o.insert("text".into(), json!(label(v, "text", 500, &what)?));
         }
     }
     Ok(Value::Object(o))
+}
+
+/// An integration's id as the island names it: `integration_media`, `widget:…`, `custom:…`.
+fn integration_id_ok(id: &str) -> bool {
+    !id.is_empty() && id.len() <= 80 && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | ':' | '-' | '.'))
+}
+
+/// Blocks of a tab or of the Panoramica, checked, ids not repeated.
+fn blocks_of(list: &[Value], owner: &str, what: &str) -> Result<Vec<Value>, String> {
+    if list.len() > MAX_BLOCKS {
+        return Err(tf("Troppi blocchi in {what}: al massimo {n}.", &[("what", &what), ("n", &MAX_BLOCKS)]));
+    }
+    let mut ids: Vec<String> = Vec::new();
+    let mut out = Vec::new();
+    for b in list {
+        let b = block(b, owner)?;
+        let bid = text(&b, "id").to_string();
+        if ids.contains(&bid) {
+            return Err(tf("Due blocchi con l'id «{id}» in {what}.", &[("id", &bid), ("what", &what)]));
+        }
+        ids.push(bid);
+        out.push(b);
+    }
+    Ok(out)
 }
 
 /// One button; `zone` only for the island's own (a tab's buttons have none).
@@ -331,20 +377,7 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
         }
         o.insert("buttons".into(), Value::Array(out));
         let blocks_in = tab.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default();
-        if blocks_in.len() > MAX_BLOCKS {
-            return Err(tf("Troppi blocchi in {what}: al massimo {n}.", &[("what", &what), ("n", &MAX_BLOCKS)]));
-        }
-        let mut bids: Vec<String> = Vec::new();
-        let mut blocks = Vec::new();
-        for b in &blocks_in {
-            let b = block(b, &id)?;
-            let bid = text(&b, "id").to_string();
-            if bids.contains(&bid) {
-                return Err(tf("Due blocchi con l'id «{id}» in {what}.", &[("id", &bid), ("what", &what)]));
-            }
-            bids.push(bid);
-            blocks.push(b);
-        }
+        let blocks = blocks_of(&blocks_in, &id, &what)?;
         if !blocks.is_empty() {
             o.insert("blocks".into(), Value::Array(blocks));
         }
@@ -357,7 +390,63 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
     if let Some(hd) = parts(v.get("header"), "header", HEADER_PARTS, &[])? {
         out["header"] = hd;
     }
+    if let Some(ov) = overview(v.get("overview"))? {
+        out["overview"] = ov;
+    }
     Ok(out)
+}
+
+/// The Panoramica: `order` of its parts and of its own blocks (`block:<id>`),
+/// `hidden` parts and tiles (`tile:<id>`), `tiles` (the tiles named first, in
+/// this order), `blocks`. None when it says nothing.
+fn overview(v: Option<&Value>) -> Result<Option<Value>, String> {
+    let Some(v) = v.filter(|x| x.is_object()) else { return Ok(None) };
+    let what = t("Panoramica").to_string();
+    let blocks = blocks_of(&v.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default(), "overview", &what)?;
+    let block_ids: Vec<String> = blocks.iter().map(|b| text(b, "id").to_string()).collect();
+    let strings = |key: &str| -> Vec<String> {
+        v.get(key).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(|s| s.trim().to_string()).collect()).unwrap_or_default()
+    };
+    let list = OVERVIEW_PARTS.join(", ");
+    let mut order: Vec<String> = Vec::new();
+    for id in strings("order") {
+        let block_ok = id.strip_prefix("block:").is_some_and(|b| block_ids.iter().any(|x| x == b));
+        if !OVERVIEW_PARTS.contains(&id.as_str()) && !block_ok {
+            return Err(tf("«{id}» non è una parte di «{what}»: {list}.", &[("id", &id), ("what", &"overview"), ("list", &format!("{list}, block:<id>"))]));
+        }
+        if !order.contains(&id) {
+            order.push(id);
+        }
+    }
+    let mut hidden: Vec<String> = Vec::new();
+    for id in strings("hidden") {
+        let tile_ok = id.strip_prefix("tile:").is_some_and(integration_id_ok);
+        if !OVERVIEW_PARTS.contains(&id.as_str()) && !tile_ok {
+            return Err(tf("«{id}» non si può nascondere in «{what}»: {list}.", &[("id", &id), ("what", &"overview"), ("list", &format!("{list}, tile:<id>"))]));
+        }
+        if !hidden.contains(&id) {
+            hidden.push(id);
+        }
+    }
+    let mut tiles: Vec<String> = Vec::new();
+    for id in strings("tiles") {
+        if !integration_id_ok(&id) {
+            return Err(tf("«{id}» non è l'id di un'integrazione.", &[("id", &id)]));
+        }
+        if !tiles.contains(&id) {
+            tiles.push(id);
+        }
+    }
+    let mut o = Map::new();
+    for (key, val) in [("order", order), ("hidden", hidden), ("tiles", tiles)] {
+        if !val.is_empty() {
+            o.insert(key.into(), json!(val));
+        }
+    }
+    if !blocks.is_empty() {
+        o.insert("blocks".into(), Value::Array(blocks));
+    }
+    Ok(if o.is_empty() { None } else { Some(Value::Object(o)) })
 }
 
 /// `menu` or `header`: `order` (some or all of the parts, `tab:<id>` too in the
@@ -527,12 +616,39 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
             v[key] = x.clone();
         }
     }
+    // The Panoramica: given whole but for its blocks, which stay unless given
+    // (`overview_blocks` adds, replaces or removes them one by one).
+    if let Some(x) = args.get("overview").filter(|x| x.is_object()) {
+        let keep = v.get("overview").and_then(|o| o.get("blocks")).cloned();
+        let mut nx = x.clone();
+        if nx.get("blocks").is_none() {
+            if let Some(b) = keep {
+                nx["blocks"] = b;
+            }
+        }
+        v["overview"] = nx;
+    }
+    if let Some(ob) = args.get("overview_blocks").filter(|x| x.is_object()) {
+        if !v.get("overview").is_some_and(Value::is_object) {
+            v["overview"] = json!({});
+        }
+        let mut inner = v["overview"].get("blocks").and_then(Value::as_array).cloned().unwrap_or_default();
+        let gone: Vec<String> = ob.get("remove").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default();
+        inner.retain(|x| !gone.iter().any(|g| g == text(x, "id")));
+        for b in ob.get("blocks").and_then(Value::as_array).cloned().unwrap_or_default() {
+            upsert(&mut inner, b);
+        }
+        v["overview"]["blocks"] = Value::Array(inner);
+        if let Some(order) = v["overview"].get_mut("order").and_then(Value::as_array_mut) {
+            order.retain(|x| x.as_str().and_then(|s| s.strip_prefix("block:")).is_none_or(|b| !gone.iter().any(|g| g == b)));
+        }
+    }
     // A tab taken away leaves the menu's order without it (a tab that never was stays an error).
     if let Some(order) = v.get_mut("menu").and_then(|m| m.get_mut("order")).and_then(Value::as_array_mut) {
         order.retain(|x| x.as_str().and_then(|s| s.strip_prefix("tab:")).is_none_or(|t| !gone_tabs.iter().any(|g| g == t)));
     }
     for key in strings("reset") {
-        if key == "menu" || key == "header" {
+        if key == "menu" || key == "header" || key == "overview" {
             if let Some(o) = v.as_object_mut() {
                 o.remove(&key);
             }
@@ -594,6 +710,11 @@ pub fn block_words(b: &Value) -> String {
         "grid" => tf("griglia con {src}{only}", &[("src", &src), ("only", &only)]),
         "list" => tf("elenco con {src}{only}", &[("src", &src), ("only", &only)]),
         "value" => tf("valore del PC «{what}»", &[("what", &text(b, "what"))]),
+        "piece" => match text(b, "piece") {
+            "integration" => tf("la card di {id}", &[("id", &text(b, "integration"))]),
+            "news" => t("le notizie").to_string(),
+            _ => t("le azioni rapide").to_string(),
+        },
         _ => tf("testo «{text}»", &[("text", &text(b, "text").chars().take(60).collect::<String>())]),
     };
     format!("{head}{body}")
@@ -657,10 +778,29 @@ pub fn changes(old: &Value, new: &Value) -> Vec<String> {
             out.push(tf("Tolta la scheda «{name}»", &[("name", &name)]));
         }
     }
-    for (key, head) in [("menu", t("Menu")), ("header", t("Testata"))] {
-        let (o_old, o_new) = (shown_order(old, key), shown_order(new, key));
-        if o_old != o_new {
-            let names: Vec<String> = o_new.iter().map(|id| part_name(new, id)).collect();
+    let ob_old = old.get("overview").and_then(|o| o.get("blocks")).and_then(Value::as_array).cloned().unwrap_or_default();
+    let ob_new = new.get("overview").and_then(|o| o.get("blocks")).and_then(Value::as_array).cloned().unwrap_or_default();
+    for b in &ob_new {
+        if ob_old.iter().find(|x| text(x, "id") == text(b, "id")) != Some(b) {
+            out.push(tf("Panoramica: blocco {desc}", &[("desc", &block_words(b))]));
+        }
+    }
+    for b in &ob_old {
+        if !ob_new.iter().any(|x| text(x, "id") == text(b, "id")) {
+            out.push(tf("Panoramica: tolto il blocco {desc}", &[("desc", &block_words(b))]));
+        }
+    }
+    let tiles = |v: &Value| v.get("overview").and_then(|o| o.get("tiles")).cloned().unwrap_or(Value::Null);
+    if tiles(old) != tiles(new) {
+        let now = tiles(new);
+        let list: Vec<&str> = now.as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+        out.push(if list.is_empty() { t("Panoramica: riquadri nell'ordine del menu").to_string() } else { tf("Panoramica: per primi i riquadri {list}", &[("list", &list.join(", "))]) });
+    }
+    for (key, head) in [("menu", t("Menu")), ("header", t("Testata")), ("overview", t("Panoramica"))] {
+        // Only an order asked for: a new tab or block takes its usual place without a line.
+        let asked = |v: &Value| v.get(key).and_then(|m| m.get("order")).cloned().unwrap_or(Value::Null);
+        if asked(old) != asked(new) {
+            let names: Vec<String> = shown_order(new, key).iter().map(|id| part_name(new, id)).collect();
             out.push(tf("{head}: nuovo ordine {list}", &[("head", &head), ("list", &names.join(" · "))]));
         }
         let (h_old, h_new) = (hidden_of(old, key), hidden_of(new, key));
@@ -688,6 +828,10 @@ pub fn shown_order(v: &Value, key: &str) -> Vec<String> {
         MENU_PARTS.iter().filter(|p| **p != "integrations").map(|p| p.to_string())
             .chain(v.get("tabs").and_then(Value::as_array).into_iter().flatten().map(|x| format!("tab:{}", text(x, "id"))))
             .collect()
+    } else if key == "overview" {
+        OVERVIEW_PARTS.iter().map(|p| p.to_string())
+            .chain(v.get("overview").and_then(|o| o.get("blocks")).and_then(Value::as_array).into_iter().flatten().map(|x| format!("block:{}", text(x, "id"))))
+            .collect()
     } else {
         HEADER_PARTS.iter().map(|p| p.to_string()).collect()
     };
@@ -701,6 +845,13 @@ pub fn shown_order(v: &Value, key: &str) -> Vec<String> {
 
 /// A part's name as the user sees it.
 fn part_name(v: &Value, id: &str) -> String {
+    if let Some(tile) = id.strip_prefix("tile:") {
+        return tf("riquadro {id}", &[("id", &tile)]);
+    }
+    if let Some(b) = id.strip_prefix("block:") {
+        let found = v.get("overview").and_then(|o| o.get("blocks")).and_then(Value::as_array).and_then(|a| a.iter().find(|x| text(x, "id") == b)).map(block_words);
+        return found.unwrap_or_else(|| b.to_string());
+    }
     if let Some(tab) = id.strip_prefix("tab:") {
         let name = v.get("tabs").and_then(Value::as_array).and_then(|a| a.iter().find(|x| text(x, "id") == tab)).map(|x| text(x, "name").to_string());
         return name.unwrap_or_else(|| tab.to_string());
@@ -719,6 +870,9 @@ fn part_name(v: &Value, id: &str) -> String {
         "memory" => t("Mappa della memoria"),
         "settings" => t("Impostazioni"),
         "sound" => t("Silenzia"),
+        "now" => t("Adesso"),
+        "tiles" => t("riquadri delle integrazioni"),
+        "quick" => t("Azioni rapide"),
         _ => id,
     }
     .to_string()
@@ -766,12 +920,19 @@ pub fn tool_get() -> String {
     for key in ["menu", "header"] {
         now[key] = json!({ "order": shown_order(&now, key), "hidden": hidden_of(&now, key) });
     }
-    let quick = crate::settings::load().actions.iter()
+    let blocks = now.get("overview").and_then(|o| o.get("blocks")).cloned().unwrap_or(json!([]));
+    let tiles = now.get("overview").and_then(|o| o.get("tiles")).cloned().unwrap_or(json!([]));
+    now["overview"] = json!({ "order": shown_order(&now, "overview"), "hidden": hidden_of(&now, "overview"), "tiles": tiles, "blocks": blocks });
+    let s = crate::settings::load();
+    let active: Vec<String> = s.active_integrations.iter().cloned()
+        .chain(crate::widgets::all_widgets(&s).into_iter().map(|w| format!("widget:{}", w.id)))
+        .collect();
+    let quick = s.actions.iter()
         .map(|a| format!("{} ({})", text(a, "name"), text(a, "id")))
         .collect::<Vec<_>>()
         .join(", ");
     format!(
-        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
+        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
         serde_json::to_string_pretty(&now).unwrap_or_default(),
         t("Zone dei pulsanti"),
         ZONES.join(", "),
@@ -793,6 +954,12 @@ pub fn tool_get() -> String {
         MENU_PARTS.join(", "),
         t("Parti di header (Panoramica e Impostazioni non si nascondono)"),
         HEADER_PARTS.join(", "),
+        t("Parti di overview (order: anche block:<id>; hidden: anche tile:<id>)"),
+        OVERVIEW_PARTS.join(", "),
+        t("Pezzi di piece"),
+        PIECES.join(", "),
+        t("Integrazioni attive (per piece integration e per i riquadri)"),
+        if active.is_empty() { t("nessuna").to_string() } else { active.join(", ") },
     )
 }
 
@@ -842,14 +1009,14 @@ pub fn island_layout_undo(app: AppHandle) -> Result<String, String> {
 }
 
 /// Impostazioni: a button or a tab taken away by hand (`kind` "button" or "tab"),
-/// or the menu or the header back as usual (`kind` "menu" or "header").
+/// or the menu, the header or the Panoramica back as usual (`kind` "menu", "header", "overview").
 #[tauri::command]
 pub fn island_layout_remove(app: AppHandle, kind: String, id: String) -> Result<(), String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old = load();
     let args = match kind.as_str() {
         "tab" => json!({ "remove_tabs": [id] }),
-        "menu" | "header" => json!({ "reset": [kind] }),
+        "menu" | "header" | "overview" => json!({ "reset": [kind] }),
         _ => json!({ "remove_buttons": [id] }),
     };
     let new = apply(&old, &args)?;
@@ -920,6 +1087,20 @@ fn expand_vars(p: &str) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// Impostazioni → Isola aperta → Panoramica: the user's own click, so no card;
+/// the same pieces as the chat's (`apply`), checked the same way, version kept.
+#[tauri::command]
+pub fn island_layout_apply(app: AppHandle, args: Value) -> Result<(), String> {
+    let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old = load();
+    let new = apply(&old, &args)?;
+    if new != old {
+        keep_version();
+        write(&app, &new)?;
+    }
+    Ok(())
 }
 
 /// How many older versions «Annulla» can go back to.
@@ -1009,6 +1190,29 @@ mod tests {
         // A tab taken away leaves the menu's order without it, not broken.
         let gone = apply(&moved, &json!({ "remove_tabs": ["app"] })).unwrap();
         assert_eq!(shown_order(&gone, "menu")[0], "chat");
+    }
+
+    #[test]
+    fn the_overview_takes_blocks_tiles_and_order() {
+        let ov = json!({ "overview": {
+            "order": ["block:musica", "tiles"], "hidden": ["news", "tile:integration_vercel"], "tiles": ["integration_github"],
+            "blocks": [{ "id": "musica", "kind": "piece", "piece": "integration", "integration": "integration_media" }],
+        } });
+        let v = apply(&empty(), &ov).unwrap();
+        assert_eq!(shown_order(&v, "overview"), ["block:musica", "tiles", "now", "quick", "news"]);
+        assert!(changes(&empty(), &v).iter().any(|l| l.contains("integration_media")));
+        let bad = |o: Value| apply(&empty(), &json!({ "overview": o })).is_err();
+        assert!(bad(json!({ "order": ["block:nessuno"] })));
+        assert!(bad(json!({ "hidden": ["tile:<script>"] })));
+        assert!(bad(json!({ "blocks": [{ "id": "x", "kind": "piece", "piece": "terminal" }] })));
+        // Order given again: the blocks stay; a block taken away leaves the order.
+        let v2 = apply(&v, &json!({ "overview": { "order": ["quick"] } })).unwrap();
+        assert_eq!(v2["overview"]["blocks"].as_array().unwrap().len(), 1);
+        let v3 = apply(&v, &json!({ "overview_blocks": { "remove": ["musica"] } })).unwrap();
+        assert_eq!(shown_order(&v3, "overview")[0], "tiles");
+        let in_tab = normalize(&json!({ "tabs": [{ "id": "x", "name": "X", "blocks": [{ "id": "n", "kind": "piece", "piece": "news" }] }] }));
+        assert!(in_tab.is_ok());
+        assert_eq!(apply(&v, &json!({ "reset": ["overview"] })).unwrap(), empty());
     }
 
     #[test]

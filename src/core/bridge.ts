@@ -687,7 +687,9 @@ export const Bridge = {
   customsList: () => call<Custom[]>("customs_list"),
   islandLayout: () => call<IslandLayout>("island_layout"),
   islandLayoutUndo: () => callOrThrow<string>("island_layout_undo"),
-  islandLayoutRemove: (kind: "button" | "tab" | "menu" | "header", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
+  /** Impostazioni: the user's own change (the same pieces as the chat's island_layout_set), no card. */
+  islandLayoutApply: (args: Record<string, unknown>) => callOrThrow<void>("island_layout_apply", { args }),
+  islandLayoutRemove: (kind: "button" | "tab" | "menu" | "header" | "overview", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
   islandLayoutVersions: () => call<number>("island_layout_versions"),
   /** A folder block of a tab: folders first, hidden files left out. */
   islandFolder: (path: string) => callOrThrow<{ name: string; path: string; dir: boolean }[]>("island_folder", { path }),
