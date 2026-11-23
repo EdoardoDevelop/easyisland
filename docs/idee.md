@@ -2,6 +2,14 @@
 
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
+## Isola costruita da un JSON (23/11/2026, Edoardo)
+Obiettivo: «l'isola si costruisce di sana pianta da una sorgente json», così dalla chat si cambia ogni aspetto. Proposta a tappe, sul modello delle integrazioni personali (`custom.rs`: card da JSON, modifiche dalla chat con anteprima e Consenti/Nega):
+1. **Cornice e aspetto** in `isola.json`: colori, raggi, font, spaziature, dimensioni; barra in alto (fumetto, campo), menu (voci, ordine, gruppi), Panoramica e riquadri, posizione.
+2. **Schermate a blocchi**: card, liste, righe, pulsanti, campi, grafici, icone, testi legati ai dati dello stato; azioni da elenco fisso, mai codice nel JSON. Viste semplici convertite una alla volta.
+3. **Componenti nativi** (chat, terminale, Anteprima, schede di Claude Code, card dei permessi): il JSON decide posto e opzioni, non il comportamento.
+- Vincoli: card Consenti/Nega, password e chiavi mai modificabili dalla chat; ogni modifica con anteprima, Consenti, «Annulla» e storico; JSON non valido → ultima versione buona; testi tradotti; isola chiusa a CPU ~0.
+- Da decidere: JSON come unica fonte (impostazioni attuali migrate dentro, consigliato) o strato sopra; partire dalla tappa 1 o piano completo prima.
+
 ## Terminale vero nella chat (9/11/2026)
 Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale); il 22/11 più schede, shell (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F. Restano: un terminale come pannello a sé (oggi le schede stanno in un pannello solo), profili della shell scelti dall'utente.
 
