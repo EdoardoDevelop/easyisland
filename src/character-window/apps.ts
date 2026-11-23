@@ -170,10 +170,96 @@ export function appsPress(e: PointerEvent | MouseEvent): boolean {
   if (e.button === 1) {
     void invoke("apps_do", { what: "launch-new", app: id }).catch(() => {});
   } else if (e.button === 0) {
-    if (g && g.windows.length > 1) send({ kind: "bar", key: `apps:list:${id}`, x: centre(el) });
+    // Ctrl+click: the app's next window, as on the Windows taskbar (23 Nov 2026).
+    if (e.ctrlKey && g && g.windows.length > 1) cycle(id, 1);
+    else if (g && g.windows.length > 1) send({ kind: "bar", key: `apps:list:${id}`, x: centre(el) });
     else void invoke("apps_do", { what: "click", app: id }).catch(() => {});
   }
   return true;
+}
+
+/**
+ * The app's next (`dir` 1) or previous (-1) window in front. The order is the
+ * one they came in (the map keeps it), so going round shows each once; the
+ * window marked in front here at once, so quick wheel steps go on from it.
+ */
+function cycle(id: string, dir: 1 | -1) {
+  const list = [...wins.values()].filter((w) => low(w.app) === low(id));
+  if (!list.length) return;
+  let at = list.findIndex((w) => w.active);
+  if (at < 0) at = list.reduce((best, w, i) => (w.lastUsed > list[best].lastUsed ? i : best), 0);
+  const next = list.length === 1 ? list[0] : list[(at + dir + list.length) % list.length];
+  for (const w of list) w.active = w === next;
+  void invoke("apps_do", { what: "activate", hwnd: next.hwnd }).catch(() => {});
+}
+
+let wheelAt = 0;
+/** The wheel on an app with windows: they come in front one by one. True: handled. */
+export function appsWheel(e: WheelEvent): boolean {
+  const el = (e.target as HTMLElement | null)?.closest?.(".app-ico") as HTMLElement | null;
+  const id = el?.dataset.app;
+  if (!el || !id) return false;
+  if (!e.deltaY || !groupOf(id)?.windows.length) return true;
+  // One window per notch: a touchpad sends a stream of small steps.
+  const now = performance.now();
+  if (now - wheelAt < 180) return true;
+  wheelAt = now;
+  cancelHover();
+  cycle(id, e.deltaY > 0 ? 1 : -1);
+  return true;
+}
+
+// Files dragged onto an app (23 Nov 2026, as on the Windows taskbar): held
+// there, its window comes in front, so they can be dropped into it; let go on
+// the icon of a program, they open with it.
+let dragApp = "";
+let dragTimer = 0;
+const DRAG_FRONT_MS = 700;
+
+/** Opening files needs a program (`.exe`): store apps and the like only come in front. */
+const opensFiles = (id: string) => /\.exe$/i.test(id);
+
+/**
+ * A drag over the bar at this point: the app under it (its id), or "" when
+ * none. Its window comes in front after a moment, once per stop on it.
+ */
+export function appsDragOver(x: number, y: number): string {
+  const el = document.elementFromPoint(x, y)?.closest?.(".app-ico") as HTMLElement | null;
+  const id = el?.dataset.app ?? "";
+  for (const a of document.querySelectorAll<HTMLElement>(".app-ico.drop-on")) if (a !== el) a.classList.remove("drop-on");
+  if (id !== dragApp) {
+    window.clearTimeout(dragTimer);
+    dragTimer = 0;
+    dragApp = id;
+    if (id && groupOf(id)?.windows.length) {
+      dragTimer = window.setTimeout(() => {
+        dragTimer = 0;
+        if (dragApp === id) void invoke("apps_do", { what: "drag-front", app: id }).catch(() => {});
+      }, DRAG_FRONT_MS);
+    }
+  }
+  if (id && opensFiles(id)) el?.classList.add("drop-on");
+  return id;
+}
+
+/** The drag left the bar or ended. */
+export function appsDragEnd() {
+  window.clearTimeout(dragTimer);
+  dragTimer = 0;
+  dragApp = "";
+  for (const a of document.querySelectorAll<HTMLElement>(".app-ico.drop-on")) a.classList.remove("drop-on");
+}
+
+/** Files let go on an app: opened with it. False: not a program, the bar's own drop. */
+export function appsDropFiles(id: string, files: string[]): boolean {
+  if (!id || !opensFiles(id) || !files.length) return false;
+  void invoke("apps_do", { what: "open-files", app: id, files }).catch(() => {});
+  return true;
+}
+
+/** Whether files let go on this app open with it (else they pin, as on the rest of the bar). */
+export function appsTakesFiles(id: string): boolean {
+  return !!id && opensFiles(id);
 }
 
 /** The right button on an app: its menu (barapps.rs). True: handled. */
