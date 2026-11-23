@@ -3931,7 +3931,7 @@ function ownLayoutSection(): HTMLElement {
     const [layout, versions] = await Promise.all([Bridge.islandLayout(), Bridge.islandLayoutVersions()]);
     undo.disabled = !versions;
     const where = (z?: string) => (z === "header" ? t("in alto, nella testata") : t("in fondo al menu"));
-    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header" | "overview", id: string, act = t("Togli")) =>
+    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header" | "overview" | "footer", id: string, act = t("Togli")) =>
       h("div", { class: "row" },
         h("label", { text }),
         h("span", { class: "hint note", text: sub }),
@@ -3948,6 +3948,11 @@ function ownLayoutSection(): HTMLElement {
       ...(["menu", "header", "overview"] as const).filter((k) => layout?.[k]).map((k) => line(k === "menu" ? t("Menu") : k === "header" ? t("Testata") : t("Panoramica"),
         [layout?.[k]?.order?.length ? t("ordine cambiato") : "", layout?.[k]?.hidden?.length ? t("{n} parti nascoste", { n: layout[k]!.hidden!.length }) : ""].filter(Boolean).join(", "),
         k, k, t("Rimetti come di serie"))),
+      // The footer: what each side holds.
+      ...(layout?.footer ? [line(t("Footer"), (["left", "center", "right"] as const)
+        .filter((s) => layout.footer?.[s]?.length)
+        .map((s) => `${s === "left" ? t("sinistra") : s === "center" ? t("centro") : t("destra")} ${layout.footer![s]!.length}`).join(" · "),
+      "footer", "footer", t("Togli tutto"))] : []),
     ];
     list.replaceChildren(...(rows.length ? rows : [h("div", { class: "hint", text: t("Niente per ora. Chiedi alla chat, per esempio: «metti in basso a sinistra un pulsante per spegnere il PC».") })]));
   };

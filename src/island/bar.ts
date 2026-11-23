@@ -20,6 +20,7 @@ import { appName } from "./context";
 import { State, type BarAct, type BarItem, type BarSys, type FixedBarDesign } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 import { locale, t, tn } from "../core/i18n";
+import { clockText, zonedNow } from "../core/clock";
 import type { BarButton, BarPiece } from "../core/link";
 import type { StripItem } from "../views/strip";
 
@@ -113,13 +114,37 @@ function valueOf(taskId: string): { value: string; level?: "ok" | "warn" | "erro
 const history: Record<string, number[]> = {};
 const HISTORY = 30;
 
+/** The last minutes, timed, for the island's `chart` blocks (src/views/island-layout.ts). */
+const longHistory: Record<string, { t: number; v: number }[]> = {};
+const LONG_MS = 5 * 60_000;
+
+/** A chart's points: only the last five minutes (a pause in the readings leaves a gap, not a line across it). */
+export function chartHistory(kind: string): { t: number; v: number }[] {
+  const now = Date.now();
+  const list = longHistory[kind] ?? [];
+  // After a pause (the island closed) only what came since.
+  let start = 0;
+  for (let i = 1; i < list.length; i++) if ((list[i]?.t ?? 0) - (list[i - 1]?.t ?? 0) > 15_000) start = i;
+  return list.slice(start).filter((p) => now - p.t <= LONG_MS);
+}
+
+/** The browser preview (dev/scenes.ts): made-up readings, one every 2 s up to now. */
+export function chartSample(kind: string, values: number[]) {
+  const now = Date.now();
+  longHistory[kind] = values.map((v, i) => ({ t: now - (values.length - 1 - i) * 2000, v }));
+}
+
 /** A new reading of barsys.rs: the graphs get their next point. */
 export function recordBarSys(v: BarSys) {
+  const now = Date.now();
   const push = (k: string, n: number | null | undefined) => {
     if (typeof n !== "number" || !Number.isFinite(n)) return;
     const list = (history[k] ??= []);
     list.push(n);
     if (list.length > HISTORY) list.shift();
+    const long = (longHistory[k] ??= []);
+    long.push({ t: now, v: n });
+    while (long.length && now - (long[0]?.t ?? now) > LONG_MS) long.shift();
   };
   push("cpu", v.cpu);
   push("ram", v.ram?.percent);
@@ -183,22 +208,30 @@ function speed(n: number): string {
 }
 
 /** A clock's time and date, in its time zone (an unknown zone falls back to the PC's). */
-function clockText(it: BarItem): Record<string, string> {
-  const now = new Date();
-  const fmt = (o: Intl.DateTimeFormatOptions) => {
-    try {
-      return new Intl.DateTimeFormat(locale(), { ...o, timeZone: it.opts?.tz || undefined }).format(now);
-    } catch {
-      return new Intl.DateTimeFormat(locale(), o).format(now);
-    }
+/** A small dial with the hands at the clock's time (the «Quadrante» option), drawn in the text's colour. */
+function clockDial(it: BarItem, size = 15): SVGElement {
+  const NS = "http://www.w3.org/2000/svg";
+  const z = zonedNow(it.opts?.tz);
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("class", "bar-dial");
+  const el = (name: string, attrs: Record<string, string>) => {
+    const e = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    svg.append(e);
   };
-  const time = fmt({ hour: "2-digit", minute: "2-digit", ...(it.opts?.seconds ? { second: "2-digit" } : {}) });
-  return {
-    time, value: time,
-    date: fmt({ weekday: "short", day: "numeric", month: "short" }),
-    day: fmt({ weekday: "long" }),
-    full: fmt({ weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+  el("circle", { cx: "12", cy: "12", r: "10", fill: "none", stroke: "currentColor", "stroke-width": "1.8" });
+  const hand = (turn: number, len: number, w: string, opacity = "1") => {
+    const a = turn * 2 * Math.PI;
+    el("line", { x1: "12", y1: "12", x2: (12 + Math.sin(a) * len).toFixed(2), y2: (12 - Math.cos(a) * len).toFixed(2),
+      stroke: "currentColor", "stroke-width": w, "stroke-linecap": "round", opacity });
   };
+  hand(((z.h % 12) + z.m / 60) / 12, 5.2, "2.2");
+  hand((z.m + z.s / 60) / 60, 7.6, "1.6");
+  if (it.opts?.seconds) hand(z.s / 60, 8, "0.9", "0.7");
+  return svg;
 }
 
 /** What a system element shows now: its placeholders, the icon, the tooltip, how it looks. */
@@ -211,7 +244,8 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
   switch (kind) {
     case "clock": {
       const v = clockText(it);
-      return { v, icon: k.icon, tip: `${v.full}${it.opts?.tz ? ` · ${it.opts.tz.replace(/_/g, " ")}` : ""}` };
+      const zone = it.opts?.label?.trim() || it.opts?.tz?.replace(/_/g, " ");
+      return { v, icon: k.icon, tip: `${v.full}${zone ? ` · ${zone}` : ""}` };
     }
     case "volume": {
       const muted = !!s.volume?.muted;
@@ -480,7 +514,8 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       const sv = sysValues(kind, it, design);
       const el = h("span", { class: `bar-item bar-sys${sv.dim ? " dim" : ""}` });
       // A program's own icon (the window title) is a picture; the others are drawn.
-      const icon = () => sv.icon.startsWith("data:image/png")
+      const icon = () => kind === "clock" && it.opts?.analog ? clockDial(it)
+        : sv.icon.startsWith("data:image/png")
         ? h("img", { class: "bar-app-icon", src: sv.icon, alt: "" })
         : renderActionIcon(sv.icon, 15);
       compose(el, formatOf(it, key), icon, sv.v, true);
@@ -547,11 +582,28 @@ export function barSysKinds(): string[] {
   return [...kinds].sort();
 }
 
-/** The PC's values of the user's tab open now (island_layout.rs `VALUES`): read only while it shows. */
+/**
+ * The PC's values the open island shows now (island_layout.rs `VALUES`,
+ * `CHARTS`): of the user's tab open, of the Panoramica's own blocks, of the
+ * island's foot; VS Code's projects for a block that lists them. Read only
+ * while they show.
+ */
 function boardSysKinds(): string[] {
-  if (State.view !== "board" || State.mode !== "expanded") return [];
-  const tab = State.layout.tabs.find((x) => x.id === State.boardTab);
-  return (tab?.blocks ?? []).flatMap((b) => (b.kind === "value" ? [b.what === "ip" ? "net" : b.what] : []));
+  if (State.mode !== "expanded") return [];
+  const kindOf = (w: string) => (w === "ip" ? "net" : w);
+  const blocks = State.view === "board" ? State.layout.tabs.find((x) => x.id === State.boardTab)?.blocks ?? []
+    : State.view === "overview" ? State.layout.overview?.blocks ?? []
+    : [];
+  const out = blocks.flatMap((b) => {
+    if (b.kind === "value" || b.kind === "chart") return [kindOf(b.what)];
+    if ((b.kind === "grid" || b.kind === "list") && b.source.kind === "vscode") return ["vscode"];
+    return [];
+  });
+  if (!State.popover && !State.searchOnly) {
+    const f = State.layout.footer;
+    for (const it of [...(f?.left ?? []), ...(f?.center ?? []), ...(f?.right ?? [])]) if ("what" in it) out.push(kindOf(it.what));
+  }
+  return out;
 }
 
 /** A value block of a tab (src/views/island-layout.ts): the text, the icon, the tooltip, as the bar shows it. */

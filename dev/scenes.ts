@@ -9,6 +9,7 @@ import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import { openClientCard } from "../src/views/clientcard";
 import { boardSample } from "../src/views/island-layout";
+import { chartSample } from "../src/island/bar";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge, type ClientCard } from "../src/core/bridge";
@@ -1980,6 +1981,29 @@ export async function runScene(island: Island, scene: string) {
             ],
           },
         });
+      }
+      // Second round (?more): the new sources and the charts in a tab «Altro», the island's foot.
+      if (q.has("more")) {
+        layout.tabs.push({
+          id: "altro", name: "Altro", icon: "i:bolt", buttons: [],
+          blocks: [
+            { id: "g-cpu", kind: "chart" as const, what: "cpu" },
+            { id: "g-net", kind: "chart" as const, what: "net", title: "Rete" },
+            { id: "recenti", kind: "list" as const, title: "File recenti", source: { kind: "recent" as const }, limit: 4 },
+            { id: "code", kind: "grid" as const, title: "Progetti di VS Code", source: { kind: "vscode" as const } },
+            { id: "clienti", kind: "list" as const, title: "Clienti", source: { kind: "records" as const, integration: "clienti" }, search: true },
+          ],
+        } as never);
+        Object.assign(layout, { footer: {
+          left: [{ id: "cattura", label: "Cattura", icon: "i:camera", action: { kind: "view", view: "files" } }, { what: "ip" }],
+          center: [{ what: "cpu" }, { what: "ram" }, { what: "disk", drive: "C" }],
+          right: [{ what: "battery" }, { id: "blocca-f", label: "Blocca", icon: "i:lock", action: { kind: "system", what: "lock" } }],
+        } });
+        boardSample("recent", [{ name: "Preventivo Rossi.docx", sub: "C:\\Users\\me\\Documents", icon: "i:file" }, { name: "Listino 2026.xlsx", sub: "C:\\Users\\me\\Desktop", icon: "i:file" }, { name: "Foto cantiere.jpg", sub: "C:\\Users\\me\\Pictures", icon: "i:file" }]);
+        boardSample("vscode", [{ name: "EasyIsland_0.2.0", icon: "i:code" }, { name: "agentchat", icon: "i:code" }, { name: "sito", icon: "i:code" }]);
+        boardSample("records", [{ name: "Rossi Impianti srl", sub: "22 nov" }, { name: "Bianchi & figli", sub: "20 nov" }, { name: "Studio Verdi", sub: "18 nov" }]);
+        chartSample("cpu", Array.from({ length: 150 }, (_, i) => 18 + 12 * Math.sin(i / 9) + (i % 7) * 2 + (i > 120 ? 25 : 0)));
+        chartSample("net", Array.from({ length: 150 }, (_, i) => 800 + 600 * Math.abs(Math.sin(i / 5)) + (i % 11) * 90));
       }
       if (q.has("draft")) {
         State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };

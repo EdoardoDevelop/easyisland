@@ -5481,6 +5481,7 @@ pub fn run() {
             island_layout::island_layout_versions,
             island_layout::island_folder,
             island_layout::island_layout_apply,
+            island_layout::island_recent,
             custom_save,
             custom_delete,
             custom_records,

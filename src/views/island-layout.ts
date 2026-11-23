@@ -10,12 +10,17 @@
 // read when the tab opens; a value of the PC (barsys.rs, read only while the
 // tab shows: bar.ts `barSysKinds`); a text. An item does what its source says
 // (open the app, bring the window forward, run the action, open the file).
+// Second round (23/11): more sources (recent files, the Vassoio, the clipboard's
+// history, VS Code's projects, an integrazione personale's records, Notion), a
+// chart of a value of the PC, and the open island's footer (`buildFoot`): three
+// sides, left, center and right, each a row of buttons and values of the PC.
 
 import { h } from "./dom";
-import { State, type LayoutAction, type LayoutBlock, type LayoutButton, type LayoutTab } from "../core/state";
+import { State, type LayoutAction, type LayoutBlock, type LayoutButton, type LayoutFooterItem, type LayoutTab, type LayoutZone } from "../core/state";
 import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import { t } from "../core/i18n";
-import { sysValueText } from "../island/bar";
+import { chartHistory, sysValueText } from "../island/bar";
+import { recordTitle } from "./custom";
 import { renderActionIcon } from "./action-icons";
 import { fillChat } from "./chat";
 import type { ViewActions, ViewHost } from "./views";
@@ -115,7 +120,7 @@ function tile(b: LayoutButton, actions: ViewActions): HTMLElement {
 }
 
 /** The buttons of one zone, in the saved order. */
-export function zoneButtons(zone: "menu-bottom" | "header"): LayoutButton[] {
+export function zoneButtons(zone: LayoutZone): LayoutButton[] {
   return State.layout.buttons.filter((b) => b.zone === zone);
 }
 
@@ -156,7 +161,7 @@ export function overviewTiles<T extends { id: string }>(tasks: T[]): T[] {
 }
 
 /** A key that changes when what `zone` shows changes (no redraw otherwise). */
-export function zoneKey(zone: "menu-bottom" | "header"): string {
+export function zoneKey(zone: LayoutZone): string {
   return JSON.stringify(zoneButtons(zone));
 }
 
@@ -250,10 +255,89 @@ async function readSource(b: ItemsBlock, actions: ViewActions): Promise<Item[]> 
     case "folder":
       return (await Bridge.islandFolder(src.path)).map((f) => ({
         key: f.path, name: f.name, icon: f.dir ? "i:folder" : "i:file",
-        run: () => void Bridge.pcFileOpen(f.path, false).catch((e: unknown) =>
+        run: () => openFile(f.path, actions),
+      }));
+    case "recent":
+      return (await Bridge.islandRecent()).map((f) => ({
+        key: f.path, name: f.name, sub: f.dir, icon: "i:file", run: () => openFile(f.path, actions),
+      }));
+    case "tray":
+      return ((await Bridge.inboxList()) ?? []).map((f) => ({
+        key: f.path, name: f.name, sub: sizeText(f.size), icon: "i:file",
+        run: () => void Bridge.inboxOpen(f.name, false).catch((e: unknown) =>
           actions.showNotice({ title: t("Non si apre"), text: String(e), level: "error", url: "" })),
       }));
+    case "clipboard":
+    case "vscode":
+      return liveItems(b);
+    case "records": {
+      const c = State.customs.find((x) => x.id === src.integration);
+      if (!c) throw new Error(t("Nessuna integrazione personale con l'id «{id}».", { id: src.integration }));
+      const list = (await Bridge.customRecords(c.id)) ?? [];
+      // Newest first, as the card's list.
+      return [...list].sort((a, b) => b.updated.localeCompare(a.updated)).map((r) => ({
+        key: r.id, name: recordTitle(c, r), sub: shortDate(r.updated), icon: c.icon || "i:file",
+        run: () => {
+          State.summary = false;
+          actions.setFocus(`custom:${c.id}`);
+          actions.setView("overview");
+        },
+      }));
+    }
+    case "notion":
+      return (await Bridge.notionSearch(src.query ?? "", Math.min(20, b.limit ?? 12))).map((n) => ({
+        key: n.id, name: n.title || t("Senza titolo"), sub: shortDate(n.lastEditedAt), icon: n.emoji || "i:file",
+        run: () => actions.openUrl(n.url),
+      }));
   }
+}
+
+/** The sources read from the island's own state, again at every change: the clipboard's history, VS Code's projects. */
+const LIVE_SOURCES = new Set(["clipboard", "vscode"]);
+
+function liveItems(b: ItemsBlock): Item[] {
+  const sample = !IS_TAURI ? samples.get(b.source.kind) : undefined;
+  if (sample) return sample.map((x, i) => ({ key: String(i), name: x.name, sub: x.sub, icon: x.icon ?? "i:folder", run: () => {} }));
+  if (b.source.kind === "vscode") {
+    return (State.barSys.vscode ?? []).map((x) => ({
+      key: x.path, name: x.name, sub: x.path, icon: "i:folder",
+      run: () => void Bridge.barSysDo("vscode-open", undefined, x.path),
+    }));
+  }
+  const clip = State.integrations.integration_clipboard;
+  if (!State.tasks.some((x) => x.id === "integration_clipboard")) throw new Error(t("Attiva «Appunti» in Integrazioni per vederne la cronologia."));
+  const items = ((clip?.data as { items?: Record<string, unknown>[] } | undefined)?.items ?? []);
+  return items.map((it) => {
+    const image = it.kind === "image";
+    return {
+      key: String(it.id), name: image ? `${it.width} × ${it.height}` : String(it.preview ?? "").replace(/\s+/g, " ").trim(),
+      sub: it.pinned ? t("fissato") : undefined,
+      icon: image && typeof it.thumb === "string" && it.thumb.startsWith("data:") ? it.thumb : "i:clipboard",
+      run: () => void Bridge.clipboardUse(Number(it.id), "", false).catch(() => {}),
+    };
+  });
+}
+
+function openFile(path: string, actions: ViewActions) {
+  void Bridge.pcFileOpen(path, false).catch((e: unknown) =>
+    actions.showNotice({ title: t("Non si apre"), text: String(e), level: "error", url: "" }));
+}
+
+/** «12 kB», «3,4 MB». */
+function sizeText(n: number): string {
+  if (!Number.isFinite(n)) return "";
+  if (n < 1e6) return `${Math.max(1, Math.round(n / 1e3))} kB`;
+  return `${(n / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`;
+}
+
+/** A date as a short day: «23 nov», today the time. */
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  return d.toDateString() === now.toDateString()
+    ? d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 function iconOf(it: Item, size: number): Node {
@@ -305,9 +389,30 @@ function itemsBlock(b: ItemsBlock, tabId: string, actions: ViewActions): Part {
   const el = h("section", { class: "board-block" },
     ...(b.title ? [h("div", { class: "board-block-title", text: b.title })] : []),
     ...(field ? [field] : []), note, body);
+  const live = LIVE_SOURCES.has(b.source.kind);
+  /** A live source read again: drawn only when what it gives changed. */
+  let liveSig = "";
+  const readLive = () => {
+    try {
+      const items = liveItems(b);
+      const sig = items.map((x) => `${x.key}:${x.name}:${x.sub ?? ""}`).join("|");
+      if (sig === liveSig && cache.has(key)) return;
+      liveSig = sig;
+      cache.set(key, items);
+      draw();
+    } catch (e) {
+      note.textContent = String(e).replace(/^Error:\s*/, "");
+      body.replaceChildren();
+    }
+  };
   return {
     el,
+    live: live ? readLive : undefined,
     refresh(read) {
+      if (live) {
+        readLive();
+        return;
+      }
       // The installed apps stay as read; windows, quick actions and folders change: read at every opening.
       if (read && !(b.source.kind === "apps" && cache.has(key))) {
         if (!cache.has(key)) draw();
@@ -341,10 +446,56 @@ function valueBlock(b: Extract<LayoutBlock, { kind: "value" }>): Part {
   };
 }
 
+/** The last minutes of a value of the PC: a line over its area, the value now beside the title. */
+function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 300;
+  const H = 64;
+  const svgEl = document.createElementNS(NS, "svg");
+  svgEl.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svgEl.setAttribute("preserveAspectRatio", "none");
+  svgEl.setAttribute("class", "board-chart-svg");
+  const area = document.createElementNS(NS, "path");
+  area.setAttribute("class", "board-chart-area");
+  const line = document.createElementNS(NS, "polyline");
+  line.setAttribute("class", "board-chart-line");
+  svgEl.append(area, line);
+  const name = h("span", { class: "board-block-title", text: b.title ?? "" });
+  const val = h("b", { class: "board-value-text" });
+  const wait = h("div", { class: "sub board-note", text: t("Raccolgo i valori…") });
+  const el = h("section", { class: "board-block board-chart" }, h("div", { class: "board-chart-head" }, name, val), svgEl, wait);
+  return {
+    el,
+    refresh() {
+      const v = sysValueText(b.what);
+      val.textContent = v.text;
+      el.title = v.tip;
+      if (!b.title) name.textContent = v.tip.split(":")[0];
+      const pts = chartHistory(b.what);
+      wait.hidden = pts.length >= 2;
+      if (pts.length < 2) {
+        line.setAttribute("points", "");
+        area.setAttribute("d", "");
+        return;
+      }
+      // The window shown: the last minutes; percentages from 0 to 100, the network to its highest.
+      const span = 5 * 60_000;
+      const end = pts[pts.length - 1].t;
+      const top = b.what === "net" ? Math.max(1, ...pts.map((p) => p.v)) : 100;
+      const xy = pts.map((p) => [W - ((end - p.t) / span) * W, H - 2 - (Math.min(p.v, top) / top) * (H - 4)] as const);
+      const str = xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+      line.setAttribute("points", str);
+      const first = xy[0];
+      area.setAttribute("d", `M${first[0].toFixed(1)},${H} L${str.replace(/ /g, " L")} L${W},${H} Z`);
+    },
+  };
+}
+
 /** One block of a tab (`owner` its id) or of the Panoramica ("overview"). */
 export function blockPart(b: LayoutBlock, owner: string, actions: ViewActions): Part {
   listen();
   if (b.kind === "value") return valueBlock(b);
+  if (b.kind === "chart") return chartBlock(b);
   if (b.kind === "text") return { el: h("section", { class: "board-block board-text", text: b.text }), refresh() {} };
   if (b.kind === "piece") {
     if (pieceMaker) return pieceMaker(b, actions);
@@ -434,5 +585,48 @@ export function buildBoard(actions: ViewActions): ViewHost {
       else if (open) for (const p of parts) p.live?.();
     },
     fitHeight: () => card.scrollHeight + 2,
+  };
+}
+
+/**
+ * The open island's footer, under the menu and the views: three sides (left,
+ * center, right), each a row of buttons and values of the PC in the order of
+ * isola.json. The values are read by barsys.rs while the island is open
+ * (bar.ts `barSysKinds`). `sync` says whether it has anything (island.ts
+ * makes room for it).
+ */
+export function buildFoot(actions: ViewActions): { el: HTMLElement; sync(): boolean } {
+  listen();
+  const sides = { left: h("div", { class: "foot-side foot-left" }), center: h("div", { class: "foot-side foot-center" }), right: h("div", { class: "foot-side foot-right" }) };
+  const el = h("div", { id: "island-foot" }, sides.left, sides.center, sides.right);
+  let key = "";
+  let parts: Part[] = [];
+  let shown = false;
+  onData.add(() => {
+    if (shown) for (const p of parts) p.refresh(false);
+  });
+  const item = (it: LayoutFooterItem, i: number): HTMLElement => {
+    if ("action" in it) return layoutIconButton(it, actions, 15);
+    const p = valueBlock({ id: `foot-${i}`, kind: "value", what: it.what, drive: it.drive });
+    p.el.classList.add("foot-value");
+    parts.push(p);
+    return p.el;
+  };
+  return {
+    el,
+    sync() {
+      const f = State.layout.footer ?? {};
+      const k = JSON.stringify(f);
+      if (k !== key) {
+        key = k;
+        parts = [];
+        let n = 0;
+        for (const side of ["left", "center", "right"] as const) sides[side].replaceChildren(...(f[side] ?? []).map((it) => item(it, n++)));
+      }
+      const has = !!(f.left?.length || f.center?.length || f.right?.length);
+      shown = has;
+      if (has) for (const p of parts) p.refresh(false);
+      return has;
+    },
   };
 }

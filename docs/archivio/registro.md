@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 22/11 — Migliorie da librerie collaudate
+- Blocchi di codice: «▶ Nel terminale» (scritto, mai eseguito) e «Salva» (`docs/chat.md` → Campo e azioni).
+- Chat fluida: risposte lette una volta, risposta in arrivo riletta solo nell'ultimo pezzo (`chat-live.ts`), messaggi fuori schermo non disegnati. «Domanda a parte» nelle idee.
+- Terminale: più schede (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F (`docs/chat.md` → Terminale). Codice colorato nelle risposte (`highlight.ts`). Ricerca che perdona (`fuzzy.ts`). Pannelli: menu della scheda, ingrandisci, annulla/ripeti (storia nostra: quella di dockview è a pagamento).
+- Nuove dipendenze decise da Edoardo (`docs/decisioni.md`); CodeMirror e Mermaid in `docs/idee.md`.
+
 ### 22/11 — Pannelli della chat (dockview)
 - Conversazioni, Anteprima e Terminale come pannelli attorno alla chat, nell'isola e nella finestra (`src/island/dock.ts`, `docs/chat.md` → Anteprima → Pannelli): schede trascinabili, divisori, disposizione per luogo e insieme. Con la sola chat niente pannelli.
 - Nuova dipendenza `dockview-core` decisa da Edoardo (`docs/decisioni.md`); CSS in `src/vendor/dockview.css`.

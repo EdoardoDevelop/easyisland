@@ -167,6 +167,12 @@ export interface BarOpts {
   /** Clock: an IANA time zone ("" = the PC's) and whether it shows seconds. */
   tz?: string;
   seconds?: boolean;
+  /** Clock: 12 hours with AM/PM; the hour without its leading zero (false); how the date reads; a name for {label}; a small dial instead of the icon. */
+  h12?: boolean;
+  pad?: boolean;
+  dateStyle?: "short" | "numeric" | "numericYear" | "long" | "iso";
+  label?: string;
+  analog?: boolean;
   /** CPU, memory, GPU, network: a small graph of the last minute beside the value. */
   graph?: boolean;
   /** Disk: its letter ("" = C). */
@@ -2264,16 +2270,24 @@ export interface LayoutButton {
   label: string;
   icon?: string;
   color?: string;
-  /** Only on the island's own buttons: the foot of the menu or the header. */
-  zone?: "menu-bottom" | "header";
+  /** Only on the island's own buttons: the foot of the menu or the header (the footer's are in `footer`). */
+  zone?: LayoutZone;
   action: LayoutAction;
 }
+export type LayoutZone = "menu-bottom" | "header";
 /** Where a grid or a list of a tab takes its items (island_layout.rs `SOURCES`). */
-export type LayoutSource = { kind: "apps" } | { kind: "windows" } | { kind: "quick" } | { kind: "folder"; path: string };
+export type LayoutSource = { kind: "apps" | "windows" | "quick" | "recent" | "tray" | "clipboard" | "vscode" }
+  | { kind: "folder"; path: string }
+  /** The records of an integrazione personale (its id, without `custom:`). */
+  | { kind: "records"; integration: string }
+  /** Notion pages with these words; the latest edited without. */
+  | { kind: "notion"; query?: string };
 /** A block of a tab (step 2, island_layout.rs `BLOCKS`): what an item does comes from its source. */
 export type LayoutBlock = { id: string; title?: string } & (
   | { kind: "grid" | "list"; source: LayoutSource; filter?: string; limit?: number; search?: boolean }
   | { kind: "value"; what: string; drive?: string }
+  /** The last minutes of a value of the PC (island_layout.rs `CHARTS`). */
+  | { kind: "chart"; what: "cpu" | "ram" | "gpu" | "net" }
   | { kind: "text"; text: string }
   /** An existing piece as it is: an integration's card, the news, the quick actions. */
   | { kind: "piece"; piece: "integration" | "news" | "quick"; integration?: string }
@@ -2284,7 +2298,11 @@ export interface LayoutTab { id: string; name: string; icon?: string; buttons: L
 export interface LayoutParts { order?: string[]; hidden?: string[] }
 /** The Panoramica: its parts' order and those hidden (`tile:<id>` too), the tiles named first, its own blocks. */
 export interface LayoutOverview extends LayoutParts { tiles?: string[]; blocks?: LayoutBlock[] }
-export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview }
+/** One thing of the footer: a button, or a value of the PC. */
+export type LayoutFooterItem = LayoutButton | { what: string; drive?: string };
+/** The open island's footer: three sides, each a row of buttons and values in the order given. */
+export interface LayoutFooter { left?: LayoutFooterItem[]; center?: LayoutFooterItem[]; right?: LayoutFooterItem[] }
+export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; footer?: LayoutFooter }
 
 export interface Custom {
   id: string;

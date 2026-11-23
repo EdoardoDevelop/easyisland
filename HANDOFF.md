@@ -6,6 +6,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
 - [ ] **Isola da JSON, tappe 1–3 e Panoramica** (23/11, unita in `claude/sviluppo`, `docs/architettura.md` → Isola da JSON): tappa 1 provata da Edoardo dalla chat. Tappe 2 (blocchi: app installate, finestre, azioni rapide, cartella, valori del PC, testo) e 3 (ordine e parti nascoste di menu e testata) provate con test e nell'anteprima (`?scene=isola&tab=app`, `&tab=stato`, `&moved`); da provare nell'app: «crea una scheda con tutte le app installate», «metti la Chat in cima al menu e nascondi Notizie», Impostazioni → Aggiunti dalla chat → Rimetti come di serie; Panoramica: «metti la musica in cima alla panoramica», Impostazioni → Isola aperta → Panoramica (scena `&ov`).
+- [ ] **Isola da JSON, fonti, grafici e piede** (23/11, ramo `claude/isola-fonti`, `docs/architettura.md` → Isola da JSON → Fonti, grafici, piede): test e anteprima (`?scene=isola&more&tab=altro`, `&ov`) passati; da provare nell'app: «crea una scheda con i file recenti e i progetti di VS Code», «una scheda con le schede dei clienti», «aggiungi alla panoramica il grafico del processore», footer in tre zone («metti a destra del footer un pulsante per bloccare il PC»). Primo tentativo dalla chat fallito per l'hook vecchio rimesso all'avvio (corretto, `docs/sviluppo.md` → Prova veloce); il footer di Edoardo (CPU, RAM, disco C e D) ora sta al centro.
 - [ ] **«App» nella barra** (22/11, `docs/architettura.md` → Barra fissa → «App»): compilato con `npm run prova`; da provare dal vivo: import delle fissate di Windows, clic (apri, davanti, riduci), più finestre e anteprime, hover, destro (Recenti, amministratore, Fissa/Togli), trascinare un programma, programmi da amministratore davanti, con la barra di Windows nascosta.
 - [ ] **Barra di Windows nascosta** (22/11, `docs/architettura.md` → Barra fissa): test di `taskbar_hide` passati, codice già provato con la Dock; da provare nell'app: Nascosta/Visibile, «Rimetti adesso», chiusura dell'app (torna), riavvio di Explorer (si rinasconde), più schermi.
 - [ ] **Il PC dal campo** (22/11, `docs/architettura.md` → Campo unico): ricerca dei file provata dal vivo (test `pcfind::tests::live_files`), il resto nell'anteprima (scena `search`, `?q=bluet`, `?q=rossi`); da provare nell'app: finestra portata davanti (anche ridotta e con un programma da amministratore), Maiusc+Invio, pagine di Windows, velocità della prima ricerca.
@@ -69,6 +70,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 23/11 — Isola da JSON: fonti, grafici, piede
+- Ramo `claude/isola-fonti` (da `claude/sviluppo`): fonti `recent`, `tray`, `clipboard`, `vscode`, `records` (integrazione personale), `notion`; blocco `chart` (ultimi 5 minuti, `bar.ts` `chartHistory`); footer dell'isola aperta in tre zone `left`, `center`, `right`, ognuna con pulsanti e valori del PC (`buildFoot`, 36 px in `island.ts`; il formato `foot` del primo giro si converte). Valori letti anche per Panoramica e footer.
+- Isola per profilo scartata: Edoardo non usa i profili.
+- Orologio della barra (23/11, sera): 12/24 ore, zero davanti, cinque stili di data, nome del fuso `{label}`, `{week}` `{daynum}` `{month}` `{year}`, quadrante con le lancette, modelli pronti (`src/core/clock.ts`). Footer: pulsanti del menu in basso fissi, con poco spazio scorrono le sezioni.
+
 ### 23/11 — Isola da JSON, tappe 1–3
 - `isola.json` (`island_layout.rs`, `src/views/island-layout.ts`): pulsanti in fondo al menu e nella testata, schede proprie con griglia di pulsanti, azioni da elenco fisso (mai codice). Strumenti `island_layout`, `island_layout_set`, `island_layout_undo`; card con cosa cambia e bozza visibile nell'isola; versioni in `isola-versioni\`, Annulla anche in Impostazioni.
 - Tappa 2: blocchi nelle schede (`grid`, `list`, `value`, `text`) da fonti fisse (app installate, finestre, azioni rapide, cartella, valori di `barsys.rs` letti solo a scheda aperta); `tab_blocks`. Nuova conversazione per vedere strumenti nuovi (`docs/chat.md`).
@@ -87,9 +93,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 22/11 — Il PC dal campo dell'isola
 - Ramo `claude/campo`, `pcfind.rs` (`docs/architettura.md` → Campo unico): file (recenti e indice di Windows, Maiusc+Invio nella cartella, interruttore «File del PC»), finestre aperte portate davanti, pagine e comandi di Windows. Nessuna dipendenza.
 - Il resto delle proposte in `docs/idee.md` → «Il PC dal campo dell'isola, seguiti».
-
-### 22/11 — Migliorie da librerie collaudate
-- Blocchi di codice: «▶ Nel terminale» (scritto, mai eseguito) e «Salva» (`docs/chat.md` → Campo e azioni).
-- Chat fluida: risposte lette una volta, risposta in arrivo riletta solo nell'ultimo pezzo (`chat-live.ts`), messaggi fuori schermo non disegnati. «Domanda a parte» nelle idee.
-- Terminale: più schede (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F (`docs/chat.md` → Terminale). Codice colorato nelle risposte (`highlight.ts`). Ricerca che perdona (`fuzzy.ts`). Pannelli: menu della scheda, ingrandisci, annulla/ripeti (storia nostra: quella di dockview è a pagamento).
-- Nuove dipendenze decise da Edoardo (`docs/decisioni.md`); CodeMirror e Mermaid in `docs/idee.md`.

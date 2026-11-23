@@ -694,6 +694,34 @@ pub fn recent_files(id: &str, max: usize) -> Vec<String> {
     .unwrap_or_default()
 }
 
+/// Every file opened lately (Windows' Recent, newest first, at most `max`):
+/// the `recent` source of a block of the island (island_layout.rs). Only files
+/// that are still there; folders, programs and shortcuts left out.
+pub fn recent_all(max: usize) -> Vec<String> {
+    on_shell(Duration::from_secs(5), move || {
+        let Some(dir) = std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join(r"Microsoft\Windows\Recent")) else { return Vec::new() };
+        let mut links: Vec<(SystemTime, PathBuf)> = fs::read_dir(dir)
+            .map(|d| d.filter_map(|e| e.ok()).filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path()))).collect())
+            .unwrap_or_default();
+        links.retain(|(_, p)| is_shortcut(&p.to_string_lossy()));
+        links.sort_by(|a, b| b.0.cmp(&a.0));
+        let mut out: Vec<String> = Vec::new();
+        for (_, link) in links.into_iter().take(400) {
+            let Some(target) = read_link(&link).and_then(|(t, _)| t).filter(|t| Path::new(t).is_file()) else { continue };
+            let ext = Path::new(&target).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+            if ext == "exe" || ext == "lnk" || out.iter().any(|x| x.eq_ignore_ascii_case(&target)) {
+                continue;
+            }
+            out.push(target);
+            if out.len() >= max {
+                break;
+            }
+        }
+        out
+    })
+    .unwrap_or_default()
+}
+
 /// The program that opens files with this extension (".docx" → WINWORD.EXE's path).
 fn associated_program(ext: &str) -> Option<String> {
     use windows::Win32::UI::Shell::{AssocQueryStringW, ASSOCF_NONE, ASSOCSTR_EXECUTABLE};
