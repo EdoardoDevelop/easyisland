@@ -243,6 +243,10 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "document_pdf" => crate::documents::tool_pdf(app, args).await,
         "pdf_merge" => crate::documents::tool_pdf_merge(app, args).await,
         "pdf_split" => crate::documents::tool_pdf_split(app, args).await,
+        // The island built from a JSON (island_layout.rs): set and undo ask Consenti / Nega first.
+        "island_layout" => Ok(crate::island_layout::tool_get()),
+        "island_layout_set" => crate::island_layout::tool_set(app, args),
+        "island_layout_undo" => crate::island_layout::tool_undo(app),
         "custom_create" => crate::custom::tool_create(app, args),
         "custom_update" => crate::custom::tool_update(app, args),
         "custom_list" => Ok(crate::custom::tool_list()),

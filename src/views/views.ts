@@ -37,6 +37,7 @@ import { buildMoment, momentHeadline, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
+import { buildBoard, layoutIconButton, overviewBlocks, overviewTiles, partHidden, partsOrder, setPieceMaker, syncOverviewBlocks, zoneButtons, zoneKey, type Part } from "./island-layout";
 import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, tabActions, type ActionHandlers } from "./actions";
@@ -253,6 +254,7 @@ function bubble(): [string, string] {
     case "recap": return [t("La tua settimana."), t("cosa hanno fatto gli agenti")];
     case "daily": return [t("La giornata."), t("quello che c'è da sapere")];
     case "news": return [t("Notizie."), ""];
+    case "board": return [State.layout.tabs.find((x) => x.id === State.boardTab)?.name ?? "", t("pulsanti aggiunti dalla chat")];
   }
   if (State.showsSummary) {
     const news = State.tasks.filter((x) => x.pillBadge);
@@ -319,15 +321,24 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
 
   const winSep = h("span", { class: "hdr-sep" });
   const toolsGroup = h("span", { class: "hdr-group hdr-tools" }, pinBtn, memBtn, gearBtn, soundBtn);
+  // The user's own buttons (island-layout.ts, added from the chat), before the island's.
+  const ownGroup = h("span", { class: "hdr-group hdr-own" });
+  let ownKey = "";
   const winGroup = h("span", { class: "hdr-group hdr-win" }, minBtn, maxBtn, closeBtn);
 
+  const actionsRow = h("div", { class: "header-actions" }, planBtn, ownGroup, toolsGroup, winSep, winGroup);
   const el = h(
     "div",
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, toolsGroup, winSep, winGroup),
+    actionsRow,
   );
+  // isola.json's names of the header's buttons (island_layout.rs `HEADER_PARTS`):
+  // moved and hidden from the chat; the island's own stay in their group.
+  const headerParts: Record<string, HTMLElement> = { usage: planBtn, own: ownGroup, pin: pinBtn, memory: memBtn, settings: gearBtn, sound: soundBtn };
+  const TOOL_PARTS = ["pin", "memory", "settings", "sound"];
+  let headerOrder = "";
 
   return {
     el,
@@ -340,6 +351,37 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
       talk.style.display = State.settings.characterBubble === false ? "none" : "";
       talk.title = b ? `${a}
 ${b}` : a;
+      const ok = zoneKey("header");
+      if (ok !== ownKey) {
+        ownKey = ok;
+        ownGroup.replaceChildren(...zoneButtons("header").map((b) => layoutIconButton(b, actions, 16)));
+      }
+      ownGroup.style.display = ownGroup.childElementCount ? "" : "none";
+      const order = partsOrder("header");
+      if (order.join(",") !== headerOrder) {
+        headerOrder = order.join(",");
+        // The island's buttons next to each other share a group (close together);
+        // one moved among the others stands in a group of its own.
+        const top: HTMLElement[] = [];
+        let run: HTMLElement | null = null;
+        for (const id of order) {
+          const part = headerParts[id];
+          if (!part) continue;
+          if (!TOOL_PARTS.includes(id)) {
+            top.push(part);
+            run = null;
+            continue;
+          }
+          if (!run) {
+            run = top.includes(toolsGroup) ? h("span", { class: "hdr-group hdr-tools" }) : toolsGroup;
+            run.replaceChildren();
+            top.push(run);
+          }
+          run.append(part);
+        }
+        actionsRow.replaceChildren(...top, winSep, winGroup);
+      }
+      for (const id of ["pin", "memory", "sound"]) headerParts[id].style.display = partHidden("header", id) ? "none" : "";
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
       tip(pinBtn, State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)"));
@@ -360,7 +402,7 @@ ${b}` : a;
         tip(maxBtn, State.maximized ? t("Esci da schermo intero") : t("Schermo intero"));
       }
       const plan = planGauge();
-      planBtn.style.display = plan ? "" : "none";
+      planBtn.style.display = plan && !partHidden("header", "usage") ? "" : "none";
       if (plan && plan.key !== planKey) {
         planKey = plan.key;
         planBtn.replaceChildren(...plan.parts);
@@ -549,7 +591,9 @@ function buildOverview(actions: ViewActions): ViewHost {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
           + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`
           + `~actions:${tabActions().map((a) => `${a.id}:${a.name}:${a.icon ?? ""}:${a.color ?? ""}`).join(",")}`
-          + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`;
+          + `~groups:${MenuGroups.groups().map((g) => `${g.name}:${g.color ?? ""}:${g.items.join(",")}`).join("|")}`
+          // isola.json's Panoramica: its order, what is hidden, its blocks (kept, not rebuilt).
+          + `~layout:${JSON.stringify(State.layout.overview ?? null)}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
         if (key !== cardKey && !sorting) {
@@ -583,6 +627,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
 
+      // The Panoramica's own blocks: read when it opens, pieces kept up to date while it shows.
+      syncOverviewBlocks(showsSummary() && State.view === "overview" && State.mode === "expanded");
       jump.style.display = detailOpen || showsSummary() || !canOpen(task) ? "none" : "";
       askJump.style.display = mode === "ticker" && !showsSummary() && canAskSession(task) ? "" : "none";
       // Integrations only (agents stay in the island), beside ↗ when that shows.
@@ -603,15 +649,25 @@ function buildOverview(actions: ViewActions): ViewHost {
  * the island shows, redrawn when its data changes, whatever the island shows.
  */
 export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
-  const body = h("div", { class: "left-body" });
+  const live = liveCard(id, actions);
   // «Rimetti nell'isola»: the window closes, the island opens on this card.
   const dock = h(
     "button",
     { class: "icon-btn jump", title: t("Rimetti nell'isola"), onclick: () => actions.dockBack(id) },
     svg(ICONS.popIn, 12),
   );
-  const left = card(body, dock);
+  const left = card(live.body, dock);
   const el = h("div", { class: "view overview solo on detached" }, h("div", { class: "left" }, left));
+  return { el, sync: live.sync };
+}
+
+/**
+ * An integration's card that redraws itself when its data changes, wherever
+ * it stands: a window of its own (popout.ts) or a block of the user's
+ * (island-layout.ts `piece`).
+ */
+function liveCard(id: string, actions: ViewActions): { body: HTMLElement; sync(): void } {
+  const body = h("div", { class: "left-body" });
   let detailOpen = false;
   let cardKey = "";
   const hooks: IntegrationCardHooks = {
@@ -642,7 +698,7 @@ export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
     prepareTicket: (m) => actions.prepareTicket({ kind: "ticket", ...m }),
   };
   return {
-    el,
+    body,
     sync() {
       const task = State.tasks.find((x) => x.id === id);
       if (!task) {
@@ -736,7 +792,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
   })) : null;
 
   const grid = h("div", { class: "summary" });
-  for (const tsk of visible) {
+  // isola.json: the tiles named first, those hidden left out (island-layout.ts).
+  for (const tsk of overviewTiles(visible)) {
     const label = pillLabel(tsk);
     const status = tsk.steps.length ? tsk.steps[tsk.steps.length - 1] : stateWord(tsk.state);
     const stateText = tsk.pillBadge === "approval"
@@ -781,43 +838,80 @@ function renderSummary(actions: ViewActions): HTMLElement {
     }));
   }
 
-  const quick = tabActions();
-  const actionsRow = quick.length
-    ? h(
-        "div",
-        { class: "pan-actions" },
-        h("span", { class: "pan-actions-label", text: t("Azioni rapide") }),
-        h(
-          "div",
-          { class: "pan-actions-list" },
-          ...quick.map((a) => {
-            const pill = h(
-              "button",
-              {
-                class: "pan-action-pill",
-                title: a.hotkey ? `${a.name} (${a.hotkey})` : a.name,
-                onclick: () => actions.runAction(a),
-              },
-              h("span", { class: "pan-action-ico", "aria-hidden": "true" }, renderActionIcon(a.icon, 13)),
-              h("span", { text: a.name }),
-            );
-            if (a.color) pill.style.setProperty("--c", a.color);
-            return pill;
-          }),
-        ),
-      )
-    : null;
+  const actionsRow = quickRow(actions);
 
   // Dragged into the order the user wants: the same order as the menu.
   sortable(grid, {
     enabled: () => !State.settings.lockOrder,
     onReorder: (ids) => actions.reorder(ids),
   });
-  return h("div", { class: "today" }, head, nowStrip, grid, actionsRow, summaryNews(actions));
+  // The parts in isola.json's order, hidden ones left out, its own blocks among them.
+  const own = overviewBlocks(actions);
+  const parts: Record<string, HTMLElement | null> = { now: nowStrip, tiles: grid, quick: actionsRow, news: summaryNews(actions) };
+  const body = partsOrder("overview")
+    .filter((id) => !partHidden("overview", id))
+    .map((id) => (id.startsWith("block:") ? own.get(id.slice(6)) ?? null : parts[id] ?? null))
+    .filter((x): x is HTMLElement => !!x);
+  const ownBlocks = body.filter((x) => x.classList.contains("board-block"));
+  for (const b of ownBlocks) b.classList.add("summary-block");
+  return h("div", { class: "today" }, head, ...body);
 }
 
 /** Headlines in the Panoramica's «Notizie» box. */
 const SUMMARY_NEWS = 3;
+
+/** The Panoramica's row of quick actions; null without any. */
+function quickRow(actions: ViewActions): HTMLElement | null {
+  const quick = tabActions();
+  if (!quick.length) return null;
+  return h(
+    "div",
+    { class: "pan-actions" },
+    h("span", { class: "pan-actions-label", text: t("Azioni rapide") }),
+    h(
+      "div",
+      { class: "pan-actions-list" },
+      ...quick.map((a) => {
+        const pill = h(
+          "button",
+          {
+            class: "pan-action-pill",
+            title: a.hotkey ? `${a.name} (${a.hotkey})` : a.name,
+            onclick: () => actions.runAction(a),
+          },
+          h("span", { class: "pan-action-ico", "aria-hidden": "true" }, renderActionIcon(a.icon, 13)),
+          h("span", { text: a.name }),
+        );
+        if (a.color) pill.style.setProperty("--c", a.color);
+        return pill;
+      }),
+    ),
+  );
+}
+
+// Existing pieces as blocks of a tab or of the Panoramica (island-layout.ts, isola.json).
+setPieceMaker((b, actions): Part => {
+  const title = b.title ? [h("div", { class: "board-block-title", text: b.title })] : [];
+  if (b.piece === "integration") {
+    const live = liveCard(b.integration ?? "", actions);
+    const el = h("section", { class: "board-block board-piece" }, ...title, h("div", { class: "board-piece-card" }, live.body));
+    return { el, refresh: () => live.sync(), live: () => live.sync() };
+  }
+  // News and quick actions: drawn again only when what they show changes.
+  const box = h("div");
+  const el = h("section", { class: "board-block board-piece" }, ...title, box);
+  let key: string | null = null;
+  const draw = () => {
+    const k = b.piece === "news"
+      ? `${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}`
+      : tabActions().map((a) => `${a.id}:${a.name}:${a.icon ?? ""}:${a.color ?? ""}`).join(",");
+    if (k === key) return;
+    key = k;
+    const part = b.piece === "news" ? summaryNews(actions) : quickRow(actions);
+    box.replaceChildren(part ?? h("div", { class: "sub", text: b.piece === "news" ? t("Nessuna notizia per ora.") : t("Nessuna azione rapida.") }));
+  };
+  return { el, refresh: draw, live: draw };
+});
 
 /** «Notizie» under the tiles: the latest headlines; the head opens the view, a row the article. */
 function summaryNews(actions: ViewActions): HTMLElement | null {
@@ -1433,6 +1527,7 @@ export function buildViews(
   map.set("daily", buildDaily(actions));
   map.set("barcard", buildBarCard(actions));
   map.set("news", buildNews(actions));
+  map.set("board", buildBoard(actions));
   map.set("done", buildDone(actions));
   map.set("remember", buildRemember(actions));
   map.set("talk", buildTalk(actions));

@@ -314,6 +314,16 @@ const PAGES: &[(&str, &str)] = &[
     ("devices", "control.exe hdwwiz.cpl"),
 ];
 
+/// Whether `id` is one of `PAGES` (a button of the island may open it: island_layout.rs).
+pub fn page_known(id: &str) -> bool {
+    PAGES.iter().any(|(k, _)| *k == id)
+}
+
+/// The ids of `PAGES`, for the chat's island_layout.
+pub fn page_ids() -> Vec<&'static str> {
+    PAGES.iter().map(|(k, _)| *k).collect()
+}
+
 /// Opens one of `PAGES` by its id.
 pub fn page(id: &str) -> bool {
     let Some((_, what)) = PAGES.iter().find(|(k, _)| *k == id) else { return false };

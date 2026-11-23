@@ -13,7 +13,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { addFaces } from "../core/fonts";
 import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
-import { appsMenu, appsPress, appsStart, fillApps, setPins } from "./apps";
+import { appsDragEnd, appsDragOver, appsDropFiles, appsMenu, appsPress, appsStart, appsTakesFiles, appsWheel, fillApps, setPins } from "./apps";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -878,7 +878,7 @@ document.addEventListener("pointerup", (e) => {
 // becomes a button that opens it (lib.rs bar_pin: a quick action «apri
 // programma» with its icon). Onto a folder: inside it. The page takes the drop
 // as an HTML5 drop and hands the files to Rust for their paths (drop.rs).
-let fileDrop: { area: string; before: string | null; folder: string } | null = null;
+let fileDrop: { area: string; before: string | null; folder: string; app: string } | null = null;
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
 /** The log says once per drag that it reached the bar (21 Nov 2026: refused with no trace). */
 let dragLogged = false;
@@ -893,11 +893,15 @@ function trackFiles(e: DragEvent) {
   if (!hasFiles(e)) return;
   // «copy», as the island's drop (bridge.ts onDragDrop): «link» can be refused by the source.
   if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-  const f = folderAt(e.clientX, e.clientY);
+  // Over an app of «App»: its window comes forward, and a program opens the files (apps.ts).
+  const app = editing ? "" : appsDragOver(e.clientX, e.clientY);
+  const opens = appsTakesFiles(app);
+  const f = opens ? null : folderAt(e.clientX, e.clientY);
   lightFolder(f);
   const d = dropAt(e.clientX);
-  fileDrop = { area: d.area, before: d.before, folder: f?.dataset.key ?? "" };
-  if (f) hideDrop();
+  fileDrop = { area: d.area, before: d.before, folder: f?.dataset.key ?? "", app: opens ? app : "" };
+  // The icon lit (.drop-on) says where they go.
+  if (opens || f) hideDrop();
   else showDrop(d.at, editWords.pin);
 }
 window.addEventListener("dragenter", trackFiles);
@@ -907,6 +911,7 @@ window.addEventListener("dragleave", (e) => {
   dragLogged = false;
   hideDrop();
   lightFolder(null);
+  appsDragEnd();
 });
 window.addEventListener("drop", (e) => {
   if (!bar) return;
@@ -914,6 +919,7 @@ window.addEventListener("drop", (e) => {
   dragLogged = false;
   hideDrop();
   lightFolder(null);
+  appsDragEnd();
   const files = Array.from(e.dataTransfer?.files ?? []);
   const webview = (window as unknown as {
     chrome?: { webview?: { postMessageWithAdditionalObjects?: (m: unknown, o: File[]) => void } };
@@ -929,8 +935,9 @@ window.addEventListener("drop", (e) => {
 });
 // Only the drops on the bar (the global listen also hears the island's).
 void getCurrentWebview().listen<string[]>("file-drop", (ev) => {
-  const where = fileDrop ?? { area: "end", before: null, folder: "" };
+  const where = fileDrop ?? { area: "end", before: null, folder: "", app: "" };
   fileDrop = null;
+  if (ev.payload?.length && appsDropFiles(where.app, ev.payload)) return;
   if (ev.payload?.length) void invoke("bar_pin", { paths: ev.payload, area: where.area, before: where.before, folder: where.folder }).catch(() => {});
 });
 
@@ -962,6 +969,7 @@ document.addEventListener("auxclick", (e) => {
   if (key) send({ kind: "bar", key, button: "middle" });
 });
 document.addEventListener("wheel", (e) => {
+  if (!editing && appsWheel(e)) return;
   const key = editing ? null : barKey(e);
   if (key && e.deltaY) send({ kind: "bar", key, button: e.deltaY < 0 ? "up" : "down" });
 }, { passive: true });

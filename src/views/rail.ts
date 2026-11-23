@@ -15,10 +15,13 @@ import { Bridge } from "../core/bridge";
 import { RAIL_BOT, RAIL_COMPACT_W, railHead, type IslandViewName } from "../core/layout";
 import { t } from "../core/i18n";
 import type { ViewActions, ViewHost } from "./views";
-import { actionIcon, actionIconSvg } from "./action-icons";
+import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { unreadNews } from "./news";
+import { layoutIconButton, layoutTabs, partHidden, partsOrder, zoneButtons, zoneKey } from "./island-layout";
 
 type Section = "oggi" | "agenti" | "chat" | "azioni" | "file" | "notizie";
+/** isola.json's names of the sections (island_layout.rs `MENU_PARTS`). */
+const SECTION_OF: Record<string, Section> = { overview: "oggi", agents: "agenti", chat: "chat", actions: "azioni", files: "file", news: "notizie" };
 
 /** The character's diameter at the head of the menu (0 in Studio themes, where the optical core sits in the header). */
 export function railBotSize(): number {
@@ -68,6 +71,8 @@ const NOWHERE: ReadonlySet<IslandViewName> = new Set<IslandViewName>([
 
 /** The lit row: a section, or the id of the integration whose card is on screen. */
 function current(): string {
+  // A tab of the user's (island-layout.ts).
+  if (State.view === "board") return `tab:${State.boardTab ?? ""}`;
   const s = sectionOf(State.view);
   if (s) return s;
   if (NOWHERE.has(State.view)) return "";
@@ -242,7 +247,11 @@ export function buildRail(actions: ViewActions): ViewHost {
       actions.reorder(order);
     },
   });
-  const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, secHead, fixed, label, list);
+  // The user's own tabs, after the sections unless isola.json orders them
+  // among them, and their buttons at the foot (island-layout.ts: from the chat).
+  let tabRows = new Map<string, HTMLElement>();
+  const foot = h("div", { class: "rail-foot" });
+  const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, secHead, fixed, label, list, foot);
   // More rows below the edge: the last one fades out, so it reads as «scroll», not as cut.
   const edge = () => list.classList.toggle("more", list.scrollHeight - list.scrollTop - list.clientHeight > 2);
   list.addEventListener("scroll", edge, { passive: true });
@@ -333,6 +342,9 @@ export function buildRail(actions: ViewActions): ViewHost {
   };
 
   let listKey = "";
+  let ownKey = "";
+  let orderKey = "";
+  let footKey = "";
   let agentsLook: string | null = null;
   let uiSeen = document.documentElement.dataset.ui;
   // The Agenti count once that row was opened: it comes back only when more start.
@@ -366,10 +378,14 @@ export function buildRail(actions: ViewActions): ViewHost {
         agentsLook = look;
         sections.agenti.querySelector(".rail-icon")!.replaceChildren(agentsIcon());
       }
+      // Hidden from the chat (isola.json `menu.hidden`), never Panoramica.
+      for (const [id, sec] of Object.entries(SECTION_OF)) {
+        if (sec !== "agenti" && sec !== "notizie") sections[sec].style.display = partHidden("menu", id) ? "none" : "";
+      }
       // No agent to show (Claude Code off, nothing followed): no row.
-      sections.agenti.style.display = State.latestSessionTask ? "" : "none";
+      sections.agenti.style.display = State.latestSessionTask && !partHidden("menu", "agents") ? "" : "none";
       // Notizie: a tab of its own, off in Impostazioni → Notizie; the count of news not seen yet.
-      sections.notizie.style.display = State.settings.news?.tab === false ? "none" : "";
+      sections.notizie.style.display = State.settings.news?.tab === false || partHidden("menu", "news") ? "none" : "";
       const unread = current() === "notizie" ? 0 : unreadNews();
       const newsMeta = sections.notizie.querySelector<HTMLElement>(".rail-meta")!;
       newsMeta.textContent = unread ? String(unread) : "";
@@ -381,6 +397,31 @@ export function buildRail(actions: ViewActions): ViewHost {
       const agentsMeta = sections.agenti.querySelector<HTMLElement>(".rail-meta")!;
       agentsMeta.textContent = news ? String(busy) : "";
       agentsMeta.className = news ? "rail-meta count" : "rail-meta";
+
+      // The user's tabs and the buttons at the foot: rebuilt only when they change.
+      const tabs = layoutTabs();
+      const ok = JSON.stringify(tabs.map((x) => [x.id, x.name, x.icon ?? ""]));
+      if (ok !== ownKey) {
+        ownKey = ok;
+        tabRows = new Map(tabs.map((x) => [`tab:${x.id}`, row(`tab:${x.id}`, x.icon ? h("span", { class: "rail-emoji" }, renderActionIcon(x.icon, 15)) : glyph("bolt"), x.name, () => {
+          State.boardTab = x.id;
+          actions.setView("board");
+        })]));
+        orderKey = "";
+      }
+      // Sections and tabs in isola.json's order (`menu.order`), the usual one otherwise.
+      const order = partsOrder("menu");
+      const ordk = order.join(",");
+      if (ordk !== orderKey) {
+        orderKey = ordk;
+        fixed.replaceChildren(...order.map((id) => (SECTION_OF[id] ? sections[SECTION_OF[id]] : tabRows.get(id))).filter((x): x is HTMLElement => !!x));
+      }
+      const fk = zoneKey("menu-bottom");
+      if (fk !== footKey) {
+        footKey = fk;
+        foot.replaceChildren(...zoneButtons("menu-bottom").map((b) => layoutIconButton(b, actions, 15)));
+      }
+      foot.style.display = foot.childElementCount ? "" : "none";
 
       // Registra lives in File e schermo, not in the menu.
       const tasks = State.tasks.filter((x) => !isSessionTask(x) && x.id !== "integration_recorder");
@@ -411,7 +452,9 @@ export function buildRail(actions: ViewActions): ViewHost {
           for (const r of list.querySelectorAll<HTMLElement>(`[data-group="${CSS.escape(g.id)}"]`)) r.style.display = g.open ? "" : "none";
         }
       }
-      label.style.display = tasks.length ? "" : "none";
+      const integrationsHidden = partHidden("menu", "integrations");
+      label.style.display = tasks.length && !integrationsHidden ? "" : "none";
+      list.style.display = integrationsHidden ? "none" : "";
 
       for (const b of el.querySelectorAll<HTMLElement>(".rail-item")) {
         b.classList.toggle("on", !!on && b.dataset.rail === on);
@@ -456,7 +499,7 @@ export function buildRail(actions: ViewActions): ViewHost {
       const first = shownRows[0] ?? null;
       const last = shownRows[shownRows.length - 1] ?? null;
       const rows = first && last ? last.offsetTop + last.offsetHeight - first.offsetTop : 0;
-      return head.offsetHeight + secHead.offsetHeight + fixed.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + rows + 12;
+      return head.offsetHeight + secHead.offsetHeight + fixed.offsetHeight + foot.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + (list.style.display === "none" ? 0 : rows) + 12;
     },
   };
 }

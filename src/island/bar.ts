@@ -537,13 +537,32 @@ function emptyPiece(key: string, area: BarPiece["area"], icon: string, name: str
 /** The system elements barsys.rs has to read now (none while the bar is off). Graphs of the
  *  network need its reading too. */
 export function barSysKinds(): string[] {
-  if (!State.settings.fixedBar) return [];
-  const kinds = new Set<string>();
-  for (const it of State.settings.fixedBarItems ?? []) {
-    const k = barKind(it.id);
-    if (k?.native) kinds.add(it.id.slice(4));
+  const kinds = new Set<string>(boardSysKinds());
+  if (State.settings.fixedBar) {
+    for (const it of State.settings.fixedBarItems ?? []) {
+      const k = barKind(it.id);
+      if (k?.native) kinds.add(it.id.slice(4));
+    }
   }
   return [...kinds].sort();
+}
+
+/** The PC's values of the user's tab open now (island_layout.rs `VALUES`): read only while it shows. */
+function boardSysKinds(): string[] {
+  if (State.view !== "board" || State.mode !== "expanded") return [];
+  const tab = State.layout.tabs.find((x) => x.id === State.boardTab);
+  return (tab?.blocks ?? []).flatMap((b) => (b.kind === "value" ? [b.what === "ip" ? "net" : b.what] : []));
+}
+
+/** A value block of a tab (src/views/island-layout.ts): the text, the icon, the tooltip, as the bar shows it. */
+export function sysValueText(what: string, drive?: string): { text: string; icon: string; tip: string } {
+  if (what === "ip") {
+    const ip = State.barSys.net?.ip || "—";
+    return { text: ip, icon: "i:network", tip: `${t("Indirizzo IP")}: ${ip}` };
+  }
+  const sv = sysValues(what, { id: `sys:${what}`, opts: drive ? { drive } : {} } as BarItem, "classic");
+  const text = what === "disk" ? (sv.v.free && sv.v.free !== "—" ? t("{free} liberi", { free: sv.v.free }) : "—") : what === "recycle" ? (sv.v.count ? `${sv.v.count} · ${sv.v.size}` : t("vuoto")) : what === "updates" ? (sv.v.value || "0") : sv.v.value || "—";
+  return { text, icon: sv.icon, tip: sv.tip };
 }
 
 /** Milliseconds to the next minute (or second) a clock in the bar shows; null without one. */
