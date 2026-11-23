@@ -70,6 +70,7 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 22/11 — «App» nella barra fissa
 - Ramo `claude/app` (da `claude/barra-windows`): app fissate e aperte come sulla barra di Windows (`taskwin.rs`, `applist.rs`, `barapps.rs`, `winthumbs.rs`, `regwatch.rs`, relay `avvia`, `src/character-window/apps.ts`, scheda `apps:` in `barcard.ts`). Riusato il codice della Dock senza la sua finestra.
+- 23/11: personaggio e app centrati insieme, scheda delle finestre rifatta e senza scatti, finestre di EasyIsland sotto la sua icona (provato da Edoardo). Animazioni proprie delle finestre provate e tolte (`docs/decisioni.md`). Unito in `claude/sviluppo`.
 - Profilo `prova` (`npm run prova`, 4 min la prima volta invece di 13). Elementi vuoti visibili in «Personalizza la barra». Barra in basso: riga trasparente in cima e blocco all'avvio con la barra di Windows nascosta corretti.
 
 ### 22/11 — Barra di Windows nascosta
