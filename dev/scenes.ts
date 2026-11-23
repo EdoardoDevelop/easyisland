@@ -1921,6 +1921,38 @@ export async function runScene(island: Island, scene: string) {
       await wait(1200);
       break;
     }
+    case "isola": {
+      // The island built from a JSON, step 1 (island-layout.ts): a shutdown button at the
+      // foot of the menu, one in the header, a tab «PC» (?board opens it, ?draft shows it as a card's draft).
+      const pc = { id: "pc", name: "PC", icon: "i:monitor", buttons: [
+        { id: "wifi", label: "Wi-Fi", icon: "i:wifi", color: "#38bdf8", action: { kind: "windows" as const, page: "wifi" } },
+        { id: "bt", label: "Bluetooth", icon: "i:network", color: "#818cf8", action: { kind: "windows" as const, page: "bluetooth" } },
+        { id: "stampanti", label: "Stampanti", icon: "i:printer", action: { kind: "windows" as const, page: "printers" } },
+        { id: "taskmgr", label: "Gestione attività", icon: "i:chart", color: "#34d399", action: { kind: "system" as const, what: "taskmgr" } },
+        { id: "cestino", label: "Cestino", icon: "i:trash", action: { kind: "system" as const, what: "recycle-open" } },
+        { id: "riavvia", label: "Riavvia", icon: "i:refresh", color: "#f5a524", action: { kind: "system" as const, what: "restart" } },
+      ] };
+      const layout = {
+        buttons: [
+          { id: "spegni", label: "Spegni il PC", icon: "i:power", color: "#f4505e", zone: "menu-bottom" as const, action: { kind: "system" as const, what: "shutdown" } },
+          { id: "blocca", label: "Blocca", icon: "i:lock", zone: "menu-bottom" as const, action: { kind: "system" as const, what: "lock" } },
+          { id: "posta", label: "Posta", icon: "i:mail", color: "#38bdf8", zone: "header" as const, action: { kind: "url" as const, url: "https://outlook.office.com" } },
+        ],
+        tabs: [pc],
+      };
+      const q = new URLSearchParams(location.search);
+      if (q.has("draft")) {
+        State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };
+      } else State.islandLayout = layout;
+      await wait(300);
+      if (q.has("board")) {
+        State.boardTab = "pc";
+        island.setView("board");
+      } else island.setView("overview");
+      island.setPinned(true);
+      await wait(1200);
+      break;
+    }
     case "news": {
       // «Notizie» on made-up news (?ask: the user keeps turning UniFi down).
       sampleNews();

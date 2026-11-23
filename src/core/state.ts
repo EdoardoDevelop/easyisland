@@ -423,6 +423,8 @@ export interface ApprovalInfo {
   risks?: string[];
   /** ExitPlanMode: the plan to approve, in markdown. */
   plan?: string;
+  /** island_layout_set / _undo: the island as it would be, shown while the card is up. */
+  layoutDraft?: IslandLayout;
   /** Tool and what it acts on, as first received: how hooks.ts recognises the same call ran. */
   target?: string;
   /** When the relay stops waiting (Date.now() ms): the card shows the time left. */
@@ -1737,6 +1739,14 @@ class AppState {
   set chatHistory(v: ChatMessage[]) { this.chat.history = v; }
   /** The user's own integrations (custom.rs). */
   customs: Custom[] = [];
+  /** Buttons and tabs the user added to the island from the chat (isola.json). */
+  islandLayout: IslandLayout = { buttons: [], tabs: [] };
+  /** The tab of islandLayout on screen in the «board» view. */
+  boardTab: string | null = null;
+  /** What the island shows: the change waiting on Consenti / Nega, else the saved one. */
+  get layout(): IslandLayout {
+    return this.pendingApproval?.layoutDraft ?? this.islandLayout;
+  }
   /** Bumped when one of them or its records changed elsewhere: its card is redrawn. */
   customVersion = 0;
   /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
@@ -2240,6 +2250,28 @@ export interface CustomSource {
   alert?: string;
   alertText?: string;
 }
+/** What a button of the island does (island_layout.rs `ACTIONS`): a fixed list, never code. */
+export type LayoutAction =
+  | { kind: "system"; what: string }
+  | { kind: "windows"; page: string }
+  | { kind: "quick"; id: string }
+  | { kind: "app"; target: string; args?: string }
+  | { kind: "url"; url: string }
+  | { kind: "view"; view: string }
+  | { kind: "chat"; text: string };
+export interface LayoutButton {
+  id: string;
+  label: string;
+  icon?: string;
+  color?: string;
+  /** Only on the island's own buttons: the foot of the menu or the header. */
+  zone?: "menu-bottom" | "header";
+  action: LayoutAction;
+}
+export interface LayoutTab { id: string; name: string; icon?: string; buttons: LayoutButton[] }
+/** The island built from a JSON (isola.json, island_layout.rs): what the user added from the chat. */
+export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[] }
+
 export interface Custom {
   id: string;
   name: string;

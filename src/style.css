@@ -10077,3 +10077,41 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 .apps-act:hover { background: rgba(255, 255, 255, 0.12); color: var(--ink); }
 .apps-act:focus-visible, .apps-file:focus-visible, .apps-win:focus-visible { outline: 2px solid rgba(56, 189, 248, 0.7); outline-offset: 1px; }
 
+
+/* The island built from a JSON (src/views/island-layout.ts): the user's own buttons and tabs. */
+.rail-own { margin-top: 1px; }
+.rail-own .rail-emoji svg { display: block; }
+.rail-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 4px 0;
+  margin-top: 4px;
+  border-top: 1px solid var(--hairline);
+}
+#rail.compact .rail-foot { flex-direction: column; align-items: center; padding: 6px 0 0; }
+.rail-foot .own-btn {
+  width: 30px;
+  height: 28px;
+  border: 0;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--c, var(--dim-2));
+  background: color-mix(in srgb, var(--c, #fff) 10%, transparent);
+  cursor: default;
+}
+.rail-foot .own-btn:hover { background: color-mix(in srgb, var(--c, #fff) 24%, transparent); color: var(--c, var(--ink)); }
+.header-actions .own-btn { display: inline-grid; place-items: center; }
+.own-letter { font: 600 12px var(--font); }
+.board-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font: 600 calc(15px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink);
+}
+.board-icon { display: inline-grid; place-items: center; color: var(--dim-2); }
+.qa-card.board-card { justify-content: flex-start; }

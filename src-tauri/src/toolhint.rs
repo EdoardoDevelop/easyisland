@@ -20,6 +20,9 @@ const GROUPS: &[(&[&str], &[&str])] = &[
     // The user's own integrations.
     (&["integrazion", "campo", "campi", "scheda", "cruscott", "modulo"],
      &["custom_list", "custom_get", "custom_update", "custom_records", "custom_add_record", "custom_preview"]),
+    // The island's own buttons and tabs (island_layout.rs).
+    (&["isola", "pulsant", "bottone", "tab", "schede"],
+     &["island_layout", "island_layout_set", "island_layout_undo", "list_quick_actions"]),
     // Passwords and connections.
     (&["password", "credenzial", "devolutions", "rdm", "vault", "connession"],
      &["rdm_search", "dvc_vaults", "dvc_entries", "dvc_show"]),

@@ -114,6 +114,7 @@ mod secrets;
 mod settings;
 mod teams;
 mod custom;
+mod island_layout;
 mod skillimport;
 mod skills;
 mod tasks;
@@ -5474,6 +5475,10 @@ pub fn run() {
             week_set,
             skills_list,
             customs_list,
+            island_layout::island_layout,
+            island_layout::island_layout_undo,
+            island_layout::island_layout_remove,
+            island_layout::island_layout_versions,
             custom_save,
             custom_delete,
             custom_records,

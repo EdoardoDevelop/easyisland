@@ -15,8 +15,9 @@ import { Bridge } from "../core/bridge";
 import { RAIL_BOT, RAIL_COMPACT_W, railHead, type IslandViewName } from "../core/layout";
 import { t } from "../core/i18n";
 import type { ViewActions, ViewHost } from "./views";
-import { actionIcon, actionIconSvg } from "./action-icons";
+import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { unreadNews } from "./news";
+import { layoutIconButton, layoutTabs, zoneButtons, zoneKey } from "./island-layout";
 
 type Section = "oggi" | "agenti" | "chat" | "azioni" | "file" | "notizie";
 
@@ -68,6 +69,8 @@ const NOWHERE: ReadonlySet<IslandViewName> = new Set<IslandViewName>([
 
 /** The lit row: a section, or the id of the integration whose card is on screen. */
 function current(): string {
+  // A tab of the user's (island-layout.ts).
+  if (State.view === "board") return `tab:${State.boardTab ?? ""}`;
   const s = sectionOf(State.view);
   if (s) return s;
   if (NOWHERE.has(State.view)) return "";
@@ -242,7 +245,11 @@ export function buildRail(actions: ViewActions): ViewHost {
       actions.reorder(order);
     },
   });
-  const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, secHead, fixed, label, list);
+  // The user's own tabs, after the sections, and their buttons at the foot
+  // (island-layout.ts: added from the chat, isola.json).
+  const own = h("div", { class: "rail-fixed rail-own" });
+  const foot = h("div", { class: "rail-foot" });
+  const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, secHead, fixed, own, label, list, foot);
   // More rows below the edge: the last one fades out, so it reads as «scroll», not as cut.
   const edge = () => list.classList.toggle("more", list.scrollHeight - list.scrollTop - list.clientHeight > 2);
   list.addEventListener("scroll", edge, { passive: true });
@@ -333,6 +340,8 @@ export function buildRail(actions: ViewActions): ViewHost {
   };
 
   let listKey = "";
+  let ownKey = "";
+  let footKey = "";
   let agentsLook: string | null = null;
   let uiSeen = document.documentElement.dataset.ui;
   // The Agenti count once that row was opened: it comes back only when more start.
@@ -381,6 +390,24 @@ export function buildRail(actions: ViewActions): ViewHost {
       const agentsMeta = sections.agenti.querySelector<HTMLElement>(".rail-meta")!;
       agentsMeta.textContent = news ? String(busy) : "";
       agentsMeta.className = news ? "rail-meta count" : "rail-meta";
+
+      // The user's tabs and the buttons at the foot: rebuilt only when they change.
+      const tabs = layoutTabs();
+      const ok = JSON.stringify(tabs.map((x) => [x.id, x.name, x.icon ?? ""]));
+      if (ok !== ownKey) {
+        ownKey = ok;
+        own.replaceChildren(...tabs.map((x) => row(`tab:${x.id}`, x.icon ? h("span", { class: "rail-emoji" }, renderActionIcon(x.icon, 15)) : glyph("bolt"), x.name, () => {
+          State.boardTab = x.id;
+          actions.setView("board");
+        })));
+      }
+      own.style.display = tabs.length ? "" : "none";
+      const fk = zoneKey("menu-bottom");
+      if (fk !== footKey) {
+        footKey = fk;
+        foot.replaceChildren(...zoneButtons("menu-bottom").map((b) => layoutIconButton(b, actions, 15)));
+      }
+      foot.style.display = foot.childElementCount ? "" : "none";
 
       // Registra lives in File e schermo, not in the menu.
       const tasks = State.tasks.filter((x) => !isSessionTask(x) && x.id !== "integration_recorder");
@@ -456,7 +483,7 @@ export function buildRail(actions: ViewActions): ViewHost {
       const first = shownRows[0] ?? null;
       const last = shownRows[shownRows.length - 1] ?? null;
       const rows = first && last ? last.offsetTop + last.offsetHeight - first.offsetTop : 0;
-      return head.offsetHeight + secHead.offsetHeight + fixed.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + rows + 12;
+      return head.offsetHeight + secHead.offsetHeight + fixed.offsetHeight + own.offsetHeight + foot.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + rows + 12;
     },
   };
 }

@@ -3841,6 +3841,7 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
         )),
       ),
+      ownLayoutSection(),
     ],
     chat: () => [
       intro(t("Come si presenta la vista Chat.")),
@@ -3873,6 +3874,47 @@ function appearanceSections(): HTMLElement[] {
 
 /** The tabs of Aspetto, in order. */
 type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta" | "chat";
+/**
+ * Isola aperta → «Aggiunti dalla chat»: the buttons and tabs of isola.json
+ * (island_layout.rs), each with «Togli», and «Annulla l'ultima modifica».
+ * Made in the chat only: here they are looked at and taken away.
+ */
+function ownLayoutSection(): HTMLElement {
+  const list = h("div", { class: "own-layout" });
+  const status = h("span", { class: "hint note" });
+  const say = (e: unknown) => { status.textContent = String(e).replace(/^Error:\s*/, ""); };
+  const undo = h("button", { text: t("Annulla l'ultima modifica") }) as HTMLButtonElement;
+  const fill = async () => {
+    const [layout, versions] = await Promise.all([Bridge.islandLayout(), Bridge.islandLayoutVersions()]);
+    undo.disabled = !versions;
+    const where = (z?: string) => (z === "header" ? t("in alto, nella testata") : t("in fondo al menu"));
+    const line = (text: string, sub: string, kind: "button" | "tab", id: string) =>
+      h("div", { class: "row" },
+        h("label", { text }),
+        h("span", { class: "hint note", text: sub }),
+        h("button", { text: t("Togli"), onclick: async () => {
+          await Bridge.islandLayoutRemove(kind, id).catch(say);
+          void fill();
+        } }));
+    const rows = [
+      ...(layout?.buttons ?? []).map((b) => line(b.label, where(b.zone), "button", b.id)),
+      ...(layout?.tabs ?? []).map((x) => line(x.name, t("scheda nel menu, {n} pulsanti", { n: x.buttons.length }), "tab", x.id)),
+    ];
+    list.replaceChildren(...(rows.length ? rows : [h("div", { class: "hint", text: t("Niente per ora. Chiedi alla chat, per esempio: «metti in basso a sinistra un pulsante per spegnere il PC».") })]));
+  };
+  undo.addEventListener("click", async () => {
+    status.textContent = "";
+    await Bridge.islandLayoutUndo().catch(say);
+    void fill();
+  });
+  void fill();
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Aggiunti dalla chat") })),
+    h("div", { class: "hint", text: t("Pulsanti e schede che la chat ha aggiunto all'isola: si chiedono a parole, qui si tolgono.") }),
+    list,
+    h("div", { class: "row" }, undo, status));
+}
+
 const LOOK_TABS = (): [LookTab, string][] => [
   ["tema", t("Tema")],
   ["font", t("Font")],

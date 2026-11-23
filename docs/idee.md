@@ -9,7 +9,7 @@ Obiettivo: **layout e contenuto** dell'isola da una sorgente JSON (`isola.json`)
 - **Pezzi esistenti come blocchi:** il JSON ne sceglie solo posto e opzioni.
 - **Dalla chat:** strumento che propone la modifica, anteprima nell'isola, Consenti/Nega, «Annulla» e storico; JSON non valido → ultima versione buona.
 - Vincoli: card Consenti/Nega, password e chiavi mai modificabili dalla chat; testi tradotti; isola chiusa a CPU ~0.
-- Tappe: 1) zone, schede e pulsanti con le azioni che ci sono già (primo esempio); 2) blocchi e fonti (secondo esempio: fonte «app installate» da `shell:AppsFolder`); 3) layout attuale descritto nel JSON, così ogni parte si sposta.
+- Tappe: 1) fatta il 23/11 (`architettura.md` → Isola da JSON): zone `menu-bottom` e `header`, schede con griglia di pulsanti, azioni da elenco fisso, bozza visibile durante Consenti/Nega, Annulla e storico; 2) blocchi e fonti (secondo esempio: fonte «app installate» da `shell:AppsFolder`); 3) layout attuale descritto nel JSON, così ogni parte si sposta.
 
 ## Terminale vero nella chat (9/11/2026)
 Fatto il 9/11 con ConPTY e xterm.js (`docs/chat.md` → Terminale); il 22/11 più schede, shell (PowerShell, Prompt dei comandi, WSL), link cliccabili, Ctrl+F. Restano: un terminale come pannello a sé (oggi le schede stanno in un pannello solo), profili della shell scelti dall'utente.

@@ -33,6 +33,8 @@ Nell'isola aperta, sotto il personaggio:
 - **File e schermo**: rilascio file, Vassoio, cartella di lavoro, Riquadra e chiedi, Registra (vedi [File e schermo](17-file-e-schermo.md)).
 - **Le tue integrazioni**, ognuna con il suo logo o un'emoji e un pallino quando ha novità; anche le [integrazioni personali](24-integrazioni-personali.md).
 
+**Pulsanti e schede tuoi.** Chiedili alla chat a parole: «metti in basso a sinistra un pulsante per spegnere il PC», «aggiungi in alto un pulsante che apre la posta», «crea una scheda PC con Wi-Fi, Bluetooth, stampanti e Gestione attività». I pulsanti stanno in fondo al menu o in alto accanto agli altri; una scheda è una voce del menu con i suoi pulsanti. Possono bloccare, sospendere, riavviare o spegnere il PC (gli ultimi tre chiedono conferma), aprire pagine di Windows, programmi, siti, le tue azioni rapide, una sezione dell'isola, o scrivere un testo nella chat. Mentre la chat chiede Consenti/Nega l'isola mostra già com'è; Nega la lascia com'era. Per tornare indietro: «annulla l'ultima modifica all'isola» alla chat, oppure Impostazioni → Aspetto → Isola aperta → **Aggiunti dalla chat** (Togli, Annulla l'ultima modifica).
+
 In alto il personaggio ti dice in un fumetto cosa succede. Il **clic destro** dentro l'isola apre un menu con le azioni della scheda e di EasyIsland.
 
 ## Il campo in alto

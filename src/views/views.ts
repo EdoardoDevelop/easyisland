@@ -37,6 +37,7 @@ import { buildMoment, momentHeadline, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
+import { buildBoard, layoutIconButton, zoneButtons, zoneKey } from "./island-layout";
 import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, tabActions, type ActionHandlers } from "./actions";
@@ -253,6 +254,7 @@ function bubble(): [string, string] {
     case "recap": return [t("La tua settimana."), t("cosa hanno fatto gli agenti")];
     case "daily": return [t("La giornata."), t("quello che c'è da sapere")];
     case "news": return [t("Notizie."), ""];
+    case "board": return [State.layout.tabs.find((x) => x.id === State.boardTab)?.name ?? "", t("pulsanti aggiunti dalla chat")];
   }
   if (State.showsSummary) {
     const news = State.tasks.filter((x) => x.pillBadge);
@@ -319,6 +321,9 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
 
   const winSep = h("span", { class: "hdr-sep" });
   const toolsGroup = h("span", { class: "hdr-group hdr-tools" }, pinBtn, memBtn, gearBtn, soundBtn);
+  // The user's own buttons (island-layout.ts, added from the chat), before the island's.
+  const ownGroup = h("span", { class: "hdr-group hdr-own" });
+  let ownKey = "";
   const winGroup = h("span", { class: "hdr-group hdr-win" }, minBtn, maxBtn, closeBtn);
 
   const el = h(
@@ -326,7 +331,7 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, toolsGroup, winSep, winGroup),
+    h("div", { class: "header-actions" }, planBtn, ownGroup, toolsGroup, winSep, winGroup),
   );
 
   return {
@@ -340,6 +345,12 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
       talk.style.display = State.settings.characterBubble === false ? "none" : "";
       talk.title = b ? `${a}
 ${b}` : a;
+      const ok = zoneKey("header");
+      if (ok !== ownKey) {
+        ownKey = ok;
+        ownGroup.replaceChildren(...zoneButtons("header").map((b) => layoutIconButton(b, actions, 16)));
+      }
+      ownGroup.style.display = ownGroup.childElementCount ? "" : "none";
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
       tip(pinBtn, State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)"));
@@ -1433,6 +1444,7 @@ export function buildViews(
   map.set("daily", buildDaily(actions));
   map.set("barcard", buildBarCard(actions));
   map.set("news", buildNews(actions));
+  map.set("board", buildBoard(actions));
   map.set("done", buildDone(actions));
   map.set("remember", buildRemember(actions));
   map.set("talk", buildTalk(actions));

@@ -799,6 +799,33 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "island_layout",
+            "Cosa l'utente ha aggiunto all'isola aperta di EasyIsland (isola.json: pulsanti e schede proprie) e cosa ci può andare: zone, comandi, pagine di Windows, viste, le sue azioni rapide. Leggilo prima di island_layout_set.",
+            none.clone(),
+            true,
+        ),
+        (
+            "island_layout_set",
+            "Aggiunge, cambia o toglie pulsanti e schede nell'isola aperta, quando l'utente lo chiede («metti un pulsante per spegnere il PC in basso a sinistra», «crea una scheda con…»). Il resto dell'isola non cambia. Pulsante: { id (minuscole, cifre, trattini), label, icon (i:power, i:lock, i:globe, i:folder, i:monitor, i:wifi, i:terminal, i:mail, i:calendar, i:trash, i:refresh, i:search, i:home, i:widgets, i:bolt… o un'emoji), color (#rrggbb, facoltativo), zone: \"menu-bottom\" (in fondo al menu a sinistra = in basso a sinistra dell'isola) o \"header\" (in alto a destra, accanto ai pulsanti della testata), action }. Scheda: { id, name, icon, buttons: [pulsanti senza zone] }, una voce nel menu dopo le sezioni che apre una griglia dei suoi pulsanti. action, solo da questo elenco: { kind: \"system\", what: lock|sleep|restart|shutdown|recycle-empty|recycle-open|taskmgr } (sospendi, riavvia e spegni chiedono conferma), { kind: \"windows\", page: una pagina di Impostazioni di Windows (elenco in island_layout) }, { kind: \"quick\", id: un'azione rapida dell'utente }, { kind: \"app\", target, args }, { kind: \"url\", url: https://… }, { kind: \"view\", view: overview|agents|chat|actions|files|news|settings|memory|tab:<id> }, { kind: \"chat\", text: testo messo nel campo della chat, non inviato }. Argomenti: button o buttons (sostituiti per id o aggiunti), remove_buttons: [id]; tab o tabs (intere), remove_tabs: [id]; tab_buttons: { tab: id, buttons: [...], remove: [id] } per i pulsanti di una scheda; oppure layout: tutto intero. L'utente vede la modifica nell'isola e conferma; si annulla con island_layout_undo.",
+            json!({ "type": "object", "properties": {
+                "button": { "type": "object" },
+                "buttons": { "type": "array", "items": { "type": "object" } },
+                "remove_buttons": { "type": "array", "items": { "type": "string" } },
+                "tab": { "type": "object" },
+                "tabs": { "type": "array", "items": { "type": "object" } },
+                "remove_tabs": { "type": "array", "items": { "type": "string" } },
+                "tab_buttons": { "type": "object" },
+                "layout": { "type": "object" }
+            } }),
+            false,
+        ),
+        (
+            "island_layout_undo",
+            "Rimette i pulsanti e le schede dell'isola com'erano prima dell'ultima modifica (ripetuto, torna più indietro). L'utente conferma.",
+            none.clone(),
+            false,
+        ),
+        (
             "custom_list",
             "Le integrazioni personali dell'utente: nome, id, descrizione, quanti campi e quante schede.",
             none.clone(),

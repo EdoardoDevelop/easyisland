@@ -5,7 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
+import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, IslandLayout, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -685,6 +685,10 @@ export const Bridge = {
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
   /** Integrazioni personali (custom.rs). */
   customsList: () => call<Custom[]>("customs_list"),
+  islandLayout: () => call<IslandLayout>("island_layout"),
+  islandLayoutUndo: () => callOrThrow<string>("island_layout_undo"),
+  islandLayoutRemove: (kind: "button" | "tab", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
+  islandLayoutVersions: () => call<number>("island_layout_versions"),
   customSave: (definition: Custom) => callOrThrow<Custom>("custom_save", { definition }),
   customDelete: (id: string) => callOrThrow<void>("custom_delete", { id }),
   customRecords: (id: string) => call<CustomRecord[]>("custom_records", { id }),
