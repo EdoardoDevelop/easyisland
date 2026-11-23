@@ -6011,8 +6011,17 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   flex-direction: column;
   gap: 1px;
 }
+/* The buttons at the foot (.rail-foot) never move: the list takes what room is left
+   (basis 0) and, with no room left, the sections scroll too instead of pushing them out. */
+.rail-fixed {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
 .rail-list {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   /* Never sideways: rows coming in from the side (motion.ts, a group opened or closed)

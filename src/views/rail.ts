@@ -499,7 +499,8 @@ export function buildRail(actions: ViewActions): ViewHost {
       const first = shownRows[0] ?? null;
       const last = shownRows[shownRows.length - 1] ?? null;
       const rows = first && last ? last.offsetTop + last.offsetHeight - first.offsetTop : 0;
-      return head.offsetHeight + secHead.offsetHeight + fixed.offsetHeight + foot.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + (list.style.display === "none" ? 0 : rows) + 12;
+      // The sections by their content: their box shrinks (and scrolls) when the island is short.
+      return head.offsetHeight + secHead.offsetHeight + fixed.scrollHeight + foot.offsetHeight + (label.style.display === "none" ? 0 : label.offsetHeight) + (list.style.display === "none" ? 0 : rows) + 12;
     },
   };
 }
