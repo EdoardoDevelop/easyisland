@@ -689,7 +689,7 @@ export const Bridge = {
   islandLayoutUndo: () => callOrThrow<string>("island_layout_undo"),
   /** Impostazioni: the user's own change (the same pieces as the chat's island_layout_set), no card. */
   islandLayoutApply: (args: Record<string, unknown>) => callOrThrow<void>("island_layout_apply", { args }),
-  islandLayoutRemove: (kind: "button" | "tab" | "menu" | "header" | "overview" | "footer", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
+  islandLayoutRemove: (kind: "button" | "tab" | "menu" | "header" | "overview" | "footer" | "style", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
   islandLayoutVersions: () => call<number>("island_layout_versions"),
   /** A folder block of a tab: folders first, hidden files left out. */
   /** The files opened lately (Windows' Recent), newest first. */

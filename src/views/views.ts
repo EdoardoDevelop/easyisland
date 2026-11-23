@@ -854,7 +854,23 @@ function renderSummary(actions: ViewActions): HTMLElement {
     .filter((x): x is HTMLElement => !!x);
   const ownBlocks = body.filter((x) => x.classList.contains("board-block"));
   for (const b of ownBlocks) b.classList.add("summary-block");
-  return h("div", { class: "today" }, head, ...body);
+  // isola.json `width`: blocks side by side (half, a third, their own width) share a row, as in a tab.
+  const rows: HTMLElement[] = [];
+  let row: HTMLElement | null = null;
+  for (const el of body) {
+    const side = el.classList.contains("bw-half") || el.classList.contains("bw-third") || el.classList.contains("bw-auto");
+    if (!side) {
+      row = null;
+      rows.push(el);
+      continue;
+    }
+    if (!row) {
+      row = h("div", { class: "board-blocks own-row" });
+      rows.push(row);
+    }
+    row.append(el);
+  }
+  return h("div", { class: "today" }, head, ...rows);
 }
 
 /** Headlines in the Panoramica's «Notizie» box. */

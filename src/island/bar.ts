@@ -16,6 +16,7 @@ import { h } from "../views/dom";
 import { renderActionIcon } from "../views/action-icons";
 import { taskIcon } from "../views/rail";
 import { unreadNews } from "../views/news";
+import { lookSysKinds } from "../views/island-look";
 import { appName } from "./context";
 import { State, type BarAct, type BarItem, type BarSys, type FixedBarDesign } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
@@ -603,6 +604,8 @@ function boardSysKinds(): string[] {
     const f = State.layout.footer;
     for (const it of [...(f?.left ?? []), ...(f?.center ?? []), ...(f?.right ?? [])]) if ("what" in it) out.push(kindOf(it.what));
   }
+  // What the conditions and thresholds of isola.json compare (island-look.ts).
+  out.push(...lookSysKinds());
   return out;
 }
 

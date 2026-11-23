@@ -3931,7 +3931,7 @@ function ownLayoutSection(): HTMLElement {
     const [layout, versions] = await Promise.all([Bridge.islandLayout(), Bridge.islandLayoutVersions()]);
     undo.disabled = !versions;
     const where = (z?: string) => (z === "header" ? t("in alto, nella testata") : t("in fondo al menu"));
-    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header" | "overview" | "footer", id: string, act = t("Togli")) =>
+    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header" | "overview" | "footer" | "style", id: string, act = t("Togli")) =>
       h("div", { class: "row" },
         h("label", { text }),
         h("span", { class: "hint note", text: sub }),
@@ -3953,6 +3953,10 @@ function ownLayoutSection(): HTMLElement {
         .filter((s) => layout.footer?.[s]?.length)
         .map((s) => `${s === "left" ? t("sinistra") : s === "center" ? t("centro") : t("destra")} ${layout.footer![s]!.length}`).join(" · "),
       "footer", "footer", t("Togli tutto"))] : []),
+      // The island's look (colours, corners, font…): while it says anything, it wins over Aspetto's.
+      ...(layout?.style && Object.keys(layout.style).length ? [line(t("Aspetto dell'isola"),
+        t("{n} cose cambiate dalla chat: {list}", { n: Object.keys(layout.style).length, list: Object.keys(layout.style).join(", ") }),
+        "style", "style", t("Rimetti come di serie"))] : []),
     ];
     list.replaceChildren(...(rows.length ? rows : [h("div", { class: "hint", text: t("Niente per ora. Chiedi alla chat, per esempio: «metti in basso a sinistra un pulsante per spegnere il PC».") })]));
   };
