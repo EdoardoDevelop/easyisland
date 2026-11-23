@@ -1960,6 +1960,13 @@ export async function runScene(island: Island, scene: string) {
       boardSample("windows", [{ name: "Preventivo 2026.docx", sub: "Word" }, { name: "Posta in arrivo", sub: "Outlook" }, { name: "EasyIsland — HANDOFF.md", sub: "Visual Studio Code" }]);
       State.barSys = { cpu: 23, ram: { percent: 61, used: 19.5e9, total: 32e9 }, disks: { C: { free: 212e9, total: 1000e9 } }, net: { down: 1200, up: 300, wifi: true, ip: "192.168.1.20" } };
       const q = new URLSearchParams(location.search);
+      // Step 3 (?moved): Chat and the tab «App» first, Notizie and the memory's button hidden, sound before the rest.
+      if (q.has("moved")) {
+        Object.assign(layout, {
+          menu: { order: ["chat", "tab:app"], hidden: ["news"] },
+          header: { order: ["sound", "own"], hidden: ["memory"] },
+        });
+      }
       if (q.has("draft")) {
         State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };
       } else State.islandLayout = layout;

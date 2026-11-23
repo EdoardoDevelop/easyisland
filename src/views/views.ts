@@ -37,7 +37,7 @@ import { buildMoment, momentHeadline, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
-import { buildBoard, layoutIconButton, zoneButtons, zoneKey } from "./island-layout";
+import { buildBoard, layoutIconButton, partHidden, partsOrder, zoneButtons, zoneKey } from "./island-layout";
 import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, tabActions, type ActionHandlers } from "./actions";
@@ -326,13 +326,19 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
   let ownKey = "";
   const winGroup = h("span", { class: "hdr-group hdr-win" }, minBtn, maxBtn, closeBtn);
 
+  const actionsRow = h("div", { class: "header-actions" }, planBtn, ownGroup, toolsGroup, winSep, winGroup);
   const el = h(
     "div",
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, ownGroup, toolsGroup, winSep, winGroup),
+    actionsRow,
   );
+  // isola.json's names of the header's buttons (island_layout.rs `HEADER_PARTS`):
+  // moved and hidden from the chat; the island's own stay in their group.
+  const headerParts: Record<string, HTMLElement> = { usage: planBtn, own: ownGroup, pin: pinBtn, memory: memBtn, settings: gearBtn, sound: soundBtn };
+  const TOOL_PARTS = ["pin", "memory", "settings", "sound"];
+  let headerOrder = "";
 
   return {
     el,
@@ -351,6 +357,31 @@ ${b}` : a;
         ownGroup.replaceChildren(...zoneButtons("header").map((b) => layoutIconButton(b, actions, 16)));
       }
       ownGroup.style.display = ownGroup.childElementCount ? "" : "none";
+      const order = partsOrder("header");
+      if (order.join(",") !== headerOrder) {
+        headerOrder = order.join(",");
+        // The island's buttons next to each other share a group (close together);
+        // one moved among the others stands in a group of its own.
+        const top: HTMLElement[] = [];
+        let run: HTMLElement | null = null;
+        for (const id of order) {
+          const part = headerParts[id];
+          if (!part) continue;
+          if (!TOOL_PARTS.includes(id)) {
+            top.push(part);
+            run = null;
+            continue;
+          }
+          if (!run) {
+            run = top.includes(toolsGroup) ? h("span", { class: "hdr-group hdr-tools" }) : toolsGroup;
+            run.replaceChildren();
+            top.push(run);
+          }
+          run.append(part);
+        }
+        actionsRow.replaceChildren(...top, winSep, winGroup);
+      }
+      for (const id of ["pin", "memory", "sound"]) headerParts[id].style.display = partHidden("header", id) ? "none" : "";
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
       tip(pinBtn, State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)"));
@@ -371,7 +402,7 @@ ${b}` : a;
         tip(maxBtn, State.maximized ? t("Esci da schermo intero") : t("Schermo intero"));
       }
       const plan = planGauge();
-      planBtn.style.display = plan ? "" : "none";
+      planBtn.style.display = plan && !partHidden("header", "usage") ? "" : "none";
       if (plan && plan.key !== planKey) {
         planKey = plan.key;
         planBtn.replaceChildren(...plan.parts);

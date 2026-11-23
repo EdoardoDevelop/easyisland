@@ -124,6 +124,26 @@ export function layoutTabs(): LayoutTab[] {
   return State.layout.tabs;
 }
 
+/** The usual order of the menu's sections and of the header's buttons (island_layout.rs). */
+const MENU_USUAL = ["overview", "agents", "chat", "actions", "files", "news"];
+const HEADER_USUAL = ["usage", "own", "pin", "memory", "settings", "sound"];
+
+/**
+ * Step 3: the order the menu's rows (`tab:<id>` for the user's tabs) or the
+ * header's buttons stand in: those the JSON names first, then the rest as usual.
+ */
+export function partsOrder(which: "menu" | "header"): string[] {
+  const parts = State.layout[which];
+  const usual = which === "menu" ? [...MENU_USUAL, ...State.layout.tabs.map((x) => `tab:${x.id}`)] : HEADER_USUAL;
+  const named = (parts?.order ?? []).filter((x) => usual.includes(x));
+  return [...named, ...usual.filter((x) => !named.includes(x))];
+}
+
+/** A part of the menu or the header hidden from the chat (never Panoramica or Impostazioni). */
+export function partHidden(which: "menu" | "header", id: string): boolean {
+  return id !== "overview" && id !== "settings" && !!State.layout[which]?.hidden?.includes(id);
+}
+
 /** A key that changes when what `zone` shows changes (no redraw otherwise). */
 export function zoneKey(zone: "menu-bottom" | "header"): string {
   return JSON.stringify(zoneButtons(zone));

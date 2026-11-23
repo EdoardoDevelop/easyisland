@@ -6442,7 +6442,6 @@
   "scheda nel menu, {n} pulsanti": "tab in the menu, {n} buttons",
   "Niente per ora. Chiedi alla chat, per esempio: «metti in basso a sinistra un pulsante per spegnere il PC».": "Nothing yet. Ask the chat, for example: «put a button to shut the PC down at the bottom left».",
   "Aggiunti dalla chat": "Added from the chat",
-  "Pulsanti e schede che la chat ha aggiunto all'isola: si chiedono a parole, qui si tolgono.": "Buttons and tabs the chat added to the island: asked for in words, taken away here.",
   "Non si apre": "It does not open",
   "Niente con queste parole.": "Nothing with these words.",
   "Qui non c'è niente.": "Nothing here.",
@@ -6473,5 +6472,19 @@
   "Valori di value": "Values of value",
   "Cartella non ammessa.": "Folder not allowed.",
   "Non riesco a leggere {path}: {e}": "Cannot read {path}: {e}",
-  "{free} liberi": "{free} free"
+  "{free} liberi": "{free} free",
+  "«{id}» non è una parte di «{what}»: {list}.": "«{id}» is not a part of «{what}»: {list}.",
+  "«{id}» non si può nascondere in «{what}»: {list}.": "«{id}» cannot be hidden in «{what}»: {list}.",
+  "«{id}» resta sempre: serve per tornare indietro.": "«{id}» always stays: it is the way back.",
+  "Testata": "Header",
+  "{head}: nuovo ordine {list}": "{head}: new order {list}",
+  "{head}: nascosto «{name}»": "{head}: «{name}» hidden",
+  "{head}: di nuovo visibile «{name}»": "{head}: «{name}» shown again",
+  "Parti di menu (order: anche tab:<id>; integrations solo hidden)": "Parts of menu (order: tab:<id> too; integrations only in hidden)",
+  "Parti di header (Panoramica e Impostazioni non si nascondono)": "Parts of header (Overview and Settings never hide)",
+  "scheda nel menu, {n} pulsanti e {b} blocchi": "tab in the menu, {n} buttons and {b} blocks",
+  "ordine cambiato": "order changed",
+  "{n} parti nascoste": "{n} parts hidden",
+  "Rimetti come di serie": "Put back as standard",
+  "Pulsanti, schede e parti spostate che la chat ha cambiato nell'isola: si chiedono a parole, qui si tolgono.": "Buttons, tabs and moved parts the chat changed in the island: you ask for them in words, here you remove them."
 }

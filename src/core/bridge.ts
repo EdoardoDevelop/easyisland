@@ -687,7 +687,7 @@ export const Bridge = {
   customsList: () => call<Custom[]>("customs_list"),
   islandLayout: () => call<IslandLayout>("island_layout"),
   islandLayoutUndo: () => callOrThrow<string>("island_layout_undo"),
-  islandLayoutRemove: (kind: "button" | "tab", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
+  islandLayoutRemove: (kind: "button" | "tab" | "menu" | "header", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
   islandLayoutVersions: () => call<number>("island_layout_versions"),
   /** A folder block of a tab: folders first, hidden files left out. */
   islandFolder: (path: string) => callOrThrow<{ name: string; path: string; dir: boolean }[]>("island_folder", { path }),

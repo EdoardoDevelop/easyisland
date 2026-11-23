@@ -10079,8 +10079,8 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 
 
 /* The island built from a JSON (src/views/island-layout.ts): the user's own buttons and tabs. */
-.rail-own { margin-top: 1px; }
-.rail-own .rail-emoji svg { display: block; }
+
+.rail-fixed .rail-emoji svg { display: block; }
 .rail-foot {
   flex: 0 0 auto;
   display: flex;

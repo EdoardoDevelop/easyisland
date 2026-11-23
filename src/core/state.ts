@@ -2278,7 +2278,9 @@ export type LayoutBlock = { id: string; title?: string } & (
 );
 export interface LayoutTab { id: string; name: string; icon?: string; buttons: LayoutButton[]; blocks?: LayoutBlock[] }
 /** The island built from a JSON (isola.json, island_layout.rs): what the user added from the chat. */
-export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[] }
+/** Step 3: the order of the island's own parts and those hidden (island_layout.rs `MENU_PARTS`, `HEADER_PARTS`). */
+export interface LayoutParts { order?: string[]; hidden?: string[] }
+export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts }
 
 export interface Custom {
   id: string;

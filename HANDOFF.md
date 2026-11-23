@@ -5,7 +5,7 @@ _23 novembre 2026. **1.0.54** in `main` (tag `v1.0.54`): il PC dal campo, barra 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
-- [ ] **Isola da JSON, tappe 1 e 2** (23/11, ramo `claude/app-2`, `docs/architettura.md` → Isola da JSON): tappa 1 provata da Edoardo dalla chat (pulsanti Arresta e Riavvia). Tappa 2 (blocchi: app installate, finestre, azioni rapide, cartella, valori del PC, testo) provata con test e nell'anteprima (`?scene=isola&tab=app`, `&tab=stato`); da provare nell'app: «crea una scheda con tutte le app installate». Tappa 3 in `docs/idee.md`.
+- [ ] **Isola da JSON, tappe 1–3** (23/11, ramo `claude/app-2`, `docs/architettura.md` → Isola da JSON): tappa 1 provata da Edoardo dalla chat. Tappe 2 (blocchi: app installate, finestre, azioni rapide, cartella, valori del PC, testo) e 3 (ordine e parti nascoste di menu e testata) provate con test e nell'anteprima (`?scene=isola&tab=app`, `&tab=stato`, `&moved`); da provare nell'app: «crea una scheda con tutte le app installate», «metti la Chat in cima al menu e nascondi Notizie», Impostazioni → Aggiunti dalla chat → Rimetti come di serie.
 - [ ] **«App» nella barra** (22/11, `docs/architettura.md` → Barra fissa → «App»): compilato con `npm run prova`; da provare dal vivo: import delle fissate di Windows, clic (apri, davanti, riduci), più finestre e anteprime, hover, destro (Recenti, amministratore, Fissa/Togli), trascinare un programma, programmi da amministratore davanti, con la barra di Windows nascosta.
 - [ ] **Barra di Windows nascosta** (22/11, `docs/architettura.md` → Barra fissa): test di `taskbar_hide` passati, codice già provato con la Dock; da provare nell'app: Nascosta/Visibile, «Rimetti adesso», chiusura dell'app (torna), riavvio di Explorer (si rinasconde), più schermi.
 - [ ] **Il PC dal campo** (22/11, `docs/architettura.md` → Campo unico): ricerca dei file provata dal vivo (test `pcfind::tests::live_files`), il resto nell'anteprima (scena `search`, `?q=bluet`, `?q=rossi`); da provare nell'app: finestra portata davanti (anche ridotta e con un programma da amministratore), Maiusc+Invio, pagine di Windows, velocità della prima ricerca.
@@ -69,9 +69,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 23/11 — Isola da JSON, tappe 1 e 2
+### 23/11 — Isola da JSON, tappe 1–3
 - `isola.json` (`island_layout.rs`, `src/views/island-layout.ts`): pulsanti in fondo al menu e nella testata, schede proprie con griglia di pulsanti, azioni da elenco fisso (mai codice). Strumenti `island_layout`, `island_layout_set`, `island_layout_undo`; card con cosa cambia e bozza visibile nell'isola; versioni in `isola-versioni\`, Annulla anche in Impostazioni.
 - Tappa 2: blocchi nelle schede (`grid`, `list`, `value`, `text`) da fonti fisse (app installate, finestre, azioni rapide, cartella, valori di `barsys.rs` letti solo a scheda aperta); `tab_blocks`. Nuova conversazione per vedere strumenti nuovi (`docs/chat.md`).
+- Tappa 3: `menu` e `header` con `order` e `hidden` (Panoramica e Impostazioni mai nascoste), `reset`, «Rimetti come di serie» in Impostazioni; `island_layout` dà l'isola intera.
 - Ramo `claude/app-2`: anche icone di «App» ordinate trascinandole, × dell'anteprima con `SC_CLOSE`, avvisi misurati alla loro larghezza, valori della barra richiesti di nuovo dall'isola.
 
 ### 22/11 — «App» nella barra fissa

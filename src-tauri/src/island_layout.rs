@@ -12,6 +12,12 @@
 //! folder), a value of the PC (`VALUES`, read by barsys.rs only while the tab is
 //! open) or a text. What a block's item does comes from its source, never
 //! from the JSON.
+//! Step 3: the island's own parts in the JSON too, so each moves: `menu`
+//! (order of the sections and of the user's tabs among them, what is hidden)
+//! and `header` (order of the header's buttons, what is hidden). Only place
+//! and visibility: what the parts do does not change. Panoramica and
+//! Impostazioni never hide (the way back). `island_layout` gives the whole
+//! island as it is, defaults included.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -36,6 +42,13 @@ pub const BLOCKS: &[&str] = &["grid", "list", "value", "text"];
 pub const SOURCES: &[&str] = &["apps", "windows", "quick", "folder"];
 /// The PC's values a `value` block shows (barsys.rs).
 pub const VALUES: &[&str] = &["cpu", "ram", "gpu", "disk", "battery", "net", "ip", "recycle", "updates"];
+
+/// The menu's sections, in their usual order, and the integrations' list (hide only).
+pub const MENU_PARTS: &[&str] = &["overview", "agents", "chat", "actions", "files", "news", "integrations"];
+/// The header's buttons, in their usual order: Consumo, the user's own, then the island's.
+pub const HEADER_PARTS: &[&str] = &["usage", "own", "pin", "memory", "settings", "sound"];
+/// Never hidden: the way to everything else.
+const ALWAYS_SHOWN: &[&str] = &["overview", "settings"];
 
 const MAX_ZONE: usize = 12;
 const MAX_BLOCKS: usize = 12;
@@ -337,7 +350,55 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
         }
         tabs.push(Value::Object(o));
     }
-    Ok(json!({ "buttons": buttons, "tabs": tabs }))
+    let mut out = json!({ "buttons": buttons, "tabs": tabs });
+    if let Some(m) = parts(v.get("menu"), "menu", MENU_PARTS, &tab_ids)? {
+        out["menu"] = m;
+    }
+    if let Some(hd) = parts(v.get("header"), "header", HEADER_PARTS, &[])? {
+        out["header"] = hd;
+    }
+    Ok(out)
+}
+
+/// `menu` or `header`: `order` (some or all of the parts, `tab:<id>` too in the
+/// menu) and `hidden`. None when it says nothing (the usual island).
+fn parts(v: Option<&Value>, what: &str, known: &[&str], tabs: &[String]) -> Result<Option<Value>, String> {
+    let Some(v) = v.filter(|x| x.is_object()) else { return Ok(None) };
+    let strings = |key: &str| -> Vec<String> {
+        v.get(key).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(|s| s.trim().to_string()).collect()).unwrap_or_default()
+    };
+    let list = known.join(", ");
+    let mut order: Vec<String> = Vec::new();
+    for id in strings("order") {
+        let tab_ok = id.strip_prefix("tab:").is_some_and(|t| tabs.iter().any(|x| x == t));
+        // The integrations' list keeps its place (it scrolls): hidden or shown only.
+        if !(known.contains(&id.as_str()) && id != "integrations") && !tab_ok {
+            return Err(tf("«{id}» non è una parte di «{what}»: {list}.", &[("id", &id), ("what", &what), ("list", &list)]));
+        }
+        if !order.contains(&id) {
+            order.push(id);
+        }
+    }
+    let mut hidden: Vec<String> = Vec::new();
+    for id in strings("hidden") {
+        if !known.contains(&id.as_str()) || id == "own" {
+            return Err(tf("«{id}» non si può nascondere in «{what}»: {list}.", &[("id", &id), ("what", &what), ("list", &list)]));
+        }
+        if ALWAYS_SHOWN.contains(&id.as_str()) {
+            return Err(tf("«{id}» resta sempre: serve per tornare indietro.", &[("id", &id)]));
+        }
+        if !hidden.contains(&id) {
+            hidden.push(id);
+        }
+    }
+    let mut o = Map::new();
+    if !order.is_empty() {
+        o.insert("order".into(), json!(order));
+    }
+    if !hidden.is_empty() {
+        o.insert("hidden".into(), json!(hidden));
+    }
+    Ok(if o.is_empty() { None } else { Some(Value::Object(o)) })
 }
 
 fn read_valid(path: &std::path::Path) -> Option<Value> {
@@ -460,6 +521,23 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
     }
     v["tabs"] = Value::Array(tabs);
     v["buttons"] = Value::Array(buttons);
+    // The island's own parts: given whole (order and hidden), or back as usual.
+    for key in ["menu", "header"] {
+        if let Some(x) = args.get(key).filter(|x| x.is_object()) {
+            v[key] = x.clone();
+        }
+    }
+    // A tab taken away leaves the menu's order without it (a tab that never was stays an error).
+    if let Some(order) = v.get_mut("menu").and_then(|m| m.get_mut("order")).and_then(Value::as_array_mut) {
+        order.retain(|x| x.as_str().and_then(|s| s.strip_prefix("tab:")).is_none_or(|t| !gone_tabs.iter().any(|g| g == t)));
+    }
+    for key in strings("reset") {
+        if key == "menu" || key == "header" {
+            if let Some(o) = v.as_object_mut() {
+                o.remove(&key);
+            }
+        }
+    }
     normalize(&v)
 }
 
@@ -579,7 +657,71 @@ pub fn changes(old: &Value, new: &Value) -> Vec<String> {
             out.push(tf("Tolta la scheda «{name}»", &[("name", &name)]));
         }
     }
+    for (key, head) in [("menu", t("Menu")), ("header", t("Testata"))] {
+        let (o_old, o_new) = (shown_order(old, key), shown_order(new, key));
+        if o_old != o_new {
+            let names: Vec<String> = o_new.iter().map(|id| part_name(new, id)).collect();
+            out.push(tf("{head}: nuovo ordine {list}", &[("head", &head), ("list", &names.join(" · "))]));
+        }
+        let (h_old, h_new) = (hidden_of(old, key), hidden_of(new, key));
+        for id in h_new.iter().filter(|x| !h_old.contains(x)) {
+            out.push(tf("{head}: nascosto «{name}»", &[("head", &head), ("name", &part_name(new, id))]));
+        }
+        for id in h_old.iter().filter(|x| !h_new.contains(x)) {
+            out.push(tf("{head}: di nuovo visibile «{name}»", &[("head", &head), ("name", &part_name(new, id))]));
+        }
+    }
     out
+}
+
+fn hidden_of(v: &Value, key: &str) -> Vec<String> {
+    v.get(key).and_then(|m| m.get("hidden")).and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default()
+}
+
+/// The order the parts stand in: those named first, then the rest as usual
+/// (the user's tabs after the sections in the menu).
+pub fn shown_order(v: &Value, key: &str) -> Vec<String> {
+    let mut out: Vec<String> = v.get(key).and_then(|m| m.get("order")).and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect()).unwrap_or_default();
+    let usual: Vec<String> = if key == "menu" {
+        MENU_PARTS.iter().filter(|p| **p != "integrations").map(|p| p.to_string())
+            .chain(v.get("tabs").and_then(Value::as_array).into_iter().flatten().map(|x| format!("tab:{}", text(x, "id"))))
+            .collect()
+    } else {
+        HEADER_PARTS.iter().map(|p| p.to_string()).collect()
+    };
+    for p in usual {
+        if !out.contains(&p) {
+            out.push(p);
+        }
+    }
+    out
+}
+
+/// A part's name as the user sees it.
+fn part_name(v: &Value, id: &str) -> String {
+    if let Some(tab) = id.strip_prefix("tab:") {
+        let name = v.get("tabs").and_then(Value::as_array).and_then(|a| a.iter().find(|x| text(x, "id") == tab)).map(|x| text(x, "name").to_string());
+        return name.unwrap_or_else(|| tab.to_string());
+    }
+    match id {
+        "overview" => t("Panoramica"),
+        "agents" => t("Agenti"),
+        "chat" => t("Chat"),
+        "actions" => t("Azioni"),
+        "files" => t("File e schermo"),
+        "news" => t("Notizie"),
+        "integrations" => t("Integrazioni"),
+        "usage" => t("Consumo"),
+        "own" => t("pulsanti aggiunti dalla chat"),
+        "pin" => t("Tieni aperta"),
+        "memory" => t("Mappa della memoria"),
+        "settings" => t("Impostazioni"),
+        "sound" => t("Silenzia"),
+        _ => id,
+    }
+    .to_string()
 }
 
 /// Before the Consenti / Nega card of `island_layout_set` / `island_layout_undo`:
@@ -619,13 +761,17 @@ pub fn annotate(payload: &mut Value) {
 
 /// island_layout: what there is now, and what may go in it.
 pub fn tool_get() -> String {
-    let now = load();
+    let mut now = load();
+    // The whole island as it is: the usual order and nothing hidden when the JSON says nothing.
+    for key in ["menu", "header"] {
+        now[key] = json!({ "order": shown_order(&now, key), "hidden": hidden_of(&now, key) });
+    }
     let quick = crate::settings::load().actions.iter()
         .map(|a| format!("{} ({})", text(a, "name"), text(a, "id")))
         .collect::<Vec<_>>()
         .join(", ");
     format!(
-        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
+        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
         serde_json::to_string_pretty(&now).unwrap_or_default(),
         t("Zone dei pulsanti"),
         ZONES.join(", "),
@@ -643,6 +789,10 @@ pub fn tool_get() -> String {
         SOURCES.join(", "),
         t("Valori di value"),
         VALUES.join(", "),
+        t("Parti di menu (order: anche tab:<id>; integrations solo hidden)"),
+        MENU_PARTS.join(", "),
+        t("Parti di header (Panoramica e Impostazioni non si nascondono)"),
+        HEADER_PARTS.join(", "),
     )
 }
 
@@ -691,12 +841,17 @@ pub fn island_layout_undo(app: AppHandle) -> Result<String, String> {
     tool_undo(&app)
 }
 
-/// Impostazioni: a button or a tab taken away by hand (`kind` "button" or "tab").
+/// Impostazioni: a button or a tab taken away by hand (`kind` "button" or "tab"),
+/// or the menu or the header back as usual (`kind` "menu" or "header").
 #[tauri::command]
 pub fn island_layout_remove(app: AppHandle, kind: String, id: String) -> Result<(), String> {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old = load();
-    let args = if kind == "tab" { json!({ "remove_tabs": [id] }) } else { json!({ "remove_buttons": [id] }) };
+    let args = match kind.as_str() {
+        "tab" => json!({ "remove_tabs": [id] }),
+        "menu" | "header" => json!({ "reset": [kind] }),
+        _ => json!({ "remove_buttons": [id] }),
+    };
     let new = apply(&old, &args)?;
     if new != old {
         keep_version();
@@ -834,6 +989,26 @@ mod tests {
         let none = apply(&one, &json!({ "tab_blocks": { "tab": "app", "remove": ["nota", "tutte"] } })).unwrap();
         assert!(none["tabs"][0].get("blocks").is_none());
         assert!(expand_vars("%NO_SUCH_VAR_X%\\a").starts_with("%NO_SUCH_VAR_X%"));
+    }
+
+    #[test]
+    fn the_islands_own_parts_move_and_hide() {
+        let base = normalize(&json!({ "tabs": [{ "id": "app", "name": "App" }] })).unwrap();
+        assert_eq!(shown_order(&base, "menu"), ["overview", "agents", "chat", "actions", "files", "news", "tab:app"]);
+        let moved = apply(&base, &json!({ "menu": { "order": ["tab:app", "chat"], "hidden": ["news", "integrations"] } })).unwrap();
+        assert_eq!(shown_order(&moved, "menu")[..3], ["tab:app", "chat", "overview"]);
+        let lines = changes(&base, &moved);
+        assert!(lines.iter().any(|l| l.contains("nuovo ordine")));
+        assert!(lines.iter().any(|l| l.contains("Notizie")));
+        assert!(apply(&base, &json!({ "menu": { "hidden": ["overview"] } })).is_err());
+        assert!(apply(&base, &json!({ "header": { "hidden": ["settings"] } })).is_err());
+        assert!(apply(&base, &json!({ "menu": { "order": ["tab:altra"] } })).is_err());
+        assert!(apply(&base, &json!({ "header": { "order": ["close"] } })).is_err());
+        let back = apply(&moved, &json!({ "reset": ["menu"] })).unwrap();
+        assert_eq!(back, base);
+        // A tab taken away leaves the menu's order without it, not broken.
+        let gone = apply(&moved, &json!({ "remove_tabs": ["app"] })).unwrap();
+        assert_eq!(shown_order(&gone, "menu")[0], "chat");
     }
 
     #[test]

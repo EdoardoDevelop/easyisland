@@ -3888,17 +3888,23 @@ function ownLayoutSection(): HTMLElement {
     const [layout, versions] = await Promise.all([Bridge.islandLayout(), Bridge.islandLayoutVersions()]);
     undo.disabled = !versions;
     const where = (z?: string) => (z === "header" ? t("in alto, nella testata") : t("in fondo al menu"));
-    const line = (text: string, sub: string, kind: "button" | "tab", id: string) =>
+    const line = (text: string, sub: string, kind: "button" | "tab" | "menu" | "header", id: string, act = t("Togli")) =>
       h("div", { class: "row" },
         h("label", { text }),
         h("span", { class: "hint note", text: sub }),
-        h("button", { text: t("Togli"), onclick: async () => {
+        h("button", { text: act, onclick: async () => {
           await Bridge.islandLayoutRemove(kind, id).catch(say);
           void fill();
         } }));
     const rows = [
       ...(layout?.buttons ?? []).map((b) => line(b.label, where(b.zone), "button", b.id)),
-      ...(layout?.tabs ?? []).map((x) => line(x.name, t("scheda nel menu, {n} pulsanti", { n: x.buttons.length }), "tab", x.id)),
+      ...(layout?.tabs ?? []).map((x) => line(x.name, x.blocks?.length
+        ? t("scheda nel menu, {n} pulsanti e {b} blocchi", { n: x.buttons.length, b: x.blocks.length })
+        : t("scheda nel menu, {n} pulsanti", { n: x.buttons.length }), "tab", x.id)),
+      // Step 3: the island's own parts moved or hidden.
+      ...(["menu", "header"] as const).filter((k) => layout?.[k]).map((k) => line(k === "menu" ? t("Menu") : t("Testata"),
+        [layout?.[k]?.order?.length ? t("ordine cambiato") : "", layout?.[k]?.hidden?.length ? t("{n} parti nascoste", { n: layout[k]!.hidden!.length }) : ""].filter(Boolean).join(", "),
+        k, k, t("Rimetti come di serie"))),
     ];
     list.replaceChildren(...(rows.length ? rows : [h("div", { class: "hint", text: t("Niente per ora. Chiedi alla chat, per esempio: «metti in basso a sinistra un pulsante per spegnere il PC».") })]));
   };
@@ -3910,7 +3916,7 @@ function ownLayoutSection(): HTMLElement {
   void fill();
   return h("section", {},
     h("h2", {}, h("span", { text: t("Aggiunti dalla chat") })),
-    h("div", { class: "hint", text: t("Pulsanti e schede che la chat ha aggiunto all'isola: si chiedono a parole, qui si tolgono.") }),
+    h("div", { class: "hint", text: t("Pulsanti, schede e parti spostate che la chat ha cambiato nell'isola: si chiedono a parole, qui si tolgono.") }),
     list,
     h("div", { class: "row" }, undo, status));
 }
