@@ -51,7 +51,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DeregisterShellHookWindow, DestroyWindow, DispatchMessageW, EnumWindows,
-    GetClassNameW, GetForegroundWindow, GetMessageW, GetWindow, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+    GetClassNameW, GetForegroundWindow, GetMessageW, GetWindow, GetWindowLongW, GetWindowRect, InternalGetWindowText,
     GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, KillTimer, PostMessageW, PostQuitMessage,
     RegisterClassW, RegisterShellHookWindow, RegisterWindowMessageW, SendMessageTimeoutW, SetForegroundWindow,
     SetTimer, SetWindowPos, ShowWindowAsync, SwitchToThisWindow, TranslateMessage, EVENT_OBJECT_CLOAKED,
@@ -160,9 +160,29 @@ fn class_name(hwnd: HWND) -> String {
     String::from_utf16_lossy(buf.get(..n.max(0) as usize).unwrap_or_default())
 }
 
+/// EasyIsland's own windows the Windows taskbar shows (Impostazioni, Memoria,
+/// Flussi, Personalizza la barra, chats popped out; lib.rs `own_window`): on
+/// the bar's «App» under EasyIsland's icon (Edoardo, 23 Nov 2026, with the
+/// Windows taskbar hidden they had nowhere to come back from). Not the
+/// island, the character, toasts, search, Anteprima, PDF (out of the taskbar).
+static OWN: Mutex<Option<HashSet<isize>>> = Mutex::new(None);
+
+pub fn own_window<R: tauri::Runtime>(win: &tauri::WebviewWindow<R>) {
+    if let Ok(h) = win.hwnd() {
+        OWN.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashSet::new).insert(h.0 as isize);
+    }
+}
+
+fn is_own_listed(hwnd: HWND) -> bool {
+    OWN.lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(|s| s.contains(&(hwnd.0 as isize)))
+}
+
+/// The title without a message to the window (InternalGetWindowText): asking
+/// one of EasyIsland's own would wait for its main thread, which may be
+/// waiting for this thread's state (22 Nov 2026: the app stopped answering).
 fn title_of(hwnd: HWND) -> String {
     let mut buf = [0u16; 256];
-    let n = unsafe { GetWindowTextW(hwnd, &mut buf) };
+    let n = unsafe { InternalGetWindowText(hwnd, &mut buf) };
     String::from_utf16_lossy(buf.get(..n.max(0) as usize).unwrap_or_default())
 }
 
@@ -180,15 +200,13 @@ fn is_cloaked(hwnd: HWND) -> bool {
 /// not cloaked, not EasyIsland's own.
 fn is_app_window(hwnd: HWND) -> bool {
     unsafe {
-        // EasyIsland's own first: asking one of its windows for its title is a
-        // message to the main thread, which may be waiting for this thread's
-        // state (22 Nov 2026: the app stopped answering with the previews open).
+        // EasyIsland's own: only those listed (OWN), never a message to them.
         let mut pid = 0u32;
         GetWindowThreadProcessId(hwnd, Some(&mut pid));
         if pid == GetCurrentProcessId() {
-            return false;
+            return is_own_listed(hwnd) && IsWindowVisible(hwnd).as_bool() && !is_cloaked(hwnd);
         }
-        if !IsWindowVisible(hwnd).as_bool() || GetWindowTextLengthW(hwnd) == 0 {
+        if !IsWindowVisible(hwnd).as_bool() || title_of(hwnd).is_empty() {
             return false;
         }
         let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;

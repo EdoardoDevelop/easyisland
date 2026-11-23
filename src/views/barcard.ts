@@ -381,7 +381,7 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     const same = (a: string) => a.toLowerCase() === id.toLowerCase();
     const pinned = () => (State.settings.appsPinned ?? []).some((p) => same(p.id));
     const name = (State.settings.appsPinned ?? []).find((p) => same(p.id))?.name
-      || (id.split(/[\\/]/).pop() ?? id).replace(/\.(exe|lnk)$/i, "");
+      || (/(^|[\\/])easyisland\.exe$/i.test(id) ? "EasyIsland" : (id.split(/[\\/]/).pop() ?? id).replace(/\.(exe|lnk)$/i, ""));
     const title = h("div", { class: "apps-head", text: name });
     const grid = h("div", { class: "apps-wins" });
     const recent = h("div", { class: "apps-recent" });

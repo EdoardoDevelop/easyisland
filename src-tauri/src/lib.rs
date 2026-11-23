@@ -2619,6 +2619,8 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
         .build();
     match built {
         Ok(window) => {
+            // On the bar's «App», under EasyIsland's icon.
+            taskwin::own_window(&window);
             *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.clone());
             // Closed with its ✕ while the Anteprima is docked in it: the preview goes back to the island first.
             // Gone: the island is told (popout-closed, with the window's name), so its
@@ -4204,6 +4206,7 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         .build()
     {
         Ok(win) => {
+            taskwin::own_window(&win);
             // Closing it must only hide it, or it could never be reopened.
             let hidden = win.clone();
             let handle = app.clone();
@@ -4666,6 +4669,7 @@ async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), Str
         .center()
         .build()
         .map_err(|e| e.to_string())?;
+    taskwin::own_window(&win);
     let hidden = win.clone();
     let handle = app.clone();
     win.on_window_event(move |event| {
@@ -4790,6 +4794,7 @@ fn create_memory_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         .build()
     {
         Ok(win) => {
+            taskwin::own_window(&win);
             let hidden = win.clone();
             let handle = app.clone();
             win.on_window_event(move |event| {
@@ -5350,6 +5355,7 @@ pub(crate) fn show_bar_editor(app: &AppHandle) -> Result<(), String> {
         let y = if top { my + 96.0 * scale } else { my + mh - (h + 120.0) * scale };
         let _ = win.set_position(tauri::PhysicalPosition::new(x.round() as i32, y.max(my).round() as i32));
     }
+    taskwin::own_window(&win);
     let hidden = win.clone();
     let handle = app.clone();
     win.on_window_event(move |event| {

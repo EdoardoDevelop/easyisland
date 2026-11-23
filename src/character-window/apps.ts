@@ -112,6 +112,8 @@ function groups(): Group[] {
 /** A name for an app that is not pinned: its program's file name, else its window's title. */
 function appName(id: string): string {
   const file = id.split(/[\\/]/).pop() ?? id;
+  // EasyIsland's own windows (Impostazioni, Memoria, chats popped out: taskwin.rs OWN).
+  if (/^easyisland\.exe$/i.test(file)) return "EasyIsland";
   return file.replace(/\.(exe|lnk)$/i, "") || id;
 }
 
