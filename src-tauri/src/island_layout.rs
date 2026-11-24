@@ -126,12 +126,345 @@ fn icon(v: &Value, what: &str) -> Result<Option<String>, String> {
 }
 
 fn color(v: &Value, what: &str) -> Result<Option<String>, String> {
-    let s = text(v, "color");
+    hex(v, "color", what)
+}
+
+/// A colour under `key`: `#rrggbb`, kept in lower case.
+fn hex(v: &Value, key: &str, what: &str) -> Result<Option<String>, String> {
+    let s = text(v, key);
     if s.is_empty() {
         return Ok(None);
     }
     let ok = s.len() == 7 && s.starts_with('#') && s.chars().skip(1).all(|c| c.is_ascii_hexdigit());
-    if ok { Ok(Some(s.to_ascii_lowercase())) } else { Err(tf("Colore non valido in {what}: #rrggbb.", &[("what", &what)])) }
+    if ok {
+        Ok(Some(s.to_ascii_lowercase()))
+    } else {
+        Err(tf("Colore non valido in «{key}» di {what}: #rrggbb.", &[("key", &key), ("what", &what)]))
+    }
+}
+
+/// One word of a fixed list under `key`.
+fn pick(v: &Value, key: &str, list: &[&str], what: &str) -> Result<Option<String>, String> {
+    let s = text(v, key);
+    if s.is_empty() {
+        return Ok(None);
+    }
+    if list.contains(&s) {
+        Ok(Some(s.to_string()))
+    } else {
+        Err(tf("«{key}» di {what}: {list}.", &[("key", &key), ("what", &what), ("list", &list.join(", "))]))
+    }
+}
+
+/// A number under `key`, brought within `min`–`max`.
+fn num(v: &Value, key: &str, min: f64, max: f64, what: &str) -> Result<Option<f64>, String> {
+    match v.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(x) => {
+            let n = x.as_f64().or_else(|| x.as_str().and_then(|s| s.trim().trim_end_matches("px").trim_end_matches('%').trim().replace(',', ".").parse().ok()));
+            match n {
+                Some(n) if n.is_finite() => Ok(Some(n.clamp(min, max))),
+                _ => Err(tf("«{key}» di {what}: un numero da {min} a {max}.", &[("key", &key), ("what", &what), ("min", &min), ("max", &max)])),
+            }
+        }
+    }
+}
+
+/// A number kept as an integer when it is one (20, not 20.0).
+fn num_json(n: f64) -> Value {
+    if n.fract() == 0.0 && n.abs() < 1e9 { json!(n as i64) } else { json!((n * 100.0).round() / 100.0) }
+}
+
+/// Fonts the island may take (front end `FONT_STACKS`).
+pub const FONTS: &[&str] = &["system", "rounded", "mono", "serif", "condensed", "segoe"];
+/// Sizes of a button, a tile, a block.
+pub const SIZES: &[&str] = &["s", "m", "l", "xl"];
+/// Shapes of a button.
+pub const SHAPES: &[&str] = &["round", "square", "pill", "circle"];
+/// What a small button shows.
+pub const SHOWS: &[&str] = &["icon", "label", "both"];
+/// How wide a block stands among the others.
+pub const WIDTHS: &[&str] = &["full", "half", "third", "auto"];
+pub const ALIGNS: &[&str] = &["left", "center", "right"];
+/// The way the island's two colours meet.
+pub const GRADIENTS: &[&str] = &["down", "right", "diagonal", "radial"];
+pub const DAYS: &[&str] = &["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+/// Values of the PC as numbers, for conditions and thresholds: cpu, ram, gpu,
+/// disk (percent used), battery (percent), net (MB/s), recycle (items), updates (how many).
+pub const NUMBERS: &[&str] = &["cpu", "ram", "gpu", "disk", "battery", "net", "recycle", "updates"];
+/// The island's own look (`style`): colours, corners, font, sizes.
+pub const STYLE_KEYS: &[&str] = &[
+    "background", "background2", "gradient", "opacity", "accent", "text", "dim", "card", "card_opacity", "card_radius",
+    "border", "border_width", "glow", "radius", "font", "text_size", "width", "height",
+    "menu_background", "header_background", "footer_background", "spacing",
+];
+
+/// A value of the PC to compare: `what` (NUMBERS), `drive` for the disk.
+fn measure(v: &Value, what: &str, own: Option<&Value>) -> Result<Map<String, Value>, String> {
+    let mut o = Map::new();
+    let w = text(v, "what");
+    let (w, drive) = if w.is_empty() {
+        match own {
+            Some(b) => (text(b, "what").to_string(), text(b, "drive").to_string()),
+            None => return Err(tf("Manca «what» in {what}: {list}.", &[("what", &what), ("list", &NUMBERS.join(", "))])),
+        }
+    } else {
+        (w.to_string(), text(v, "drive").to_string())
+    };
+    if !NUMBERS.contains(&w.as_str()) {
+        return Err(tf("«what» di {what}: {list}.", &[("what", &what), ("list", &NUMBERS.join(", "))]));
+    }
+    o.insert("what".into(), json!(w));
+    let drive = drive.trim_end_matches([':', '\\']).to_ascii_uppercase();
+    if w == "disk" && !drive.is_empty() {
+        if drive.len() != 1 || !drive.chars().all(|c| c.is_ascii_uppercase()) {
+            return Err(tf("«drive» di {what}: una lettera (C, D…).", &[("what", &what)]));
+        }
+        o.insert("drive".into(), json!(drive));
+    }
+    let above = num(v, "above", -1e9, 1e9, what)?;
+    let below = num(v, "below", -1e9, 1e9, what)?;
+    if above.is_none() && below.is_none() {
+        return Err(tf("Serve «above» o «below» in {what}.", &[("what", &what)]));
+    }
+    if let Some(n) = above {
+        o.insert("above".into(), num_json(n));
+    }
+    if let Some(n) = below {
+        o.insert("below".into(), num_json(n));
+    }
+    Ok(o)
+}
+
+/// «08:00», «8», «8.30» as minutes of the day.
+fn clock_minutes(s: &str) -> Option<u32> {
+    let s = s.trim().replace('.', ":");
+    let (h, m) = s.split_once(':').unwrap_or((s.as_str(), "0"));
+    let (h, m): (u32, u32) = (h.trim().parse().ok()?, m.trim().parse().ok()?);
+    (h <= 24 && m < 60 && h * 60 + m <= 24 * 60).then_some(h * 60 + m)
+}
+
+/// `when`: shown only while it is true. `hours` «08:00-18:00» (over midnight
+/// too), `days` [mon…sun], `app` / `not_app` (the program in front when the
+/// island opened: exe names), `value` { what, drive?, above?, below? }. All
+/// those given must hold.
+fn when(v: &Value, what: &str) -> Result<Option<Value>, String> {
+    let Some(w) = v.get("when").filter(|x| !x.is_null()) else { return Ok(None) };
+    let Some(wo) = w.as_object() else {
+        return Err(tf("«when» di {what}: un oggetto con hours, days, app, not_app, value.", &[("what", &what)]));
+    };
+    if let Some(k) = wo.keys().find(|k| !["hours", "days", "app", "not_app", "value"].contains(&k.as_str())) {
+        return Err(tf("«when» di {what} non conosce «{k}»: hours, days, app, not_app, value.", &[("what", &what), ("k", &k)]));
+    }
+    let mut o = Map::new();
+    let hours = text(w, "hours");
+    if !hours.is_empty() {
+        let ok = hours.split_once('-').and_then(|(a, b)| Some((clock_minutes(a)?, clock_minutes(b)?)));
+        let Some((a, b)) = ok else {
+            return Err(tf("«when.hours» di {what}: «08:00-18:00».", &[("what", &what)]));
+        };
+        o.insert("hours".into(), json!(format!("{:02}:{:02}-{:02}:{:02}", a / 60, a % 60, b / 60, b % 60)));
+    }
+    let words = |key: &str| -> Vec<String> {
+        match w.get(key) {
+            Some(Value::String(s)) => s.split([',', ' ']).map(|x| x.trim().to_ascii_lowercase()).filter(|x| !x.is_empty()).collect(),
+            Some(Value::Array(a)) => a.iter().filter_map(Value::as_str).map(|x| x.trim().to_ascii_lowercase()).filter(|x| !x.is_empty()).collect(),
+            _ => Vec::new(),
+        }
+    };
+    let days = words("days");
+    if !days.is_empty() {
+        let mut list: Vec<&str> = Vec::new();
+        for d in &days {
+            let Some(k) = DAYS.iter().find(|x| *x == d) else {
+                return Err(tf("«when.days» di {what}: {list}.", &[("what", &what), ("list", &DAYS.join(", "))]));
+            };
+            if !list.contains(k) {
+                list.push(k);
+            }
+        }
+        o.insert("days".into(), json!(list));
+    }
+    for key in ["app", "not_app"] {
+        let apps = words(key);
+        if apps.len() > 12 || apps.iter().any(|a| a.len() > 60 || !a.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | ' '))) {
+            return Err(tf("«when.{key}» di {what}: nomi di programmi come code.exe (al massimo 12).", &[("key", &key), ("what", &what)]));
+        }
+        if !apps.is_empty() {
+            let apps: Vec<String> = apps.into_iter().map(|a| if a.ends_with(".exe") { a } else { format!("{a}.exe") }).collect();
+            o.insert(key.into(), json!(apps));
+        }
+    }
+    if let Some(val) = w.get("value").filter(|x| !x.is_null()) {
+        o.insert("value".into(), Value::Object(measure(val, &tf("«when.value» di {what}", &[("what", &what)]), None)?));
+    }
+    Ok(if o.is_empty() { None } else { Some(Value::Object(o)) })
+}
+
+/// `levels`: colours by a value of the PC, the first that holds wins:
+/// [{ above|below, color, what? }]. `own`: the block's value, when it has one.
+fn levels(v: &Value, what: &str, own: Option<&Value>) -> Result<Option<Value>, String> {
+    let Some(list) = v.get("levels").filter(|x| !x.is_null()) else { return Ok(None) };
+    let list: Vec<Value> = match list {
+        Value::Array(a) => a.clone(),
+        Value::Object(_) => vec![list.clone()],
+        _ => return Err(tf("«levels» di {what}: [{ above o below, color }].", &[("what", &what)])),
+    };
+    if list.len() > 5 {
+        return Err(tf("Troppe soglie in {what}: al massimo {n}.", &[("what", &what), ("n", &5)]));
+    }
+    let mut out = Vec::new();
+    for l in &list {
+        let lw = tf("una soglia di {what}", &[("what", &what)]);
+        let mut o = measure(l, &lw, own)?;
+        let c = hex(l, "color", &lw)?.ok_or_else(|| tf("Manca «color» in {what}.", &[("what", &lw)]))?;
+        o.insert("color".into(), json!(c));
+        out.push(Value::Object(o));
+    }
+    Ok(if out.is_empty() { None } else { Some(Value::Array(out)) })
+}
+
+/// How a button looks besides its colour, and when it shows.
+fn button_look(v: &Value, o: &mut Map<String, Value>, what: &str) -> Result<(), String> {
+    if let Some(c) = hex(v, "bg", what)? {
+        o.insert("bg".into(), json!(c));
+    }
+    for (key, list) in [("shape", SHAPES), ("size", SIZES), ("show", SHOWS)] {
+        if let Some(s) = pick(v, key, list, what)? {
+            o.insert(key.into(), json!(s));
+        }
+    }
+    if let Some(w) = when(v, what)? {
+        o.insert("when".into(), w);
+    }
+    if let Some(l) = levels(v, what, None)? {
+        o.insert("levels".into(), l);
+    }
+    Ok(())
+}
+
+/// How a block looks, by its kind, and when it shows. `own`: its value (value, chart).
+fn block_look(v: &Value, o: &mut Map<String, Value>, kind: &str, what: &str) -> Result<(), String> {
+    for key in ["color", "bg", "border", "title_color"] {
+        // «none»: no background of its own.
+        if key == "bg" && text(v, key) == "none" {
+            o.insert("bg".into(), json!("none"));
+            continue;
+        }
+        if let Some(c) = hex(v, key, what)? {
+            o.insert(key.into(), json!(c));
+        }
+    }
+    if let Some(s) = pick(v, "width", WIDTHS, what)? {
+        o.insert("width".into(), json!(s));
+    }
+    if let Some(s) = pick(v, "size", SIZES, what)? {
+        o.insert("size".into(), json!(s));
+    }
+    if let Some(n) = num(v, "radius", 0.0, 32.0, what)? {
+        o.insert("radius".into(), num_json(n.round()));
+    }
+    if let Some(s) = pick(v, "align", ALIGNS, what)? {
+        o.insert("align".into(), json!(s));
+    }
+    match kind {
+        "grid" => {
+            if let Some(n) = num(v, "columns", 1.0, 12.0, what)? {
+                o.insert("columns".into(), num_json(n.round()));
+            }
+        }
+        "list" => {
+            if let Some(n) = num(v, "height", 60.0, 900.0, what)? {
+                o.insert("height".into(), num_json(n.round()));
+            }
+        }
+        "chart" => {
+            if let Some(n) = num(v, "height", 32.0, 300.0, what)? {
+                o.insert("height".into(), num_json(n.round()));
+            }
+            if let Some(n) = num(v, "minutes", 1.0, 5.0, what)? {
+                o.insert("minutes".into(), num_json(n.round()));
+            }
+            if let Some(s) = pick(v, "line", &["line", "area", "bars"], what)? {
+                o.insert("line".into(), json!(s));
+            }
+        }
+        "text" => {
+            if v.get("bold").and_then(Value::as_bool) == Some(true) {
+                o.insert("bold".into(), json!(true));
+            }
+            if v.get("italic").and_then(Value::as_bool) == Some(true) {
+                o.insert("italic".into(), json!(true));
+            }
+        }
+        _ => {}
+    }
+    if let Some(w) = when(v, what)? {
+        o.insert("when".into(), w);
+    }
+    let own = matches!(kind, "value" | "chart").then(|| Value::Object(o.clone()));
+    let own = own.filter(|x| NUMBERS.contains(&text(x, "what")));
+    if let Some(l) = levels(v, what, own.as_ref())? {
+        o.insert("levels".into(), l);
+    }
+    Ok(())
+}
+
+/// The island's own look (`style`), checked; None when it says nothing.
+fn style(v: Option<&Value>) -> Result<Option<Value>, String> {
+    let Some(v) = v.filter(|x| !x.is_null()) else { return Ok(None) };
+    let Some(vo) = v.as_object() else { return Err(t("«style» è un oggetto: background, accent, radius, font…").into()) };
+    if let Some(k) = vo.keys().find(|k| !STYLE_KEYS.contains(&k.as_str())) {
+        return Err(tf("«style» non conosce «{k}»: {list}.", &[("k", &k), ("list", &STYLE_KEYS.join(", "))]));
+    }
+    let what = t("stile dell'isola").to_string();
+    let mut o = Map::new();
+    for key in ["background", "background2", "accent", "text", "dim", "card", "border", "glow", "menu_background", "header_background", "footer_background"] {
+        if let Some(c) = hex(v, key, &what)? {
+            o.insert(key.into(), json!(c));
+        }
+    }
+    if let Some(s) = pick(v, "gradient", GRADIENTS, &what)? {
+        o.insert("gradient".into(), json!(s));
+    }
+    if let Some(s) = pick(v, "font", FONTS, &what)? {
+        o.insert("font".into(), json!(s));
+    }
+    if let Some(s) = pick(v, "spacing", &["compact", "normal", "wide"], &what)? {
+        o.insert("spacing".into(), json!(s));
+    }
+    // Percentages are taken as such (80 → 0.8).
+    for key in ["opacity", "card_opacity"] {
+        if let Some(n) = num(v, key, 0.0, 100.0, &what)? {
+            let n = if n > 1.0 { n / 100.0 } else { n };
+            let n = if key == "opacity" { n.max(0.5) } else { n };
+            o.insert(key.into(), num_json((n * 100.0).round() / 100.0));
+        }
+    }
+    for (key, min, max) in [("radius", 0.0, 40.0), ("card_radius", 0.0, 28.0), ("border_width", 0.0, 4.0), ("text_size", -2.0, 6.0), ("width", 480.0, 2400.0), ("height", 300.0, 1600.0)] {
+        if let Some(n) = num(v, key, min, max, &what)? {
+            o.insert(key.into(), num_json(n.round()));
+        }
+    }
+    Ok(if o.is_empty() { None } else { Some(Value::Object(o)) })
+}
+
+/// The style in words, for the card: «sfondo #112233, angoli 20».
+fn style_words(old: Option<&Value>, new: Option<&Value>) -> Vec<String> {
+    let get = |v: Option<&Value>, k: &str| v.and_then(|x| x.get(k)).cloned().unwrap_or(Value::Null);
+    let mut out = Vec::new();
+    for k in STYLE_KEYS {
+        let (a, b) = (get(old, k), get(new, k));
+        if a != b {
+            let shown = match &b {
+                Value::Null => t("come di serie").to_string(),
+                Value::String(s) => s.clone(),
+                x => x.to_string(),
+            };
+            out.push(format!("{k} {shown}"));
+        }
+    }
+    out
 }
 
 /// A button's action, checked against the fixed list; only the keys it needs are kept.
@@ -303,6 +636,7 @@ fn block(v: &Value, tab: &str) -> Result<Value, String> {
             o.insert("text".into(), json!(label(v, "text", 500, &what)?));
         }
     }
+    block_look(v, &mut o, kind, &what)?;
     Ok(Value::Object(o))
 }
 
@@ -346,6 +680,7 @@ fn button(v: &Value, zoned: bool, tabs: &[String]) -> Result<Value, String> {
     if let Some(c) = color(v, &what)? {
         o.insert("color".into(), json!(c));
     }
+    button_look(v, &mut o, &what)?;
     if zoned {
         let z = text(v, "zone");
         if !ZONES.contains(&z) {
@@ -412,6 +747,18 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
         if let Some(ic) = icon(tab, &what)? {
             o.insert("icon".into(), json!(ic));
         }
+        if let Some(c) = color(tab, &what)? {
+            o.insert("color".into(), json!(c));
+        }
+        if let Some(n) = num(tab, "columns", 1.0, 10.0, &what)? {
+            o.insert("columns".into(), num_json(n.round()));
+        }
+        if let Some(s) = pick(tab, "size", SIZES, &what)? {
+            o.insert("size".into(), json!(s));
+        }
+        if let Some(w) = when(tab, &what)? {
+            o.insert("when".into(), w);
+        }
         let inner = tab.get("buttons").and_then(Value::as_array).cloned().unwrap_or_default();
         if inner.len() > MAX_TAB_BUTTONS {
             return Err(tf("Troppi pulsanti in {what}: al massimo {n}.", &[("what", &what), ("n", &MAX_TAB_BUTTONS)]));
@@ -452,6 +799,9 @@ pub fn normalize(v: &Value) -> Result<Value, String> {
     }
     if let Some(ft) = footer(fv.as_ref(), &tab_ids, &seen)? {
         out["footer"] = ft;
+    }
+    if let Some(st) = style(v.get("style"))? {
+        out["style"] = st;
     }
     Ok(out)
 }
@@ -496,6 +846,15 @@ fn footer(v: Option<&Value>, tabs: &[String], taken: &[String]) -> Result<Option
             if !text(&b, "drive").is_empty() {
                 val["drive"] = json!(text(&b, "drive"));
             }
+            // Its look: a colour, thresholds, when it shows, a name before it.
+            for key in ["color", "bg", "levels", "when"] {
+                if let Some(x) = b.get(key) {
+                    val[key] = x.clone();
+                }
+            }
+            if !text(x, "label").is_empty() {
+                val["label"] = json!(label(x, "label", 20, &t("un valore del footer"))?);
+            }
             if !out.contains(&val) {
                 out.push(val);
             }
@@ -512,13 +871,14 @@ fn footer_words(items: &[Value]) -> String {
     items
         .iter()
         .map(|x| {
-            if x.get("action").is_some() {
+            let head = if x.get("action").is_some() {
                 format!("«{}» ({})", text(x, "label"), x.get("action").map(action_words).unwrap_or_default())
             } else if text(x, "drive").is_empty() {
                 text(x, "what").to_string()
             } else {
                 format!("{} {}:", text(x, "what"), text(x, "drive"))
-            }
+            };
+            format!("{head}{}", when_words(x))
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -753,6 +1113,21 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
             v["footer"][k.as_str()] = val.clone();
         }
     }
+    // The island's look: the keys given change, `null` puts one back as usual, the others stay.
+    if let Some(x) = args.get("style").and_then(Value::as_object) {
+        if !v.get("style").is_some_and(Value::is_object) {
+            v["style"] = json!({});
+        }
+        if let Some(st) = v.get_mut("style").and_then(Value::as_object_mut) {
+            for (k, val) in x {
+                if val.is_null() {
+                    st.remove(k);
+                } else {
+                    st.insert(k.clone(), val.clone());
+                }
+            }
+        }
+    }
     // The Panoramica: given whole but for its blocks, which stay unless given
     // (`overview_blocks` adds, replaces or removes them one by one).
     if let Some(x) = args.get("overview").filter(|x| x.is_object()) {
@@ -785,7 +1160,7 @@ pub fn apply(old: &Value, args: &Value) -> Result<Value, String> {
         order.retain(|x| x.as_str().and_then(|s| s.strip_prefix("tab:")).is_none_or(|t| !gone_tabs.iter().any(|g| g == t)));
     }
     for key in strings("reset") {
-        if key == "menu" || key == "header" || key == "overview" || key == "footer" {
+        if key == "menu" || key == "header" || key == "overview" || key == "footer" || key == "style" {
             if let Some(o) = v.as_object_mut() {
                 o.remove(&key);
                 // The older form, read into the footer.
@@ -835,6 +1210,51 @@ pub fn action_words(a: &Value) -> String {
     }
 }
 
+/// A comparison in words: «cpu sopra 80», «disk D sotto 10».
+fn measure_words(m: &Value) -> String {
+    let mut name = text(m, "what").to_string();
+    if !text(m, "drive").is_empty() {
+        name = format!("{name} {}", text(m, "drive"));
+    }
+    let mut parts = Vec::new();
+    if let Some(n) = m.get("above") {
+        parts.push(tf("{what} sopra {n}", &[("what", &name), ("n", &n)]));
+    }
+    if let Some(n) = m.get("below") {
+        parts.push(tf("{what} sotto {n}", &[("what", &name), ("n", &n)]));
+    }
+    parts.join(" e ")
+}
+
+/// When a piece shows and how it colours itself, in words, for the card; empty without.
+pub fn when_words(x: &Value) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(w) = x.get("when") {
+        let list = |k: &str| w.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")).unwrap_or_default();
+        if let Some((a, b)) = text(w, "hours").split_once('-') {
+            parts.push(tf("dalle {a} alle {b}", &[("a", &a), ("b", &b)]));
+        }
+        if !list("days").is_empty() {
+            parts.push(list("days"));
+        }
+        if !list("app").is_empty() {
+            parts.push(tf("con {apps} davanti", &[("apps", &list("app"))]));
+        }
+        if !list("not_app").is_empty() {
+            parts.push(tf("non con {apps} davanti", &[("apps", &list("not_app"))]));
+        }
+        if let Some(m) = w.get("value") {
+            parts.push(measure_words(m));
+        }
+    }
+    let mut out = if parts.is_empty() { String::new() } else { tf(" — solo {when}", &[("when", &parts.join(", "))]) };
+    if let Some(ls) = x.get("levels").and_then(Value::as_array) {
+        let l: Vec<String> = ls.iter().map(|m| format!("{} {}", measure_words(m), text(m, "color"))).collect();
+        out.push_str(&tf(" — colore: {list}", &[("list", &l.join("; "))]));
+    }
+    out
+}
+
 /// What a block shows, in words, for the card.
 pub fn block_words(b: &Value) -> String {
     let title = text(b, "title");
@@ -866,7 +1286,7 @@ pub fn block_words(b: &Value) -> String {
         },
         _ => tf("testo «{text}»", &[("text", &text(b, "text").chars().take(60).collect::<String>())]),
     };
-    format!("{head}{body}")
+    format!("{head}{body}{}", when_words(b))
 }
 
 /// What goes from `old` to `new`, one line each, for the Consenti / Nega card.
@@ -875,7 +1295,7 @@ pub fn changes(old: &Value, new: &Value) -> Vec<String> {
     let bdesc = |b: &Value| {
         let zone = text(b, "zone");
         let place = if zone.is_empty() { String::new() } else { format!(", {}", zone_name(zone)) };
-        format!("«{}»{place}: {}", text(b, "label"), b.get("action").map(action_words).unwrap_or_default())
+        format!("«{}»{place}: {}{}", text(b, "label"), b.get("action").map(action_words).unwrap_or_default(), when_words(b))
     };
     let obj = |v: &Value, key: &str, id: &str| v.get(key).and_then(Value::as_array).and_then(|a| a.iter().find(|x| text(x, "id") == id).cloned());
     for (id, _, json_new) in names(new, "buttons", "label") {
@@ -955,6 +1375,10 @@ pub fn changes(old: &Value, new: &Value) -> Vec<String> {
                 tf("Footer {side}: {list}", &[("side", &name), ("list", &footer_words(&now))])
             });
         }
+    }
+    let looks = style_words(old.get("style"), new.get("style"));
+    if !looks.is_empty() {
+        out.push(tf("Aspetto dell'isola: {list}", &[("list", &looks.join(", "))]));
     }
     for (key, head) in [("menu", t("Menu")), ("header", t("Testata")), ("overview", t("Panoramica"))] {
         // Only an order asked for: a new tab or block takes its usual place without a line.
@@ -1096,7 +1520,7 @@ pub fn tool_get() -> String {
         .collect::<Vec<_>>()
         .join(", ");
     format!(
-        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}",
+        "{}\n\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n{}: {}\n\n{}",
         serde_json::to_string_pretty(&now).unwrap_or_default(),
         t("Zone dei pulsanti"),
         ZONES.join(", "),
@@ -1130,7 +1554,23 @@ pub fn tool_get() -> String {
         if customs.is_empty() { t("nessuna").to_string() } else { customs },
         t("Footer (footer)"),
         t("left, center e right: in ognuna pulsanti (come quelli delle zone, senza zone) e valori del PC (\"cpu\" o { what, drive }), nell'ordine dato"),
+        looks_help(),
     )
+}
+
+/// What the look of the island and of each piece may say (island_layout's answer).
+fn looks_help() -> String {
+    [
+        tf("Aspetto dell'isola, style (si cambiano solo le chiavi date, null rimette quella chiave, reset [\"style\"] tutto): {keys}.", &[("keys", &STYLE_KEYS.join(", "))]),
+        t("  background e background2 (#rrggbb, due colori = sfumatura), gradient down|right|diagonal|radial, opacity 0.5–1, accent (grafici, evidenze), text e dim (testo e testo secondario), card e card_opacity 0–1 (le schede delle viste), card_radius 0–28, border e border_width 0–4, glow (alone colorato), radius 0–40 (angoli dell'isola aperta), font system|rounded|mono|serif|condensed|segoe, text_size da -2 a 6 (px in più), width e height (misura minima dell'isola aperta, px), menu_background, header_background, footer_background, spacing compact|normal|wide.").to_string(),
+        tf("Pulsanti (zone, schede, footer): oltre a color anche bg (#rrggbb, sfondo), shape {shapes}, size {sizes}, show {shows} (solo icona, solo nome o entrambi).", &[("shapes", &SHAPES.join("|")), ("sizes", &SIZES.join("|")), ("shows", &SHOWS.join("|"))]),
+        t("Schede: color (icona nel menu), columns 1–10 (colonne dei pulsanti), size s|m|l|xl (pulsanti più piccoli o grandi), when.").to_string(),
+        tf("Blocchi: width {widths} (tutta la riga, metà, un terzo), size {sizes}, color (accento: linea del grafico, icona, valore), bg (#rrggbb o none), border, title_color, radius 0–32, align left|center|right; grid columns 1–12; list height (px, poi scorre); chart height 32–300, minutes 1–5, line line|area|bars; text bold, italic.", &[("widths", &WIDTHS.join("|")), ("sizes", &SIZES.join("|"))]),
+        t("Valori del footer: { what, drive, label (nome davanti), color, bg, levels, when }.").to_string(),
+        tf("Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), value { what, drive, above, below }.", &[("days", &DAYS.join(", "))]),
+        tf("Soglie, levels [{ above o below, color, what }] su pulsanti, blocchi value e chart (what facoltativo: il loro valore) e valori del footer: vince la prima che vale e colora il pezzo. Valori come numeri: {numbers} (disk = % usato, battery = %, net = MB/s, recycle = elementi, updates = quanti).", &[("numbers", &NUMBERS.join(", "))]),
+    ]
+    .join("\n")
 }
 
 /// island_layout_set: applies the change (the user said Consenti on the card).
@@ -1186,7 +1626,7 @@ pub fn island_layout_remove(app: AppHandle, kind: String, id: String) -> Result<
     let old = load();
     let args = match kind.as_str() {
         "tab" => json!({ "remove_tabs": [id] }),
-        "menu" | "header" | "overview" | "footer" => json!({ "reset": [kind] }),
+        "menu" | "header" | "overview" | "footer" | "style" => json!({ "reset": [kind] }),
         _ => json!({ "remove_buttons": [id] }),
     };
     let new = apply(&old, &args)?;
@@ -1397,6 +1837,62 @@ mod tests {
         assert_eq!(old["footer"]["center"], json!([{ "what": "cpu" }]));
         assert_eq!(old["footer"]["right"][0]["id"], "x");
         assert!(old["buttons"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_islands_look_changes_key_by_key() {
+        let off = json!({ "buttons": [], "tabs": [] });
+        let v = apply(&off, &json!({ "style": { "background": "#1A2B3C", "radius": 60, "opacity": 85, "font": "mono", "text_size": "2px" } })).unwrap();
+        assert_eq!(v["style"], json!({ "background": "#1a2b3c", "radius": 40, "opacity": 0.85, "font": "mono", "text_size": 2 }));
+        assert!(changes(&off, &v).iter().any(|l| l.contains("radius 40")));
+        // Only the keys given change; null puts one back.
+        let v2 = apply(&v, &json!({ "style": { "accent": "#ff0000", "radius": null } })).unwrap();
+        assert_eq!(v2["style"]["background"], "#1a2b3c");
+        assert_eq!(v2["style"]["accent"], "#ff0000");
+        assert!(v2["style"].get("radius").is_none());
+        assert!(apply(&v, &json!({ "style": { "css": "body{}" } })).is_err());
+        assert!(apply(&v, &json!({ "style": { "font": "Comic Sans" } })).is_err());
+        assert!(apply(&v, &json!({ "style": { "accent": "red" } })).is_err());
+        assert!(apply(&v, &json!({ "style": { "opacity": 0.1 } })).unwrap()["style"]["opacity"] == json!(0.5));
+        assert!(apply(&v, &json!({ "reset": ["style"] })).unwrap().get("style").is_none());
+    }
+
+    #[test]
+    fn pieces_take_a_look_conditions_and_thresholds() {
+        let b = json!({ "id": "x", "label": "X", "zone": "header", "bg": "#112233", "shape": "pill", "size": "l", "show": "both",
+            "when": { "hours": "8-18:30", "days": "mon, tue", "app": ["Code"], "value": { "what": "battery", "below": 20 } },
+            "levels": [{ "what": "cpu", "above": 90, "color": "#ff0000" }],
+            "action": { "kind": "system", "what": "lock" } });
+        let v = normalize(&json!({ "buttons": [b], "tabs": [] })).unwrap();
+        let nb = &v["buttons"][0];
+        assert_eq!(nb["when"], json!({ "hours": "08:00-18:30", "days": ["mon", "tue"], "app": ["code.exe"], "value": { "what": "battery", "below": 20 } }));
+        assert_eq!(nb["levels"][0]["color"], "#ff0000");
+        assert_eq!(nb["shape"], "pill");
+        assert!(changes(&json!({ "buttons": [], "tabs": [] }), &v)[0].contains("dalle 08:00 alle 18:30"));
+        let bad = |w: Value| normalize(&json!({ "buttons": [{ "id": "x", "label": "X", "zone": "header", "when": w, "action": { "kind": "system", "what": "lock" } }], "tabs": [] }));
+        assert!(bad(json!({ "hours": "tutto il giorno" })).is_err());
+        assert!(bad(json!({ "days": ["lunedì"] })).is_err());
+        assert!(bad(json!({ "script": "x" })).is_err());
+        assert!(bad(json!({ "value": { "what": "cpu" } })).is_err());
+        assert!(bad(json!({ "app": ["a;b"] })).is_err());
+        // A value block's thresholds take its own value; a chart keeps its height and minutes.
+        let tab = json!({ "id": "t", "name": "T", "color": "#00ff00", "columns": 4, "size": "s", "buttons": [], "blocks": [
+            { "id": "c", "kind": "value", "what": "cpu", "width": "half", "levels": [{ "above": 80, "color": "#ff0000" }] },
+            { "id": "g", "kind": "chart", "what": "ram", "height": 1000, "minutes": 2, "line": "bars", "color": "#00aaff" },
+            { "id": "w", "kind": "text", "text": "Ciao", "size": "xl", "bold": true, "align": "center", "bg": "none" },
+            { "id": "i", "kind": "value", "what": "ip", "levels": [{ "above": 1, "color": "#ff0000" }] } ] });
+        assert!(normalize(&json!({ "tabs": [tab.clone()] })).is_err());
+        let mut ok = tab.clone();
+        ok["blocks"].as_array_mut().unwrap().pop();
+        let v = normalize(&json!({ "tabs": [ok] })).unwrap();
+        let t0 = &v["tabs"][0];
+        assert_eq!((t0["color"].as_str(), t0["columns"].as_i64(), t0["size"].as_str()), (Some("#00ff00"), Some(4), Some("s")));
+        assert_eq!(t0["blocks"][0]["levels"], json!([{ "what": "cpu", "above": 80, "color": "#ff0000" }]));
+        assert_eq!(t0["blocks"][1]["height"], 300);
+        assert_eq!(t0["blocks"][2]["bg"], "none");
+        // A footer value keeps its look.
+        let f = apply(&json!({ "buttons": [], "tabs": [] }), &json!({ "footer": { "center": [{ "what": "disk", "drive": "C", "label": "C:", "levels": [{ "below": 10, "color": "#ff0000" }] }] } })).unwrap();
+        assert_eq!(f["footer"]["center"][0], json!({ "what": "disk", "drive": "C", "label": "C:", "levels": [{ "what": "disk", "drive": "C", "below": 10, "color": "#ff0000" }] }));
     }
 
     #[test]

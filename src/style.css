@@ -10254,3 +10254,98 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 #island-foot .foot-value { padding: 3px 10px; gap: 6px; border-radius: 9px; height: 28px; box-sizing: border-box; flex: 0 1 auto; min-width: 0; }
 #island-foot .foot-value .board-block-title { display: none; }
 #island-foot .foot-value .board-value-text { font-size: calc(12px + var(--fs-up, 0px)); white-space: nowrap; }
+/* The middle keeps its room first (as before); on a side short of room a button's name shortens with dots. */
+#island-foot .own-btn:not(.own-labelled) { flex: none; }
+#island-foot .own-btn.own-labelled { min-width: 32px; flex: 0 1 auto; overflow: hidden; }
+#island-foot .own-btn.own-labelled > svg, #island-foot .own-btn.own-labelled > .own-letter { flex: none; }
+#island-foot .own-btn.own-labelled .own-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* A value short of room shortens with dots instead of running over its neighbour. */
+#island-foot .foot-value { overflow: hidden; }
+#island-foot .foot-value .board-value-icon { flex: none; }
+#island-foot .foot-value .board-value-body { min-width: 0; }
+#island-foot .foot-value .board-value-text { overflow: hidden; text-overflow: ellipsis; }
+#island-foot .foot-label { font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); white-space: nowrap; }
+
+/* Isola da JSON, aspetto (src/views/island-look.ts, island-layout.ts): the island's `style` and each piece's look.
+   Colours come as variables set on the element; nothing here applies without them. */
+#island.bare { background-image: none !important; }
+#island.own-card-r .card { border-radius: var(--own-card-r); }
+#island.own-menu-bg #rail { background: var(--own-menu-bg); border-radius: 12px; }
+#island.own-header-bg #header { background: var(--own-header-bg); border-radius: 12px; }
+#island.own-foot-bg #island-foot { background: var(--own-foot-bg); border-radius: 10px; padding: 0 6px; }
+/* Buttons: background, shapes, sizes, the name beside the icon. */
+.own-btn.own-has-bg { background: var(--own-bg) !important; }
+.own-btn.own-shape-round { border-radius: 9px !important; }
+.own-btn.own-shape-square { border-radius: 3px !important; }
+.own-btn.own-shape-pill { border-radius: 999px !important; }
+.own-btn.own-shape-circle { border-radius: 50% !important; aspect-ratio: 1; }
+.own-btn.own-size-s { width: 24px !important; height: 22px !important; }
+.own-btn.own-size-l { width: 38px !important; height: 34px !important; }
+.own-btn.own-size-xl { width: 46px !important; height: 42px !important; }
+.own-btn.own-labelled { width: auto !important; display: inline-flex !important; align-items: center; gap: 6px; padding: 0 10px; }
+.own-btn .own-label { font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font); white-space: nowrap; color: var(--c, var(--ink)); }
+.own-btn.own-labelled.own-size-l .own-label { font-size: calc(13px + var(--fs-up, 0px)); }
+.own-btn.own-labelled.own-size-s .own-label { font-size: calc(10.5px + var(--fs-up, 0px)); }
+#rail.compact .rail-foot .own-btn.own-labelled .own-label { display: none; }
+#rail.compact .rail-foot .own-btn.own-labelled { padding: 0; width: 30px !important; }
+.rail-item.own-tab-color .rail-icon, .rail-item.own-tab-color .rail-emoji { color: var(--c); }
+.board-title .board-icon { color: var(--c, var(--dim-2)); }
+/* A tab's tiles: their own background, shape and size; in columns when asked. */
+.qa.own-has-bg { background: var(--own-bg); }
+.qa.own-shape-square { border-radius: 6px; }
+.qa.own-shape-round { border-radius: 12px; }
+.qa.own-size-s { padding: 4px 9px 4px 7px; font-size: calc(11px + var(--fs-up, 0px)); }
+.qa.own-size-l { padding: 11px 16px 11px 13px; font-size: calc(14px + var(--fs-up, 0px)); }
+.qa.own-size-xl { flex-direction: column; padding: 14px 14px 10px; gap: 8px; font-size: calc(13px + var(--fs-up, 0px)); border-radius: 16px; }
+.qa-grid.own-cols { display: grid; }
+.qa-grid.own-cols .qa { max-width: none; min-width: 0; }
+/* Blocks: width among the others, size, colours, corners. */
+.board-blocks > .board-block.bw-full, .today > .board-block.bw-full { flex: 1 1 100%; }
+/* --bgap: the gap between blocks in a row (8px, or as `style.spacing` says), so halves and thirds fit. */
+.board-blocks { --bgap: 8px; column-gap: var(--bgap); }
+.board-blocks > .board-block.bw-half { flex: 0 0 calc((100% - var(--bgap)) / 2); max-width: calc((100% - var(--bgap)) / 2); }
+.board-blocks > .board-block.bw-third { flex: 0 0 calc((100% - 2 * var(--bgap)) / 3); max-width: calc((100% - 2 * var(--bgap)) / 3); }
+.board-blocks > .board-block.bw-auto { flex: 0 1 auto; }
+.own-row > .summary-block.board-value { width: auto; min-width: 0; }
+.board-block.own-block-bg { background: var(--own-bg); padding: 8px 12px; border-radius: 10px; }
+.board-block.own-bg-none { background: none !important; padding-left: 0; padding-right: 0; }
+.board-block.own-block-border { box-shadow: inset 0 0 0 1px var(--own-border); }
+.board-block.own-block-border:not(.board-value):not(.board-chart):not(.own-block-bg) { padding: 8px 12px; border-radius: 10px; }
+.board-block.own-block-r { border-radius: var(--own-r) !important; }
+.board-block .board-block-title { color: var(--own-title, var(--dim-2)); }
+.board-block.ba-center { text-align: center; align-items: center; }
+.board-block.ba-right { text-align: right; align-items: flex-end; }
+.board-value.ba-center { justify-content: center; }
+.board-value.ba-right { justify-content: flex-end; }
+.board-block[style*="--own-accent"] .board-value-icon,
+.board-block[style*="--own-accent"] .board-tile-icon { color: var(--own-accent); }
+.board-value.own-tinted .board-value-text, #island-foot .foot-value.own-tinted .board-value-text { color: var(--own-accent); }
+.board-value.own-tinted { background: color-mix(in srgb, var(--own-accent) 16%, transparent); }
+.board-chart .board-chart-line { stroke: var(--own-accent, var(--win-accent, #4cc2ff)); }
+.board-chart .board-chart-area { fill: color-mix(in srgb, var(--own-accent, var(--win-accent, #4cc2ff)) 16%, transparent); }
+.board-chart.chart-area-only .board-chart-area { fill: color-mix(in srgb, var(--own-accent, var(--win-accent, #4cc2ff)) 45%, transparent); }
+.board-chart-bars { fill: color-mix(in srgb, var(--own-accent, var(--win-accent, #4cc2ff)) 70%, transparent); }
+.board-chart.own-tinted .board-value-text { color: var(--own-accent); }
+.board-text.bs-s { font-size: calc(11px + var(--fs-up, 0px)); }
+.board-text.bs-l { font-size: calc(15px + var(--fs-up, 0px)); }
+.board-text.bs-xl { font: 650 calc(20px + var(--fs-up, 0px))/1.25 var(--font); }
+.board-text[style*="--own-accent"] { color: var(--own-accent); }
+.board-value.bs-s .board-value-text { font-size: calc(12.5px + var(--fs-up, 0px)); }
+.board-value.bs-l .board-value-text { font-size: calc(20px + var(--fs-up, 0px)); }
+.board-value.bs-xl .board-value-text { font-size: calc(28px + var(--fs-up, 0px)); }
+.board-value.bs-l, .board-value.bs-xl { padding: 12px 16px; }
+.board-list.bs-s .board-row, .board-block.bs-s .board-row { padding: 3px 6px; font-size: calc(11.5px + var(--fs-up, 0px)); }
+.board-block.bs-l .board-row { padding: 8px 10px; font-size: calc(14px + var(--fs-up, 0px)); }
+.board-block.bs-s .board-tile { padding: 5px 2px 4px; font-size: calc(10px + var(--fs-up, 0px)); }
+.board-block.bs-s .board-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); }
+.board-block.bs-l .board-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.board-block.bs-xl .board-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.board-block.bs-l .board-tile .board-tile-icon { width: 40px; height: 40px; }
+.board-block.bs-xl .board-tile .board-tile-icon { width: 50px; height: 50px; }
+/* `style.spacing`: tighter or roomier tabs, Panoramica blocks and footer. */
+#island[data-spacing="compact"] .board-blocks { row-gap: 6px; --bgap: 4px; }
+#island[data-spacing="compact"] .qa-grid { gap: 4px; }
+#island[data-spacing="compact"] .board-block { gap: 3px; }
+#island[data-spacing="wide"] .board-blocks { row-gap: 20px; --bgap: 14px; }
+#island[data-spacing="wide"] .qa-grid { gap: 12px; }
+#island[data-spacing="wide"] .board-block { gap: 10px; }

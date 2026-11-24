@@ -2265,14 +2265,52 @@ export type LayoutAction =
   | { kind: "url"; url: string }
   | { kind: "view"; view: string }
   | { kind: "chat"; text: string };
-export interface LayoutButton {
+/** A value of the PC compared to a number (island_layout.rs `NUMBERS`): disk in % used, net in MB/s. */
+export interface LayoutMeasure { what: string; drive?: string; above?: number; below?: number }
+/** Shown only while all it says holds (island_layout.rs `when`). */
+export interface LayoutWhen { hours?: string; days?: string[]; app?: string[]; not_app?: string[]; value?: LayoutMeasure }
+/** A colour by a value of the PC: the first that holds wins. */
+export type LayoutLevel = LayoutMeasure & { color: string };
+/** What every piece may say about its look and when it shows. */
+export interface LayoutLook { when?: LayoutWhen; levels?: LayoutLevel[] }
+export interface LayoutButton extends LayoutLook {
   id: string;
   label: string;
   icon?: string;
   color?: string;
+  bg?: string;
+  shape?: "round" | "square" | "pill" | "circle";
+  size?: "s" | "m" | "l" | "xl";
+  /** A small button: its icon (as before), its name, or both. */
+  show?: "icon" | "label" | "both";
   /** Only on the island's own buttons: the foot of the menu or the header (the footer's are in `footer`). */
   zone?: LayoutZone;
   action: LayoutAction;
+}
+/** The island's own look (isola.json `style`, island_layout.rs `STYLE_KEYS`). */
+export interface LayoutStyle {
+  background?: string;
+  background2?: string;
+  gradient?: "down" | "right" | "diagonal" | "radial";
+  opacity?: number;
+  accent?: string;
+  text?: string;
+  dim?: string;
+  card?: string;
+  card_opacity?: number;
+  card_radius?: number;
+  border?: string;
+  border_width?: number;
+  glow?: string;
+  radius?: number;
+  font?: string;
+  text_size?: number;
+  width?: number;
+  height?: number;
+  menu_background?: string;
+  header_background?: string;
+  footer_background?: string;
+  spacing?: "compact" | "normal" | "wide";
 }
 export type LayoutZone = "menu-bottom" | "header";
 /** Where a grid or a list of a tab takes its items (island_layout.rs `SOURCES`). */
@@ -2283,26 +2321,37 @@ export type LayoutSource = { kind: "apps" | "windows" | "quick" | "recent" | "tr
   /** Notion pages with these words; the latest edited without. */
   | { kind: "notion"; query?: string };
 /** A block of a tab (step 2, island_layout.rs `BLOCKS`): what an item does comes from its source. */
-export type LayoutBlock = { id: string; title?: string } & (
-  | { kind: "grid" | "list"; source: LayoutSource; filter?: string; limit?: number; search?: boolean }
+/** A block's look (island_layout.rs `block_look`). */
+export interface LayoutBlockLook extends LayoutLook {
+  color?: string;
+  bg?: string;
+  border?: string;
+  title_color?: string;
+  width?: "full" | "half" | "third" | "auto";
+  size?: "s" | "m" | "l" | "xl";
+  radius?: number;
+  align?: "left" | "center" | "right";
+}
+export type LayoutBlock = { id: string; title?: string } & LayoutBlockLook & (
+  | { kind: "grid" | "list"; source: LayoutSource; filter?: string; limit?: number; search?: boolean; columns?: number; height?: number }
   | { kind: "value"; what: string; drive?: string }
   /** The last minutes of a value of the PC (island_layout.rs `CHARTS`). */
-  | { kind: "chart"; what: "cpu" | "ram" | "gpu" | "net" }
-  | { kind: "text"; text: string }
+  | { kind: "chart"; what: "cpu" | "ram" | "gpu" | "net"; height?: number; minutes?: number; line?: "line" | "area" | "bars" }
+  | { kind: "text"; text: string; bold?: boolean; italic?: boolean }
   /** An existing piece as it is: an integration's card, the news, the quick actions. */
   | { kind: "piece"; piece: "integration" | "news" | "quick"; integration?: string }
 );
-export interface LayoutTab { id: string; name: string; icon?: string; buttons: LayoutButton[]; blocks?: LayoutBlock[] }
+export interface LayoutTab { id: string; name: string; icon?: string; color?: string; columns?: number; size?: "s" | "m" | "l" | "xl"; when?: LayoutWhen; buttons: LayoutButton[]; blocks?: LayoutBlock[] }
 /** The island built from a JSON (isola.json, island_layout.rs): what the user added from the chat. */
 /** Step 3: the order of the island's own parts and those hidden (island_layout.rs `MENU_PARTS`, `HEADER_PARTS`). */
 export interface LayoutParts { order?: string[]; hidden?: string[] }
 /** The Panoramica: its parts' order and those hidden (`tile:<id>` too), the tiles named first, its own blocks. */
 export interface LayoutOverview extends LayoutParts { tiles?: string[]; blocks?: LayoutBlock[] }
 /** One thing of the footer: a button, or a value of the PC. */
-export type LayoutFooterItem = LayoutButton | { what: string; drive?: string };
+export type LayoutFooterItem = LayoutButton | (LayoutLook & { what: string; drive?: string; label?: string; color?: string; bg?: string });
 /** The open island's footer: three sides, each a row of buttons and values in the order given. */
 export interface LayoutFooter { left?: LayoutFooterItem[]; center?: LayoutFooterItem[]; right?: LayoutFooterItem[] }
-export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; footer?: LayoutFooter }
+export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; footer?: LayoutFooter; style?: LayoutStyle }
 
 export interface Custom {
   id: string;

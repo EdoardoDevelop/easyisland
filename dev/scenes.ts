@@ -2005,12 +2005,69 @@ export async function runScene(island: Island, scene: string) {
         chartSample("cpu", Array.from({ length: 150 }, (_, i) => 18 + 12 * Math.sin(i / 9) + (i % 7) * 2 + (i > 120 ? 25 : 0)));
         chartSample("net", Array.from({ length: 150 }, (_, i) => 800 + 600 * Math.abs(Math.sin(i / 5)) + (i % 11) * 90));
       }
+      // The look (?look, ?look=caldo): the island's style, each piece's look, conditions and thresholds (island-look.ts).
+      if (q.has("look")) {
+        const warm = q.get("look") === "caldo";
+        const hot = { above: 50, color: "#f5a524" };
+        layout.tabs.unshift({
+          id: "stile", name: "Cruscotto", icon: "i:chart", color: warm ? "#f59e0b" : "#a78bfa", columns: 3, size: "l",
+          buttons: [
+            { id: "s-wifi", label: "Wi-Fi", icon: "i:wifi", color: "#38bdf8", action: { kind: "windows", page: "wifi" } },
+            { id: "s-task", label: "Attività", icon: "i:chart", color: "#34d399", shape: "square", action: { kind: "system", what: "taskmgr" } },
+            { id: "s-spegni", label: "Spegni", icon: "i:power", color: "#f4505e", bg: "#3b0d12", action: { kind: "system", what: "shutdown" } },
+          ],
+          blocks: [
+            { id: "titolo", kind: "text", text: warm ? "Buongiorno" : "Stato del PC", size: "xl", align: "center", width: "full" },
+            { id: "v-cpu", kind: "value", what: "cpu", width: "third", size: "l", levels: [{ what: "cpu", above: 80, color: "#f4505e" }, { what: "cpu", ...hot }] },
+            { id: "v-ram", kind: "value", what: "ram", width: "third", size: "l", levels: [{ what: "ram", above: 80, color: "#f4505e" }, { what: "ram", ...hot }] },
+            { id: "v-disk", kind: "value", what: "disk", width: "third", size: "l", title: "Disco C:", color: "#34d399" },
+            { id: "g-cpu", kind: "chart", what: "cpu", width: "half", height: 90, line: "bars", minutes: 2, title: "Processore, 2 minuti" },
+            { id: "g-ram", kind: "chart", what: "ram", width: "half", height: 90, line: "area", color: "#f472b6", title: "Memoria" },
+            { id: "sera", kind: "text", text: "Questo testo si vede solo dalle 18 alle 8.", when: { hours: "18:00-08:00" }, bg: "#1e293b", italic: true },
+            { id: "giorno", kind: "text", text: "Questo testo si vede solo dalle 8 alle 18 (when.hours), con bordo e angoli suoi.", when: { hours: "08:00-18:00" }, border: "#a78bfa", radius: 16 },
+            { id: "lista", kind: "list", title: "Finestre aperte", title_color: "#a78bfa", source: { kind: "windows" }, height: 90, size: "s" },
+          ],
+        } as never);
+        Object.assign(layout, {
+          style: warm
+            ? { background: "#2a1d12", background2: "#120c08", gradient: "down", accent: "#f59e0b", text: "#fdf1e2", dim: "#c7ab8e", radius: 6, font: "mono", card_radius: 4, border: "#f59e0b", border_width: 1, spacing: "compact", menu_background: "#3a2818" }
+            : { background: "#141a3a", background2: "#2a1240", gradient: "diagonal", opacity: 0.97, accent: "#a78bfa", radius: 26, card_radius: 18, glow: "#7c3aed", text_size: 1, font: "segoe", spacing: "wide", footer_background: "#1e1b4b" },
+          footer: {
+            left: [
+              { id: "f-blocca", label: "Blocca", icon: "i:lock", show: "both", shape: "pill", bg: "#312e81", action: { kind: "system", what: "lock" } },
+              { id: "f-sera", label: "Notte", icon: "i:moon", when: { hours: "20:00-06:00" }, action: { kind: "system", what: "sleep" } },
+            ],
+            center: [
+              { what: "cpu", label: "CPU", levels: [{ above: 80, color: "#f4505e" }, hot] },
+              { what: "ram", label: "RAM", levels: [{ above: 80, color: "#f4505e" }, hot] },
+              { what: "disk", drive: "C", label: "C:" },
+            ],
+            right: [{ id: "f-cpu", label: "Gestione attività", icon: "i:chart", size: "l", levels: [{ what: "cpu", above: 50, color: "#f4505e" }], action: { kind: "system", what: "taskmgr" } }],
+          },
+        });
+        Object.assign(layout.buttons[0], { shape: "circle", bg: "#4c0519" });
+        Object.assign(layout.buttons[2], { show: "both", shape: "pill" });
+        State.barSys = { ...State.barSys, cpu: 38, ram: { percent: 67, used: 21e9, total: 32e9 }, gpu: 12 };
+        chartSample("cpu", Array.from({ length: 150 }, (_, i) => 18 + 12 * Math.sin(i / 9) + (i % 7) * 2 + (i > 120 ? 25 : 0)));
+        chartSample("ram", Array.from({ length: 150 }, (_, i) => 55 + 8 * Math.sin(i / 23) + (i > 100 ? 6 : 0)));
+        // ?look&ov: the Panoramica with values side by side (width) on top.
+        if (q.has("ov")) {
+          Object.assign(layout, { overview: {
+            order: ["block:o-cpu", "block:o-ram", "block:o-gpu", "tiles"],
+            blocks: [
+              { id: "o-cpu", kind: "value", what: "cpu", width: "third", levels: [{ what: "cpu", above: 30, color: "#f5a524" }] },
+              { id: "o-ram", kind: "value", what: "ram", width: "third" },
+              { id: "o-gpu", kind: "value", what: "gpu", width: "third", color: "#34d399" },
+            ],
+          } });
+        }
+      }
       if (q.has("draft")) {
         State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };
       } else State.islandLayout = layout;
       await wait(300);
-      if (q.has("board") || q.has("tab")) {
-        State.boardTab = q.get("tab") || "pc";
+      if (q.has("board") || q.has("tab") || (q.has("look") && !q.has("ov"))) {
+        State.boardTab = q.get("tab") || (q.has("look") ? "stile" : "pc");
         island.setView("board");
       } else island.setView("overview");
       island.setPinned(true);

@@ -400,13 +400,21 @@ export function buildRail(actions: ViewActions): ViewHost {
 
       // The user's tabs and the buttons at the foot: rebuilt only when they change.
       const tabs = layoutTabs();
-      const ok = JSON.stringify(tabs.map((x) => [x.id, x.name, x.icon ?? ""]));
+      const ok = JSON.stringify(tabs.map((x) => [x.id, x.name, x.icon ?? "", x.color ?? ""]));
       if (ok !== ownKey) {
         ownKey = ok;
-        tabRows = new Map(tabs.map((x) => [`tab:${x.id}`, row(`tab:${x.id}`, x.icon ? h("span", { class: "rail-emoji" }, renderActionIcon(x.icon, 15)) : glyph("bolt"), x.name, () => {
-          State.boardTab = x.id;
-          actions.setView("board");
-        })]));
+        tabRows = new Map(tabs.map((x) => {
+          const r = row(`tab:${x.id}`, x.icon ? h("span", { class: "rail-emoji" }, renderActionIcon(x.icon, 15)) : glyph("bolt"), x.name, () => {
+            State.boardTab = x.id;
+            actions.setView("board");
+          });
+          // isola.json: the tab's colour on its icon.
+          if (x.color) {
+            r.style.setProperty("--c", x.color);
+            r.classList.add("own-tab-color");
+          }
+          return [`tab:${x.id}`, r] as const;
+        }));
         orderKey = "";
       }
       // Sections and tabs in isola.json's order (`menu.order`), the usual one otherwise.

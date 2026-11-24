@@ -23,6 +23,7 @@ import { chartHistory, sysValueText } from "../island/bar";
 import { recordTitle } from "./custom";
 import { renderActionIcon } from "./action-icons";
 import { fillChat } from "./chat";
+import { holds, levelColor, lookCheck } from "./island-look";
 import type { ViewActions, ViewHost } from "./views";
 
 /** A view of `view` actions: a section of the island, Impostazioni, the memory, a tab. */
@@ -97,36 +98,60 @@ export function runLayoutAction(a: LayoutAction, actions: ViewActions) {
   }
 }
 
+/** A button's colour: the threshold that holds, else its own. */
 function colorOf(b: LayoutButton): string {
+  const lv = levelColor(b.levels);
+  if (lv) return lv;
   return b.color && /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : "#8e939c";
 }
 
-/** A small round button (foot of the menu, header): the icon, the label as its tooltip. */
+/** Icon sizes by a button's `size`. */
+const ICON_BY_SIZE: Record<string, number> = { s: 13, m: 16, l: 20, xl: 24 };
+
+/** A button's look from isola.json: background, shape, size (classes in style.css, `.own-…`). */
+function dress(el: HTMLElement, b: LayoutButton) {
+  if (b.color || b.levels?.length) el.style.setProperty("--c", colorOf(b));
+  if (b.bg) el.style.setProperty("--own-bg", b.bg);
+  el.classList.toggle("own-has-bg", !!b.bg);
+  if (b.shape) el.classList.add(`own-shape-${b.shape}`);
+  if (b.size) el.classList.add(`own-size-${b.size}`);
+}
+
+/**
+ * A small button (foot of the menu, header, footer): the icon, the label as its
+ * tooltip; or the label, or both (`show`).
+ */
 export function layoutIconButton(b: LayoutButton, actions: ViewActions, size = 16): HTMLElement {
-  const el = h("button", { class: "own-btn", "data-own": b.id, title: b.label, "aria-label": b.label,
+  const iconSize = b.size ? ICON_BY_SIZE[b.size] ?? size : size;
+  const show = b.show ?? "icon";
+  const icon = b.icon ? renderActionIcon(b.icon, iconSize) : h("span", { class: "own-letter", text: b.label.trim().slice(0, 1).toUpperCase() });
+  const el = h("button", { class: `own-btn${show !== "icon" ? " own-labelled" : ""}`, "data-own": b.id, title: b.label, "aria-label": b.label,
     onclick: () => runLayoutAction(b.action, actions) },
-  b.icon ? renderActionIcon(b.icon, size) : h("span", { class: "own-letter", text: b.label.trim().slice(0, 1).toUpperCase() }));
-  if (b.color) el.style.setProperty("--c", colorOf(b));
+  ...(show === "label" ? [] : [icon]),
+  ...(show === "icon" ? [] : [h("span", { class: "own-label", text: b.label })]));
+  dress(el, b);
   return el;
 }
 
-/** A tab's button: a tile like the quick actions'. */
-function tile(b: LayoutButton, actions: ViewActions): HTMLElement {
+/** A tab's button: a tile like the quick actions'. `size` the tab's, unless the button says its own. */
+function tile(b: LayoutButton, actions: ViewActions, tabSize?: LayoutButton["size"]): HTMLElement {
+  const size = b.size ?? tabSize;
   const el = h("button", { class: "qa", "data-own": b.id, title: b.label, onclick: () => runLayoutAction(b.action, actions) },
-    h("span", { class: "qa-icon" }, renderActionIcon(b.icon || "i:bolt", 18)),
+    h("span", { class: "qa-icon" }, renderActionIcon(b.icon || "i:bolt", size ? ICON_BY_SIZE[size] ?? 18 : 18)),
     h("span", { class: "qa-name", text: b.label }));
   el.style.setProperty("--qa", colorOf(b));
+  dress(el, { ...b, size });
   return el;
 }
 
-/** The buttons of one zone, in the saved order. */
+/** The buttons of one zone, in the saved order: those whose `when` holds now. */
 export function zoneButtons(zone: LayoutZone): LayoutButton[] {
-  return State.layout.buttons.filter((b) => b.zone === zone);
+  return State.layout.buttons.filter((b) => b.zone === zone && holds(b.when));
 }
 
-/** The tabs of the menu. */
+/** The tabs of the menu whose `when` holds now. */
 export function layoutTabs(): LayoutTab[] {
-  return State.layout.tabs;
+  return State.layout.tabs.filter((x) => holds(x.when));
 }
 
 /** The usual order of the menu's sections, the header's buttons, the Panoramica's parts (island_layout.rs). */
@@ -162,7 +187,8 @@ export function overviewTiles<T extends { id: string }>(tasks: T[]): T[] {
 
 /** A key that changes when what `zone` shows changes (no redraw otherwise). */
 export function zoneKey(zone: LayoutZone): string {
-  return JSON.stringify(zoneButtons(zone));
+  const list = zoneButtons(zone);
+  return JSON.stringify(list) + list.map((b) => levelColor(b.levels) ?? "").join("|");
 }
 
 /** One thing a grid or a list shows, and what a click on it does. */
@@ -208,7 +234,12 @@ function listen() {
     }
     if (got) for (const f of onData) f();
   });
-  void onEvent("bar-sys", () => { for (const f of onData) f(); });
+  void onEvent("bar-sys", () => {
+    for (const f of onData) f();
+    // A value that turns a condition or a threshold: the island redraws (island-look.ts),
+    // after main.ts has stored the new reading.
+    window.setTimeout(lookCheck, 0);
+  });
 }
 
 function askIcons(ids: string[]) {
@@ -375,10 +406,12 @@ function itemsBlock(b: ItemsBlock, tabId: string, actions: ViewActions): Part {
       askIcons(list.filter((it) => !it.icon).map((it) => it.key).slice(0, 200));
     }
     const grid = b.kind === "grid";
+    // isola.json `size`: bigger or smaller icons.
+    const k = b.size === "s" ? 0.75 : b.size === "l" ? 1.3 : b.size === "xl" ? 1.6 : 1;
     body.replaceChildren(...list.map((it) =>
       h("button", { class: grid ? "board-tile" : "board-row", title: it.sub ? `${it.name} — ${it.sub}` : it.name,
         onclick: () => { actions.blip(); it.run(); } },
-      h("span", { class: "board-tile-icon" }, iconOf(it, grid ? 28 : 16)),
+      h("span", { class: "board-tile-icon" }, iconOf(it, Math.round((grid ? 28 : 16) * k))),
       h("span", { class: "board-tile-name", text: it.name }),
       ...(it.sub && !grid ? [h("span", { class: "board-row-sub", text: it.sub })] : []))));
   };
@@ -389,6 +422,12 @@ function itemsBlock(b: ItemsBlock, tabId: string, actions: ViewActions): Part {
   const el = h("section", { class: "board-block" },
     ...(b.title ? [h("div", { class: "board-block-title", text: b.title })] : []),
     ...(field ? [field] : []), note, body);
+  // isola.json: the grid's columns, the list's height (it scrolls past it).
+  if (b.kind === "grid" && b.columns) body.style.gridTemplateColumns = `repeat(${b.columns}, minmax(0, 1fr))`;
+  if (b.kind === "list" && b.height) {
+    body.style.maxHeight = `${b.height}px`;
+    body.style.overflowY = "auto";
+  }
   const live = LIVE_SOURCES.has(b.source.kind);
   /** A live source read again: drawn only when what it gives changed. */
   let liveSig = "";
@@ -425,16 +464,25 @@ function itemsBlock(b: ItemsBlock, tabId: string, actions: ViewActions): Part {
 }
 
 /** A value of the PC, as the bar shows it. */
-function valueBlock(b: Extract<LayoutBlock, { kind: "value" }>): Part {
+function valueBlock(b: { what: string; drive?: string; title?: string; color?: string; levels?: LayoutBlock["levels"] }): Part {
   const icon = h("span", { class: "board-value-icon" });
   const name = h("span", { class: "board-block-title", text: b.title ?? "" });
   const val = h("b", { class: "board-value-text" });
   const el = h("section", { class: "board-block board-value" }, icon, h("span", { class: "board-value-body" }, name, val));
   let iconKey = "";
+  let tint = "";
   return {
     el,
     refresh() {
       const v = sysValueText(b.what, b.drive);
+      // Its thresholds colour it while they hold (isola.json `levels`).
+      const c = valueColor(b);
+      if (c !== tint) {
+        tint = c;
+        if (c) el.style.setProperty("--own-accent", c);
+        else el.style.removeProperty("--own-accent");
+        el.classList.toggle("own-tinted", !!c);
+      }
       val.textContent = v.text;
       el.title = v.tip;
       if (!b.title) name.textContent = v.tip.split(":")[0];
@@ -450,20 +498,27 @@ function valueBlock(b: Extract<LayoutBlock, { kind: "value" }>): Part {
 function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
   const NS = "http://www.w3.org/2000/svg";
   const W = 300;
-  const H = 64;
+  // isola.json: its height, the minutes it shows, a line, an area alone or bars.
+  const H = Math.round(b.height ?? 64);
+  const span = Math.max(1, Math.min(5, b.minutes ?? 5)) * 60_000;
+  const mode = b.line ?? "line";
   const svgEl = document.createElementNS(NS, "svg");
   svgEl.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svgEl.setAttribute("preserveAspectRatio", "none");
   svgEl.setAttribute("class", "board-chart-svg");
+  svgEl.style.height = `${H}px`;
   const area = document.createElementNS(NS, "path");
-  area.setAttribute("class", "board-chart-area");
+  area.setAttribute("class", mode === "bars" ? "board-chart-bars" : "board-chart-area");
   const line = document.createElementNS(NS, "polyline");
   line.setAttribute("class", "board-chart-line");
-  svgEl.append(area, line);
+  if (mode === "line") svgEl.append(area, line);
+  else svgEl.append(area);
   const name = h("span", { class: "board-block-title", text: b.title ?? "" });
   const val = h("b", { class: "board-value-text" });
   const wait = h("div", { class: "sub board-note", text: t("Raccolgo i valori…") });
   const el = h("section", { class: "board-block board-chart" }, h("div", { class: "board-chart-head" }, name, val), svgEl, wait);
+  if (mode === "area") el.classList.add("chart-area-only");
+  let tint = "";
   return {
     el,
     refresh() {
@@ -471,7 +526,15 @@ function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
       val.textContent = v.text;
       el.title = v.tip;
       if (!b.title) name.textContent = v.tip.split(":")[0];
-      const pts = chartHistory(b.what);
+      const c = valueColor(b);
+      if (c !== tint) {
+        tint = c;
+        if (c) el.style.setProperty("--own-accent", c);
+        else el.style.removeProperty("--own-accent");
+        el.classList.toggle("own-tinted", !!c);
+      }
+      const now = Date.now();
+      const pts = chartHistory(b.what).filter((p) => now - p.t <= span);
       wait.hidden = pts.length >= 2;
       if (pts.length < 2) {
         line.setAttribute("points", "");
@@ -479,10 +542,15 @@ function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
         return;
       }
       // The window shown: the last minutes; percentages from 0 to 100, the network to its highest.
-      const span = 5 * 60_000;
       const end = pts[pts.length - 1].t;
       const top = b.what === "net" ? Math.max(1, ...pts.map((p) => p.v)) : 100;
       const xy = pts.map((p) => [W - ((end - p.t) / span) * W, H - 2 - (Math.min(p.v, top) / top) * (H - 4)] as const);
+      if (mode === "bars") {
+        // One bar a reading, as wide as the time to the next one.
+        const step = Math.max(1.5, (W / (span / 2000)) * 0.7);
+        area.setAttribute("d", xy.map(([x, y]) => `M${(x - step).toFixed(1)},${H} V${y.toFixed(1)} h${step.toFixed(1)} V${H} Z`).join(" "));
+        return;
+      }
       const str = xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
       line.setAttribute("points", str);
       const first = xy[0];
@@ -491,9 +559,41 @@ function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
   };
 }
 
+/** A block's look from isola.json (style.css `.own-…`, `.bw-…`, `.bs-…`): width, size, colours, corners. */
+function blockLook(el: HTMLElement, b: LayoutBlock) {
+  if (b.width) el.classList.add(`bw-${b.width}`);
+  if (b.size) el.classList.add(`bs-${b.size}`);
+  if (b.align) el.classList.add(`ba-${b.align}`);
+  if (b.color) el.style.setProperty("--own-accent", b.color);
+  if (b.bg === "none") el.classList.add("own-bg-none");
+  else if (b.bg) {
+    el.classList.add("own-block-bg");
+    el.style.setProperty("--own-bg", b.bg);
+  }
+  if (b.border) {
+    el.classList.add("own-block-border");
+    el.style.setProperty("--own-border", b.border);
+  }
+  if (b.title_color) el.style.setProperty("--own-title", b.title_color);
+  if (typeof b.radius === "number") {
+    el.classList.add("own-block-r");
+    el.style.setProperty("--own-r", `${b.radius}px`);
+  }
+  if (b.kind === "text") {
+    if (b.bold) el.style.fontWeight = "650";
+    if (b.italic) el.style.fontStyle = "italic";
+  }
+}
+
 /** One block of a tab (`owner` its id) or of the Panoramica ("overview"). */
 export function blockPart(b: LayoutBlock, owner: string, actions: ViewActions): Part {
   listen();
+  const part = blockPartOf(b, owner, actions);
+  blockLook(part.el, b);
+  return part;
+}
+
+function blockPartOf(b: LayoutBlock, owner: string, actions: ViewActions): Part {
   if (b.kind === "value") return valueBlock(b);
   if (b.kind === "chart") return chartBlock(b);
   if (b.kind === "text") return { el: h("section", { class: "board-block board-text", text: b.text }), refresh() {} };
@@ -502,6 +602,11 @@ export function blockPart(b: LayoutBlock, owner: string, actions: ViewActions): 
     return { el: h("section", { class: "board-block" }), refresh() {} };
   }
   return itemsBlock(b, owner, actions);
+}
+
+/** The colour a value's thresholds give now, else its own; empty for the usual. */
+function valueColor(b: { color?: string; levels?: LayoutBlock["levels"] }): string {
+  return levelColor(b.levels) ?? b.color ?? "";
 }
 
 /** The Panoramica's own blocks, kept while they do not change: it is redrawn often, they are not. */
@@ -513,7 +618,8 @@ onData.add(() => {
 
 /** The Panoramica's blocks by id, made or kept (overview.blocks in isola.json). */
 export function overviewBlocks(actions: ViewActions): Map<string, HTMLElement> {
-  const blocks = State.layout.overview?.blocks ?? [];
+  // Those whose `when` holds now; the others are left out (and made again when they come back).
+  const blocks = (State.layout.overview?.blocks ?? []).filter((b) => holds(b.when));
   const out = new Map<string, HTMLElement>();
   for (const b of blocks) {
     const key = JSON.stringify(b);
@@ -559,7 +665,11 @@ export function buildBoard(actions: ViewActions): ViewHost {
       const opened = nowOpen && !open;
       open = nowOpen;
       const tab = State.layout.tabs.find((x) => x.id === State.boardTab);
-      const k = JSON.stringify(tab ?? null);
+      // What shows now: the buttons and blocks whose `when` holds, the buttons' colours by their thresholds.
+      const shownButtons = (tab?.buttons ?? []).filter((b) => holds(b.when));
+      const shownBlocks = (tab?.blocks ?? []).filter((b) => holds(b.when));
+      const k = JSON.stringify(tab ?? null) + shownButtons.map((b) => `${b.id}:${levelColor(b.levels) ?? ""}`).join("|")
+        + shownBlocks.map((b) => b.id).join("|");
       if (k !== key) {
         key = k;
         if (!tab) {
@@ -572,9 +682,14 @@ export function buildBoard(actions: ViewActions): ViewHost {
         title.replaceChildren(
           ...(tab.icon ? [h("span", { class: "board-icon" }, renderActionIcon(tab.icon, 16))] : []),
           h("span", { text: tab.name }));
-        grid.replaceChildren(...tab.buttons.map((b) => tile(b, actions)));
-        const blocks = tab.blocks ?? [];
-        if (!tab.buttons.length && !blocks.length) grid.append(h("div", { class: "sub", text: t("Ancora nessun pulsante: chiedili alla chat.") }));
+        grid.replaceChildren(...shownButtons.map((b) => tile(b, actions, tab.size)));
+        // isola.json: the tab's columns; its colour on the title's icon.
+        grid.style.gridTemplateColumns = tab.columns ? `repeat(${tab.columns}, minmax(0, 1fr))` : "";
+        grid.classList.toggle("own-cols", !!tab.columns);
+        if (tab.color) title.style.setProperty("--c", tab.color);
+        else title.style.removeProperty("--c");
+        const blocks = shownBlocks;
+        if (!tab.buttons.length && !(tab.blocks ?? []).length) grid.append(h("div", { class: "sub", text: t("Ancora nessun pulsante: chiedili alla chat.") }));
         grid.hidden = !grid.childElementCount;
         parts = blocks.map((b) => blockPart(b, tab.id, actions));
         blocksEl.replaceChildren(...parts.map((p) => p.el));
@@ -605,10 +720,16 @@ export function buildFoot(actions: ViewActions): { el: HTMLElement; sync(): bool
   onData.add(() => {
     if (shown) for (const p of parts) p.refresh(false);
   });
-  const item = (it: LayoutFooterItem, i: number): HTMLElement => {
+  const item = (it: LayoutFooterItem): HTMLElement => {
     if ("action" in it) return layoutIconButton(it, actions, 15);
-    const p = valueBlock({ id: `foot-${i}`, kind: "value", what: it.what, drive: it.drive });
+    const p = valueBlock({ what: it.what, drive: it.drive, color: it.color, levels: it.levels });
     p.el.classList.add("foot-value");
+    // A name before the value (isola.json `label`), a background of its own.
+    if (it.label) p.el.prepend(h("span", { class: "foot-label", text: it.label }));
+    if (it.bg) {
+      p.el.classList.add("own-block-bg");
+      p.el.style.setProperty("--own-bg", it.bg);
+    }
     parts.push(p);
     return p.el;
   };
@@ -616,14 +737,17 @@ export function buildFoot(actions: ViewActions): { el: HTMLElement; sync(): bool
     el,
     sync() {
       const f = State.layout.footer ?? {};
-      const k = JSON.stringify(f);
+      // Only what holds now (`when`); the buttons' colours by their thresholds (the values colour themselves).
+      const now = (side: "left" | "center" | "right") => (f[side] ?? []).filter((it) => holds(it.when));
+      const shownNow = { left: now("left"), center: now("center"), right: now("right") };
+      const k = JSON.stringify(f) + JSON.stringify(shownNow) +
+        [...shownNow.left, ...shownNow.center, ...shownNow.right].map((it) => ("action" in it ? levelColor(it.levels) ?? "" : "")).join("|");
       if (k !== key) {
         key = k;
         parts = [];
-        let n = 0;
-        for (const side of ["left", "center", "right"] as const) sides[side].replaceChildren(...(f[side] ?? []).map((it) => item(it, n++)));
+        for (const side of ["left", "center", "right"] as const) sides[side].replaceChildren(...shownNow[side].map((it) => item(it)));
       }
-      const has = !!(f.left?.length || f.center?.length || f.right?.length);
+      const has = !!(shownNow.left.length || shownNow.center.length || shownNow.right.length);
       shown = has;
       if (has) for (const p of parts) p.refresh(false);
       return has;

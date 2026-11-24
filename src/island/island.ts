@@ -36,6 +36,7 @@ import { THREECX } from "../views/threecx";
 import { ClientSheet } from "../views/clientcard";
 import { buildRail, isRailCompact, railBotSize, renameGroup } from "../views/rail";
 import { buildFoot } from "../views/island-layout";
+import { applyStyleVars, lookClock, styleBackground } from "../views/island-look";
 import * as MenuGroups from "../core/menu-groups";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
@@ -171,6 +172,8 @@ export class Island {
   /** The open island's footer (isola.json: three sides of buttons and values), under the views only, and the room it takes. */
   private foot!: { el: HTMLElement; sync(): boolean };
   private footNeed = 0;
+  /** isola.json `style` last applied (island-look.ts). */
+  private styleKey = "";
   private lastRailW = 0;
   /** Beside the compact island's character (src/views/strip.ts), its measured width and its hold. */
   private strip!: Strip;
@@ -2953,6 +2956,9 @@ ${note}` : text };
       const s = State.settings;
       w = this.openWidth(max.w);
       if (s.islandHeight > 0) h = Math.max(h, Math.min(max.h, Math.round(s.islandHeight)));
+      // isola.json `style.height`: the least height of the open island.
+      const ownH = State.layout.style?.height ?? 0;
+      if (ownH > 0) h = Math.max(h, Math.min(max.h, ownH));
       // The menu sits beside the views and keeps all its rows in sight.
       if (this.railShown) {
         w = Math.min(max.w, w + this.railRoom);
@@ -3001,6 +3007,9 @@ ${note}` : text };
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
+    // isola.json `style.radius`: the open island's corners (not the closed pill or badge).
+    const ownR = State.layout.style?.radius;
+    if (State.mode === "expanded" && typeof ownR === "number" && !State.popover && !State.searchOnly) r = ownR;
     if (State.maximized && State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) r = 0;
     else if (State.searchOnly && State.mode === "expanded") r = Math.max(r, 16);
     return { w, h, r };
@@ -3034,7 +3043,7 @@ ${note}` : text };
     const s = State.settings;
     const max = islandMax(this.limits);
     const w = Math.min(max.w, this.paneSplit(max.w).views + RAIL_W + RAIL_GAP + this.paneRoom);
-    const user = s.islandHeight > 0 ? s.islandHeight : 0;
+    const user = Math.max(s.islandHeight > 0 ? s.islandHeight : 0, State.layout.style?.height ?? 0);
     const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
     const h = Math.min(max.h, Math.max(user, menu, this.paneShown ? PANE_MIN_H : 0));
     // Full screen: the whole room (work area) is the window.
@@ -3050,7 +3059,9 @@ ${note}` : text };
    */
   private openWidth(maxW: number): number {
     const s = State.settings;
-    return Math.round(Math.min(maxW, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W, this.headerNeed) + this.chatSideRoom));
+    // isola.json `style.width`: the least width of the views (the menu adds to it, as to the user's).
+    const own = State.layout.style?.width ?? 0;
+    return Math.round(Math.min(maxW, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W, own, this.headerNeed) + this.chatSideRoom));
   }
 
   /**
@@ -3933,7 +3944,11 @@ ${note}` : text };
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
     this.islandBackground = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    // isola.json `style`: its colour (or two, meeting) wins while it says one (island-look.ts).
+    const own = styleBackground(State.layout.style, a);
+    if (own) this.islandBackground = own.solid;
     this.islandEl.style.background = this.islandBackground;
+    this.islandEl.style.backgroundImage = own?.image ?? "";
     // The views' cards: how much of their own grey covers the island's colour (Impostazioni → Aspetto).
     document.documentElement.style.setProperty("--card-alpha", String(Math.max(0, Math.min(1, t.cardOpacity ?? 0.25))));
     // The chat's look (chat-cards.css): always the cards since 8 Nov 2026 (the choice in Impostazioni is gone).
@@ -4836,6 +4851,15 @@ ${note}` : text };
     this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
     this.islandEl.classList.toggle("search-only", State.searchOnly);
     this.islandEl.classList.toggle("open", expanded);
+    // isola.json `style` (island-look.ts): colours, font, corners, sizes; again only when it changes.
+    const styleKey = JSON.stringify(State.layout.style ?? null);
+    if (styleKey !== this.styleKey) {
+      this.styleKey = styleKey;
+      applyStyleVars(this.islandEl, State.layout.style);
+      this.paintIsland();
+      this.animateGeometry(false);
+    }
+    lookClock();
     if (railed) {
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
