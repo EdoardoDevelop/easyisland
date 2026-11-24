@@ -245,16 +245,17 @@ fn clock_minutes(s: &str) -> Option<u32> {
 }
 
 /// `when`: shown only while it is true. `hours` «08:00-18:00» (over midnight
-/// too), `days` [mon…sun], `app` / `not_app` (the program in front when the
+/// too), `days` [mon…sun], `view` / `not_view` (the menu's row lit: «oggi», chat,
+/// tab:<id>…), `app` / `not_app` (the program in front when the
 /// island opened: exe names), `value` { what, drive?, above?, below? }. All
 /// those given must hold.
 fn when(v: &Value, what: &str) -> Result<Option<Value>, String> {
     let Some(w) = v.get("when").filter(|x| !x.is_null()) else { return Ok(None) };
     let Some(wo) = w.as_object() else {
-        return Err(tf("«when» di {what}: un oggetto con hours, days, app, not_app, value.", &[("what", &what)]));
+        return Err(tf("«when» di {what}: un oggetto con hours, days, app, not_app, view, not_view, value.", &[("what", &what)]));
     };
-    if let Some(k) = wo.keys().find(|k| !["hours", "days", "app", "not_app", "value"].contains(&k.as_str())) {
-        return Err(tf("«when» di {what} non conosce «{k}»: hours, days, app, not_app, value.", &[("what", &what), ("k", &k)]));
+    if let Some(k) = wo.keys().find(|k| !["hours", "days", "app", "not_app", "view", "not_view", "value"].contains(&k.as_str())) {
+        return Err(tf("«when» di {what} non conosce «{k}»: hours, days, app, not_app, view, not_view, value.", &[("what", &what), ("k", &k)]));
     }
     let mut o = Map::new();
     let hours = text(w, "hours");
@@ -293,6 +294,28 @@ fn when(v: &Value, what: &str) -> Result<Option<Value>, String> {
         if !apps.is_empty() {
             let apps: Vec<String> = apps.into_iter().map(|a| if a.ends_with(".exe") { a } else { format!("{a}.exe") }).collect();
             o.insert(key.into(), json!(apps));
+        }
+    }
+    // The view of the open island (24 Nov 2026, Edoardo: «nascondere cpu ram ecc dal footer se sto
+    // nella panoramica»): the menu's row lit, by the same names as `menu.order` — «oggi» the
+    // Panoramica, agenti, chat, azioni, file, notizie, «tab:<id>», an integration's id.
+    for key in ["view", "not_view"] {
+        let views: Vec<String> = words(key)
+            .into_iter()
+            .map(|v| match v.as_str() {
+                "panoramica" | "overview" | "home" => "oggi".to_string(),
+                "agents" => "agenti".to_string(),
+                "actions" => "azioni".to_string(),
+                "files" => "file".to_string(),
+                "news" => "notizie".to_string(),
+                _ => v,
+            })
+            .collect();
+        if views.len() > 12 || views.iter().any(|v| v.len() > 60 || !v.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ':' | '_' | '-' | '.'))) {
+            return Err(tf("«when.{key}» di {what}: voci del menu come oggi (la Panoramica), chat, agenti, tab:<id> (al massimo 12).", &[("key", &key), ("what", &what)]));
+        }
+        if !views.is_empty() {
+            o.insert(key.into(), json!(views));
         }
     }
     if let Some(val) = w.get("value").filter(|x| !x.is_null()) {
@@ -1243,6 +1266,13 @@ pub fn when_words(x: &Value) -> String {
         if !list("not_app").is_empty() {
             parts.push(tf("non con {apps} davanti", &[("apps", &list("not_app"))]));
         }
+        let view = |k: &str| list(k).replace("oggi", t("Panoramica"));
+        if !list("view").is_empty() {
+            parts.push(tf("nella vista {views}", &[("views", &view("view"))]));
+        }
+        if !list("not_view").is_empty() {
+            parts.push(tf("fuori dalla vista {views}", &[("views", &view("not_view"))]));
+        }
         if let Some(m) = w.get("value") {
             parts.push(measure_words(m));
         }
@@ -1600,7 +1630,7 @@ fn looks_help() -> String {
         t("Schede: color (icona nel menu), columns 1–10 (colonne dei pulsanti), size s|m|l|xl (pulsanti più piccoli o grandi), when.").to_string(),
         tf("Blocchi: width {widths} (tutta la riga, metà, un terzo, un quarto), size {sizes}, color (accento: linea del grafico, icona, valore), bg (#rrggbb o none), border, title_color, radius 0–32, align left|center|right; grid columns 1–12; list height (px, poi scorre); chart height 32–300, minutes 1–5, line line|area|bars; text bold, italic.", &[("widths", &WIDTHS.join("|")), ("sizes", &SIZES.join("|"))]),
         t("Valori del footer: { what, drive, label (nome davanti), color, bg, levels, when }.").to_string(),
-        tf("Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), value { what, drive, above, below }.", &[("days", &DAYS.join(", "))]),
+        tf("Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), view e not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (la voce del menu accesa: «oggi» è la Panoramica; per esempio i valori del footer nascosti nella Panoramica: not_view [\"oggi\"]), value { what, drive, above, below }.", &[("days", &DAYS.join(", "))]),
         tf("Soglie, levels [{ above o below, color, what }] su pulsanti, blocchi value e chart (what facoltativo: il loro valore) e valori del footer: vince la prima che vale e colora il pezzo. Valori come numeri: {numbers} (disk = % usato, battery = %, net = MB/s, recycle = elementi, updates = quanti).", &[("numbers", &NUMBERS.join(", "))]),
     ]
     .join("\n")
@@ -1888,6 +1918,16 @@ mod tests {
         assert!(apply(&v, &json!({ "style": { "accent": "red" } })).is_err());
         assert!(apply(&v, &json!({ "style": { "opacity": 0.1 } })).unwrap()["style"]["opacity"] == json!(0.5));
         assert!(apply(&v, &json!({ "reset": ["style"] })).unwrap().get("style").is_none());
+    }
+
+    #[test]
+    fn a_piece_can_hide_in_a_view() {
+        let w = when(&json!({ "when": { "not_view": ["panoramica"], "view": "chat, tab:pc" } }), "x").unwrap().unwrap();
+        assert_eq!(w["not_view"], json!(["oggi"]));
+        assert_eq!(w["view"], json!(["chat", "tab:pc"]));
+        assert!(when(&json!({ "when": { "view": ["<script>"] } }), "x").is_err());
+        let words = when_words(&json!({ "when": { "not_view": ["oggi"] } }));
+        assert!(words.contains("fuori dalla vista Panoramica"), "{words}");
     }
 
     #[test]

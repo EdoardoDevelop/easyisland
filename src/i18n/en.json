@@ -6650,5 +6650,11 @@
   "Nessuna nota né riga di pagina con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.": "No note or page line with this text in this PC's memory. If you found it among the other PC's results (linked memory), it lives there: remove it from that PC, not from here.",
   "Nessuna nota né riga di pagina con questo testo nella memoria di questo PC: cercala con memory_search e copia il testo esatto.": "No note or page line with this text in this PC's memory: look for it with memory_search and copy the exact text.",
   "Mouse su «{what}».": "Mouse over “{what}”.",
-  "Azione sconosciuta: {a}. Azioni: {list}.": "Unknown action: {a}. Actions: {list}."
+  "Azione sconosciuta: {a}. Azioni: {list}.": "Unknown action: {a}. Actions: {list}.",
+  "«when» di {what}: un oggetto con hours, days, app, not_app, view, not_view, value.": "“when” of {what}: an object with hours, days, app, not_app, view, not_view, value.",
+  "«when» di {what} non conosce «{k}»: hours, days, app, not_app, view, not_view, value.": "“when” of {what} does not know “{k}”: hours, days, app, not_app, view, not_view, value.",
+  "«when.{key}» di {what}: voci del menu come oggi (la Panoramica), chat, agenti, tab:<id> (al massimo 12).": "“when.{key}” of {what}: menu rows such as oggi (the Overview), chat, agenti, tab:<id> (12 at most).",
+  "nella vista {views}": "in the view {views}",
+  "fuori dalla vista {views}": "outside the view {views}",
+  "Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), view e not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (la voce del menu accesa: «oggi» è la Panoramica; per esempio i valori del footer nascosti nella Panoramica: not_view [\"oggi\"]), value { what, drive, above, below }.": "Conditions, when on buttons, tabs, blocks and footer values (all those given must hold): hours \"08:00-18:00\" (also past midnight), days [{days}], app and not_app [\"code.exe\"…] (the program in front when the island opens), view and not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (the menu row lit: “oggi” is the Overview; for example the footer values hidden in the Overview: not_view [\"oggi\"]), value { what, drive, above, below }."
 }

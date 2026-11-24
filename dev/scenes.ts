@@ -2045,6 +2045,10 @@ export async function runScene(island: Island, scene: string) {
             right: [{ id: "f-cpu", label: "Gestione attività", icon: "i:chart", size: "l", levels: [{ what: "cpu", above: 50, color: "#f4505e" }], action: { kind: "system", what: "taskmgr" } }],
           },
         });
+        // &nascondi: the footer's values only outside the Panoramica (when.not_view, Edoardo 24 Nov 2026).
+        if (q.has("nascondi")) {
+          for (const it of (layout as unknown as { footer: { center: Record<string, unknown>[] } }).footer.center) it.when = { not_view: ["oggi"] };
+        }
         Object.assign(layout.buttons[0], { shape: "circle", bg: "#4c0519" });
         Object.assign(layout.buttons[2], { show: "both", shape: "pill" });
         State.barSys = { ...State.barSys, cpu: 38, ram: { percent: 67, used: 21e9, total: 32e9 }, gpu: 12 };

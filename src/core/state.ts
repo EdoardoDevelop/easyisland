@@ -2280,7 +2280,7 @@ export type LayoutAction =
 /** A value of the PC compared to a number (island_layout.rs `NUMBERS`): disk in % used, net in MB/s. */
 export interface LayoutMeasure { what: string; drive?: string; above?: number; below?: number }
 /** Shown only while all it says holds (island_layout.rs `when`). */
-export interface LayoutWhen { hours?: string; days?: string[]; app?: string[]; not_app?: string[]; value?: LayoutMeasure }
+export interface LayoutWhen { hours?: string; days?: string[]; app?: string[]; not_app?: string[]; view?: string[]; not_view?: string[]; value?: LayoutMeasure }
 /** A colour by a value of the PC: the first that holds wins. */
 export type LayoutLevel = LayoutMeasure & { color: string };
 /** What every piece may say about its look and when it shows. */
