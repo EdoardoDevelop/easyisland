@@ -7,6 +7,7 @@
 // has hours or days in it.
 
 import { State, type LayoutLevel, type LayoutMeasure, type LayoutStyle, type LayoutWhen } from "../core/state";
+import { current } from "./rail";
 
 /** A value of the PC as a number (island_layout.rs `NUMBERS`); null when not read yet. */
 export function sysNumber(what: string, drive?: string): number | null {
@@ -64,6 +65,12 @@ export function holds(w: LayoutWhen | undefined): boolean {
   const exe = (State.foreground?.exe ?? "").split(/[\\/]/).pop()?.toLowerCase() ?? "";
   if (w.app?.length && !w.app.includes(exe)) return false;
   if (w.not_app?.length && exe && w.not_app.includes(exe)) return false;
+  // The menu's row lit now («oggi» the Panoramica, «tab:<id>», chat…).
+  if (w.view?.length || w.not_view?.length) {
+    const on = current();
+    if (w.view?.length && !w.view.includes(on)) return false;
+    if (w.not_view?.length && w.not_view.includes(on)) return false;
+  }
   if (w.value && !measured(w.value)) return false;
   return true;
 }

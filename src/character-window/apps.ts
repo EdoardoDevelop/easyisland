@@ -102,6 +102,8 @@ export function setAppsLook(look: { magnify?: boolean; minimizeTo?: boolean } | 
   magnify = !!look?.magnify;
   minimizeTo = look?.minimizeTo !== false;
   edge = barEdge;
+  // A bar at the top: the icons hop downwards, into the screen (personaggio.html).
+  document.body.classList.toggle("edge-top", barEdge === "top");
   if (!magnify) unmagnify();
   sendRectsSoon();
 }
@@ -211,8 +213,11 @@ export function fillApps(host: HTMLElement) {
   for (const g of groups()) {
     const el = document.createElement("span");
     const n = g.windows.length;
+    // A window came: the app is open, no more hopping.
+    if (n) launching.delete(low(g.id));
     el.className = [
       "app-ico",
+      launching.has(low(g.id)) ? "launching" : "",
       n ? "open" : "",
       n > 1 ? "many" : "",
       g.windows.some((w) => w.active) ? "active" : "",
@@ -272,7 +277,31 @@ function leftClick(id: string, el: HTMLElement, ctrl: boolean, shift = false) {
   // Ctrl+click: the app's next window, as on the Windows taskbar (23 Nov 2026).
   if (ctrl && g && g.windows.length > 1) cycle(id, 1);
   else if (g && g.windows.length > 1) send({ kind: "bar", key: `apps:list:${id}`, x: centre(el) });
-  else void invoke("apps_do", { what: "click", app: id }).catch(() => {});
+  else {
+    // Opening an app with no window: its icon hops until one comes (or LAUNCH_MS).
+    if (!g?.windows.length) launchingNow(id);
+    void invoke("apps_do", { what: "click", app: id }).catch(() => {});
+  }
+}
+
+/**
+ * Apps being opened (Edoardo, 24 Nov 2026: «bisogna che ci sia una
+ * indicazione visiva quando ci si clicca»): their icon hops until a window of
+ * theirs shows, at most LAUNCH_MS; the animation runs only then.
+ */
+const launching = new Map<string, number>();
+const LAUNCH_MS = 6000;
+
+function launchingNow(id: string) {
+  launching.set(low(id), Date.now() + LAUNCH_MS);
+  for (const el of document.querySelectorAll<HTMLElement>(".app-ico")) if (low(el.dataset.app ?? "") === low(id)) el.classList.add("launching");
+  window.setTimeout(() => {
+    const until = launching.get(low(id));
+    if (until && until <= Date.now()) {
+      launching.delete(low(id));
+      for (const el of document.querySelectorAll<HTMLElement>(".app-ico.launching")) if (low(el.dataset.app ?? "") === low(id)) el.classList.remove("launching");
+    }
+  }, LAUNCH_MS + 50);
 }
 
 // Apps put in order by dragging them along the bar (Edoardo, 23 Nov 2026).
@@ -329,6 +358,9 @@ export function appsPress(e: PointerEvent | MouseEvent): boolean {
   const id = el?.dataset.app;
   if (!el || !id) return false;
   cancelHover();
+  // Pressed: the icon sinks a little until it is let go (the feedback of a click).
+  el.classList.add("pressed");
+  if (e.button !== 0) window.setTimeout(() => el.classList.remove("pressed"), 160);
   if (e.button === 1) {
     void invoke("apps_do", { what: "launch-new", app: id }).catch(() => {});
   } else if (e.button === 0) {
@@ -360,6 +392,7 @@ function release() {
   const p = press;
   if (!p) return;
   press = null;
+  p.el.classList.remove("pressed");
   if (p.dragging) drop(p);
   else act(p);
   if (redrawLater) {
@@ -373,6 +406,7 @@ document.addEventListener("pointercancel", () => {
   const p = press;
   press = null;
   if (p) {
+    p.el.classList.remove("pressed");
     window.clearTimeout(p.timer);
     if (p.dragging) drop(p);
   }

@@ -15,6 +15,7 @@ import { isPopped } from "../island/popout";
 import { TypeLine, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
+import { docsPanel } from "./chat-docs";
 import { ReplyBlocks } from "./chat-live";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
@@ -332,7 +333,8 @@ async function checkPaths(root: HTMLElement) {
     const info = pathSeen.get(key(e.dataset.path ?? ""))?.info;
     if (!info) continue;
     // A bare relative path that is not there: back to plain text (markdown.ts).
-    if (info.kind === "missing" && e.dataset.bare) {
+    // So is a missing one with spaces: words of the sentence taken for its names.
+    if (info.kind === "missing" && (e.dataset.bare || (/\s/.test(e.dataset.path ?? "") && e.tagName !== "CODE"))) {
       e.classList.remove("md-path");
       delete e.dataset.path;
       e.removeAttribute("title");
@@ -584,7 +586,29 @@ export function buildPrompt(
     toggleHelp();
   });
   moreMenu.append(desktopBtn, exportBtn, popBtn, helpBtn);
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, moreBtn, moreMenu);
+  // The open conversations as tabs over the chat (Edoardo, 24 Nov 2026: «aprire le chat come
+  // schede/tab invece di singola»): drawn by renderTabs, the same ones as «Aperte» in the sidebar.
+  const tabsRow = h("div", { class: "chat-tabs", role: "tablist" });
+  // In the chat panel's tab (island/dock.ts) only the chat's icon moves the panel (Edoardo,
+  // 24 Nov 2026: «le tab non me lo devono permettere di trascinare»): a press on the tabs
+  // never reaches the panel's tab, which starts its drag on it.
+  for (const ev of ["pointerdown", "mousedown", "touchstart", "dragstart"]) {
+    tabsRow.addEventListener(ev, (e) => {
+      if (!tabsRow.classList.contains("in-dock")) return;
+      e.stopPropagation();
+      if (ev === "dragstart") e.preventDefault();
+    });
+  }
+  // The wheel over the tabs scrolls them sideways (the row has no bar).
+  tabsRow.addEventListener("wheel", (e) => {
+    if (!e.deltaY || tabsRow.scrollWidth <= tabsRow.clientWidth) return;
+    e.preventDefault();
+    tabsRow.scrollLeft += e.deltaY;
+  }, { passive: false });
+  // «Documenti»: the files this conversation made or named, in a panel beside it (chat-docs.ts).
+  const docsBtn = h("button", { class: "history-btn", title: t("Documenti: i file creati o nominati in questa conversazione") }, svg(ICONS.doc, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const docs = docsPanel();
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, docsBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -924,7 +948,7 @@ export function buildPrompt(
       if (shown) placeRecent();
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, tabsRow, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
   const el = h(
     "div",
     { class: "view" },
@@ -2704,6 +2728,96 @@ export function buildPrompt(
     return null;
   }
 
+  /** A conversation's name on its tab: its saved title, else its first question. */
+  function tabTitle(c: ChatSessionState): string {
+    const saved = c.logId ? lastList.find((x) => x.id === c.logId)?.title : "";
+    const first = c.history.find((m) => m.role === "user")?.content ?? "";
+    return (saved || first || t("Nuova chat")).replace(/\s+/g, " ").trim();
+  }
+
+  /** The tab's ✕ (or a middle click): the conversation closes, kept in the history. Not while it answers. */
+  function closeTab(c: ChatSessionState) {
+    if (c.sending) {
+      flash(t("Sta ancora rispondendo: fermala prima di chiuderla"));
+      return;
+    }
+    const others = State.chats.filter((x) => x !== c);
+    State.chats = others;
+    void Bridge.chatClose(c.sid);
+    if (c.sid === State.chatSid) {
+      const next = [...others].sort((a, b) => b.at - a.at)[0];
+      if (next) show(next);
+      else {
+        const n = newChatSession();
+        State.chats.push(n);
+        show(n);
+      }
+    } else {
+      State.notify();
+      renderSide();
+    }
+  }
+
+  /**
+   * Where the tabs go: in the chat panel's own tab when the panels show
+   * (island/dock.ts, the bar that drags the panel), else over the head.
+   */
+  function placeTabs() {
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-chat-tabs-home]");
+    if (dockHome?.isConnected) {
+      if (tabsRow.parentElement !== dockHome) dockHome.append(tabsRow);
+      tabsRow.classList.add("in-dock");
+    } else {
+      if (tabsRow.nextElementSibling !== head && head.parentElement) head.parentElement.insertBefore(tabsRow, head);
+      tabsRow.classList.remove("in-dock");
+    }
+  }
+
+  let tabsDrawn = "";
+  /** The tabs, drawn again only when what they show changes (a title, the one on screen, a state). */
+  function renderTabs() {
+    placeTabs();
+    const list = State.chats;
+    const state = (c: ChatSessionState) => (State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid === c.sid ? "ask" : c.sending ? "busy" : c.unread ? "unread" : "");
+    const key = list.map((c) => `${c.sid}|${tabTitle(c)}|${state(c)}|${c.sid === State.chatSid ? 1 : 0}`).join("§");
+    if (key === tabsDrawn) return;
+    tabsDrawn = key;
+    const tabs = list.map((c) => {
+      const on = c.sid === State.chatSid;
+      const name = tabTitle(c);
+      const x = h("span", { class: "chat-tab-x", title: t("Chiudi questa conversazione"), text: "✕" });
+      const tab = h("button", { class: `chat-tab${on ? " on" : ""}`, role: "tab", "aria-selected": on ? "true" : "false", title: name },
+        ...[badge(c)].filter((b): b is HTMLElement => !!b),
+        h("span", { class: "chat-tab-name", text: name }),
+        x) as HTMLButtonElement;
+      tab.addEventListener("click", (e) => {
+        if (x.contains(e.target as Node)) {
+          e.stopPropagation();
+          closeTab(c);
+          return;
+        }
+        switchTo(c.sid);
+      });
+      // A double click on a conversation is not the panel's (that one makes it bigger).
+      tab.addEventListener("dblclick", (e) => e.stopPropagation());
+      // Middle click closes, as in a browser.
+      tab.addEventListener("auxclick", (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        closeTab(c);
+      });
+      return tab;
+    });
+    const add = h("button", { class: "chat-tab-add", title: t("Nuova conversazione in una scheda"), text: "+" }) as HTMLButtonElement;
+    add.addEventListener("click", () => {
+      openNew();
+      input.focus();
+    });
+    tabsRow.replaceChildren(...tabs, add);
+    // The one on screen in view when the row scrolls.
+    tabsRow.querySelector<HTMLElement>(".chat-tab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
   /** The sidebar drawn again from the last list (a conversation started, answered, switched). */
   function renderSide() {
     renderHistory(lastList, lastQuery);
@@ -3294,6 +3408,31 @@ export function buildPrompt(
     if (terms.has(State.chat.sid)) closeAllTerminals();
     else void openTerminal();
   });
+  // «Documenti» (chat-docs.ts, 24 Nov 2026): the conversation's files in a panel beside the chat.
+  docs.el.addEventListener("dock-close", () => setDocs(false));
+  docsBtn.addEventListener("click", () => setDocs(!State.chatDocsOpen));
+  function setDocs(open: boolean) {
+    State.chatDocsOpen = open;
+    try {
+      localStorage.setItem("easyisland.chatDocs", open ? "1" : "");
+    } catch {
+      /* no storage */
+    }
+    placeDocs();
+    State.notify();
+    onHeightChange();
+  }
+  /** Where the documents' panel goes: its own panel of the dock, else beside the chat as the terminal. */
+  function placeDocs() {
+    const open = State.chatDocsOpen;
+    docs.el.style.display = open ? "" : "none";
+    docsBtn.classList.toggle("on", open);
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-docs-home]");
+    const pane = layout.ownerDocument.getElementById("preview-pane");
+    const home = open ? dockHome ?? pane ?? layout : layout;
+    if (docs.el.parentElement !== home) home.append(docs.el);
+    if (open) docs.draw();
+  }
   // «▶ Nel terminale» under a block of code: a terminal of its shell, the code written in, Enter left to the user.
   codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
   codeHooks.save = (code, lang) => {
@@ -3597,6 +3736,8 @@ export function buildPrompt(
     el,
     sync() {
       placeTerminal();
+      placeDocs();
+      renderTabs();
       const file = State.droppedFile;
       const text = State.chatText;
       const win = State.chatWindow;

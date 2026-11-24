@@ -11,7 +11,7 @@ import { openClientCard } from "../src/views/clientcard";
 import { boardSample } from "../src/views/island-layout";
 import { chartSample } from "../src/island/bar";
 import type { Island } from "../src/island/island";
-import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
+import { State, newChatSession, type AppMenuLine, type ChatSessionState, type CustomField } from "../src/core/state";
 import { Bridge, type ClientCard } from "../src/core/bridge";
 import { demoGraph } from "../src/memory/demo";
 import { handleHook } from "../src/island/hooks";
@@ -276,6 +276,90 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?ricca: a structured reply (sections, commands, a table, inline codes) as the chat draws it
+      // (Edoardo's concept of 24 Nov 2026, easyisland_chat_concept.html).
+      // ?passi: a turn's steps as a timeline, folded and open (Edoardo's Computer Gross search, 24 Nov 2026).
+      if (new URLSearchParams(location.search).has("passi")) {
+        const esito = (s: string) => "```esito\n" + s + "\n```";
+        State.chatHistory = [
+          { id: 1, role: "user", content: "cercami su Computer Gross un notebook windows 11 pro sui 400 euro" },
+          { id: 2, role: "assistant", engine: "subscription", content: [
+            "Computer Gross non è tra i portali salvati: lo cerco nella scheda già aperta dell'anteprima.",
+            "> ⚙ Prepara gli strumenti",
+            "> ⚙ Apre nell'Anteprima · https://frontend.computergross.it/",
+            esito("Pagina aperta: Computer Gross · Home"),
+            "> ⚙ Legge i prodotti della pagina · https://frontend.computergross.it/search?q=notebook%20windows%2011%20pro",
+            esito("24 prodotti: Lenovo V15 G4 — 389,00 €; HP 250 G10 — 412,00 €; …"),
+            "> 💭 Conviene filtrare per categoria, la ricerca mescola accessori.",
+            "> ⚙ Apre nell'Anteprima · https://frontend.computergross.it/products/categories/notebook?categoryId=w_10",
+            esito("Pagina aperta: Notebook"),
+            "> ⚙ Esegue · `Get-Content prezzi.csv -Tail 5`",
+            "```errore\nImpossibile trovare il file prezzi.csv\n```",
+            "> ⚙ Cerca nella memoria · `listino Computer Gross`",
+            "Sto cercando su Computer Gross i notebook più economici per capire cosa si può offrire vicino ai 400 €. Leggo la pagina della categoria.",
+            "> ⚙ Legge l'Anteprima",
+            esito("Notebook · 128 risultati · ordinati per prezzo"),
+            "Il più vicino è il **Lenovo V15 G4** a `389,00 €` con Windows 11 Pro.",
+          ].join("\n\n") },
+        ];
+        State.chat.streamed = "";
+      } else if (new URLSearchParams(location.search).has("ricca")) {
+        State.chatHistory = [
+          { id: 1, role: "user", content: "come cambiare ip di proxmox da shell da 192.168.0.248 a 192.168.10.20 e riepilogami gli indirizzi Imec per RDM?" },
+          { id: 2, role: "assistant", engine: "subscription", content: [
+            "## 1. Cambio IP Proxmox da shell",
+            "",
+            "Modifica entrambi i file di rete (`/etc/network/interfaces` e `/etc/hosts`) poi riavvia il networking.",
+            "",
+            "```bash",
+            "sed -i 's/192.168.0.248/192.168.10.20/g' /etc/network/interfaces /etc/hosts",
+            "ifreload -a && systemctl restart pveproxy",
+            "```",
+            "",
+            "- **Verifica gateway:** aggiorna anche la riga `gateway 192.168.10.1` in `vmbr0` prima di eseguire `ifreload -a`.",
+            "- **Accesso Web UI:** dopo il riavvio raggiungibile su `https://192.168.10.20:8006`.",
+            "",
+            "## 2. Riepilogo nodi IMEC per RDM",
+            "",
+            "| Nodo | IP Ufficio | IP Definitivo | Note |",
+            "|---|---|---|---|",
+            "| Proxmox IMEC | 192.168.0.248 | `192.168.10.20` | Web UI :8006 |",
+            "| HPE iLO | 192.168.0.249 | `192.168.10.21` | RDM → Clienti/IMEC |",
+            "",
+            "> Attenzione: dopo il cambio IP il certificato della Web UI resta quello vecchio finché non rigeneri `pvecm updatecerts`.",
+          ].join("\n") },
+        ];
+        State.chatSideOpen = false;
+      }
+      // ?schede: four open conversations as tabs (chat.ts renderTabs): one answering, one answered while away.
+      if (new URLSearchParams(location.search).has("schede")) {
+        const mk = (q: string, a: string, extra: Partial<ChatSessionState> = {}): ChatSessionState => ({
+          ...newChatSession(), history: [{ id: 1, role: "user", content: q }, { id: 2, role: "assistant", engine: "subscription", content: a }], ...extra,
+        });
+        State.chats = [
+          mk("crea un preventivo per jacaroni per la sede in Zona Fiori", "Fatto: l'offerta è pronta in PDF e Word."),
+          mk("controlla i firmware del server di Falchi", "Sto leggendo la Job Queue dell'iDRAC.", { sending: true }),
+          mk("Talenti: risposta al ticket dell'archivio online", "Ecco la bozza di risposta.", { unread: true }),
+          mk("come cambiare ip di proxmox da shell?", "Modifica /etc/network/interfaces e /etc/hosts, poi riavvia la rete."),
+        ];
+        State.chatSid = State.chats[0].sid;
+        State.chatSideOpen = false;
+      }
+      // ?docs: the «Documenti» panel beside the chat (chat-docs.ts), on replies of a day of offers.
+      if (new URLSearchParams(location.search).has("docs")) {
+        const root = "C:\\Users\\Edoardo\\OneDrive - Easytech SRL\\WORK";
+        (Bridge as unknown as { pathsInfo: (p: string[]) => Promise<unknown> }).pathsInfo = async (paths: string[]) =>
+          paths.map((p) => ({ path: p, resolved: p, kind: /vecchia/i.test(p) ? "missing" : "file", line: null }));
+        State.chatHistory = [
+          { id: 1, role: "user", content: "crea un preventivo per jacaroni per la sede in Zona Fiori, un pc 13HR0067IX" },
+          { id: 2, role: "assistant", engine: "subscription", content: `> ⚙ Esegue · \`genera-offerta.ps1\`\n\nFatto: ${root}\\Offerte PDF\\Offerta_PC_Lenovo_neo_50q_Web_Point_Fiori_Jacaroni_Easytech.pdf e il Word in ${root}\\Offerte Word\\Offerta_PC_Lenovo_neo_50q_Web_Point_Fiori_Jacaroni_Easytech.docx.` },
+          { id: 3, role: "user", content: "vogliono 3 portatili, fai un'altra offerta" },
+          { id: 4, role: "assistant", engine: "subscription", content: `Il file da allegare è questo: ${root}\\Offerte PDF\\Offerta_Notebook_Lenovo_V15_G5_Web_Point_Fiori_Jacaroni_Easytech.pdf\n\nIl DDT di ieri: \`${root}\\DDT PDF\\DDT-2026-002_TALENTI_S.p.A.pdf\`; la bozza vecchia ${root}\\Offerte PDF\\bozza vecchia.pdf non c'è più.` },
+        ];
+        State.chatDocsOpen = true;
+        // As Edoardo uses it: the conversations hidden.
+        State.chatSideOpen = false;
+      }
       // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over,
       // =corsa steps and reasoning arriving faster than the line can write them, =squadra «Multi motore» at work, =squadra-fine its answer.
       const pensa = new URLSearchParams(location.search).get("pensa");
@@ -2045,6 +2129,10 @@ export async function runScene(island: Island, scene: string) {
             right: [{ id: "f-cpu", label: "Gestione attività", icon: "i:chart", size: "l", levels: [{ what: "cpu", above: 50, color: "#f4505e" }], action: { kind: "system", what: "taskmgr" } }],
           },
         });
+        // &nascondi: the footer's values only outside the Panoramica (when.not_view, Edoardo 24 Nov 2026).
+        if (q.has("nascondi")) {
+          for (const it of (layout as unknown as { footer: { center: Record<string, unknown>[] } }).footer.center) it.when = { not_view: ["oggi"] };
+        }
         Object.assign(layout.buttons[0], { shape: "circle", bg: "#4c0519" });
         Object.assign(layout.buttons[2], { show: "both", shape: "pill" });
         State.barSys = { ...State.barSys, cpu: 38, ram: { percent: 67, used: 21e9, total: 32e9 }, gpu: 12 };
@@ -2058,6 +2146,20 @@ export async function runScene(island: Island, scene: string) {
               { id: "o-cpu", kind: "value", what: "cpu", width: "third", levels: [{ what: "cpu", above: 30, color: "#f5a524" }] },
               { id: "o-ram", kind: "value", what: "ram", width: "third" },
               { id: "o-gpu", kind: "value", what: "gpu", width: "third", color: "#34d399" },
+            ],
+          } });
+        }
+        // ?look&quattro: four charts in a row, a quarter each (the laptop's Panoramica, 24 Nov 2026).
+        if (q.has("quattro")) {
+          chartSample("gpu", Array.from({ length: 150 }, (_, i) => 8 + 6 * Math.sin(i / 5) + (i % 11)));
+          chartSample("net", Array.from({ length: 150 }, (_, i) => (i % 17 < 3 ? 4e6 : 2e5) + (i % 5) * 1e5));
+          Object.assign(layout, { overview: {
+            order: ["block:q-cpu", "block:q-ram", "block:q-gpu", "block:q-net", "tiles"],
+            blocks: [
+              { id: "q-cpu", kind: "chart", what: "cpu", width: "quarter", height: 70, minutes: 3, title: "CPU" },
+              { id: "q-ram", kind: "chart", what: "ram", width: "quarter", height: 70, minutes: 3, line: "line", color: "#a78bfa", title: "RAM" },
+              { id: "q-gpu", kind: "chart", what: "gpu", width: "quarter", height: 70, minutes: 3, title: "GPU" },
+              { id: "q-net", kind: "chart", what: "net", width: "quarter", height: 70, minutes: 3, line: "bars", color: "#38bdf8", title: "Rete" },
             ],
           } });
         }

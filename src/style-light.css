@@ -401,3 +401,26 @@ html[data-scheme="light"] .cli-block-head .link-btn { color: #0369a1; }
 html[data-scheme="light"] .cli-wiki { background: rgba(2, 132, 199, 0.10); border-color: rgba(2, 132, 199, 0.32); color: #0369a1; }
 html[data-scheme="light"] .cli-empty-chip { border-color: rgba(15, 23, 42, 0.18); color: #475569; }
 html[data-scheme="light"] .cli-ref-chip { background: #f1f5f9; border-color: rgba(15, 23, 42, 0.12); color: #334155; }
+
+/* Replies with form and the steps timeline (style.css, 24 Nov 2026). */
+html[data-scheme="light"] .md-code.md-copyable { color: #0369a1; background: rgba(2, 132, 199, 0.08); box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.22); }
+html[data-scheme="light"] .md-code.md-copyable:hover { background: rgba(2, 132, 199, 0.14); }
+html[data-scheme="light"] .md-code.md-copyable.copied { color: #15803d; background: rgba(21, 128, 61, 0.1); box-shadow: inset 0 0 0 1px rgba(21, 128, 61, 0.3); }
+html[data-scheme="light"] .md-pre { background: #f4f5f7; border-color: rgba(20, 22, 26, 0.09); }
+html[data-scheme="light"] .md-pre-head { background: #e9ecf0; border-bottom-color: rgba(20, 22, 26, 0.08); }
+html[data-scheme="light"] .md-pre pre { color: #1a1c20; }
+html[data-scheme="light"] .md-pre-head > .md-copy:last-child { color: #1a1c20; background: rgba(20, 22, 26, 0.07); }
+html[data-scheme="light"] :is(.md-table-wrap) { border-color: rgba(20, 22, 26, 0.1); }
+html[data-scheme="light"] .md-table :is(th, td) { border-top-color: rgba(20, 22, 26, 0.08); }
+html[data-scheme="light"] .md-table thead th { background: #e9ecf0; color: #606570; }
+html[data-scheme="light"] .md-table tbody tr:nth-child(even) { background: rgba(20, 22, 26, 0.025); }
+html[data-scheme="light"] .md-table-copy { border-color: rgba(20, 22, 26, 0.12); background: rgba(20, 22, 26, 0.04); color: #333740; }
+html[data-scheme="light"] .md-quote.md-callout { color: #333740; }
+html[data-scheme="light"] .md-outline-chip { background: rgba(20, 22, 26, 0.05); color: #606570; }
+html[data-scheme="light"] .md-step-ico { background: #eef0f3; box-shadow: inset 0 0 0 1px rgba(20, 22, 26, 0.1); }
+html[data-scheme="light"] .md-step-thought .md-step-ico { color: #7c3aed; }
+html[data-scheme="light"] .md-steps > summary { background: rgba(20, 22, 26, 0.03); box-shadow: inset 0 0 0 1px rgba(20, 22, 26, 0.08); }
+html[data-scheme="light"] .md-steps > summary:hover { background: rgba(20, 22, 26, 0.06); }
+html[data-scheme="light"] .md-steps-list::before { background: rgba(20, 22, 26, 0.12); }
+html[data-scheme="light"] .md-step-out > summary:hover { background: rgba(20, 22, 26, 0.06); }
+html[data-scheme="light"] .md-step-what a:hover { color: #0369a1; }

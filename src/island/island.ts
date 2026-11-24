@@ -904,7 +904,7 @@ export class Island {
 
   /** The Anteprima's panel is in the open island (not on the greeting and the drop views; not with the chat in its window). */
   private get paneShown(): boolean {
-    return (this.paneOpen || State.chatTermOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat");
+    return (this.paneOpen || State.chatTermOpen || State.chatDocsOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat");
   }
 
   /**
@@ -3380,10 +3380,10 @@ ${note}` : text };
     });
     return () => {
       const open = State.previewOpen;
-      island.classList.toggle("paned", open || State.chatTermOpen);
+      island.classList.toggle("paned", open || State.chatTermOpen || State.chatDocsOpen);
       pane.classList.toggle("term-only", !open);
       // Just opened in a narrow window: the window grows by the panel, as the island would.
-      const any = open || State.chatTermOpen;
+      const any = open || State.chatTermOpen || State.chatDocsOpen;
       if (any && !wasOpen) {
         const need = (State.settings.previewWidth || PANE_W) + PANE_VIEWS_MIN_W + 60;
         const name = poppedName("chat");
@@ -3441,9 +3441,11 @@ ${note}` : text };
       sideOpen,
       previewOpen: () => State.previewOpen,
       termOpen: () => State.chatTermOpen,
+      docsOpen: () => State.chatDocsOpen,
       closeSide: () => tell(".chat-side"),
       closePreview: () => void Bridge.previewHide().catch(() => undefined),
       closeTerm: () => tell(".chat-term"),
+      closeDocs: () => tell(".chat-docs"),
       placePreview,
       previewWidth: () => State.settings.previewWidth || PANE_W,
       sideWidth: () => chatSideWidth(),

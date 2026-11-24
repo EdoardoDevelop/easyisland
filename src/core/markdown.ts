@@ -57,6 +57,29 @@ export function looksLikePath(s: string): boolean {
   return /^(\.{1,2}[\\/])?[\w@.()+-]+([\\/][\w@.()+-]+)*\.[A-Za-z][A-Za-z0-9]{0,7}$/.test(s) && /[\\/]|\.(md|txt|ts|tsx|js|jsx|mjs|json|html?|css|scss|rs|py|cs|go|java|toml|ya?ml|csv|xml|svg|png|jpe?g|gif|pdf|ps1|bat|cmd|sh|sql|vue|svelte|php|rb|ini|env|log|lock)$/i.test(s);
 }
 
+/** Copies `text` and says so on `node` for a moment (class `copied`). */
+async function copyWithMark(node: HTMLElement, text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    node.classList.add("copied");
+    window.setTimeout(() => node.classList.remove("copied"), 1300);
+  } catch {
+    /* no clipboard here: nothing happens */
+  }
+}
+
+/** An inline code that copies itself with a click (an IP, a code, a command). */
+function copyable(node: HTMLElement, text: string) {
+  node.classList.add("md-copyable");
+  node.title = t("Clic per copiare");
+  node.addEventListener("click", (e) => {
+    // Selecting part of it with the mouse is not a click to copy.
+    if (window.getSelection()?.toString()) return;
+    e.preventDefault();
+    void copyWithMark(node, text);
+  });
+}
+
 /** A path that opens: `node` (a <code>, or a new <span>) with `data-path`. */
 function pathLink(path: string, node: HTMLElement, hooks: MarkdownHooks): HTMLElement {
   node.classList.add("md-path");
@@ -90,6 +113,22 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 // ── Inline ────────────────────────────────────────────────────────────────────
 
+/** A character of a file or folder name in a bare path (no space, no separator, nothing a sentence wraps a path in). */
+const NAME_CH = String.raw`[^\s<>"|*?\x60'«»()[\]\\/:]`;
+/** A name that may hold single spaces between its words («OneDrive - Easytech SRL»). */
+const SPACED = String.raw`${NAME_CH}+(?: ${NAME_CH}+)*`;
+/**
+ * A bare absolute path: its root, folders (spaces allowed, each ends at «\» or
+ * «/»), then a file whose name may hold spaces up to its nearest extension, or
+ * a last name without spaces. `(?![\w])` keeps «x.pdf» out of «x.pdfs».
+ */
+export const BARE_PATH = new RegExp(
+  String.raw`(?<![\w\\/\x60])(?:[A-Za-z]:[\\/]|\\\\[\w.$-]+\\)(?:${SPACED}[\\/])*` +
+  String.raw`(?:${NAME_CH}+?(?: ${NAME_CH}+?)*?\.[A-Za-z][A-Za-z0-9]{0,7}(?![\w])(?!\.[A-Za-z])|${NAME_CH}*[^\s<>"|*?\x60'«»()[\].,;:!?\\/])?` +
+  // «app.ts:42» or «app.ts:42:7»: the line goes with it.
+  String.raw`(?::\d+(?::\d+)?)?`,
+);
+
 /** Earliest-match inline rules; `code` first so nothing inside it is parsed. */
 const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => Node }[] = [
   {
@@ -98,14 +137,17 @@ const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => 
       const code = el("code", "md-code", m[1]);
       const text = m[1].trim();
       if (/^https?:\/\/\S+$/i.test(text)) return link(text, [code], hooks);
-      if (!hooks.openPath || !looksLikePath(text)) return code;
-      return pathLink(text, code, hooks);
+      if (hooks.openPath && looksLikePath(text)) return pathLink(text, code, hooks);
+      // In the chat: an IP, a code, a short command copied with one click (24 Nov 2026, Edoardo's concept).
+      if (hooks.openPath) copyable(code, text);
+      return code;
     },
   },
   {
-    re: /\[([^\]\n]+)\]\(([^)\s]+)\)/,
+    // [text](C:\a b\c.pdf) and [text](<C:\a b\c.pdf>) too: a Windows path may hold spaces.
+    re: /\[([^\]\n]+)\]\((<[^>\n]+>|[A-Za-z]:[\\/][^)\n]+|\\\\[^)\n]+|[^)\s]+)\)/,
     make: (m, hooks) => {
-      const url = m[2];
+      const url = m[2].replace(/^<(.*)>$/, "$1").trim();
       // [text](C:\…) or [text](file:///C:/…): a path.
       const file = url.match(/^file:\/\/\/(.+)$/i)?.[1];
       if (hooks.openPath && (file || /^([A-Za-z]:[\\/]|\\\\|~[\\/])/.test(url))) {
@@ -138,10 +180,13 @@ const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => 
       return span;
     },
   },
-  // A bare absolute path (C:\…, C:/…, \\server\share\…): up to a space; the
-  // punctuation after it stays text. Paths with spaces need `code`.
+  // A bare absolute path (C:\…, C:/…, \\server\share\…), spaces too (24 Nov
+  // 2026, Edoardo: «OneDrive - Easytech SRL\…» was cut at the first space and
+  // the click did nothing): folders may hold spaces up to their «\»; the last
+  // name runs to its extension (the nearest one), or without one to a space.
+  // The punctuation after it stays text.
   {
-    re: /(?<![\w\\/`])(?:[A-Za-z]:[\\/]|\\\\[\w.$-]+\\)[^\s<>"|*?`'«»()[\]]*[^\s<>"|*?`'«»()[\].,;:!?]/,
+    re: BARE_PATH,
     make: (m, hooks) => hooks.openPath ? pathLink(m[0], el("span", "", m[0]), hooks) : document.createTextNode(m[0]),
   },
   { re: /\*\*([^*\n]+?)\*\*|__([^_\n]+?)__/, make: (m, hooks) => wrap("strong", m[1] ?? m[2], hooks) },
@@ -242,8 +287,45 @@ function codeBlock(code: string, lang: string, hooks: MarkdownHooks): HTMLElemen
   return box;
 }
 
-/** Renders a whole reply. */
+/**
+ * A quote that is a notice, by its first words: «warn» (attenzione, importante,
+ * ⚠️, [!WARNING] [!CAUTION]), «tip» (suggerimento, consiglio, 💡, [!TIP]),
+ * «info» (nota, ℹ️, [!NOTE] [!IMPORTANT]); null for a plain quote. Steps («⚙»)
+ * are never notices.
+ */
+function calloutOf(first: string): "warn" | "tip" | "info" | null {
+  const s = first.trim().replace(/^\*\*|\*\*/g, "").toLowerCase();
+  if (/^\[!(warning|caution)\]/.test(s) || /^(⚠️?|attenzione|importante|warning|caution)\b/.test(s)) return "warn";
+  if (/^\[!tip\]/.test(s) || /^(💡|suggerimento|consiglio|tip)\b/.test(s)) return "tip";
+  if (/^\[!(note|important)\]/.test(s) || /^(ℹ️?|nota|note)\b/.test(s)) return "info";
+  return null;
+}
+
+/**
+ * Long replies with sections (at least three titles): a row of their names on
+ * top that scrolls to each (Edoardo's concept, 24 Nov 2026: «Sezioni»).
+ */
+function outline(blocks: HTMLElement[]): HTMLElement | null {
+  const heads = blocks.filter((b) => b.classList.contains("md-h1") || b.classList.contains("md-h2"));
+  if (heads.length < 3) return null;
+  const row = el("div", "md-outline");
+  row.append(el("span", "md-outline-label", t("Sezioni")));
+  for (const hEl of heads) {
+    const chip = el("button", "md-outline-chip", (hEl.textContent ?? "").trim().slice(0, 40));
+    chip.addEventListener("click", () => hEl.scrollIntoView({ behavior: "smooth", block: "start" }));
+    row.append(chip);
+  }
+  return row;
+}
+
+/** Renders a whole reply (with its sections' row when it has several, in the chat). */
 export function renderMarkdown(text: string, hooks: MarkdownHooks): HTMLElement[] {
+  const blocks = renderBlocks(text, hooks);
+  const row = hooks.openPath ? outline(blocks) : null;
+  return row ? [row, ...blocks] : blocks;
+}
+
+function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const blocks: HTMLElement[] = [];
   let para: string[] = [];
@@ -290,26 +372,42 @@ export function renderMarkdown(text: string, hooks: MarkdownHooks): HTMLElement[
     if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
       flush();
       const table = el("table", "md-table");
+      const thead = el("thead");
       const head = el("tr");
-      for (const c of cells(line)) {
+      const rows: string[][] = [cells(line)];
+      for (const c of rows[0]) {
         const th = el("th");
         th.append(...cellNodes(c, hooks));
         head.append(th);
       }
-      table.append(head);
+      thead.append(head);
+      const tbody = el("tbody");
       for (i += 2; i < lines.length && lines[i].includes("|") && lines[i].trim(); i++) {
         const tr = el("tr");
-        for (const c of cells(lines[i])) {
+        const row = cells(lines[i]);
+        rows.push(row);
+        for (const c of row) {
           const td = el("td");
           td.append(...cellNodes(c, hooks));
           tr.append(td);
         }
-        table.append(tr);
+        tbody.append(tr);
       }
+      table.append(thead, tbody);
       i--;
       const wrapEl = el("div", "md-table-wrap");
       wrapEl.append(table);
-      blocks.push(wrapEl);
+      if (hooks.openPath) {
+        // «Copia tabella»: tab-separated, as Excel and RDM paste it.
+        const plain = (s: string) => s.replace(/<br\s*\/?>/gi, " ").replace(/`([^`]*)`/g, "$1").replace(/\*\*(.+?)\*\*/g, "$1").trim();
+        const tsv = rows.map((r) => r.map(plain).join("\t")).join("\n");
+        const copy = el("button", "md-table-copy", t("Copia tabella"));
+        copy.title = t("Copia la tabella, da incollare in Excel o in un'altra tabella");
+        copy.addEventListener("click", () => void copyWithMark(copy, tsv));
+        const box = el("div", "md-table-box");
+        box.append(copy, wrapEl);
+        blocks.push(box);
+      } else blocks.push(wrapEl);
       continue;
     }
     if (QUOTE.test(line)) {
@@ -317,8 +415,11 @@ export function renderMarkdown(text: string, hooks: MarkdownHooks): HTMLElement[
       const quoted: string[] = [];
       for (; i < lines.length && QUOTE.test(lines[i]); i++) quoted.push(QUOTE.exec(lines[i])![1]);
       i--;
-      const q = el("blockquote", "md-quote");
-      q.append(...renderMarkdown(quoted.join("\n"), hooks));
+      // «Attenzione: …», «Nota: …», «⚠️ …», «[!WARNING]»: a coloured box, not a grey quote.
+      const kind = calloutOf(quoted[0] ?? "");
+      if (kind) quoted[0] = quoted[0].replace(/^\s*\[!\w+\]\s*/i, "");
+      const q = el("blockquote", kind ? `md-quote md-callout md-callout-${kind}` : "md-quote");
+      q.append(...renderBlocks(quoted.join("\n"), hooks));
       blocks.push(q);
       continue;
     }

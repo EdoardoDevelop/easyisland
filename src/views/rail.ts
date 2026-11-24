@@ -69,8 +69,8 @@ const NOWHERE: ReadonlySet<IslandViewName> = new Set<IslandViewName>([
   "recap", "moment", "daily", "note", "notify", "searching", "result", "done", "remember", "talk", "barcard", "greeting", "mail",
 ]);
 
-/** The lit row: a section, or the id of the integration whose card is on screen. */
-function current(): string {
+/** The lit row: a section, or the id of the integration whose card is on screen (also isola.json `when.view`). */
+export function current(): string {
   // A tab of the user's (island-layout.ts).
   if (State.view === "board") return `tab:${State.boardTab ?? ""}`;
   const s = sectionOf(State.view);

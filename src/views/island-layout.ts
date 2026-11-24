@@ -501,7 +501,9 @@ function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
   // isola.json: its height, the minutes it shows, a line, an area alone or bars.
   const H = Math.round(b.height ?? 64);
   const span = Math.max(1, Math.min(5, b.minutes ?? 5)) * 60_000;
-  const mode = b.line ?? "line";
+  // No style chosen: a line over a light area, as before. «line» chosen: the line alone (24 Nov 2026:
+  // it drew the light area too and looked like «area», while the chat told the user it had none).
+  const mode = b.line ?? "default";
   const svgEl = document.createElementNS(NS, "svg");
   svgEl.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svgEl.setAttribute("preserveAspectRatio", "none");
@@ -511,7 +513,8 @@ function chartBlock(b: Extract<LayoutBlock, { kind: "chart" }>): Part {
   area.setAttribute("class", mode === "bars" ? "board-chart-bars" : "board-chart-area");
   const line = document.createElementNS(NS, "polyline");
   line.setAttribute("class", "board-chart-line");
-  if (mode === "line") svgEl.append(area, line);
+  if (mode === "default") svgEl.append(area, line);
+  else if (mode === "line") svgEl.append(line);
   else svgEl.append(area);
   const name = h("span", { class: "board-block-title", text: b.title ?? "" });
   const val = h("b", { class: "board-value-text" });

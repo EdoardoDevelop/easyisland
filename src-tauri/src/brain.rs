@@ -649,12 +649,91 @@ pub fn add_line(title: &str, line: &str) -> Result<bool, String> {
         None => tool_write(&title, &line, "", "").map(|_| true),
         Some((page, text)) => {
             let core = line.trim_start_matches("- ").to_lowercase();
-            if page.body.to_lowercase().contains(core.split_once(": ").map_or(core.as_str(), |(_, c)| c)) {
+            let fact = core.split_once(": ").map_or(core.as_str(), |(_, c)| c);
+            if page.body.to_lowercase().contains(fact) || covered(&page.body, fact) {
                 return Ok(false);
             }
             let body = format!("{}\n{line}", page.body.trim_end());
             tool_write(&page.title, &body, &version(&text), "").map(|_| true)
         }
+    }
+}
+
+/// memory_forget for a line of a page (24 Nov 2026, on the laptop: the facts
+/// the memory writes after the answers go to pages, and memory_forget looked
+/// only among the notes, then blamed the other PC). The one line of this PC's
+/// pages with this text (lower case) leaves its page; returned with its page's
+/// title for archivio.md. None: no line has it. Err: several, or the write failed.
+pub fn forget_line(key: &str) -> Result<Option<(String, String)>, String> {
+    // A word or two would pick a line by chance: a line leaves only by its own words.
+    if key.trim().chars().count() < 12 {
+        return Ok(None);
+    }
+    let mut hits: Vec<(Page, String)> = Vec::new();
+    for p in pages() {
+        for l in p.body.lines().filter(|l| l.to_lowercase().contains(key)) {
+            hits.push((p.clone(), l.to_string()));
+        }
+    }
+    let (page, line) = match hits.len() {
+        0 => return Ok(None),
+        1 => hits.remove(0),
+        n => {
+            let where_: Vec<String> = hits.iter().map(|(p, _)| p.title.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+            return Err(tf("Più righe con questo testo ({n}, in: {pages}): scrivine di più.", &[("n", &n.to_string()), ("pages", &where_.join(", "))]));
+        }
+    };
+    let text = std::fs::read_to_string(page_file(&page.slug)).map_err(|e| e.to_string())?;
+    let body: String = page.body.lines().filter(|l| *l != line).collect::<Vec<_>>().join("\n");
+    tool_write(&page.title, &body, &version(&text), "")?;
+    Ok(Some((page.title, line)))
+}
+
+/// Words too common to tell two facts apart.
+const COMMON: &[&str] = &[
+    "che", "con", "per", "del", "della", "delle", "dei", "degli", "dal", "dalla", "nel", "nella", "nei", "alla", "alle", "agli", "sono",
+    "una", "uno", "gli", "dello", "anche", "come", "più", "non", "suo", "sua", "loro", "questo", "questa", "quello", "quella", "hanno",
+    "ha", "è", "sul", "sulla", "tra", "fra", "the", "and",
+];
+
+/// The words of a fact that tell something: names, places, numbers.
+fn meaningful(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| (w.chars().count() >= 3 || w.chars().any(|c| c.is_ascii_digit())) && !COMMON.contains(w))
+        .map(String::from)
+        .collect()
+}
+
+/// Whether a page already says this fact in other words: nearly all its
+/// meaningful words (names, places, numbers) are there (24 Nov 2026: the
+/// memory written after the answer added five lines to Jacaroni repeating its
+/// company name, sites and contract, which only the exact match let through).
+fn covered(body: &str, fact: &str) -> bool {
+    let words = meaningful(fact);
+    if words.len() < 3 {
+        return false;
+    }
+    let have: std::collections::HashSet<String> = meaningful(body).into_iter().collect();
+    let found = words.iter().filter(|w| have.contains(*w)).count();
+    // Every number must be there: a new price or date is news.
+    let numbers_there = words.iter().filter(|w| w.chars().any(|c| c.is_ascii_digit())).all(|w| have.contains(w));
+    numbers_there && found * 100 >= words.len() * 85
+}
+
+#[cfg(test)]
+mod covered_tests {
+    use super::covered;
+
+    #[test]
+    fn a_fact_said_again_in_other_words_is_not_added() {
+        let body = "# Jacaroni\nRagione sociale: Jacaroni Centro Diagnostico srl.\nSedi: Zona Fiori (Via A. Garofoli 15), Amelia.\nContratto di assistenza attivo.";
+        assert!(covered(body, "la ragione sociale è Jacaroni Centro Diagnostico srl"));
+        assert!(covered(body, "ha sedi a Zona Fiori, via Garofoli 15, e ad Amelia"));
+        // New: a price, a new thing.
+        assert!(!covered(body, "offerta per 2 PC Lenovo a 940 € l'uno"));
+        assert!(!covered(body, "sede Zona Fiori in via Garofoli 17"));
+        assert!(!covered(body, "nuovo NAS Synology"));
     }
 }
 
@@ -1276,6 +1355,11 @@ fn valid_source(name: &str) -> bool {
 }
 
 /// The copies of other PCs' memories on disk (memoria-condivise/<name>).
+/// Whether another PC's memory is copied here (memshare.rs).
+pub fn has_shared_copies() -> bool {
+    !shared_sources().is_empty()
+}
+
 fn shared_sources() -> Vec<String> {
     let mut out: Vec<String> = std::fs::read_dir(crate::settings::config_dir().join("memoria-condivise"))
         .map(|r| r.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| valid_source(n) && !n.contains(".tmp-")).collect())
