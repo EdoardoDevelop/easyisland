@@ -1322,10 +1322,15 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-tab-add { flex: 0 0 auto; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--dim); font-size: 16px; line-height: 1; cursor: pointer; }
 .chat-tab-add:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
 /* In the chat panel's own tab (island/dock.ts): the bar is the tabs, and still the handle that moves the panel. */
-.chat-tabs.in-dock { flex: 1 1 auto; margin: 0; padding: 0; border: 0; height: 100%; }
-.dock-tab-chat:has(> .chat-tabs) { flex: 1 1 auto; min-width: 0; width: 100%; padding: 0 2px; gap: 4px; cursor: default; }
+.chat-tabs { overflow-y: hidden; }
+/* In the panel's bar (34 px): the tab and its row 28 px, the tabs 26 px; never scrolling up and down (24 Nov 2026). */
+.chat-tabs.in-dock { flex: 1 1 auto; margin: 0; padding: 0; border: 0; height: 28px; }
+.chat-tabs.in-dock > :is(.chat-tab, .chat-tab-add) { height: 26px; }
+.dock-tab-chat:has(> .chat-tabs) { flex: 1 1 auto; min-width: 0; width: 100%; height: 28px; padding: 0 2px; gap: 4px; cursor: default; overflow: hidden; }
+/* No pill behind all the tabs: each tab shows its own. */
+.dv-tab.dv-active-tab .dock-tab-chat:has(> .chat-tabs) { background: none; }
 /* The chat's icon on the left is the only handle that moves the panel (the tabs never drag it: chat.ts placeTabs). */
-.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon { flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; cursor: grab; }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; cursor: grab; }
 .dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon:hover { background: rgba(255, 255, 255, 0.08); }
 .dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon:active { cursor: grabbing; }
 .dock-tab-chat:has(> .chat-tabs) > .dock-tab-name { display: none; }
