@@ -1323,8 +1323,12 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-tab-add:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
 /* In the chat panel's own tab (island/dock.ts): the bar is the tabs, and still the handle that moves the panel. */
 .chat-tabs.in-dock { flex: 1 1 auto; margin: 0; padding: 0; border: 0; height: 100%; }
-.dock-tab-chat:has(> .chat-tabs) { flex: 1 1 auto; min-width: 0; width: 100%; padding: 0 2px; cursor: grab; }
-.dock-tab-chat:has(> .chat-tabs) > :is(.dock-tab-icon, .dock-tab-name) { display: none; }
+.dock-tab-chat:has(> .chat-tabs) { flex: 1 1 auto; min-width: 0; width: 100%; padding: 0 2px; gap: 4px; cursor: default; }
+/* The chat's icon on the left is the only handle that moves the panel (the tabs never drag it: chat.ts placeTabs). */
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon { flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; cursor: grab; }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon:hover { background: rgba(255, 255, 255, 0.08); }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon:active { cursor: grabbing; }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-name { display: none; }
 .dv-tab:has(> .dock-tab-chat > .chat-tabs) { flex: 1 1 auto; min-width: 0; max-width: none; }
 .dv-tabs-container:has(.dock-tab-chat > .chat-tabs) { flex: 1 1 auto; min-width: 0; }
 .chat-head .head-end { margin-left: auto; }

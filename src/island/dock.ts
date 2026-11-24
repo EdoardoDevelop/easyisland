@@ -482,7 +482,9 @@ function tab(doc: Document, id: DockPanelId): ITabRenderer {
       // 24 Nov 2026): held and dragged, the bar still moves the panel.
       if (id === "chat") {
         element.dataset.chatTabsHome = "";
-        element.title = t("Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci");
+        // The icon is the handle: its own tooltip, the tabs have theirs.
+        element.title = "";
+        icon.title = t("Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci");
         // Made again (a move, a panel more): the tabs come at once, not at the next redraw.
         const row = doc.querySelector<HTMLElement>(".chat-tabs");
         if (row) {

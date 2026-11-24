@@ -589,6 +589,16 @@ export function buildPrompt(
   // The open conversations as tabs over the chat (Edoardo, 24 Nov 2026: «aprire le chat come
   // schede/tab invece di singola»): drawn by renderTabs, the same ones as «Aperte» in the sidebar.
   const tabsRow = h("div", { class: "chat-tabs", role: "tablist" });
+  // In the chat panel's tab (island/dock.ts) only the chat's icon moves the panel (Edoardo,
+  // 24 Nov 2026: «le tab non me lo devono permettere di trascinare»): a press on the tabs
+  // never reaches the panel's tab, which starts its drag on it.
+  for (const ev of ["pointerdown", "mousedown", "touchstart", "dragstart"]) {
+    tabsRow.addEventListener(ev, (e) => {
+      if (!tabsRow.classList.contains("in-dock")) return;
+      e.stopPropagation();
+      if (ev === "dragstart") e.preventDefault();
+    });
+  }
   // The wheel over the tabs scrolls them sideways (the row has no bar).
   tabsRow.addEventListener("wheel", (e) => {
     if (!e.deltaY || tabsRow.scrollWidth <= tabsRow.clientWidth) return;
