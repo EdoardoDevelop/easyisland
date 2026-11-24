@@ -87,6 +87,16 @@ export const BAR_KINDS: Record<string, BarKind> = {
     name: t("Aggiornamenti dei programmi"), icon: "i:download", tokens: [["count", t("aggiornamenti disponibili")]],
     left: "menu", middle: "none", right: "none", native: true, menu: true,
   },
+  // The newest files of the Downloads folder (barsys.rs; 24 Nov 2026, ideas from the docks for Windows).
+  downloads: {
+    name: t("Download recenti"), icon: "i:inbox", tokens: [["new", t("download nuovi")], ["name", t("ultimo download")]],
+    left: "menu", middle: "none", right: "none", native: true, menu: true,
+  },
+  // USB sticks, memory cards, USB disks: only while one is plugged in (drives.rs).
+  drives: {
+    name: t("Unità rimovibili (USB, schede)"), icon: "i:usb", tokens: [["count", t("unità collegate")], ["letters", t("lettere delle unità")]],
+    left: "menu", middle: "none", right: "none", native: true, menu: true,
+  },
   title: {
     // fgwin.rs follows the window in front while this is in the bar.
     name: t("Titolo della finestra in primo piano"), icon: "i:window", tokens: [["title", t("titolo")], ["app", t("programma")]],

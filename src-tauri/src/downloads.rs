@@ -75,6 +75,32 @@ pub(crate) fn downloads_dir() -> Option<PathBuf> {
     }
 }
 
+/// The newest downloads, newest first: (name, path, seconds since 1970 of the
+/// last change), at most `n`. Files only, never a browser's partial ones or
+/// hidden files (the bar's «Download», barsys.rs).
+pub fn recent(n: usize) -> Vec<(String, String, u64)> {
+    use std::os::windows::fs::MetadataExt;
+    const HIDDEN: u32 = 0x2;
+    const SYSTEM: u32 = 0x4;
+    let Some(dir) = downloads_dir() else { return Vec::new() };
+    let Ok(entries) = std::fs::read_dir(&dir) else { return Vec::new() };
+    let mut out: Vec<(String, String, u64)> = entries
+        .filter_map(Result::ok)
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let meta = e.metadata().ok()?;
+            if !meta.is_file() || is_partial(&name) || meta.file_attributes() & (HIDDEN | SYSTEM) != 0 {
+                return None;
+            }
+            let at = meta.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+            Some((name, e.path().to_string_lossy().into_owned(), at))
+        })
+        .collect();
+    out.sort_by(|a, b| b.2.cmp(&a.2));
+    out.truncate(n);
+    out
+}
+
 fn enabled(app: &AppHandle) -> bool {
     app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().moment_downloads)
 }
@@ -183,6 +209,8 @@ fn settle_loop(app: AppHandle) {
                 Verdict::Ready(size) => {
                     map.remove(&path);
                     drop(guard);
+                    // The bar's «Download» reads its list again at once (barsys.rs).
+                    crate::barsys::downloads_changed();
                     announced.retain(|_, t| now.duration_since(*t) < AGAIN);
                     if announced.contains_key(&path) || !enabled(&app) {
                         continue;

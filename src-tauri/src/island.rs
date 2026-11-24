@@ -634,6 +634,11 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
         if over && gate.collapsed.load(Ordering::Relaxed) {
             raise_over_taskbar(&app);
         }
+        // The fixed bar steps away from a full-screen app also when the shell does
+        // not say so (the Windows taskbar hidden): one look at the window in front.
+        if crate::appbar::window_rect().is_some() {
+            crate::appbar::full_screen_seen(crate::taskwin::fullscreen_front());
+        }
         // Our own full-screen overlay is not a full-screen app.
         if CAPTURING.load(Ordering::Relaxed) {
             continue;

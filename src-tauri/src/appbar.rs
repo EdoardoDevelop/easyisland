@@ -340,6 +340,7 @@ fn reregister() {
         let _ = RemoveWindowSubclass(hwnd(r.hwnd), Some(subclass), SUBCLASS_ID);
     }
     FULLSCREEN.store(false, Ordering::Relaxed);
+    SHELL_FULLSCREEN.store(false, Ordering::Relaxed);
     FIXES.store(0, Ordering::SeqCst);
     crate::log::line("barra fissa: schermo cambiato, registrata di nuovo".to_string());
     std::thread::spawn(|| {
@@ -351,12 +352,58 @@ fn reregister() {
     });
 }
 
+/// The shell's own notice (ABN_FULLSCREENAPP) says a full-screen app is in front.
+static SHELL_FULLSCREEN: AtomicBool = AtomicBool::new(false);
+/// Our own look at the window in front says so (taskwin.rs `fullscreen_front`):
+/// with the Windows taskbar hidden the shell's notice does not come.
+static SEEN_FULLSCREEN: AtomicBool = AtomicBool::new(false);
+
 /// The bar hides over a full-screen app (video, game, presentation) and comes back after.
 fn full_screen(on: bool) {
-    FULLSCREEN.store(on, Ordering::Relaxed);
+    SHELL_FULLSCREEN.store(on, Ordering::Relaxed);
+    update_full_screen();
+}
+
+/// Our own look at the window in front: a full-screen app on the bar's monitor
+/// (`monitor`: its rectangle), or none. From any thread.
+pub fn full_screen_seen(monitor: Option<RECT>) {
+    let on_ours = monitor.is_some_and(|m| {
+        REGISTERED.lock().unwrap().is_some_and(|r| {
+            let (l, t, rr, b) = r.rect;
+            let (cx, cy) = ((l + rr) / 2, if r.edge == ABE_TOP { t } else { b - 1 });
+            cx >= m.left && cx < m.right && cy >= m.top && cy < m.bottom
+        })
+    });
+    if SEEN_FULLSCREEN.swap(on_ours, Ordering::Relaxed) != on_ours {
+        update_full_screen();
+    }
+}
+
+/// A full-screen app was in front at the last look (either notice).
+static WANTED: AtomicBool = AtomicBool::new(false);
+/// That full screen began over a program the bar stays over: decided once, when
+/// it began. Looking again later saw the next program in front while the
+/// shell's notice was still on, and the bar flashed away as the app closed.
+static KEPT: AtomicBool = AtomicBool::new(false);
+
+/// Hidden when either says so, unless the program in front is one the user
+/// keeps the bar over («Programmi con la barra visibile», `fullscreenKeep`).
+fn update_full_screen() {
     let Some(app) = APP.get() else { return };
-    crate::sync_character(app);
+    let wanted = SHELL_FULLSCREEN.load(Ordering::Relaxed) || SEEN_FULLSCREEN.load(Ordering::Relaxed);
+    if wanted && !WANTED.swap(true, Ordering::Relaxed) {
+        let keep = app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().bar_fullscreen_keep()).unwrap_or_default();
+        KEPT.store(!keep.is_empty() && crate::taskwin::front_exe_matches(&keep), Ordering::Relaxed);
+    } else if !wanted {
+        WANTED.store(false, Ordering::Relaxed);
+    }
+    let on = wanted && !KEPT.load(Ordering::Relaxed);
+    if FULLSCREEN.swap(on, Ordering::Relaxed) == on {
+        return;
+    }
     crate::log::line(format!("barra fissa: schermo intero {on}"));
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || crate::sync_character(&app2));
 }
 
 /// The space goes back to the windows; the island is an island again.

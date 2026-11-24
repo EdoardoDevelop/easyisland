@@ -127,6 +127,11 @@
       .app-ico.attention::after { background: #F5A524; }
       .app-ico.dragging { background: color-mix(in srgb, var(--ink, #fff) 22%, transparent); cursor: grabbing; }
       .app-ico.drop-on { outline: 2px solid #22C55E; outline-offset: -2px; background: color-mix(in srgb, #22C55E 22%, transparent); }
+      /* «Ingrandisci al passaggio» (apps.ts): the icon and its neighbours grow away from the edge. */
+      .app-ico > img, .app-ico > .app-letter { transition: transform 0.09s ease-out; transform-origin: var(--mag-origin, center); }
+      .mag-still .app-ico > img, .mag-still .app-ico > .app-letter { transition: none; }
+      /* Files over the bar's recycle bin (main.ts recycleAt): they go into it. */
+      .bar-btn.drop-bin { outline: 2px solid #EF4444; outline-offset: -2px; background: color-mix(in srgb, #EF4444 22%, transparent); }
       /* An element with nothing to show now (bar.ts emptyPiece): only while customizing. */
       .bar-btn:has(.bar-empty) { display: none; }
       body.editing .bar-btn:has(.bar-empty) { display: flex; opacity: 0.6; font-style: italic; }

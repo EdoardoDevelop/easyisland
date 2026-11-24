@@ -1622,6 +1622,21 @@ impl Settings {
         self.fixed_bar_look.get("autoHide").and_then(Value::as_bool).unwrap_or(false)
     }
 
+    /// Programs the fixed bar stays over even in full screen (`fullscreenKeep`:
+    /// file names with `*` and `?`), at most 30.
+    pub fn bar_fullscreen_keep(&self) -> Vec<String> {
+        self.fixed_bar_look
+            .get("fullscreenKeep")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty() && s.len() <= 100).take(30).map(String::from).collect())
+            .unwrap_or_default()
+    }
+
+    /// The fixed bar's material behind it when blurred: Windows' acrylic, or Mica (`material: "mica"`).
+    pub fn bar_mica(&self) -> bool {
+        self.fixed_bar_look.get("material").and_then(Value::as_str) == Some("mica")
+    }
+
     /// The fixed bar blurs what is behind it (Windows' acrylic); not with the islands style.
     pub fn bar_blur(&self) -> bool {
         self.fixed_bar_look.get("blur").and_then(Value::as_bool).unwrap_or(false)

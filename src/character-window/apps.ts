@@ -90,6 +90,85 @@ export function setPins(list: AppPin[] | undefined) {
   askIcons(pins.map((p) => p.id));
 }
 
+// «App»'s options (Personalizza la barra → App; 24 Nov 2026, ideas from the
+// docks for Windows): the icons grow under the mouse, and windows minimize
+// into their icon (taskwin.rs answers Windows with the icons' places).
+let magnify = false;
+let minimizeTo = true;
+/** The bar's edge: the icons grow away from it. */
+let edge: "top" | "bottom" = "top";
+
+export function setAppsLook(look: { magnify?: boolean; minimizeTo?: boolean } | undefined, barEdge: "top" | "bottom") {
+  magnify = !!look?.magnify;
+  minimizeTo = look?.minimizeTo !== false;
+  edge = barEdge;
+  if (!magnify) unmagnify();
+  sendRectsSoon();
+}
+
+/** The icons' places sent last (taskwin.rs `apps_rects`): sent again only when they change. */
+let rectsSent = "";
+let rectsFrame = 0;
+
+/** After the bar is laid out: where each app's icon is, for windows minimizing into it. */
+export function sendRectsSoon() {
+  if (rectsFrame) return;
+  rectsFrame = requestAnimationFrame(() => {
+    rectsFrame = 0;
+    const rects = !started || !minimizeTo ? [] : [...document.querySelectorAll<HTMLElement>(".app-ico")]
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      // Moved into «…» or hidden: no place on the screen.
+      .filter(({ el, r }) => r.width > 0 && r.height > 0 && el.offsetParent !== null)
+      .map(({ el, r }) => ({ app: el.dataset.app ?? "", x: r.left, y: r.top, w: r.width, h: r.height }))
+      .filter((x) => x.app);
+    const key = JSON.stringify(rects.map((r) => [r.app, Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h)]));
+    if (key === rectsSent) return;
+    rectsSent = key;
+    void invoke("apps_rects", { rects }).catch(() => {});
+  });
+}
+window.addEventListener("resize", sendRectsSoon);
+
+/** How much the icon under the mouse grows; its neighbours less, within `REACH` icons. */
+const MAGNIFY = 1.45;
+const REACH = 2.2;
+let magnified: HTMLElement | null = null;
+/** Where the mouse is over the apps (window px), null when not over them. */
+let magX: number | null = null;
+
+function unmagnify() {
+  magX = null;
+  if (!magnified) return;
+  for (const img of magnified.querySelectorAll<HTMLElement>(".app-ico > img, .app-ico > .app-letter")) img.style.transform = "";
+  magnified = null;
+}
+
+/** Each icon grows by its distance from the mouse. */
+function magnifyAt(host: HTMLElement, x: number) {
+  magnified = host;
+  host.style.setProperty("--mag-origin", edge === "bottom" ? "center bottom" : "center top");
+  for (const el of host.querySelectorAll<HTMLElement>(".app-ico")) {
+    const r = el.getBoundingClientRect();
+    const d = Math.abs(x - (r.left + r.width / 2)) / Math.max(1, r.width * REACH);
+    const s = d >= 1 ? 1 : 1 + (MAGNIFY - 1) * Math.cos((d * Math.PI) / 2);
+    const img = el.querySelector<HTMLElement>(":scope > img, :scope > .app-letter");
+    if (img) img.style.transform = s > 1.005 ? `scale(${s.toFixed(3)})` : "";
+  }
+}
+
+/** The icons near the mouse grow, as a wave: only while it moves over them. */
+document.addEventListener("pointermove", (e) => {
+  if (!magnify) return;
+  const host = (e.target as HTMLElement | null)?.closest?.(".bar-apps") as HTMLElement | null;
+  if (!host || press?.dragging) {
+    unmagnify();
+    return;
+  }
+  magX = e.clientX;
+  magnifyAt(host, e.clientX);
+});
+document.addEventListener("mouseleave", unmagnify);
+
 /** Pinned first in their order, then the open ones in the order they came. */
 function groups(): Group[] {
   const all = [...wins.values()];
@@ -155,6 +234,23 @@ export function fillApps(host: HTMLElement) {
     }
     host.append(el);
   }
+  magnified = null;
+  sendRectsSoon();
+}
+
+/**
+ * The bar was laid out again (main.ts layAreas; the values change every few
+ * seconds) with the mouse over the apps: still grown where it is, measured now
+ * that the new icons are in place, and without the transition this once, or
+ * they would shrink and grow back.
+ */
+export function appsLaidOut() {
+  if (!magnify || magX === null) return;
+  const host = document.querySelector<HTMLElement>(".bar-apps");
+  if (!host) return;
+  host.classList.add("mag-still");
+  magnifyAt(host, magX);
+  requestAnimationFrame(() => host.classList.remove("mag-still"));
 }
 
 function centre(el: HTMLElement): number {
@@ -162,8 +258,16 @@ function centre(el: HTMLElement): number {
   return Math.round(r.left + r.width / 2);
 }
 
-/** Left click on an app: one window → front or minimized, none → opened, several → their card. */
-function leftClick(id: string, el: HTMLElement, ctrl: boolean) {
+/**
+ * Left click on an app: one window → front or minimized, none → opened,
+ * several → their card. As on the Windows taskbar: Maiusc+click opens a new
+ * window, Ctrl+Maiusc+click runs it as administrator (Windows asks).
+ */
+function leftClick(id: string, el: HTMLElement, ctrl: boolean, shift = false) {
+  if (shift) {
+    void invoke("apps_do", { what: ctrl ? "launch-admin" : "launch-new", app: id }).catch(() => {});
+    return;
+  }
   const g = groupOf(id);
   // Ctrl+click: the app's next window, as on the Windows taskbar (23 Nov 2026).
   if (ctrl && g && g.windows.length > 1) cycle(id, 1);
@@ -175,7 +279,7 @@ function leftClick(id: string, el: HTMLElement, ctrl: boolean) {
 // The left button acts on its release, as on the Windows taskbar, so a press
 // that moves is a drag; a press whose release never comes (another app in
 // front can keep it, the log of 31 Oct 2026) acts after HOLD_MS all the same.
-interface Press { id: string; el: HTMLElement; x: number; ctrl: boolean; dragging: boolean; done: boolean; timer: number }
+interface Press { id: string; el: HTMLElement; x: number; ctrl: boolean; shift: boolean; dragging: boolean; done: boolean; timer: number }
 let press: Press | null = null;
 /** The bar drawn again while dragging: deferred to the drop. */
 let redrawLater = false;
@@ -186,7 +290,7 @@ function act(p: Press) {
   window.clearTimeout(p.timer);
   if (p.done || p.dragging) return;
   p.done = true;
-  leftClick(p.id, p.el, p.ctrl);
+  leftClick(p.id, p.el, p.ctrl, p.shift);
 }
 
 /** Where the dragged icon goes among the others: moved in the DOM as it passes their centres. */
@@ -229,7 +333,7 @@ export function appsPress(e: PointerEvent | MouseEvent): boolean {
     void invoke("apps_do", { what: "launch-new", app: id }).catch(() => {});
   } else if (e.button === 0) {
     if (press) window.clearTimeout(press.timer);
-    const p: Press = { id, el, x: e.clientX, ctrl: e.ctrlKey, dragging: false, done: false, timer: 0 };
+    const p: Press = { id, el, x: e.clientX, ctrl: e.ctrlKey, shift: e.shiftKey, dragging: false, done: false, timer: 0 };
     p.timer = window.setTimeout(() => act(p), HOLD_MS);
     press = p;
     if ("pointerId" in e) {

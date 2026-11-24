@@ -184,6 +184,10 @@ export interface BarOpts {
   /** A folder's small island: a grid of icons or a list, and the icons' size in px. */
   layout?: "grid" | "list";
   iconSize?: number;
+  /** «App»: the icons grow under the mouse, the nearest most (off unless chosen). */
+  magnify?: boolean;
+  /** «App»: a window minimizes into its icon and comes back out of it (false turns it off). */
+  minimizeTo?: boolean;
 }
 
 /**
@@ -201,6 +205,10 @@ export interface FixedBarLook {
   /** Background opacity, 10–100 %. */
   opacity?: number;
   blur?: boolean;
+  /** With `blur`: Windows 11's Mica instead of the acrylic (lib.rs character_blur). */
+  material?: "mica";
+  /** Programs the bar stays over in full screen (appbar.rs; file names, * and ? as wildcards). */
+  fullscreenKeep?: string[];
   /** Room from the left and right edges, px. */
   margin?: number;
   /** Text size, 80–150 %. */
@@ -292,6 +300,10 @@ export interface BarSys {
   /** Keyboard language of the window in front: "IT", "Italiano (Italia)". */
   lang?: { code: string; name: string } | null;
   recycle?: { count: number; bytes: number } | null;
+  /** The newest downloads (barsys.rs `downloads_value`): `fresh` are newer than the last look. */
+  downloads?: { dir: string; fresh: number; items: { name: string; path: string; at: number }[] } | null;
+  /** USB sticks, memory cards and USB disks plugged in (drives.rs). */
+  drives?: { letter: string; label: string; total: number; free: number }[] | null;
   /** winget's upgrades; `checking` before the first answer. */
   updates?: { count?: number; names?: string[]; at?: number; checking?: boolean } | null;
   /** VS Code's recent folders, newest first. */

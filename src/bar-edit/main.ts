@@ -426,6 +426,16 @@ function optionsView(it: BarItem): HTMLElement[] {
     const title = it.id === "sys:title";
     rows.push(line(title ? t("Lettere al massimo") : t("Progetti nel menu"), range(title ? 10 : 1, title ? 200 : 15, 1, o.max ?? (title ? 60 : 10), "", (v) => { o.max = v; commit(); })));
   }
+  if (it.id === "sys:apps") {
+    rows.push(
+      line(t("Ingrandisci al passaggio del mouse"), switchEl(!!o.magnify, (v) => { o.magnify = v || undefined; commit(); }), t("l'icona sotto il mouse e le vicine crescono, come su un Mac")),
+      line(t("Riduci le finestre nella loro icona"), switchEl(o.minimizeTo !== false, (v) => { o.minimizeTo = v ? undefined : false; commit(); }), t("l'animazione di Windows va verso l'icona nella barra e torna da lì")),
+      h("p", { class: "be-tip", text: t("Maiusc+clic apre un'altra finestra, Ctrl+Maiusc+clic la apre come amministratore, il clic centrale ne apre una nuova.") }),
+    );
+  }
+  if (it.id === "sys:downloads") {
+    rows.push(line(t("Download nel menu"), range(1, 12, 1, o.max ?? 10, "", (v) => { o.max = v; commit(); })));
+  }
   if (it.id === "sys:music") rows.push(line(t("Pulsanti precedente, pausa, successivo"), switchEl(o.buttons !== false, (v) => { o.buttons = v ? undefined : false; commit(); })));
   if (it.id === "sys:clock") {
     const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["Europe/Rome", "Europe/London", "America/New_York", "Asia/Tokyo", "UTC"];
@@ -509,7 +519,10 @@ function lookView(): HTMLElement[] {
       line(t("Aspetto elementi"), segmented([["classic", t("Piatto")], ["pills", t("Pillole")], ["compact", t("Compatto")]] as ["classic" | "pills" | "compact", string][], look().design ?? "classic", (v) => { set("design", v); draw(); })),
       h("div", { class: "be-line be-line-col" }, h("div", { class: "be-line-text" }, h("span", { text: t("Sfondo") })), bg),
       line(t("Opacità dello sfondo"), range(10, 100, 5, look().opacity ?? 100, "%", (v) => set("opacity", v))),
-      line(t("Sfocatura dietro la barra"), switchEl(!!look().blur, (v) => set("blur", v))),
+      line(t("Sfocatura dietro la barra"), switchEl(!!look().blur, (v) => { set("blur", v); draw(); })),
+      // Windows 11's own materials (lib.rs character_blur): acrylic blurs what is behind, Mica takes the wallpaper's colours.
+      ...(look().blur ? [line(t("Materiale"), segmented([["acrylic", t("Acrilico")], ["mica", "Mica"]] as ["acrylic" | "mica", string][], look().material === "mica" ? "mica" : "acrylic",
+        (v) => set("material", v === "mica" ? "mica" : undefined)), t("Mica prende i colori dello sfondo del desktop, come le finestre di Windows 11; con lo sfondo poco opaco si vede meglio"))] : []),
     ),
     h("div", { class: "be-panel" },
       line(t("Margine dai lati"), range(0, 400, 4, look().margin ?? 0, " px", (v) => set("margin", v))),
@@ -522,6 +535,15 @@ function lookView(): HTMLElement[] {
       line(t("Le schede escono dalla barra"), switchEl(look().popover !== false, (v) => set("popover", v))),
       line(t("Font di Aspetto → Font"), switchEl(look().font !== false, (v) => set("font", v))),
       line(t("Il personaggio cresce sotto il mouse"), switchEl(look().grow !== false, (v) => set("grow", v))),
+    ),
+    // Over a game, a video, a presentation the bar steps away (appbar.rs), except over these programs.
+    h("div", { class: "be-panel" },
+      line(t("A schermo intero resta visibile sopra"),
+        text((look().fullscreenKeep ?? []).join(", "), "vlc, obs64, *game*", (v) => {
+          const list = v.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean).slice(0, 30);
+          set("fullscreenKeep", list.length ? list : undefined);
+        }),
+        t("Sopra giochi, video e presentazioni a schermo intero la barra si toglie; qui i programmi su cui resta (nomi dei file, * e ? come jolly)")),
     ),
   ];
 }

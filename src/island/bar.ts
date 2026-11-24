@@ -312,8 +312,27 @@ function sysValues(kind: string, it: BarItem, design: FixedBarDesign): SysValue 
       const size = r ? bytes(r.bytes) : "";
       const empty = !r || r.count === 0;
       return {
-        v: { count, size, value: empty ? "" : count }, icon: k.icon,
-        tip: empty ? t("Il cestino è vuoto") : t("Cestino: {n} elementi, {size}", { n: count, size }), dim: empty,
+        v: { count, size, value: empty ? "" : count }, icon: empty ? k.icon : "i:trash-full",
+        tip: `${empty ? t("Il cestino è vuoto") : t("Cestino: {n} elementi, {size}", { n: count, size })} · ${t("trascina qui dei file per metterli nel cestino")}`, dim: empty,
+      };
+    }
+    case "downloads": {
+      const d = s.downloads;
+      const fresh = d?.fresh ?? 0;
+      const last = d?.items[0]?.name ?? "";
+      return {
+        v: { new: fresh ? String(fresh) : "", name: last, value: fresh ? String(fresh) : "" }, icon: k.icon,
+        tip: !d ? t("Download recenti") : fresh ? tn("{n} download nuovo", "{n} download nuovi", fresh) + (last ? ` · ${last}` : "")
+          : last ? `${t("Ultimo download")}: ${last}` : t("La cartella Download è vuota"),
+        dim: !fresh,
+      };
+    }
+    case "drives": {
+      const list = s.drives ?? [];
+      const letters = list.map((x) => `${x.letter}:`).join(" ");
+      return {
+        v: { count: list.length ? String(list.length) : "", letters, value: letters }, icon: k.icon,
+        tip: list.length ? list.map((x) => `${x.letter}: ${x.label || t("Unità rimovibile")} · ${t("{free} liberi", { free: bytes(x.free) })}`).join("\n") : t("Nessuna unità rimovibile"),
       };
     }
     case "updates": {
@@ -507,6 +526,11 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
         out.push({ key, area, html: h("span", { class: "bar-item bar-apps-host" }, h("span", { class: "bar-apps" })).outerHTML, title: "" });
         continue;
       }
+      // Removable drives: only while one is plugged in (as the docks' own section).
+      if (kind === "drives" && !State.barSys.drives?.length) {
+        out.push(emptyPiece(key, area, BAR_KINDS[kind].icon, BAR_KINDS[kind].name, t("Vuota: compare quando colleghi una chiavetta, una scheda o un disco USB")));
+        continue;
+      }
       // The bar of the app in use: empty when the program in front has no actions of the user.
       if (kind === "appbar" && !appBar?.buttons.length) {
         out.push(emptyPiece(key, area, BAR_KINDS[kind].icon, BAR_KINDS[kind].name, t("Vuota: compare quando il programma davanti ha azioni rapide tue («Nella barra con»)")));
@@ -664,6 +688,28 @@ export function barMenuOf(it: BarItem): [string, string][] {
         ["sys:updates:windows", "Windows Update"],
       ];
     }
+    case "sys:downloads": {
+      const d = s.downloads;
+      const max = Math.max(1, Math.min(12, it.opts?.max ?? 10));
+      const now = Date.now() / 1000;
+      const list = (d?.items ?? []).slice(0, max).map((x, i) => [`sys:downloads:open:${i}`, `${x.name}  —  ${ago(now - x.at)}`] as [string, string]);
+      return [
+        ...(list.length ? list : [["-none", t("La cartella Download è vuota")] as [string, string]]),
+        ["", ""],
+        ...(list.length ? [["sys:downloads:show:0", t("Mostra l'ultimo nella cartella")] as [string, string]] : []),
+        ["sys:downloads:folder", t("Apri la cartella Download")],
+      ];
+    }
+    case "sys:drives": {
+      const list = s.drives ?? [];
+      if (!list.length) return [["-none", t("Nessuna unità rimovibile")]];
+      return list.flatMap((x, i) => [
+        ...(i ? [["", ""] as [string, string]] : []),
+        [`-d${x.letter}`, `${x.letter}:  ${x.label || t("Unità rimovibile")} · ${t("{free} liberi su {total}", { free: bytes(x.free), total: bytes(x.total) })}`] as [string, string],
+        [`sys:drives:open:${x.letter}`, t("Apri")] as [string, string],
+        [`sys:drives:eject:${x.letter}`, t("Espelli")] as [string, string],
+      ]);
+    }
     case "sys:vscode": {
       const max = Math.max(1, Math.min(15, it.opts?.max ?? 10));
       const list = (s.vscode ?? []).slice(0, max).map((x, i) => [`sys:vscode:open:${i}`, `${x.name}  —  ${x.path}`] as [string, string]);
@@ -671,6 +717,14 @@ export function barMenuOf(it: BarItem): [string, string][] {
     }
     default: return [];
   }
+}
+
+/** How long ago, short, as the integration cards say it: «adesso», «5m», «3h», «2g». */
+function ago(secs: number): string {
+  if (!Number.isFinite(secs) || secs < 60) return t("adesso");
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h`;
+  return t("{n}g", { n: Math.floor(secs / 86400) });
 }
 
 /** The power menu's lines: they come back as `sys:power:<what>` (Island.barClick). */
