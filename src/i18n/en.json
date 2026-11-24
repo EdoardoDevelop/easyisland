@@ -6665,5 +6665,9 @@
   "{n} documento": "{n} document",
   "{n} documenti": "{n} documents",
   "Documenti: i file creati o nominati in questa conversazione": "Documents: the files made or named in this conversation",
-  "Clic: apri con il suo programma": "Click: open with its program"
+  "Clic: apri con il suo programma": "Click: open with its program",
+  "Sta ancora rispondendo: fermala prima di chiuderla": "It is still answering: stop it before closing it",
+  "Chiudi questa conversazione": "Close this conversation",
+  "Nuova conversazione in una scheda": "New conversation in a tab",
+  "Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci": "Hold and drag to move the chat · double click: enlarge or reduce"
 }

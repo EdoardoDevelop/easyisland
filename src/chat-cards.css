@@ -125,6 +125,13 @@ html[data-chat-look="cards"] .chat-card .chat-side .history-item.on { background
 html[data-chat-look="cards"] .chat-card .chat-side .history-title { font-size: var(--cc-t-ui); color: var(--cc-reply); }
 html[data-chat-look="cards"] .chat-card .chat-side .history-item.on .history-title { color: var(--cc-ink); }
 
+/* The tabs of the open conversations (chat.ts renderTabs), in the card's own colours (dark and light). */
+html[data-chat-look="cards"] .chat-card .chat-tabs { border-bottom-color: var(--cc-line); font-size: var(--cc-t-ui); }
+html[data-chat-look="cards"] .chat-card .chat-tab { color: var(--cc-dim); border-radius: var(--cc-r-ctl); }
+html[data-chat-look="cards"] .chat-card :is(.chat-tab, .chat-tab-add):hover { background: var(--cc-hover); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-tab.on { background: var(--cc-soft); color: var(--cc-ink); }
+html[data-chat-look="cards"] .chat-card .chat-tab-x:hover { background: var(--cc-hover); color: var(--cc-ink); }
+
 /* The chat's scrolling lists: a thin bar without arrows, seen only under the
    pointer (always there, with its arrows, it was heavy). */
 html[data-chat-look="cards"] :is(.chat-card, .dock-cronologia, .dock-documenti) :is(.history-rows, .chat-log, .engine-menu, .slash-menu, .chat-docs-list) { scrollbar-color: auto; scrollbar-width: auto; }

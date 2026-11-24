@@ -478,7 +478,19 @@ function tab(doc: Document, id: DockPanelId): ITabRenderer {
         else p.api.maximize();
       });
       element.title = t("Doppio clic: ingrandisci o riduci · clic destro: altre scelte");
-      if (id === "chat") return;
+      // The chat's tab holds the tabs of its conversations (chat.ts placeTabs; Edoardo,
+      // 24 Nov 2026): held and dragged, the bar still moves the panel.
+      if (id === "chat") {
+        element.dataset.chatTabsHome = "";
+        element.title = t("Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci");
+        // Made again (a move, a panel more): the tabs come at once, not at the next redraw.
+        const row = doc.querySelector<HTMLElement>(".chat-tabs");
+        if (row) {
+          element.append(row);
+          row.classList.add("in-dock");
+        }
+        return;
+      }
       const x = doc.createElement("button");
       x.className = "dock-tab-x";
       x.append(svg(ICONS.xmark, 10));

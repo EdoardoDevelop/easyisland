@@ -11,7 +11,7 @@ import { openClientCard } from "../src/views/clientcard";
 import { boardSample } from "../src/views/island-layout";
 import { chartSample } from "../src/island/bar";
 import type { Island } from "../src/island/island";
-import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
+import { State, newChatSession, type AppMenuLine, type ChatSessionState, type CustomField } from "../src/core/state";
 import { Bridge, type ClientCard } from "../src/core/bridge";
 import { demoGraph } from "../src/memory/demo";
 import { handleHook } from "../src/island/hooks";
@@ -276,6 +276,20 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?schede: four open conversations as tabs (chat.ts renderTabs): one answering, one answered while away.
+      if (new URLSearchParams(location.search).has("schede")) {
+        const mk = (q: string, a: string, extra: Partial<ChatSessionState> = {}): ChatSessionState => ({
+          ...newChatSession(), history: [{ id: 1, role: "user", content: q }, { id: 2, role: "assistant", engine: "subscription", content: a }], ...extra,
+        });
+        State.chats = [
+          mk("crea un preventivo per jacaroni per la sede in Zona Fiori", "Fatto: l'offerta è pronta in PDF e Word."),
+          mk("controlla i firmware del server di Falchi", "Sto leggendo la Job Queue dell'iDRAC.", { sending: true }),
+          mk("Talenti: risposta al ticket dell'archivio online", "Ecco la bozza di risposta.", { unread: true }),
+          mk("come cambiare ip di proxmox da shell?", "Modifica /etc/network/interfaces e /etc/hosts, poi riavvia la rete."),
+        ];
+        State.chatSid = State.chats[0].sid;
+        State.chatSideOpen = false;
+      }
       // ?docs: the «Documenti» panel beside the chat (chat-docs.ts), on replies of a day of offers.
       if (new URLSearchParams(location.search).has("docs")) {
         const root = "C:\\Users\\Edoardo\\OneDrive - Easytech SRL\\WORK";
