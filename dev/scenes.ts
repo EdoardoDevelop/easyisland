@@ -8,6 +8,8 @@ import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import { openClientCard } from "../src/views/clientcard";
+import { boardSample } from "../src/views/island-layout";
+import { chartSample } from "../src/island/bar";
 import type { Island } from "../src/island/island";
 import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge, type ClientCard } from "../src/core/bridge";
@@ -1918,6 +1920,157 @@ export async function runScene(island: Island, scene: string) {
         if (q.has("hearing")) State.talk.state = "hearing";
         State.notify();
       }
+      await wait(1200);
+      break;
+    }
+    case "isola": {
+      // The island built from a JSON, step 1 (island-layout.ts): a shutdown button at the
+      // foot of the menu, one in the header, a tab «PC» (?board opens it, ?draft shows it as a card's draft).
+      const pc = { id: "pc", name: "PC", icon: "i:monitor", buttons: [
+        { id: "wifi", label: "Wi-Fi", icon: "i:wifi", color: "#38bdf8", action: { kind: "windows" as const, page: "wifi" } },
+        { id: "bt", label: "Bluetooth", icon: "i:network", color: "#818cf8", action: { kind: "windows" as const, page: "bluetooth" } },
+        { id: "stampanti", label: "Stampanti", icon: "i:printer", action: { kind: "windows" as const, page: "printers" } },
+        { id: "taskmgr", label: "Gestione attività", icon: "i:chart", color: "#34d399", action: { kind: "system" as const, what: "taskmgr" } },
+        { id: "cestino", label: "Cestino", icon: "i:trash", action: { kind: "system" as const, what: "recycle-open" } },
+        { id: "riavvia", label: "Riavvia", icon: "i:refresh", color: "#f5a524", action: { kind: "system" as const, what: "restart" } },
+      ] };
+      const layout = {
+        buttons: [
+          { id: "spegni", label: "Spegni il PC", icon: "i:power", color: "#f4505e", zone: "menu-bottom" as const, action: { kind: "system" as const, what: "shutdown" } },
+          { id: "blocca", label: "Blocca", icon: "i:lock", zone: "menu-bottom" as const, action: { kind: "system" as const, what: "lock" } },
+          { id: "posta", label: "Posta", icon: "i:mail", color: "#38bdf8", zone: "header" as const, action: { kind: "url" as const, url: "https://outlook.office.com" } },
+        ],
+        tabs: [pc, {
+          // Step 2: blocks read from sources (?tab=app or ?tab=stato).
+          id: "app", name: "App", icon: "i:widgets", buttons: [],
+          blocks: [{ id: "tutte", kind: "grid" as const, source: { kind: "apps" as const }, search: true }],
+        }, {
+          id: "stato", name: "Stato", icon: "i:chart", buttons: [],
+          blocks: [
+            { id: "cpu", kind: "value" as const, what: "cpu" },
+            { id: "ram", kind: "value" as const, what: "ram" },
+            { id: "disco", kind: "value" as const, what: "disk", title: "Disco C:" },
+            { id: "ip", kind: "value" as const, what: "ip" },
+            { id: "finestre", kind: "list" as const, title: "Finestre aperte", source: { kind: "windows" as const } },
+            { id: "nota", kind: "text" as const, text: "Le finestre si rileggono a ogni apertura della scheda." },
+          ],
+        }],
+      };
+      boardSample("apps", ["Calcolatrice", "Excel", "Esplora file", "Microsoft Edge", "Outlook", "Paint", "PowerShell", "Teams", "Terminale", "Visual Studio Code", "Word", "Blocco note"]
+        .map((name, i) => ({ name, icon: ["i:calculator", "i:table", "i:folder", "i:globe", "i:mail", "i:palette", "i:terminal", "i:users", "i:terminal", "i:code", "i:file", "i:note"][i] })));
+      boardSample("windows", [{ name: "Preventivo 2026.docx", sub: "Word" }, { name: "Posta in arrivo", sub: "Outlook" }, { name: "EasyIsland — HANDOFF.md", sub: "Visual Studio Code" }]);
+      State.barSys = { cpu: 23, ram: { percent: 61, used: 19.5e9, total: 32e9 }, disks: { C: { free: 212e9, total: 1000e9 } }, net: { down: 1200, up: 300, wifi: true, ip: "192.168.1.20" } };
+      const q = new URLSearchParams(location.search);
+      // Step 3 (?moved): Chat and the tab «App» first, Notizie and the memory's button hidden, sound before the rest.
+      if (q.has("moved")) {
+        Object.assign(layout, {
+          menu: { order: ["chat", "tab:app"], hidden: ["news"] },
+          header: { order: ["sound", "own"], hidden: ["memory"] },
+        });
+      }
+      // The Panoramica from the JSON (?ov): GitHub first, Vercel hidden, GitHub's card and the CPU as blocks on top.
+      if (q.has("ov")) {
+        Object.assign(layout, {
+          overview: {
+            order: ["block:stato", "tiles", "block:github"],
+            hidden: ["tile:integration_vercel"],
+            tiles: ["integration_github"],
+            blocks: [
+              { id: "stato", kind: "value" as const, what: "cpu" },
+              { id: "github", kind: "piece" as const, piece: "integration" as const, integration: "integration_github", title: "GitHub" },
+            ],
+          },
+        });
+      }
+      // Second round (?more): the new sources and the charts in a tab «Altro», the island's foot.
+      if (q.has("more")) {
+        layout.tabs.push({
+          id: "altro", name: "Altro", icon: "i:bolt", buttons: [],
+          blocks: [
+            { id: "g-cpu", kind: "chart" as const, what: "cpu" },
+            { id: "g-net", kind: "chart" as const, what: "net", title: "Rete" },
+            { id: "recenti", kind: "list" as const, title: "File recenti", source: { kind: "recent" as const }, limit: 4 },
+            { id: "code", kind: "grid" as const, title: "Progetti di VS Code", source: { kind: "vscode" as const } },
+            { id: "clienti", kind: "list" as const, title: "Clienti", source: { kind: "records" as const, integration: "clienti" }, search: true },
+          ],
+        } as never);
+        Object.assign(layout, { footer: {
+          left: [{ id: "cattura", label: "Cattura", icon: "i:camera", action: { kind: "view", view: "files" } }, { what: "ip" }],
+          center: [{ what: "cpu" }, { what: "ram" }, { what: "disk", drive: "C" }],
+          right: [{ what: "battery" }, { id: "blocca-f", label: "Blocca", icon: "i:lock", action: { kind: "system", what: "lock" } }],
+        } });
+        boardSample("recent", [{ name: "Preventivo Rossi.docx", sub: "C:\\Users\\me\\Documents", icon: "i:file" }, { name: "Listino 2026.xlsx", sub: "C:\\Users\\me\\Desktop", icon: "i:file" }, { name: "Foto cantiere.jpg", sub: "C:\\Users\\me\\Pictures", icon: "i:file" }]);
+        boardSample("vscode", [{ name: "EasyIsland_0.2.0", icon: "i:code" }, { name: "agentchat", icon: "i:code" }, { name: "sito", icon: "i:code" }]);
+        boardSample("records", [{ name: "Rossi Impianti srl", sub: "22 nov" }, { name: "Bianchi & figli", sub: "20 nov" }, { name: "Studio Verdi", sub: "18 nov" }]);
+        chartSample("cpu", Array.from({ length: 150 }, (_, i) => 18 + 12 * Math.sin(i / 9) + (i % 7) * 2 + (i > 120 ? 25 : 0)));
+        chartSample("net", Array.from({ length: 150 }, (_, i) => 800 + 600 * Math.abs(Math.sin(i / 5)) + (i % 11) * 90));
+      }
+      // The look (?look, ?look=caldo): the island's style, each piece's look, conditions and thresholds (island-look.ts).
+      if (q.has("look")) {
+        const warm = q.get("look") === "caldo";
+        const hot = { above: 50, color: "#f5a524" };
+        layout.tabs.unshift({
+          id: "stile", name: "Cruscotto", icon: "i:chart", color: warm ? "#f59e0b" : "#a78bfa", columns: 3, size: "l",
+          buttons: [
+            { id: "s-wifi", label: "Wi-Fi", icon: "i:wifi", color: "#38bdf8", action: { kind: "windows", page: "wifi" } },
+            { id: "s-task", label: "Attività", icon: "i:chart", color: "#34d399", shape: "square", action: { kind: "system", what: "taskmgr" } },
+            { id: "s-spegni", label: "Spegni", icon: "i:power", color: "#f4505e", bg: "#3b0d12", action: { kind: "system", what: "shutdown" } },
+          ],
+          blocks: [
+            { id: "titolo", kind: "text", text: warm ? "Buongiorno" : "Stato del PC", size: "xl", align: "center", width: "full" },
+            { id: "v-cpu", kind: "value", what: "cpu", width: "third", size: "l", levels: [{ what: "cpu", above: 80, color: "#f4505e" }, { what: "cpu", ...hot }] },
+            { id: "v-ram", kind: "value", what: "ram", width: "third", size: "l", levels: [{ what: "ram", above: 80, color: "#f4505e" }, { what: "ram", ...hot }] },
+            { id: "v-disk", kind: "value", what: "disk", width: "third", size: "l", title: "Disco C:", color: "#34d399" },
+            { id: "g-cpu", kind: "chart", what: "cpu", width: "half", height: 90, line: "bars", minutes: 2, title: "Processore, 2 minuti" },
+            { id: "g-ram", kind: "chart", what: "ram", width: "half", height: 90, line: "area", color: "#f472b6", title: "Memoria" },
+            { id: "sera", kind: "text", text: "Questo testo si vede solo dalle 18 alle 8.", when: { hours: "18:00-08:00" }, bg: "#1e293b", italic: true },
+            { id: "giorno", kind: "text", text: "Questo testo si vede solo dalle 8 alle 18 (when.hours), con bordo e angoli suoi.", when: { hours: "08:00-18:00" }, border: "#a78bfa", radius: 16 },
+            { id: "lista", kind: "list", title: "Finestre aperte", title_color: "#a78bfa", source: { kind: "windows" }, height: 90, size: "s" },
+          ],
+        } as never);
+        Object.assign(layout, {
+          style: warm
+            ? { background: "#2a1d12", background2: "#120c08", gradient: "down", accent: "#f59e0b", text: "#fdf1e2", dim: "#c7ab8e", radius: 6, font: "mono", card_radius: 4, border: "#f59e0b", border_width: 1, spacing: "compact", menu_background: "#3a2818" }
+            : { background: "#141a3a", background2: "#2a1240", gradient: "diagonal", opacity: 0.97, accent: "#a78bfa", radius: 26, card_radius: 18, glow: "#7c3aed", text_size: 1, font: "segoe", spacing: "wide", footer_background: "#1e1b4b" },
+          footer: {
+            left: [
+              { id: "f-blocca", label: "Blocca", icon: "i:lock", show: "both", shape: "pill", bg: "#312e81", action: { kind: "system", what: "lock" } },
+              { id: "f-sera", label: "Notte", icon: "i:moon", when: { hours: "20:00-06:00" }, action: { kind: "system", what: "sleep" } },
+            ],
+            center: [
+              { what: "cpu", label: "CPU", levels: [{ above: 80, color: "#f4505e" }, hot] },
+              { what: "ram", label: "RAM", levels: [{ above: 80, color: "#f4505e" }, hot] },
+              { what: "disk", drive: "C", label: "C:" },
+            ],
+            right: [{ id: "f-cpu", label: "Gestione attività", icon: "i:chart", size: "l", levels: [{ what: "cpu", above: 50, color: "#f4505e" }], action: { kind: "system", what: "taskmgr" } }],
+          },
+        });
+        Object.assign(layout.buttons[0], { shape: "circle", bg: "#4c0519" });
+        Object.assign(layout.buttons[2], { show: "both", shape: "pill" });
+        State.barSys = { ...State.barSys, cpu: 38, ram: { percent: 67, used: 21e9, total: 32e9 }, gpu: 12 };
+        chartSample("cpu", Array.from({ length: 150 }, (_, i) => 18 + 12 * Math.sin(i / 9) + (i % 7) * 2 + (i > 120 ? 25 : 0)));
+        chartSample("ram", Array.from({ length: 150 }, (_, i) => 55 + 8 * Math.sin(i / 23) + (i > 100 ? 6 : 0)));
+        // ?look&ov: the Panoramica with values side by side (width) on top.
+        if (q.has("ov")) {
+          Object.assign(layout, { overview: {
+            order: ["block:o-cpu", "block:o-ram", "block:o-gpu", "tiles"],
+            blocks: [
+              { id: "o-cpu", kind: "value", what: "cpu", width: "third", levels: [{ what: "cpu", above: 30, color: "#f5a524" }] },
+              { id: "o-ram", kind: "value", what: "ram", width: "third" },
+              { id: "o-gpu", kind: "value", what: "gpu", width: "third", color: "#34d399" },
+            ],
+          } });
+        }
+      }
+      if (q.has("draft")) {
+        State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };
+      } else State.islandLayout = layout;
+      await wait(300);
+      if (q.has("board") || q.has("tab") || (q.has("look") && !q.has("ov"))) {
+        State.boardTab = q.get("tab") || (q.has("look") ? "stile" : "pc");
+        island.setView("board");
+      } else island.setView("overview");
+      island.setPinned(true);
       await wait(1200);
       break;
     }

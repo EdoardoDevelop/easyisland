@@ -59,7 +59,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GW_OWNER, MSG, OBJID_WINDOW, SMTO_ABORTIFHUNG, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOOWNERZORDER, SWP_NOSIZE, SW_MINIMIZE, SW_RESTORE, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_APP,
     WM_CLOSE, WM_NULL, WM_SYSCOMMAND, WM_TIMER, WNDCLASSW, WS_CAPTION, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-    WS_EX_TOPMOST, GWL_STYLE, SC_RESTORE,
+    WS_EX_TOPMOST, GWL_STYLE, SC_CLOSE, SC_RESTORE,
 };
 
 /// The window the apps are shown in: the fixed bar (the character's window).
@@ -719,6 +719,20 @@ fn activate(windows: &[isize]) {
     }
 }
 
+/// Files dragged onto the app's icon in the bar: its window in front so they
+/// can be dropped into it. The window the drag came from holds the foreground
+/// and may refuse it to us: then as Alt+Tab does, which Windows lets through.
+fn drag_front(windows: &[isize]) {
+    activate(windows);
+    let Some(&first) = windows.first() else { return };
+    let h = HWND(first as *mut _);
+    unsafe {
+        if IsWindow(Some(h)).as_bool() && GetForegroundWindow() != h {
+            SwitchToThisWindow(h, true);
+        }
+    }
+}
+
 /// A mouse button went down since the last call: the user clicked elsewhere.
 fn new_press() -> bool {
     [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON].iter().any(|vk| unsafe { GetAsyncKeyState(vk.0 as i32) } & 1 != 0)
@@ -772,11 +786,17 @@ fn minimize(windows: &[isize]) {
     }
 }
 
-/// As the close button: each app may ask to save first.
+/// As the close button: each app may ask to save first. The system command, as
+/// the Windows taskbar sends: it passes where UIPI stops WM_CLOSE (a program run
+/// as administrator) and apps that ignore WM_CLOSE from outside still close
+/// (Edoardo, 23 Nov 2026: the × on the preview did nothing).
 fn close(windows: &[isize]) {
     for &h in windows {
+        let hwnd = HWND(h as *mut _);
         unsafe {
-            let _ = PostMessageW(Some(HWND(h as *mut _)), WM_CLOSE, WPARAM(0), LPARAM(0));
+            let sent = PostMessageW(Some(hwnd), WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), LPARAM(0)).is_ok()
+                || PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0)).is_ok();
+            crate::log::line(if sent { format!("App: chiusa la finestra {h:#x}") } else { format!("App: chiusura della finestra {h:#x} rifiutata da Windows") });
         }
     }
 }
@@ -887,7 +907,7 @@ pub async fn apps_windows(app: AppHandle) -> Value {
     .unwrap_or(Value::Array(Vec::new()))
 }
 
-/// What the Dock does. `what`: `click`, `activate` (also `focus`, `restore`), `minimize`, `close` (a
+/// What the Dock does. `what`: `click`, `activate` (also `focus`, `restore`), `drag-front`, `minimize`, `close` (a
 /// window by `hwnd`, else the app's windows), `close-all`, `minimize-all`,
 /// `launch` / `launch-new` / `launch-admin` (`app`), `open-files` / `drop-files` (`app`,
 /// `files`), `unpin` (`app`: unpinned from the Dock, so from the Windows
@@ -922,7 +942,7 @@ pub fn act(what: String, hwnd: Option<isize>, app: Option<String>, files: Option
         return true;
     }
     match what.as_str() {
-        "click" | "activate" | "minimize" | "close" | "close-all" | "minimize-all" => {
+        "click" | "activate" | "drag-front" | "minimize" | "close" | "close-all" | "minimize-all" => {
             if windows.is_empty() {
                 if what == "click" && !target.is_empty() {
                     // A pinned app with no window: open it.
@@ -935,6 +955,7 @@ pub fn act(what: String, hwnd: Option<isize>, app: Option<String>, files: Option
                 match what.as_str() {
                     "click" => click(&windows),
                     "activate" => activate(&windows),
+                    "drag-front" => drag_front(&windows),
                     "minimize" | "minimize-all" => minimize(&windows),
                     _ => close(&windows),
                 }

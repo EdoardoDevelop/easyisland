@@ -54,6 +54,7 @@ export type IslandViewName =
   | "daily"
   | "barcard"
   | "news"
+  | "board"
   | "done"
   | "remember"
   | "talk";
@@ -241,6 +242,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   daily: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   barcard: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   news: { height: 260, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
+  board: { height: 200, botX: 52, botY: null, botDiameter: 44, agentMode: "none" },
   done: { height: 260, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   remember: { height: 300, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
   talk: { height: 190, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },

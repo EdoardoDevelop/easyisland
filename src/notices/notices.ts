@@ -213,6 +213,10 @@ async function draw() {
   box.replaceChildren(...toasts.slice(0, MAX).map((s) => card(doc, s)));
   const more = toasts.length - MAX;
   if (more > 0) box.append(moreButton(doc, more));
+  // Measured at the width it will have (#notices is 340 px, notices_window.rs
+  // WIDTH): the hidden window can be a few px wide, the title then wrapped at
+  // every letter and the window was made hundreds of px tall, so a toast at the
+  // bottom of the screen showed half way up (Edoardo, 23 Nov 2026).
   const height = Math.ceil(box.getBoundingClientRect().height) + 4;
   void Bridge.noticesShow(height, State.settings.noticesPlace ?? "isola");
   watch();
@@ -321,7 +325,7 @@ function card(doc: Document, s: Shown): HTMLElement {
 /** Only for the notices' page: transparent, the toasts in the island's colours. */
 const NOTICES_CSS = `
 html, body { margin: 0; padding: 0; background: transparent !important; overflow: hidden; }
-#notices { display: flex; flex-direction: column; gap: 8px; padding: 2px 2px 2px 2px; font: 400 13px var(--font, "Segoe UI", sans-serif); }
+#notices { box-sizing: border-box; width: 340px; display: flex; flex-direction: column; gap: 8px; padding: 2px 2px 2px 2px; font: 400 13px var(--font, "Segoe UI", sans-serif); }
 .notice-toast { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px 30px 10px 12px; border-radius: 12px;
   background: color-mix(in srgb, var(--card, #18191d) 96%, transparent); color: var(--ink, #f1f5f9);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 8px 22px rgba(0, 0, 0, 0.35); border-left: 3px solid #38bdf8;

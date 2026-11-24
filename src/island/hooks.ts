@@ -7,7 +7,7 @@
 
 import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { State, type AskQuestion, type SessionHost } from "../core/state";
+import { State, type AskQuestion, type IslandLayout, type SessionHost } from "../core/state";
 import type { Island } from "./island";
 import { applyPlanTool, planStep } from "./plan";
 import { Recap } from "./recap";
@@ -280,6 +280,12 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
       const a = (State.settings.actions ?? []).find((x) => x.id === s("id"));
       return t("Eliminare l'azione rapida «{name}»", { name: a?.name ?? s("id") });
     }
+    case "island_layout_set":
+    case "island_layout_undo": {
+      const changes = Array.isArray(input._changes) ? (input._changes as unknown[]).map(String) : [];
+      const head = name === "island_layout_undo" ? t("Rimettere l'isola com'era prima dell'ultima modifica") : t("Cambiare i pulsanti e le schede dell'isola");
+      return [head, ...changes.map((c) => (c.startsWith("  ") ? c : `• ${c}`)), t("Nell'isola vedi già com'è; con Nega torna come prima.")].join("\n");
+    }
     case "custom_create":
     case "custom_update": {
       let def = input.definition as { name?: string; actions?: { kind?: string; label?: string; script?: string }[] } | string | undefined;
@@ -476,6 +482,10 @@ function showChatPermission(island: Island, payload: HookPayload, at: number) {
     // Which open conversation asks: the one working when only one is, then by its engine session.
     chatSid: State.chats.filter((c) => c.sending).length === 1 ? State.chats.find((c) => c.sending)?.sid : undefined,
   };
+  // A change to the island's buttons and tabs: the island shows it while the card is up (island_layout.rs annotate).
+  if ((ownTool === "island_layout_set" || ownTool === "island_layout_undo") && input._draft && typeof input._draft === "object") {
+    State.pendingApproval.layoutDraft = input._draft as IslandLayout;
+  }
   // Claude Code's questions and plans (its control channel, claude_cli.rs on_control): no «Sempre».
   const questions = raw === "AskUserQuestion" ? askQuestions(input) : null;
   const plan = raw === "ExitPlanMode" && typeof input.plan === "string" && input.plan.trim() ? input.plan : null;

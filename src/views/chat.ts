@@ -86,6 +86,12 @@ export function sendToChat(query: string) {
   externalSend?.(query);
 }
 
+/** Set by the chat view: text put in the field, not sent (a button of the island, island-layout.ts). */
+let externalFill: ((text: string) => void) | null = null;
+export function fillChat(text: string) {
+  externalFill?.(text);
+}
+
 /** Called once with the next reply's text («Parla» reads it aloud), or with null if it fails. */
 let replyHook: ((text: string | null) => void) | null = null;
 export function onNextReply(fn: ((text: string | null) => void) | null) {
@@ -3454,6 +3460,11 @@ export function buildPrompt(
     input.focus();
   });
   externalSend = (q) => void submit(q);
+  externalFill = (text) => {
+    setInput(text);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  };
   externalReopen = (id) => void reopen(id);
   externalFresh = () => {
     if (State.chat.history.length || State.chat.sending) openNew();

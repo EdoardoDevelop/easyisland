@@ -37,6 +37,8 @@ const OTHERS: Record<string, string> = {
   pdf_merge: t("Unire dei PDF"),
   pdf_split: t("Dividere un PDF"),
   document_template_add: t("Aggiungere un modello di documento"),
+  island_layout_set: t("Cambiare pulsanti e schede dell'isola"),
+  island_layout_undo: t("Annullare una modifica all'isola"),
   custom_create: t("Creare un'integrazione personale"),
   custom_update: t("Cambiare un'integrazione personale"),
   custom_call: t("Usare un'integrazione personale"),

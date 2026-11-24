@@ -377,7 +377,11 @@ export function summaryOf(c: Custom, records: CustomRecord[]): string[] {
   return out;
 }
 
-/** The name of a record in the list. */
+/** The name of a record in the list (here and in the island's `records` blocks). */
+export function recordTitle(c: Custom, r: CustomRecord): string {
+  return titleOf(c, r);
+}
+
 function titleOf(c: Custom, r: CustomRecord): string {
   // A field still empty leaves no separator hanging at either end.
   const own = c.title ? fillTemplate({ ...c, template: c.title }, r.values).replace(/\s+/g, " ").replace(/^[\s·,;:|–—-]+|[\s·,;:|–—-]+$/g, "") : "";

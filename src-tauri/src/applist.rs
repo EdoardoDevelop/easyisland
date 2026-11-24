@@ -326,8 +326,8 @@ fn decode(bytes: &[u8], expected: u64) -> Option<(String, Vec<u8>)> {
 /// Ids whose icon is on its way: asked again meanwhile, they are not read twice.
 static PENDING: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
-/// Reads the icons of `ids` on the shell thread and sends them to the Dock as
-/// they come: `dock-icons` `{ id in lower case: data URL }`, a few at a time.
+/// Reads the icons of `ids` on the shell thread and sends them to the Dock (and
+/// the island's tabs of apps, island_layout.rs) as they come: `dock-icons` `{ id in lower case: data URL }`, a few at a time.
 pub fn request_icons(app: &AppHandle, ids: Vec<String>) {
     let fresh: Vec<String> = {
         let Ok(mut pending) = PENDING.lock() else { return };
@@ -352,11 +352,11 @@ pub fn request_icons(app: &AppHandle, ids: Vec<String>) {
             batch.insert(id.to_lowercase(), Value::String(icon));
             // In small batches: the first icons show while the rest is read.
             if batch.len() >= 8 {
-                let _ = app.emit_to(crate::taskwin::DOCK_LABEL, "apps-icons", Value::Object(std::mem::take(&mut batch)));
+                let _ = app.emit("apps-icons", Value::Object(std::mem::take(&mut batch)));
             }
         }
         if !batch.is_empty() {
-            let _ = app.emit_to(crate::taskwin::DOCK_LABEL, "apps-icons", Value::Object(batch));
+            let _ = app.emit("apps-icons", Value::Object(batch));
         }
     });
 }
@@ -687,6 +687,34 @@ pub fn recent_files(id: &str, max: usize) -> Vec<String> {
                 if out.len() >= max {
                     break;
                 }
+            }
+        }
+        out
+    })
+    .unwrap_or_default()
+}
+
+/// Every file opened lately (Windows' Recent, newest first, at most `max`):
+/// the `recent` source of a block of the island (island_layout.rs). Only files
+/// that are still there; folders, programs and shortcuts left out.
+pub fn recent_all(max: usize) -> Vec<String> {
+    on_shell(Duration::from_secs(5), move || {
+        let Some(dir) = std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join(r"Microsoft\Windows\Recent")) else { return Vec::new() };
+        let mut links: Vec<(SystemTime, PathBuf)> = fs::read_dir(dir)
+            .map(|d| d.filter_map(|e| e.ok()).filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path()))).collect())
+            .unwrap_or_default();
+        links.retain(|(_, p)| is_shortcut(&p.to_string_lossy()));
+        links.sort_by(|a, b| b.0.cmp(&a.0));
+        let mut out: Vec<String> = Vec::new();
+        for (_, link) in links.into_iter().take(400) {
+            let Some(target) = read_link(&link).and_then(|(t, _)| t).filter(|t| Path::new(t).is_file()) else { continue };
+            let ext = Path::new(&target).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+            if ext == "exe" || ext == "lnk" || out.iter().any(|x| x.eq_ignore_ascii_case(&target)) {
+                continue;
+            }
+            out.push(target);
+            if out.len() >= max {
+                break;
             }
         }
         out

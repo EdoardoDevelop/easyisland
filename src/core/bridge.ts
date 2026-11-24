@@ -5,7 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
+import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, IslandLayout, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -685,6 +685,18 @@ export const Bridge = {
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
   /** Integrazioni personali (custom.rs). */
   customsList: () => call<Custom[]>("customs_list"),
+  islandLayout: () => call<IslandLayout>("island_layout"),
+  islandLayoutUndo: () => callOrThrow<string>("island_layout_undo"),
+  /** Impostazioni: the user's own change (the same pieces as the chat's island_layout_set), no card. */
+  islandLayoutApply: (args: Record<string, unknown>) => callOrThrow<void>("island_layout_apply", { args }),
+  islandLayoutRemove: (kind: "button" | "tab" | "menu" | "header" | "overview" | "footer" | "style", id: string) => callOrThrow<void>("island_layout_remove", { kind, id }),
+  islandLayoutVersions: () => call<number>("island_layout_versions"),
+  /** A folder block of a tab: folders first, hidden files left out. */
+  /** The files opened lately (Windows' Recent), newest first. */
+  islandRecent: async () => (await call<{ name: string; path: string; dir: string }[]>("island_recent")) ?? [],
+  islandFolder: (path: string) => callOrThrow<{ name: string; path: string; dir: boolean }[]>("island_folder", { path }),
+  /** Icons of installed apps, sent back in `apps-icons` as they are read (applist.rs). */
+  appsIcons: (ids: string[]) => call<void>("apps_icons", { ids }),
   customSave: (definition: Custom) => callOrThrow<Custom>("custom_save", { definition }),
   customDelete: (id: string) => callOrThrow<void>("custom_delete", { id }),
   customRecords: (id: string) => call<CustomRecord[]>("custom_records", { id }),

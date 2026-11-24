@@ -6011,8 +6011,17 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   flex-direction: column;
   gap: 1px;
 }
+/* The buttons at the foot (.rail-foot) never move: the list takes what room is left
+   (basis 0) and, with no room left, the sections scroll too instead of pushing them out. */
+.rail-fixed {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
 .rail-list {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   /* Never sideways: rows coming in from the side (motion.ts, a group opened or closed)
@@ -10077,3 +10086,266 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 .apps-act:hover { background: rgba(255, 255, 255, 0.12); color: var(--ink); }
 .apps-act:focus-visible, .apps-file:focus-visible, .apps-win:focus-visible { outline: 2px solid rgba(56, 189, 248, 0.7); outline-offset: 1px; }
 
+
+/* The island built from a JSON (src/views/island-layout.ts): the user's own buttons and tabs. */
+
+.rail-fixed .rail-emoji svg { display: block; }
+.rail-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 4px 0;
+  margin-top: 4px;
+  border-top: 1px solid var(--hairline);
+}
+#rail.compact .rail-foot { flex-direction: column; align-items: center; padding: 6px 0 0; }
+.rail-foot .own-btn {
+  width: 30px;
+  height: 28px;
+  border: 0;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--c, var(--dim-2));
+  background: color-mix(in srgb, var(--c, #fff) 10%, transparent);
+  cursor: default;
+}
+.rail-foot .own-btn:hover { background: color-mix(in srgb, var(--c, #fff) 24%, transparent); color: var(--c, var(--ink)); }
+.header-actions .own-btn { display: inline-grid; place-items: center; }
+.own-letter { font: 600 12px var(--font); }
+.board-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font: 600 calc(15px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink);
+}
+.board-icon { display: inline-grid; place-items: center; color: var(--dim-2); }
+.qa-card.board-card { justify-content: flex-start; }
+/* Isola da JSON, tappa 2: the blocks of a tab (src/views/island-layout.ts). */
+.board-blocks { display: flex; flex-wrap: wrap; gap: 12px 8px; }
+.board-blocks > .board-block { flex: 1 1 100%; }
+.board-blocks > .board-value { flex: 0 1 auto; min-width: 120px; }
+.qa-grid:not([hidden]) + .board-blocks:not(:empty) { margin-top: 12px; }
+.board-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.board-block-title { font: 600 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); text-transform: none; }
+.board-note:empty { display: none; }
+.board-search {
+  width: min(260px, 100%);
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink);
+  font: 400 calc(12.5px + var(--fs-up, 0px)) var(--font);
+  outline: none;
+}
+.board-search:focus { border-color: color-mix(in srgb, var(--ink) 30%, transparent); }
+.board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 4px; }
+.board-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 4px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: 500 calc(11px + var(--fs-up, 0px)) var(--font);
+  cursor: default;
+  transition: background 0.12s ease-out, transform 0.08s ease-out;
+}
+.board-tile:hover, .board-row:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.board-tile:active, .board-row:active { transform: scale(0.96); }
+.board-tile .board-tile-icon { display: grid; place-items: center; width: 32px; height: 32px; color: var(--dim-2); }
+.board-tile .board-tile-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+.board-img { object-fit: contain; }
+.board-list { display: flex; flex-direction: column; gap: 1px; }
+.board-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: 400 calc(12.5px + var(--fs-up, 0px)) var(--font);
+  text-align: left;
+  cursor: default;
+}
+.board-row .board-tile-icon { display: grid; place-items: center; flex: none; width: 18px; color: var(--dim-2); }
+.board-row .board-tile-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-row-sub { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim-2); font-size: 0.9em; }
+.board-value {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.board-value-icon { display: grid; place-items: center; color: var(--dim-2); }
+.board-value-body { display: flex; flex-direction: column; min-width: 0; }
+.board-value-text { font: 600 calc(15px + var(--fs-up, 0px)) var(--font); color: var(--ink); font-variant-numeric: tabular-nums; }
+.board-text { color: var(--ink); font: 400 calc(12.5px + var(--fs-up, 0px)) var(--font); white-space: pre-wrap; line-height: 1.45; }
+/* Existing pieces as blocks, and blocks in the Panoramica (isola.json). */
+.board-piece-card {
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.board-piece-card .int-card { padding: 0; }
+.summary-block.board-value { width: fit-content; min-width: 160px; }
+/* A chart of a value of the PC: the last five minutes (bar.ts chartHistory). */
+.board-chart {
+  padding: 8px 12px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.board-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.board-chart-svg { display: block; width: 100%; height: 64px; overflow: visible; }
+.board-chart-line { fill: none; stroke: var(--win-accent, #4cc2ff); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.board-chart-area { fill: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); stroke: none; }
+.board-blocks > .board-chart { flex: 1 1 240px; }
+/* The open island's footer (isola.json): left, center and right, each a row of buttons and values of the PC.
+   Under the views only, beside the menu (island.ts sets `left` to the menu's width); the views and the
+   Anteprima leave it room. */
+#island-foot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+#island.footed #body > #views,
+#island.footed #body > #preview-pane { margin-bottom: 36px; }
+#island-foot .foot-side { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+#island-foot .foot-left { justify-content: flex-start; }
+#island-foot .foot-center { justify-content: center; }
+#island-foot .foot-right { justify-content: flex-end; }
+#island-foot .own-btn {
+  width: 30px;
+  height: 28px;
+  border: 0;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--c, var(--dim-2));
+  background: color-mix(in srgb, var(--c, #fff) 10%, transparent);
+  cursor: default;
+}
+#island-foot .own-btn:hover { background: color-mix(in srgb, var(--c, #fff) 24%, transparent); color: var(--c, var(--ink)); }
+#island-foot .foot-value { padding: 3px 10px; gap: 6px; border-radius: 9px; height: 28px; box-sizing: border-box; flex: 0 1 auto; min-width: 0; }
+#island-foot .foot-value .board-block-title { display: none; }
+#island-foot .foot-value .board-value-text { font-size: calc(12px + var(--fs-up, 0px)); white-space: nowrap; }
+/* The middle keeps its room first (as before); on a side short of room a button's name shortens with dots. */
+#island-foot .own-btn:not(.own-labelled) { flex: none; }
+#island-foot .own-btn.own-labelled { min-width: 32px; flex: 0 1 auto; overflow: hidden; }
+#island-foot .own-btn.own-labelled > svg, #island-foot .own-btn.own-labelled > .own-letter { flex: none; }
+#island-foot .own-btn.own-labelled .own-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* A value short of room shortens with dots instead of running over its neighbour. */
+#island-foot .foot-value { overflow: hidden; }
+#island-foot .foot-value .board-value-icon { flex: none; }
+#island-foot .foot-value .board-value-body { min-width: 0; }
+#island-foot .foot-value .board-value-text { overflow: hidden; text-overflow: ellipsis; }
+#island-foot .foot-label { font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); white-space: nowrap; }
+
+/* Isola da JSON, aspetto (src/views/island-look.ts, island-layout.ts): the island's `style` and each piece's look.
+   Colours come as variables set on the element; nothing here applies without them. */
+#island.bare { background-image: none !important; }
+#island.own-card-r .card { border-radius: var(--own-card-r); }
+#island.own-menu-bg #rail { background: var(--own-menu-bg); border-radius: 12px; }
+#island.own-header-bg #header { background: var(--own-header-bg); border-radius: 12px; }
+#island.own-foot-bg #island-foot { background: var(--own-foot-bg); border-radius: 10px; padding: 0 6px; }
+/* Buttons: background, shapes, sizes, the name beside the icon. */
+.own-btn.own-has-bg { background: var(--own-bg) !important; }
+.own-btn.own-shape-round { border-radius: 9px !important; }
+.own-btn.own-shape-square { border-radius: 3px !important; }
+.own-btn.own-shape-pill { border-radius: 999px !important; }
+.own-btn.own-shape-circle { border-radius: 50% !important; aspect-ratio: 1; }
+.own-btn.own-size-s { width: 24px !important; height: 22px !important; }
+.own-btn.own-size-l { width: 38px !important; height: 34px !important; }
+.own-btn.own-size-xl { width: 46px !important; height: 42px !important; }
+.own-btn.own-labelled { width: auto !important; display: inline-flex !important; align-items: center; gap: 6px; padding: 0 10px; }
+.own-btn .own-label { font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font); white-space: nowrap; color: var(--c, var(--ink)); }
+.own-btn.own-labelled.own-size-l .own-label { font-size: calc(13px + var(--fs-up, 0px)); }
+.own-btn.own-labelled.own-size-s .own-label { font-size: calc(10.5px + var(--fs-up, 0px)); }
+#rail.compact .rail-foot .own-btn.own-labelled .own-label { display: none; }
+#rail.compact .rail-foot .own-btn.own-labelled { padding: 0; width: 30px !important; }
+.rail-item.own-tab-color .rail-icon, .rail-item.own-tab-color .rail-emoji { color: var(--c); }
+.board-title .board-icon { color: var(--c, var(--dim-2)); }
+/* A tab's tiles: their own background, shape and size; in columns when asked. */
+.qa.own-has-bg { background: var(--own-bg); }
+.qa.own-shape-square { border-radius: 6px; }
+.qa.own-shape-round { border-radius: 12px; }
+.qa.own-size-s { padding: 4px 9px 4px 7px; font-size: calc(11px + var(--fs-up, 0px)); }
+.qa.own-size-l { padding: 11px 16px 11px 13px; font-size: calc(14px + var(--fs-up, 0px)); }
+.qa.own-size-xl { flex-direction: column; padding: 14px 14px 10px; gap: 8px; font-size: calc(13px + var(--fs-up, 0px)); border-radius: 16px; }
+.qa-grid.own-cols { display: grid; }
+.qa-grid.own-cols .qa { max-width: none; min-width: 0; }
+/* Blocks: width among the others, size, colours, corners. */
+.board-blocks > .board-block.bw-full, .today > .board-block.bw-full { flex: 1 1 100%; }
+/* --bgap: the gap between blocks in a row (8px, or as `style.spacing` says), so halves and thirds fit. */
+.board-blocks { --bgap: 8px; column-gap: var(--bgap); }
+.board-blocks > .board-block.bw-half { flex: 0 0 calc((100% - var(--bgap)) / 2); max-width: calc((100% - var(--bgap)) / 2); }
+.board-blocks > .board-block.bw-third { flex: 0 0 calc((100% - 2 * var(--bgap)) / 3); max-width: calc((100% - 2 * var(--bgap)) / 3); }
+.board-blocks > .board-block.bw-auto { flex: 0 1 auto; }
+.own-row > .summary-block.board-value { width: auto; min-width: 0; }
+.board-block.own-block-bg { background: var(--own-bg); padding: 8px 12px; border-radius: 10px; }
+.board-block.own-bg-none { background: none !important; padding-left: 0; padding-right: 0; }
+.board-block.own-block-border { box-shadow: inset 0 0 0 1px var(--own-border); }
+.board-block.own-block-border:not(.board-value):not(.board-chart):not(.own-block-bg) { padding: 8px 12px; border-radius: 10px; }
+.board-block.own-block-r { border-radius: var(--own-r) !important; }
+.board-block .board-block-title { color: var(--own-title, var(--dim-2)); }
+.board-block.ba-center { text-align: center; align-items: center; }
+.board-block.ba-right { text-align: right; align-items: flex-end; }
+.board-value.ba-center { justify-content: center; }
+.board-value.ba-right { justify-content: flex-end; }
+.board-block[style*="--own-accent"] .board-value-icon,
+.board-block[style*="--own-accent"] .board-tile-icon { color: var(--own-accent); }
+.board-value.own-tinted .board-value-text, #island-foot .foot-value.own-tinted .board-value-text { color: var(--own-accent); }
+.board-value.own-tinted { background: color-mix(in srgb, var(--own-accent) 16%, transparent); }
+.board-chart .board-chart-line { stroke: var(--own-accent, var(--win-accent, #4cc2ff)); }
+.board-chart .board-chart-area { fill: color-mix(in srgb, var(--own-accent, var(--win-accent, #4cc2ff)) 16%, transparent); }
+.board-chart.chart-area-only .board-chart-area { fill: color-mix(in srgb, var(--own-accent, var(--win-accent, #4cc2ff)) 45%, transparent); }
+.board-chart-bars { fill: color-mix(in srgb, var(--own-accent, var(--win-accent, #4cc2ff)) 70%, transparent); }
+.board-chart.own-tinted .board-value-text { color: var(--own-accent); }
+.board-text.bs-s { font-size: calc(11px + var(--fs-up, 0px)); }
+.board-text.bs-l { font-size: calc(15px + var(--fs-up, 0px)); }
+.board-text.bs-xl { font: 650 calc(20px + var(--fs-up, 0px))/1.25 var(--font); }
+.board-text[style*="--own-accent"] { color: var(--own-accent); }
+.board-value.bs-s .board-value-text { font-size: calc(12.5px + var(--fs-up, 0px)); }
+.board-value.bs-l .board-value-text { font-size: calc(20px + var(--fs-up, 0px)); }
+.board-value.bs-xl .board-value-text { font-size: calc(28px + var(--fs-up, 0px)); }
+.board-value.bs-l, .board-value.bs-xl { padding: 12px 16px; }
+.board-list.bs-s .board-row, .board-block.bs-s .board-row { padding: 3px 6px; font-size: calc(11.5px + var(--fs-up, 0px)); }
+.board-block.bs-l .board-row { padding: 8px 10px; font-size: calc(14px + var(--fs-up, 0px)); }
+.board-block.bs-s .board-tile { padding: 5px 2px 4px; font-size: calc(10px + var(--fs-up, 0px)); }
+.board-block.bs-s .board-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); }
+.board-block.bs-l .board-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.board-block.bs-xl .board-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.board-block.bs-l .board-tile .board-tile-icon { width: 40px; height: 40px; }
+.board-block.bs-xl .board-tile .board-tile-icon { width: 50px; height: 50px; }
+/* `style.spacing`: tighter or roomier tabs, Panoramica blocks and footer. */
+#island[data-spacing="compact"] .board-blocks { row-gap: 6px; --bgap: 4px; }
+#island[data-spacing="compact"] .qa-grid { gap: 4px; }
+#island[data-spacing="compact"] .board-block { gap: 3px; }
+#island[data-spacing="wide"] .board-blocks { row-gap: 20px; --bgap: 14px; }
+#island[data-spacing="wide"] .qa-grid { gap: 12px; }
+#island[data-spacing="wide"] .board-block { gap: 10px; }
