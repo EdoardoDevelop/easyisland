@@ -2279,36 +2279,148 @@ html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61
   color: var(--dim-2);
 }
 .md-step .md-p { margin: 0; color: inherit; font: inherit; }
-.md-step code { padding: 0; font: inherit; color: inherit; background: none; }
+
+/* ── Replies with form (24 Nov 2026, Edoardo's concept «easyisland_chat_concept.html») ──
+   Airy reading, sections that breathe, codes that copy, commands and tables as cards,
+   notices in colour. Dark first, light below. */
+.reply.md { gap: 9px; line-height: 1.62; }
+.md-h { font-weight: 500; letter-spacing: -0.01em; }
+.md-h1, .md-h2 { margin-top: 10px; }
+.reply.md > .md-h:first-child, .md-outline + .md-h { margin-top: 0; }
+.md-h3 { margin-top: 4px; }
+.md-list { gap: 4px; padding-left: 20px; }
+.md-list li > strong:first-child { font-weight: 500; color: var(--ink); }
+
+/* An inline code that copies (markdown.ts copyable): a soft pill in the accent. */
+.md-code.md-copyable { white-space: nowrap; overflow-wrap: normal; cursor: pointer; color: #7dd3fc; background: rgba(56, 189, 248, 0.1); box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22); transition: background-color 0.12s, color 0.12s; }
+.md-code.md-copyable:hover { background: rgba(56, 189, 248, 0.18); }
+.md-code.md-copyable.copied { color: #4ade80; background: rgba(74, 222, 128, 0.14); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.32); }
+
+/* A block of code: a card with its head (language, then the buttons). */
+.md-pre { border-radius: 12px; background: #121418; border: 1px solid rgba(255, 255, 255, 0.08); }
+.md-pre-head { padding: 5px 6px 5px 12px; background: #1b1e25; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.md-lang { font-family: var(--mono); font-weight: 400; }
+.md-pre pre { padding: 10px 12px; font-size: 12px; line-height: 1.6; }
+.md-pre-head > .md-copy:last-child { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.md-pre-head > .md-copy:last-child:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* A table: rounded, its head on a band, rows striped, numbers in columns, «Copia tabella» over it. */
+.md-table-box { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.md-table-copy { align-self: flex-end; height: 22px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--ink-2); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); cursor: pointer; }
+.md-table-copy:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+.md-table-copy.copied { color: #4ade80; border-color: rgba(74, 222, 128, 0.35); }
+.md-table-wrap { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; }
+.md-table { width: 100%; font-variant-numeric: tabular-nums; }
+.md-table th, .md-table td { padding: 7px 12px; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.md-table thead th { border-top: 0; background: #1b1e25; color: var(--dim); font-weight: 500; }
+.md-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
+.md-table tbody td:first-child { color: var(--ink); font-weight: 500; }
+
+/* Notices (markdown.ts calloutOf): «Attenzione» amber, «Nota» blue, «Suggerimento» green. */
+.md-quote.md-callout { padding: 9px 12px; border: 0; border-radius: 10px; color: var(--ink-2); background: rgba(245, 165, 36, 0.08); box-shadow: inset 3px 0 0 #f5a524; }
+.md-quote.md-callout-info { background: rgba(56, 189, 248, 0.08); box-shadow: inset 3px 0 0 #38bdf8; }
+.md-quote.md-callout-tip { background: rgba(74, 222, 128, 0.08); box-shadow: inset 3px 0 0 #4ade80; }
+
+/* «Sezioni» on top of a long reply (markdown.ts outline): a click goes to the section. */
+.md-outline { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: calc(11.5px + var(--fs-up, 0px)); }
+.md-outline-label { color: var(--dim-2); margin-right: 2px; }
+.md-outline-chip { height: 22px; padding: 0 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.06); color: var(--dim); font: inherit; cursor: pointer; }
+.md-outline-chip:hover { background: rgba(255, 255, 255, 0.11); color: var(--ink); }
+
+/* A turn's steps as a timeline (typeline.ts dressStep, 24 Nov 2026): an icon per
+   kind of action, what it does, on what quieter and cut to one line, «Esito» at
+   the end of the row. A folded run: «N passi» and what was done. */
+.md-quote.md-step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 4px;
+  position: relative;
+}
+.md-step-ico {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--dim);
+  background: #1d2026;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
+.md-step-thought .md-step-ico { color: #c4b5fd; }
+.md-step-thought .md-step-line { font-style: italic; }
+.md-step-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.md-step-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: 0.92em; }
+.md-step-what a { color: inherit; text-decoration: none; }
+.md-step-what a:hover { color: #7dd3fc; text-decoration: underline; }
+.md-step code { padding: 0; font: inherit; color: inherit; background: none; box-shadow: none; }
 .md-steps { margin: 2px 0; }
 .md-steps > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: fit-content;
+  max-width: 100%;
+  padding: 3px 10px 3px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   font-size: calc(11.5px + var(--fs-up, 0px));
   line-height: 1.45;
   color: var(--dim-2);
   list-style: none;
-  cursor: default;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
 }
 .md-steps > summary::-webkit-details-marker { display: none; }
-.md-steps > summary::before { content: "▸"; display: inline-block; width: 1.1em; }
-.md-steps[open] > summary::before { content: "▾"; }
-.md-steps > summary:hover { color: var(--ink); }
-/* What a step gave back (a command's output, a file read): closed under it. */
-.md-step-out { margin: 1px 0 3px 1.1em; }
+.md-steps > summary::before,
+.md-step-out > summary::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.md-steps[open] > summary::before,
+.md-step-out[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+.md-steps > summary:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.md-steps-n { flex: none; color: var(--ink-2); font-weight: 500; }
+.md-steps-gist { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.md-steps-list { position: relative; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
+/* The thread through the icons. */
+.md-steps-list::before { content: ""; position: absolute; left: 8.5px; top: 9px; bottom: 9px; width: 1px; background: rgba(255, 255, 255, 0.09); }
+/* What a step gave back (a command's output, a file read): «Esito» at the end of its row, open under it. */
+.md-step-out { grid-column: 3; grid-row: 1; margin: 0; min-width: 0; }
+.md-step-out[open] { grid-column: 2 / 4; grid-row: 2; }
 .md-step-out > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: fit-content;
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 5px;
   list-style: none;
-  cursor: default;
+  cursor: pointer;
   font-size: calc(10.5px + var(--fs-up, 0px));
   color: var(--dim-2);
-  opacity: 0.8;
+  opacity: 0.75;
 }
+.md-step-out[open] > summary { margin-left: 0; }
 .md-step-out > summary::-webkit-details-marker { display: none; }
-.md-step-out > summary::before { content: "▸"; display: inline-block; width: 1em; }
-.md-step-out[open] > summary::before { content: "▾"; }
-.md-step-out > summary:hover { color: var(--ink); opacity: 1; }
-.md-step-out.failed > summary { color: #f08a8a; }
-.md-step-out .md-pre { margin: 2px 0 0; }
+.md-step-out > summary::before { width: 3px; height: 3px; }
+.md-step-out > summary:hover { color: var(--ink); opacity: 1; background: rgba(255, 255, 255, 0.06); }
+.md-step-out.failed > summary { color: #f08a8a; opacity: 1; }
+.md-step:has(> .md-step-out.failed) .md-step-ico { color: #f08a8a; box-shadow: inset 0 0 0 1px rgba(240, 138, 138, 0.4); }
+.md-step-out .md-pre { position: relative; margin: 2px 0 0; }
+/* Inside «Esito» the language says it again: only «Copia» stays, over the corner. */
+.md-step-out .md-lang { display: none; }
+.md-step-out .md-pre-head { position: absolute; top: 4px; right: 4px; padding: 0; border: 0; background: none; }
 .md-step-out pre { max-height: 220px; overflow: auto; }
 .md-step-out code { font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: calc(10.5px + var(--fs-up, 0px)); }
 

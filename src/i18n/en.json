@@ -6669,5 +6669,8 @@
   "Sta ancora rispondendo: fermala prima di chiuderla": "It is still answering: stop it before closing it",
   "Chiudi questa conversazione": "Close this conversation",
   "Nuova conversazione in una scheda": "New conversation in a tab",
-  "Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci": "Hold and drag to move the chat · double click: enlarge or reduce"
+  "Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci": "Hold and drag to move the chat · double click: enlarge or reduce",
+  "Clic per copiare": "Click to copy",
+  "Copia tabella": "Copy table",
+  "Copia la tabella, da incollare in Excel o in un'altra tabella": "Copy the table, to paste into Excel or another table"
 }

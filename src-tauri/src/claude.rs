@@ -574,6 +574,7 @@ fn supports_default_fallback(model: &str) -> bool {
 fn request_body(model: &str, messages: Vec<Value>, agent: bool) -> Value {
     let mut tools = vec![web_search_tool(model)];
     let mut system = crate::i18n::prompt(SYSTEM_PROMPT);
+    system.push_str(crate::claude_cli::REPLY_FORM);
     if agent {
         tools.extend(agent_tools());
         system.push_str(crate::claude_cli::AGENT_PROMPT);

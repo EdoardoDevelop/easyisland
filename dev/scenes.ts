@@ -276,6 +276,61 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?ricca: a structured reply (sections, commands, a table, inline codes) as the chat draws it
+      // (Edoardo's concept of 24 Nov 2026, easyisland_chat_concept.html).
+      // ?passi: a turn's steps as a timeline, folded and open (Edoardo's Computer Gross search, 24 Nov 2026).
+      if (new URLSearchParams(location.search).has("passi")) {
+        const esito = (s: string) => "```esito\n" + s + "\n```";
+        State.chatHistory = [
+          { id: 1, role: "user", content: "cercami su Computer Gross un notebook windows 11 pro sui 400 euro" },
+          { id: 2, role: "assistant", engine: "subscription", content: [
+            "Computer Gross non è tra i portali salvati: lo cerco nella scheda già aperta dell'anteprima.",
+            "> ⚙ Prepara gli strumenti",
+            "> ⚙ Apre nell'Anteprima · https://frontend.computergross.it/",
+            esito("Pagina aperta: Computer Gross · Home"),
+            "> ⚙ Legge i prodotti della pagina · https://frontend.computergross.it/search?q=notebook%20windows%2011%20pro",
+            esito("24 prodotti: Lenovo V15 G4 — 389,00 €; HP 250 G10 — 412,00 €; …"),
+            "> 💭 Conviene filtrare per categoria, la ricerca mescola accessori.",
+            "> ⚙ Apre nell'Anteprima · https://frontend.computergross.it/products/categories/notebook?categoryId=w_10",
+            esito("Pagina aperta: Notebook"),
+            "> ⚙ Esegue · `Get-Content prezzi.csv -Tail 5`",
+            "```errore\nImpossibile trovare il file prezzi.csv\n```",
+            "> ⚙ Cerca nella memoria · `listino Computer Gross`",
+            "Sto cercando su Computer Gross i notebook più economici per capire cosa si può offrire vicino ai 400 €. Leggo la pagina della categoria.",
+            "> ⚙ Legge l'Anteprima",
+            esito("Notebook · 128 risultati · ordinati per prezzo"),
+            "Il più vicino è il **Lenovo V15 G4** a `389,00 €` con Windows 11 Pro.",
+          ].join("\n\n") },
+        ];
+        State.chat.streamed = "";
+      } else if (new URLSearchParams(location.search).has("ricca")) {
+        State.chatHistory = [
+          { id: 1, role: "user", content: "come cambiare ip di proxmox da shell da 192.168.0.248 a 192.168.10.20 e riepilogami gli indirizzi Imec per RDM?" },
+          { id: 2, role: "assistant", engine: "subscription", content: [
+            "## 1. Cambio IP Proxmox da shell",
+            "",
+            "Modifica entrambi i file di rete (`/etc/network/interfaces` e `/etc/hosts`) poi riavvia il networking.",
+            "",
+            "```bash",
+            "sed -i 's/192.168.0.248/192.168.10.20/g' /etc/network/interfaces /etc/hosts",
+            "ifreload -a && systemctl restart pveproxy",
+            "```",
+            "",
+            "- **Verifica gateway:** aggiorna anche la riga `gateway 192.168.10.1` in `vmbr0` prima di eseguire `ifreload -a`.",
+            "- **Accesso Web UI:** dopo il riavvio raggiungibile su `https://192.168.10.20:8006`.",
+            "",
+            "## 2. Riepilogo nodi IMEC per RDM",
+            "",
+            "| Nodo | IP Ufficio | IP Definitivo | Note |",
+            "|---|---|---|---|",
+            "| Proxmox IMEC | 192.168.0.248 | `192.168.10.20` | Web UI :8006 |",
+            "| HPE iLO | 192.168.0.249 | `192.168.10.21` | RDM → Clienti/IMEC |",
+            "",
+            "> Attenzione: dopo il cambio IP il certificato della Web UI resta quello vecchio finché non rigeneri `pvecm updatecerts`.",
+          ].join("\n") },
+        ];
+        State.chatSideOpen = false;
+      }
       // ?schede: four open conversations as tabs (chat.ts renderTabs): one answering, one answered while away.
       if (new URLSearchParams(location.search).has("schede")) {
         const mk = (q: string, a: string, extra: Partial<ChatSessionState> = {}): ChatSessionState => ({

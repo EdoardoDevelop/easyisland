@@ -255,6 +255,15 @@ html[data-chat-look="cards"] .chat-card .md-code {
   border-radius: 4px;
 }
 html[data-chat-look="cards"] .chat-card .md-step .md-code { padding: 0; font: inherit; background: none; }
+/* Codes that copy (style.css «Replies with form»): the accent pill over the card's neutral code. */
+html[data-chat-look="cards"] .chat-card .md-code.md-copyable { color: #7dd3fc; background: rgba(56, 189, 248, 0.1); box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22); }
+html[data-chat-look="cards"] .chat-card .md-code.md-copyable:hover { background: rgba(56, 189, 248, 0.18); }
+html[data-chat-look="cards"] .chat-card .md-code.md-copyable.copied { color: #4ade80; background: rgba(74, 222, 128, 0.14); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.32); }
+html[data-chat-look="cards"][data-scheme="light"] .chat-card .md-code.md-copyable { color: #0369a1; background: rgba(2, 132, 199, 0.08); box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.22); }
+html[data-chat-look="cards"][data-scheme="light"] .chat-card .md-code.md-copyable.copied { color: #15803d; background: rgba(21, 128, 61, 0.1); }
+/* The answer in a softer tone than its titles, as in the concept. */
+html[data-chat-look="cards"] .chat-card .reply.md { color: var(--cc-reply); line-height: 1.62; }
+html[data-chat-look="cards"] .chat-card .reply.md :is(.md-h, .md-table tbody td:first-child) { color: var(--cc-ink); }
 html[data-chat-look="cards"] .chat-card .md-step,
 html[data-chat-look="cards"] .chat-card .md-steps > summary {
   font-size: var(--cc-t-small);
