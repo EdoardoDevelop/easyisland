@@ -74,11 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.55** — **the island built from the chat**: tabs, blocks, charts, Overview and footer, **looks in words** (colours, gradients, corners, font, sizes) and **conditions** (hours, program in front, thresholds that colour), with preview and Undo; a more customisable bar clock; "Apps" with icons to reorder.
 - **1.0.54** — **the PC from the island's field** (files, windows, Windows pages); the fixed bar works as a **taskbar** with the **Apps** element (pinned and open, previews, right-click menu) and the Windows taskbar can be **hidden**; folders and the Windows group in the bar; **chat in panels**, tabbed terminal, code blocks "In the terminal" and "Save"; "ask the memory".
 - **1.0.53** — fixes the **notices window** that stayed transparent in front, taking the clicks.
 - **1.0.52** — **search in a window of its own** with **quick answers** from the memory and search in Settings; **Devolutions, RDM and Zammad** redone (full messages with images, attachments, Save); a **client page** in the memory; notices in a window of their own.
-- **1.0.51** — fixes the **freeze at startup** of 1.0.50 (after closing it or restarting the PC).
-
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
 ---

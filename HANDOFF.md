@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_24 novembre 2026 (aspetto e condizioni dell'isola da JSON, unito in `claude/sviluppo` e installato qui con la build di prova). **1.0.54** in `main` (tag `v1.0.54`): il PC dal campo, barra di Windows nascosta, «App» nella barra fissa, pannelli della chat; installata qui la build di prova della stessa versione. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_24 novembre 2026. **1.0.55** in `main` (tag `v1.0.55`): isola costruita dalla chat (schede, blocchi, grafici, Panoramica, footer, aspetto e condizioni), orologio della barra; installata qui la build di prova con lo stesso contenuto. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
