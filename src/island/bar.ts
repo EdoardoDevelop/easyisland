@@ -597,7 +597,7 @@ function emptyPiece(key: string, area: BarPiece["area"], icon: string, name: str
 /** The system elements barsys.rs has to read now (none while the bar is off). Graphs of the
  *  network need its reading too. */
 export function barSysKinds(): string[] {
-  const kinds = new Set<string>(boardSysKinds());
+  const kinds = new Set<string>([...boardSysKinds(), ...chartKinds()]);
   if (State.settings.fixedBar) {
     for (const it of State.settings.fixedBarItems ?? []) {
       const k = barKind(it.id);
@@ -605,6 +605,17 @@ export function barSysKinds(): string[] {
     }
   }
   return [...kinds].sort();
+}
+
+/**
+ * The values a `chart` block of isola.json draws, in any tab or the
+ * Panoramica: read also with the island closed, or the chart had a hole for
+ * the time it was closed (Edoardo, 24 Nov 2026, from the laptop). A reading
+ * every 2 s on barsys.rs's thread and a point in `longHistory`, nothing drawn.
+ */
+function chartKinds(): string[] {
+  const blocks = [...State.layout.tabs.flatMap((x) => x.blocks ?? []), ...(State.layout.overview?.blocks ?? [])];
+  return blocks.flatMap((b) => (b.kind === "chart" ? [b.what] : []));
 }
 
 /**

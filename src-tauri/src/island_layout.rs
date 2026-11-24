@@ -184,7 +184,7 @@ pub const SHAPES: &[&str] = &["round", "square", "pill", "circle"];
 /// What a small button shows.
 pub const SHOWS: &[&str] = &["icon", "label", "both"];
 /// How wide a block stands among the others.
-pub const WIDTHS: &[&str] = &["full", "half", "third", "auto"];
+pub const WIDTHS: &[&str] = &["full", "half", "third", "quarter", "auto"];
 pub const ALIGNS: &[&str] = &["left", "center", "right"];
 /// The way the island's two colours meet.
 pub const GRADIENTS: &[&str] = &["down", "right", "diagonal", "radial"];
@@ -1286,7 +1286,40 @@ pub fn block_words(b: &Value) -> String {
         },
         _ => tf("testo «{text}»", &[("text", &text(b, "text").chars().take(60).collect::<String>())]),
     };
-    format!("{head}{body}{}", when_words(b))
+    format!("{head}{body}{}{}", block_look_words(b), when_words(b))
+}
+
+/// How a block looks, in words, for the card: a chart's style, height and
+/// minutes, the width in the row, the columns of a grid. The card said nothing
+/// of a chart's style, and the chat could not tell the user it had changed
+/// (24 Nov 2026, the laptop's chats).
+fn block_look_words(b: &Value) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if text(b, "kind") == "chart" {
+        match text(b, "line") {
+            "line" => parts.push(t("a linea").to_string()),
+            "bars" => parts.push(t("a barre").to_string()),
+            "area" => parts.push(t("ad area").to_string()),
+            _ => {}
+        }
+        if let Some(h) = b.get("height").and_then(Value::as_f64) {
+            parts.push(tf("alto {n} px", &[("n", &format!("{h:.0}"))]));
+        }
+        if let Some(m) = b.get("minutes").and_then(Value::as_f64) {
+            parts.push(tf("ultimi {n} minuti", &[("n", &format!("{m:.0}"))]));
+        }
+    }
+    match text(b, "width") {
+        "half" => parts.push(t("metà riga").to_string()),
+        "third" => parts.push(t("un terzo della riga").to_string()),
+        "quarter" => parts.push(t("un quarto della riga").to_string()),
+        "auto" => parts.push(t("larghezza automatica").to_string()),
+        _ => {}
+    }
+    if let Some(c) = b.get("columns").and_then(Value::as_f64) {
+        parts.push(tf("{n} colonne", &[("n", &format!("{c:.0}"))]));
+    }
+    if parts.is_empty() { String::new() } else { format!(" ({})", parts.join(", ")) }
 }
 
 /// What goes from `old` to `new`, one line each, for the Consenti / Nega card.
@@ -1565,7 +1598,7 @@ fn looks_help() -> String {
         t("  background e background2 (#rrggbb, due colori = sfumatura), gradient down|right|diagonal|radial, opacity 0.5–1, accent (grafici, evidenze), text e dim (testo e testo secondario), card e card_opacity 0–1 (le schede delle viste), card_radius 0–28, border e border_width 0–4, glow (alone colorato), radius 0–40 (angoli dell'isola aperta), font system|rounded|mono|serif|condensed|segoe, text_size da -2 a 6 (px in più), width e height (misura minima dell'isola aperta, px), menu_background, header_background, footer_background, spacing compact|normal|wide.").to_string(),
         tf("Pulsanti (zone, schede, footer): oltre a color anche bg (#rrggbb, sfondo), shape {shapes}, size {sizes}, show {shows} (solo icona, solo nome o entrambi).", &[("shapes", &SHAPES.join("|")), ("sizes", &SIZES.join("|")), ("shows", &SHOWS.join("|"))]),
         t("Schede: color (icona nel menu), columns 1–10 (colonne dei pulsanti), size s|m|l|xl (pulsanti più piccoli o grandi), when.").to_string(),
-        tf("Blocchi: width {widths} (tutta la riga, metà, un terzo), size {sizes}, color (accento: linea del grafico, icona, valore), bg (#rrggbb o none), border, title_color, radius 0–32, align left|center|right; grid columns 1–12; list height (px, poi scorre); chart height 32–300, minutes 1–5, line line|area|bars; text bold, italic.", &[("widths", &WIDTHS.join("|")), ("sizes", &SIZES.join("|"))]),
+        tf("Blocchi: width {widths} (tutta la riga, metà, un terzo, un quarto), size {sizes}, color (accento: linea del grafico, icona, valore), bg (#rrggbb o none), border, title_color, radius 0–32, align left|center|right; grid columns 1–12; list height (px, poi scorre); chart height 32–300, minutes 1–5, line line|area|bars; text bold, italic.", &[("widths", &WIDTHS.join("|")), ("sizes", &SIZES.join("|"))]),
         t("Valori del footer: { what, drive, label (nome davanti), color, bg, levels, when }.").to_string(),
         tf("Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), value { what, drive, above, below }.", &[("days", &DAYS.join(", "))]),
         tf("Soglie, levels [{ above o below, color, what }] su pulsanti, blocchi value e chart (what facoltativo: il loro valore) e valori del footer: vince la prima che vale e colora il pezzo. Valori come numeri: {numbers} (disk = % usato, battery = %, net = MB/s, recycle = elementi, updates = quanti).", &[("numbers", &NUMBERS.join(", "))]),
@@ -1855,6 +1888,13 @@ mod tests {
         assert!(apply(&v, &json!({ "style": { "accent": "red" } })).is_err());
         assert!(apply(&v, &json!({ "style": { "opacity": 0.1 } })).unwrap()["style"]["opacity"] == json!(0.5));
         assert!(apply(&v, &json!({ "reset": ["style"] })).unwrap().get("style").is_none());
+    }
+
+    #[test]
+    fn the_card_says_how_a_chart_looks() {
+        let w = block_words(&json!({ "kind": "chart", "what": "ram", "line": "bars", "height": 70, "minutes": 3, "width": "quarter" }));
+        assert!(w.contains("a barre") && w.contains("alto 70 px") && w.contains("ultimi 3 minuti") && w.contains("un quarto"), "{w}");
+        assert!(WIDTHS.contains(&"quarter"));
     }
 
     #[test]

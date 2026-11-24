@@ -2339,7 +2339,7 @@ export interface LayoutBlockLook extends LayoutLook {
   bg?: string;
   border?: string;
   title_color?: string;
-  width?: "full" | "half" | "third" | "auto";
+  width?: "full" | "half" | "third" | "quarter" | "auto";
   size?: "s" | "m" | "l" | "xl";
   radius?: number;
   align?: "left" | "center" | "right";

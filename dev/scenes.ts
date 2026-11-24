@@ -2061,6 +2061,20 @@ export async function runScene(island: Island, scene: string) {
             ],
           } });
         }
+        // ?look&quattro: four charts in a row, a quarter each (the laptop's Panoramica, 24 Nov 2026).
+        if (q.has("quattro")) {
+          chartSample("gpu", Array.from({ length: 150 }, (_, i) => 8 + 6 * Math.sin(i / 5) + (i % 11)));
+          chartSample("net", Array.from({ length: 150 }, (_, i) => (i % 17 < 3 ? 4e6 : 2e5) + (i % 5) * 1e5));
+          Object.assign(layout, { overview: {
+            order: ["block:q-cpu", "block:q-ram", "block:q-gpu", "block:q-net", "tiles"],
+            blocks: [
+              { id: "q-cpu", kind: "chart", what: "cpu", width: "quarter", height: 70, minutes: 3, title: "CPU" },
+              { id: "q-ram", kind: "chart", what: "ram", width: "quarter", height: 70, minutes: 3, line: "line", color: "#a78bfa", title: "RAM" },
+              { id: "q-gpu", kind: "chart", what: "gpu", width: "quarter", height: 70, minutes: 3, title: "GPU" },
+              { id: "q-net", kind: "chart", what: "net", width: "quarter", height: 70, minutes: 3, line: "bars", color: "#38bdf8", title: "Rete" },
+            ],
+          } });
+        }
       }
       if (q.has("draft")) {
         State.pendingApproval = { requestId: "r", sessionId: "", tool: "EasyIsland", command: "", source: "chat", layoutDraft: layout };

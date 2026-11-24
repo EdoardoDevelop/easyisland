@@ -2371,7 +2371,7 @@ async fn run_tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
         }
         "preview_act" => {
             let tb = tab_for(&s("tab"))?;
-            let action = s("action");
+            let action = act_alias(&s("action"));
             let tid = tb.id;
             let at = |prefix: &str| -> Option<Value> { target_of(args, prefix) };
             // The element (or x, y) the action is on, as a point; guarded unless it only looks.
@@ -2387,11 +2387,21 @@ async fn run_tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 }
             };
             let done = match action.as_str() {
-                "click" | "double_click" | "right_click" => {
+                "hover" => {
+                    let (x, y, what) = point("", false).await?;
+                    mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
+                    tf("Mouse su «{what}».", &[("what", &what)])
+                }
+                "click" | "double_click" | "triple_click" | "right_click" => {
                     let (x, y, what) = point("", true).await?;
                     let button = if action == "right_click" { "right" } else { "left" };
                     mouse(app, tb.id, "mouseMoved", x, y, "none", 0).await?;
-                    for n in 1..=if action == "double_click" { 2 } else { 1 } {
+                    let times = match action.as_str() {
+                        "double_click" => 2,
+                        "triple_click" => 3,
+                        _ => 1,
+                    };
+                    for n in 1..=times {
                         mouse(app, tb.id, "mousePressed", x, y, button, n).await?;
                         mouse(app, tb.id, "mouseReleased", x, y, button, n).await?;
                     }
@@ -2410,7 +2420,8 @@ async fn run_tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     tf("Trascinato «{a}» su «{b}».", &[("a", &what), ("b", &to)])
                 }
                 "key" => {
-                    let keys = s("keys");
+                    // The keys under the names the engines use too (key, text, value).
+                    let keys = ["keys", "key", "text", "value"].iter().map(|k| s(k)).find(|v| !v.is_empty()).unwrap_or_default();
                     if keys.is_empty() {
                         return Err(t("Manca keys, per esempio «Enter» o «Control+a».").into());
                     }
@@ -2427,7 +2438,8 @@ async fn run_tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     // As typed on the keyboard: for search boxes that suggest while you write.
                     let target = at("").ok_or_else(|| t("Manca il campo: ref, selector o text_match.").to_string())?;
                     let (v, _) = find_eval(app, tb.id, &target, "(el) => { el.focus(); if (el.select) el.select(); return 'ok'; }", true, false).await?;
-                    cdp_on(app, tb.id, "Input.insertText", json!({ "text": s("text") })).await?;
+                    let text = if s("text").is_empty() { s("value") } else { s("text") };
+                    cdp_on(app, tb.id, "Input.insertText", json!({ "text": text })).await?;
                     tf("Scritto in «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())])
                 }
                 "select" | "check" | "uncheck" => {
@@ -2447,11 +2459,51 @@ async fn run_tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                         _ => tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]),
                     }
                 }
-                other => return Err(tf("Azione sconosciuta: {a}", &[("a", &other)])),
+                other => return Err(tf("Azione sconosciuta: {a}. Azioni: {list}.", &[("a", &other), ("list", &ACT_ACTIONS.join(", "))])),
             };
             after(app, tb.id, done, args).await
         }
         _ => Err(format!("unknown tool {name}")),
+    }
+}
+
+/// What `preview_act` does.
+const ACT_ACTIONS: &[&str] = &["click", "double_click", "triple_click", "right_click", "hover", "drag", "key", "type_keys", "select", "check", "uncheck"];
+
+/// The words the engines use for `preview_act`'s actions (24 Nov 2026, on the
+/// laptop: «type», «press», «triple_click» were refused and the engine lost
+/// several rounds on a supplier's portal) turned into ours.
+fn act_alias(action: &str) -> String {
+    let a = action.trim().to_lowercase().replace(['-', ' '], "_");
+    match a.as_str() {
+        "type" | "fill" | "write" | "input" | "type_text" | "insert_text" => "type_keys",
+        "press" | "keypress" | "key_press" | "keys" | "hotkey" | "press_key" | "shortcut" => "key",
+        "dblclick" | "doubleclick" => "double_click",
+        "tripleclick" | "select_all_text" => "triple_click",
+        "rightclick" | "context_click" | "contextmenu" => "right_click",
+        "mouseover" | "move" | "mouse_move" => "hover",
+        "tap" | "left_click" => "click",
+        "drag_and_drop" | "drag_to" => "drag",
+        "select_option" | "choose" => "select",
+        _ => return a,
+    }
+    .to_string()
+}
+
+#[cfg(test)]
+mod act_alias_tests {
+    use super::*;
+
+    #[test]
+    fn the_engines_words_become_ours() {
+        assert_eq!(act_alias("type"), "type_keys");
+        assert_eq!(act_alias("press"), "key");
+        assert_eq!(act_alias("Triple-Click"), "triple_click");
+        assert_eq!(act_alias("click"), "click");
+        assert_eq!(act_alias("boh"), "boh");
+        for a in ACT_ACTIONS {
+            assert_eq!(act_alias(a), *a);
+        }
     }
 }
 

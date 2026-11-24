@@ -43,7 +43,7 @@ const SCENES = [
   "moment", "moment&moment=zip", "moment&moment=tray", "moment&moment=error", "moment&moment=port", "moment&moment=server",
   "moment&moment=card", "avvisi", "daily", "daily&evening", "done", "done&alone", "search", "remember", "remember&empty", "talk", "talk&hearing", "remember&call", "moment&moment=call", "moment&moment=ticket", "moment&moment=agentchat", "agentchat", "agentchat&busy&write", "agentchat&off", "agentchat&empty", "agentchat&argomenti", "zammad", "zammad&open", "zammad&email", "zammad&open&consiglio", "rdm&cloud", "rdm&tied",
   // The island built from a JSON (dev/scenes.ts `isola`): tabs, the Panoramica, the footer, the look.
-  "isola&board", "isola&tab=stato", "isola&ov", "isola&more&tab=altro", "isola&look", "isola&look=caldo", "isola&look&draft", "isola&look&ov",
+  "isola&board", "isola&tab=stato", "isola&ov", "isola&more&tab=altro", "isola&look", "isola&look=caldo", "isola&look&draft", "isola&look&ov", "isola&look&ov&quattro",
   // Random events, clicks and malformed data (dev/scenes.ts `fuzz`), a few seeds.
   "fuzz&seed=1", "fuzz&seed=2", "fuzz&seed=3", "fuzz&seed=4", "fuzz&seed=5",
 ];

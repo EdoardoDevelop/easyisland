@@ -6633,5 +6633,22 @@
   "Espelli": "Eject",
   "{n} download nuovo": "{n} new download",
   "{n} download nuovi": "{n} new downloads",
-  "Cestino pieno": "Full recycle bin"
+  "Cestino pieno": "Full recycle bin",
+  "Più righe con questo testo ({n}, in: {pages}): scrivine di più.": "Several lines with this text ({n}, in: {pages}): write more of it.",
+  "a linea": "as a line",
+  "a barre": "as bars",
+  "ad area": "as an area",
+  "alto {n} px": "{n} px tall",
+  "ultimi {n} minuti": "last {n} minutes",
+  "metà riga": "half a row",
+  "un terzo della riga": "a third of the row",
+  "un quarto della riga": "a quarter of the row",
+  "larghezza automatica": "automatic width",
+  "{n} colonne": "{n} columns",
+  "Blocchi: width {widths} (tutta la riga, metà, un terzo, un quarto), size {sizes}, color (accento: linea del grafico, icona, valore), bg (#rrggbb o none), border, title_color, radius 0–32, align left|center|right; grid columns 1–12; list height (px, poi scorre); chart height 32–300, minutes 1–5, line line|area|bars; text bold, italic.": "Blocks: width {widths} (whole row, half, a third, a quarter), size {sizes}, color (accent: chart line, icon, value), bg (#rrggbb or none), border, title_color, radius 0–32, align left|center|right; grid columns 1–12; list height (px, then it scrolls); chart height 32–300, minutes 1–5, line line|area|bars; text bold, italic.",
+  "Riga tolta dalla pagina «{page}» e spostata in archivio.md.": "Line removed from the page “{page}” and moved to archivio.md.",
+  "Nessuna nota né riga di pagina con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.": "No note or page line with this text in this PC's memory. If you found it among the other PC's results (linked memory), it lives there: remove it from that PC, not from here.",
+  "Nessuna nota né riga di pagina con questo testo nella memoria di questo PC: cercala con memory_search e copia il testo esatto.": "No note or page line with this text in this PC's memory: look for it with memory_search and copy the exact text.",
+  "Mouse su «{what}».": "Mouse over “{what}”.",
+  "Azione sconosciuta: {a}. Azioni: {list}.": "Unknown action: {a}. Actions: {list}."
 }

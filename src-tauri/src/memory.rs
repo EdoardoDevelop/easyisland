@@ -441,8 +441,20 @@ pub fn forget(text: &str) -> Result<String, String> {
     let matching: Vec<&String> = notes.iter().filter(|n| n.to_lowercase().contains(&key)).collect();
     let line = match matching.as_slice() {
         [one] => (*one).clone(),
-        // 8 Nov 2026: the check tried four times to archive notes that are only in the other PC's copy.
-        [] => return Err(t("Nessuna nota con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.").into()),
+        // Not a note: a line of a page (the memory written after the answers puts facts there).
+        [] => {
+            if let Some((page, line)) = crate::brain::forget_line(&key)? {
+                let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir().join("archivio.md")).map_err(|e| e.to_string())?;
+                let _ = writeln!(f, "{} [{page}]", line.trim());
+                return Ok(tf("Riga tolta dalla pagina «{page}» e spostata in archivio.md.", &[("page", &page)]));
+            }
+            // 8 Nov 2026: the check tried four times to archive notes that are only in the other PC's copy.
+            // Said only where there is one: the laptop has none, and was told so (24 Nov 2026).
+            if crate::brain::has_shared_copies() {
+                return Err(t("Nessuna nota né riga di pagina con questo testo nella memoria di questo PC. Se l'hai trovata tra i risultati dell'altro PC (memoria collegata), sta là: si toglie da quel PC, non da qui.").into());
+            }
+            return Err(t("Nessuna nota né riga di pagina con questo testo nella memoria di questo PC: cercala con memory_search e copia il testo esatto.").into());
+        }
         _ => return Err(tf("Più note con questo testo ({n}): scrivine di più.", &[("n", &matching.len().to_string())])),
     };
     let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir().join("archivio.md")).map_err(|e| e.to_string())?;

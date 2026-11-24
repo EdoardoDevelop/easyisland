@@ -854,11 +854,11 @@ function renderSummary(actions: ViewActions): HTMLElement {
     .filter((x): x is HTMLElement => !!x);
   const ownBlocks = body.filter((x) => x.classList.contains("board-block"));
   for (const b of ownBlocks) b.classList.add("summary-block");
-  // isola.json `width`: blocks side by side (half, a third, their own width) share a row, as in a tab.
+  // isola.json `width`: blocks side by side (half, a third, a quarter, their own width) share a row, as in a tab.
   const rows: HTMLElement[] = [];
   let row: HTMLElement | null = null;
   for (const el of body) {
-    const side = el.classList.contains("bw-half") || el.classList.contains("bw-third") || el.classList.contains("bw-auto");
+    const side = el.classList.contains("bw-half") || el.classList.contains("bw-third") || el.classList.contains("bw-quarter") || el.classList.contains("bw-auto");
     if (!side) {
       row = null;
       rows.push(el);
