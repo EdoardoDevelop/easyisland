@@ -83,6 +83,8 @@ const WM_RESYNC: u32 = WM_APP + 3;
 
 const HSHELL_WINDOWCREATED: usize = 1;
 const HSHELL_WINDOWDESTROYED: usize = 2;
+/// Windows asks where a window minimizes to (and restores from): its icon's place.
+const HSHELL_GETMINRECT: usize = 5;
 const HSHELL_WINDOWACTIVATED: usize = 4;
 const HSHELL_REDRAW: usize = 6;
 const HSHELL_HIGHBIT: usize = 0x8000;
@@ -350,51 +352,90 @@ fn process_exe(pid: u32) -> String {
 /// screen-capture tools, hidden, minimized or cloaked windows and
 /// EasyIsland's own never are. With the Windows taskbar hidden its own
 /// notice (ABN_FULLSCREENAPP) does not hold: this replaces it.
-fn foreground_fullscreen() -> bool {
+/// The monitor it covers, or none.
+pub fn fullscreen_front() -> Option<RECT> {
     unsafe {
         let front = GetForegroundWindow();
         if front.is_invalid() || !IsWindowVisible(front).as_bool() || IsIconic(front).as_bool() || is_cloaked(front) {
-            return false;
+            return None;
         }
         let mut pid = 0u32;
         GetWindowThreadProcessId(front, Some(&mut pid));
         if pid == 0 || pid == GetCurrentProcessId() {
-            return false;
+            return None;
         }
         if GetWindowLongW(front, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW.0 != 0 {
-            return false;
+            return None;
         }
         if GetWindowLongW(front, GWL_STYLE) as u32 & WS_CAPTION.0 == WS_CAPTION.0 {
-            return false;
+            return None;
         }
         if matches!(class_name(front).as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd")
             || matches!(class_name(front).as_str(), "XamlExplorerHostIslandWindow" | "MultitaskingViewFrame")
         {
-            return false;
+            return None;
         }
         let exe = process_exe(pid);
         if SCREEN_TOOLS.iter().any(|t| exe.ends_with(&format!("\\{t}"))) {
-            return false;
+            return None;
         }
         let mut rect = RECT::default();
         let mut info = MONITORINFO { cbSize: size_of::<MONITORINFO>() as u32, ..Default::default() };
         if GetWindowRect(front, &mut rect).is_err() || !GetMonitorInfoW(MonitorFromWindow(front, MONITOR_DEFAULTTONEAREST), &mut info).as_bool() {
-            return false;
+            return None;
         }
-        covers(rect, info.rcMonitor)
+        covers(rect, info.rcMonitor).then_some(info.rcMonitor)
     }
+}
+
+/// Whether the program in front is one of these (file names, `*` and `?` as
+/// wildcards, any case): «Programmi con la barra visibile» of the fixed bar.
+pub fn front_exe_matches(patterns: &[String]) -> bool {
+    let front = unsafe { GetForegroundWindow() };
+    if front.is_invalid() {
+        return false;
+    }
+    let mut pid = 0u32;
+    unsafe { GetWindowThreadProcessId(front, Some(&mut pid)) };
+    if pid == 0 {
+        return false;
+    }
+    let exe = process_exe(pid);
+    let name = exe.rsplit('\\').next().unwrap_or(&exe);
+    patterns.iter().any(|p| wildcard(&p.to_lowercase(), name))
+}
+
+/// `*` any run of characters, `?` one; the rest as it is (both in lower case).
+/// A pattern without a dot also matches the name with «.exe» («vlc» = «vlc.exe»).
+fn wildcard(pattern: &str, name: &str) -> bool {
+    fn go(p: &[char], n: &[char]) -> bool {
+        match (p.first(), n.first()) {
+            (None, None) => true,
+            (Some('*'), _) => go(p.get(1..).unwrap_or_default(), n) || (!n.is_empty() && go(p, n.get(1..).unwrap_or_default())),
+            (Some('?'), Some(_)) => go(p.get(1..).unwrap_or_default(), n.get(1..).unwrap_or_default()),
+            (Some(a), Some(b)) if a == b => go(p.get(1..).unwrap_or_default(), n.get(1..).unwrap_or_default()),
+            _ => false,
+        }
+    }
+    let p: Vec<char> = pattern.trim().chars().take(100).collect();
+    let n: Vec<char> = name.chars().take(260).collect();
+    if p.is_empty() {
+        return false;
+    }
+    go(&p, &n) || (!pattern.contains('.') && name.strip_suffix(".exe").is_some_and(|base| go(&p, &base.chars().collect::<Vec<_>>())))
 }
 
 fn covers(window: RECT, screen: RECT) -> bool {
     window.left <= screen.left && window.top <= screen.top && window.right >= screen.right && window.bottom >= screen.bottom
 }
 
-/// Tells the Dock's window when a full-screen app comes in front or leaves.
+/// Tells the fixed bar when a full-screen app comes in front or leaves (at
+/// once on the window events; island.rs also looks every 2 s without «App»).
 fn check_fullscreen() {
-    let now = foreground_fullscreen();
+    let monitor = fullscreen_front();
+    let now = monitor.is_some();
     if FULLSCREEN.swap(now as i8, Ordering::SeqCst) != now as i8 {
-        // Kept for a bar that steps away from full-screen apps; nothing listens yet.
-        let _ = now;
+        crate::appbar::full_screen_seen(monitor);
     }
 }
 
@@ -428,6 +469,89 @@ fn sync() {
     check_covered();
 }
 
+/* ------------------------------------------------- minimize to the icon */
+
+// A window minimized goes down into its app's icon on the bar, and comes back
+// up from it, instead of towards the Windows taskbar (24 Nov 2026, idea from
+// the docks for Windows). Windows asks every shell-hook window where a window
+// minimizes to (HSHELL_GETMINRECT, the place in a SHELLHOOKINFO in our own
+// memory): the answer is the icon's rectangle, sent by the bar's page
+// (`apps_rects`) whenever the icons move. No answer (an app with no icon, the
+// option off): Windows does as usual.
+
+#[repr(C)]
+struct ShellHookInfo {
+    hwnd: HWND,
+    rc: RECT,
+}
+
+/// Each app's icon on the bar, screen px, by app id in lower case. Empty: the option is off.
+static ICON_RECTS: Mutex<Option<HashMap<String, RECT>>> = Mutex::new(None);
+/// Said once in the log that Windows asked (to see it works on this PC).
+static MIN_RECT_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Writes the icon's place for the window asking; true when there is one.
+/// Never waits: a lock held elsewhere means no answer this time.
+unsafe fn answer_min_rect(info: *mut ShellHookInfo) -> bool {
+    let Some(info) = (unsafe { info.as_mut() }) else { return false };
+    let hwnd = info.hwnd.0 as isize;
+    let app = match STATE.try_lock() {
+        Ok(s) => s.as_ref().and_then(|s| s.app_ids.get(&hwnd).cloned()),
+        Err(_) => None,
+    };
+    let Some(app) = app else { return false };
+    let rect = match ICON_RECTS.try_lock() {
+        Ok(r) => r.as_ref().and_then(|m| m.get(&app.to_lowercase()).copied()),
+        Err(_) => None,
+    };
+    let Some(rect) = rect else { return false };
+    // Some Windows 11 builds pass two packed points in the first two fields
+    // (right and bottom zero): answered the same way.
+    if info.rc.right == 0 && info.rc.bottom == 0 {
+        let pack = |x: i32, y: i32| ((x & 0xffff) as u32 | ((y as u32) << 16)) as i32;
+        info.rc = RECT { left: pack(rect.left, rect.top), top: pack(rect.right, rect.bottom), right: 0, bottom: 0 };
+    } else {
+        info.rc = rect;
+    }
+    if !MIN_RECT_LOGGED.swap(true, Ordering::Relaxed) {
+        crate::log::line(format!(
+            "App: le finestre si riducono verso la loro icona nella barra (prima: {},{} – {},{})",
+            rect.left, rect.top, rect.right, rect.bottom
+        ));
+    }
+    true
+}
+
+#[derive(serde::Deserialize)]
+pub struct IconRect {
+    app: String,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+/// The icons' places on the bar's page (CSS px of its window), turned into
+/// screen px; an empty list turns minimizing to the icons off.
+#[tauri::command]
+pub fn apps_rects(app: AppHandle, rects: Vec<IconRect>) {
+    let mut map = HashMap::new();
+    if let Some(win) = app.get_webview_window(DOCK_LABEL) {
+        if let (Ok(pos), Ok(scale)) = (win.inner_position(), win.scale_factor()) {
+            for r in rects.into_iter().take(200) {
+                if !(r.x.is_finite() && r.y.is_finite() && r.w.is_finite() && r.h.is_finite()) || r.w <= 0.0 || r.h <= 0.0 {
+                    continue;
+                }
+                let px = |v: f64| (v * scale).round() as i32;
+                let left = pos.x + px(r.x);
+                let top = pos.y + px(r.y);
+                map.insert(r.app.to_lowercase(), RECT { left, top, right: left + px(r.w).max(1), bottom: top + px(r.h).max(1) });
+            }
+        }
+    }
+    *ICON_RECTS.lock().unwrap_or_else(|e| e.into_inner()) = (!map.is_empty()).then_some(map);
+}
+
 /* ------------------------------------------------------------- thread */
 
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -437,6 +561,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
     let shell = SHELL_MSG.load(Ordering::Relaxed);
     if shell != 0 && msg == shell {
         let target = lparam.0;
+        if wparam.0 == HSHELL_GETMINRECT {
+            return LRESULT(unsafe { answer_min_rect(lparam.0 as *mut ShellHookInfo) } as isize);
+        }
         match wparam.0 {
             HSHELL_WINDOWCREATED | HSHELL_WINDOWDESTROYED => schedule(hwnd),
             HSHELL_WINDOWACTIVATED | HSHELL_RUDEAPPACTIVATED => {
@@ -1006,6 +1133,19 @@ mod tests {
 
     fn win(hwnd: isize, title: &str) -> Win {
         Win { hwnd, app: "c:\\a.exe".into(), title: title.into(), active: false, minimized: false, attention: false, last_used: 1 }
+    }
+
+    #[test]
+    fn programs_kept_over_full_screen_match_with_wildcards() {
+        assert!(wildcard("vlc.exe", "vlc.exe"));
+        assert!(wildcard("vlc", "vlc.exe"));
+        assert!(wildcard("*game*", "mygame64.exe"));
+        assert!(wildcard("obs??.exe", "obs64.exe"));
+        assert!(wildcard("*", "anything.exe"));
+        assert!(!wildcard("vlc", "vlcx.exe"));
+        assert!(!wildcard("vlc.exe", "notvlc.exe"));
+        assert!(!wildcard("", "vlc.exe"));
+        assert!(!wildcard("obs?.exe", "obs64.exe"));
     }
 
     #[test]

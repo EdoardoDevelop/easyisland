@@ -53,6 +53,7 @@ mod context;
 mod daily;
 mod devservers;
 mod downloads;
+mod drives;
 mod drop;
 mod files;
 mod folder_drop;
@@ -4251,15 +4252,21 @@ static CHARACTER_REST: AtomicBool = AtomicBool::new(false);
 static CHARACTER_SPOT: Mutex<Option<([f64; 4], bool)>> = Mutex::new(None);
 /// The window lets the mouse through (over the island) or takes it (beside the open island).
 static CHARACTER_CLICKS_THROUGH: AtomicBool = AtomicBool::new(true);
-/// The fixed bar blurs what is behind it (Windows' acrylic, «Aspetto della barra»).
-static CHARACTER_BLUR: AtomicBool = AtomicBool::new(false);
+/// What the fixed bar has behind it («Aspetto della barra»): 0 nothing, 1
+/// Windows' acrylic (blurred), 2 Mica (the wallpaper's colours, as Windows 11's own windows).
+static CHARACTER_BLUR: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
-/// Windows' acrylic behind the bar, on or off; set only when it changes.
-fn character_blur(ch: &tauri::WebviewWindow, on: bool) {
-    if CHARACTER_BLUR.swap(on, Ordering::Relaxed) == on {
+/// The material behind the bar; set only when it changes.
+fn character_blur(ch: &tauri::WebviewWindow, mode: u8) {
+    if CHARACTER_BLUR.swap(mode, Ordering::Relaxed) == mode {
         return;
     }
-    let effects = on.then(|| tauri::window::EffectsBuilder::new().effect(tauri::window::Effect::Acrylic).build());
+    let effect = match mode {
+        1 => Some(tauri::window::Effect::Acrylic),
+        2 => Some(tauri::window::Effect::Mica),
+        _ => None,
+    };
+    let effects = effect.map(|e| tauri::window::EffectsBuilder::new().effect(e).build());
     if let Err(e) = ch.set_effects(effects) {
         log::line(format!("barra fissa, sfocatura: {e}"));
     }
@@ -4440,7 +4447,10 @@ pub(crate) fn sync_character(app: &AppHandle) {
             barshadow::sync(app, None);
             return;
         }
-        let blur = app.try_state::<Shared>().is_some_and(|s| s.settings.lock().unwrap().bar_blur());
+        let blur = app.try_state::<Shared>().map_or(0, |s| {
+            let s = s.settings.lock().unwrap();
+            if !s.bar_blur() { 0 } else if s.bar_mica() { 2 } else { 1 }
+        });
         character_blur(&ch, blur);
         let _ = ch.set_size(tauri::PhysicalSize::new(w, h));
         let _ = ch.set_position(tauri::PhysicalPosition::new(x, y));
@@ -4455,7 +4465,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
         island::raise_character(app);
         return;
     }
-    character_blur(&ch, false);
+    character_blur(&ch, 0);
     barshadow::sync(app, None);
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
@@ -5793,6 +5803,7 @@ pub fn run() {
             windows_taskbar_restore,
             taskwin::apps_windows,
             taskwin::apps_do,
+            taskwin::apps_rects,
             taskwin::apps_icons,
             taskwin::apps_catalog,
             winthumbs::apps_thumbs,
@@ -5926,6 +5937,7 @@ pub fn run() {
             bar_grow,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
+            barsys::recycle_files,
             news::news_proposals,
             news::news_items,
             news::news_refresh,

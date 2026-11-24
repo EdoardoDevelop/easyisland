@@ -54,6 +54,7 @@ export const ACTION_ICONS: ActionIcon[] = [
   { name: "bug", label: t("Errore"), d: "M8 10h8v5a4 4 0 0 1-8 0z M9 10a3 3 0 0 1 6 0 M3.5 13H8 M16 13h4.5 M5 8l3 2 M19 8l-3 2 M5 19l3-2 M19 19l-3-2" },
   { name: "printer", label: t("Stampante"), d: "M7 8V3h10v5 M4 8h16v8H4z M7 13h10v8H7z" },
   { name: "trash", label: t("Elimina"), d: "M4 7h16 M9.5 7V4h5v3 M6 7l1 14h10l1-14 M10 11v6 M14 11v6" },
+  { name: "trash-full", label: t("Cestino pieno"), d: "M4 7h16 M9.5 7V4h5v3 M6 7l1 14h10l1-14 M8.5 10.5h7 M9 14h6 M9.5 17.5h5" },
   { name: "chart", label: t("Grafico"), d: "M4 3v17h17 M8.5 16v-4 M12.5 16V8 M16.5 16v-6" },
   { name: "euro", label: t("Pagamenti"), d: "M17.5 6.5a6.5 6.5 0 1 0 0 11 M4 10h9 M4 14h9" },
   { name: "briefcase", label: t("Lavoro"), d: "M3 7h18v13H3z M9 7V4h6v3 M3 12.5h18" },

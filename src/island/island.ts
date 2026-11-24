@@ -3826,6 +3826,8 @@ ${note}` : text };
       }
       const lines = barMenuOf(it);
       if (lines.length) void Bridge.barMenu(lines);
+      // Looked at: the downloads listed are no longer new (barsys.rs `downloads-seen`).
+      if (it.id === "sys:downloads" && State.barSys.downloads?.fresh) void Bridge.barSysDo("downloads-seen");
     } else if (act.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === act.slice(7));
       if (a) void this.runAction(a);
@@ -3917,6 +3919,21 @@ ${note}` : text };
       case "vscode": {
         const p = State.barSys.vscode?.[Number(arg)]?.path;
         if (what === "open" && p) void Bridge.barSysDo("vscode-open", undefined, p);
+        return;
+      }
+      // The newest downloads: opened, shown in their folder, or the folder itself (as the download card).
+      case "downloads": {
+        const d = State.barSys.downloads;
+        const p = d?.items[Number(arg)]?.path;
+        if ((what === "open" || what === "show") && p) void Bridge.fileOpen(p, what === "show").catch(() => {});
+        else if (what === "folder" && d?.dir) void Bridge.fileOpen(d.dir, false).catch(() => {});
+        return;
+      }
+      // A removable drive the bar lists: in File Explorer, or Windows' own «Espelli».
+      case "drives": {
+        if (!/^[D-Z]$/.test(arg) || !State.barSys.drives?.some((x) => x.letter === arg)) return;
+        if (what === "open") void Bridge.barSysDo(`disk-open:${arg}`);
+        else if (what === "eject") void Bridge.barSysDo(`drive-eject:${arg}`);
         return;
       }
     }

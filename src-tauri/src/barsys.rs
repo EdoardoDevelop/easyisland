@@ -28,6 +28,18 @@ const BRIGHTNESS_EVERY: Duration = Duration::from_secs(15);
 const VSCODE_EVERY: Duration = Duration::from_secs(60);
 /// winget is slow and goes on the network: four times a day, and on «Controlla adesso».
 const UPDATES_EVERY: Duration = Duration::from_secs(6 * 3600);
+/// The Downloads folder listed again at most this often (a finished download asks at once).
+const DOWNLOADS_EVERY: Duration = Duration::from_secs(30);
+/// How many downloads the bar's menu lists.
+const DOWNLOADS_SHOWN: usize = 12;
+
+/// Downloads newer than this (seconds since 1970) count as new on the bar; 0: not read yet.
+static DOWNLOADS_SEEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A download finished (downloads.rs): the bar's «Download» reads its list again.
+pub fn downloads_changed() {
+    send(Cmd::Do("downloads-read".into(), 0.0));
+}
 
 enum Cmd {
     /// The system elements now in the bar ("volume", "mic", …); empty: nothing to read.
@@ -70,6 +82,8 @@ pub fn start(app: AppHandle) {
         let mut slow_at: Option<Instant> = None;
         let mut vscode_at: Option<Instant> = None;
         let mut updates_at: Option<Instant> = None;
+        let mut downloads_at: Option<Instant> = None;
+        let mut drives_at: Option<(u32, Instant)> = None;
         let mut gpu: Option<Gpu> = None;
         loop {
             let cmd = if watch.is_empty() {
@@ -102,6 +116,8 @@ pub fn start(app: AppHandle) {
                     brightness_at = None;
                     slow_at = None;
                     vscode_at = None;
+                    downloads_at = None;
+                    drives_at = None;
                     if !watch.contains("net") {
                         net = None;
                     }
@@ -123,11 +139,22 @@ pub fn start(app: AppHandle) {
                     if what == "updates-check" {
                         updates_at = None;
                     }
+                    if what.starts_with("downloads") {
+                        downloads_at = None;
+                    }
+                    if what == "drives-read" {
+                        drives_at = None;
+                    }
                 }
                 Some(Cmd::Set(key, value)) => state[key] = value,
                 None => {}
             }
             if watch.is_empty() {
+                continue;
+            }
+            // The bar is away over a full-screen app (a game, a video): nothing to
+            // read until it comes back (commands above still run).
+            if crate::appbar::FULLSCREEN.load(std::sync::atomic::Ordering::Relaxed) {
                 continue;
             }
             // The window in front, also read here: the bar's title never waits on context.rs's thread alone.
@@ -211,6 +238,19 @@ pub fn start(app: AppHandle) {
                 *RECENT.lock().unwrap() = list.iter().map(|(_, p)| p.clone()).collect();
                 state["vscode"] = json!(list.iter().map(|(n, p)| json!({ "name": n, "path": p })).collect::<Vec<_>>());
             }
+            if watch.contains("downloads") && downloads_at.is_none_or(|t| t.elapsed() >= DOWNLOADS_EVERY) {
+                downloads_at = Some(Instant::now());
+                state["downloads"] = downloads_value();
+            }
+            // Only the bitmask every round; the drives themselves when it changes,
+            // and every 30 s for their free space.
+            if watch.contains("drives") {
+                let mask = crate::drives::mask();
+                if drives_at.is_none_or(|(m, t)| m != mask || t.elapsed() >= BATTERY_EVERY) {
+                    drives_at = Some((mask, Instant::now()));
+                    state["drives"] = crate::drives::list();
+                }
+            }
             if watch.contains("updates") && updates_at.is_none_or(|t| t.elapsed() >= UPDATES_EVERY) {
                 updates_at = Some(Instant::now());
                 if !UPDATING.swap(true, std::sync::atomic::Ordering::SeqCst) {
@@ -271,6 +311,14 @@ pub fn bar_sys_do(app: tauri::AppHandle, what: String, arg: Option<f64>, path: O
             let Some(p) = path.filter(|p| RECENT.lock().unwrap().contains(p)) else { return };
             vscode_open(&p);
         }
+        // «Espelli» on a drive the bar lists: Windows' own verb, off this thread; then read again.
+        d if d.starts_with("drive-eject:") => {
+            let Some(letter) = d.strip_prefix("drive-eject:").and_then(|l| l.chars().next()).filter(|c| c.is_ascii_uppercase()) else { return };
+            std::thread::spawn(move || {
+                crate::drives::eject(letter);
+                send(Cmd::Do("drives-read".into(), 0.0));
+            });
+        }
         _ => send(Cmd::Do(what, arg)),
     }
 }
@@ -306,6 +354,11 @@ fn act(what: &str, arg: f64) {
         p if p.starts_with("panel:") => panel(p.trim_start_matches("panel:")),
         "recycle-open" => {
             let _ = std::process::Command::new("explorer.exe").arg("shell:RecycleBinFolder").spawn();
+        }
+        // The bar's «Download» was opened: what is there now is no longer new.
+        "downloads-seen" => {
+            let newest = crate::downloads::recent(1).first().map(|d| d.2).unwrap_or(1);
+            DOWNLOADS_SEEN.store(newest.max(1), std::sync::atomic::Ordering::SeqCst);
         }
         // A drive's root in File Explorer: a letter only.
         d if d.starts_with("disk-open:") => {
@@ -440,6 +493,55 @@ fn keyboard() -> Value {
         let code = locale.split('-').next().unwrap_or_default().to_uppercase();
         json!({ "code": code, "name": name })
     }
+}
+
+/// The newest downloads for the bar: `{ dir, fresh, items: [{ name, path, at }] }`;
+/// `fresh` counts those newer than the last look (none at the first read).
+fn downloads_value() -> Value {
+    use std::sync::atomic::Ordering;
+    let list = crate::downloads::recent(DOWNLOADS_SHOWN);
+    let newest = list.first().map(|d| d.2).unwrap_or(1);
+    let _ = DOWNLOADS_SEEN.compare_exchange(0, newest.max(1), Ordering::SeqCst, Ordering::SeqCst);
+    let seen = DOWNLOADS_SEEN.load(Ordering::SeqCst);
+    json!({
+        "dir": crate::downloads::downloads_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default(),
+        "fresh": list.iter().filter(|d| d.2 > seen).count(),
+        "items": list.iter().map(|(name, path, at)| json!({ "name": name, "path": path, "at": at })).collect::<Vec<_>>(),
+    })
+}
+
+/// Files and folders dropped on the bar's recycle bin: into it, as dropped on
+/// the desktop's (Windows asks first if the user asked it to; undo from the
+/// recycle bin). Only paths that exist, at most 200.
+#[tauri::command]
+pub async fn recycle_files(paths: Vec<String>) -> bool {
+    tauri::async_runtime::spawn_blocking(move || {
+        use windows::Win32::UI::Shell::{SHFileOperationW, FOF_ALLOWUNDO, FO_DELETE, SHFILEOPSTRUCTW};
+        let paths: Vec<String> = paths.into_iter().filter(|p| std::path::Path::new(p).exists()).take(200).collect();
+        if paths.is_empty() {
+            return false;
+        }
+        // A list of paths each ended by a zero, the list by one more.
+        let mut from: Vec<u16> = Vec::new();
+        for p in &paths {
+            from.extend(p.encode_utf16());
+            from.push(0);
+        }
+        from.push(0);
+        let mut op = SHFILEOPSTRUCTW {
+            wFunc: FO_DELETE,
+            pFrom: windows::core::PCWSTR(from.as_ptr()),
+            fFlags: FOF_ALLOWUNDO.0 as u16,
+            ..Default::default()
+        };
+        let code = unsafe { SHFileOperationW(&mut op) };
+        let ok = code == 0 && !op.fAnyOperationsAborted.as_bool();
+        crate::log::line(format!("barra fissa: {} elementi nel cestino{}", paths.len(), if ok { "" } else { " (annullato o non riuscito)" }));
+        send(Cmd::Do("recycle-read".into(), 0.0));
+        ok
+    })
+    .await
+    .unwrap_or(false)
 }
 
 /// What the recycle bin holds: { count, bytes }.

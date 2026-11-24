@@ -46,6 +46,8 @@ export interface BarLook {
   font?: { stack: string; weight: number } | null;
   /** «App»: the pinned apps, in order (src/character-window/apps.ts). */
   apps?: AppPin[];
+  /** «App»'s options: icons grow under the mouse; windows minimize into their icon (default on). */
+  appsLook?: { magnify?: boolean; minimizeTo?: boolean };
 }
 
 export type IslandToCharacter =

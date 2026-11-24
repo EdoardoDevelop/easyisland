@@ -320,6 +320,10 @@ function linkCharacterWindow(island: Island) {
           look: State.settings.fixedBarLook ?? {},
           font: State.settings.fixedBarLook?.font === false ? null : barFont(State.settings.theme?.fonts),
           apps: State.settings.appsPinned ?? [],
+          appsLook: (() => {
+            const o = (State.settings.fixedBarItems ?? []).find((x) => x.id === "sys:apps")?.opts;
+            return { magnify: !!o?.magnify, minimizeTo: o?.minimizeTo !== false };
+          })(),
         }
         : null,
     };
