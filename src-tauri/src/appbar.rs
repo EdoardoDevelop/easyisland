@@ -133,7 +133,16 @@ fn rect_of(r: &Registered, revealed: bool) -> (i32, i32, u32, u32) {
 /// the band, or gives the space back.
 pub fn apply(app: &AppHandle) {
     let _ = APP.set(app.clone());
-    let setting = app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().fixed_bar.clone()).unwrap_or_default();
+    let (setting, keep) = app
+        .try_state::<crate::Shared>()
+        .map(|s| {
+            let s = s.settings.lock().unwrap();
+            (s.fixed_bar.clone(), s.bar_fullscreen_keep())
+        })
+        .unwrap_or_default();
+    if let Ok(mut k) = KEEP.lock() {
+        *k = keep;
+    }
     let Some(edge) = edge_of(&setting) else {
         remove(app);
         return;
@@ -379,6 +388,9 @@ pub fn full_screen_seen(monitor: Option<RECT>) {
     }
 }
 
+/// «A schermo intero resta visibile sopra» (`fullscreenKeep`), copied by `apply` at every settings change.
+static KEEP: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
 /// A full-screen app was in front at the last look (either notice).
 static WANTED: AtomicBool = AtomicBool::new(false);
 /// That full screen began over a program the bar stays over: decided once, when
@@ -392,7 +404,10 @@ fn update_full_screen() {
     let Some(app) = APP.get() else { return };
     let wanted = SHELL_FULLSCREEN.load(Ordering::Relaxed) || SEEN_FULLSCREEN.load(Ordering::Relaxed);
     if wanted && !WANTED.swap(true, Ordering::Relaxed) {
-        let keep = app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().bar_fullscreen_keep()).unwrap_or_default();
+        // The copy made by `apply`, never the settings' lock: this runs inside the
+        // shell's notice on the main thread, which may hold that lock already
+        // (24 Nov 2026: EasyIsland stopped answering at start).
+        let keep = KEEP.try_lock().map(|k| k.clone()).unwrap_or_default();
         KEPT.store(!keep.is_empty() && crate::taskwin::front_exe_matches(&keep), Ordering::Relaxed);
     } else if !wanted {
         WANTED.store(false, Ordering::Relaxed);

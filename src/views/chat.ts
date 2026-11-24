@@ -15,6 +15,7 @@ import { isPopped } from "../island/popout";
 import { TypeLine, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
+import { docsPanel } from "./chat-docs";
 import { ReplyBlocks } from "./chat-live";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
@@ -332,7 +333,8 @@ async function checkPaths(root: HTMLElement) {
     const info = pathSeen.get(key(e.dataset.path ?? ""))?.info;
     if (!info) continue;
     // A bare relative path that is not there: back to plain text (markdown.ts).
-    if (info.kind === "missing" && e.dataset.bare) {
+    // So is a missing one with spaces: words of the sentence taken for its names.
+    if (info.kind === "missing" && (e.dataset.bare || (/\s/.test(e.dataset.path ?? "") && e.tagName !== "CODE"))) {
       e.classList.remove("md-path");
       delete e.dataset.path;
       e.removeAttribute("title");
@@ -584,7 +586,10 @@ export function buildPrompt(
     toggleHelp();
   });
   moreMenu.append(desktopBtn, exportBtn, popBtn, helpBtn);
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, moreBtn, moreMenu);
+  // «Documenti»: the files this conversation made or named, in a panel beside it (chat-docs.ts).
+  const docsBtn = h("button", { class: "history-btn", title: t("Documenti: i file creati o nominati in questa conversazione") }, svg(ICONS.doc, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const docs = docsPanel();
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, docsBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -3294,6 +3299,31 @@ export function buildPrompt(
     if (terms.has(State.chat.sid)) closeAllTerminals();
     else void openTerminal();
   });
+  // «Documenti» (chat-docs.ts, 24 Nov 2026): the conversation's files in a panel beside the chat.
+  docs.el.addEventListener("dock-close", () => setDocs(false));
+  docsBtn.addEventListener("click", () => setDocs(!State.chatDocsOpen));
+  function setDocs(open: boolean) {
+    State.chatDocsOpen = open;
+    try {
+      localStorage.setItem("easyisland.chatDocs", open ? "1" : "");
+    } catch {
+      /* no storage */
+    }
+    placeDocs();
+    State.notify();
+    onHeightChange();
+  }
+  /** Where the documents' panel goes: its own panel of the dock, else beside the chat as the terminal. */
+  function placeDocs() {
+    const open = State.chatDocsOpen;
+    docs.el.style.display = open ? "" : "none";
+    docsBtn.classList.toggle("on", open);
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-docs-home]");
+    const pane = layout.ownerDocument.getElementById("preview-pane");
+    const home = open ? dockHome ?? pane ?? layout : layout;
+    if (docs.el.parentElement !== home) home.append(docs.el);
+    if (open) docs.draw();
+  }
   // «▶ Nel terminale» under a block of code: a terminal of its shell, the code written in, Enter left to the user.
   codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
   codeHooks.save = (code, lang) => {
@@ -3597,6 +3627,7 @@ export function buildPrompt(
     el,
     sync() {
       placeTerminal();
+      placeDocs();
       const file = State.droppedFile;
       const text = State.chatText;
       const win = State.chatWindow;

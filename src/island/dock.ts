@@ -17,7 +17,7 @@ import { t } from "../core/i18n";
 import { svg } from "../views/dom";
 import { ICONS } from "../views/icons";
 
-export type DockPanelId = "chat" | "cronologia" | "anteprima" | "terminale";
+export type DockPanelId = "chat" | "cronologia" | "anteprima" | "terminale" | "documenti";
 
 export interface DockHooks {
   /** "isola" or "finestra": arrangements are kept apart (the sizes differ). */
@@ -27,10 +27,13 @@ export interface DockHooks {
   sideOpen(): boolean;
   previewOpen(): boolean;
   termOpen(): boolean;
+  /** «Documenti» (chat-docs.ts): the conversation's files. */
+  docsOpen(): boolean;
   /** The tab's ✕ on the conversations, the Anteprima, the terminal. */
   closeSide(): void;
   closePreview(): void;
   closeTerm(): void;
+  closeDocs(): void;
   /** Where the Anteprima's page goes, in this page's pixels (0 = hidden). */
   placePreview(r: Rect): void;
   /** First widths (the island's own settings). */
@@ -45,7 +48,7 @@ export interface Rect { x: number; y: number; w: number; h: number }
 const SAVED = "easyisland.chatDock.";
 const HISTORY = 30;
 const NONE: Rect = { x: 0, y: 0, w: 0, h: 0 };
-const ORDER: DockPanelId[] = ["chat", "cronologia", "anteprima", "terminale"];
+const ORDER: DockPanelId[] = ["chat", "cronologia", "anteprima", "terminale", "documenti"];
 
 export class ChatDock {
   readonly el: HTMLElement;
@@ -83,6 +86,7 @@ export class ChatDock {
     // chat.ts lays its conversations and its terminal here while the panels exist.
     this.box("cronologia").dataset.sideHome = "";
     this.box("terminale").dataset.termHome = "";
+    this.box("documenti").dataset.docsHome = "";
 
     const boxes = this.boxes;
     this.api = createDockview(this.el, {
@@ -134,6 +138,7 @@ export class ChatDock {
       if (p.id === "cronologia") hooks.closeSide();
       if (p.id === "anteprima") hooks.closePreview();
       if (p.id === "terminale") hooks.closeTerm();
+      if (p.id === "documenti") hooks.closeDocs();
     });
     this.watch = new ResizeObserver((entries) => {
       if (entries.some((e) => e.target === this.el) && this.active) this.api.layout(this.el.clientWidth, this.el.clientHeight);
@@ -162,6 +167,7 @@ export class ChatDock {
     // there too, once the panel is in the page).
     this.adopt(".chat-side", "cronologia", want);
     this.adopt(".chat-term", "terminale", want);
+    this.adopt(".chat-docs", "documenti", want);
     this.placeSoon();
   }
 
@@ -245,6 +251,7 @@ export class ChatDock {
     if (this.hooks.sideOpen()) w.push("cronologia");
     if (this.hooks.previewOpen()) w.push("anteprima");
     if (this.hooks.termOpen()) w.push("terminale");
+    if (this.hooks.docsOpen()) w.push("documenti");
     return w.sort();
   }
 
@@ -278,6 +285,11 @@ export class ChatDock {
             ? { referencePanel: "anteprima", direction: "below" }
             : { referencePanel: "chat", direction: "right" });
         }
+        // On the right as the Anteprima and the terminal: a tab beside them when one is there.
+        if (want.includes("documenti")) {
+          const beside = want.includes("terminale") ? "terminale" : want.includes("anteprima") ? "anteprima" : "";
+          this.add("documenti", beside ? { referencePanel: beside, direction: "within" } : { referencePanel: "chat", direction: "right" }, beside ? undefined : 270);
+        }
       }
       // The chat stays the one in front where it shares a group.
       this.api.getPanel("chat")?.api.setActive();
@@ -288,7 +300,7 @@ export class ChatDock {
     this.resend();
   }
 
-  private add(id: DockPanelId, position?: { referencePanel: string; direction: "left" | "right" | "below" }, width?: number) {
+  private add(id: DockPanelId, position?: { referencePanel: string; direction: "left" | "right" | "below" | "within" }, width?: number) {
     this.api.addPanel({
       id, component: id, tabComponent: id, title: TITLES[id](),
       ...(position ? { position } : {}),
@@ -426,6 +438,7 @@ const TITLES: Record<DockPanelId, () => string> = {
   cronologia: () => t("Conversazioni"),
   anteprima: () => t("Anteprima"),
   terminale: () => t("Terminale"),
+  documenti: () => t("Documenti"),
 };
 
 const ICON: Record<DockPanelId, string> = {
@@ -433,6 +446,7 @@ const ICON: Record<DockPanelId, string> = {
   cronologia: ICONS.history,
   anteprima: ICONS.preview,
   terminale: ICONS.lineTerminal,
+  documenti: ICONS.doc,
 };
 
 function load(key: string): SerializedDockview | null {
@@ -468,7 +482,7 @@ function tab(doc: Document, id: DockPanelId): ITabRenderer {
       const x = doc.createElement("button");
       x.className = "dock-tab-x";
       x.append(svg(ICONS.xmark, 10));
-      x.title = id === "terminale" ? t("Chiudi il terminale") : id === "anteprima" ? t("Chiudi l'Anteprima") : t("Nascondi le conversazioni");
+      x.title = id === "terminale" ? t("Chiudi il terminale") : id === "anteprima" ? t("Chiudi l'Anteprima") : id === "documenti" ? t("Chiudi i documenti") : t("Nascondi le conversazioni");
       // Not a drag of the tab.
       x.addEventListener("pointerdown", (e) => e.stopPropagation());
       x.addEventListener("click", (e) => {

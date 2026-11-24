@@ -75,6 +75,7 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 24/11 — Dalle chat del portatile
 - Lette via WinRM le ultime 12 chat e il log del portatile (192.168.1.197). Ramo `claude/chat-portatile`: card dei grafici con stile e misure, larghezza `quarter`, «a linea» solo linea, grafici letti anche a isola chiusa (`chartKinds`), `preview_act` con i sinonimi dei motori (`act_alias`), memoria senza righe ripetute con altre parole (`brain::covered`), `memory_forget` anche su una riga di pagina.
+- Sera: condizione `view`/`not_view` (valori del footer nascosti nella Panoramica); pannello **Documenti** della chat (`chat-docs.ts`); percorsi con spazi cliccabili nelle risposte (`BARE_PATH`); barra di scorrimento delle conversazioni come quella della chat anche nel loro pannello. **Blocco all'avvio corretto:** `appbar::update_full_screen` prendeva il lucchetto delle impostazioni dentro l'avviso della shell sul thread principale (EasyIsland non rispondeva a ogni avvio, CPU 0); ora usa la copia `KEEP` fatta da `apply`.
 - Già a posto: i legami dedotti dalle parole (tolti il 21/11; sul portatile nessuna riga «(dedotto)»). Da fare forse: Telegram e 3CX che a rete caduta scrivono un errore ogni 30 s (132 in un'ora).
 
 ### 24/11 — Barra fissa: idee da WinMac-Dock

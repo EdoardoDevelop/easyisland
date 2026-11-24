@@ -1780,6 +1780,8 @@ class AppState {
   previewOpen = false;
   /** The chat's «Terminale» is open (chat.ts): it takes the Anteprima's panel, under the page if that is open too. */
   chatTermOpen = false;
+  /** The chat's «Documenti» panel is open (chat-docs.ts): remembered for the next start. */
+  chatDocsOpen = (() => { try { return localStorage.getItem("easyisland.chatDocs") === "1"; } catch { return false; } })();
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;

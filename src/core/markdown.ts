@@ -90,6 +90,22 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 // ── Inline ────────────────────────────────────────────────────────────────────
 
+/** A character of a file or folder name in a bare path (no space, no separator, nothing a sentence wraps a path in). */
+const NAME_CH = String.raw`[^\s<>"|*?\x60'«»()[\]\\/:]`;
+/** A name that may hold single spaces between its words («OneDrive - Easytech SRL»). */
+const SPACED = String.raw`${NAME_CH}+(?: ${NAME_CH}+)*`;
+/**
+ * A bare absolute path: its root, folders (spaces allowed, each ends at «\» or
+ * «/»), then a file whose name may hold spaces up to its nearest extension, or
+ * a last name without spaces. `(?![\w])` keeps «x.pdf» out of «x.pdfs».
+ */
+export const BARE_PATH = new RegExp(
+  String.raw`(?<![\w\\/\x60])(?:[A-Za-z]:[\\/]|\\\\[\w.$-]+\\)(?:${SPACED}[\\/])*` +
+  String.raw`(?:${NAME_CH}+?(?: ${NAME_CH}+?)*?\.[A-Za-z][A-Za-z0-9]{0,7}(?![\w])(?!\.[A-Za-z])|${NAME_CH}*[^\s<>"|*?\x60'«»()[\].,;:!?\\/])?` +
+  // «app.ts:42» or «app.ts:42:7»: the line goes with it.
+  String.raw`(?::\d+(?::\d+)?)?`,
+);
+
 /** Earliest-match inline rules; `code` first so nothing inside it is parsed. */
 const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => Node }[] = [
   {
@@ -103,9 +119,10 @@ const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => 
     },
   },
   {
-    re: /\[([^\]\n]+)\]\(([^)\s]+)\)/,
+    // [text](C:\a b\c.pdf) and [text](<C:\a b\c.pdf>) too: a Windows path may hold spaces.
+    re: /\[([^\]\n]+)\]\((<[^>\n]+>|[A-Za-z]:[\\/][^)\n]+|\\\\[^)\n]+|[^)\s]+)\)/,
     make: (m, hooks) => {
-      const url = m[2];
+      const url = m[2].replace(/^<(.*)>$/, "$1").trim();
       // [text](C:\…) or [text](file:///C:/…): a path.
       const file = url.match(/^file:\/\/\/(.+)$/i)?.[1];
       if (hooks.openPath && (file || /^([A-Za-z]:[\\/]|\\\\|~[\\/])/.test(url))) {
@@ -138,10 +155,13 @@ const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => 
       return span;
     },
   },
-  // A bare absolute path (C:\…, C:/…, \\server\share\…): up to a space; the
-  // punctuation after it stays text. Paths with spaces need `code`.
+  // A bare absolute path (C:\…, C:/…, \\server\share\…), spaces too (24 Nov
+  // 2026, Edoardo: «OneDrive - Easytech SRL\…» was cut at the first space and
+  // the click did nothing): folders may hold spaces up to their «\»; the last
+  // name runs to its extension (the nearest one), or without one to a space.
+  // The punctuation after it stays text.
   {
-    re: /(?<![\w\\/`])(?:[A-Za-z]:[\\/]|\\\\[\w.$-]+\\)[^\s<>"|*?`'«»()[\]]*[^\s<>"|*?`'«»()[\].,;:!?]/,
+    re: BARE_PATH,
     make: (m, hooks) => hooks.openPath ? pathLink(m[0], el("span", "", m[0]), hooks) : document.createTextNode(m[0]),
   },
   { re: /\*\*([^*\n]+?)\*\*|__([^_\n]+?)__/, make: (m, hooks) => wrap("strong", m[1] ?? m[2], hooks) },

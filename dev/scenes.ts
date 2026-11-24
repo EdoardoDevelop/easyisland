@@ -276,6 +276,21 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?docs: the «Documenti» panel beside the chat (chat-docs.ts), on replies of a day of offers.
+      if (new URLSearchParams(location.search).has("docs")) {
+        const root = "C:\\Users\\Edoardo\\OneDrive - Easytech SRL\\WORK";
+        (Bridge as unknown as { pathsInfo: (p: string[]) => Promise<unknown> }).pathsInfo = async (paths: string[]) =>
+          paths.map((p) => ({ path: p, resolved: p, kind: /vecchia/i.test(p) ? "missing" : "file", line: null }));
+        State.chatHistory = [
+          { id: 1, role: "user", content: "crea un preventivo per jacaroni per la sede in Zona Fiori, un pc 13HR0067IX" },
+          { id: 2, role: "assistant", engine: "subscription", content: `> ⚙ Esegue · \`genera-offerta.ps1\`\n\nFatto: ${root}\\Offerte PDF\\Offerta_PC_Lenovo_neo_50q_Web_Point_Fiori_Jacaroni_Easytech.pdf e il Word in ${root}\\Offerte Word\\Offerta_PC_Lenovo_neo_50q_Web_Point_Fiori_Jacaroni_Easytech.docx.` },
+          { id: 3, role: "user", content: "vogliono 3 portatili, fai un'altra offerta" },
+          { id: 4, role: "assistant", engine: "subscription", content: `Il file da allegare è questo: ${root}\\Offerte PDF\\Offerta_Notebook_Lenovo_V15_G5_Web_Point_Fiori_Jacaroni_Easytech.pdf\n\nIl DDT di ieri: \`${root}\\DDT PDF\\DDT-2026-002_TALENTI_S.p.A.pdf\`; la bozza vecchia ${root}\\Offerte PDF\\bozza vecchia.pdf non c'è più.` },
+        ];
+        State.chatDocsOpen = true;
+        // As Edoardo uses it: the conversations hidden.
+        State.chatSideOpen = false;
+      }
       // ?pensa: a turn in progress, the line typing itself; =passo with a step, =testo with reply text only, =fine the turn over,
       // =corsa steps and reasoning arriving faster than the line can write them, =squadra «Multi motore» at work, =squadra-fine its answer.
       const pensa = new URLSearchParams(location.search).get("pensa");

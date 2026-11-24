@@ -6656,5 +6656,14 @@
   "«when.{key}» di {what}: voci del menu come oggi (la Panoramica), chat, agenti, tab:<id> (al massimo 12).": "“when.{key}” of {what}: menu rows such as oggi (the Overview), chat, agenti, tab:<id> (12 at most).",
   "nella vista {views}": "in the view {views}",
   "fuori dalla vista {views}": "outside the view {views}",
-  "Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), view e not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (la voce del menu accesa: «oggi» è la Panoramica; per esempio i valori del footer nascosti nella Panoramica: not_view [\"oggi\"]), value { what, drive, above, below }.": "Conditions, when on buttons, tabs, blocks and footer values (all those given must hold): hours \"08:00-18:00\" (also past midnight), days [{days}], app and not_app [\"code.exe\"…] (the program in front when the island opens), view and not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (the menu row lit: “oggi” is the Overview; for example the footer values hidden in the Overview: not_view [\"oggi\"]), value { what, drive, above, below }."
+  "Condizioni, when su pulsanti, schede, blocchi e valori del footer (tutte quelle date devono valere): hours \"08:00-18:00\" (anche oltre la mezzanotte), days [{days}], app e not_app [\"code.exe\"…] (il programma davanti quando l'isola si apre), view e not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (la voce del menu accesa: «oggi» è la Panoramica; per esempio i valori del footer nascosti nella Panoramica: not_view [\"oggi\"]), value { what, drive, above, below }.": "Conditions, when on buttons, tabs, blocks and footer values (all those given must hold): hours \"08:00-18:00\" (also past midnight), days [{days}], app and not_app [\"code.exe\"…] (the program in front when the island opens), view and not_view [\"oggi\", \"chat\", \"tab:<id>\"…] (the menu row lit: “oggi” is the Overview; for example the footer values hidden in the Overview: not_view [\"oggi\"]), value { what, drive, above, below }.",
+  "Chiudi i documenti": "Close the documents",
+  "Documenti della conversazione": "Documents of the conversation",
+  "Ancora nessun documento: i file che la chat crea o nomina in questa conversazione compaiono qui.": "No documents yet: the files the chat makes or names in this conversation show here.",
+  "Apri con il suo programma": "Open with its program",
+  "Apri nell'Anteprima accanto alla chat": "Open in the Preview beside the chat",
+  "{n} documento": "{n} document",
+  "{n} documenti": "{n} documents",
+  "Documenti: i file creati o nominati in questa conversazione": "Documents: the files made or named in this conversation",
+  "Clic: apri con il suo programma": "Click: open with its program"
 }

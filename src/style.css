@@ -1119,6 +1119,8 @@ input[type="range"]::-webkit-slider-thumb {
   overflow-y: auto;
   margin-right: -4px;
   padding-right: 4px;
+  /* The chat's own bar (.chat-log), not the system's (Edoardo, 24 Nov 2026). */
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 .side-new {
   flex: 0 0 auto;
@@ -10051,6 +10053,27 @@ html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockvie
 .dock-cronologia .chat-side-grip { display: none; }
 .dock-terminale > .chat-term { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
 .dock-terminale > .chat-term .chat-term-box { min-height: 0; }
+.dock-documenti > .chat-docs { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+
+/* «Documenti» (chat-docs.ts): the conversation's files, the newest first. */
+.chat-docs { display: flex; flex-direction: column; min-height: 0; margin: 4px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); }
+.chat-docs-head { display: flex; align-items: center; gap: 7px; padding: 9px 12px 7px; color: var(--dim); font-size: calc(11.5px + var(--fs-up, 0px)); font-weight: 600; }
+.chat-docs-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-docs-count { min-width: 18px; padding: 0 6px; border-radius: 9px; background: rgba(255, 255, 255, 0.08); color: var(--ink); text-align: center; font-variant-numeric: tabular-nums; }
+.chat-docs-count:empty { display: none; }
+.chat-docs-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 6px 8px; display: flex; flex-direction: column; gap: 2px; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.chat-docs-empty { margin: 6px 8px; color: var(--dim-2); font-size: calc(12px + var(--fs-up, 0px)); line-height: 1.45; }
+.chat-docs-row { display: grid; grid-template-columns: auto 1fr auto; column-gap: 9px; align-items: center; padding: 7px 6px 7px 8px; border-radius: 8px; cursor: pointer; }
+.chat-docs-row:hover { background: rgba(255, 255, 255, 0.05); }
+.chat-docs-kind { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 7px; background: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); color: var(--win-accent, #4cc2ff); font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px; }
+.chat-docs-text { display: flex; flex-direction: column; min-width: 0; }
+.chat-docs-name { color: var(--ink); font-size: calc(12.5px + var(--fs-up, 0px)); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-docs-folder { color: var(--dim-2); font-size: calc(11px + var(--fs-up, 0px)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-docs-actions { display: flex; gap: 2px; }
+.chat-docs-btn { width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--dim-2); cursor: pointer; }
+.chat-docs-btn.done { color: #22c55e; }
+.chat-docs-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+
 /* dockview's menu on a tab (right click), as the island's menus. */
 .dockview-theme-easy .dv-context-menu, .chat-dock .dv-context-menu {
   min-width: 190px; padding: 4px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px;
