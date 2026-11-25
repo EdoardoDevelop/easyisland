@@ -39,11 +39,15 @@ export interface DockHooks {
   /** First widths (the island's own settings). */
   previewWidth(): number;
   sideWidth(): number;
+  /** The island's width now and where its spring is heading; null where the panels are not in the island. */
+  islandWidth(): { now: number; to: number } | null;
   /** A line in EasyIsland's log (which panels, from where). */
   log(line: string): void;
 }
 
 export interface Rect { x: number; y: number; w: number; h: number }
+
+type Group = NonNullable<ReturnType<DockviewApi["getPanel"]>>["group"];
 
 const SAVED = "easyisland.chatDock.";
 const HISTORY = 30;
@@ -81,6 +85,11 @@ export class ChatDock {
   private shrunk: DockPanelId | null = null;
   /** While a panel moves: its size of this frame again (after a layout of the whole). */
   private reapply: (() => void) | null = null;
+  /** A panel's size when it last closed, per side («cronologia.width»): it opens to it again. */
+  private sizes = new Map<string, number>();
+  /** The island's width at rest at the last sync, and at the one before this change (tween). */
+  private islandRest = 0;
+  private islandFrom = 0;
 
   /** `views` (#views) goes into the chat's panel; the dock takes its place in its parent. */
   constructor(private doc: Document, private views: HTMLElement, private hooks: DockHooks) {
@@ -111,6 +120,11 @@ export class ChatDock {
       defaultRenderer: "always",
       dndStrategy: "pointer",
       scrollbars: "native",
+      // When the island or the window changes size, the chat takes the difference
+      // and the other panels keep theirs (`prioritize`), as in VS Code. Shared out
+      // in proportion, the conversations lost pixels each time the island widened
+      // and narrowed again for them (25/11: «si riducono ogni volta»).
+      proportionalLayout: false,
     });
     this.api.onWillDragPanel(() => this.startDrag());
     this.api.onWillDragGroup(() => this.startDrag());
@@ -136,6 +150,7 @@ export class ChatDock {
     }, true);
     // After the browser has laid the panels out (dockview tells before).
     this.api.onDidLayoutChange(() => {
+      this.prioritize();
       this.placeSoon();
       this.save();
     });
@@ -162,6 +177,10 @@ export class ChatDock {
   sync() {
     // A panel opening or closing moves: the next state waits for the end.
     if (this.moving) return;
+    // The island's width at rest before this change: a panel's movement is measured from it
+    // (from where the island already was, the first step went to the chat: 34 px).
+    this.islandFrom = this.islandRest;
+    this.islandRest = this.hooks.islandWidth()?.to ?? 0;
     const want = this.wanted();
     const before = this.active ? this.api.panels.map((p) => p.id as DockPanelId).sort() : ["chat" as DockPanelId];
     const gone = before.filter((id) => !want.includes(id));
@@ -313,6 +332,7 @@ export class ChatDock {
       }
       // The chat stays the one in front where it shares a group.
       this.api.getPanel("chat")?.api.setActive();
+      this.prioritize();
       this.hooks.log(`pannelli (${this.hooks.place}): ${want.join(", ")}${done ? " come li avevi messi" : ""}`);
     } finally {
       this.quiet = false;
@@ -322,12 +342,33 @@ export class ChatDock {
 
   // ── Opening and closing that move (Edoardo, 25 Nov 2026: «apertura fluida
   // invece di scattosa») ─────────────────────────────────────────────────────
-  // dockview puts a panel at its size at once. Here its group starts narrow and
-  // reaches that size with real layouts, one per frame (the chat beside makes
-  // room as it goes, text reflowed, never squeezed by a transform), while the
-  // content fades in from the side it comes from. Closing is the same backwards,
-  // then the usual rebuild. A panel that becomes a tab among others only fades.
+  // dockview puts a panel at its size at once. Here its group starts at 0 and
+  // reaches its size with real layouts, one per frame (text reflowed, never
+  // squeezed by a transform), while the content fades in from its side. Closing
+  // is the same backwards, then the usual rebuild. A tab among others only fades.
+  //
+  // The island often widens or narrows at the same time, with its own spring
+  // (the conversations add `chatSideRoom`): the panel then takes exactly the
+  // room the island adds or gives back, so the chat beside stays still; the
+  // time curve only leads when the island does not move. The size it opens to is
+  // the one it had when it closed (`sizes`): read from the layout while the
+  // island was still narrow, it came out smaller at every opening (232 → 195 → 163).
   // The Anteprima's page follows its panel at every frame (place()).
+
+  /**
+   * The chat's group first in line for space that comes or goes (the island
+   * resizing, a panel moving): «high» priority in dockview's splitview, read at
+   * every layout. dockview sets it only when it creates a group, so it is set on
+   * the group's own field (dockview-core 8.9.1, version fixed in package.json).
+   */
+  private prioritize() {
+    const chat = this.api.getPanel("chat")?.group;
+    for (const g of this.api.groups) {
+      const want = g === chat ? "high" : undefined;
+      const field = g as unknown as { _priority?: string };
+      if (field._priority !== want) field._priority = want;
+    }
+  }
 
   /** Whether the user asked the system for less motion. */
   private still(): boolean {
@@ -335,7 +376,7 @@ export class ChatDock {
   }
 
   /** The group of `id` alone in its place: which side it resizes on, and from where its content comes. */
-  private axisOf(id: DockPanelId): { group: NonNullable<ReturnType<DockviewApi["getPanel"]>>["group"]; dim: "width" | "height"; from: string } | null {
+  private axisOf(id: DockPanelId): { group: Group; dim: "width" | "height"; from: string } | null {
     const p = this.api.getPanel(id);
     if (!p || p.group.panels.length > 1) return null;
     const group = p.group;
@@ -351,8 +392,28 @@ export class ChatDock {
     return { group, dim: stacked ? "height" : "width", from };
   }
 
-  /** `size` from `a` to `b` over `ms`, eased, a real layout per frame; `done` at the end. */
-  private tween(group: NonNullable<ReturnType<DockviewApi["getPanel"]>>["group"], dim: "width" | "height", a: number, b: number, ms: number, done: () => void) {
+  /** The dock's size on that side. */
+  private dockSize(dim: "width" | "height"): number {
+    return dim === "width" ? this.el.clientWidth : this.el.clientHeight;
+  }
+
+  /** The group's size on that side. */
+  private sizeOf(group: Group, dim: "width" | "height"): number {
+    return dim === "width" ? group.api.width : group.api.height;
+  }
+
+  /**
+   * The group from `a` to `b`, a real layout per frame. While the island
+   * changes size for it (`follow`: the conversations, chatSideRoom) the panel
+   * follows the island's spring, in proportion (island.ts tells where the spring
+   * is and where it heads; from the dock's size it reached only 85 %, the rest a
+   * jump at the end): the chat beside changes
+   * only by what the two do not share, smoothly, never wider then narrower again
+   * (seen with a time curve racing the spring: the chat went 1085 → 1143 → 1112).
+   * With the island still, the time curve. It ends once the curve is over and
+   * the island has stopped; `done` then.
+   */
+  private tween(group: Group, dim: "width" | "height", a: number, b: number, ms: number, done: () => void, follow = false) {
     const win = this.doc.defaultView ?? window;
     const start = win.performance.now();
     this.moving = true;
@@ -370,39 +431,78 @@ export class ChatDock {
     } catch {
       /* kept as it is */
     }
-    let current = a;
-    this.reapply = () => size(current);
-    size(a);
-    const frame = (now: number) => {
-      const k = Math.min(1, (now - start) / ms);
-      // Fast at first, gently into place (ease-out quart).
-      current = a + (b - a) * (1 - Math.pow(1 - k, 4));
-      size(current);
+    let timed = a;
+    const from = this.islandFrom || (this.hooks.islandWidth()?.now ?? 0);
+    // Once the island moves, it leads.
+    let island = false;
+    const now = () => {
+      const w = follow ? this.hooks.islandWidth() : null;
+      if (w && Math.abs(w.to - from) > 2) island = true;
+      const v = island && w ? a + (b - a) * Math.min(1, Math.max(0, (w.now - from) / (w.to - from))) : timed;
+      return Math.max(0, Math.min(Math.max(a, b), v));
+    };
+    // After a layout of the whole (the island resized): the size of this frame again.
+    this.reapply = () => size(now());
+    size(now());
+    let last = -1;
+    let steady = 0;
+    const frame = (t: number) => {
+      const k = Math.min(1, (t - start) / ms);
+      // Fast at first, gently into place (ease-out cubic).
+      timed = a + (b - a) * (1 - Math.pow(1 - k, 3));
+      size(now());
       this.place();
-      if (k < 1) win.requestAnimationFrame(frame);
-      else {
-        try {
-          group.api.setConstraints(min);
-        } catch {
-          /* the group went meanwhile */
-        }
-        this.moving = false;
-        this.reapply = null;
-        done();
+      const d = this.dockSize(dim);
+      steady = d === last ? steady + 1 : 0;
+      last = d;
+      // Over: the curve is done and the island has stopped (or it takes too long).
+      if (!(k >= 1 && (steady >= 2 || t - start > ms + 900))) {
+        win.requestAnimationFrame(frame);
+        return;
       }
+      try {
+        group.api.setConstraints(min);
+      } catch {
+        /* the group went meanwhile */
+      }
+      this.moving = false;
+      this.reapply = null;
+      done();
     };
     win.requestAnimationFrame(frame);
   }
 
-  /** A panel just added: from narrow to its size, its content in from its side. */
+  /** Exactly `want` (setSize counts the gap its own way: a pixel or two off otherwise). */
+  private exact(group: Group, dim: "width" | "height", want: number) {
+    // What it gives for what is asked (seen: 3 px less), then asked again with that.
+    let ask = want;
+    for (let i = 0; i < 3; i++) {
+      try {
+        group.api.setSize({ [dim]: ask });
+      } catch {
+        return;
+      }
+      const got = this.sizeOf(group, dim);
+      if (got === want) return;
+      ask += want - got;
+    }
+  }
+
+  /** The island widens or narrows for this panel: the conversations (island.ts chatSideRoom). */
+  private follows(id: DockPanelId, dim: "width" | "height"): boolean {
+    return id === "cronologia" && dim === "width";
+  }
+
+  /** A panel just added: from 0 to its size, its content in from its side. */
   private grow(id: DockPanelId) {
     const box = this.boxes.get(id);
     if (this.still() || !box) return;
     const axis = this.axisOf(id);
     box.animate([{ opacity: 0, transform: axis?.from ?? "translateY(6px)" }, { opacity: 1, transform: "none" }],
-      { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+      { duration: 280, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
     if (!axis) return;
-    const target = axis.dim === "width" ? axis.group.api.width : axis.group.api.height;
+    // As it was when it closed; the first time, as the layout says.
+    const target = this.sizes.get(`${id}.${axis.dim}`) ?? this.sizeOf(axis.group, axis.dim);
     if (target < 120) return;
     // dockview draws a new group's first size a frame late: until then the
     // group would show at its full size. Hidden for those two frames.
@@ -410,20 +510,13 @@ export class ChatDock {
     const win = this.doc.defaultView ?? window;
     el.style.visibility = "hidden";
     win.requestAnimationFrame(() => win.requestAnimationFrame(() => (el.style.visibility = "")));
-    this.tween(axis.group, axis.dim, 0, target, 260, () => {
-      // setSize counts the gap its own way: corrected to the exact size, or a
-      // panel would lose a few pixels at every opening (seen: 230 → 227 → 221).
-      const now = () => (axis.dim === "width" ? axis.group.api.width : axis.group.api.height);
-      try {
-        if (now() !== target) axis.group.api.setSize({ [axis.dim]: target + (target - now()) });
-      } catch {
-        /* the group went meanwhile */
-      }
+    this.tween(axis.group, axis.dim, 0, target, 300, () => {
+      this.exact(axis.group, axis.dim, target);
       this.placeSoon();
       this.save();
       // What changed meanwhile (another panel asked for): now.
       this.sync();
-    });
+    }, this.follows(id, axis.dim));
   }
 
   /** A panel closing: narrowed away, then the rest rebuilt. False = nothing to move, close at once. */
@@ -432,14 +525,16 @@ export class ChatDock {
     if (this.still() || !box) return false;
     const axis = this.axisOf(id);
     if (!axis) return false;
-    const from = axis.dim === "width" ? axis.group.api.width : axis.group.api.height;
+    const from = this.sizeOf(axis.group, axis.dim);
     if (from < 120) return false;
+    // Its size for the next opening.
+    this.sizes.set(`${id}.${axis.dim}`, from);
     // The arrangement as it was is the one to remember, not the narrowed one.
     window.clearTimeout(this.saveTimer);
     const fade = box.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: axis.from }],
-      { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
+      { duration: 180, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
     this.saving = false;
-    this.tween(axis.group, axis.dim, from, 0, 180, () => {
+    this.tween(axis.group, axis.dim, from, 0, 220, () => {
       this.saving = true;
       this.shrunk = id;
       try {
@@ -449,7 +544,7 @@ export class ChatDock {
       }
       // The box is kept for the next time the panel opens: seen again then.
       fade.cancel();
-    });
+    }, this.follows(id, axis.dim));
     return true;
   }
 
@@ -502,6 +597,7 @@ export class ChatDock {
     this.quiet = true;
     try {
       this.api.fromJSON(JSON.parse(json) as SerializedDockview);
+      this.prioritize();
     } catch {
       /* a layout that no longer fits: left as it is */
     } finally {

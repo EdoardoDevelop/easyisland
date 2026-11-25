@@ -281,8 +281,17 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
         (x, y)
     };
 
-    let _ = win.set_size(PhysicalSize::new(pw, ph));
-    let _ = win.set_position(PhysicalPosition::new(x, y));
+    // Size and place in one call: two (size, then position) showed the window
+    // grown but not yet moved, the island off by half the change for a moment
+    // (25/11/2026, the chat's conversations opening: «lo scatto rimane»).
+    let moved = win.hwnd().is_ok_and(|h| unsafe {
+        let hwnd = HWND(h.0 as *mut _);
+        SetWindowPos(hwnd, None, x, y, pw as i32, ph as i32, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER).is_ok()
+    });
+    if !moved {
+        let _ = win.set_size(PhysicalSize::new(pw, ph));
+        let _ = win.set_position(PhysicalPosition::new(x, y));
+    }
     // Moving across displays can rescale the window: re-assert the physical size.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     // Pinned as an app it stays an ordinary window (set_app_mode).

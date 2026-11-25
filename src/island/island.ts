@@ -658,6 +658,8 @@ export class Island {
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl, ...this.ears);
     this.applyGeometry();
     this.watchScale();
+    // The window reached its new size (windowBox): the island placed in it at once.
+    window.addEventListener("resize", () => this.applyGeometry());
   }
 
   /**
@@ -3115,7 +3117,8 @@ ${note}` : text };
     const hh = this.height.value;
     const r = this.radius.value;
     const p = this.framePlacement;
-    const o = anchoredOrigin(p, w, hh, this.panel.w, this.panel.h);
+    const box = this.windowBox;
+    const o = anchoredOrigin(p, w, hh, box.w, box.h);
     this.islandEl.style.left = `${o.x}px`;
     this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
@@ -3200,8 +3203,21 @@ ${note}` : text };
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    const o = anchoredOrigin(this.framePlacement, w, hh, this.panel.w, this.panel.h);
+    const box = this.windowBox;
+    const o = anchoredOrigin(this.framePlacement, w, hh, box.w, box.h);
     return { x: o.x, y: o.y, w, h: hh };
+  }
+
+  /**
+   * The window the island is drawn in, as it is now. `panel` is the size asked
+   * of Rust, which arrives some frames later: placed in it, the island jumped
+   * by half the change until the window caught up (25/11/2026, the chat's
+   * conversations opening). In the browser preview the «window» is the page's frame.
+   */
+  private get windowBox(): { w: number; h: number } {
+    // Only open: closed, the window shrinks to the rest icon while the island still retracts in the panel's frame.
+    if (State.mode !== "expanded" || document.documentElement.classList.contains("browser-preview") || !window.innerWidth || !window.innerHeight) return this.panel;
+    return { w: window.innerWidth, h: window.innerHeight };
   }
 
   /** Full screen (▢): glued to every edge, so it fills the window to the pixel. */
@@ -3449,6 +3465,8 @@ ${note}` : text };
       placePreview,
       previewWidth: () => State.settings.previewWidth || PANE_W,
       sideWidth: () => chatSideWidth(),
+      // The island's width as it springs (a panel opening follows it): only the island's own page.
+      islandWidth: () => (place === "isola" ? { now: this.width.value, to: this.width.target } : null),
       log: (line) => void Bridge.log(line).catch(() => {}),
     };
   }
