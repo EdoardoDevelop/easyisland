@@ -814,7 +814,7 @@ export function buildPrompt(
     h("div", { class: "chat-ctx-right" }, contextMeter),
   );
   const tools = h("div", { class: "chat-tools" }, slashQuickBtn, atQuickBtn, fresh, remoteBtn, teamBtn, clip, mic, send);
-  const bar = h("div", { class: "chat-bar" }, field, tools);
+  const bar = h("div", { class: "chat-bar" }, h("div", { class: "chat-glow" }), field, tools);
   const composer = h("div", { class: "chat-composer" }, ctxBar, bar, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });

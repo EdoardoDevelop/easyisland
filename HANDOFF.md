@@ -73,7 +73,8 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 25/11 — Chat: footer sotto i pannelli
+### 25/11 — Chat: testo e bordo del campo, footer
+- Testo della conversazione grande come in Claude Desktop (letto dal suo CSS: risposte 15, resto 14, codice 13) e anello colorato animato sul campo (`.chat-glow` in `chat-cards.css`; `docs/architettura.md` → Aspetto della chat). Smoke rapido senza errori; da giudicare nell'app.
 - Con i pannelli della chat `.chat-dock` prende il posto di `#views` in `#body`: lo spazio per il footer (`.footed`, `style.css`) ora vale anche per lui. Prima conversazioni e chat coprivano il footer. Misurato nell'anteprima (`?scene=isola&more&wide`); da provare nell'app.
 
 ### 24/11 — Dalle chat del portatile
