@@ -910,13 +910,24 @@ export class Island {
   }
 
   /**
+   * The panel widens the island: only without the chat's panels (dock.ts). With
+   * them, Anteprima, Terminale and Documenti share the island's width with the
+   * chat, as the conversations do (chatSideRoom): a wider island resized the
+   * window, and WebView2 showed it black and at the old size for some frames
+   * (25/11/2026, Edoardo: «deve essere tutto fluido»).
+   */
+  private get paneWidens(): boolean {
+    return this.paneShown && (!this.dock || this.dockFailed);
+  }
+
+  /**
    * The views' and the panel's widths in an open island of at most `maxW`
    * (the menu apart): the panel takes its width, the chat what is left, never
    * less than PANE_VIEWS_MIN_W. Before, an island the user had made wide got
    * the panel on top and went off the screen with its buttons.
    */
   private paneSplit(maxW: number): { views: number; pane: number } {
-    if (!this.paneShown) return { views: this.openWidth(maxW), pane: 0 };
+    if (!this.paneWidens) return { views: this.openWidth(maxW), pane: 0 };
     // Views and panel share what the menu leaves (less #body's 10 px gap).
     const room = maxW - this.railRoom - 10;
     const pane = Math.round(clamp(this.paneWidth, PANE_MIN_W, Math.max(PANE_MIN_W, room - PANE_VIEWS_MIN_W)));
@@ -931,7 +942,16 @@ export class Island {
    * taking it from the conversation, as the Anteprima's panel does.
    */
   private get chatSideRoom(): number {
-    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !State.searchOnly && !isPopped("chat") ? chatSideWidth() : 0;
+    // In the panels (dock.ts) the conversations take room from the chat, as the
+    // Anteprima does: the island keeps its width. Widening it resized the window,
+    // and WebView2 showed the island black and at the old size for some frames
+    // (25/11/2026, Edoardo's recording: «non è fluido»).
+    return this.chatSideWanted && (!this.dock || this.dockFailed) ? chatSideWidth() : 0;
+  }
+
+  /** The chat's conversations are open beside it (in the island, the chat on screen). */
+  private get chatSideWanted(): boolean {
+    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !State.searchOnly && !isPopped("chat");
   }
 
   private get paneWidth(): number {
@@ -940,7 +960,7 @@ export class Island {
 
   /** What the panel adds to the island's width (its gap is #body's 10 px). */
   private get paneRoom(): number {
-    return this.paneShown ? this.paneSplit(islandMax(this.limits).w).pane + 10 : 0;
+    return this.paneWidens ? this.paneSplit(islandMax(this.limits).w).pane + 10 : 0;
   }
 
   /** Current width of the left rail (`RAIL_COMPACT_W` when collapsed or in Chat, `RAIL_W` otherwise). */
@@ -2966,7 +2986,7 @@ ${note}` : text };
         w = Math.min(max.w, w + this.railRoom);
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
-      if (this.paneShown) {
+      if (this.paneWidens) {
         w = Math.min(max.w, this.paneSplit(max.w).views + this.railRoom + this.paneRoom);
         h = Math.max(h, Math.min(max.h, PANE_MIN_H));
       }
@@ -3465,8 +3485,6 @@ ${note}` : text };
       placePreview,
       previewWidth: () => State.settings.previewWidth || PANE_W,
       sideWidth: () => chatSideWidth(),
-      // The island's width as it springs (a panel opening follows it): only the island's own page.
-      islandWidth: () => (place === "isola" ? { now: this.width.value, to: this.width.target } : null),
       log: (line) => void Bridge.log(line).catch(() => {}),
     };
   }
@@ -3483,7 +3501,7 @@ ${note}` : text };
         this.dock = new ChatDock(document, this.viewsEl, this.dockHooks(document, "isola",
           () => State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat"),
           // Only where the island makes room for them (the chat itself, not a permission's card).
-          () => this.chatSideRoom > 0,
+          () => this.chatSideWanted,
           (r) => {
             // Never out of the island nor of the window (a webview there is cut by the screen).
             const box = this.islandEl.getBoundingClientRect();
@@ -3596,8 +3614,8 @@ ${note}` : text };
       // least what it needs: a number past either went on with the pointer
       // while the island had stopped, and on the way back the corner stood
       // still for that stretch (the corner "not under the mouse").
-      const pane = this.paneShown ? this.paneSplit(max.w).pane + 10 : 0;
-      const least = this.paneShown ? Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane) : Math.max(ISLAND_MIN_W, this.headerNeed);
+      const pane = this.paneWidens ? this.paneSplit(max.w).pane + 10 : 0;
+      const least = this.paneWidens ? Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane) : Math.max(ISLAND_MIN_W, this.headerNeed);
       const most = Math.max(least, max.w - this.railRoom - pane - this.chatSideRoom);
       s.islandWidth = Math.round(clamp(start.w + (e.screenX - start.x) * fx, least, most));
       // Not below what the view needs: a height under it was saved as it was

@@ -1083,6 +1083,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(0, 0, 0, 0.14);
 }
 .chat-layout.side-open .chat-side { display: flex; }
+.chat-layout.dock-waits > .chat-side { display: none; }
 /* A wide island: the conversation and the field in a readable column in the middle. */
 .chat-layout .chat-log { padding-inline: max(0px, calc((100% - 780px) / 2)); }
 .chat-layout .chat-composer,
@@ -10185,6 +10186,13 @@ html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockvie
 .dockview-theme-easy .dv-sash:hover, .dockview-theme-easy .dv-sash.dv-active { background: color-mix(in srgb, var(--dock-accent) 60%, transparent); }
 /* The panels' contents fill them. */
 .dock-box { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* The box fills its group's content, under the tabs (the content is inside the group: dock.ts «onlyWhenVisible»). */
+.chat-dock .dv-groupview > .dv-content-container { position: relative; }
+/* A panel closing (dock.ts ghost): a picture of it slides away over the dock, clipped to it. */
+.dock-ghost-frame { position: fixed; z-index: 50; overflow: hidden; pointer-events: none; border-radius: 12px; }
+/* A panel sliding in (dock.ts arrive): the dock clips it, never over the island's menu. */
+.chat-dock.dock-sliding { overflow: hidden; }
+.dock-ghost { position: absolute; margin: 0; will-change: transform, opacity; }
 .dock-chat > #views { position: relative; flex: 1 1 auto; min-height: 0; }
 .dock-chat #views > .view { left: 0 !important; right: 0 !important; width: auto !important; transform: none; }
 .dock-chat .chat-card, .dock-chat .chat-body { border: 0; border-radius: 0; background: transparent; box-shadow: none; }

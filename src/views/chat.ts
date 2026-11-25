@@ -608,6 +608,9 @@ export function buildPrompt(
   // «Documenti»: the files this conversation made or named, in a panel beside it (chat-docs.ts).
   const docsBtn = h("button", { class: "history-btn", title: t("Documenti: i file creati o nominati in questa conversazione") }, svg(ICONS.doc, 13, { stroke: 1.8 })) as HTMLButtonElement;
   const docs = docsPanel();
+  // Their panel has gone (island/dock.ts): back where they belong, hidden if closed.
+  termRow.addEventListener("dock-left", () => placeTerminal());
+  docs.el.addEventListener("dock-left", () => placeDocs());
   const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, docsBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
@@ -2633,6 +2636,9 @@ export function buildPrompt(
    * panels are showing, in the chat's layout otherwise.
    */
   function placeSide() {
+    // Closing in a panel: left there until the panel has gone (island/dock.ts
+    // sends «dock-left»), so the panel slides away with its content, not empty.
+    if (!sideOpen && side.isConnected && side.parentElement?.hasAttribute("data-side-home")) return;
     const home = sideOpen ? layout.ownerDocument.querySelector<HTMLElement>("[data-side-home]") : null;
     if (home) {
       if (side.parentElement !== home) home.append(side);
@@ -2642,13 +2648,22 @@ export function buildPrompt(
   const sideDocked = () => !!side.parentElement?.hasAttribute("data-side-home");
   // The ✕ of its tab (island/dock.ts).
   side.addEventListener("dock-close", () => showSide(false));
+  side.addEventListener("dock-left", () => placeSide());
   // In a panel of the chat's window: taken home before that window goes (popout.ts rescue).
   side.dataset.followsView = "";
 
+  let dockWaitTimer = 0;
   function applySide(quiet = false) {
     placeSide();
     const open = narrow ? overlay : sideOpen;
     layout.classList.toggle("side-open", open);
+    // With the chat's panels on hand (island/dock.ts) the conversations wait for
+    // theirs: shown in the layout first, they flashed there for a frame or two
+    // before the panel took them (25/11/2026). Shown here after 400 ms if no panel does.
+    window.clearTimeout(dockWaitTimer);
+    const waits = sideOpen && !narrow && !sideDocked() && !!layout.ownerDocument.querySelector(".chat-dock");
+    layout.classList.toggle("dock-waits", waits);
+    if (waits) dockWaitTimer = window.setTimeout(() => layout.classList.remove("dock-waits"), 400);
     layout.classList.toggle("narrow", narrow);
     sideBtn.classList.toggle("on", open);
     // Asked even while it floats: the island grows as soon as the screen leaves room.
@@ -3223,6 +3238,8 @@ export function buildPrompt(
   function placeTerminal() {
     const set = terms.get(State.chat.sid);
     const open = !!set?.list.length;
+    // Closing in a panel: left there until it has gone (as placeSide).
+    if (!open && termRow.isConnected && termRow.parentElement?.hasAttribute("data-term-home")) return;
     termRow.style.display = open ? "" : "none";
     termBtn.classList.toggle("on", open);
     // The chat's panels (island/dock.ts): the terminal's own panel.
@@ -3425,6 +3442,8 @@ export function buildPrompt(
   /** Where the documents' panel goes: its own panel of the dock, else beside the chat as the terminal. */
   function placeDocs() {
     const open = State.chatDocsOpen;
+    // Closing in a panel: left there until it has gone (as placeSide).
+    if (!open && docs.el.isConnected && docs.el.parentElement?.hasAttribute("data-docs-home")) return;
     docs.el.style.display = open ? "" : "none";
     docsBtn.classList.toggle("on", open);
     const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-docs-home]");
