@@ -73,6 +73,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 25/11 — Chat: footer sotto i pannelli
+- Con i pannelli della chat `.chat-dock` prende il posto di `#views` in `#body`: lo spazio per il footer (`.footed`, `style.css`) ora vale anche per lui. Prima conversazioni e chat coprivano il footer. Misurato nell'anteprima (`?scene=isola&more&wide`); da provare nell'app.
+
 ### 24/11 — Dalle chat del portatile
 - Lette via WinRM le ultime 12 chat e il log del portatile (192.168.1.197). Ramo `claude/chat-portatile`: card dei grafici con stile e misure, larghezza `quarter`, «a linea» solo linea, grafici letti anche a isola chiusa (`chartKinds`), `preview_act` con i sinonimi dei motori (`act_alias`), memoria senza righe ripetute con altre parole (`brain::covered`), `memory_forget` anche su una riga di pagina.
 - Sera: condizione `view`/`not_view` (valori del footer nascosti nella Panoramica); pannello **Documenti** della chat (`chat-docs.ts`); percorsi con spazi cliccabili nelle risposte (`BARE_PATH`); barra di scorrimento delle conversazioni come quella della chat anche nel loro pannello. **Blocco all'avvio corretto:** `appbar::update_full_screen` prendeva il lucchetto delle impostazioni dentro l'avviso della shell sul thread principale (EasyIsland non rispondeva a ogni avvio, CPU 0); ora usa la copia `KEEP` fatta da `apply`.
@@ -90,10 +93,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 - Ramo `claude/isola-fonti`, unito in `claude/sviluppo` il 23/11: fonti `recent`, `tray`, `clipboard`, `vscode`, `records` (integrazione personale), `notion`; blocco `chart` (ultimi 5 minuti, `bar.ts` `chartHistory`); footer dell'isola aperta in tre zone `left`, `center`, `right`, ognuna con pulsanti e valori del PC (`buildFoot`, 36 px in `island.ts`; il formato `foot` del primo giro si converte). Valori letti anche per Panoramica e footer.
 - Isola per profilo scartata: Edoardo non usa i profili.
 - Orologio della barra (23/11, sera): 12/24 ore, zero davanti, cinque stili di data, nome del fuso `{label}`, `{week}` `{daynum}` `{month}` `{year}`, quadrante con le lancette, modelli pronti (`src/core/clock.ts`). Footer: pulsanti del menu in basso fissi, con poco spazio scorrono le sezioni.
-
-### 23/11 — Isola da JSON, tappe 1–3
-- `isola.json` (`island_layout.rs`, `src/views/island-layout.ts`): pulsanti in fondo al menu e nella testata, schede proprie con griglia di pulsanti, azioni da elenco fisso (mai codice). Strumenti `island_layout`, `island_layout_set`, `island_layout_undo`; card con cosa cambia e bozza visibile nell'isola; versioni in `isola-versioni\`, Annulla anche in Impostazioni.
-- Tappa 2: blocchi nelle schede (`grid`, `list`, `value`, `text`) da fonti fisse (app installate, finestre, azioni rapide, cartella, valori di `barsys.rs` letti solo a scheda aperta); `tab_blocks`. Nuova conversazione per vedere strumenti nuovi (`docs/chat.md`).
-- Tappa 3: `menu` e `header` con `order` e `hidden` (Panoramica e Impostazioni mai nascoste), `reset`, «Rimetti come di serie» in Impostazioni; `island_layout` dà l'isola intera.
-- Panoramica nel JSON (`overview`: parti, riquadri, blocchi) e pezzi esistenti come blocchi (`piece`: card di un'integrazione, notizie, azioni rapide); sezione «Panoramica» in Impostazioni.
-- Ramo `claude/app-2`, unito in `claude/sviluppo` il 23/11: anche icone di «App» ordinate trascinandole, × dell'anteprima con `SC_CLOSE`, avvisi misurati alla loro larghezza, valori della barra richiesti di nuovo dall'isola.

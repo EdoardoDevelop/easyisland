@@ -2,6 +2,13 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 23/11 — Isola da JSON, tappe 1–3
+- `isola.json` (`island_layout.rs`, `src/views/island-layout.ts`): pulsanti in fondo al menu e nella testata, schede proprie con griglia di pulsanti, azioni da elenco fisso (mai codice). Strumenti `island_layout`, `island_layout_set`, `island_layout_undo`; card con cosa cambia e bozza visibile nell'isola; versioni in `isola-versioni\`, Annulla anche in Impostazioni.
+- Tappa 2: blocchi nelle schede (`grid`, `list`, `value`, `text`) da fonti fisse (app installate, finestre, azioni rapide, cartella, valori di `barsys.rs` letti solo a scheda aperta); `tab_blocks`. Nuova conversazione per vedere strumenti nuovi (`docs/chat.md`).
+- Tappa 3: `menu` e `header` con `order` e `hidden` (Panoramica e Impostazioni mai nascoste), `reset`, «Rimetti come di serie» in Impostazioni; `island_layout` dà l'isola intera.
+- Panoramica nel JSON (`overview`: parti, riquadri, blocchi) e pezzi esistenti come blocchi (`piece`: card di un'integrazione, notizie, azioni rapide); sezione «Panoramica» in Impostazioni.
+- Ramo `claude/app-2`, unito in `claude/sviluppo` il 23/11: anche icone di «App» ordinate trascinandole, × dell'anteprima con `SC_CLOSE`, avvisi misurati alla loro larghezza, valori della barra richiesti di nuovo dall'isola.
+
 ### 22/11 — «App» nella barra fissa
 - Ramo `claude/app` (da `claude/barra-windows`): app fissate e aperte come sulla barra di Windows (`taskwin.rs`, `applist.rs`, `barapps.rs`, `winthumbs.rs`, `regwatch.rs`, relay `avvia`, `src/character-window/apps.ts`, scheda `apps:` in `barcard.ts`). Riusato il codice della Dock senza la sua finestra.
 - 23/11: personaggio e app centrati insieme, scheda delle finestre rifatta e senza scatti, finestre di EasyIsland sotto la sua icona (provato da Edoardo). Animazioni proprie delle finestre provate e tolte (`docs/decisioni.md`). Unito in `claude/sviluppo`.

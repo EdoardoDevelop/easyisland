@@ -10396,8 +10396,8 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 .board-chart-area { fill: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); stroke: none; }
 .board-blocks > .board-chart { flex: 1 1 240px; }
 /* The open island's footer (isola.json): left, center and right, each a row of buttons and values of the PC.
-   Under the views only, beside the menu (island.ts sets `left` to the menu's width); the views and the
-   Anteprima leave it room. */
+   Under the views only, beside the menu (island.ts sets `left` to the menu's width); the views, the
+   chat's panels (dock.ts) and the Anteprima leave it room. */
 #island-foot {
   position: absolute;
   right: 0;
@@ -10410,6 +10410,7 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
   min-width: 0;
 }
 #island.footed #body > #views,
+#island.footed #body > .chat-dock,
 #island.footed #body > #preview-pane { margin-bottom: 36px; }
 #island-foot .foot-side { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
 #island-foot .foot-left { justify-content: flex-start; }
