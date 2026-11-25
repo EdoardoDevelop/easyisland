@@ -39,9 +39,6 @@ Proposta il 22/11 (come la «side chat» della nuova app desktop di Claude Code)
 ## Editor e confronto veri nell'Anteprima (22/11/2026)
 Proposto il 22/11, messo da parte da Edoardo. CodeMirror 6 (più leggero dell'editor di VS Code) per «Codice» e «Modifiche»: confronto affiancato, numeri di riga, ricerca, modifica a mano del file prima di accettare. Da valutare: peso, temi scuro/chiaro, commenti sulle righe che ci sono già (`lineComments`).
 
-## Diagrammi nelle risposte (22/11/2026)
-Proposto il 22/11, messo da parte da Edoardo. Mermaid: un blocco ```mermaid della risposta disegnato come diagramma (flussi, sequenze, schemi di rete). Pesante (~2 MB): caricato solo alla prima risposta che ne ha uno. Mai script dal testo (modalità `strict`).
-
 ## Importare abilità da file e cartelle (11/11/2026)
 Fatto l'11/11 nella 1.0.43 (`docs/chat.md` → Abilità → Importa), partendo da The Agency (`github.com/msitarzewski/agency-agents`, MIT). Restano:
 - ruolo per tutta la conversazione («Parla con: …»), invece del solo `/id` per un messaggio;

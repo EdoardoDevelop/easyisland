@@ -303,6 +303,26 @@ export async function runScene(island: Island, scene: string) {
           ].join("\n\n") },
         ];
         State.chat.streamed = "";
+      } else if (new URLSearchParams(location.search).has("diagrammi")) {
+        // ?diagrammi: answers with ```mermaid blocks drawn (core/diagram.ts): a network, steps with choices
+        // (brackets without quotes, put right), an exchange, a plan, tables, and one that cannot be drawn.
+        const mm = (s: string) => "```mermaid\n" + s + "\n```";
+        const kinds = [
+          mm('flowchart LR\n  I["Internet"] --> F["Firewall<br>192.168.10.1"]\n  F --> S["Switch core"]\n  S --> N["NAS"]\n  S --> P["Proxmox"]\n  subgraph V["VM"]\n    D["DC01"]\n    G["Gestionale"]\n  end\n  P --> V\n  S -->|VLAN 20| W["Access point"]'),
+          mm('%%{init: {"theme":"forest"}}%%\nflowchart TD\n  A[Backup fallito (NAS)] --> B{Disco pieno?}\n  B -->|Sì (oltre 95%)| C[Libera spazio]\n  B -->|No| D{Credenziali valide?}\n  D -->|No| E[Rifai il login]\n  D -->|Sì| F[Controlla la rete]\n  style C fill:#ffe08a'),
+          mm("sequenceDiagram\n  actor U as Utente\n  participant P as Portale\n  participant E as Entra ID\n  U->>P: Apre la pagina\n  P->>E: Chiede l'accesso\n  E-->>U: Richiede MFA\n  U->>E: Conferma\n  E-->>P: Token\n  Note over P: Sessione aperta"),
+          mm("gantt\n  title Cambio server\n  dateFormat YYYY-MM-DD\n  section Preparazione\n  Backup completo :a1, 2026-12-01, 2d\n  Nuovo server :a2, after a1, 3d\n  section Passaggio\n  Migrazione VM :a3, after a2, 1d\n  Verifica :a4, after a3, 1d"),
+          mm("erDiagram\n  CLIENTE ||--o{ INTERVENTO : richiede\n  INTERVENTO ||--|{ RIGA : contiene\n  CLIENTE {\n    int id PK\n    string nome\n  }\n  INTERVENTO {\n    int id PK\n    date data\n  }"),
+          mm("flowchart TD\n  A --> --> B ]["),
+          mm('pie title Ticket per cliente\n  "Rossi" : 18\n  "Bianchi" : 11\n  "Verdi" : 7\n  "Altri" : 4'),
+          mm('xychart-beta\n  title "Ticket al mese"\n  x-axis [lug, ago, set, ott, nov]\n  y-axis "Ticket" 0 --> 60\n  bar [32, 18, 41, 55, 47]\n  line [30, 25, 35, 45, 48]'),
+        ];
+        const only = new URLSearchParams(location.search).get("diagrammi");
+        State.chatHistory = [
+          { id: 1, role: "user", content: "fammi lo schema della rete e dei passaggi" },
+          { id: 2, role: "assistant", engine: "subscription", content: (only ? [kinds[Number(only)]] : kinds).map((x, i) => `Diagramma ${only || i}:\n\n${x}`).join("\n\n") },
+        ];
+        State.chatSideOpen = false;
       } else if (new URLSearchParams(location.search).has("ricca")) {
         State.chatHistory = [
           { id: 1, role: "user", content: "come cambiare ip di proxmox da shell da 192.168.0.248 a 192.168.10.20 e riepilogami gli indirizzi Imec per RDM?" },

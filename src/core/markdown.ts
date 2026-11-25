@@ -1,3 +1,4 @@
+import { diagramBlock, isDiagram } from "./diagram";
 import { highlightInto } from "./highlight";
 import { t } from "./i18n";
 // Claude's replies in the chat, read as markdown (HANDOFF 6.6, point 4).
@@ -20,6 +21,8 @@ import { t } from "./i18n";
  */
 export function plainText(md: string): string {
   return md
+    // A diagram's code says nothing in a line of text.
+    .replace(/^```(?:mermaid|mmd)[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, t("[diagramma]"))
     .replace(/^```.*$/gm, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
@@ -349,7 +352,9 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
       flush();
       const body: string[] = [];
       for (i++; i < lines.length && !lines[i].trim().startsWith(fence[1]); i++) body.push(lines[i]);
-      blocks.push(codeBlock(body.join("\n"), fence[2], hooks));
+      const block = codeBlock(body.join("\n"), fence[2], hooks);
+      // A diagram only once its block is closed: while it streams in it is code.
+      blocks.push(isDiagram(fence[2]) && i < lines.length ? diagramBlock(body.join("\n"), block, hooks.saveCode) : block);
       continue;
     }
     if (!line.trim()) {

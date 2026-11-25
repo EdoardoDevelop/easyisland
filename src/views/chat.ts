@@ -297,7 +297,7 @@ function codeFileName(lang: string): string {
   const ext: Record<string, string> = {
     powershell: "ps1", ps1: "ps1", ps: "ps1", pwsh: "ps1", cmd: "bat", bat: "bat", batch: "bat", dos: "bat",
     bash: "sh", sh: "sh", shell: "sh", zsh: "sh", javascript: "js", js: "js", typescript: "ts", ts: "ts",
-    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml",
+    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml", mermaid: "mmd", mmd: "mmd",
     svg: "svg", css: "css", yaml: "yml", yml: "yml", ini: "ini", toml: "toml", csharp: "cs", cs: "cs", go: "go",
     java: "java", php: "php", cpp: "cpp", c: "c", markdown: "md", md: "md", diff: "diff", nginx: "conf", env: "env",
   };
@@ -3577,6 +3577,8 @@ export function buildPrompt(
     stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     jumpBtn.style.display = stick ? "none" : "";
   });
+  // A diagram drawn after its answer was laid (core/diagram.ts).
+  log.addEventListener("md-grew", () => { if (stick) log.scrollTop = log.scrollHeight; });
   jumpBtn.addEventListener("click", () => {
     stick = true;
     log.scrollTop = log.scrollHeight;

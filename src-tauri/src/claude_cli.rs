@@ -145,7 +145,10 @@ data the user will copy or compare (IP addresses, hosts, users, ports, prices, v
 every command or script goes in a fenced block with its language (```powershell, ```bash, ```cmd); \
 IP addresses, host names, codes, short commands and single values go inside backticks, so a click copies them; \
 when there is a risk or something to check first, add one line starting with \"> Attenzione:\" (or \"> Nota:\", \"> Suggerimento:\"); \
-a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines. \
+a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines; \
+when steps with choices, how devices or systems are connected, an exchange between parties or a timeline read better drawn than told, \
+add one ```mermaid block (flowchart TD, sequenceDiagram, erDiagram, gantt; pie or xychart-beta for a few numbers; at most 25 nodes; labels short, in the user's language and in double quotes; \
+no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \
 A short question gets a short answer: no titles, tables or notices for two lines.";
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
 /// the terminal); this goes after it. `{folder}` is the working folder.

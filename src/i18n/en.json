@@ -6672,5 +6672,16 @@
   "Tieni premuto e trascina per spostare la chat · doppio clic: ingrandisci o riduci": "Hold and drag to move the chat · double click: enlarge or reduce",
   "Clic per copiare": "Click to copy",
   "Copia tabella": "Copy table",
-  "Copia la tabella, da incollare in Excel o in un'altra tabella": "Copy the table, to paste into Excel or another table"
+  "Copia la tabella, da incollare in Excel o in un'altra tabella": "Copy the table, to paste into Excel or another table",
+  "Diagramma": "Diagram",
+  "Più piccolo": "Smaller",
+  "Più grande": "Larger",
+  "Tutto il diagramma": "The whole diagram",
+  "Copia il diagramma come immagine, su fondo bianco": "Copy the diagram as an image, on white",
+  "Clic per ingrandire": "Click to enlarge",
+  "Salva il diagramma in un file SVG": "Save the diagram to an SVG file",
+  "Mostra il codice del diagramma": "Show the diagram's code",
+  "Mostra il diagramma": "Show the diagram",
+  "mermaid · il diagramma non si può disegnare": "mermaid · the diagram cannot be drawn",
+  "[diagramma]": "[diagram]"
 }
