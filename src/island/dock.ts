@@ -73,6 +73,14 @@ export class ChatDock {
   private past: string[] = [];
   private undone: string[] = [];
   private watch: ResizeObserver;
+  /** A panel is opening or closing (grow, shrink): sync waits, the page follows. */
+  private moving = false;
+  /** False while a closing panel narrows: that arrangement is not one to remember. */
+  private saving = true;
+  /** The panel that has just narrowed away: now it goes, without narrowing again. */
+  private shrunk: DockPanelId | null = null;
+  /** While a panel moves: its size of this frame again (after a layout of the whole). */
+  private reapply: (() => void) | null = null;
 
   /** `views` (#views) goes into the chat's panel; the dock takes its place in its parent. */
   constructor(private doc: Document, private views: HTMLElement, private hooks: DockHooks) {
@@ -142,6 +150,8 @@ export class ChatDock {
     });
     this.watch = new ResizeObserver((entries) => {
       if (entries.some((e) => e.target === this.el) && this.active) this.api.layout(this.el.clientWidth, this.el.clientHeight);
+      // A panel moving keeps its size of this frame (a layout shares the room out again).
+      this.reapply?.();
       this.placeSoon();
     });
     this.watch.observe(this.el);
@@ -150,7 +160,14 @@ export class ChatDock {
 
   /** At every redraw: the panels as the chat has them, the page where its panel is. */
   sync() {
+    // A panel opening or closing moves: the next state waits for the end.
+    if (this.moving) return;
     const want = this.wanted();
+    const before = this.active ? this.api.panels.map((p) => p.id as DockPanelId).sort() : ["chat" as DockPanelId];
+    const gone = before.filter((id) => !want.includes(id));
+    const added = want.filter((id) => !before.includes(id));
+    // One panel closing: it narrows away first, then the rest as usual.
+    if (this.active && gone.length === 1 && !added.length && gone[0] !== this.shrunk && this.shrink(gone[0])) return;
     const on = want.length > 1;
     if (on !== this.active) {
       if (on) this.show();
@@ -162,7 +179,10 @@ export class ChatDock {
     }
     if (!this.views.isConnected || this.views.parentElement !== this.boxes.get("chat")) this.box("chat").append(this.views);
     const have = this.api.panels.map((p) => p.id as DockPanelId).sort();
-    if (want.join() !== have.join()) this.build(want);
+    if (want.join() !== have.join()) {
+      this.build(want);
+      if (added.length === 1) this.grow(added[0]);
+    }
     // The conversations and the terminal into their panels (chat.ts lays them
     // there too, once the panel is in the page).
     this.adopt(".chat-side", "cronologia", want);
@@ -300,6 +320,139 @@ export class ChatDock {
     this.resend();
   }
 
+  // ── Opening and closing that move (Edoardo, 25 Nov 2026: «apertura fluida
+  // invece di scattosa») ─────────────────────────────────────────────────────
+  // dockview puts a panel at its size at once. Here its group starts narrow and
+  // reaches that size with real layouts, one per frame (the chat beside makes
+  // room as it goes, text reflowed, never squeezed by a transform), while the
+  // content fades in from the side it comes from. Closing is the same backwards,
+  // then the usual rebuild. A panel that becomes a tab among others only fades.
+  // The Anteprima's page follows its panel at every frame (place()).
+
+  /** Whether the user asked the system for less motion. */
+  private still(): boolean {
+    return (this.doc.defaultView ?? window).matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  /** The group of `id` alone in its place: which side it resizes on, and from where its content comes. */
+  private axisOf(id: DockPanelId): { group: NonNullable<ReturnType<DockviewApi["getPanel"]>>["group"]; dim: "width" | "height"; from: string } | null {
+    const p = this.api.getPanel(id);
+    if (!p || p.group.panels.length > 1) return null;
+    const group = p.group;
+    const r = group.element.getBoundingClientRect();
+    // Stacked: another group with the same left and right edges.
+    const stacked = this.api.groups.some((g) => {
+      if (g === group) return false;
+      const o = g.element.getBoundingClientRect();
+      return Math.abs(o.left - r.left) < 3 && Math.abs(o.right - r.right) < 3;
+    });
+    const dock = this.el.getBoundingClientRect();
+    const from = stacked ? "translateY(10px)" : r.left - dock.left < dock.right - r.right ? "translateX(-14px)" : "translateX(14px)";
+    return { group, dim: stacked ? "height" : "width", from };
+  }
+
+  /** `size` from `a` to `b` over `ms`, eased, a real layout per frame; `done` at the end. */
+  private tween(group: NonNullable<ReturnType<DockviewApi["getPanel"]>>["group"], dim: "width" | "height", a: number, b: number, ms: number, done: () => void) {
+    const win = this.doc.defaultView ?? window;
+    const start = win.performance.now();
+    this.moving = true;
+    // dockview keeps a group at least ~100 px: down to nothing while it moves.
+    const min = { minimumWidth: group.minimumWidth, minimumHeight: group.minimumHeight };
+    const size = (v: number) => {
+      try {
+        group.api.setSize({ [dim]: Math.round(v) });
+      } catch {
+        /* the group went meanwhile */
+      }
+    };
+    try {
+      group.api.setConstraints({ minimumWidth: 0, minimumHeight: 0 });
+    } catch {
+      /* kept as it is */
+    }
+    let current = a;
+    this.reapply = () => size(current);
+    size(a);
+    const frame = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      // Fast at first, gently into place (ease-out quart).
+      current = a + (b - a) * (1 - Math.pow(1 - k, 4));
+      size(current);
+      this.place();
+      if (k < 1) win.requestAnimationFrame(frame);
+      else {
+        try {
+          group.api.setConstraints(min);
+        } catch {
+          /* the group went meanwhile */
+        }
+        this.moving = false;
+        this.reapply = null;
+        done();
+      }
+    };
+    win.requestAnimationFrame(frame);
+  }
+
+  /** A panel just added: from narrow to its size, its content in from its side. */
+  private grow(id: DockPanelId) {
+    const box = this.boxes.get(id);
+    if (this.still() || !box) return;
+    const axis = this.axisOf(id);
+    box.animate([{ opacity: 0, transform: axis?.from ?? "translateY(6px)" }, { opacity: 1, transform: "none" }],
+      { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+    if (!axis) return;
+    const target = axis.dim === "width" ? axis.group.api.width : axis.group.api.height;
+    if (target < 120) return;
+    // dockview draws a new group's first size a frame late: until then the
+    // group would show at its full size. Hidden for those two frames.
+    const el = axis.group.element;
+    const win = this.doc.defaultView ?? window;
+    el.style.visibility = "hidden";
+    win.requestAnimationFrame(() => win.requestAnimationFrame(() => (el.style.visibility = "")));
+    this.tween(axis.group, axis.dim, 0, target, 260, () => {
+      // setSize counts the gap its own way: corrected to the exact size, or a
+      // panel would lose a few pixels at every opening (seen: 230 → 227 → 221).
+      const now = () => (axis.dim === "width" ? axis.group.api.width : axis.group.api.height);
+      try {
+        if (now() !== target) axis.group.api.setSize({ [axis.dim]: target + (target - now()) });
+      } catch {
+        /* the group went meanwhile */
+      }
+      this.placeSoon();
+      this.save();
+      // What changed meanwhile (another panel asked for): now.
+      this.sync();
+    });
+  }
+
+  /** A panel closing: narrowed away, then the rest rebuilt. False = nothing to move, close at once. */
+  private shrink(id: DockPanelId): boolean {
+    const box = this.boxes.get(id);
+    if (this.still() || !box) return false;
+    const axis = this.axisOf(id);
+    if (!axis) return false;
+    const from = axis.dim === "width" ? axis.group.api.width : axis.group.api.height;
+    if (from < 120) return false;
+    // The arrangement as it was is the one to remember, not the narrowed one.
+    window.clearTimeout(this.saveTimer);
+    const fade = box.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: axis.from }],
+      { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
+    this.saving = false;
+    this.tween(axis.group, axis.dim, from, 0, 180, () => {
+      this.saving = true;
+      this.shrunk = id;
+      try {
+        this.sync();
+      } finally {
+        this.shrunk = null;
+      }
+      // The box is kept for the next time the panel opens: seen again then.
+      fade.cancel();
+    });
+    return true;
+  }
+
   private add(id: DockPanelId, position?: { referencePanel: string; direction: "left" | "right" | "below" | "within" }, width?: number) {
     this.api.addPanel({
       id, component: id, tabComponent: id, title: TITLES[id](),
@@ -414,7 +567,7 @@ export class ChatDock {
   private save() {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      if (!this.active) return;
+      if (!this.active || !this.saving || this.moving) return;
       try {
         const ids = this.api.panels.map((p) => p.id).sort();
         if (ids.join() !== this.wanted().join()) return;
