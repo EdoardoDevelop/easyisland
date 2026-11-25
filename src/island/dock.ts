@@ -147,6 +147,13 @@ export class ChatDock {
     this.api.onDidRemovePanel((p) => {
       if (this.quiet) return;
       // The tab's ✕: the thing itself closes (the next sync would bring it back otherwise).
+      // Told on its own element: with «onlyWhenVisible» dockview has already taken
+      // it out of the page, where island.ts looked for it (25/11/2026: ✕ did nothing).
+      const held = this.boxes.get(p.id as DockPanelId)?.firstElementChild;
+      if (held && p.id !== "anteprima" && p.id !== "chat") {
+        held.dispatchEvent(new CustomEvent("dock-close"));
+        return;
+      }
       if (p.id === "cronologia") hooks.closeSide();
       if (p.id === "anteprima") hooks.closePreview();
       if (p.id === "terminale") hooks.closeTerm();

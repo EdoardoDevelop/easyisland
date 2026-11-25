@@ -3238,8 +3238,17 @@ export function buildPrompt(
   function placeTerminal() {
     const set = terms.get(State.chat.sid);
     const open = !!set?.list.length;
-    // Closing in a panel: left there until it has gone (as placeSide).
-    if (!open && termRow.isConnected && termRow.parentElement?.hasAttribute("data-term-home")) return;
+    // Closing in a panel: left there until it has gone (as placeSide), but the
+    // state and the button change now: the panel goes because of them.
+    if (!open && termRow.isConnected && termRow.parentElement?.hasAttribute("data-term-home")) {
+      termBtn.classList.remove("on");
+      if (State.chatTermOpen) {
+        State.chatTermOpen = false;
+        State.notify();
+        onHeightChange();
+      }
+      return;
+    }
     termRow.style.display = open ? "" : "none";
     termBtn.classList.toggle("on", open);
     // The chat's panels (island/dock.ts): the terminal's own panel.
@@ -3443,7 +3452,10 @@ export function buildPrompt(
   function placeDocs() {
     const open = State.chatDocsOpen;
     // Closing in a panel: left there until it has gone (as placeSide).
-    if (!open && docs.el.isConnected && docs.el.parentElement?.hasAttribute("data-docs-home")) return;
+    if (!open && docs.el.isConnected && docs.el.parentElement?.hasAttribute("data-docs-home")) {
+      docsBtn.classList.remove("on");
+      return;
+    }
     docs.el.style.display = open ? "" : "none";
     docsBtn.classList.toggle("on", open);
     const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-docs-home]");
