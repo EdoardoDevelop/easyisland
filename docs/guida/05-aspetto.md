@@ -107,7 +107,7 @@ In fondo alla scheda, **Barra delle applicazioni di Windows** → **Nascosta** t
 | Opzione | Cosa fa |
 |---|---|
 | **Suggerimenti** | Sopra il campo, cosa puoi chiedere per ciò che hai davanti; un clic scrive la richiesta senza mandarla ([Chat](08-chat.md#suggerimenti-e-cosa-so-fare)) |
-| **Chat vuota → Disegno** | Cosa si vede in una conversazione nuova prima del primo messaggio: Ezzy che galleggia (di serie), un'isola che gira, un mare di puntini, un cielo stellato, un'aurora, una rete di punti o niente |
+| **Chat vuota → Disegno** | Cosa si vede in una conversazione nuova prima del primo messaggio: Ezzy che galleggia (di serie), un'isola che gira, un mare di puntini, un cielo stellato, un'aurora, una rete di punti, lucciole, neve, pioggia leggera, bolle, gocce sull'acqua, un sistema solare, una galassia, un radar, una pioggia di codice, fili di seta, una griglia all'orizzonte, nuvole, costellazioni, un battito, vento, foglie, lanterne, **Tutti** (uno diverso a ogni nuova conversazione) o niente |
 
 ## Personaggi
 Personaggi disegnati nel codice, tutti con le stesse espressioni:

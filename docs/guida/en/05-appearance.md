@@ -107,7 +107,7 @@ At the bottom of the tab, **Windows taskbar** → **Hidden** removes the Windows
 | Option | What it does |
 |---|---|
 | **Tips** | Over the field, what you can ask about what is in front of you; a click writes the request without sending it ([Chat](08-chat.md#tips-and-what-i-can-do)) |
-| **Empty chat → Drawing** | What a new conversation shows before the first message: Ezzy floating (default), a turning island, a sea of dots, a starry sky, an aurora, a network of dots or nothing |
+| **Empty chat → Drawing** | What a new conversation shows before the first message: Ezzy floating (default), a turning island, a sea of dots, a starry sky, an aurora, a network of dots, fireflies, snow, light rain, bubbles, drops on water, a solar system, a galaxy, a radar, falling code, silk threads, a grid to the horizon, clouds, constellations, a heartbeat, wind, leaves, lanterns, **All** (a different one for each new conversation) or nothing |
 
 ## Characters
 Characters drawn in code, all with the same expressions:

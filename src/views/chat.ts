@@ -4135,7 +4135,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       }
       // An empty conversation: its quiet picture (Impostazioni → Chat → «Chat vuota»).
       const blank = !State.chatHistory.length && !sending && !req && !asked;
-      empty.show(blank ? emptyArt(State.settings.chatEmptyArt) : null);
+      empty.show(blank ? emptyArt(State.settings.chatEmptyArt, State.chat.sid) : null);
       showRecent(blank);
       refreshTips();
       const elsewhere = State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid && State.pendingApproval.chatSid !== State.chatSid

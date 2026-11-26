@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_24 novembre 2026. **1.0.55** in `main` (tag `v1.0.55`): isola costruita dalla chat (schede, blocchi, grafici, Panoramica, footer, aspetto e condizioni), orologio della barra. Installata qui la build di prova del ramo `claude/barra-idee` (idee da WinMac-Dock per la barra fissa, non ancora unito). **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_26 novembre 2026. **1.0.56** in `main` (tag `v1.0.56`): chat più bella (risposte fluide, riquadri, tabelle con barre e stati, diagrammi, procedure da spuntare, comandi con i campi, conversazioni a schede, Ctrl+F, 23 disegni della chat vuota) e barra fissa con le idee da WinMac-Dock. Installata qui la build di prova di questa versione. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -73,6 +73,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Chat vuota: 17 disegni nuovi, aurora rifatta, «Tutti»
+- `chat-empty-more.ts`: aurora tenue solo in alto e altri 17 disegni; «Tutti» ne sceglie uno diverso per ogni conversazione nuova (`docs/architettura.md` → Aspetto della chat). Fotografati in Edge senza finestra (`?scene=chat&vuota=<nome>`).
+
 ### 26/11 — Chat: risposta fluida, riquadri, tabelle, passi con icona
 - Parole nuove in dissolvenza e scorrimento morbido (`chat-flow.ts`), avvisi in cinque tipi con icona e titolo, tabelle con numeri a destra, barre, stati colorati e intestazione ferma (`md-rich.ts`), passo in corso con icona e spunte sui passi finiti (`docs/chat.md`). Scena `?scene=chat&vivace`; provati in Edge senza finestra, smoke ok; da vedere nell'app con risposte vere.
 
@@ -89,7 +92,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 - Lette via WinRM le ultime 12 chat e il log del portatile (192.168.1.197). Ramo `claude/chat-portatile`: card dei grafici con stile e misure, larghezza `quarter`, «a linea» solo linea, grafici letti anche a isola chiusa (`chartKinds`), `preview_act` con i sinonimi dei motori (`act_alias`), memoria senza righe ripetute con altre parole (`brain::covered`), `memory_forget` anche su una riga di pagina.
 - Sera: condizione `view`/`not_view` (valori del footer nascosti nella Panoramica); pannello **Documenti** della chat (`chat-docs.ts`); percorsi con spazi cliccabili nelle risposte (`BARE_PATH`); barra di scorrimento delle conversazioni come quella della chat anche nel loro pannello. **Blocco all'avvio corretto:** `appbar::update_full_screen` prendeva il lucchetto delle impostazioni dentro l'avviso della shell sul thread principale (EasyIsland non rispondeva a ogni avvio, CPU 0); ora usa la copia `KEEP` fatta da `apply`.
 - Già a posto: i legami dedotti dalle parole (tolti il 21/11; sul portatile nessuna riga «(dedotto)»). Da fare forse: Telegram e 3CX che a rete caduta scrivono un errore ogni 30 s (132 in un'ora).
-
-### 24/11 — Barra fissa: idee da WinMac-Dock
-- Ramo `claude/barra-idee` (da `claude/sviluppo`), solo idee (WinMac-Dock è GPL-3.0, `docs/decisioni.md`): riduci nell'icona di «App» (`HSHELL_GETMINRECT` in `taskwin.rs`), ingrandimento al passaggio, Maiusc/Ctrl+Maiusc+clic, elementi «Download recenti» e «Unità rimovibili» (`drives.rs`, Espelli), file trascinati sul cestino, schermo intero anche con la barra di Windows nascosta ed eccezioni, pausa dei valori a schermo intero, Mica. `docs/architettura.md` → Barra fissa.
-- Provato dal vivo da Claude sul PC di Edoardo (con il suo permesso): log del rettangolo, menu e contatore dei download, cestino (file nel Cestino, recuperabile), Maiusc+clic, schermo intero con e senza eccezione, Mica, ingrandimento. Impostazioni di Edoardo rimesse com'erano dopo le prove.

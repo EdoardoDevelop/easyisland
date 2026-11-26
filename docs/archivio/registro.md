@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24/11 — Barra fissa: idee da WinMac-Dock
+- Ramo `claude/barra-idee` (da `claude/sviluppo`), solo idee (WinMac-Dock è GPL-3.0, `docs/decisioni.md`): riduci nell'icona di «App» (`HSHELL_GETMINRECT` in `taskwin.rs`), ingrandimento al passaggio, Maiusc/Ctrl+Maiusc+clic, elementi «Download recenti» e «Unità rimovibili» (`drives.rs`, Espelli), file trascinati sul cestino, schermo intero anche con la barra di Windows nascosta ed eccezioni, pausa dei valori a schermo intero, Mica. `docs/architettura.md` → Barra fissa.
+- Provato dal vivo da Claude sul PC di Edoardo (con il suo permesso): log del rettangolo, menu e contatore dei download, cestino (file nel Cestino, recuperabile), Maiusc+clic, schermo intero con e senza eccezione, Mica, ingrandimento. Impostazioni di Edoardo rimesse com'erano dopo le prove.
+
 ### 24/11 — Isola da JSON: aspetto e condizioni
 - Ramo `claude/isola-stile`, unito in `claude/sviluppo` e installato con la build di prova: `style` dell'isola (colori, sfumatura, angoli, font, testo, bordo, alone, misure minime, sfondi di menu/testata/footer, spaziatura), aspetto di pulsanti, schede, blocchi e valori del footer, `when` (ore, giorni, programma davanti, valore del PC) e `levels` (soglie che colorano). `src/views/island-look.ts`, controlli in `island_layout.rs`.
 - Scelte di Edoardo (24/11): storico delle versioni escluso; prove dal vivo le fa lui man mano; barra fissa dalla chat «vedremo».

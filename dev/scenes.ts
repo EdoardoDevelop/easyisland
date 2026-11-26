@@ -413,6 +413,13 @@ export async function runScene(island: Island, scene: string) {
         ];
         State.chatSideOpen = false;
       }
+      // ?vuota=<name>: an empty conversation with that drawing (views/chat-empty.ts; «tutti» one at random).
+      const vuota = new URLSearchParams(location.search).get("vuota");
+      if (vuota) {
+        State.settings.chatEmptyArt = vuota;
+        State.chatHistory = [];
+        State.chatSideOpen = false;
+      }
       // ?schede: four open conversations as tabs (chat.ts renderTabs): one answering, one answered while away.
       if (new URLSearchParams(location.search).has("schede")) {
         const mk = (q: string, a: string, extra: Partial<ChatSessionState> = {}): ChatSessionState => ({
