@@ -22,6 +22,7 @@ mod memory_answer;
 mod memory_chat;
 mod quick_answer;
 mod search_window;
+mod popplace;
 mod dvc_live;
 mod notices_window;
 mod votes;
@@ -202,6 +203,9 @@ static OPEN_SEARCH_ON_BOOT: std::sync::atomic::AtomicBool = std::sync::atomic::A
 /// `--do <what>` of the very first start (a Start menu shortcut with EasyIsland
 /// not running): handed to the island once it is up (BootInfo.launch).
 static LAUNCH_DO: Mutex<Option<String>> = Mutex::new(None);
+/// What Windows passes when it starts EasyIsland at sign-in (the Launcher then
+/// stays in the notification area instead of opening).
+const AUTOSTART_ARG: &str = "--autostart";
 
 fn is_search_arg(argv: &[String]) -> bool {
     argv.iter().any(|a| {
@@ -222,6 +226,8 @@ pub struct BootInfo {
     hook_path: String,
     open_search: bool,
     launch: Option<String>,
+    /// Started by Windows at sign-in (`--autostart`), not by the user.
+    autostarted: bool,
 }
 
 #[tauri::command]
@@ -241,6 +247,7 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
         open_search: OPEN_SEARCH_ON_BOOT.swap(false, Ordering::Relaxed),
         launch: LAUNCH_DO.lock().unwrap().take(),
+        autostarted: std::env::args().any(|a| a == AUTOSTART_ARG),
     }
 }
 
@@ -257,8 +264,9 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let mut settings = settings.migrated();
     i18n::set(&settings.language);
     cc_memory::set_on(settings.memory_claude_code);
-    let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
+    let (screen_changed, autostart_changed, bar_changed, shadow_changed, launcher_on) = {
         let mut current = shared.settings.lock().unwrap();
+        let launcher_on = settings.launcher && !current.launcher;
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
             || current.anchor_v != settings.anchor_v
@@ -267,6 +275,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
             || current.over_taskbar != settings.over_taskbar
             || current.fixed_bar_slot != settings.fixed_bar_slot;
         let bar_changed = current.fixed_bar != settings.fixed_bar
+            || current.launcher != settings.launcher
             || current.screen != settings.screen
             || current.bar_thickness() != settings.bar_thickness()
             || current.bar_auto_hide() != settings.bar_auto_hide()
@@ -281,8 +290,12 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
-        (screen_changed, autostart_changed, bar_changed, shadow_changed)
+        (screen_changed, autostart_changed, bar_changed, shadow_changed, launcher_on)
     };
+    // The Launcher just chosen: its icon on the desktop (startmenu.rs).
+    if launcher_on {
+        startmenu::desktop_icon();
+    }
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
     }
@@ -302,9 +315,12 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     }
     if bar_changed {
         appbar::apply(app);
-        // The closed island: hidden while the bar stands for it, back when it goes.
-        if shared.gate.collapsed.load(Ordering::Relaxed) {
-            if let Some(win) = island::window(app) {
+        // The closed island: hidden while the bar or the Launcher stands for it, back when they go
+        // (the Launcher: open too, its window shows it).
+        if let Some(win) = island::window(app) {
+            if settings.launcher {
+                let _ = win.hide();
+            } else if shared.gate.collapsed.load(Ordering::Relaxed) {
                 let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
             }
         }
@@ -576,9 +592,10 @@ fn set_collapsed(
             island::set_want_focus(false);
             island::set_activating(&win, false);
         }
-        // With the fixed bar the closed island is not there at all: the bar is (appbar.rs).
-        let quiet = collapsed
-            && (shared.gate.fullscreen.load(Ordering::Relaxed) || settings.bar_edge().is_some())
+        // With the fixed bar the closed island is not there at all: the bar is
+        // (appbar.rs); with the Launcher, its window is (launcher.ts).
+        // The Launcher: never, open or closed (the open island is drawn in its window).
+        let quiet = ((collapsed && (shared.gate.fullscreen.load(Ordering::Relaxed) || settings.bar_edge().is_some())) || settings.launcher)
             && !island::CAPTURING.load(Ordering::Relaxed);
         let _ = if quiet { win.hide() } else { win.show() };
         island::keep_out_of_alt_tab(&win);
@@ -2584,6 +2601,19 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
         .skip_taskbar(false)
         .always_on_top(false)
         .min_inner_size(360.0, 300.0)
+        // Shown by popout_place once it is where it was last time (popplace.rs),
+        // not first where window.open put it; shown anyway if that never comes.
+        .visible(false)
+        // A page loaded (WebView2 may swap the blank one): the island lays the view in it now (popout.ts).
+        .on_page_load({
+            let app = app.clone();
+            let label = label.clone();
+            move |_, payload| {
+                if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                    let _ = app.emit_to(island::WINDOW_LABEL, "popout-page", label.clone());
+                }
+            }
+        })
         // The blank page's own title ("about:blank") never shows: the island sets the real one.
         .on_document_title_changed(|w, title| {
             let title = title.trim();
@@ -2597,6 +2627,13 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
             // On the bar's «App», under EasyIsland's icon.
             taskwin::own_window(&window);
             *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.clone());
+            let shown = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                if !shown.is_visible().unwrap_or(true) {
+                    let _ = shown.show();
+                }
+            });
             // Closed with its ✕ while the Anteprima is docked in it: the preview goes back to the island first.
             // Gone: the island is told (popout-closed, with the window's name), so its
             // view comes home even when the page cannot see that its window closed.
@@ -2611,6 +2648,7 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
                 // handlers of what is in it. Closed anyway 2 s later.
                 tauri::WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
+                    popplace::remember(&closing, &name);
                     *title.lock().unwrap_or_else(|e| e.into_inner()) = seen.title().unwrap_or_default();
                     preview::window_closing(&closing, &name);
                     let _ = closing.emit_to(island::WINDOW_LABEL, "popout-closing", name.clone());
@@ -2745,6 +2783,7 @@ fn popout_maximize(app: AppHandle, window: String) {
 #[tauri::command]
 fn popout_close(app: AppHandle, window: String) {
     let Some(w) = popout_find(&app, &window) else { return };
+    popplace::remember(&app, &window);
     preview::window_closing(&app, &window);
     if let Err(e) = w.destroy() {
         log::line(format!("finestra staccata non chiusa: {e}"));
@@ -2758,7 +2797,20 @@ fn popout_focus(app: AppHandle, window: String) {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
+        // Asked from the Start menu or the tray, another app has the keyboard:
+        // Windows lets the window only blink in the bar without this.
+        if let Ok(h) = w.hwnd() {
+            search_window::bring_hwnd_forward(h.0);
+        }
     }
+}
+
+/// The window `window` just made for `key` (popout.ts): where it was last
+/// time, or at `at` (logical screen px), then shown in front (popplace.rs);
+/// true when it went back where it was.
+#[tauri::command]
+fn popout_place(app: AppHandle, window: String, key: String, at: Option<(f64, f64)>, activate: Option<bool>) -> bool {
+    popout_find(&app, &window).is_some() && popplace::place(&app, &window, &key, at, activate.unwrap_or(true))
 }
 
 /// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
@@ -3374,7 +3426,8 @@ fn capture_end(app: AppHandle, shared: State<Shared>) {
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     if let Some(win) = island::window(&app) {
         island::set_activating(&win, false);
-        if collapsed && shared.gate.fullscreen.load(Ordering::Relaxed) {
+        // The Launcher: the island's window stays hidden, its window shows it.
+        if (collapsed && shared.gate.fullscreen.load(Ordering::Relaxed)) || settings.launcher {
             let _ = win.hide();
         }
     }
@@ -5485,7 +5538,7 @@ pub fn run() {
     // then this run uses a spare one (see webview_profile.rs).
     let webview_dir = webview_profile::free();
     // First launch after the rename: bring Coucou's settings and keys over.
-    let moved = legacy::migrate();
+    let _moved = legacy::migrate();
     let mut loaded = settings::load();
     i18n::set(&loaded.language);
     cc_memory::set_on(loaded.memory_claude_code);
@@ -5523,7 +5576,7 @@ pub fn run() {
                 let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
             }
         }))
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![AUTOSTART_ARG])))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Shared {
             settings: Mutex::new(loaded.clone()),
@@ -5730,6 +5783,7 @@ pub fn run() {
             memory_open,
             memory_graph,
             popout_focus,
+            popout_place,
             popout_take,
             popout_kind,
             search_window::search_window_show,
@@ -6086,7 +6140,9 @@ pub fn run() {
                 });
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);
-                let _ = win.show();
+                // The Launcher: the island is never on the screen (its window shows
+                // it); the window is born visible (tauri.conf.json).
+                let _ = if loaded.launcher { win.hide() } else { win.show() };
             }
             island::apply_taskbar(&handle);
             jumplist::update(&loaded);
@@ -6130,8 +6186,9 @@ pub fn run() {
             std::thread::spawn(log::scrub_once);
             std::thread::spawn(checkpoints::prune);
             hooks::ensure_hook_exe(&handle);
-            // Coucou's autostart entry starts Coucou, not this app.
-            if moved && loaded.autostart {
+            // Coucou's autostart entry starts Coucou, not this app; an entry
+            // written before 26 Nov 2026 has no `--autostart`: written again.
+            if loaded.autostart {
                 if let Err(err) = handle.autolaunch().enable() {
                     log::line(format!("autostart: {err}"));
                 }

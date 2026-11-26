@@ -16,6 +16,7 @@ import { State } from "../core/state";
 import { Bridge, onEvent, type TicketAdvice, type ZammadArticle, type ZammadAttachment, type ZammadList, type ZammadOpt, type ZammadTicket } from "../core/bridge";
 import { openClientCard } from "./clientcard";
 import { t } from "../core/i18n";
+import { frameFor } from "../core/motion";
 import { Sound } from "../core/sound";
 import { timeAgo, updatedAgo } from "./integrations";
 import { rdmActive, rdmCopyText, rdmLookFor, rdmSkelRows, renderHighlight } from "./rdm";
@@ -572,7 +573,7 @@ function draw(toBottom = false) {
   const newScroll = el.querySelector<HTMLElement>(".zm-detail-scroll");
   if (newScroll) {
     newScroll.dataset.key = keepKey;
-    requestAnimationFrame(() => { newScroll.scrollTop = toBottom ? newScroll.scrollHeight : detailTop; });
+    frameFor(newScroll, () => { newScroll.scrollTop = toBottom ? newScroll.scrollHeight : detailTop; });
   }
   if (filterFocused && zm.filterInput) {
     zm.filterInput.focus();

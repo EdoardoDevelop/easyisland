@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Chat: modifiche ai file come in un editor
+- Dipendenza `diff` (`docs/decisioni.md`). Righe tolte e aggiunte sotto ogni passo che cambia un file, con tutti i motori della Modalità terminale, nei blocchi diff delle risposte e nella card Consenti/Nega (`docs/chat.md` → Modifiche ai file). Provato in Edge senza finestra (`?scene=chat&modifiche`), test Rust; da vedere nell'app con una modifica vera.
+
 ### 26/11 — Chat vuota: 17 disegni nuovi, aurora rifatta, «Tutti»
 - `chat-empty-more.ts`: aurora tenue solo in alto e altri 17 disegni; «Tutti» ne sceglie uno diverso per ogni conversazione nuova (`docs/architettura.md` → Aspetto della chat). Fotografati in Edge senza finestra (`?scene=chat&vuota=<nome>`).
 

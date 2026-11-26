@@ -137,7 +137,7 @@ pub fn apply(app: &AppHandle) {
         .try_state::<crate::Shared>()
         .map(|s| {
             let s = s.settings.lock().unwrap();
-            (s.fixed_bar.clone(), s.bar_fullscreen_keep())
+            (s.bar_edge().unwrap_or_default().to_string(), s.bar_fullscreen_keep())
         })
         .unwrap_or_default();
     if let Ok(mut k) = KEEP.lock() {

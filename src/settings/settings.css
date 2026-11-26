@@ -229,6 +229,8 @@ section > h2 {
 .fixed-bar .bar-row { display: flex !important; }
 .bar-row-block { display: none; }
 .fixed-bar .bar-row-block { display: block; }
+/* The Launcher (main.ts paintLauncher): what is only for the island on the screen. */
+.mode-launcher .island-only { display: none !important; }
 .bar-item-row button { min-width: 28px; }
 .bar-item-row label { display: flex; align-items: center; gap: 6px; }
 .bar-item-row button.on { background: var(--ink); color: var(--bg); }

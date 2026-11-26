@@ -151,6 +151,14 @@ function paneTermTop(pane: HTMLElement, r: DOMRect): number {
 
 /** Views that go to the notices' window when it is on (notices.ts) instead of opening the island. */
 const TOASTED: ReadonlySet<IslandViewName> = new Set<IslandViewName>(["notify", "moment", "recap", "daily"]);
+/**
+ * Views an alert opens on, not the user: with the Launcher its window comes up
+ * without taking the keyboard from the app being typed in (a key meant for it
+ * must never answer a card: N / Y / S in onIslandKey).
+ */
+const ALERT_VIEWS: ReadonlySet<IslandViewName> = new Set<IslandViewName>([
+  "approval", "ask", "question", "notify", "note", "error", "finished", "moment", "recap", "daily", "confused",
+]);
 const LEVEL_ICON: Record<string, string> = { ok: "✅", info: "ℹ️", warn: "⚠️", error: "⛔" };
 const MOMENT_ICON: Record<string, string> = { download: "⬇️", tray: "📥", recording: "🎙️", error: "🐞", server: "🌐", call: "📞", ticket: "🎫", agentchat: "💬" };
 
@@ -339,9 +347,22 @@ export class Island {
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
+      // Isola ⇄ Launcher chosen in Impostazioni: the window and the island swap now.
+      const launcher = !!State.settings.launcher;
+      if (this.launcherWas !== null && launcher !== this.launcherWas) queueMicrotask(() => this.launcherChanged(launcher));
+      this.launcherWas = launcher;
       // 📌 makes the open island an ordinary app window; unpinning, or closing
       // (which drops the pin), gives the usual island back.
-      const app = !State.searchOnly && ((State.keepOpen && !State.keptByItself) || !!State.settings.islandApp) && State.mode === "expanded";
+      // The Launcher's window stays until it is closed: never the auto-close
+      // of the island (it closed it 30 s after opening, 26 Nov 2026).
+      if (State.settings.launcher && State.mode === "expanded" && !State.keepOpen) {
+        State.keepOpen = true;
+        State.keptByItself = true;
+        this.fsm.setKeepOpen(true, this.wasInIsland);
+        this.homeCollapseAt = null;
+      }
+      // The Launcher's window is an app of its own: the island stays the hidden island.
+      const app = !State.settings.launcher && !State.searchOnly && ((State.keepOpen && !State.keptByItself) || !!State.settings.islandApp) && State.mode === "expanded";
       if (app !== this.appMode) {
         this.appMode = app;
         State.appWindow = app;
@@ -497,14 +518,12 @@ export class Island {
     // fields, the adapters read after it opened, data that arrived): measured
     // again, at most once a frame and only open. Before, the island kept its
     // height and cut the bottom (Modifica rete…, 15 Nov 2026).
-    let refitQueued = false;
+    // Done by the next frame of the loop, which runs in the right window (the
+    // Launcher's too: a frame asked of the hidden island's page never came).
     new MutationObserver(() => {
-      if (refitQueued || State.mode !== "expanded") return;
-      refitQueued = true;
-      requestAnimationFrame(() => {
-        refitQueued = false;
-        this.refit();
-      });
+      if (this.refitQueued || State.mode !== "expanded") return;
+      this.refitQueued = true;
+      this.ensureRunning();
     }).observe(this.viewsEl, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["style", "class"] });
     const searchActions: SearchActions = {
       openTask: (id) => {
@@ -734,12 +753,15 @@ export class Island {
   }
 
   launch() {
+    // The settings are loaded now (main.ts): the Launcher's starting value, not a change.
+    this.launcherWas = !!State.settings.launcher;
     // Who greets: the EasyIsland logo drawing itself (the default) or the
     // character. A still picture or the weather has no greeting of its own,
     // but the logo's still plays.
     const logo = State.settings.greetingFigure !== "character";
     setGreetingLogo(logo);
-    if (State.settings.greeting === false || (staticFigure() && !logo)) {
+    // The Launcher has no island on the screen to greet from.
+    if (State.settings.greeting === false || State.settings.launcher || (staticFigure() && !logo)) {
       this.quietLaunch = true;
       this.fsm.launchQuiet();
     } else {
@@ -753,6 +775,15 @@ export class Island {
     const prev = State.mode;
     if (mode === prev) return;
     State.mode = mode;
+    // The Launcher: the open island is its window; closed, the window goes.
+    if (State.settings.launcher && IS_TAURI) {
+      if (mode === "expanded") {
+        // Asked now: openedByUser is only true while the opening call runs.
+        const byUser = this.openedByUser;
+        queueMicrotask(() => this.openLauncher(byUser || !ALERT_VIEWS.has(State.view) || this.keyboard));
+      }
+      else if (prev === "expanded") queueMicrotask(() => closePopped("launcher"));
+    }
     // Before the animation: an open island that was dragged away goes back to
     // the character's place, so it shrinks there and the next opening starts there.
     if (mode === "expanded" && prev !== "expanded") this.openAway();
@@ -800,7 +831,10 @@ export class Island {
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
     // Opening (motion.ts): the contents come in while the island grows. Search-only
     // stays visible right away: partsIn's 30 px slide-up would clip it inside the 50 px bar.
-    if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized && !State.searchOnly) {
+    // With the Launcher the content goes to its window: the opening plays there
+    // (openLauncher), the island's own page is hidden and plays nothing.
+    const launcher = State.settings.launcher && IS_TAURI;
+    if (mode === "expanded" && prev !== "expanded" && State.view !== "greeting" && !State.maximized && !State.searchOnly && !launcher) {
       const parts = [...this.islandEl.querySelectorAll<HTMLElement>("#header, #rail, #views")];
       if (!openIsland(parts) && motionLevel() !== "spente") this.openWave();
     }
@@ -1017,23 +1051,26 @@ export class Island {
         at,
         // The chat, the Anteprima and the terminal as panels to arrange (dock.ts).
         decorate: (doc, body) => this.dockInWindow(doc, body),
-        named: (name) => {
+        named: (name, placed) => {
           void Bridge.popoutChat(name);
-          // The chat's window opens maximized, as an app would.
-          void Bridge.popoutMaximize(name);
+          // The chat's window opens maximized, as an app would; where it was
+          // closed, once it has been (popplace.rs).
+          if (!placed) void Bridge.popoutMaximize(name);
         },
       });
       if (!ok) return;
       if (State.view === "prompt") {
         State.summary = true;
-        this.collapse();
+        // The Launcher stays open, on its overview (closing it closed the window).
+        if (State.settings.launcher) this.setView("overview");
+        else this.collapse();
       }
       return;
     }
     const task = State.tasks.find((x) => x.id === key);
     if (!task) return;
     const ok = popOut(key, `${task.name} — EasyIsland`, buildDetachedCard(key, this.actions), this.islandBackground, () => {}, { at });
-    if (ok && State.view === "overview" && State.focusId === key && !State.showsSummary) this.collapse();
+    if (ok && !State.settings.launcher && State.view === "overview" && State.focusId === key && !State.showsSummary) this.collapse();
   }
 
   /**
@@ -1047,6 +1084,161 @@ export class Island {
       return;
     }
     if (tries < 40) window.setTimeout(() => this.popOutWhenReady(key, tries + 1), 500);
+  }
+
+  /**
+   * The Launcher (settings `launcher`, 26 Nov 2026, Edoardo: «è la stessa cosa
+   * dell'isola ma ... semplicemente una finestra di windows»): the open
+   * island's whole content (header, menu, views) in an ordinary window of
+   * Windows, which can be moved, sized, minimized; the island itself stays
+   * hidden (Rust set_collapsed). Its page does not draw while hidden, so the
+   * window's frames redraw it (syncDom). Closing the window closes the island.
+   */
+  openLauncher(activate = true) {
+    if (!State.settings.launcher || State.mode !== "expanded") return;
+    // The island window itself off the screen, also when it never was «collapsed»
+    // (opened at once at start): Rust hides it with the Launcher on.
+    void Bridge.setCollapsed(false);
+    // Open already: to the front only when the user asked (an alert leaves it where it is).
+    if (activate ? focusPopped("launcher") : isPopped("launcher")) return;
+    const content = this.contentEl;
+    const host: ViewHost = {
+      el: content,
+      sync: () => {
+        this.dirty = false;
+        this.syncDom();
+        this.views.get(State.view)?.tick?.(performance.now());
+      },
+      focus: () => this.focusSearchSoon(),
+    };
+    // The opening (motion.ts) plays once per opening, in the window; not again
+    // when WebView2 swaps the window's blank page (lay runs again then).
+    let opened = false;
+    const ok = popOut("launcher", "EasyIsland", host, this.islandBackground, () => {
+      // The content home again, where it was; the island closes with its window.
+      this.clipEl.insertBefore(content, this.strip.el);
+      this.launcherMouse = null;
+      this.launcherCopy = null;
+      this.loopIn(window);
+      if (State.mode === "expanded") this.collapse();
+    }, {
+      whole: true,
+      activate,
+      decorate: (doc, island) => {
+        this.launcherBot(doc, island);
+        // The island's keys (Esc, ?, N / Y / S on a card, Ctrl+N, Ctrl+P): its
+        // page is hidden and hears none of them. Laid again with each page.
+        doc.addEventListener("keydown", this.onKey);
+        // Forced: after WebView2 swapped the window's page the window is the
+        // same, but a frame asked of the page that went never comes.
+        if (doc.defaultView) this.loopIn(doc.defaultView, true);
+        if (!opened && State.view !== "greeting") {
+          opened = true;
+          openIsland([...island.querySelectorAll<HTMLElement>("#header, #rail, #views")]);
+        }
+        return () => {
+          const cls = `${this.islandEl.className.replace(/\b(popwin|launcher-win)\b/g, "").trim()} popwin launcher-win`;
+          if (island.className !== cls) island.className = cls;
+        };
+      },
+    });
+    if (!ok) void Bridge.log("launcher: finestra non aperta");
+  }
+
+  /** The Launcher setting as last seen (null before the first settings). */
+  private launcherWas: boolean | null = null;
+
+  /**
+   * Isola ⇄ Launcher in Impostazioni. Back to the island: the Launcher's
+   * window gives the content back and closes, the island closes too and Rust
+   * shows it again (set_collapsed, the island's window was hidden all along);
+   * before, the content stayed in the window and the island stayed hidden
+   * («se ritorno a isola non funziona più», 26 Nov 2026). To the Launcher:
+   * the open island goes into its window, a closed one hides.
+   */
+  private launcherChanged(on: boolean) {
+    if (on) {
+      if (State.mode === "expanded") this.openLauncher();
+      else this.syncCollapsed();
+      return;
+    }
+    // The keep-open the Launcher set by itself goes with it.
+    if (State.keepOpen && State.keptByItself) {
+      State.keepOpen = false;
+      State.keptByItself = false;
+      this.fsm.setKeepOpen(false, this.wasInIsland);
+    }
+    if (isPopped("launcher")) closePopped("launcher");
+    else if (State.mode === "expanded") this.collapse();
+    // Shown by Rust now, as the page has it: the island's page is still hidden,
+    // its timers slowed down (the 420 ms of updateWindowCollapsed came late or
+    // never) and it gets no frames until its window is on screen again.
+    this.syncCollapsed();
+    this.restKey = "";
+    this.dirty = true;
+    this.ensureRunning();
+  }
+
+  /**
+   * Rust's window told the page's own state at once, with the rest icon's box.
+   * A bare setCollapsed(true) left Rust with the box of before (the 240×6 wake
+   * strip) while the page was compact and thought it was not collapsed: back
+   * from the Launcher nothing showed, neither island nor character (26 Nov 2026).
+   */
+  private syncCollapsed() {
+    if (this.collapseTimer != null) {
+      window.clearTimeout(this.collapseTimer);
+      this.collapseTimer = null;
+    }
+    if (State.mode === "hidden") {
+      this.collapsed = true;
+      const box = collapsedBox(this.homePlacement);
+      void Bridge.setCollapsed(true, box.w, box.h);
+    } else {
+      this.collapsed = false;
+      void Bridge.setCollapsed(false);
+    }
+  }
+
+  /** The pointer in the Launcher's window (its own px), for the character's gaze there. */
+  private launcherMouse: { x: number; y: number } | null = null;
+
+  /** Copies the character into the Launcher's window, after each frame drew it (frame). */
+  private launcherCopy: (() => void) | null = null;
+
+  /**
+   * The character at the head of the Launcher's menu (Edoardo, 26 Nov 2026:
+   * «può rimanere»). The island's loop runs on the window's frames (loopIn)
+   * and draws it in #bot-canvas, in the hidden page: each frame copies it
+   * into a canvas of the window, at the same place.
+   */
+  private launcherBot(doc: Document, island: HTMLElement) {
+    const copy = doc.createElement("canvas");
+    copy.id = "launcher-bot";
+    island.append(copy);
+    this.launcherCopy = () => {
+      if (!copy.isConnected) return;
+      const src = this.botCanvas;
+      if (copy.width !== src.width || copy.height !== src.height) {
+        copy.width = src.width;
+        copy.height = src.height;
+      }
+      const s = copy.style, o = src.style;
+      if (s.width !== o.width) s.width = o.width;
+      if (s.height !== o.height) s.height = o.height;
+      s.left = o.left;
+      s.top = o.top;
+      s.opacity = o.opacity;
+      const ctx = copy.getContext("2d");
+      if (ctx && src.width > 0 && src.height > 0) {
+        ctx.clearRect(0, 0, copy.width, copy.height);
+        ctx.drawImage(src, 0, 0);
+      }
+    };
+    doc.addEventListener("pointermove", (e) => {
+      this.launcherMouse = { x: e.clientX, y: e.clientY };
+      this.ensureRunning();
+    });
   }
 
   /** «Rimetti nell'isola»: the window closes and the island opens on what it showed. */
@@ -1309,7 +1501,7 @@ ${note}` : text };
     this.setView("note");
     Sound.play("error");
     window.setTimeout(() => {
-      if (State.view === "note" && State.noteMessage === message) this.collapse();
+      if (State.view === "note" && State.noteMessage === message) this.closeOrHome();
     }, 3200);
   }
 
@@ -1524,7 +1716,7 @@ ${note}` : text };
     State.noteMessage = message;
     this.setView("note");
     window.setTimeout(() => {
-      if (State.view === "note" && State.noteMessage === message) this.collapse();
+      if (State.view === "note" && State.noteMessage === message) this.closeOrHome();
     }, 1400);
   }
 
@@ -1992,7 +2184,7 @@ ${note}` : text };
     }
     State.notify();
     window.setTimeout(() => {
-      if (State.view === "notify" && !State.notice?.suggestion) this.collapse();
+      if (State.view === "notify" && !State.notice?.suggestion) this.closeOrHome();
     }, 3000);
   }
 
@@ -2206,7 +2398,8 @@ ${note}` : text };
       this.keyboard = true;
       if (name === "open" || name === "search") {
         this.focusSearchSoon();
-      } else {
+      } else if (!focusPopped("launcher")) {
+        // The Launcher's window, not the island's hidden one.
         void Bridge.focusWindow(true);
       }
     }
@@ -2237,6 +2430,41 @@ ${note}` : text };
    * to that key (N / C or Y / S on a permission, 1–9 on a question); ← → move between
    * pills, ↑ ↓ scroll the view's list; Ctrl+N new chat, Ctrl+P keep open.
    */
+  /**
+   * The island's keys, from its page and from the Launcher's window (laid in
+   * its decorate: the island's page is hidden then and hears no key).
+   */
+  private onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && this.shortcuts.open) {
+      e.preventDefault();
+      this.shortcuts.hide();
+      State.lastActivity = performance.now();
+      return;
+    }
+    if (e.key === "Escape" && this.clientSheet.openState) {
+      e.preventDefault();
+      this.clientSheet.hide();
+      State.lastActivity = performance.now();
+      return;
+    }
+    // Esc on a permission or a question folds the island: the request keeps waiting.
+    if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
+    else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();
+    else if (e.key === "Escape" && State.mode === "expanded" && State.view === "remember") this.closeRemember();
+    else if (e.key === "Escape" && State.mode === "expanded" && State.view === "talk") this.cancelTalk();
+    else if (e.key === "Escape" && this.stopSpeaking()) return;
+    // The Launcher's window stays (it closes with its ✕): Esc goes back to the first view.
+    else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.closeOrHome();
+    else this.onIslandKey(e);
+    State.lastActivity = performance.now();
+  };
+
+  /** The open island closes; the Launcher's window stays open and goes back to its first view. */
+  private closeOrHome() {
+    if (State.settings.launcher && isPopped("launcher")) this.setView(State.defaultView());
+    else this.collapse();
+  }
+
   private onIslandKey(e: KeyboardEvent) {
     if (State.mode !== "expanded") return;
     const typing = (e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
@@ -4088,9 +4316,9 @@ ${note}` : text };
     this.focusSearchSoon();
   }
 
-  /** Impostazioni → "Resta aperta quando la apro io": 📌 on by itself. */
+  /** Impostazioni → "Resta aperta quando la apro io" (and the Launcher, always): 📌 on by itself. */
   private stayIfAsked() {
-    if (State.settings.stayOpenByUser && State.mode === "expanded" && !State.keepOpen) {
+    if ((State.settings.stayOpenByUser || State.settings.launcher) && State.mode === "expanded" && !State.keepOpen) {
       this.toggleKeepOpen();
       State.keptByItself = true;
     }
@@ -4153,8 +4381,9 @@ ${note}` : text };
       if (!activated) {
         activated = true;
         this.search.focus();
-      } else if (!document.hasFocus()) {
-        void Bridge.focusWindow(true);
+      } else if (!this.search.el.ownerDocument.hasFocus()) {
+        // The Launcher's window to the front, not the island's hidden one.
+        if (!focusPopped("launcher")) void Bridge.focusWindow(true);
       } else {
         this.search.focusInputOnly();
       }
@@ -4402,29 +4631,7 @@ ${note}` : text };
       }
     });
 
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this.shortcuts.open) {
-        e.preventDefault();
-        this.shortcuts.hide();
-        State.lastActivity = performance.now();
-        return;
-      }
-      if (e.key === "Escape" && this.clientSheet.openState) {
-        e.preventDefault();
-        this.clientSheet.hide();
-        State.lastActivity = performance.now();
-        return;
-      }
-      // Esc on a permission or a question folds the island: the request keeps waiting.
-      if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
-      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();
-      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "remember") this.closeRemember();
-      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "talk") this.cancelTalk();
-      else if (e.key === "Escape" && this.stopSpeaking()) return;
-      else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
-      else this.onIslandKey(e);
-      State.lastActivity = performance.now();
-    });
+    window.addEventListener("keydown", this.onKey);
 
     // A file of the tray being dragged out is never taken back.
     // Resting, the window is only the icon or the wake strip on the edge: a file
@@ -4560,7 +4767,40 @@ ${note}` : text };
     if (this.running) return;
     this.running = true;
     this.lastFrame = performance.now();
-    requestAnimationFrame(this.frame);
+    this.nextFrame();
+  }
+
+  /**
+   * The window whose frames drive the loop: the island's page, or the
+   * Launcher's window while it is open (the island's page is hidden there and
+   * gets no frames: the menu's integrations, the views' ticks and the
+   * character stood still, 26 Nov 2026). `loopGen` drops a frame asked of the
+   * other window when the loop moves.
+   */
+  private frameWin: Window = window;
+  /** The views' content changed by itself: measured again at the next frame (refit). */
+  private refitQueued = false;
+  private loopGen = 0;
+
+  private nextFrame(delay = 0) {
+    const gen = this.loopGen;
+    // A Launcher window gone before its close was told: the island's page again.
+    if (this.frameWin !== window && this.frameWin.closed) this.frameWin = window;
+    const win = this.frameWin;
+    const ask = () => win.requestAnimationFrame(() => {
+      if (gen === this.loopGen) this.frame(performance.now());
+    });
+    if (delay > 0) win.setTimeout(ask, delay);
+    else ask();
+  }
+
+  /** The loop moves to `win`'s frames (the Launcher's window, or back to the island's page). */
+  private loopIn(win: Window, force = false) {
+    if (this.frameWin === win && !force) return;
+    this.frameWin = win;
+    this.loopGen++;
+    this.running = false;
+    this.ensureRunning();
   }
 
   private frame = (nowMs: number) => {
@@ -4575,6 +4815,10 @@ ${note}` : text };
     if (this.dirty) {
       this.dirty = false;
       guard("sync", () => this.syncDom());
+    }
+    if (this.refitQueued) {
+      this.refitQueued = false;
+      guard("refit", () => this.refit());
     }
 
     this.updateBotTargets();
@@ -4594,6 +4838,7 @@ ${note}` : text };
       // Kept running even while the drop canvas is up, so the island's own the character
       // is already in the right place the moment the canvas fades out.
       guard("character", () => this.drawBot(dt));
+      this.launcherCopy?.();
       if (State.windowPick) guard("pick", () => this.refreshPickCursor(nowMs));
     }
 
@@ -4633,9 +4878,9 @@ ${note}` : text };
       !greetingActive && !UploadSeq.isActive && !this.engine.busyBeyondLook;
 
     if (lookOnly) {
-      window.setTimeout(() => requestAnimationFrame(this.frame), LOOK_FRAME_MS);
+      this.nextFrame(LOOK_FRAME_MS);
     } else if (busy) {
-      requestAnimationFrame(this.frame);
+      this.nextFrame();
     } else {
       this.running = false;
       Sound.idle();
@@ -4877,12 +5122,16 @@ ${note}` : text };
 
   /** BotCanvasView.lookX / lookY — tanh of the distance to the bot. */
   private lookX(): number {
+    const m = this.launcherMouse;
+    if (m) return Math.tanh((m.x - this.botCx.value) / 260);
     const rect = this.islandRect();
     const botScreenX = rect.x + this.botCx.value;
     return Math.tanh((State.mouse.x - botScreenX) / 260);
   }
 
   private lookY(): number {
+    const m = this.launcherMouse;
+    if (m) return -Math.tanh((m.y - this.botCy.value) / 200);
     const rect = this.islandRect();
     return -Math.tanh((State.mouse.y - rect.y - this.botCy.value) / 200);
   }
@@ -4991,10 +5240,12 @@ ${note}` : text };
     if (this.lastSyncedView !== State.view) {
       const wasChat = this.lastSyncedView === "prompt";
       this.lastSyncedView = State.view;
+      // The Launcher's window has the keyboard of its own: never the island's hidden one.
+      const launcher = isPopped("launcher");
       if (State.view === "prompt") {
-        void Bridge.focusWindow(true);
+        if (!launcher) void Bridge.focusWindow(true);
         window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
-      } else if (wasChat && !this.keyboard) {
+      } else if (wasChat && !this.keyboard && !launcher) {
         void Bridge.focusWindow(false);
       }
     }

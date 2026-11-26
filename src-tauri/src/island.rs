@@ -649,18 +649,23 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
             .try_state::<crate::Shared>()
             .map(|s| s.settings.lock().unwrap().quiet_fullscreen)
             .unwrap_or(false);
+        // QUNS_BUSY also when the window in front is our own (the island once
+        // activated and then hidden): it hid the resting island for good, the
+        // hidden island staying in front (26 Nov 2026). Never a full-screen app of ours.
         let busy = wanted
-            && matches!(
-                unsafe { SHQueryUserNotificationState() },
-                Ok(s) if s == QUNS_BUSY || s == QUNS_RUNNING_D3D_FULL_SCREEN || s == QUNS_PRESENTATION_MODE
-            );
+            && match unsafe { SHQueryUserNotificationState() } {
+                Ok(s) if s == QUNS_RUNNING_D3D_FULL_SCREEN || s == QUNS_PRESENTATION_MODE => true,
+                Ok(s) if s == QUNS_BUSY => !crate::taskwin::front_is_ours(),
+                _ => false,
+            };
         if gate.fullscreen.swap(busy, Ordering::Relaxed) == busy {
             continue;
         }
         crate::log::line(format!("full screen: {busy}"));
         // Only the resting icon goes away; an open island (a permission request)
         // stays where it is.
-        if gate.collapsed.load(Ordering::Relaxed) {
+        let launcher = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().launcher);
+        if gate.collapsed.load(Ordering::Relaxed) && !launcher {
             if let Some(win) = window(&app) {
                 let _ = if busy { win.hide() } else { win.show() };
             }

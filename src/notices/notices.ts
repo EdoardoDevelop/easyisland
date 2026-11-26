@@ -49,8 +49,16 @@ let bodyTries = 0;
 
 /** In their own window (Impostazioni → Notifiche → «Avvisi»), unless «Nell'isola». */
 export function windowed(): boolean {
+  // The Launcher has no island on the screen to show them in.
+  if (State.settings.launcher && IS_TAURI) return true;
   // In the browser's preview the scenes of the cards (moment, daily, recap) keep them in the island.
   return (State.settings.noticesPlace ?? (IS_TAURI ? "isola" : "dentro")) !== "dentro";
+}
+
+/** Where the notices' window goes: with the Launcher, «under the island» is bottom right (no island there). */
+function place(): string {
+  const p = State.settings.noticesPlace ?? "isola";
+  return State.settings.launcher && (p === "isola" || p === "dentro") ? "basso-destra" : p;
 }
 
 /** A new toast; the same key replaces the one on screen. */
@@ -218,7 +226,7 @@ async function draw() {
   // every letter and the window was made hundreds of px tall, so a toast at the
   // bottom of the screen showed half way up (Edoardo, 23 Nov 2026).
   const height = Math.ceil(box.getBoundingClientRect().height) + 4;
-  void Bridge.noticesShow(height, State.settings.noticesPlace ?? "isola");
+  void Bridge.noticesShow(height, place());
   watch();
 }
 

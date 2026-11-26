@@ -3487,7 +3487,7 @@ function appearanceSections(): HTMLElement[] {
             h("label", { text: t("Colore dell'isola") }),
             colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, t("Quello del tema")),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Opacità dell'isola") }),
             slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
             h("span", { class: "hint note", text: t("sotto l'isola si intravede quello che c'è dietro") }),
@@ -3498,7 +3498,7 @@ function appearanceSections(): HTMLElement[] {
             h("span", { class: "hint note", text: t("i pannelli dentro l'isola, come la chat: più bassa, più si vede il colore dell'isola e più sono scuri (o chiari, in modalità chiara); per scurire ancora scegli un colore dell'isola più scuro") }),
           ),
         ),
-        pictured("compactBg", h("div", { class: "row" },
+        pictured("compactBg", h("div", { class: "row island-only" },
           h("label", { text: t("Sfondo a isola chiusa") }),
           toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
           h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
@@ -3526,19 +3526,19 @@ function appearanceSections(): HTMLElement[] {
       ),
       h("section", {},
         h("h2", {}, h("span", { text: t("Come si comporta") })),
-        pictured("greeting", h("div", { class: "row" },
+        pictured("greeting", h("div", { class: "row island-only" },
           h("label", { text: t("Saluto all'avvio") }),
           greeting,
           greetingFigure,
           greetingPlace,
           h("span", { class: "hint note", text: t("l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto") }),
         )),
-        pictured("follow", h("div", { class: "row" },
+        pictured("follow", h("div", { class: "row island-only" },
           h("label", { text: t("Segue il mouse") }),
           toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
           h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
         )),
-        pictured("bubble", h("div", { class: "row" },
+        pictured("bubble", h("div", { class: "row island-only" },
           h("label", { text: t("Fumetto") }),
           toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
           h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
@@ -3720,8 +3720,10 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     aperta: () => [
-      intro(t("Quando e dove si apre, quanto è grande e quando si richiude.")),
-      h("section", {},
+      intro(settings.launcher
+        ? t("Il campo in alto, la Panoramica e quello che hai aggiunto dalla chat. Grandezza e posto sono quelli della finestra: li decidi trascinandola.")
+        : t("Quando e dove si apre, quanto è grande e quando si richiude.")),
+      h("section", { class: "island-only" },
         h("h2", {}, h("span", { text: t("Quando si apre") })),
         pictured("place", h("div", { class: "row" },
           h("label", { text: t("L'isola si apre") }),
@@ -3734,7 +3736,7 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("quanto tenere il mouse sul personaggio prima che si apra; trascinare un file sopra il personaggio lo apre sempre") }),
         )),
       ),
-      h("section", {},
+      h("section", { class: "island-only" },
         h("h2", {}, h("span", { text: t("Quando si richiude") })),
         pictured("autoClose",
           h("div", { class: "row" },
@@ -3757,12 +3759,12 @@ function appearanceSections(): HTMLElement[] {
       h("section", {},
         h("h2", {}, h("span", { text: t("Grandezza e comandi") })),
         pictured("size",
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Larghezza") }),
             widthSlider,
             h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Altezza minima") }),
             heightSlider,
             h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
@@ -3841,7 +3843,7 @@ function appearanceSections(): HTMLElement[] {
             })(),
           ),
         ),
-        pictured("app", h("div", { class: "row" },
+        pictured("app", h("div", { class: "row island-only" },
           h("label", { text: t("Come un'app") }),
           toggle(settings.islandApp ?? false, (v) => { settings.islandApp = v; commit(); }),
           h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
@@ -3997,21 +3999,29 @@ function ownLayoutSection(): HTMLElement {
     h("div", { class: "row" }, undo, status));
 }
 
-const LOOK_TABS = (): [LookTab, string][] => [
+/** `all`: also those the Launcher hides (the search's index has them all, marked). */
+const LOOK_TABS = (all = false): [LookTab, string][] => ([
   ["tema", t("Tema")],
   ["font", t("Font")],
   ["personaggio", t("Personaggio")],
   ["posizione", t("Posizione")],
   ["barra", t("Barra fissa")],
   ["chiusa", t("Isola chiusa")],
-  ["aperta", t("Isola aperta")],
+  // With the Launcher what is left of «Isola aperta» is its window's.
+  ["aperta", settings.launcher ? t("Finestra") : t("Isola aperta")],
   ["chat", t("Chat")],
-];
+] as [LookTab, string][]).filter(([id]) => all || !(settings.launcher && ISLAND_ONLY_TABS.has(id)));
+/** withLookTab is drawing a tab for the search's index: drawn even when the Launcher hides it. */
+let lookTabForced = false;
+/** Aspetto's tabs only for the island on the screen: none of it is there with the Launcher. */
+const ISLAND_ONLY_TABS: ReadonlySet<LookTab> = new Set<LookTab>(["posizione", "barra", "chiusa"]);
 const LOOK_TAB_KEY = "easyisland.settings.aspetto";
 let lookTabNow: LookTab | null = null;
 
 /** The tab of Aspetto in view: ?tab= (screenshots, smoke), the last one used, or Tema. */
 function lookTab(): LookTab {
+  // A tab the Launcher hides (remembered from before): the first one instead.
+  if (lookTabNow && !lookTabForced && !LOOK_TABS().some(([id]) => id === lookTabNow)) lookTabNow = null;
   if (lookTabNow) return lookTabNow;
   const want = (v: string | null) => LOOK_TABS().find(([id]) => id === v)?.[0];
   let saved: string | null = null;
@@ -4119,8 +4129,8 @@ function fontSections(commit: () => void): HTMLElement[] {
 function pictured(pic: PicKind | HTMLElement, ...rows: HTMLElement[]): HTMLElement {
   const box = typeof pic === "string" ? pictureBox(pic, settings) : pic;
   const outer = h("div", { class: "pictured" }, box, h("div", { class: "pic-body" }, ...rows));
-  // Shown or hidden with the fixed bar as a whole (settings.css → .free-row, .bar-row).
-  for (const c of ["free-row", "bar-row"]) {
+  // Shown or hidden with the fixed bar or the Launcher as a whole (settings.css → .free-row, .bar-row, .island-only).
+  for (const c of ["free-row", "bar-row", "island-only"]) {
     if (!rows.some((r) => r.classList.contains(c))) continue;
     outer.classList.add(c);
     for (const r of rows) r.classList.remove(c);
@@ -4144,7 +4154,19 @@ function generalSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Generale") })),
-    h("div", { class: "hint", text: t("I tempi di chiusura sono in Aspetto → Isola aperta.") }),
+    h("div", { class: "hint island-only", text: t("I tempi di chiusura sono in Aspetto → Isola aperta.") }),
+    // The Launcher (26 Nov 2026): the island as a window of Windows, nothing on the screen when closed.
+    h("div", { class: "row" },
+      h("label", { text: t("Come usi EasyIsland") }),
+      choice([["isola", t("Isola")], ["launcher", t("Launcher")]], settings.launcher ? "launcher" : "isola", (v) => {
+        settings.launcher = v === "launcher";
+        void save();
+        // What is only for the island on the screen hides or comes back (Aspetto's tabs too).
+        paintLauncher();
+        render();
+      }),
+      h("span", { class: "hint note", text: t("Launcher: niente personaggio né barra sullo schermo; EasyIsland è una finestra di Windows che apri dalla barra delle applicazioni, dallo Start, dall'area di notifica o con la scorciatoia, con tutto quello che ha l'isola") }),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Suono") }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),
@@ -4428,6 +4450,14 @@ function barLookRows(commit: () => void): HTMLElement[] {
 /** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
 function paintFixedBar() {
   document.body.classList.toggle("fixed-bar", !!settings.fixedBar);
+}
+
+/**
+ * «Launcher» (Generale → Come usi EasyIsland): what is only for the island on
+ * the screen hides (settings.css → .island-only; Aspetto's tabs: LOOK_TABS).
+ */
+function paintLauncher() {
+  document.body.classList.toggle("mode-launcher", !!settings.launcher);
 }
 
 // ── Quick actions ─────────────────────────────────────────────────────────────
@@ -4920,8 +4950,9 @@ function actionsSections(): HTMLElement[] {
         touch();
       });
       card.append(
-        h("div", { class: "row" }, h("label", { text: t("Nella barra con") }), appsField, addFront),
-        h("div", { class: "row" }, h("label", { text: "" }),
+        // Beside the closed character: not there with the Launcher (settings.css .island-only).
+        h("div", { class: "row island-only" }, h("label", { text: t("Nella barra con") }), appsField, addFront),
+        h("div", { class: "row island-only" }, h("label", { text: "" }),
           h("span", { class: "hint", text: t("Solo nella barra") }),
           toggle(a.barOnly === true, (v) => { if (v) a.barOnly = true; else delete a.barOnly; touch(); }),
           h("span", { class: "hint", text: t("Aspetto") }),
@@ -5535,16 +5566,27 @@ function notifySection(): HTMLElement {
     ),
     h("div", { class: "row" },
       h("label", { text: t("Avvisi") }),
-      choice(
-        [
-          ["isola", t("In una finestra sotto l'isola")],
-          ["alto-destra", t("In alto a destra")],
-          ["basso-destra", t("In basso a destra")],
-          ["dentro", t("Nell'isola (come prima)")],
-        ],
-        settings.noticesPlace ?? "isola",
-        (v) => { settings.noticesPlace = v; void save(); },
-      ),
+      // With the Launcher there is no island to show them under or in: they go
+      // bottom right (notices.ts place), so only the two corners are offered.
+      settings.launcher
+        ? choice(
+          [
+            ["alto-destra", t("In alto a destra")],
+            ["basso-destra", t("In basso a destra")],
+          ],
+          settings.noticesPlace === "alto-destra" ? "alto-destra" : "basso-destra",
+          (v) => { settings.noticesPlace = v; void save(); },
+        )
+        : choice(
+          [
+            ["isola", t("In una finestra sotto l'isola")],
+            ["alto-destra", t("In alto a destra")],
+            ["basso-destra", t("In basso a destra")],
+            ["dentro", t("Nell'isola (come prima)")],
+          ],
+          settings.noticesPlace ?? "isola",
+          (v) => { settings.noticesPlace = v; void save(); },
+        ),
       moreHint(
         t("Avvisi, download, fine degli agenti e riepiloghi in una piccola finestra che non apre l'isola e non prende la tastiera."),
         t("Gli avvisi compaiono in una piccola finestra sempre davanti, che non prende la tastiera e non apre né cambia l'isola: puoi continuare a lavorare dentro l'isola. Un clic sull'avviso apre l'isola su quella cosa. Restano un po' e spariscono da soli (gli errori finché non li chiudi; il mouse sopra ferma il tempo). Permessi e domande restano nell'isola e nella striscia, perché aspettano il tuo clic. «Sotto l'isola»: sotto l'isola a riposo, di fianco quando è aperta."),
@@ -7246,6 +7288,8 @@ async function main() {
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
   // ?animations=sobrie: the motion (motion.ts).
   for (const k of ["animations"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
+  // ?launcher=1: the settings as the Launcher has them (paintLauncher).
+  if (!info && new URLSearchParams(location.search).get("launcher") === "1") settings.launcher = true;
   applyUiStyle(settings.theme.style, settings.theme.scheme);
   applySearchLine(settings);
   applyFonts(settings.theme.fonts);
@@ -7266,14 +7310,18 @@ async function main() {
   boot = { status, hasKey, present };
   setupSearch({
     pages: () => (boot ? pages(boot) : []),
-    lookTabs: () => LOOK_TABS(),
+    lookTabs: () => LOOK_TABS(true),
+    islandOnlyTab: (tab) => ISLAND_ONLY_TABS.has(tab as LookTab),
+    launcher: () => !!settings.launcher,
     withLookTab: (tab, fn) => {
       const was = lookTabNow;
       lookTabNow = tab as LookTab;
+      lookTabForced = true;
       try {
         return fn();
       } finally {
         lookTabNow = was;
+        lookTabForced = false;
       }
     },
     show: (page, tab, item) => {
@@ -7411,7 +7459,9 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "aspetto", label: t("Aspetto"), icon: "image", color: "#F472B6", title: t("Aspetto"),
-      intro: t("Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta."),
+      intro: settings.launcher
+        ? t("Tema e colori, il personaggio nel menu e cosa mostra la finestra del Launcher.")
+        : t("Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta."),
       sections: () => appearanceSections(),
     },
     {
@@ -7482,6 +7532,7 @@ function currentPage(list: Page[]): Page {
 /** Builds the whole window from `settings`; safe to call again after a switch. */
 function render() {
   if (!boot) return;
+  paintLauncher();
   const list = pages(boot);
   const page = currentPage(list);
   activePageId = page.id;

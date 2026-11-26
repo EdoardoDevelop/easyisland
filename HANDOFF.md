@@ -5,7 +5,8 @@ _26 novembre 2026. **1.0.57** in `main` (tag `v1.0.57`): modifiche ai file come 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
-- [ ] **Integrazioni nel menu Start** (26/11, `docs/integrazioni.md` → Menu Start): cartella EasyIsland con chat e integrazioni accese, ognuna in una finestra sua. Test Rust e tipi passati; da guardare nell'app: icone nello Start, apertura con EasyIsland spento e acceso, integrazione spenta che sparisce. Poi «Solo chat» in Impostazioni (approvato da Edoardo; le integrazioni restano creabili).
+- [ ] **Launcher** (26/11, `docs/architettura.md` → Launcher, guida «Isola o Launcher»): provato dal vivo qui (finestra con l'isola dentro, Panoramica e Chat, ✕ che lascia l'app nell'area di notifica, riapertura dal secondo avvio e nel punto in cui era chiusa, chat e Meteo dallo Start in primo piano, isola e personaggio mai in alto). Da guardare con l'uso: permessi e avvisi a finestra chiusa, avvio con Windows chiuso (voce `--autostart`), icona sul desktop.
+- [ ] **Integrazioni nel menu Start** (26/11, `docs/integrazioni.md` → Menu Start): cartella EasyIsland con chat e integrazioni accese, ognuna in una finestra sua. Test Rust e tipi passati; da guardare nell'app: icone nello Start, apertura con EasyIsland spento e acceso, integrazione spenta che sparisce. 
 - [ ] **Via i profili** (26/11, `docs/integrazioni.md` → Niente profili, `decisioni.md`): test Rust (anche il passaggio di un file con i profili e «Concentrazione» attivo), tipi, guida e smoke passati; da provare nell'app al primo avvio dopo l'aggiornamento: impostazioni rimaste quelle del profilo attivo, `settings-con-profili.json` accanto a `settings.json`, «Non disturbare» nel menu dell'area di notifica. Poi: Memoria master, Agent Chat come integrazione dedicata e «solo chat» da ragionare con Edoardo (`idee.md` → Memoria master).
 - [ ] **Isola da JSON, tappe 1–3 e Panoramica** (23/11, unita in `claude/sviluppo`, `docs/architettura.md` → Isola da JSON): tappa 1 provata da Edoardo dalla chat. Tappe 2 (blocchi: app installate, finestre, azioni rapide, cartella, valori del PC, testo) e 3 (ordine e parti nascoste di menu e testata) provate con test e nell'anteprima (`?scene=isola&tab=app`, `&tab=stato`, `&moved`); da provare nell'app: «crea una scheda con tutte le app installate», «metti la Chat in cima al menu e nascondi Notizie», Impostazioni → Aggiunti dalla chat → Rimetti come di serie; Panoramica: «metti la musica in cima alla panoramica», Impostazioni → Isola aperta → Panoramica (scena `&ov`).
 - [ ] **Isola da JSON, fonti, grafici e piede** (23/11, unito in `claude/sviluppo`, `docs/architettura.md` → Isola da JSON → Fonti, grafici, piede): test e anteprima (`?scene=isola&more&tab=altro`, `&ov`) passati; da provare nell'app: «crea una scheda con i file recenti e i progetti di VS Code», «una scheda con le schede dei clienti», «aggiungi alla panoramica il grafico del processore», footer in tre zone («metti a destra del footer un pulsante per bloccare il PC»). Primo tentativo dalla chat fallito per l'hook vecchio rimesso all'avvio (corretto, `docs/sviluppo.md` → Prova veloce); il footer di Edoardo (CPU, RAM, disco C e D) ora sta al centro.
@@ -75,6 +76,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Launcher
+- `launcher` nelle impostazioni: l'isola come finestra di Windows (app e tenuta aperta), niente isola chiusa, personaggio, barra né saluto; aperta da `openFromTaskbar`, all'avvio se non da Windows (`--autostart`).
+- Finestre staccate al posto in cui erano chiuse (`popplace.rs`), in primo piano anche da Start; personaggio nel menu del Launcher; chat dello Start in finestra sua.
+- Animazioni nel Launcher: loop dell'isola, apertura, `motion.ts` e viste sui frame della finestra del Launcher (la pagina dell'isola nascosta non ne ha); passaggio Isola ⇄ Launcher dalle Impostazioni (`launcherChanged`); tasti dell'isola anche nel Launcher, finestra aperta da un avviso senza prendere la tastiera, messaggi ed Esc che non la chiudono (`closeOrHome`).
+- Isola nascosta per sempre dopo essere stata attivata: `QUNS_BUSY` con una nostra finestra in primo piano non conta come schermo intero (`taskwin::front_is_ours`). Impostazioni secondo Isola/Launcher (`island-only`, scheda «Finestra», ricerca filtrata).
+
 ### 26/11 — Integrazioni nel menu Start
 - `startmenu.rs` + `src/island/start-menu.ts`: un collegamento per integrazione con la sua icona, `--do "integrazione:<id>"` apre la finestra separata (anche alla prima partenza, `BootInfo.launch`); interruttore in Impostazioni → Integrazioni; installer con `startMenuFolder`.
 
@@ -86,6 +93,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 26/11 — Chat: versioni, Chiedi su questo, mappa
 - «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).
-
-### 26/11 — Chat: modifiche ai file come in un editor
-- Dipendenza `diff` (`docs/decisioni.md`). Righe tolte e aggiunte sotto ogni passo che cambia un file, con tutti i motori della Modalità terminale, nei blocchi diff delle risposte e nella card Consenti/Nega (`docs/chat.md` → Modifiche ai file). Provato in Edge senza finestra (`?scene=chat&modifiche`), test Rust; da vedere nell'app con una modifica vera.

@@ -12,6 +12,7 @@ import { State, type RdmRef } from "../core/state";
 import { Bridge, type DvcItem, type RdmEntry } from "../core/bridge";
 import { openClientCard } from "./clientcard";
 import { t } from "../core/i18n";
+import { frameFor } from "../core/motion";
 import { Sound } from "../core/sound";
 import { timeAgo } from "./integrations";
 import {
@@ -385,7 +386,7 @@ function clearSearch() {
 }
 
 function focusSearch(selectAll = false) {
-  requestAnimationFrame(() => {
+  frameFor(rdm.el, () => {
     const input = rdm.search;
     const card = rdm.el;
     if (!input || !card || !input.isConnected) return;

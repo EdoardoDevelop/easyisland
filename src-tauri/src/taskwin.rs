@@ -353,6 +353,20 @@ fn process_exe(pid: u32) -> String {
 /// EasyIsland's own never are. With the Windows taskbar hidden its own
 /// notice (ABN_FULLSCREENAPP) does not hold: this replaces it.
 /// The monitor it covers, or none.
+/// The window in front is one of EasyIsland's own: the island, activated and
+/// then hidden, stays in front and the shell says «busy» (26 Nov 2026).
+pub fn front_is_ours() -> bool {
+    unsafe {
+        let front = GetForegroundWindow();
+        if front.is_invalid() {
+            return false;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(front, Some(&mut pid));
+        pid != 0 && pid == GetCurrentProcessId()
+    }
+}
+
 pub fn fullscreen_front() -> Option<RECT> {
     unsafe {
         let front = GetForegroundWindow();

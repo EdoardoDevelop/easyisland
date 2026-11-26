@@ -187,7 +187,7 @@ export class ChatDock {
         });
         put();
         // Dockview and the panels settle over the next frames: again then.
-        requestAnimationFrame(put);
+        (this.doc.defaultView ?? window).requestAnimationFrame(put);
         window.setTimeout(put, 120);
         window.setTimeout(put, 320);
       }

@@ -2,6 +2,11 @@
 > sezione: Per iniziare
 > in breve: Come si apre, cosa contiene e come si usa con il mouse e con la tastiera.
 
+## Isola o Launcher
+**Impostazioni → Generale → Come usi EasyIsland**:
+- **Isola** (di serie): il personaggio resta sullo schermo e l'isola si apre da lì.
+- **Launcher**: sullo schermo non c'è niente, né personaggio né barra fissa. EasyIsland è una **finestra di Windows** con tutto quello che ha l'isola (Panoramica, Agenti, Chat, integrazioni…, con il personaggio in cima al menu): la apri dalla barra delle applicazioni, dalla cartella **EasyIsland** dello Start, dall'icona nell'area di notifica o con la scorciatoia, e resta aperta finché non la chiudi. Chiusa, EasyIsland resta nell'area di notifica e continua a lavorare: gli avvisi arrivano nella loro finestrella (in basso a destra se avevi scelto «sotto l'isola») e le richieste di permesso la aprono da sole. Scegliendo il Launcher compare l'icona **EasyIsland sul desktop**; per averla fissa sulla barra delle applicazioni, con il Launcher aperto fai clic destro sulla sua icona → **Aggiungi alla barra delle applicazioni** (Windows non lascia farlo ai programmi). All'avvio con Windows resta chiusa; avviata da te si apre. Come le altre app si riapre dove e grande come l'avevi lasciata (vale anche per la chat e le integrazioni nelle loro finestre).
+
 ## Il personaggio e i suoi stati
 A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di serie) e si muove piano, come se galleggiasse. Cambia colore con lo stato più urgente: **blu** mentre un agente lavora, **ambra** per un permesso in attesa, **rosso** per un errore, **verde** quando qualcosa è finito bene. Quando una scheda è aperta indossa il colore di quell'integrazione.
 

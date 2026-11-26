@@ -24,6 +24,22 @@ let openingUntil = 0;
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/**
+ * The window `el` is drawn in: the island's page, or a window of its own
+ * (popout.ts, the Launcher). With the Launcher the island's page is hidden and
+ * gets no frames: a frame asked of it never comes (26 Nov 2026).
+ */
+export const winOf = (el: Node | null | undefined): Window => el?.ownerDocument?.defaultView ?? window;
+
+/**
+ * `run` at the next frame of the window `el` is in. Asked after the current
+ * task, so an element just made (in the island's page) is already where its
+ * caller put it, possibly in the Launcher's window.
+ */
+export function frameFor(el: Node | null | undefined, run: FrameRequestCallback): void {
+  queueMicrotask(() => winOf(el).requestAnimationFrame(run));
+}
+
 /** The level from the settings, on `<html>` (`data-anim`) for the CSS and the popped-out windows. */
 export function applyMotion(s: { animations?: string } | undefined, doc: Document = document): void {
   const asked = (["ricche", "sobrie", "spente"] as const).find((l) => l === s?.animations) ?? "ricche";
@@ -89,17 +105,18 @@ export function viewEnter(view: HTMLElement, from: HTMLElement | null, before: D
 
 /** The menu's accent mark (the `::before` of `.rail-item.on`) slides from the old item to the new one. */
 function glideMark(item: HTMLElement, before: DOMRect) {
-  const mark = getComputedStyle(item, "::before");
+  const doc = item.ownerDocument;
+  const mark = winOf(item).getComputedStyle(item, "::before");
   if (mark.content === "none" || mark.display === "none") return;
   const now = item.getBoundingClientRect();
   const h = parseFloat(mark.height) || 16;
-  const ghost = document.createElement("div");
+  const ghost = doc.createElement("div");
   Object.assign(ghost.style, {
     position: "fixed", left: `${now.left + (parseFloat(mark.left) || 0)}px`, top: `${now.top + now.height / 2 - h / 2}px`,
     width: mark.width, height: `${h}px`, borderRadius: mark.borderRadius, background: mark.backgroundColor,
     pointerEvents: "none", zIndex: "2147483000",
   });
-  document.body.appendChild(ghost);
+  doc.body.appendChild(ghost);
   item.classList.add("mark-gliding");
   const dy = before.top + before.height / 2 - (now.top + now.height / 2);
   const frames = level === "ricche"
@@ -139,7 +156,7 @@ function piecesOf(parts: Iterable<HTMLElement>, view: { w: number; h: number }):
     if (!el.getClientRects().length) return false;
     const r = el.getBoundingClientRect();
     if (r.top >= view.h || r.left >= view.w || r.bottom < 0 || r.right < 0) return false;
-    const cs = getComputedStyle(el);
+    const cs = winOf(el).getComputedStyle(el);
     return cs.visibility !== "hidden" && (cs.opacity !== "0" || el.matches(".view.on"));
   };
   const walk = (el: HTMLElement, depth: number) => {
@@ -165,13 +182,15 @@ function partsIn(parts: Iterable<HTMLElement>, delay: number, spread = 300) {
   // Hidden until the next frame, then measured once laid out (the island's menu is
   // hidden until the open layout applies: it would come in as one block).
   const list = [...parts];
+  if (!list.length) return;
+  const win = winOf(list[0]);
   const hide = list.map((el) => el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 1000 }));
-  requestAnimationFrame(() => { hide.forEach((a) => a.cancel()); piecesIn(list, Math.max(0, delay - 16), spread); });
+  win.requestAnimationFrame(() => { hide.forEach((a) => a.cancel()); piecesIn(list, Math.max(0, delay - 16), spread, win); });
 }
 
-function piecesIn(parts: HTMLElement[], delay: number, spread: number) {
+function piecesIn(parts: HTMLElement[], delay: number, spread: number, win: Window = window) {
   entering = entering.filter((a) => a.playState !== "finished");
-  const view = { w: window.innerWidth, h: window.innerHeight };
+  const view = { w: win.innerWidth, h: win.innerHeight };
   const pieces = piecesOf(parts, view);
   if (!pieces.length) return;
   const rects = pieces.map((el) => el.getBoundingClientRect());

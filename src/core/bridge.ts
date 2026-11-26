@@ -168,6 +168,8 @@ export interface BootInfo {
   openSearch?: boolean;
   /** `--do <what>` of the first start (a Start menu shortcut): handled like a second start's. */
   launch?: string | null;
+  /** Started by Windows at sign-in: the Launcher stays closed. */
+  autostarted?: boolean;
 }
 
 /** A newer EasyIsland on GitHub. */
@@ -751,6 +753,8 @@ export const Bridge = {
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
   popoutFocus: (window: string) => call<void>("popout_focus", { window }),
   popoutTake: () => call<string | null>("popout_take"),
+  /** The window just made for `key`: where it was last time (or at `at`), shown in front; true when it went back there (popplace.rs). */
+  popoutPlace: (window: string, key: string, at: [number, number] | null, activate = true) => call<boolean>("popout_place", { window, key, at, activate }),
   /** The next window.open is a window of its own kind: "ricerca" (search_window.rs), "avvisi" (notices_window.rs). */
   popoutKind: (kind: "ricerca" | "avvisi") => call<void>("popout_kind", { kind }),
   /** The search on its own: shown `height` (logical px) tall where the mouse is, with the keyboard; false when its window is not there. */

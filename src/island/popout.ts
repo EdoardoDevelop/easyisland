@@ -6,7 +6,7 @@
 import { watchIconClicks } from "../views/anim-icons";
 import { watchPresses } from "../core/motion";
 import { State } from "../core/state";
-import { Bridge } from "../core/bridge";
+import { Bridge, IS_TAURI, onEvent } from "../core/bridge";
 import type { ViewHost } from "../views/views";
 
 interface Popped {
@@ -19,9 +19,21 @@ interface Popped {
   close(): void;
   /** The window is gone already (its ✕, told by Rust): the view comes home. */
   gone(): void;
+  /** Its page loaded (again): the view laid in it, if it is not there. */
+  relay(): void;
 }
 
 const popped = new Map<string, Popped>();
+
+// A page of a popped-out window finished loading (lib.rs popout_window,
+// on_page_load): WebView2 may swap the blank page, and the 1 s watch runs on
+// the island's page, once a minute once it has been hidden a while (the
+// Launcher): the view goes into the new page at once.
+if (IS_TAURI) {
+  void onEvent<string>("popout-page", (name) => {
+    for (const p of popped.values()) if (p.name === name) p.relay();
+  });
+}
 
 /** Window size and place, per key, for the next time. */
 const PLACE_KEY = "easyisland.popout.";
@@ -79,17 +91,29 @@ export function popOut(
   host: ViewHost,
   background: string,
   back: () => void,
-  extra: { at?: { x: number; y: number }; decorate?: (doc: Document, body: HTMLElement) => () => void; named?: (name: string) => void } = {},
+  extra: {
+    at?: { x: number; y: number };
+    decorate?: (doc: Document, body: HTMLElement) => () => void;
+    /** `placed`: it went back where it was last time (popplace.rs). */
+    named?: (name: string, placed: boolean) => void;
+    /** false: shown without taking the keyboard (opened by a notice, not by the user). */
+    activate?: boolean;
+    /** `host.el` is the island's whole content (header, menu, views): no wrappers of the window's own (the Launcher). */
+    whole?: boolean;
+  } = {},
 ): boolean {
   const at = extra.at;
   if (focusPopped(key)) return true;
   background = background.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, "rgb($1,$2,$3)");
+  // Its first size, never bigger than the screen. Where it goes (where it was
+  // last time, as Windows apps do, or where it was dropped) is Rust's
+  // (popout_place, popplace.rs): the page's screenX and window.open's left/top
+  // disagreed at 125 % and on the second screen (26 Nov 2026).
   const place = remembered(key);
-  if (at) {
-    place.x = Math.round(at.x - 80);
-    place.y = Math.round(at.y - 16);
-  }
-  const features = `popup,width=${place.w},height=${place.h}` + (place.x !== null ? `,left=${place.x},top=${place.y}` : "");
+  const sw = window.screen.availWidth || 1280, sh = window.screen.availHeight || 800;
+  place.w = Math.min(place.w, sw - 40);
+  place.h = Math.min(place.h, sh - 60);
+  const features = `popup,width=${place.w},height=${place.h}`;
   // A blank page: the only one WebView2 keeps scriptable from here (a page of
   // the app loaded in the new window was out of reach, the window stayed empty).
   const win = window.open("", `easyisland-${key}`, features);
@@ -118,6 +142,9 @@ export function popOut(
     if (done || win.closed) return;
     try {
       host.sync();
+      // The theme follows at once: the 1 s watch runs on the island's page,
+      // once a minute while it has been hidden for a while (the Launcher).
+      mirror(win.document, background);
       decorated?.();
     } catch (e) {
       void Bridge.log(`finestra staccata ${key}: ${(e as Error)?.stack ?? e}`).catch(() => {});
@@ -170,14 +197,18 @@ export function popOut(
     island.className = "open railed popwin";
     island.style.background = background;
     doc.body.style.background = background;
-    host.el.classList.add("on");
-    views.append(host.el);
-    body.append(views);
-    content.append(body);
-    island.append(content);
+    if (extra.whole) {
+      island.append(host.el);
+    } else {
+      host.el.classList.add("on");
+      views.append(host.el);
+      body.append(views);
+      content.append(body);
+      island.append(content);
+    }
     doc.body.replaceChildren(island);
     frame = 0;
-    decorated = extra.decorate?.(doc, body) ?? null;
+    decorated = extra.decorate?.(doc, extra.whole ? island : body) ?? null;
     room(win, island);
     // A click outside a menu of the view closes it: the view listens on the island's page.
     doc.addEventListener("pointerdown", (e) => forward(e));
@@ -188,20 +219,23 @@ export function popOut(
     });
     win.addEventListener("pagehide", safe);
     schedule();
-    window.setTimeout(() => host.focus?.(), 50);
+    // The window's own timer: the island's page may be hidden (the Launcher), its timers late.
+    if (extra.activate !== false) win.setTimeout(() => host.focus?.(), 50);
   };
   lay();
   // Its Rust name, asked right after window.open made it: every call to Rust
   // goes by that name (a title can read empty, and a window with the
   // Anteprima docked in it was not found by it).
   let name = "";
-  void Bridge.popoutTake().then((n) => {
+  void Bridge.popoutTake().then(async (n) => {
     if (!n || done) return;
     name = n;
     const p = popped.get(key);
     if (p) p.name = n;
     void Bridge.popoutTitle(n, title);
-    extra.named?.(n);
+    const back = await Bridge.popoutPlace(n, key, at ? [at.x, at.y] : null, extra.activate !== false).catch(() => false);
+    if (done) return;
+    extra.named?.(n, !!back);
     void Bridge.log(`finestra staccata ${key}: aperta (${n})`).catch(() => {});
   });
 
@@ -251,6 +285,13 @@ export function popOut(
       if (n) void Bridge.popoutClose(n);
     },
     gone: () => finish("chiusa dalla ✕"),
+    relay: () => {
+      try {
+        lay();
+      } catch {
+        // Its page is out of reach: the watch sees it.
+      }
+    },
   });
   return true;
 }
@@ -327,7 +368,7 @@ export function forward(e: PointerEvent) {
 }
 
 function remembered(key: string): { w: number; h: number; x: number | null; y: number | null } {
-  const fallback = key === "chat" ? { w: 760, h: 720 } : { w: 520, h: 620 };
+  const fallback = key === "launcher" ? { w: 1100, h: 760 } : key === "chat" ? { w: 760, h: 720 } : { w: 520, h: 620 };
   try {
     const v = JSON.parse(localStorage.getItem(PLACE_KEY + key) ?? "null") as { w: number; h: number; x: number; y: number } | null;
     if (v && v.w >= 360 && v.h >= 300) return v;
@@ -357,4 +398,13 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 #island.popwin #content:has(.chat-card) { padding: 0; }
 #island.popwin .chat-card { border: 0; border-radius: 0; }
 html[data-chat-look="cards"] #island.popwin #content:has(.chat-card) { padding: 8px; }
+/* The Launcher: the island's whole content in a window of Windows (launcher in island.ts). */
+#island.popwin.launcher-win > #content { position: absolute; inset: 0; opacity: 1 !important; pointer-events: auto !important; display: flex; flex-direction: column; }
+#island.popwin.launcher-win > #content > #body { flex: 1; min-height: 0; position: relative; }
+/* Every view of the island is here: only the one on screen (.on) shows. */
+#island.popwin.launcher-win #views > .view:not(.on) { opacity: 0 !important; pointer-events: none !important; visibility: hidden; }
+/* The header moves the island; the Launcher's window moves by its title bar. */
+#island.popwin.launcher-win #header { cursor: default; }
+/* The character at the menu's head, drawn by the island (openLauncher). */
+#island.popwin.launcher-win > #launcher-bot { position: absolute; pointer-events: none; z-index: 5; }
 `;

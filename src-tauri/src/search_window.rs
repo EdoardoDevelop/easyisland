@@ -92,12 +92,18 @@ pub fn search_window_show(app: AppHandle, height: f64) -> bool {
 
 /// The window in front with the keyboard, also when another app has it.
 fn bring_forward(win: &WebviewWindow) {
+    let Ok(raw) = win.hwnd() else { return };
+    bring_hwnd_forward(raw.0);
+}
+
+/// The window `raw` (an HWND) in front with the keyboard, also when another
+/// app has it (the popped-out windows opened from the Start menu, lib.rs).
+pub fn bring_hwnd_forward(raw: *mut core::ffi::c_void) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
     use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MENU};
     use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow};
-    let Ok(raw) = win.hwnd() else { return };
-    let hwnd = HWND(raw.0);
+    let hwnd = HWND(raw);
     unsafe {
         let fg = GetForegroundWindow();
         if fg == hwnd {

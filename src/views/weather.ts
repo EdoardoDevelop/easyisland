@@ -8,6 +8,7 @@
 import { h } from "./dom";
 import { State, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
+import { winOf } from "../core/motion";
 import { locale, t } from "../core/i18n";
 import { drawSkyIcon, drawSkyScene, isSky, type Sky } from "../character/weather";
 import { timeAgo } from "./integrations";
@@ -63,18 +64,36 @@ function skyIcon(sky: string | null, size: number): HTMLElement {
  */
 function animateSky(canvas: HTMLCanvasElement, sky: Sky, day: boolean) {
   let raf = 0;
+  /** The window `raf` was asked of: the canvas's, the island's page or the Launcher's window (motion.ts winOf). */
+  let rafWin: Window | null = null;
   let last = 0;
-  const live = () => canvas.isConnected && State.mode === "expanded" && !document.hidden;
-  const frame = (now: number) => {
+  // The canvas's own page: with the Launcher the island's page is hidden, its window is not.
+  const live = () => canvas.isConnected && State.mode === "expanded" && !canvas.ownerDocument.hidden;
+  const ask = () => {
+    const win = winOf(canvas);
+    if (raf && rafWin === win) return;
+    if (raf) {
+      try {
+        rafWin?.cancelAnimationFrame(raf);
+      } catch {
+        // Its window is gone already.
+      }
+    }
+    rafWin = win;
+    raf = win.requestAnimationFrame(frame);
+  };
+  const frame = () => {
     raf = 0;
     if (!live()) return;
-    raf = requestAnimationFrame(frame);
+    ask();
+    // The island's clock, not the frame's: another window's frame times start from its own opening.
+    const now = performance.now();
     if (now - last < 1000 / FPS - 2) return;
     last = now;
     const w = canvas.clientWidth;
     const hh = canvas.clientHeight;
     if (!w || !hh) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(2, winOf(canvas).devicePixelRatio || 1);
     if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(hh * dpr)) {
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(hh * dpr);
@@ -86,9 +105,10 @@ function animateSky(canvas: HTMLCanvasElement, sky: Sky, day: boolean) {
   };
   const unsubscribe = State.subscribe(() => {
     if (!canvas.isConnected) unsubscribe();
-    else if (!raf && live()) raf = requestAnimationFrame(frame);
+    // Also a frame still asked of the page it left (moved to the Launcher's window): asked again of the new one.
+    else if (live()) ask();
   });
-  raf = requestAnimationFrame(frame);
+  ask();
 }
 
 /** "Oggi", "Domani", then the weekday's short name. */

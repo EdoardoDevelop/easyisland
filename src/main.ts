@@ -260,6 +260,8 @@ async function main() {
   if (boot?.openSearch) void island.onHotkey("search");
   // Started from a Start menu shortcut (startmenu.rs) or the taskbar's menu.
   if (boot?.launch) void island.onHotkey(boot.launch);
+  // The Launcher started by the user: its window at once (at sign-in it waits in the tray).
+  else if (State.settings.launcher && !boot?.autostarted) window.setTimeout(() => island.openFromTaskbar(), 600);
   // The Start menu's folder follows the integrations that are on.
   State.subscribe(() => watchStartMenu());
   // Monday from 8:00: last week's recap, once the greeting is over.

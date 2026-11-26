@@ -1027,6 +1027,11 @@ pub struct Settings {
     /// The «EasyIsland» folder in the Start menu with the integrations (startmenu.rs).
     #[serde(default = "default_true")]
     pub start_menu: bool,
+    /// «Launcher» instead of the island (26 Nov 2026, Edoardo): no resting
+    /// island, character or fixed bar; a window of its own (src/island/launcher.ts)
+    /// with the chat and the integrations. Requests still open the island.
+    #[serde(default)]
+    pub launcher: bool,
     /// Options of the integrations that run as checks (PROBE_INTEGRATIONS).
     #[serde(default)]
     pub integration_config: IntegrationConfig,
@@ -1336,6 +1341,7 @@ impl Default for Settings {
             habits_excluded: Vec::new(),
             update_check: true,
             start_menu: true,
+            launcher: false,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),
         }
@@ -1446,6 +1452,10 @@ impl Settings {
 impl Settings {
     /// «Barra fissa» on: its edge ("top" / "bottom").
     pub fn bar_edge(&self) -> Option<&'static str> {
+        // The Launcher has no bar.
+        if self.launcher {
+            return None;
+        }
         match self.fixed_bar.as_str() {
             "top" => Some("top"),
             "bottom" => Some("bottom"),

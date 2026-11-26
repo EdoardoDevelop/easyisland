@@ -158,6 +158,37 @@ pub fn sync(items: &[Item], on: bool) -> Result<usize, String> {
     Ok(wanted.saturating_sub(2))
 }
 
+/// The Launcher (settings.rs `launcher`) starts from an icon on the desktop
+/// too (Edoardo, 26 Nov 2026): «EasyIsland» there when none is. Never removed
+/// (it may be the installer's or one the user moved), never written over.
+pub fn desktop_icon() {
+    use windows::Win32::System::Com::CoTaskMemFree;
+    use windows::Win32::UI::Shell::{FOLDERID_Desktop, SHGetKnownFolderPath, KF_FLAG_DEFAULT};
+    std::thread::spawn(|| {
+        let desk = unsafe {
+            let Ok(p) = SHGetKnownFolderPath(&FOLDERID_Desktop, KF_FLAG_DEFAULT, None) else { return };
+            let path = p.to_string().ok().map(PathBuf::from);
+            CoTaskMemFree(Some(p.0 as _));
+            path
+        };
+        let Some(link) = desk.filter(|d| d.is_dir()).map(|d| d.join("EasyIsland.lnk")) else { return };
+        if link.exists() {
+            return;
+        }
+        let Ok(exe) = std::env::current_exe().map(|e| local_path(&e)) else { return };
+        unsafe {
+            let init = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+            match write_link(&link, &exe, "", t("Apri EasyIsland"), None) {
+                Ok(()) => crate::log::line("Launcher: icona sul desktop"),
+                Err(e) => crate::log::line(format!("Launcher: icona sul desktop non creata: {e}")),
+            }
+            if init.is_ok() {
+                CoUninitialize();
+            }
+        }
+    });
+}
+
 unsafe fn write_link(path: &Path, exe: &Path, args: &str, desc: &str, icon: Option<&Path>) -> windows::core::Result<()> {
     unsafe {
         let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;

@@ -13,8 +13,12 @@ import { entryPath, loadSettingsIndex, saveSettingsIndex, searchSettings, type S
 export interface SearchDeps {
   /** Every page: id, its name in the menu, and its sections drawn now. */
   pages(): { id: string; label: string; sections: () => HTMLElement[] }[];
-  /** The tabs of Aspetto (drawn one at a time, unlike the other pages' tabs). */
+  /** The tabs of Aspetto (drawn one at a time, unlike the other pages' tabs), also those the Launcher hides. */
   lookTabs(): [string, string][];
+  /** A tab of Aspetto only for the island on the screen (hidden with the Launcher). */
+  islandOnlyTab(tab: string): boolean;
+  /** The Launcher is in use: what is only for the island is not offered. */
+  launcher(): boolean;
   /** Runs `fn` with that tab of Aspetto as the one drawn; puts the old one back. */
   withLookTab<T>(tab: string, fn: () => T): T;
   /** Shows that page on that tab (render()), with that integration open when `item` is one. */
@@ -84,9 +88,11 @@ function collect(scope: HTMLElement, page: string, pageLabel: string, lookTab?: 
     const base = `${page}|${tab}|${label}`;
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
+    // Only for the island on the screen: its row, its section or its whole tab of Aspetto (main.ts island-only).
+    const island = !!el.closest(".island-only") || (!!lookTab && !!deps?.islandOnlyTab(lookTab[0]));
     out.push({
       el,
-      entry: { key: `${base}#${n}|${item}`, page, pageLabel, tab, tabLabel: tLabel, section, label, hint: hint.slice(0, 400), words: words.slice(0, 300) },
+      entry: { key: `${base}#${n}|${item}`, page, pageLabel, tab, tabLabel: tLabel, section, label, hint: hint.slice(0, 400), words: words.slice(0, 300), island },
     });
   };
   // Rows: «label + control + hint».
@@ -205,7 +211,7 @@ function clearSearch() {
 /** The results in the page's place. */
 export function resultsView(): HTMLElement {
   clear(results);
-  const found = searchSettings(ensureIndex(), query, 40);
+  const found = searchSettings(ensureIndex(), query, 40, !!deps?.launcher());
   picked = Math.min(picked, Math.max(0, found.length - 1));
   const head = h("header", { class: "page-head" },
     h("h1", { text: t("Cerca: «{q}»", { q: query.trim() }) }),

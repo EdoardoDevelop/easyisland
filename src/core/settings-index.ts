@@ -19,6 +19,8 @@ export interface SettingsEntry {
   hint: string;
   /** The choices it offers (options of a select, buttons of a segmented control). */
   words: string;
+  /** Only for the island on the screen: not offered with the Launcher (settings.css .island-only). */
+  island?: boolean;
 }
 
 interface Stored {
@@ -27,7 +29,8 @@ interface Stored {
   entries: SettingsEntry[];
 }
 
-const KEY = "easyisland.settings.index";
+// «.2»: the entries have `island` (26 Nov 2026); an older index is built again.
+const KEY = "easyisland.settings.index.2";
 
 export function saveSettingsIndex(version: string, language: string, entries: SettingsEntry[]) {
   try {
@@ -88,7 +91,9 @@ export function scoreEntry(e: SettingsEntry, query: string): number {
 }
 
 /** The best entries for the words typed, best first. */
-export function searchSettings(entries: SettingsEntry[], query: string, max = 30): { entry: SettingsEntry; score: number }[] {
+/** `launcher`: the Launcher is in use, what is only for the island on the screen is left out. */
+export function searchSettings(entries: SettingsEntry[], query: string, max = 30, launcher = false): { entry: SettingsEntry; score: number }[] {
+  if (launcher) entries = entries.filter((e) => !e.island);
   const exact = entries
     .map((entry) => ({ entry, score: scoreEntry(entry, query) }))
     .filter((x) => x.score > 0)

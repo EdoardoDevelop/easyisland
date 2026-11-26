@@ -2,6 +2,11 @@
 > section: Getting started
 > summary: How it opens, what it holds and how to use it with the mouse and the keyboard.
 
+## Island or Launcher
+**Settings → General → How you use EasyIsland**:
+- **Island** (default): the character stays on the screen and the island opens from there.
+- **Launcher**: nothing on the screen, neither character nor fixed bar. EasyIsland is a **Windows window** with everything the island has (Overview, Agents, Chat, integrations…, with the character at the top of the menu): open it from the taskbar, the **EasyIsland** folder in Start, the notification area icon or the shortcut, and it stays open until you close it. Closed, EasyIsland stays in the notification area and keeps working: notices arrive in their small window (bottom right if you had chosen "under the island") and permission requests open it by themselves. Choosing the Launcher puts an **EasyIsland icon on the desktop**; to keep it on the taskbar, with the Launcher open right-click its icon → **Pin to taskbar** (Windows does not let programs do it). Started with Windows it stays closed; started by you it opens. Like other apps it reopens where and as big as you left it (so do the chat and the integrations in their windows).
+
 ## The character and its states
 At rest the character sits in the corner you picked (top centre by default) and moves gently, as if floating. It changes colour with the most urgent state: **blue** while an agent works, **amber** for a pending permission, **red** for an error, **green** when something finished well. When a tab is open it wears that integration's colour.
 

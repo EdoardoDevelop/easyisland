@@ -494,7 +494,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     // «posizione ricerca», «davanti al cliente» → that page, that tab, the control lit.
     if (q.length >= 3) {
       const index = loadSettingsIndex();
-      for (const { entry: e, score: s } of index ? searchSettings(index.entries, input.value, 4) : []) {
+      for (const { entry: e, score: s } of index ? searchSettings(index.entries, input.value, 4, !!State.settings.launcher) : []) {
         const place = [e.pageLabel, e.tabLabel].filter(Boolean).join(" › ");
         // On the scale of the other kinds: its name from the start 3, every word in its name 2, else 1.
         const whole = s >= 4 && fold(e.label).startsWith(q);

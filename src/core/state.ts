@@ -906,6 +906,12 @@ export interface Settings {
   closeButton: boolean;
   /** The island as an app: taskbar button always, Alt+Tab, — and ▢ in the header. */
   islandApp?: boolean;
+  /**
+   * «Launcher» (Impostazioni → Generale): the island is a window of Windows,
+   * opened from the taskbar, the Start menu, the tray or the shortcut, and not
+   * on the screen when closed (no character, no fixed bar).
+   */
+  launcher?: boolean;
   /** Opened by the user: it stays open as with 📌. */
   stayOpenByUser?: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -1558,6 +1564,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fixedBarFigure: "",
   closeButton: true,
   islandApp: false,
+  launcher: false,
   stayOpenByUser: false,
   followCursorCompact: false,
   presenceMeeting: true,

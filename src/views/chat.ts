@@ -28,6 +28,7 @@ import * as Notices from "../notices/notices";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
+import { frameFor, winOf } from "../core/motion";
 
 let nextId = 1;
 
@@ -439,7 +440,7 @@ function contextChip(label: string, thumb?: string, remove?: () => void, removeT
   const lead = thumb ? h("img", { class: "chip-thumb", src: thumb, alt: "" }) : h("i", { class: "chip-dot" });
   const chip = h("div", { class: "chip" }, lead, h("span", { text: label }));
   if (remove) chip.append(h("button", { class: "chip-del", title: removeTitle, text: "✕", onclick: remove }));
-  requestAnimationFrame(() => chip.classList.add("settled"));
+  frameFor(chip, () => chip.classList.add("settled"));
   return chip;
 }
 
@@ -1045,7 +1046,7 @@ export function buildPrompt(
     layout.style.setProperty("--side-w", `${w}px`);
     // The island grows with it, once a frame.
     if (!gripFrame) {
-      gripFrame = requestAnimationFrame(() => {
+      gripFrame = winOf(layout).requestAnimationFrame(() => {
         gripFrame = 0;
         State.notify();
         onHeightChange();
@@ -1286,7 +1287,7 @@ export function buildPrompt(
         }, { passive: false });
         new ResizeObserver(arrows).observe(strip);
         tipsRow.replaceChildren(h("span", { class: "chat-tips-label", text: t("Puoi chiedere:") }), prev, strip, next, close);
-        requestAnimationFrame(arrows);
+        frameFor(strip, arrows);
       }
       if ((tipsRow.style.display !== "none") !== show) {
         tipsRow.style.display = show ? "" : "none";
