@@ -5,7 +5,7 @@
 ![The chat from the island](../media/chat.png)
 
 ## Writing
-- An **empty chat** shows a faint, slow drawing until you write: **Ezzy** floating by default; in Settings → Appearance → Chat → **Empty chat** you can pick a turning island, a sea of dots, a starry sky, an aurora, a network of dots or nothing. It stops when the chat is not in view and stays still if Windows reduces animations. Under the drawing are your **last three conversations**: one click picks one up again.
+- An **empty chat** shows a faint, slow drawing until you write: **Ezzy** floating by default; in Settings → Appearance → Chat → **Empty chat** you can pick a turning island, a sea of dots, a starry sky, an aurora, a network of dots, fireflies, snow, light rain, bubbles, drops on water, a solar system, a galaxy, a radar, falling code, silk threads, a grid to the horizon, clouds, constellations, a heartbeat, wind, leaves, lanterns, **All** (a different one for each new conversation) or nothing. It stops when the chat is not in view and stays still if Windows reduces animations. Under the drawing are your **last three conversations**: one click picks one up again.
 - The field is **multi-line**: <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. What you're writing survives a restart. <kbd>↑</kbd> in an empty field brings back the last question.
 - Answers are in **markdown**: headings, lists, tables, code with **Copy**. While the engine works you see its reasoning and the tools it uses: the current one types itself at the bottom, with a caret. When the answer is done the steps fold into **N steps**: a click opens them.
 - With Terminal mode, **Project…** under the field picks this chat's folder, so it reads the project's rules and git; the button also shows the branch. With Claude Code, a ring under the field says how full the conversation's context is: from 80% it turns orange, and it is time to start a new one. **Default folder** uses the one in Settings. Changing it opens a new conversation.
@@ -50,6 +50,24 @@ Images go to models that can read them, text files into the message, PDFs to Cla
 The files and folders the chat names in its replies become **links**: full paths (`C:\…`, `\\server\…`), in backticks, also relative to the chat's folder, or as links; a `:line` at the end is fine. Only those that **exist** become links; one that is no longer there stays grey and struck through.
 - **Click**: a file the Preview can show (text, code, Markdown, PDF, images, HTML…) opens **in the Preview** beside the chat; the others, and with <kbd>Ctrl</kbd>+click, in their program. A **folder** 📁 opens in File Explorer.
 - **Right-click**: **Open** (in its program), **Preview**, **Download** (a copy in the Downloads folder, which opens with the file selected), **Open location** (File Explorer with the file selected), **Copy path**.
+
+### Searching the conversation
+<kbd>Ctrl</kbd>+<kbd>F</kbd> in the chat field opens the search above the messages: the words found are coloured, <kbd>Enter</kbd> and <kbd>Shift</kbd>+<kbd>Enter</kbd> move to the next and previous one, <kbd>Esc</kbd> closes. Case and accents do not matter; if you selected a word in the chat, it looks for that.
+
+When a long answer (over half a minute) ends while you are looking at something else, a **notice** with **Open** takes you to that conversation. What you were writing in a conversation stays with it: you find it again when you reopen it, even after restarting EasyIsland.
+
+### How the replies look
+The reply **flows in**: new words appear with a light fade and the conversation glides to the bottom. While the engine works, the line below shows the step in progress with its **icon** (file read, search, command, page…) in a turning ring; finished steps get a green **tick**, failed ones a red mark.
+
+Notices are **coloured boxes** with an icon and a title: **Note** (blue), **Tip** (green), **Important** (purple), **Warning** (orange), **Danger** (red, for what cannot be undone). In **tables** numbers sit on the right and amounts get a bar as long as their share of the largest; states (OK, Error, Active, Yes, No, Pending…) become coloured labels; a long table keeps its header in view while it scrolls. With **Settings → Appearance → Animations** set to off, replies appear without movement.
+
+### Procedures and commands to complete
+When the reply is a procedure, its steps have a **box**: tick them as you go and see “3 of 7 done”; the ticks stay when you reopen the conversation (on this PC). **?** beside a step writes a question about it in the field; **Save to memory** prepares the request to save it in a client's or topic's page. Either way you complete and send it.
+
+A command with values to choose (IP, gateway, user, path) has **fields above the code**: type the values and the command completes itself; **Copy**, **Save** and **▶ In the terminal** use the completed one, and “In the terminal” turns on only when every field is filled. A value typed once repeats in the other commands with the same field.
+
+### Diagrams in the replies
+Ask “draw the network”, “draw the steps”, “a chart of tickets per month”: the reply holds a drawing (networks, steps with choices, exchanges between systems, plans over time, linked tables, pies and bars). The engine may also use one by itself when it explains better than words. A click, or **⤢**, enlarges it (wheel to zoom, drag to move, <kbd>Esc</kbd> to close); **Copy** puts it on the clipboard as an image on white, **Save** writes an SVG, **Code** shows the text it comes from. It is drawn on the PC, with no network; if the text has a mistake it stays as code.
 
 ## Tips and “What I can do”
 Over the field **You can ask:** shows a few tips for what is in front of you: a page with products in the Preview (“Read the products”, “Learn this portal”), a login form (“Sign in with Devolutions”), a portal already taught, two or more PDFs in the Tray. With the memory on there are also questions with **📒** about the clients and topics in front of you (the Preview's page, the Tray's files, the last question): “What I know of Farmacia Falchi”, “VM of Farmacia Falchi”. They are only questions EasyIsland answers by itself from the memory, at once and with no tokens, never one already asked in the conversation. A click writes the request in the field **without sending it**, with the part to fill in already selected; **✕** hides them until the page changes. EasyIsland picks them on the PC, with rules and search by meaning: they cost nothing. They sit on one line that scrolls with the wheel, the ‹ › arrows or the bar; with a menu open they hide. Turn them off in **Settings → Appearance → Chat → Tips**.

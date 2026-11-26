@@ -15,7 +15,11 @@ import { isPopped } from "../island/popout";
 import { TypeLine, splitStatus } from "./typeline";
 import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
+import { docsPanel } from "./chat-docs";
 import { ReplyBlocks } from "./chat-live";
+import { chatFind } from "./chat-find";
+import { FreshText, Glide } from "./chat-flow";
+import * as Notices from "../notices/notices";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
@@ -205,6 +209,33 @@ function saveQueues(all: string[]) {
     /* storage off: the queue just does not survive */
   }
 }
+/** The drafts of the conversations in the history, by id: back when one is reopened, after a restart too. */
+const DRAFTS_KEY = "easyisland.chatDrafts";
+/** An answer longer than this, ended out of sight, says so (doneNotice). */
+const LONG_TURN = 30_000;
+const DRAFTS_KEPT = 60;
+function draftsAll(): Record<string, string> {
+  try {
+    const all: unknown = JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}");
+    return all && typeof all === "object" ? (all as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+/** What is written in `c`'s field, kept under its id in the history (none yet: only the field's own draft). */
+function keepDraft(c: ChatSessionState, text: string) {
+  if (!c.logId) return;
+  try {
+    const all = draftsAll();
+    delete all[c.logId];
+    if (text.trim()) all[c.logId] = text;
+    const keys = Object.keys(all);
+    for (const old of keys.slice(0, Math.max(0, keys.length - DRAFTS_KEPT))) delete all[old];
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+  } catch {
+    /* storage off: the draft lasts as long as the conversation stays open */
+  }
+}
 function saveDraft(text: string) {
   try {
     if (text.trim()) localStorage.setItem(DRAFT_KEY, text);
@@ -237,6 +268,9 @@ function usageMark(u: TurnUsage): HTMLElement {
   const text = `${u.light ? "⤓ " : ""}${t("{s} passi · {r} letti", { s: u.steps, r: k(u.read) })}`;
   return h("span", { class: "msg-usage", title: lines.join("\n"), text });
 }
+
+/** Messages just sent: their row comes in once with a short rise (chat-flow). */
+const entering = new WeakSet<ChatMessage>();
 
 function bubble(message: ChatMessage, live = false): HTMLElement {
   if (message.role === "user") {
@@ -272,12 +306,14 @@ const MD_HOOKS = {
   canRun: (lang: string) => codeShell(lang) !== null,
   runCode: (code: string, lang: string) => codeHooks.run(code, lang),
   saveCode: (code: string, lang: string) => codeHooks.save(code, lang),
+  ask: (text: string) => codeHooks.ask(text),
 };
 
 /** What the chat's view does with a block of code (set by buildPrompt, which has the terminal). */
-const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; wsl: boolean } = {
+const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; ask(text: string): void; wsl: boolean } = {
   run: () => {},
   save: () => {},
+  ask: () => {},
   wsl: false,
 };
 
@@ -296,7 +332,7 @@ function codeFileName(lang: string): string {
   const ext: Record<string, string> = {
     powershell: "ps1", ps1: "ps1", ps: "ps1", pwsh: "ps1", cmd: "bat", bat: "bat", batch: "bat", dos: "bat",
     bash: "sh", sh: "sh", shell: "sh", zsh: "sh", javascript: "js", js: "js", typescript: "ts", ts: "ts",
-    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml",
+    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml", mermaid: "mmd", mmd: "mmd",
     svg: "svg", css: "css", yaml: "yml", yml: "yml", ini: "ini", toml: "toml", csharp: "cs", cs: "cs", go: "go",
     java: "java", php: "php", cpp: "cpp", c: "c", markdown: "md", md: "md", diff: "diff", nginx: "conf", env: "env",
   };
@@ -332,7 +368,8 @@ async function checkPaths(root: HTMLElement) {
     const info = pathSeen.get(key(e.dataset.path ?? ""))?.info;
     if (!info) continue;
     // A bare relative path that is not there: back to plain text (markdown.ts).
-    if (info.kind === "missing" && e.dataset.bare) {
+    // So is a missing one with spaces: words of the sentence taken for its names.
+    if (info.kind === "missing" && (e.dataset.bare || (/\s/.test(e.dataset.path ?? "") && e.tagName !== "CODE"))) {
       e.classList.remove("md-path");
       delete e.dataset.path;
       e.removeAttribute("title");
@@ -447,6 +484,8 @@ function slug(name: string): string {
 export function buildPrompt(
   onHeightChange: () => void,
   actions: {
+    /** The island on a view (opens it if shut). */
+    setView(v: "prompt"): void;
     runAction(a: QuickAction): void;
     decide(d: "allow" | "deny" | "always"): void;
     answerQuestions(answers: Record<string, string>): void;
@@ -584,8 +623,38 @@ export function buildPrompt(
     toggleHelp();
   });
   moreMenu.append(desktopBtn, exportBtn, popBtn, helpBtn);
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, moreBtn, moreMenu);
+  // The open conversations as tabs over the chat (Edoardo, 24 Nov 2026: «aprire le chat come
+  // schede/tab invece di singola»): drawn by renderTabs, the same ones as «Aperte» in the sidebar.
+  const tabsRow = h("div", { class: "chat-tabs", role: "tablist" });
+  // In the chat panel's tab (island/dock.ts) only the chat's icon moves the panel (Edoardo,
+  // 24 Nov 2026: «le tab non me lo devono permettere di trascinare»): a press on the tabs
+  // never reaches the panel's tab, which starts its drag on it.
+  for (const ev of ["pointerdown", "mousedown", "touchstart", "dragstart"]) {
+    tabsRow.addEventListener(ev, (e) => {
+      if (!tabsRow.classList.contains("in-dock")) return;
+      e.stopPropagation();
+      if (ev === "dragstart") e.preventDefault();
+    });
+  }
+  // The wheel over the tabs scrolls them sideways (the row has no bar).
+  tabsRow.addEventListener("wheel", (e) => {
+    if (!e.deltaY || tabsRow.scrollWidth <= tabsRow.clientWidth) return;
+    e.preventDefault();
+    tabsRow.scrollLeft += e.deltaY;
+  }, { passive: false });
+  // «Documenti»: the files this conversation made or named, in a panel beside it (chat-docs.ts).
+  const docsBtn = h("button", { class: "history-btn", title: t("Documenti: i file creati o nominati in questa conversazione") }, svg(ICONS.doc, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  const docs = docsPanel();
+  // Their panel has gone (island/dock.ts): back where they belong, hidden if closed.
+  termRow.addEventListener("dock-left", () => placeTerminal());
+  docs.el.addEventListener("dock-left", () => placeDocs());
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, docsBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
+  // The reply flowing in: its new words fade in, the log glides to them (chat-flow.ts).
+  const flowIn = new FreshText();
+  const glide = new Glide(log);
+  // Ctrl+F: a field over the messages (chat-find.ts).
+  const finder = chatFind(log);
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
   // from the chat (asked by Edoardo on 27 Oct 2026).
@@ -787,7 +856,7 @@ export function buildPrompt(
     h("div", { class: "chat-ctx-right" }, contextMeter),
   );
   const tools = h("div", { class: "chat-tools" }, slashQuickBtn, atQuickBtn, fresh, remoteBtn, teamBtn, clip, mic, send);
-  const bar = h("div", { class: "chat-bar" }, field, tools);
+  const bar = h("div", { class: "chat-bar" }, h("div", { class: "chat-glow" }), field, tools);
   const composer = h("div", { class: "chat-composer" }, ctxBar, bar, engineMenu);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
@@ -924,7 +993,7 @@ export function buildPrompt(
       if (shown) placeRecent();
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, tabsRow, head, finder.el, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
   const el = h(
     "div",
     { class: "view" },
@@ -1072,6 +1141,7 @@ export function buildPrompt(
     input.value = text;
     fit();
     saveDraft(text);
+    keepDraft(State.chat, text);
     updateCalc();
     updateSlash();
   }
@@ -1207,6 +1277,7 @@ export function buildPrompt(
     c.sending = true;
     c.stopping = false;
     c.at = Date.now();
+    const began = Date.now();
     if (c === State.chat) stick = true;
     if (overlay && c === State.chat) showSide(false);
     // «Modifica»: the conversation goes back to just before that question.
@@ -1226,7 +1297,9 @@ export function buildPrompt(
     const attach = c.attach;
     c.attach = [];
     const first = c.history.length === 0;
-    c.history.push({ id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined });
+    const mine: ChatMessage = { id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined };
+    entering.add(mine);
+    c.history.push(mine);
     State.stateOverride = "thinking";
     State.notify();
     onHeightChange();
@@ -1300,6 +1373,7 @@ export function buildPrompt(
       c.history.push({ id: nextId++, role: "assistant", content: afterCut(reply.text, c.streamCut), engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
+      doneNotice(c, began, true);
     } catch (err) {
       takeReplyHook()?.(null);
       if (c.stopping) {
@@ -1317,6 +1391,7 @@ export function buildPrompt(
         c.history.push({ id: nextId++, role: "assistant", content: `⚠ ${message}` });
       }
       Sound.play("error");
+      doneNotice(c, began, false);
     } finally {
       c.sending = false;
       c.stopping = false;
@@ -1978,11 +2053,38 @@ export function buildPrompt(
     input.focus();
   }
 
+  /**
+   * A long answer (over LONG_TURN) ended where it is not seen (another tab,
+   * the island shut, the PC on something else): a notice that opens it.
+   */
+  function doneNotice(c: ChatSessionState, began: number, ok: boolean) {
+    if (Date.now() - began < LONG_TURN) return;
+    const seen = c === State.chat && (isPopped("chat") || (State.mode === "expanded" && State.view === "prompt" && document.hasFocus()));
+    if (seen) return;
+    const first = c.history.find((m) => m.role === "user")?.content ?? "";
+    const go = () => {
+      if (!State.chats.includes(c)) return;
+      actions.setView("prompt");
+      window.setTimeout(() => switchTo(c.sid), 60);
+    };
+    Notices.push({
+      key: `chat:${c.sid}`,
+      icon: ok ? "💬" : "⚠️",
+      title: ok ? t("Risposta pronta") : t("La risposta si è fermata con un errore"),
+      text: first ? shortTitle(first) : undefined,
+      level: ok ? "ok" : "warn",
+      actions: [{ label: t("Apri"), run: go }],
+      open: go,
+    });
+  }
+
   /** What stays of the conversation leaving the screen: the field's text. An empty one goes. */
   function leave() {
     const c = State.chat;
     c.draft = input.value;
-    if (!c.history.length && !c.sending && !c.text && !c.window && !c.attach.length && !c.session && !c.assistant && State.chats.length > 1) {
+    keepDraft(c, c.draft);
+    // A new conversation with only something written in the field stays open with it.
+    if (!c.draft.trim() && !c.history.length && !c.sending && !c.text && !c.window && !c.attach.length && !c.session && !c.assistant && State.chats.length > 1) {
       State.chats = State.chats.filter((x) => x !== c);
       void Bridge.chatClose(c.sid);
     }
@@ -2609,6 +2711,9 @@ export function buildPrompt(
    * panels are showing, in the chat's layout otherwise.
    */
   function placeSide() {
+    // Closing in a panel: left there until the panel has gone (island/dock.ts
+    // sends «dock-left»), so the panel slides away with its content, not empty.
+    if (!sideOpen && side.isConnected && side.parentElement?.hasAttribute("data-side-home")) return;
     const home = sideOpen ? layout.ownerDocument.querySelector<HTMLElement>("[data-side-home]") : null;
     if (home) {
       if (side.parentElement !== home) home.append(side);
@@ -2618,13 +2723,22 @@ export function buildPrompt(
   const sideDocked = () => !!side.parentElement?.hasAttribute("data-side-home");
   // The ✕ of its tab (island/dock.ts).
   side.addEventListener("dock-close", () => showSide(false));
+  side.addEventListener("dock-left", () => placeSide());
   // In a panel of the chat's window: taken home before that window goes (popout.ts rescue).
   side.dataset.followsView = "";
 
+  let dockWaitTimer = 0;
   function applySide(quiet = false) {
     placeSide();
     const open = narrow ? overlay : sideOpen;
     layout.classList.toggle("side-open", open);
+    // With the chat's panels on hand (island/dock.ts) the conversations wait for
+    // theirs: shown in the layout first, they flashed there for a frame or two
+    // before the panel took them (25/11/2026). Shown here after 400 ms if no panel does.
+    window.clearTimeout(dockWaitTimer);
+    const waits = sideOpen && !narrow && !sideDocked() && !!layout.ownerDocument.querySelector(".chat-dock");
+    layout.classList.toggle("dock-waits", waits);
+    if (waits) dockWaitTimer = window.setTimeout(() => layout.classList.remove("dock-waits"), 400);
     layout.classList.toggle("narrow", narrow);
     sideBtn.classList.toggle("on", open);
     // Asked even while it floats: the island grows as soon as the screen leaves room.
@@ -2702,6 +2816,96 @@ export function buildPrompt(
     if (c.sending) return h("span", { class: "side-badge busy", title: t("Sta rispondendo") });
     if (c.unread) return h("span", { class: "side-badge unread", title: t("Risposta nuova") });
     return null;
+  }
+
+  /** A conversation's name on its tab: its saved title, else its first question. */
+  function tabTitle(c: ChatSessionState): string {
+    const saved = c.logId ? lastList.find((x) => x.id === c.logId)?.title : "";
+    const first = c.history.find((m) => m.role === "user")?.content ?? "";
+    return (saved || first || t("Nuova chat")).replace(/\s+/g, " ").trim();
+  }
+
+  /** The tab's ✕ (or a middle click): the conversation closes, kept in the history. Not while it answers. */
+  function closeTab(c: ChatSessionState) {
+    if (c.sending) {
+      flash(t("Sta ancora rispondendo: fermala prima di chiuderla"));
+      return;
+    }
+    const others = State.chats.filter((x) => x !== c);
+    State.chats = others;
+    void Bridge.chatClose(c.sid);
+    if (c.sid === State.chatSid) {
+      const next = [...others].sort((a, b) => b.at - a.at)[0];
+      if (next) show(next);
+      else {
+        const n = newChatSession();
+        State.chats.push(n);
+        show(n);
+      }
+    } else {
+      State.notify();
+      renderSide();
+    }
+  }
+
+  /**
+   * Where the tabs go: in the chat panel's own tab when the panels show
+   * (island/dock.ts, the bar that drags the panel), else over the head.
+   */
+  function placeTabs() {
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-chat-tabs-home]");
+    if (dockHome?.isConnected) {
+      if (tabsRow.parentElement !== dockHome) dockHome.append(tabsRow);
+      tabsRow.classList.add("in-dock");
+    } else {
+      if (tabsRow.nextElementSibling !== head && head.parentElement) head.parentElement.insertBefore(tabsRow, head);
+      tabsRow.classList.remove("in-dock");
+    }
+  }
+
+  let tabsDrawn = "";
+  /** The tabs, drawn again only when what they show changes (a title, the one on screen, a state). */
+  function renderTabs() {
+    placeTabs();
+    const list = State.chats;
+    const state = (c: ChatSessionState) => (State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid === c.sid ? "ask" : c.sending ? "busy" : c.unread ? "unread" : "");
+    const key = list.map((c) => `${c.sid}|${tabTitle(c)}|${state(c)}|${c.sid === State.chatSid ? 1 : 0}`).join("§");
+    if (key === tabsDrawn) return;
+    tabsDrawn = key;
+    const tabs = list.map((c) => {
+      const on = c.sid === State.chatSid;
+      const name = tabTitle(c);
+      const x = h("span", { class: "chat-tab-x", title: t("Chiudi questa conversazione"), text: "✕" });
+      const tab = h("button", { class: `chat-tab${on ? " on" : ""}`, role: "tab", "aria-selected": on ? "true" : "false", title: name },
+        ...[badge(c)].filter((b): b is HTMLElement => !!b),
+        h("span", { class: "chat-tab-name", text: name }),
+        x) as HTMLButtonElement;
+      tab.addEventListener("click", (e) => {
+        if (x.contains(e.target as Node)) {
+          e.stopPropagation();
+          closeTab(c);
+          return;
+        }
+        switchTo(c.sid);
+      });
+      // A double click on a conversation is not the panel's (that one makes it bigger).
+      tab.addEventListener("dblclick", (e) => e.stopPropagation());
+      // Middle click closes, as in a browser.
+      tab.addEventListener("auxclick", (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        closeTab(c);
+      });
+      return tab;
+    });
+    const add = h("button", { class: "chat-tab-add", title: t("Nuova conversazione in una scheda"), text: "+" }) as HTMLButtonElement;
+    add.addEventListener("click", () => {
+      openNew();
+      input.focus();
+    });
+    tabsRow.replaceChildren(...tabs, add);
+    // The one on screen in view when the row scrolls.
+    tabsRow.querySelector<HTMLElement>(".chat-tab.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
   /** The sidebar drawn again from the last list (a conversation started, answered, switched). */
@@ -3008,6 +3212,8 @@ export function buildPrompt(
         // The messages taken into that turn, each a question of its own again.
         : l.content.split("\n\n↪ ").map((content, i) => ({ id: nextId++, role: "user" as const, content, steered: i > 0 || undefined })));
       c.logId = id;
+      // What was being written in it, even before a restart.
+      if (!c.draft.trim()) c.draft = draftsAll()[id] ?? "";
       // Claude Code's session resumed: its context at once, read from the session's file.
       c.context = got.context ?? null;
       c.text = null;
@@ -3040,6 +3246,7 @@ export function buildPrompt(
         renderedCount = -1;
         stick = true;
         chipRow.dataset.label = "";
+        if (c.draft && !input.value.trim()) setInput(c.draft);
       }
       Sound.play("blip");
       State.notify();
@@ -3109,6 +3316,17 @@ export function buildPrompt(
   function placeTerminal() {
     const set = terms.get(State.chat.sid);
     const open = !!set?.list.length;
+    // Closing in a panel: left there until it has gone (as placeSide), but the
+    // state and the button change now: the panel goes because of them.
+    if (!open && termRow.isConnected && termRow.parentElement?.hasAttribute("data-term-home")) {
+      termBtn.classList.remove("on");
+      if (State.chatTermOpen) {
+        State.chatTermOpen = false;
+        State.notify();
+        onHeightChange();
+      }
+      return;
+    }
     termRow.style.display = open ? "" : "none";
     termBtn.classList.toggle("on", open);
     // The chat's panels (island/dock.ts): the terminal's own panel.
@@ -3294,8 +3512,40 @@ export function buildPrompt(
     if (terms.has(State.chat.sid)) closeAllTerminals();
     else void openTerminal();
   });
+  // «Documenti» (chat-docs.ts, 24 Nov 2026): the conversation's files in a panel beside the chat.
+  docs.el.addEventListener("dock-close", () => setDocs(false));
+  docsBtn.addEventListener("click", () => setDocs(!State.chatDocsOpen));
+  function setDocs(open: boolean) {
+    State.chatDocsOpen = open;
+    try {
+      localStorage.setItem("easyisland.chatDocs", open ? "1" : "");
+    } catch {
+      /* no storage */
+    }
+    placeDocs();
+    State.notify();
+    onHeightChange();
+  }
+  /** Where the documents' panel goes: its own panel of the dock, else beside the chat as the terminal. */
+  function placeDocs() {
+    const open = State.chatDocsOpen;
+    // Closing in a panel: left there until it has gone (as placeSide).
+    if (!open && docs.el.isConnected && docs.el.parentElement?.hasAttribute("data-docs-home")) {
+      docsBtn.classList.remove("on");
+      return;
+    }
+    docs.el.style.display = open ? "" : "none";
+    docsBtn.classList.toggle("on", open);
+    const dockHome = layout.ownerDocument.querySelector<HTMLElement>("[data-docs-home]");
+    const pane = layout.ownerDocument.getElementById("preview-pane");
+    const home = open ? dockHome ?? pane ?? layout : layout;
+    if (docs.el.parentElement !== home) home.append(docs.el);
+    if (open) docs.draw();
+  }
   // «▶ Nel terminale» under a block of code: a terminal of its shell, the code written in, Enter left to the user.
   codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
+  // A step asked about, a procedure to save (core/md-interactive.ts): in the field, its {{…}} selected.
+  codeHooks.ask = (text) => useTip({ label: "", prompt: text });
   codeHooks.save = (code, lang) => {
     void Bridge.saveCodeAs(codeFileName(lang), code)
       .then((path) => { if (path) flash(t("Salvato in {path}", { path })); })
@@ -3404,9 +3654,12 @@ export function buildPrompt(
   });
 
   log.addEventListener("scroll", () => {
+    if (glide.gliding) return;
     stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     jumpBtn.style.display = stick ? "none" : "";
   });
+  // A diagram drawn after its answer was laid (core/diagram.ts).
+  log.addEventListener("md-grew", () => { if (stick) log.scrollTop = log.scrollHeight; });
   jumpBtn.addEventListener("click", () => {
     stick = true;
     log.scrollTop = log.scrollHeight;
@@ -3414,7 +3667,7 @@ export function buildPrompt(
     input.focus();
   });
   function toBottom() {
-    if (stick) log.scrollTop = log.scrollHeight;
+    if (stick) glide.to(State.chat.sending);
     else jumpBtn.style.display = "";
   }
   const lineShows = () => State.mode === "expanded" || isPopped("chat");
@@ -3501,6 +3754,7 @@ export function buildPrompt(
     updateCalc();
     fit();
     saveDraft(input.value);
+    keepDraft(State.chat, input.value);
     slashSel = 0;
     updateSlash();
     refreshTips(true);
@@ -3516,6 +3770,11 @@ export function buildPrompt(
   input.addEventListener("keydown", (e) => {
     const k = e as KeyboardEvent;
     e.stopPropagation(); // Escape closes the island, not the chat
+    if (k.ctrlKey && !k.altKey && k.key.toLowerCase() === "f") {
+      e.preventDefault();
+      finder.open();
+      return;
+    }
     if (k.ctrlKey && !k.altKey && k.key.toLowerCase() === "b") {
       e.preventDefault();
       showSide(!(narrow ? overlay : sideOpen));
@@ -3597,6 +3856,8 @@ export function buildPrompt(
     el,
     sync() {
       placeTerminal();
+      placeDocs();
+      renderTabs();
       const file = State.droppedFile;
       const text = State.chatText;
       const win = State.chatWindow;
@@ -3813,7 +4074,11 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         clear(log);
         streamEl = null;
         const list = State.chatHistory;
-        list.forEach((m, i) => log.append(withActions(bubble(m), m, i, i === list.length - 1)));
+        list.forEach((m, i) => {
+          const row = withActions(bubble(m), m, i, i === list.length - 1);
+          if (entering.delete(m)) row.classList.add("enter");
+          log.append(row);
+        });
         if (!thinking && !sending && !asked && reviewable()) log.append(secondRow());
         if (thinking && streamed) {
           streamEl = h("div", { class: "chat-row" });
@@ -3830,8 +4095,10 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         streamEl.dataset.len = String(body.length);
         streamEl.style.display = body ? "" : "none";
         streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }, true).firstChild!] : []));
+        flowIn.drawn(streamEl);
         toBottom();
       }
+      if (!thinking) flowIn.reset();
       // What it is doing now types itself under the reply.
       if (thinking) typeLine.set(streamed ? status : null);
       else typeLine.reset();
@@ -3868,7 +4135,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
       }
       // An empty conversation: its quiet picture (Impostazioni → Chat → «Chat vuota»).
       const blank = !State.chatHistory.length && !sending && !req && !asked;
-      empty.show(blank ? emptyArt(State.settings.chatEmptyArt) : null);
+      empty.show(blank ? emptyArt(State.settings.chatEmptyArt, State.chat.sid) : null);
       showRecent(blank);
       refreshTips();
       const elsewhere = State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid && State.pendingApproval.chatSid !== State.chatSid

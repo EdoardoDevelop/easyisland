@@ -134,6 +134,25 @@ of memory_search, memory_page and memory_note for several at once; load all the 
 Respond in Italian unless the user writes in another language, also after reading skills, files or pages in English. Be thorough and complete: use as much detail as the task requires. \
 Markdown is rendered: use lists, tables and code blocks when they help.";
 
+/// How a reply is laid out, for every engine of the chat (24 Nov 2026, Edoardo:
+/// «vorrei che la chat mi generi un qualcosa che di visivo sia bello e facile da
+/// leggere»; the chat draws titles, tables, code, codes that copy and notices
+/// as in his concept, core/markdown.ts).
+pub(crate) const REPLY_FORM: &str = " \
+Lay replies out to be read at a glance (the chat draws them as cards): \
+a technical answer with more than one part gets short numbered sections with ## titles (## 1. ..., ## 2. ...); \
+data the user will copy or compare (IP addresses, hosts, users, ports, prices, versions, dates) goes in a Markdown table; \
+every command or script goes in a fenced block with its language (```powershell, ```bash, ```cmd); \
+IP addresses, host names, codes, short commands and single values go inside backticks, so a click copies them; \
+when there is a risk or something to check first, add one line starting with \"> Attenzione:\" (or \"> Nota:\", \"> Suggerimento:\", \"> Importante:\"; \"> Pericolo:\" for what cannot be undone, as deleting data); \
+in tables, states are single words (OK, Errore, Attivo, Sì, No) and amounts plain numbers with their unit: the chat colours the states and draws bars for the amounts; \
+a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines; \
+steps the user will carry out one by one are a task list (\"- [ ] step\"): the chat shows boxes to tick; \
+in a command or script, a value the user must supply is {{Name}} or {{Name|example}} (IP, host, user, path), never a made-up value: the chat shows fields above the code; \
+when steps with choices, how devices or systems are connected, an exchange between parties or a timeline read better drawn than told, \
+add one ```mermaid block (flowchart TD, sequenceDiagram, erDiagram, gantt; pie or xychart-beta for a few numbers; at most 25 nodes; labels short, in the user's language and in double quotes; \
+no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \
+A short question gets a short answer: no titles, tables or notices for two lines.";
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
 /// the terminal); this goes after it. `{folder}` is the working folder.
 const TERMINAL_PROMPT: &str = "You are working on the user's Windows PC from the chat of the EasyIsland desktop app, \
@@ -363,6 +382,7 @@ fn work_dir(connectors: &Connectors, terminal: Option<&Path>) -> Result<PathBuf,
         Some(folder) => crate::i18n::prompt(&TERMINAL_PROMPT.replace("{folder}", &folder.to_string_lossy())),
         None => crate::i18n::prompt(SYSTEM_PROMPT),
     };
+    prompt.push_str(REPLY_FORM);
     if connectors.agent {
         // With the terminal's own tools the chat can run commands after all.
         prompt.push_str(&if terminal.is_some() { AGENT_PROMPT.replace(NO_COMMANDS, "") } else { AGENT_PROMPT.to_string() });

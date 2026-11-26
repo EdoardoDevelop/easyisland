@@ -281,6 +281,8 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
         (x, y)
     };
 
+    // Never SetWindowPos here (25/11/2026): called off the main thread it waits
+    // for it, and the app hung at start. Tauri's calls go through its event loop.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_position(PhysicalPosition::new(x, y));
     // Moving across displays can rescale the window: re-assert the physical size.
@@ -633,6 +635,11 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
             .unwrap_or(false);
         if over && gate.collapsed.load(Ordering::Relaxed) {
             raise_over_taskbar(&app);
+        }
+        // The fixed bar steps away from a full-screen app also when the shell does
+        // not say so (the Windows taskbar hidden): one look at the window in front.
+        if crate::appbar::window_rect().is_some() {
+            crate::appbar::full_screen_seen(crate::taskwin::fullscreen_front());
         }
         // Our own full-screen overlay is not a full-screen app.
         if CAPTURING.load(Ordering::Relaxed) {

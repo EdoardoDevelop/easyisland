@@ -253,7 +253,7 @@ pub async fn send(
     // The front end sends a context only with the first question or a file
     // added later (pasted in the chat, sent on Telegram): it always goes.
     chat.push(user_message(true, &query, context.as_ref()));
-    let mut messages = vec![json!({ "role": "system", "content": crate::i18n::prompt(SYSTEM_PROMPT) })];
+    let mut messages = vec![json!({ "role": "system", "content": format!("{}{}", crate::i18n::prompt(SYSTEM_PROMPT), crate::claude_cli::REPLY_FORM) })];
 
     messages.extend(chat.snapshot());
     // llama-server knows its model by the alias it was started with.

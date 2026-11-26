@@ -10,7 +10,8 @@
 // they stop by themselves when the line cannot be seen (`visible`): the next
 // `set()` picks up from there, so a retracted island costs nothing.
 
-import { h } from "./dom";
+import { h, svg } from "./dom";
+import { ICONS } from "./icons";
 import { t } from "../core/i18n";
 
 const TYPE_MS = 65;
@@ -50,6 +51,60 @@ export function splitStatus(text: string): { body: string; status?: string | nul
   return { body: at < 0 ? "" : text.slice(0, at), status: status.startsWith("💭") ? wholeSentence(status) : status };
 }
 
+/** Line icons of a step, by what it does (24 Nov 2026: steps as a timeline, Edoardo's «migliora i passi»). */
+const STEP_ICONS: [RegExp, string][] = [
+  [/^💭/u, "M12 5c4.4 0 8 2.7 8 6s-3.6 6-8 6c-.9 0-1.8-.1-2.6-.3L5.5 19l.9-3.4C4.9 14.5 4 12.9 4 11c0-3.3 3.6-6 8-6z"],
+  [/anteprima|preview|pagina|page|sito|site|web|browser|naviga|clic|click/i, ICONS.preview],
+  [/^(esegue|esegui|run|runs|lancia|comando|command|shell|terminal)/i, ICONS.lineTerminal],
+  [/^(cerca|trova|search|searches|find|finds|grep|glob)/i, "M10.5 4.5a6 6 0 1 1 0 12 6 6 0 0 1 0-12zM15 15l4.5 4.5"],
+  [/^(scrive|modifica|crea|salva|aggiorna|write|writes|edit|edits|create|creates|save|saves|update)/i, "M14.5 5.5l4 4L9 19H5v-4zM12.5 7.5l4 4"],
+  [/^(legge|leggi|apre|guarda|elenca|read|reads|open|opens|list|lists|view)/i, "M7 3.5h7l4 4V20.5H6V3.5zM14 3.5V8h4M9 12h6M9 15.5h6"],
+  [/memoria|memory|ricorda|remember/i, ICONS.memory],
+  [/agente|agent|affida|motore|engine|delega/i, ICONS.people],
+];
+const STEP_DOT = "M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z";
+
+/** The icon of a step's text («⚙ Legge · …», «💭 …»). */
+function stepPath(text: string): string {
+  return STEP_ICONS.find(([re]) => re.test(text.startsWith("💭") ? text : stepVerb(text)))?.[1] ?? STEP_DOT;
+}
+
+/** What the step does, before its « · ». */
+function stepVerb(text: string): string {
+  return text.replace(/^(⚙️?|💭)\s*/u, "").split(" · ")[0].trim();
+}
+
+/**
+ * A step as one row of the timeline: its icon in place of «⚙», what it does,
+ * then on what (after « · ») quieter and cut to one line, the whole in its title.
+ */
+function dressStep(step: HTMLElement) {
+  const line = step.querySelector(".md-p") ?? step;
+  const text = line.textContent ?? "";
+  const path = stepPath(text);
+  // Off with the emoji, in the first text node.
+  const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+  const first = walker.nextNode();
+  if (first?.nodeValue) first.nodeValue = first.nodeValue.replace(/^\s*(⚙️?|💭)\s*/u, "");
+  // What comes after « · » goes in its own quieter span.
+  for (let node = walker.currentNode; node; node = walker.nextNode()!) {
+    const at = node.nodeValue?.indexOf(" · ") ?? -1;
+    if (at < 0 || node.parentNode !== line) continue;
+    const after = (node as Text).splitText(at);
+    after.nodeValue = after.nodeValue!.slice(3);
+    const what = h("span", { class: "md-step-what" });
+    while (after.nextSibling) what.append(after.nextSibling);
+    what.prepend(after);
+    line.append(what);
+    break;
+  }
+  line.classList.add("md-step-line");
+  step.title = text.replace(/^(⚙️?|💭)\s*/u, "");
+  const ico = h("span", { class: "md-step-ico" }, svg(path, 12, { stroke: 1.8 }));
+  step.prepend(ico);
+  if (text.startsWith("💭")) step.classList.add("md-step-thought");
+}
+
 /**
  * A turn's steps in the blocks of a reply: small, and once the turn is over
  * (`done`) a run of them folds into one line. An error («✗») stays in the open.
@@ -59,7 +114,14 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
   let run: HTMLElement[] = [];
   const flush = () => {
     if (run.length > 1 && done) {
-      out.push(h("details", { class: "md-steps" }, h("summary", { text: t("{n} passi", { n: run.length }) }), ...run));
+      // The folded line says what was done: the first different actions, then «…».
+      const verbs = [...new Set(run.map((s) => stepVerb(s.title)).filter((v) => v && !v.startsWith("💭")))];
+      const gist = verbs.slice(0, 3).join(", ") + (verbs.length > 3 ? "…" : "");
+      out.push(h("details", { class: "md-steps" },
+        h("summary", {},
+          h("span", { class: "md-steps-n", text: t("{n} passi", { n: run.length }) }),
+          gist ? h("span", { class: "md-steps-gist", text: gist }) : null),
+        h("div", { class: "md-steps-list" }, ...run)));
     } else out.push(...run);
     run = [];
   };
@@ -80,6 +142,7 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
     }
     if (b.tagName === "BLOCKQUOTE" && /^(⚙|💭)/u.test(b.textContent ?? "")) {
       b.classList.add("md-step");
+      dressStep(b);
       run.push(b);
     } else {
       flush();
@@ -92,7 +155,10 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
 
 export class TypeLine {
   private text = h("span", { class: "type-text" });
-  readonly el = h("div", { class: "type-line" }, this.text, h("span", { class: "type-caret" }));
+  /** The kind of the step in progress, its icon in a turning ring (26 Nov 2026: «cosa sta facendo, con le icone»). */
+  private ico = h("span", { class: "type-ico" });
+  private icoFor: string | null | undefined = undefined;
+  readonly el = h("div", { class: "type-line" }, this.ico, this.text, h("span", { class: "type-caret" }));
   /** By code point: a step's emoji must not be cut in two. */
   private shown: string[] = [];
   /** The text being written; null = the waiting phrases. */
@@ -141,7 +207,15 @@ export class TypeLine {
 
   private draw(chars: string[]) {
     this.shown = chars;
-    this.text.textContent = chars.join("");
+    // The step's emoji is its icon, in front.
+    this.text.textContent = chars.join("").replace(/^(⚙️?|💭)\s*/u, "");
+    const kind = this.target === "" ? "" : this.target;
+    if (kind !== this.icoFor) {
+      this.icoFor = kind;
+      this.ico.replaceChildren(...(kind === "" ? [] : [svg(kind == null ? STEP_ICONS[0][1] : stepPath(kind), 11, { stroke: 1.8 })]));
+      this.ico.hidden = kind === "";
+      this.ico.classList.toggle("thought", kind == null || kind.startsWith("💭"));
+    }
     const height = this.el.offsetHeight;
     if (height !== this.height) {
       this.height = height;

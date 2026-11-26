@@ -127,6 +127,19 @@
       .app-ico.attention::after { background: #F5A524; }
       .app-ico.dragging { background: color-mix(in srgb, var(--ink, #fff) 22%, transparent); cursor: grabbing; }
       .app-ico.drop-on { outline: 2px solid #22C55E; outline-offset: -2px; background: color-mix(in srgb, #22C55E 22%, transparent); }
+      /* «Ingrandisci al passaggio» (apps.ts): the icon and its neighbours grow away from the edge. */
+      .app-ico > img, .app-ico > .app-letter { transition: transform 0.09s ease-out; transform-origin: var(--mag-origin, center); }
+      .mag-still .app-ico > img, .mag-still .app-ico > .app-letter { transition: none; }
+      /* A click on an app (apps.ts): it sinks while pressed, and hops while it opens (until its window comes, 6 s at most). */
+      .app-ico { transition: scale 0.1s ease-out; }
+      .app-ico.pressed { scale: 0.86; }
+      .app-ico.launching { animation: app-hop 0.75s ease-in-out infinite; }
+      body.edge-top .app-ico.launching { animation-name: app-hop-down; }
+      @keyframes app-hop { 0%, 100% { translate: 0 0; } 45% { translate: 0 -5px; } }
+      @keyframes app-hop-down { 0%, 100% { translate: 0 0; } 45% { translate: 0 4px; } }
+      @media (prefers-reduced-motion: reduce) { .app-ico.launching { animation: app-blink 0.9s ease-in-out infinite; } @keyframes app-blink { 50% { opacity: 0.45; } } }
+      /* Files over the bar's recycle bin (main.ts recycleAt): they go into it. */
+      .bar-btn.drop-bin { outline: 2px solid #EF4444; outline-offset: -2px; background: color-mix(in srgb, #EF4444 22%, transparent); }
       /* An element with nothing to show now (bar.ts emptyPiece): only while customizing. */
       .bar-btn:has(.bar-empty) { display: none; }
       body.editing .bar-btn:has(.bar-empty) { display: flex; opacity: 0.6; font-style: italic; }

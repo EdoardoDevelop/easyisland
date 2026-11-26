@@ -1,0 +1,44 @@
+/* Diagrams in the answers (diagram.ts). */
+.md-diagram { min-width: 0; }
+.md-diagram-stage { position: fixed; left: -20000px; top: 0; width: 1200px; visibility: hidden; pointer-events: none; font: 400 14px 'Segoe UI Variable Text', 'Segoe UI', sans-serif; }
+.md-diagram-body { display: flex; padding: 14px 12px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.md-diagram-img { display: block; flex: none; margin: 0 auto; max-width: 100%; height: auto; cursor: zoom-in; }
+.md-diagram .md-pre-head > .md-lang + .md-copy { margin-left: auto; }
+/* Quiet buttons: the drawing is what counts. */
+.md-diagram-card .md-pre-head > .md-copy,
+.md-diagram-card .md-pre-head > .md-copy:last-child,
+html[data-scheme="light"] .md-diagram-card .md-pre-head > .md-copy:last-child { padding: 0 7px; font-weight: 400; color: var(--dim); background: transparent; }
+.md-diagram-card .md-pre-head > .md-copy:hover,
+html[data-scheme] .md-diagram-card .md-pre-head > .md-copy:last-child:hover { color: var(--ink); background: rgba(127, 127, 127, 0.18); }
+.md-diagram-card .md-lang { font-family: var(--font); }
+.md-diagram-big {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  overflow: hidden;
+  outline: none;
+  background: #0e1013;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+body > .md-diagram-big { position: fixed; }
+.md-diagram-big:active { cursor: grabbing; }
+.md-diagram-big > img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; }
+.md-diagram-bar {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #1f2226;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.md-diagram-bar > button { min-width: 28px; height: 26px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: #e4e5e8; font: 400 12.5px var(--font); }
+.md-diagram-bar > button:hover { background: rgba(255, 255, 255, 0.1); }
+html[data-scheme="light"] .md-diagram-big { background: #fafafc; }
+html[data-scheme="light"] .md-diagram-bar { background: #ffffff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+html[data-scheme="light"] .md-diagram-bar > button { color: #1f2226; }
+html[data-scheme="light"] .md-diagram-bar > button:hover { background: rgba(0, 0, 0, 0.07); }

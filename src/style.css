@@ -1083,6 +1083,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(0, 0, 0, 0.14);
 }
 .chat-layout.side-open .chat-side { display: flex; }
+.chat-layout.dock-waits > .chat-side { display: none; }
 /* A wide island: the conversation and the field in a readable column in the middle. */
 .chat-layout .chat-log { padding-inline: max(0px, calc((100% - 780px) / 2)); }
 .chat-layout .chat-composer,
@@ -1119,6 +1120,8 @@ input[type="range"]::-webkit-slider-thumb {
   overflow-y: auto;
   margin-right: -4px;
   padding-right: 4px;
+  /* The chat's own bar (.chat-log), not the system's (Edoardo, 24 Nov 2026). */
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 .side-new {
   flex: 0 0 auto;
@@ -1305,6 +1308,35 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-head .chip-row {
   min-width: 0;
 }
+
+/* The open conversations as tabs (chat.ts renderTabs): over the head, scrolling sideways when many. */
+.chat-tabs { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; min-width: 0; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); overflow-x: auto; scrollbar-width: none; }
+.chat-tab { flex: 0 1 170px; display: flex; align-items: center; gap: 6px; min-width: 104px; max-width: 200px; height: 28px; padding: 0 5px 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--dim); font: inherit; font-size: calc(12px + var(--fs-up, 0px)); cursor: pointer; }
+.chat-tab:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
+.chat-tab.on { background: rgba(255, 255, 255, 0.09); color: var(--ink); }
+.chat-tab-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.chat-tab-x { flex: 0 0 auto; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; font-size: 10px; color: var(--dim-2); opacity: 0; }
+.chat-tab:hover .chat-tab-x, .chat-tab.on .chat-tab-x { opacity: 1; }
+.chat-tab-x:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+.chat-tab .side-badge { width: 10px; height: 10px; }
+.chat-tab .side-badge.unread { width: 7px; height: 7px; margin: 0 1px; }
+.chat-tab-add { flex: 0 0 auto; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--dim); font-size: 16px; line-height: 1; cursor: pointer; }
+.chat-tab-add:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+/* In the chat panel's own tab (island/dock.ts): the bar is the tabs, and still the handle that moves the panel. */
+.chat-tabs { overflow-y: hidden; }
+/* In the panel's bar (34 px): the tab and its row 28 px, the tabs 26 px; never scrolling up and down (24 Nov 2026). */
+.chat-tabs.in-dock { flex: 1 1 auto; margin: 0; padding: 0; border: 0; height: 28px; }
+.chat-tabs.in-dock > :is(.chat-tab, .chat-tab-add) { height: 26px; }
+.dock-tab-chat:has(> .chat-tabs) { flex: 1 1 auto; min-width: 0; width: 100%; height: 28px; padding: 0 2px; gap: 4px; cursor: default; overflow: hidden; }
+/* No pill behind all the tabs: each tab shows its own. */
+.dv-tab.dv-active-tab .dock-tab-chat:has(> .chat-tabs) { background: none; }
+/* The chat's icon on the left is the only handle that moves the panel (the tabs never drag it: chat.ts placeTabs). */
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; cursor: grab; }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon:hover { background: rgba(255, 255, 255, 0.08); }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-icon:active { cursor: grabbing; }
+.dock-tab-chat:has(> .chat-tabs) > .dock-tab-name { display: none; }
+.dv-tab:has(> .dock-tab-chat > .chat-tabs) { flex: 1 1 auto; min-width: 0; max-width: none; }
+.dv-tabs-container:has(.dock-tab-chat > .chat-tabs) { flex: 1 1 auto; min-width: 0; }
 .chat-head .head-end { margin-left: auto; }
 
 .engine-pick {
@@ -2248,36 +2280,143 @@ html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61
   color: var(--dim-2);
 }
 .md-step .md-p { margin: 0; color: inherit; font: inherit; }
-.md-step code { padding: 0; font: inherit; color: inherit; background: none; }
+
+/* ── Replies with form (24 Nov 2026, Edoardo's concept «easyisland_chat_concept.html») ──
+   Airy reading, sections that breathe, codes that copy, commands and tables as cards,
+   notices in colour. Dark first, light below. */
+.reply.md { gap: 9px; line-height: 1.62; }
+.md-h { font-weight: 500; letter-spacing: -0.01em; }
+.md-h1, .md-h2 { margin-top: 10px; }
+.reply.md > .md-h:first-child, .md-outline + .md-h { margin-top: 0; }
+.md-h3 { margin-top: 4px; }
+.md-list { gap: 4px; padding-left: 20px; }
+.md-list li > strong:first-child { font-weight: 500; color: var(--ink); }
+
+/* An inline code that copies (markdown.ts copyable): a soft pill in the accent. */
+.md-code.md-copyable { white-space: nowrap; overflow-wrap: normal; cursor: pointer; color: #7dd3fc; background: rgba(56, 189, 248, 0.1); box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22); transition: background-color 0.12s, color 0.12s; }
+.md-code.md-copyable:hover { background: rgba(56, 189, 248, 0.18); }
+.md-code.md-copyable.copied { color: #4ade80; background: rgba(74, 222, 128, 0.14); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.32); }
+
+/* A block of code: a card with its head (language, then the buttons). */
+.md-pre { border-radius: 12px; background: #121418; border: 1px solid rgba(255, 255, 255, 0.08); }
+.md-pre-head { padding: 5px 6px 5px 12px; background: #1b1e25; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.md-lang { font-family: var(--mono); font-weight: 400; }
+.md-pre pre { padding: 10px 12px; font-size: 12px; line-height: 1.6; }
+.md-pre-head > .md-copy:last-child { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.md-pre-head > .md-copy:last-child:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* A table: rounded, its head on a band, rows striped, numbers in columns, «Copia tabella» over it. */
+.md-table-box { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.md-table-copy { align-self: flex-end; height: 22px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--ink-2); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); cursor: pointer; }
+.md-table-copy:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+.md-table-copy.copied { color: #4ade80; border-color: rgba(74, 222, 128, 0.35); }
+.md-table-wrap { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; }
+.md-table { width: 100%; font-variant-numeric: tabular-nums; }
+.md-table th, .md-table td { padding: 7px 12px; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.md-table thead th { border-top: 0; background: #1b1e25; color: var(--dim); font-weight: 500; }
+.md-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
+.md-table tbody td:first-child { color: var(--ink); font-weight: 500; }
+
+/* «Sezioni» on top of a long reply (markdown.ts outline): a click goes to the section. */
+.md-outline { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: calc(11.5px + var(--fs-up, 0px)); }
+.md-outline-label { color: var(--dim-2); margin-right: 2px; }
+.md-outline-chip { height: 22px; padding: 0 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.06); color: var(--dim); font: inherit; cursor: pointer; }
+.md-outline-chip:hover { background: rgba(255, 255, 255, 0.11); color: var(--ink); }
+
+/* A turn's steps as a timeline (typeline.ts dressStep, 24 Nov 2026): an icon per
+   kind of action, what it does, on what quieter and cut to one line, «Esito» at
+   the end of the row. A folded run: «N passi» and what was done. */
+.md-quote.md-step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 4px;
+  position: relative;
+}
+.md-step-ico {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--dim);
+  background: #1d2026;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
+.md-step-thought .md-step-ico { color: #c4b5fd; }
+.md-step-thought .md-step-line { font-style: italic; }
+.md-step-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.md-step-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: 0.92em; }
+.md-step-what a { color: inherit; text-decoration: none; }
+.md-step-what a:hover { color: #7dd3fc; text-decoration: underline; }
+.md-step code { padding: 0; font: inherit; color: inherit; background: none; box-shadow: none; }
 .md-steps { margin: 2px 0; }
 .md-steps > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: fit-content;
+  max-width: 100%;
+  padding: 3px 10px 3px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   font-size: calc(11.5px + var(--fs-up, 0px));
   line-height: 1.45;
   color: var(--dim-2);
   list-style: none;
-  cursor: default;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
 }
 .md-steps > summary::-webkit-details-marker { display: none; }
-.md-steps > summary::before { content: "▸"; display: inline-block; width: 1.1em; }
-.md-steps[open] > summary::before { content: "▾"; }
-.md-steps > summary:hover { color: var(--ink); }
-/* What a step gave back (a command's output, a file read): closed under it. */
-.md-step-out { margin: 1px 0 3px 1.1em; }
+.md-steps > summary::before,
+.md-step-out > summary::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.md-steps[open] > summary::before,
+.md-step-out[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+.md-steps > summary:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.md-steps-n { flex: none; color: var(--ink-2); font-weight: 500; }
+.md-steps-gist { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.md-steps-list { position: relative; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
+/* The thread through the icons. */
+.md-steps-list::before { content: ""; position: absolute; left: 8.5px; top: 9px; bottom: 9px; width: 1px; background: rgba(255, 255, 255, 0.09); }
+/* What a step gave back (a command's output, a file read): «Esito» at the end of its row, open under it. */
+.md-step-out { grid-column: 3; grid-row: 1; margin: 0; min-width: 0; }
+.md-step-out[open] { grid-column: 2 / 4; grid-row: 2; }
 .md-step-out > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: fit-content;
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 5px;
   list-style: none;
-  cursor: default;
+  cursor: pointer;
   font-size: calc(10.5px + var(--fs-up, 0px));
   color: var(--dim-2);
-  opacity: 0.8;
+  opacity: 0.75;
 }
+.md-step-out[open] > summary { margin-left: 0; }
 .md-step-out > summary::-webkit-details-marker { display: none; }
-.md-step-out > summary::before { content: "▸"; display: inline-block; width: 1em; }
-.md-step-out[open] > summary::before { content: "▾"; }
-.md-step-out > summary:hover { color: var(--ink); opacity: 1; }
-.md-step-out.failed > summary { color: #f08a8a; }
-.md-step-out .md-pre { margin: 2px 0 0; }
+.md-step-out > summary::before { width: 3px; height: 3px; }
+.md-step-out > summary:hover { color: var(--ink); opacity: 1; background: rgba(255, 255, 255, 0.06); }
+.md-step-out.failed > summary { color: #f08a8a; opacity: 1; }
+.md-step:has(> .md-step-out.failed) .md-step-ico { color: #f08a8a; box-shadow: inset 0 0 0 1px rgba(240, 138, 138, 0.4); }
+.md-step-out .md-pre { position: relative; margin: 2px 0 0; }
+/* Inside «Esito» the language says it again: only «Copia» stays, over the corner. */
+.md-step-out .md-lang { display: none; }
+.md-step-out .md-pre-head { position: absolute; top: 4px; right: 4px; padding: 0; border: 0; background: none; }
 .md-step-out pre { max-height: 220px; overflow: auto; }
 .md-step-out code { font-family: var(--mono, ui-monospace, Consolas, monospace); font-size: calc(10.5px + var(--fs-up, 0px)); }
 
@@ -10042,6 +10181,13 @@ html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockvie
 .dockview-theme-easy .dv-sash:hover, .dockview-theme-easy .dv-sash.dv-active { background: color-mix(in srgb, var(--dock-accent) 60%, transparent); }
 /* The panels' contents fill them. */
 .dock-box { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* The box fills its group's content, under the tabs (the content is inside the group: dock.ts «onlyWhenVisible»). */
+.chat-dock .dv-groupview > .dv-content-container { position: relative; }
+/* A panel closing (dock.ts ghost): a picture of it slides away over the dock, clipped to it. */
+.dock-ghost-frame { position: fixed; z-index: 50; overflow: hidden; pointer-events: none; border-radius: 12px; }
+/* A panel sliding in (dock.ts arrive): the dock clips it, never over the island's menu. */
+.chat-dock.dock-sliding { overflow: hidden; }
+.dock-ghost { position: absolute; margin: 0; will-change: transform, opacity; }
 .dock-chat > #views { position: relative; flex: 1 1 auto; min-height: 0; }
 .dock-chat #views > .view { left: 0 !important; right: 0 !important; width: auto !important; transform: none; }
 .dock-chat .chat-card, .dock-chat .chat-body { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
@@ -10051,6 +10197,27 @@ html[data-scheme="light"] :is(.dockview-theme-dark.dockview-theme-easy, .dockvie
 .dock-cronologia .chat-side-grip { display: none; }
 .dock-terminale > .chat-term { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
 .dock-terminale > .chat-term .chat-term-box { min-height: 0; }
+.dock-documenti > .chat-docs { flex: 1 1 auto; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+
+/* «Documenti» (chat-docs.ts): the conversation's files, the newest first. */
+.chat-docs { display: flex; flex-direction: column; min-height: 0; margin: 4px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.08); }
+.chat-docs-head { display: flex; align-items: center; gap: 7px; padding: 9px 12px 7px; color: var(--dim); font-size: calc(11.5px + var(--fs-up, 0px)); font-weight: 600; }
+.chat-docs-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-docs-count { min-width: 18px; padding: 0 6px; border-radius: 9px; background: rgba(255, 255, 255, 0.08); color: var(--ink); text-align: center; font-variant-numeric: tabular-nums; }
+.chat-docs-count:empty { display: none; }
+.chat-docs-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 6px 8px; display: flex; flex-direction: column; gap: 2px; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.chat-docs-empty { margin: 6px 8px; color: var(--dim-2); font-size: calc(12px + var(--fs-up, 0px)); line-height: 1.45; }
+.chat-docs-row { display: grid; grid-template-columns: auto 1fr auto; column-gap: 9px; align-items: center; padding: 7px 6px 7px 8px; border-radius: 8px; cursor: pointer; }
+.chat-docs-row:hover { background: rgba(255, 255, 255, 0.05); }
+.chat-docs-kind { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 7px; background: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); color: var(--win-accent, #4cc2ff); font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px; }
+.chat-docs-text { display: flex; flex-direction: column; min-width: 0; }
+.chat-docs-name { color: var(--ink); font-size: calc(12.5px + var(--fs-up, 0px)); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-docs-folder { color: var(--dim-2); font-size: calc(11px + var(--fs-up, 0px)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-docs-actions { display: flex; gap: 2px; }
+.chat-docs-btn { width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--dim-2); cursor: pointer; }
+.chat-docs-btn.done { color: #22c55e; }
+.chat-docs-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+
 /* dockview's menu on a tab (right click), as the island's menus. */
 .dockview-theme-easy .dv-context-menu, .chat-dock .dv-context-menu {
   min-width: 190px; padding: 4px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px;
@@ -10215,13 +10382,17 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .board-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+/* A narrow chart (a quarter of the row): the value on one line, cut with dots; the whole of it in the tooltip. */
+.board-chart-head > * { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-chart-head > .board-block-title { flex: 0 0 auto; max-width: 55%; }
+.board-chart-head > .board-value-text { flex: 0 1 auto; }
 .board-chart-svg { display: block; width: 100%; height: 64px; overflow: visible; }
 .board-chart-line { fill: none; stroke: var(--win-accent, #4cc2ff); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .board-chart-area { fill: color-mix(in srgb, var(--win-accent, #4cc2ff) 16%, transparent); stroke: none; }
 .board-blocks > .board-chart { flex: 1 1 240px; }
 /* The open island's footer (isola.json): left, center and right, each a row of buttons and values of the PC.
-   Under the views only, beside the menu (island.ts sets `left` to the menu's width); the views and the
-   Anteprima leave it room. */
+   Under the views only, beside the menu (island.ts sets `left` to the menu's width); the views, the
+   chat's panels (dock.ts) and the Anteprima leave it room. */
 #island-foot {
   position: absolute;
   right: 0;
@@ -10234,6 +10405,7 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
   min-width: 0;
 }
 #island.footed #body > #views,
+#island.footed #body > .chat-dock,
 #island.footed #body > #preview-pane { margin-bottom: 36px; }
 #island-foot .foot-side { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
 #island-foot .foot-left { justify-content: flex-start; }
@@ -10305,6 +10477,7 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 .board-blocks { --bgap: 8px; column-gap: var(--bgap); }
 .board-blocks > .board-block.bw-half { flex: 0 0 calc((100% - var(--bgap)) / 2); max-width: calc((100% - var(--bgap)) / 2); }
 .board-blocks > .board-block.bw-third { flex: 0 0 calc((100% - 2 * var(--bgap)) / 3); max-width: calc((100% - 2 * var(--bgap)) / 3); }
+.board-blocks > .board-block.bw-quarter { flex: 0 0 calc((100% - 3 * var(--bgap)) / 4); max-width: calc((100% - 3 * var(--bgap)) / 4); }
 .board-blocks > .board-block.bw-auto { flex: 0 1 auto; }
 .own-row > .summary-block.board-value { width: auto; min-width: 0; }
 .board-block.own-block-bg { background: var(--own-bg); padding: 8px 12px; border-radius: 10px; }

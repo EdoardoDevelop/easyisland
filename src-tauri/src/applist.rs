@@ -809,7 +809,14 @@ pub fn launch(what: Launch) {
                 })
                 .flatten()
                 .unwrap_or(id);
-                (json!({ "op": "open", "id": target }), false)
+                // File Explorer alone, with no folder: the start place Windows opens
+                // (24 Nov 2026: explorer.exe started with nothing waited for ever and
+                // no window came; with a folder it opens at once).
+                if target.to_lowercase().ends_with("\\explorer.exe") {
+                    (json!({ "op": "open", "id": target, "args": explorer_start() }), false)
+                } else {
+                    (json!({ "op": "open", "id": target }), false)
+                }
             }
             Launch::Admin { id } => (json!({ "op": "open_admin", "id": id }), true),
             Launch::Files { app, files } => (json!({ "op": "open_with", "app": app, "files": files }), false),
@@ -818,6 +825,31 @@ pub fn launch(what: Launch) {
             in_process(&request);
         }
     });
+}
+
+/// Where File Explorer opens, as the user chose in its options («Apri Esplora
+/// file in»: `LaunchTo` 1 Questo PC, 3 Download, otherwise Home).
+fn explorer_start() -> &'static str {
+    use windows::core::w;
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    let mut value = 0u32;
+    let mut size = size_of::<u32>() as u32;
+    let read = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!(r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"),
+            w!("LaunchTo"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some((&raw mut value).cast()),
+            Some(&mut size),
+        )
+    };
+    match (read.is_ok(), value) {
+        (true, 1) => "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+        (true, 3) => "shell:Downloads",
+        _ => "shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}",
+    }
 }
 
 /// False when the relay could not be started (missing): then EasyIsland opens it itself.

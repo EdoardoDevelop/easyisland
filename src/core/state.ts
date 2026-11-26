@@ -184,6 +184,10 @@ export interface BarOpts {
   /** A folder's small island: a grid of icons or a list, and the icons' size in px. */
   layout?: "grid" | "list";
   iconSize?: number;
+  /** «App»: the icons grow under the mouse, the nearest most (off unless chosen). */
+  magnify?: boolean;
+  /** «App»: a window minimizes into its icon and comes back out of it (false turns it off). */
+  minimizeTo?: boolean;
 }
 
 /**
@@ -201,6 +205,10 @@ export interface FixedBarLook {
   /** Background opacity, 10–100 %. */
   opacity?: number;
   blur?: boolean;
+  /** With `blur`: Windows 11's Mica instead of the acrylic (lib.rs character_blur). */
+  material?: "mica";
+  /** Programs the bar stays over in full screen (appbar.rs; file names, * and ? as wildcards). */
+  fullscreenKeep?: string[];
   /** Room from the left and right edges, px. */
   margin?: number;
   /** Text size, 80–150 %. */
@@ -292,6 +300,10 @@ export interface BarSys {
   /** Keyboard language of the window in front: "IT", "Italiano (Italia)". */
   lang?: { code: string; name: string } | null;
   recycle?: { count: number; bytes: number } | null;
+  /** The newest downloads (barsys.rs `downloads_value`): `fresh` are newer than the last look. */
+  downloads?: { dir: string; fresh: number; items: { name: string; path: string; at: number }[] } | null;
+  /** USB sticks, memory cards and USB disks plugged in (drives.rs). */
+  drives?: { letter: string; label: string; total: number; free: number }[] | null;
   /** winget's upgrades; `checking` before the first answer. */
   updates?: { count?: number; names?: string[]; at?: number; checking?: boolean } | null;
   /** VS Code's recent folders, newest first. */
@@ -1768,6 +1780,8 @@ class AppState {
   previewOpen = false;
   /** The chat's «Terminale» is open (chat.ts): it takes the Anteprima's panel, under the page if that is open too. */
   chatTermOpen = false;
+  /** The chat's «Documenti» panel is open (chat-docs.ts): remembered for the next start. */
+  chatDocsOpen = (() => { try { return localStorage.getItem("easyisland.chatDocs") === "1"; } catch { return false; } })();
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;
@@ -2268,7 +2282,7 @@ export type LayoutAction =
 /** A value of the PC compared to a number (island_layout.rs `NUMBERS`): disk in % used, net in MB/s. */
 export interface LayoutMeasure { what: string; drive?: string; above?: number; below?: number }
 /** Shown only while all it says holds (island_layout.rs `when`). */
-export interface LayoutWhen { hours?: string; days?: string[]; app?: string[]; not_app?: string[]; value?: LayoutMeasure }
+export interface LayoutWhen { hours?: string; days?: string[]; app?: string[]; not_app?: string[]; view?: string[]; not_view?: string[]; value?: LayoutMeasure }
 /** A colour by a value of the PC: the first that holds wins. */
 export type LayoutLevel = LayoutMeasure & { color: string };
 /** What every piece may say about its look and when it shows. */
@@ -2327,7 +2341,7 @@ export interface LayoutBlockLook extends LayoutLook {
   bg?: string;
   border?: string;
   title_color?: string;
-  width?: "full" | "half" | "third" | "auto";
+  width?: "full" | "half" | "third" | "quarter" | "auto";
   size?: "s" | "m" | "l" | "xl";
   radius?: number;
   align?: "left" | "center" | "right";

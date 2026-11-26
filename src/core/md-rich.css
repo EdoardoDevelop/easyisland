@@ -1,0 +1,58 @@
+/* Notices with icon and title, tables easier to read (md-rich.ts, 26 Nov 2026). */
+.md-quote.md-callout {
+  --cc: #38bdf8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 14px 10px 13px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--cc) 8%, transparent);
+  box-shadow: inset 3px 0 0 var(--cc), inset 0 0 0 1px color-mix(in srgb, var(--cc) 14%, transparent);
+}
+.md-callout-head { display: flex; align-items: center; gap: 7px; color: var(--cc); font-weight: 600; font-size: 0.9em; letter-spacing: 0.01em; }
+.md-callout-head > svg { flex: none; }
+.md-callout > .md-p { margin: 0; }
+.md-quote.md-callout-info { --cc: #38bdf8; }
+.md-quote.md-callout-tip { --cc: #4ade80; }
+.md-quote.md-callout-important { --cc: #a78bfa; }
+.md-quote.md-callout-warn { --cc: #f5a524; }
+.md-quote.md-callout-danger { --cc: #f4505e; }
+html[data-scheme="light"] .md-quote.md-callout { color: #333740; background: color-mix(in srgb, var(--cc) 9%, #ffffff); }
+html[data-scheme="light"] .md-quote.md-callout-info { --cc: #0284c7; }
+html[data-scheme="light"] .md-quote.md-callout-tip { --cc: #16a34a; }
+html[data-scheme="light"] .md-quote.md-callout-important { --cc: #7c3aed; }
+html[data-scheme="light"] .md-quote.md-callout-warn { --cc: #d97706; }
+html[data-scheme="light"] .md-quote.md-callout-danger { --cc: #e11d48; }
+
+/* Numbers on the right, quantities with a bar as long as their share of the largest. */
+.md-table :is(th, td).md-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.md-table td.md-bar {
+  background-image: linear-gradient(to left, rgba(56, 189, 248, 0.1) var(--bar), transparent var(--bar));
+  background-size: calc(100% - 8px) calc(100% - 14px);
+  background-position: right 4px center;
+  background-repeat: no-repeat;
+}
+.md-table td.md-bar-top { color: var(--ink); font-weight: 600; background-image: linear-gradient(to left, rgba(56, 189, 248, 0.2) var(--bar), transparent var(--bar)); }
+.md-table tbody tr { transition: background-color 0.12s; }
+.md-table tbody tr:hover { background: rgba(255, 255, 255, 0.045); }
+html[data-scheme="light"] .md-table td.md-bar { background-image: linear-gradient(to left, rgba(2, 132, 199, 0.13) var(--bar), transparent var(--bar)); }
+html[data-scheme="light"] .md-table td.md-bar-top { color: #111317; background-image: linear-gradient(to left, rgba(2, 132, 199, 0.24) var(--bar), transparent var(--bar)); }
+html[data-scheme="light"] .md-table tbody tr:hover { background: rgba(20, 22, 26, 0.04); }
+
+/* States as labels: a dot and the word in its colour. */
+.md-pill { display: inline-flex; align-items: center; gap: 6px; padding: 0 9px 0 7px; border-radius: 999px; font-size: 0.92em; font-weight: 500; line-height: 1.6; white-space: nowrap; color: var(--pill); background: color-mix(in srgb, var(--pill) 13%, transparent); }
+.md-pill::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.md-pill-ok { --pill: #4ade80; }
+.md-pill-bad { --pill: #ff8d97; }
+.md-pill-warn { --pill: #fbbf24; }
+.md-pill-off { --pill: #9398a1; }
+html[data-scheme="light"] .md-pill-ok { --pill: #15803d; }
+html[data-scheme="light"] .md-pill-bad { --pill: #be123c; }
+html[data-scheme="light"] .md-pill-warn { --pill: #b45309; }
+html[data-scheme="light"] .md-pill-off { --pill: #6b7079; }
+
+/* A long table: its own height, the header on top while it scrolls. */
+.md-table-wrap.md-table-tall { max-height: 420px; overflow: auto; }
+.md-table-tall thead th { position: sticky; top: 0; z-index: 1; }

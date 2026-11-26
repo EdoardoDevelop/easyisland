@@ -2,7 +2,9 @@
 // Edoardo on 8 Nov 2026): a new conversation without messages left a big
 // empty card. A quiet drawing fills it, drawn here on a canvas behind the
 // conversation: Ezzy (the logo, default), a dotted island globe turning, a
-// sea of dots, a starry sky, an aurora, a drifting network, or nothing.
+// sea of dots, a starry sky, an aurora, a drifting network, and since 26 Nov
+// 2026 many more (chat-empty-more.ts); «tutti» picks a different one for each
+// new conversation.
 //
 // Cost: at most 20 frames a second, and none while the chat is not on screen
 // (hidden view, retracted island, page in the background) or has messages.
@@ -10,33 +12,46 @@
 // chat's own tokens (chat-cards.css), so it follows light and dark.
 
 import { drawLogo } from "../character/logo-anim";
+import * as More from "./chat-empty-more";
+import { seeded, type Palette } from "./chat-empty-more";
 
-export type EmptyArt = "ezzy" | "isola" | "onde" | "stelle" | "aurora" | "rete" | "nessuna";
+type Draw = (x: CanvasRenderingContext2D, w: number, h: number, t: number, p: Palette) => void;
 
-export const EMPTY_ARTS: EmptyArt[] = ["ezzy", "isola", "onde", "stelle", "aurora", "rete", "nessuna"];
+/** Every drawing, by the name kept in the settings (Impostazioni → Chat → «Chat vuota»). */
+const DRAWINGS = {
+  ezzy: ezzy, isola: globe, onde: waves, stelle: stars, aurora: More.aurora, rete: network,
+  lucciole: More.fireflies, neve: More.snow, pioggia: More.rain, bolle: More.bubbles, gocce: More.ripples,
+  orbite: More.orbits, galassia: More.galaxy, radar: More.radar, codice: More.code, fili: More.threads,
+  griglia: More.grid, nuvole: More.clouds, costellazioni: More.constellations, battito: More.pulse,
+  vento: More.wind, foglie: More.leaves, lanterne: More.lanterns,
+} satisfies Record<string, Draw>;
 
-export function emptyArt(v: string | undefined): EmptyArt {
+export type EmptyArt = keyof typeof DRAWINGS | "nessuna";
+
+export const EMPTY_ARTS = [...Object.keys(DRAWINGS), "nessuna"] as EmptyArt[];
+
+/** «tutti»: the drawing each conversation got, and the last one given (never twice in a row). */
+const picked = new Map<string, EmptyArt>();
+let lastPick: EmptyArt | null = null;
+
+/** The drawing for the setting `v`; with «tutti», a different one for each new conversation `sid`. */
+export function emptyArt(v: string | undefined, sid?: string): EmptyArt {
+  if (v === "tutti") {
+    const key = sid ?? "";
+    let k = picked.get(key);
+    if (!k) {
+      const pool = (Object.keys(DRAWINGS) as EmptyArt[]).filter((a) => a !== lastPick);
+      k = pool[Math.floor(Math.random() * pool.length)];
+      picked.set(key, k);
+      lastPick = k;
+    }
+    return k;
+  }
   return (EMPTY_ARTS as string[]).includes(v ?? "") ? (v as EmptyArt) : "ezzy";
 }
 
 const FRAME_MS = 50;
 
-/** A small fixed random sequence: the same sky and network at every redraw. */
-function seeded(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
-}
-
-interface Palette {
-  ink: string;
-  dim: string;
-  faint: string;
-  accent: string;
-  light: boolean;
-}
 
 /** The canvas behind the empty conversation, and its animation. */
 export class ChatEmpty {
@@ -158,13 +173,10 @@ export class ChatEmpty {
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
     x.clearRect(0, 0, cw, ch);
     const p = this.palette();
-    switch (this.kind) {
-      case "ezzy": ezzy(x, cw, ch, t, p); break;
-      case "isola": globe(x, cw, ch, t, p); break;
-      case "onde": waves(x, cw, ch, t, p); break;
-      case "stelle": stars(x, cw, ch, t, p); break;
-      case "aurora": aurora(x, cw, ch, t, p); break;
-      case "rete": network(x, cw, ch, t, p); break;
+    if (this.kind && this.kind !== "nessuna") {
+      x.save();
+      DRAWINGS[this.kind](x, cw, ch, t, p);
+      x.restore();
     }
   }
 }
@@ -314,36 +326,6 @@ function stars(x: CanvasRenderingContext2D, w: number, h: number, t: number, p: 
     x.stroke();
   }
   x.globalAlpha = 1;
-}
-
-/** Soft bands of colour, waving slowly at the top. */
-function aurora(x: CanvasRenderingContext2D, w: number, h: number, t: number, p: Palette) {
-  const bands: [string, number, number, number][] = [
-    [p.accent, 0.3, 0.7, 0],
-    ["#8b5cf6", 0.38, 0.5, 2.1],
-    ["#14b8a6", 0.46, 0.6, 4.2],
-  ];
-  x.save();
-  x.globalCompositeOperation = p.light ? "multiply" : "screen";
-  for (const [color, base, speed, phase] of bands) {
-    // Many wide, very light strokes: a soft band without edges.
-    for (let layer = 0; layer < 7; layer++) {
-      x.globalAlpha = p.light ? 0.022 : 0.03;
-      x.strokeStyle = color;
-      x.lineWidth = 90 - layer * 12;
-      x.lineCap = "round";
-      x.beginPath();
-      for (let px = -40; px <= w + 40; px += 16) {
-        const py = h * base
-          + Math.sin(px * 0.006 + t * speed * 0.5 + phase) * h * 0.06
-          + Math.sin(px * 0.013 - t * speed * 0.3 + phase * 2) * h * 0.025;
-        if (px === -40) x.moveTo(px, py);
-        else x.lineTo(px, py);
-      }
-      x.stroke();
-    }
-  }
-  x.restore();
 }
 
 /** Points drifting slowly, joined by thin lines when they come near. */

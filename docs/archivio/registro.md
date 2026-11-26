@@ -2,6 +2,34 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24/11 — Barra fissa: idee da WinMac-Dock
+- Ramo `claude/barra-idee` (da `claude/sviluppo`), solo idee (WinMac-Dock è GPL-3.0, `docs/decisioni.md`): riduci nell'icona di «App» (`HSHELL_GETMINRECT` in `taskwin.rs`), ingrandimento al passaggio, Maiusc/Ctrl+Maiusc+clic, elementi «Download recenti» e «Unità rimovibili» (`drives.rs`, Espelli), file trascinati sul cestino, schermo intero anche con la barra di Windows nascosta ed eccezioni, pausa dei valori a schermo intero, Mica. `docs/architettura.md` → Barra fissa.
+- Provato dal vivo da Claude sul PC di Edoardo (con il suo permesso): log del rettangolo, menu e contatore dei download, cestino (file nel Cestino, recuperabile), Maiusc+clic, schermo intero con e senza eccezione, Mica, ingrandimento. Impostazioni di Edoardo rimesse com'erano dopo le prove.
+
+### 24/11 — Isola da JSON: aspetto e condizioni
+- Ramo `claude/isola-stile`, unito in `claude/sviluppo` e installato con la build di prova: `style` dell'isola (colori, sfumatura, angoli, font, testo, bordo, alone, misure minime, sfondi di menu/testata/footer, spaziatura), aspetto di pulsanti, schede, blocchi e valori del footer, `when` (ore, giorni, programma davanti, valore del PC) e `levels` (soglie che colorano). `src/views/island-look.ts`, controlli in `island_layout.rs`.
+- Scelte di Edoardo (24/11): storico delle versioni escluso; prove dal vivo le fa lui man mano; barra fissa dalla chat «vedremo».
+
+### 23/11 — Isola da JSON: fonti, grafici, piede
+- Ramo `claude/isola-fonti`, unito in `claude/sviluppo` il 23/11: fonti `recent`, `tray`, `clipboard`, `vscode`, `records` (integrazione personale), `notion`; blocco `chart` (ultimi 5 minuti, `bar.ts` `chartHistory`); footer dell'isola aperta in tre zone `left`, `center`, `right`, ognuna con pulsanti e valori del PC (`buildFoot`, 36 px in `island.ts`; il formato `foot` del primo giro si converte). Valori letti anche per Panoramica e footer.
+- Isola per profilo scartata: Edoardo non usa i profili.
+- Orologio della barra (23/11, sera): 12/24 ore, zero davanti, cinque stili di data, nome del fuso `{label}`, `{week}` `{daynum}` `{month}` `{year}`, quadrante con le lancette, modelli pronti (`src/core/clock.ts`). Footer: pulsanti del menu in basso fissi, con poco spazio scorrono le sezioni.
+
+### 23/11 — Isola da JSON, tappe 1–3
+- `isola.json` (`island_layout.rs`, `src/views/island-layout.ts`): pulsanti in fondo al menu e nella testata, schede proprie con griglia di pulsanti, azioni da elenco fisso (mai codice). Strumenti `island_layout`, `island_layout_set`, `island_layout_undo`; card con cosa cambia e bozza visibile nell'isola; versioni in `isola-versioni\`, Annulla anche in Impostazioni.
+- Tappa 2: blocchi nelle schede (`grid`, `list`, `value`, `text`) da fonti fisse (app installate, finestre, azioni rapide, cartella, valori di `barsys.rs` letti solo a scheda aperta); `tab_blocks`. Nuova conversazione per vedere strumenti nuovi (`docs/chat.md`).
+- Tappa 3: `menu` e `header` con `order` e `hidden` (Panoramica e Impostazioni mai nascoste), `reset`, «Rimetti come di serie» in Impostazioni; `island_layout` dà l'isola intera.
+- Panoramica nel JSON (`overview`: parti, riquadri, blocchi) e pezzi esistenti come blocchi (`piece`: card di un'integrazione, notizie, azioni rapide); sezione «Panoramica» in Impostazioni.
+- Ramo `claude/app-2`, unito in `claude/sviluppo` il 23/11: anche icone di «App» ordinate trascinandole, × dell'anteprima con `SC_CLOSE`, avvisi misurati alla loro larghezza, valori della barra richiesti di nuovo dall'isola.
+
+### 22/11 — «App» nella barra fissa
+- Ramo `claude/app` (da `claude/barra-windows`): app fissate e aperte come sulla barra di Windows (`taskwin.rs`, `applist.rs`, `barapps.rs`, `winthumbs.rs`, `regwatch.rs`, relay `avvia`, `src/character-window/apps.ts`, scheda `apps:` in `barcard.ts`). Riusato il codice della Dock senza la sua finestra.
+- 23/11: personaggio e app centrati insieme, scheda delle finestre rifatta e senza scatti, finestre di EasyIsland sotto la sua icona (provato da Edoardo). Animazioni proprie delle finestre provate e tolte (`docs/decisioni.md`). Unito in `claude/sviluppo`.
+- Profilo `prova` (`npm run prova`, 4 min la prima volta invece di 13). Elementi vuoti visibili in «Personalizza la barra». Barra in basso: riga trasparente in cima e blocco all'avvio con la barra di Windows nascosta corretti.
+
+### 22/11 — Barra di Windows nascosta
+- Ramo `claude/barra-windows` (da `claude/campo`): `taskbar_hide.rs` ripreso dalla Dock accantonata, da solo; Impostazioni → Barra fissa → «Barra delle applicazioni di Windows», guardiano, ripristino nel disinstallatore. `docs/decisioni.md`.
+
 ### 22/11 — Il PC dal campo dell'isola
 - Ramo `claude/campo`, `pcfind.rs` (`docs/architettura.md` → Campo unico): file (recenti e indice di Windows, Maiusc+Invio nella cartella, interruttore «File del PC»), finestre aperte portate davanti, pagine e comandi di Windows. Nessuna dipendenza.
 - Il resto delle proposte in `docs/idee.md` → «Il PC dal campo dell'isola, seguiti».

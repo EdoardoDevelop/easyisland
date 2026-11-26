@@ -658,6 +658,8 @@ export class Island {
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl, ...this.ears);
     this.applyGeometry();
     this.watchScale();
+    // The window reached its new size (windowBox): the island placed in it at once.
+    window.addEventListener("resize", () => this.applyGeometry());
   }
 
   /**
@@ -904,7 +906,18 @@ export class Island {
 
   /** The Anteprima's panel is in the open island (not on the greeting and the drop views; not with the chat in its window). */
   private get paneShown(): boolean {
-    return (this.paneOpen || State.chatTermOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat");
+    return (this.paneOpen || State.chatTermOpen || State.chatDocsOpen) && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat");
+  }
+
+  /**
+   * The panel widens the island: only without the chat's panels (dock.ts). With
+   * them, Anteprima, Terminale and Documenti share the island's width with the
+   * chat, as the conversations do (chatSideRoom): a wider island resized the
+   * window, and WebView2 showed it black and at the old size for some frames
+   * (25/11/2026, Edoardo: «deve essere tutto fluido»).
+   */
+  private get paneWidens(): boolean {
+    return this.paneShown && (!this.dock || this.dockFailed);
   }
 
   /**
@@ -914,7 +927,7 @@ export class Island {
    * the panel on top and went off the screen with its buttons.
    */
   private paneSplit(maxW: number): { views: number; pane: number } {
-    if (!this.paneShown) return { views: this.openWidth(maxW), pane: 0 };
+    if (!this.paneWidens) return { views: this.openWidth(maxW), pane: 0 };
     // Views and panel share what the menu leaves (less #body's 10 px gap).
     const room = maxW - this.railRoom - 10;
     const pane = Math.round(clamp(this.paneWidth, PANE_MIN_W, Math.max(PANE_MIN_W, room - PANE_VIEWS_MIN_W)));
@@ -929,7 +942,16 @@ export class Island {
    * taking it from the conversation, as the Anteprima's panel does.
    */
   private get chatSideRoom(): number {
-    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !State.searchOnly && !isPopped("chat") ? chatSideWidth() : 0;
+    // In the panels (dock.ts) the conversations take room from the chat, as the
+    // Anteprima does: the island keeps its width. Widening it resized the window,
+    // and WebView2 showed the island black and at the old size for some frames
+    // (25/11/2026, Edoardo's recording: «non è fluido»).
+    return this.chatSideWanted && (!this.dock || this.dockFailed) ? chatSideWidth() : 0;
+  }
+
+  /** The chat's conversations are open beside it (in the island, the chat on screen). */
+  private get chatSideWanted(): boolean {
+    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !State.searchOnly && !isPopped("chat");
   }
 
   private get paneWidth(): number {
@@ -938,7 +960,7 @@ export class Island {
 
   /** What the panel adds to the island's width (its gap is #body's 10 px). */
   private get paneRoom(): number {
-    return this.paneShown ? this.paneSplit(islandMax(this.limits).w).pane + 10 : 0;
+    return this.paneWidens ? this.paneSplit(islandMax(this.limits).w).pane + 10 : 0;
   }
 
   /** Current width of the left rail (`RAIL_COMPACT_W` when collapsed or in Chat, `RAIL_W` otherwise). */
@@ -2964,7 +2986,7 @@ ${note}` : text };
         w = Math.min(max.w, w + this.railRoom);
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
-      if (this.paneShown) {
+      if (this.paneWidens) {
         w = Math.min(max.w, this.paneSplit(max.w).views + this.railRoom + this.paneRoom);
         h = Math.max(h, Math.min(max.h, PANE_MIN_H));
       }
@@ -3115,7 +3137,8 @@ ${note}` : text };
     const hh = this.height.value;
     const r = this.radius.value;
     const p = this.framePlacement;
-    const o = anchoredOrigin(p, w, hh, this.panel.w, this.panel.h);
+    const box = this.windowBox;
+    const o = anchoredOrigin(p, w, hh, box.w, box.h);
     this.islandEl.style.left = `${o.x}px`;
     this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
@@ -3200,8 +3223,21 @@ ${note}` : text };
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    const o = anchoredOrigin(this.framePlacement, w, hh, this.panel.w, this.panel.h);
+    const box = this.windowBox;
+    const o = anchoredOrigin(this.framePlacement, w, hh, box.w, box.h);
     return { x: o.x, y: o.y, w, h: hh };
+  }
+
+  /**
+   * The window the island is drawn in, as it is now. `panel` is the size asked
+   * of Rust, which arrives some frames later: placed in it, the island jumped
+   * by half the change until the window caught up (25/11/2026, the chat's
+   * conversations opening). In the browser preview the «window» is the page's frame.
+   */
+  private get windowBox(): { w: number; h: number } {
+    // Only open: closed, the window shrinks to the rest icon while the island still retracts in the panel's frame.
+    if (State.mode !== "expanded" || document.documentElement.classList.contains("browser-preview") || !window.innerWidth || !window.innerHeight) return this.panel;
+    return { w: window.innerWidth, h: window.innerHeight };
   }
 
   /** Full screen (▢): glued to every edge, so it fills the window to the pixel. */
@@ -3380,10 +3416,10 @@ ${note}` : text };
     });
     return () => {
       const open = State.previewOpen;
-      island.classList.toggle("paned", open || State.chatTermOpen);
+      island.classList.toggle("paned", open || State.chatTermOpen || State.chatDocsOpen);
       pane.classList.toggle("term-only", !open);
       // Just opened in a narrow window: the window grows by the panel, as the island would.
-      const any = open || State.chatTermOpen;
+      const any = open || State.chatTermOpen || State.chatDocsOpen;
       if (any && !wasOpen) {
         const need = (State.settings.previewWidth || PANE_W) + PANE_VIEWS_MIN_W + 60;
         const name = poppedName("chat");
@@ -3441,9 +3477,11 @@ ${note}` : text };
       sideOpen,
       previewOpen: () => State.previewOpen,
       termOpen: () => State.chatTermOpen,
+      docsOpen: () => State.chatDocsOpen,
       closeSide: () => tell(".chat-side"),
       closePreview: () => void Bridge.previewHide().catch(() => undefined),
       closeTerm: () => tell(".chat-term"),
+      closeDocs: () => tell(".chat-docs"),
       placePreview,
       previewWidth: () => State.settings.previewWidth || PANE_W,
       sideWidth: () => chatSideWidth(),
@@ -3463,7 +3501,7 @@ ${note}` : text };
         this.dock = new ChatDock(document, this.viewsEl, this.dockHooks(document, "isola",
           () => State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat"),
           // Only where the island makes room for them (the chat itself, not a permission's card).
-          () => this.chatSideRoom > 0,
+          () => this.chatSideWanted,
           (r) => {
             // Never out of the island nor of the window (a webview there is cut by the screen).
             const box = this.islandEl.getBoundingClientRect();
@@ -3576,8 +3614,8 @@ ${note}` : text };
       // least what it needs: a number past either went on with the pointer
       // while the island had stopped, and on the way back the corner stood
       // still for that stretch (the corner "not under the mouse").
-      const pane = this.paneShown ? this.paneSplit(max.w).pane + 10 : 0;
-      const least = this.paneShown ? Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane) : Math.max(ISLAND_MIN_W, this.headerNeed);
+      const pane = this.paneWidens ? this.paneSplit(max.w).pane + 10 : 0;
+      const least = this.paneWidens ? Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane) : Math.max(ISLAND_MIN_W, this.headerNeed);
       const most = Math.max(least, max.w - this.railRoom - pane - this.chatSideRoom);
       s.islandWidth = Math.round(clamp(start.w + (e.screenX - start.x) * fx, least, most));
       // Not below what the view needs: a height under it was saved as it was
@@ -3826,6 +3864,8 @@ ${note}` : text };
       }
       const lines = barMenuOf(it);
       if (lines.length) void Bridge.barMenu(lines);
+      // Looked at: the downloads listed are no longer new (barsys.rs `downloads-seen`).
+      if (it.id === "sys:downloads" && State.barSys.downloads?.fresh) void Bridge.barSysDo("downloads-seen");
     } else if (act.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === act.slice(7));
       if (a) void this.runAction(a);
@@ -3917,6 +3957,21 @@ ${note}` : text };
       case "vscode": {
         const p = State.barSys.vscode?.[Number(arg)]?.path;
         if (what === "open" && p) void Bridge.barSysDo("vscode-open", undefined, p);
+        return;
+      }
+      // The newest downloads: opened, shown in their folder, or the folder itself (as the download card).
+      case "downloads": {
+        const d = State.barSys.downloads;
+        const p = d?.items[Number(arg)]?.path;
+        if ((what === "open" || what === "show") && p) void Bridge.fileOpen(p, what === "show").catch(() => {});
+        else if (what === "folder" && d?.dir) void Bridge.fileOpen(d.dir, false).catch(() => {});
+        return;
+      }
+      // A removable drive the bar lists: in File Explorer, or Windows' own «Espelli».
+      case "drives": {
+        if (!/^[D-Z]$/.test(arg) || !State.barSys.drives?.some((x) => x.letter === arg)) return;
+        if (what === "open") void Bridge.barSysDo(`disk-open:${arg}`);
+        else if (what === "eject") void Bridge.barSysDo(`drive-eject:${arg}`);
         return;
       }
     }

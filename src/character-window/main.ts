@@ -13,7 +13,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { addFaces } from "../core/fonts";
 import { barBgCss, hexLuma, parseBarBg } from "../core/barbg";
-import { appsDragEnd, appsDragOver, appsDropFiles, appsMenu, appsPress, appsStart, appsTakesFiles, appsWheel, fillApps, setPins } from "./apps";
+import { appsDragEnd, appsDragOver, appsDropFiles, appsLaidOut, appsMenu, appsPress, appsStart, appsTakesFiles, appsWheel, fillApps, sendRectsSoon, setAppsLook, setPins } from "./apps";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -130,6 +130,7 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   // «App» in the bar: its pins, and the windows followed from the first time it shows.
   if (bar) {
     setPins(bar.apps);
+    setAppsLook(bar.appsLook, bar.edge);
     if (bar.items.some((p) => p.key.startsWith("sys:apps"))) {
       appsStart(() => {
         laidItems = "";
@@ -593,6 +594,8 @@ function layAreas(b: BarLook) {
     }
   }
   const key = JSON.stringify([b.items, b.look]);
+  // The areas may have moved without a new drawing: the apps' icons with them.
+  sendRectsSoon();
   if (key === laidItems) {
     markOptions();
     return;
@@ -634,6 +637,7 @@ function layAreas(b: BarLook) {
   }
   fitAreas();
   markOptions();
+  appsLaidOut();
 }
 
 // ── «Personalizza la barra» (Edoardo, 21 Nov 2026) ─────────────────────────
@@ -878,7 +882,18 @@ document.addEventListener("pointerup", (e) => {
 // becomes a button that opens it (lib.rs bar_pin: a quick action «apri
 // programma» with its icon). Onto a folder: inside it. The page takes the drop
 // as an HTML5 drop and hands the files to Rust for their paths (drop.rs).
-let fileDrop: { area: string; before: string | null; folder: string; app: string } | null = null;
+let fileDrop: { area: string; before: string | null; folder: string; app: string; recycle?: boolean } | null = null;
+
+/** The bar's recycle bin under this point (24 Nov 2026: files dropped on it go into it). */
+function recycleAt(x: number, y: number): HTMLElement | null {
+  const btn = document.elementFromPoint(x, y)?.closest?.(".bar-btn") as HTMLElement | null;
+  return btn?.dataset.key?.startsWith("sys:recycle") ? btn : null;
+}
+
+function lightRecycle(el: HTMLElement | null) {
+  for (const b of document.querySelectorAll<HTMLElement>(".bar-btn.drop-bin")) if (b !== el) b.classList.remove("drop-bin");
+  el?.classList.add("drop-bin");
+}
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
 /** The log says once per drag that it reached the bar (21 Nov 2026: refused with no trace). */
 let dragLogged = false;
@@ -896,12 +911,15 @@ function trackFiles(e: DragEvent) {
   // Over an app of «App»: its window comes forward, and a program opens the files (apps.ts).
   const app = editing ? "" : appsDragOver(e.clientX, e.clientY);
   const opens = appsTakesFiles(app);
-  const f = opens ? null : folderAt(e.clientX, e.clientY);
+  const bin = editing || opens ? null : recycleAt(e.clientX, e.clientY);
+  // Still «copy»: with «move» File Explorer could delete the files itself after the drop.
+  lightRecycle(bin);
+  const f = opens || bin ? null : folderAt(e.clientX, e.clientY);
   lightFolder(f);
   const d = dropAt(e.clientX);
-  fileDrop = { area: d.area, before: d.before, folder: f?.dataset.key ?? "", app: opens ? app : "" };
+  fileDrop = { area: d.area, before: d.before, folder: f?.dataset.key ?? "", app: opens ? app : "", recycle: !!bin };
   // The icon lit (.drop-on) says where they go.
-  if (opens || f) hideDrop();
+  if (opens || f || bin) hideDrop();
   else showDrop(d.at, editWords.pin);
 }
 window.addEventListener("dragenter", trackFiles);
@@ -911,6 +929,7 @@ window.addEventListener("dragleave", (e) => {
   dragLogged = false;
   hideDrop();
   lightFolder(null);
+  lightRecycle(null);
   appsDragEnd();
 });
 window.addEventListener("drop", (e) => {
@@ -919,6 +938,7 @@ window.addEventListener("drop", (e) => {
   dragLogged = false;
   hideDrop();
   lightFolder(null);
+  lightRecycle(null);
   appsDragEnd();
   const files = Array.from(e.dataTransfer?.files ?? []);
   const webview = (window as unknown as {
@@ -937,6 +957,10 @@ window.addEventListener("drop", (e) => {
 void getCurrentWebview().listen<string[]>("file-drop", (ev) => {
   const where = fileDrop ?? { area: "end", before: null, folder: "", app: "" };
   fileDrop = null;
+  if (ev.payload?.length && where.recycle) {
+    void invoke("recycle_files", { paths: ev.payload }).catch(() => {});
+    return;
+  }
   if (ev.payload?.length && appsDropFiles(where.app, ev.payload)) return;
   if (ev.payload?.length) void invoke("bar_pin", { paths: ev.payload, area: where.area, before: where.before, folder: where.folder }).catch(() => {});
 });
