@@ -51,7 +51,7 @@ import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
 import { applySearchLine, applyUiStyle, islandHex, studioLook, uiStyle, windowsLook } from "../core/uistyle";
 import { applyFonts } from "../core/fonts";
-import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses } from "../core/motion";
+import { applyMotion, closeIsland, motionLevel, openIsland, viewEnter, watchPresses, winOf } from "../core/motion";
 import * as Notices from "../notices/notices";
 import { momentHeadline } from "../views/moment";
 import { ChatDock, type DockHooks, type Rect } from "./dock";
@@ -1044,7 +1044,8 @@ export class Island {
         // Home again, among the island's views; the Anteprima docks beside it again.
         host.el.classList.remove("on");
         this.viewsEl.append(host.el);
-        void Bridge.popoutChat(null);
+        // Back to the Launcher's window when it is open (the island's is hidden then).
+        void Bridge.popoutChat(isPopped("launcher") ? poppedName("launcher") || null : null);
         this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
         this.placePane();
       }, {
@@ -1120,10 +1121,23 @@ export class Island {
       this.launcherMouse = null;
       this.launcherCopy = null;
       this.loopIn(window);
+      // The docked Anteprima back to the island (Rust also does it as the window closes).
+      if (!isPopped("chat")) void Bridge.popoutChat(null);
+      this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
       if (State.mode === "expanded") this.collapse();
     }, {
       whole: true,
       activate,
+      // The docked Anteprima is made in the Launcher's window (preview.rs chat_dock,
+      // as for the chat's own window): the island's window is hidden. Its box
+      // (#preview-pane) came with the content; placePane measures it there.
+      named: (name) => {
+        if (isPopped("chat")) return;
+        void Bridge.popoutChat(name);
+        this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
+        // A frame to tell its place again (placePane runs in the loop).
+        this.ensureRunning();
+      },
       decorate: (doc, island) => {
         this.launcherBot(doc, island);
         // The island's keys (Esc, ?, N / Y / S on a card, Ctrl+N, Ctrl+P): its
@@ -3595,15 +3609,20 @@ ${note}` : text };
     const shown = this.paneShown;
     this.islandEl.classList.toggle("paned", shown);
     this.paneEl.classList.toggle("term-only", !this.paneOpen);
-    this.paneEl.style.width = `${Math.max(0, this.paneRoom - 10)}px`;
+    // In the Launcher the box is in its window (the content went there): measured
+    // there, and as wide as the window leaves it, not by the island's room.
+    const launcher = isPopped("launcher");
+    const win = winOf(this.paneEl);
+    const box = (this.paneEl.closest<HTMLElement>("#island") ?? this.islandEl).getBoundingClientRect();
+    this.paneEl.style.width = `${launcher ? this.launcherPaneW(win) : Math.max(0, this.paneRoom - 10)}px`;
     let next = { x: 0, y: 0, w: 0, h: 0 };
     if (shown && this.paneOpen) {
       const r = this.paneEl.getBoundingClientRect();
       // Inside its 1 px border; clipped to the island while it grows.
       // Never out of the island nor of the window (a webview there is cut by the screen).
-      const right = Math.min(r.right, this.islandEl.getBoundingClientRect().right - 10, window.innerWidth);
+      const right = Math.min(r.right, box.right - 10, win.innerWidth);
       // The chat's terminal under the page (paneTermTop).
-      const bottom = Math.min(paneTermTop(this.paneEl, r), window.innerHeight);
+      const bottom = Math.min(paneTermTop(this.paneEl, r), win.innerHeight);
       // The chat «a schede»: the page sits inside its card, with room around it (paneInset).
       const k = paneInset();
       if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + k), y: Math.round(r.top + k), w: Math.round(right - r.left - 2 * k), h: Math.round(bottom - r.top - 2 * k) };
@@ -3612,6 +3631,11 @@ ${note}` : text };
     if (p.x === next.x && p.y === next.y && p.w === next.w && p.h === next.h) return;
     this.paneSent = next;
     void Bridge.previewPane(next.x, next.y, next.w, next.h);
+  }
+
+  /** The Anteprima's width in the Launcher's window: the chosen one, leaving the chat its room. */
+  private launcherPaneW(win: Window): number {
+    return Math.round(clamp(State.settings.previewWidth || PANE_W, PANE_MIN_W, Math.max(PANE_MIN_W, win.innerWidth - PANE_VIEWS_MIN_W - 40)));
   }
 
   /**
@@ -3693,6 +3717,10 @@ ${note}` : text };
   private dockInWindow(doc: Document, body: HTMLElement): () => void {
     const views = body.querySelector<HTMLElement>("#views");
     if (!views) return this.paneInWindow(doc, body);
+    // With the Launcher the island's page is hidden, and dockview runs on its
+    // frames and timers: the conversations' panel came out twice and did not
+    // close in the chat's window too (26 Nov 2026). The panel of before then.
+    if (State.settings.launcher && IS_TAURI) return this.paneInWindow(doc, body);
     let gen = this.paneGen;
     let dock: ChatDock;
     try {
@@ -3740,6 +3768,20 @@ ${note}` : text };
    * share it as the user arranged them.
    */
   private syncDock(): boolean {
+    // The Launcher: no panels. dockview and the dock run on the island's page,
+    // hidden then (no frames, the chat's conversations looked for in the wrong
+    // page): the conversations' panel came out twice and did not close
+    // (26 Nov 2026). The chat keeps its own sidebar there; back in the island
+    // the panels are made again.
+    if (isPopped("launcher")) {
+      if (this.dock) {
+        this.dock.drop();
+        this.dock = null;
+        this.islandEl.classList.remove("docked");
+        this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
+      }
+      return false;
+    }
     if (!this.dock) {
       try {
         this.dock = new ChatDock(document, this.viewsEl, this.dockHooks(document, "isola",
@@ -3797,7 +3839,8 @@ ${note}` : text };
     const split = (pane: number, total: number) => {
       const p = Math.round(clamp(pane, PANE_MIN_W, Math.max(PANE_MIN_W, total - PANE_VIEWS_MIN_W)));
       State.settings.previewWidth = p;
-      State.settings.islandWidth = total - p;
+      // In the Launcher the window's width is the user's: only the Anteprima's changes.
+      if (!isPopped("launcher")) State.settings.islandWidth = total - p;
       State.lastActivity = performance.now();
       this.animateGeometry(false);
     };
@@ -3805,7 +3848,13 @@ ${note}` : text };
       if (e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
-      start = { x: e.screenX, ...this.paneSplit(islandMax(this.limits).w) };
+      if (isPopped("launcher")) {
+        const win = winOf(g);
+        const pane = this.launcherPaneW(win);
+        start = { x: e.screenX, pane, views: Math.max(PANE_VIEWS_MIN_W, win.innerWidth - pane - 40) };
+      } else {
+        start = { x: e.screenX, ...this.paneSplit(islandMax(this.limits).w) };
+      }
       g.setPointerCapture(e.pointerId);
     });
     g.addEventListener("pointermove", (e) => {

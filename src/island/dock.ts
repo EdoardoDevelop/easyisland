@@ -249,6 +249,21 @@ export class ChatDock {
     this.sent = { x: -1, y: -1, w: -1, h: -1 };
   }
 
+  /**
+   * The panels go for good while the chat stays (the Launcher, island.ts
+   * syncDock): the chat's views back where the dock stood, then what the panels
+   * held (conversations, terminal, documents) back into the chat (chat.ts «dock-left»).
+   */
+  drop() {
+    const held = [...this.boxes.entries()]
+      .filter(([id]) => id !== "chat" && id !== "anteprima")
+      .map(([, b]) => b.firstElementChild)
+      .filter((e): e is Element => !!e);
+    this.el.parentElement?.insertBefore(this.views, this.el);
+    this.dispose();
+    for (const e of held) e.dispatchEvent(new CustomEvent("dock-left"));
+  }
+
   /** Its page is going (the window closes or WebView2 swaps it): the chat has left already. */
   dispose() {
     this.watch.disconnect();
@@ -288,8 +303,10 @@ export class ChatDock {
   private home() {
     const layout = this.views.querySelector<HTMLElement>(".chat-layout");
     if (!layout) return;
-    const side = this.doc.querySelector<HTMLElement>(".chat-side");
-    const term = this.doc.querySelector<HTMLElement>(".chat-term");
+    // The chat's own page (the Launcher's window has it, not the island's hidden one).
+    const doc = this.views.ownerDocument;
+    const side = doc.querySelector<HTMLElement>(".chat-side");
+    const term = doc.querySelector<HTMLElement>(".chat-term");
     if (side && side.parentElement !== layout) layout.prepend(side);
     if (term && term.parentElement !== layout && !term.parentElement?.id) layout.append(term);
   }
