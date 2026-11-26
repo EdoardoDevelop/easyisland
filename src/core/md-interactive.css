@@ -1,0 +1,37 @@
+/* Procedures to tick and code with fields (md-interactive.ts). */
+.md-checklist { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
+.md-check-head { display: flex; align-items: center; gap: 10px; font-size: calc(12px + var(--fs-up, 0px)); color: var(--dim); }
+.md-check-count { flex: none; font-variant-numeric: tabular-nums; }
+.md-check-bar { flex: 1 1 auto; max-width: 160px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.md-check-fill { display: block; height: 100%; border-radius: 2px; background: var(--win-accent, #4cc2ff); transition: width 0.25s; }
+.md-checklist.all-done .md-check-fill { background: #4ade80; }
+.md-checklist.all-done .md-check-count { color: #4ade80; }
+.md-check-save { margin-left: auto; height: 22px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font: inherit; }
+.md-check-save:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.md-checklist > .md-list { padding-left: 0; list-style: none; gap: 2px; }
+.md-task { display: flex; align-items: flex-start; gap: 9px; padding: 3px 4px; border-radius: 7px; }
+.md-task:hover { background: rgba(255, 255, 255, 0.035); }
+.md-task::marker { content: none; }
+.md-task > input { flex: none; width: 15px; height: 15px; margin: 0.22em 0 0; accent-color: var(--win-accent, #4cc2ff); cursor: pointer; }
+.md-task > input:disabled { cursor: default; }
+.md-task-text { flex: 1 1 auto; min-width: 0; transition: color 0.15s, opacity 0.15s; }
+.md-task.done .md-task-text { opacity: 0.55; text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.35); }
+.md-task-ask { flex: none; width: 20px; height: 20px; margin-top: 0.1em; border: 0; border-radius: 6px; background: transparent; color: var(--dim-2); font: 500 12px var(--font); opacity: 0; }
+.md-task:hover .md-task-ask, .md-task-ask:focus-visible { opacity: 1; }
+.md-task-ask:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+
+.md-fields { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.md-field { display: inline-flex; align-items: center; gap: 6px; font-size: calc(11.5px + var(--fs-up, 0px)); color: var(--dim); }
+.md-field > input { min-width: 0; height: 24px; padding: 0 7px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px; background: rgba(0, 0, 0, 0.25); color: var(--ink); font: 400 12.5px var(--mono); outline: none; }
+.md-field > input:focus { border-color: var(--win-accent, #4cc2ff); }
+.md-field > input.empty { border-color: rgba(245, 165, 36, 0.55); }
+.md-copy:disabled { opacity: 0.45; cursor: default; }
+
+html[data-scheme="light"] .md-checklist { background: rgba(0, 0, 0, 0.02); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+html[data-scheme="light"] .md-check-bar { background: rgba(0, 0, 0, 0.08); }
+html[data-scheme="light"] :is(.md-check-save, .md-task-ask):hover { background: rgba(0, 0, 0, 0.07); }
+html[data-scheme="light"] .md-task:hover { background: rgba(0, 0, 0, 0.03); }
+html[data-scheme="light"] .md-task.done .md-task-text { text-decoration-color: rgba(0, 0, 0, 0.35); }
+html[data-scheme="light"] .md-checklist.all-done :is(.md-check-count) { color: #15803d; }
+html[data-scheme="light"] .md-fields { border-bottom-color: rgba(0, 0, 0, 0.08); }
+html[data-scheme="light"] .md-field > input { background: #ffffff; border-color: rgba(0, 0, 0, 0.16); }

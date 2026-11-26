@@ -273,12 +273,14 @@ const MD_HOOKS = {
   canRun: (lang: string) => codeShell(lang) !== null,
   runCode: (code: string, lang: string) => codeHooks.run(code, lang),
   saveCode: (code: string, lang: string) => codeHooks.save(code, lang),
+  ask: (text: string) => codeHooks.ask(text),
 };
 
 /** What the chat's view does with a block of code (set by buildPrompt, which has the terminal). */
-const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; wsl: boolean } = {
+const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; ask(text: string): void; wsl: boolean } = {
   run: () => {},
   save: () => {},
+  ask: () => {},
   wsl: false,
 };
 
@@ -3466,6 +3468,8 @@ export function buildPrompt(
   }
   // «▶ Nel terminale» under a block of code: a terminal of its shell, the code written in, Enter left to the user.
   codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
+  // A step asked about, a procedure to save (core/md-interactive.ts): in the field, its {{…}} selected.
+  codeHooks.ask = (text) => useTip({ label: "", prompt: text });
   codeHooks.save = (code, lang) => {
     void Bridge.saveCodeAs(codeFileName(lang), code)
       .then((path) => { if (path) flash(t("Salvato in {path}", { path })); })

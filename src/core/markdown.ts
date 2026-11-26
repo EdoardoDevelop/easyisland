@@ -1,5 +1,6 @@
 import { diagramBlock, isDiagram } from "./diagram";
 import { highlightInto } from "./highlight";
+import { checklist, codeFields, fieldsOf, TASK } from "./md-interactive";
 import { t } from "./i18n";
 // Claude's replies in the chat, read as markdown (HANDOFF 6.6, point 4).
 //
@@ -48,6 +49,8 @@ export interface MarkdownHooks {
   runCode?(code: string, lang: string): void;
   /** «Salva»: the code into a file the user names (Windows' Save dialog). */
   saveCode?(code: string, lang: string): void;
+  /** A request written in the chat's field, never sent (a step asked about, a procedure to save). */
+  ask?(text: string): void;
 }
 
 /** "C:\a\b.ts", "src/app.ts", "./x.md", "~/n.txt": a path, not a word or a command. */
@@ -249,8 +252,10 @@ function cellNodes(text: string, hooks: MarkdownHooks): Node[] {
   return out;
 }
 
-function codeBlock(code: string, lang: string, hooks: MarkdownHooks): HTMLElement {
+function codeBlock(source: string, lang: string, hooks: MarkdownHooks): HTMLElement {
   const box = el("div", "md-pre");
+  // With {{Nome}} fields: what is copied, saved or run is the code as filled in (md-interactive.ts).
+  let code = source;
   const head = el("div", "md-pre-head");
   const copy = el("button", "md-copy", t("Copia"));
   copy.addEventListener("click", async () => {
@@ -267,11 +272,13 @@ function codeBlock(code: string, lang: string, hooks: MarkdownHooks): HTMLElemen
   head.append(label);
   // The outputs of a step (claude_cli.rs result_block) are not code to keep or run.
   const output = lang === "esito" || lang === "errore";
+  let runBtn: HTMLButtonElement | null = null;
   if (!output && hooks.runCode && hooks.canRun?.(lang)) {
     const run = el("button", "md-copy md-run", `▶ ${t("Nel terminale")}`);
     run.title = t("Scrive il codice nel terminale della chat: lo esegui tu con Invio");
     run.addEventListener("click", () => hooks.runCode?.(code, lang));
     head.append(run);
+    runBtn = run;
   }
   if (!output && hooks.saveCode) {
     const save = el("button", "md-copy md-save", t("Salva"));
@@ -287,6 +294,16 @@ function codeBlock(code: string, lang: string, hooks: MarkdownHooks): HTMLElemen
   if (!lang && used) label.textContent = used;
   pre.append(body);
   box.append(head, pre);
+  if (!output && hooks.openPath && fieldsOf(source).length) {
+    box.insertBefore(codeFields(source, (filled, complete) => {
+      code = filled;
+      highlightInto(body, filled, used || lang);
+      if (runBtn) {
+        runBtn.disabled = !complete;
+        runBtn.title = complete ? t("Scrive il codice nel terminale della chat: lo esegui tu con Invio") : t("Completa prima i campi sopra il codice");
+      }
+    }), pre);
+  }
   return box;
 }
 
@@ -443,7 +460,14 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
           const depth = Math.min(3, Math.floor(m[1].replace(/\t/g, "  ").length / 2));
           item = el("li");
           if (depth) item.style.marginLeft = `${depth * 14}px`;
-          item.append(...inline(m[ordered ? 3 : 2], hooks));
+          let text = m[ordered ? 3 : 2];
+          const task = TASK.exec(text);
+          if (task) {
+            text = task[2];
+            item.dataset.task = task[1].toLowerCase();
+            item.dataset.text = text.trim();
+          }
+          item.append(...inline(text, hooks));
           list.append(item);
         } else if ((b || n) && item) {
           // The other kind of list nested inside: an indented item of this one.
@@ -460,7 +484,8 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
         }
       }
       i--;
-      blocks.push(list);
+      // A procedure: steps to tick (md-interactive.ts).
+      blocks.push(list.querySelector(":scope > li[data-task]") ? checklist(list, hooks.ask) : list);
       continue;
     }
     para.push(line);

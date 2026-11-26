@@ -303,6 +303,33 @@ export async function runScene(island: Island, scene: string) {
           ].join("\n\n") },
         ];
         State.chat.streamed = "";
+      } else if (new URLSearchParams(location.search).has("procedura")) {
+        // ?procedura: a procedure to tick (one step already done) and commands with {{fields}} (core/md-interactive.ts).
+        State.chatHistory = [
+          { id: 1, role: "user", content: "come cambio l'IP di un server Windows da PowerShell?" },
+          { id: 2, role: "assistant", engine: "subscription", content: [
+            "## 1. Procedura",
+            "",
+            "- [x] Annota IP, gateway e DNS attuali",
+            "- [ ] Collegati in console (non da Desktop remoto)",
+            "- [ ] Togli il vecchio indirizzo",
+            "- [ ] Imposta il nuovo indirizzo e il gateway",
+            "- [ ] Controlla DNS e raggiungibilità",
+            "",
+            "## 2. Comandi",
+            "",
+            "```powershell",
+            "Remove-NetIPAddress -InterfaceAlias \"{{Scheda|Ethernet}}\" -Confirm:$false",
+            "New-NetIPAddress -InterfaceAlias \"{{Scheda|Ethernet}}\" -IPAddress {{Nuovo IP}} -PrefixLength 24 -DefaultGateway {{Gateway|192.168.10.1}}",
+            "Set-DnsClientServerAddress -InterfaceAlias \"{{Scheda|Ethernet}}\" -ServerAddresses {{DNS}}",
+            "```",
+            "",
+            "```powershell",
+            "Test-NetConnection {{Nuovo IP}} -Port 3389",
+            "```",
+          ].join("\n") },
+        ];
+        State.chatSideOpen = false;
       } else if (new URLSearchParams(location.search).has("diagrammi")) {
         // ?diagrammi: answers with ```mermaid blocks drawn (core/diagram.ts): a network, steps with choices
         // (brackets without quotes, put right), an exchange, a plan, tables, and one that cannot be drawn.

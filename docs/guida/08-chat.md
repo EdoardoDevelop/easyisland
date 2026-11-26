@@ -51,6 +51,11 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 - **Clic**: un file che l'Anteprima sa mostrare (testo, codice, Markdown, PDF, immagini, HTML…) si apre **nell'Anteprima** accanto alla chat; gli altri, e con <kbd>Ctrl</kbd>+clic, nel loro programma. Una **cartella** 📁 si apre in Esplora file.
 - **Clic destro**: **Apri** (nel suo programma), **Anteprima**, **Scarica** (una copia nella cartella Download, che si apre con il file selezionato), **Apri percorso** (Esplora file con il file selezionato), **Copia percorso**.
 
+### Procedure e comandi da completare
+Quando la risposta è una procedura, i passi hanno una **casella**: spunti man mano e vedi «3 di 7 fatti»; le spunte restano anche riaprendo la conversazione (su questo PC). **?** accanto a un passo scrive nel campo una domanda su quel passo; **Salva in memoria** prepara la richiesta di salvarla nella pagina di un cliente o di un argomento. In entrambi i casi completi e invii tu.
+
+Un comando con dei valori da scegliere (IP, gateway, utente, percorso) ha i **campi sopra il codice**: scrivi i valori e il comando si completa da solo; **Copia**, **Salva** e **▶ Nel terminale** usano quello completo, e «Nel terminale» si accende solo quando tutti i campi sono pieni. Un valore scritto una volta si ripete negli altri comandi con lo stesso campo.
+
 ### Diagrammi nelle risposte
 Chiedi «fammi lo schema della rete», «disegna i passaggi», «un grafico dei ticket per mese»: la risposta contiene un disegno (schemi, passaggi con scelte, scambi tra sistemi, piani nel tempo, tabelle collegate, torte e barre). Il motore può usarlo anche da solo quando spiega meglio del testo. Un clic, o **⤢**, lo ingrandisce (rotella per lo zoom, trascina per spostare, <kbd>Esc</kbd> per chiudere); **Copia** lo mette negli appunti come immagine su fondo bianco, **Salva** lo scrive in SVG, **Codice** mostra il testo da cui nasce. Si disegna sul PC, senza rete; se il testo ha un errore resta come codice.
 

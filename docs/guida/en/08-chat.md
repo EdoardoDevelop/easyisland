@@ -51,6 +51,11 @@ The files and folders the chat names in its replies become **links**: full paths
 - **Click**: a file the Preview can show (text, code, Markdown, PDF, images, HTML…) opens **in the Preview** beside the chat; the others, and with <kbd>Ctrl</kbd>+click, in their program. A **folder** 📁 opens in File Explorer.
 - **Right-click**: **Open** (in its program), **Preview**, **Download** (a copy in the Downloads folder, which opens with the file selected), **Open location** (File Explorer with the file selected), **Copy path**.
 
+### Procedures and commands to complete
+When the reply is a procedure, its steps have a **box**: tick them as you go and see “3 of 7 done”; the ticks stay when you reopen the conversation (on this PC). **?** beside a step writes a question about it in the field; **Save to memory** prepares the request to save it in a client's or topic's page. Either way you complete and send it.
+
+A command with values to choose (IP, gateway, user, path) has **fields above the code**: type the values and the command completes itself; **Copy**, **Save** and **▶ In the terminal** use the completed one, and “In the terminal” turns on only when every field is filled. A value typed once repeats in the other commands with the same field.
+
 ### Diagrams in the replies
 Ask “draw the network”, “draw the steps”, “a chart of tickets per month”: the reply holds a drawing (networks, steps with choices, exchanges between systems, plans over time, linked tables, pies and bars). The engine may also use one by itself when it explains better than words. A click, or **⤢**, enlarges it (wheel to zoom, drag to move, <kbd>Esc</kbd> to close); **Copy** puts it on the clipboard as an image on white, **Save** writes an SVG, **Code** shows the text it comes from. It is drawn on the PC, with no network; if the text has a mistake it stays as code.
 

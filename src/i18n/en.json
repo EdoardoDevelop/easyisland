@@ -6683,5 +6683,12 @@
   "Mostra il codice del diagramma": "Show the diagram's code",
   "Mostra il diagramma": "Show the diagram",
   "mermaid · il diagramma non si può disegnare": "mermaid · the diagram cannot be drawn",
-  "[diagramma]": "[diagram]"
+  "[diagramma]": "[diagram]",
+  "Completa prima i campi sopra il codice": "Fill in the fields above the code first",
+  "{n} di {m} fatti": "{n} of {m} done",
+  "Chiedi su questo passo": "Ask about this step",
+  "Sul passo «{s}»: {{domanda}}": "About the step “{s}”: {{question}}",
+  "Salva in memoria": "Save to memory",
+  "Prepara nel campo la richiesta di salvare questa procedura nella memoria": "Writes in the field a request to save this procedure to the memory",
+  "Salva nella memoria questa procedura, nella pagina di {{cliente o argomento}}:\n{steps}": "Save this procedure to the memory, in the page of {{client or topic}}:\n{steps}"
 }

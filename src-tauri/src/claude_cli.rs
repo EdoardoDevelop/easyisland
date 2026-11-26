@@ -146,6 +146,8 @@ every command or script goes in a fenced block with its language (```powershell,
 IP addresses, host names, codes, short commands and single values go inside backticks, so a click copies them; \
 when there is a risk or something to check first, add one line starting with \"> Attenzione:\" (or \"> Nota:\", \"> Suggerimento:\"); \
 a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines; \
+steps the user will carry out one by one are a task list (\"- [ ] step\"): the chat shows boxes to tick; \
+in a command or script, a value the user must supply is {{Name}} or {{Name|example}} (IP, host, user, path), never a made-up value: the chat shows fields above the code; \
 when steps with choices, how devices or systems are connected, an exchange between parties or a timeline read better drawn than told, \
 add one ```mermaid block (flowchart TD, sequenceDiagram, erDiagram, gantt; pie or xychart-beta for a few numbers; at most 25 nodes; labels short, in the user's language and in double quotes; \
 no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \

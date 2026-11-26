@@ -73,6 +73,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Chat: procedure da spuntare, comandi con i campi
+- `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Mini-app nelle risposte tra le idee importanti (`docs/idee.md`); corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
+
 ### 25/11 — Chat: testo e bordo del campo, footer, diagrammi
 - Diagrammi Mermaid nelle risposte (`docs/chat.md` → Diagrammi; scena `?scene=chat&diagrammi`): provati con la CSP dell'app in Edge senza finestra, scuro e chiaro; da provare nell'app con i motori («fammi lo schema della rete di …»), finestra staccata e Copia.
 - Testo della conversazione grande come in Claude Desktop (letto dal suo CSS: risposte 15, resto 14, codice 13) e anello colorato animato sul campo (`.chat-glow` in `chat-cards.css`; `docs/architettura.md` → Aspetto della chat). Smoke rapido senza errori; da giudicare nell'app.
@@ -90,8 +93,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 24/11 — Isola da JSON: aspetto e condizioni
 - Ramo `claude/isola-stile`, unito in `claude/sviluppo` e installato con la build di prova: `style` dell'isola (colori, sfumatura, angoli, font, testo, bordo, alone, misure minime, sfondi di menu/testata/footer, spaziatura), aspetto di pulsanti, schede, blocchi e valori del footer, `when` (ore, giorni, programma davanti, valore del PC) e `levels` (soglie che colorano). `src/views/island-look.ts`, controlli in `island_layout.rs`.
 - Scelte di Edoardo (24/11): storico delle versioni escluso; prove dal vivo le fa lui man mano; barra fissa dalla chat «vedremo».
-
-### 23/11 — Isola da JSON: fonti, grafici, piede
-- Ramo `claude/isola-fonti`, unito in `claude/sviluppo` il 23/11: fonti `recent`, `tray`, `clipboard`, `vscode`, `records` (integrazione personale), `notion`; blocco `chart` (ultimi 5 minuti, `bar.ts` `chartHistory`); footer dell'isola aperta in tre zone `left`, `center`, `right`, ognuna con pulsanti e valori del PC (`buildFoot`, 36 px in `island.ts`; il formato `foot` del primo giro si converte). Valori letti anche per Panoramica e footer.
-- Isola per profilo scartata: Edoardo non usa i profili.
-- Orologio della barra (23/11, sera): 12/24 ore, zero davanti, cinque stili di data, nome del fuso `{label}`, `{week}` `{daynum}` `{month}` `{year}`, quadrante con le lancette, modelli pronti (`src/core/clock.ts`). Footer: pulsanti del menu in basso fissi, con poco spazio scorrono le sezioni.
