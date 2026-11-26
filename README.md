@@ -19,7 +19,7 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 <img src="site/media/en/overview.png" width="700" alt="EasyIsland open: the Overview with agents, integrations and the Jarvis Sfera character">
 
-**Contents:** [What it does](#what-it-does) · [Latest versions](#latest-versions) · [Installation](#installation) · [How to use it](#how-to-use-it) · [Position and look](#position-and-look) · [Quick actions and shortcuts](#quick-actions-and-shortcuts) · [Integrations](#integrations) · [Widgets](#widgets) · [Customer is watching](#customer-is-watching) · [Messages from scripts](#messages-from-scripts) · [Profiles, theme and backup](#profiles-theme-and-backup) · [Claude Code](#claude-code) · [Chat with Claude](#chat-with-claude) · [Automations](#automations) · [Building it yourself](#building-it-yourself) · [License](#license)
+**Contents:** [What it does](#what-it-does) · [Latest versions](#latest-versions) · [Installation](#installation) · [How to use it](#how-to-use-it) · [Position and look](#position-and-look) · [Quick actions and shortcuts](#quick-actions-and-shortcuts) · [Integrations](#integrations) · [Widgets](#widgets) · [Customer is watching](#customer-is-watching) · [Messages from scripts](#messages-from-scripts) · [Theme and backup](#theme-and-backup) · [Claude Code](#claude-code) · [Chat with Claude](#chat-with-claude) · [Automations](#automations) · [Building it yourself](#building-it-yourself) · [License](#license)
 
 ## What it does
 
@@ -64,8 +64,8 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
   only those you choose.
 - **Personal integrations**: ask the chat for the feature you are missing and it
   becomes a form, a dashboard or a link to one of your services' APIs.
-- **Profiles** (work, home, focus) that switch by themselves, a **"customer is
-  watching"** mode, messages from any script, settings backup.
+- **Do not disturb**, a **"customer is watching"** mode, messages from any
+  script, settings backup.
 - **Eleven characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
   Rock, Leaf, **Jarvis**, **Jarvis Sfera** and **Jarvis Plasma**), or in their place the **EasyIsland
   logo, your own PNG logo or the weather**; free placement, an island as big as the screen opening where
@@ -223,7 +223,7 @@ _Screenshots are generated from the preview with `node scripts/screenshots.mjs` 
 |---|---|
 | Move the mouse over the character (top centre, or the corner you chose) | It grows (or stays that way with **Always visible**), hops, looks at you and waves |
 | Click the character, or rest the mouse on it if "Open after" allows it | The island opens, aligned to that side |
-| Drag the character with the left button (the resting icon too) | It moves where you drop it, even to another screen, and the position is saved in the profile |
+| Drag the character with the left button (the resting icon too) | It moves where you drop it, even to another screen, and the position is saved |
 | Drag the bottom corner of the open island | Changes the island's width and height, up to the screen edges. Double-click the corner: default size |
 | The **menu on the left** of the open island | The character on top, then **Overview**, **Agents**, **Chat**, **Actions**, **Files and screen** and your integrations, each with its logo (or an emoji) and a dot when there is news. At the top, the character tells you in a speech bubble what is happening |
 | **Overview** | Every integration and agent as a tile with its status; a click opens one, dragging reorders them |
@@ -345,7 +345,7 @@ Windows Credential Manager.
 
 Each integration shows its logo (or a dot) or an emoji in the menu, and has a
 **colour** the character wears while its tab is open. Integrations are reordered by
-dragging them; which ones are on depends on the profile.
+dragging them.
 
 ## Widgets
 
@@ -353,7 +353,7 @@ dragging them; which ones are on depends on the profile.
 **Calendar** (ICS link), **Domain expiry**, **Website**, **HTTPS certificate**,
 **Ping**, **TCP port**, **Windows service**, **JSON API** (fields to show and an
 alert rule). When a check goes from OK to a problem, its menu entry gets a dot, the
-character makes a sound and the island shows itself, following the profile's
+character makes a sound and the island shows itself, following the
 notification rules.
 
 ## Customer is watching
@@ -376,13 +376,13 @@ Any script, scheduled task, n8n flow or program can show a message on the island
 adds a button with a link; `--help` shows the help. It exits with 0 if the message
 arrived and 2 if EasyIsland is not running, so a script never hangs.
 
-## Profiles, theme and backup
+## Theme and backup
 
 - **Language** (Settings → General): like Windows, Italian or English. The chat
   answers in the same language.
-- **Profiles** (*Work*, *Home* and *Focus* to start with) each have their own
-  integrations, position, look, sounds, theme and notification rules, and can
-  switch by themselves by Wi-Fi network, days and time.
+- **Notifications**: everything, alerts only, or permission requests only.
+  **Do not disturb**, in the notification-area icon's menu, switches to
+  permission requests only and then back to the earlier choice.
 - **Theme**: the character and its colour, the island's colour and opacity,
   separate volumes for alerts, interface and emotions.
 - **Backup**: *Export…* saves every setting to a JSON file; *Import…* loads it on
@@ -447,7 +447,7 @@ publishing, installing, changing the system, sending messages and folders outsid
 working one still ask.
 
 **Connectors**: the chat can use the MCP servers you configured in Claude Code,
-chosen per profile, with "ask for confirmation" on by default.
+with "ask for confirmation" on by default.
 
 Keys are kept in **Windows Credential Manager**, never on disk and never in the
 interface. The chat **history** (up to 100 conversations) stays on this PC only.
@@ -464,7 +464,7 @@ when a USB drive is plugged in, when a file arrives in a folder, when an
 integration or widget reports a problem, when a download finishes, on a 3CX call, when
 an agent finishes or waits, when a Teams meeting starts or ends… with filters,
 conditions and limits ("at most every N minutes"). **Then** is a sequence of steps:
-a quick action, an alert, a profile switch, opening a program, folder or link,
+a quick action, an alert, opening a program, folder or link,
 asking the chat.
 
 You can also **ask Claude in plain words** in the chat ("every weekday at 9 open
@@ -476,8 +476,7 @@ for at most 45 days, and suggest automations at most once a day.
 
 **Claude can use the PC**: with the subscription, the chat can open programs,
 folders and links, run your **quick actions**, read the status of PC, network,
-weather, mail and tickets, use the clipboard and media, show an alert and switch
-profile. Anything that opens, runs or changes something asks **Allow / Deny** first.
+weather, mail and tickets, use the clipboard and media and show an alert. Anything that opens, runs or changes something asks **Allow / Deny** first.
 Claude cannot run arbitrary commands, send email or delete.
 
 ## Building it yourself

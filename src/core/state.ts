@@ -758,11 +758,11 @@ export interface Settings {
   integrationTabIcons: Record<string, string>;
   /** Colour chosen for an integration (pill, card, the character on its tab): id → "#rrggbb". */
   integrationColors: Record<string, string>;
-  /** Order of the pills, as dragged in the island (per profile). */
+  /** Order of the pills, as dragged in the island. */
   pillOrder: string[];
-  /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged (per profile). */
+  /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged. */
   tabOrder: string[];
-  /** Groups of the island's menu, made by dropping an integration on another (per profile, src/core/menu-groups.ts). */
+  /** Groups of the island's menu, made by dropping an integration on another (src/core/menu-groups.ts). */
   menuGroups: MenuGroup[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
@@ -866,7 +866,7 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
-  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
+  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. */
   fixedBar?: "" | "top" | "bottom";
   /** The Windows taskbar hidden (taskbar_hide.rs); off by default. */
   hideWindowsTaskbar?: boolean;
@@ -958,10 +958,9 @@ export interface Settings {
   widgets: WidgetDef[];
   /** MCP servers the chat may use (6.3); `confirm` = ask before every call. */
   mcpServers: { name: string; confirm: boolean }[];
-  profiles: Profile[];
-  activeProfile: string;
-  autoProfile: boolean;
-  /** Global shortcuts ("" = none); they belong to the PC, not to a profile. */
+  /** «Non disturbare» (tray menu): the `notify` level to go back to. */
+  notifyBefore?: string;
+  /** Global shortcuts ("" = none). */
   hotkeyOpen: string;
   hotkeyAsk: string;
   /** Opens the clipboard history (Appunti). */
@@ -1012,7 +1011,7 @@ export interface Settings {
   previewDocked?: boolean;
   /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */
   previewWidth?: number;
-  /** In front of every new conversation; of the profile (PROFILE_KEYS). */
+  /** In front of every new conversation. */
   chatInstructions?: string;
   /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
   chatAssistants?: ChatAssistant[];
@@ -1289,8 +1288,8 @@ export interface AutomationCondition {
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask" | "foreach";
-  /** quick: action id · profile: profile id. */
+  kind: "quick" | "notice" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask" | "foreach";
+  /** quick: action id. */
   id: string;
   title: string;
   text: string;
@@ -1343,8 +1342,6 @@ export interface Automation {
   name: string;
   enabled: boolean;
   trigger: AutomationTrigger;
-  /** Only while this profile is active; "" = any. */
-  profile: string;
   conditions?: AutomationCondition[];
   /** "" = every time · "every" = at most every `every` minutes · "day" = once a day. */
   repeat?: "" | "every" | "day";
@@ -1472,21 +1469,6 @@ export interface Theme {
   fonts?: ThemeFonts;
 }
 
-export interface ProfileRules {
-  ssids: string[];
-  /** 1 = Monday … 7 = Sunday. */
-  days: number[];
-  from: string;
-  to: string;
-}
-
-export interface Profile {
-  id: string;
-  name: string;
-  values: Record<string, unknown>;
-  rules: ProfileRules;
-}
-
 export const DEFAULT_THEME: Theme = {
   character: "jarvis-sfera",
   slimeColor: "",
@@ -1600,9 +1582,6 @@ export const DEFAULT_SETTINGS: Settings = {
   actions: [],
   widgets: [],
   mcpServers: [],
-  profiles: [],
-  activeProfile: "",
-  autoProfile: false,
   hotkeyOpen: "Ctrl+Space",
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",

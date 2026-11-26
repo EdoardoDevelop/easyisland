@@ -57,8 +57,6 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "todo_list" => t("Legge le attività di To Do"),
         "todo_add" => t("Aggiunge un'attività a To Do"),
         "todo_update" => t("Aggiorna un'attività di To Do"),
-        "list_profiles" => t("Guarda i profili"),
-        "switch_profile" => t("Cambia profilo"),
         "list_automations" => t("Guarda le automazioni"),
         "create_automation" => t("Crea un'automazione"),
         "set_automation_enabled" => t("Accende o spegne un'automazione"),

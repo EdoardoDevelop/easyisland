@@ -35,7 +35,7 @@ Updates install **only after a click**, with the **signature verified**. No port
 | Log | `%LOCALAPPDATA%\EasyIsland\easyisland.log` | Technical events, no contents |
 
 ## In front of a client
-During calls, meetings and remote support the character hides and no name, title or text appears on screen. See [Profiles and notifications](06-profiles.md#in-front-of-a-client).
+During calls, meetings and remote support the character hides and no name, title or text appears on screen. See [Notifications](06-notifications.md#in-front-of-a-client).
 
 ## AI models
 What you write in the chat goes to the engine you choose. With free online models data may be used for training: for client data use a paid plan or a local model (Ollama, LM Studio), which doesn't leave the network.

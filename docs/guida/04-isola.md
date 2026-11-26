@@ -10,7 +10,7 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 | Porti il mouse sul personaggio | Si ingrandisce, fa un balzo, ti guarda e alza una mano |
 | Clicchi, o resti sopra per un attimo | Il personaggio fa un saltello e resta al suo posto; l'isola si apre accanto a lui (sotto, se sta in alto) con un'onda di luce, e nel menu compare una sua copia |
 | Clicchi il personaggio (anche nella barra fissa) con l'isola aperta | Se l'isola è dietro un'altra finestra torna in primo piano; se è già davanti si chiude |
-| Trascini il personaggio | Si sposta dove lo lasci, anche su un altro schermo; la posizione resta nel profilo |
+| Trascini il personaggio | Si sposta dove lo lasci, anche su un altro schermo; la posizione resta |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza fino ai bordi dello schermo. Doppio clic: misure predefinite |
 | Trascini l'isola aperta dalla barra in alto | Resta lì finché è aperta, poi torna al personaggio |
 | Clicchi il personaggio più volte | Si infastidisce; tre volte di fila e gli gira la testa |
@@ -56,7 +56,7 @@ Con le **risposte rapide** accese, accanto al personaggio chiuso compaiono:
 Accanto al personaggio chiuso può comparire una barra con azioni per **l'app che stai usando** (come una Touch Bar): le tue azioni rapide per quel programma e azioni **Tasti** che premono combinazioni per te. Si configura in Impostazioni → Azioni rapide.
 
 ## Card che arrivano da sole
-L'isola si apre da sola quando serve, rispettando le regole di notifica del profilo:
+L'isola si apre da sola quando serve, rispettando le regole di notifica:
 - **permessi e domande** degli agenti (restano finché non rispondi; «Più tardi» o <kbd>Esc</kbd> le ripiegano);
 - **sessione finita** con l'ultimo messaggio e **Continua**;
 - **chiamate** in arrivo, **riunioni** in partenza, **avvisi** di integrazioni e widget;
@@ -81,4 +81,4 @@ L'isola si apre da sola quando serve, rispettando le regole di notifica del prof
 Tutte le scorciatoie si cambiano in Impostazioni → Azioni rapide. Con il mouse l'isola non prende la tastiera, per non rubarla all'app che stai usando.
 
 ## L'icona nell'area di notifica
-Apri, Impostazioni…, **Profilo ▸**, **Davanti al cliente**, Riepilogo settimanale, **Pausa** (ferma controlli, automazioni e avvisi) ed Esci.
+Apri, Impostazioni…, **Non disturbare** (solo le richieste di permesso aprono l'isola e suonano), **Davanti al cliente**, Riepilogo settimanale, **Pausa** (ferma controlli, automazioni e avvisi) ed Esci.

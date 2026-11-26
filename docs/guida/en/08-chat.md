@@ -116,7 +116,7 @@ A `/something` that is not a command goes to the engine as text. (Command names 
 In **Settings → Chat and AI engines → Instructions and memory** you create assistants with **name, emoji, engine and instructions** (for example "SQL reviewer" or "Technical translator"). In the chat you call them with `/name`: a new conversation starts on their engine, with the 🤖 chip.
 
 ## Instructions
-**Settings → Chat and AI engines → Instructions**: a text told to the chat at the start of every conversation ("Answer briefly. I'm a technician, my clients are small offices…"). It belongs to the profile, so each profile can have its own.
+**Settings → Chat and AI engines → Instructions**: a text told to the chat at the start of every conversation ("Answer briefly. I'm a technician, my clients are small offices…").
 
 ## Dictation
 🎤 in the field: click to start and to finish. With a transcription service chosen in Settings → Telegram → Voice messages, it records and transcribes with it; without one, it opens Windows dictation (<kbd>Win</kbd>+<kbd>H</kbd>), local and free.

@@ -116,7 +116,6 @@ Funzioni verificate solo con test o anteprima. Togli una voce quando è provata;
   6. foto e PDF con e senza didascalia: nel Vassoio e letti;
   7. app chiusa, due messaggi (uno «ricordati che…»), riaperta → «Ero spento…», risposte in ordine, nota in memoria;
   8. «mandami lo screenshot / il file X» (foto, documento, video); `/vassoio`;
-  9. profilo automatico senza Telegram: il bot risponde lo stesso;
   10. `/cartella`: sottocartella, «Su», file mandato; file ricevuto spostato nella cartella di lavoro;
   11. `/automatica`: comando normale e modifica senza messaggi, `rm`/`Remove-Item` chiede, `/stato` lo dice, `/automatica off`;
   12. Vocali su Gemini o OpenRouter: vocale italiano → «🎙 …» e risposta; vocale muto; mp3; senza chiave messaggio;

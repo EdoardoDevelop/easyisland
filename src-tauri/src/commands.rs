@@ -1,5 +1,5 @@
 // Comandi senza motore (14 Nov 2026, Edoardo: «1, 2 e 4»): a short order in
-// the chat — one of the user's quick actions, a profile, the music, a To Do
+// the chat — one of the user's quick actions, the music, a To Do
 // reminder — is recognised with fixed rules and offered with a button
 // (router.rs `offer`). Nothing runs until the user presses «Esegui»
 // (lib.rs chat_command_run, only the tools in RUNS). Programs are opened only
@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use crate::i18n::{t, tf};
 
 /// The tools a command may run, after the click.
-pub const RUNS: &[&str] = &["run_quick_action", "switch_profile", "media_control", "todo_add"];
+pub const RUNS: &[&str] = &["run_quick_action", "media_control", "todo_add"];
 
 /// Longer than this is a question, not an order.
 const MAX_WORDS: usize = 9;
@@ -52,9 +52,9 @@ const MUSIC: &[(&[&str], &str)] = &[
     (&["canzone precedente", "brano precedente", "torna alla canzone di prima", "previous"], "prev"),
 ];
 
-/// The command a chat question is, if it is one. `actions` and `profiles`
-/// are the user's (settings), as JSON values with "id" and "name".
-pub fn parse(question: &str, actions: &[Value], profiles: &[(String, String)]) -> Option<Command> {
+/// The command a chat question is, if it is one. `actions` are the user's
+/// quick actions (settings), as JSON values with "id" and "name".
+pub fn parse(question: &str, actions: &[Value]) -> Option<Command> {
     let q = plain(question);
     if q.is_empty() || question.trim().contains('\n') || q.split(' ').count() > MAX_WORDS {
         return None;
@@ -82,11 +82,6 @@ pub fn parse(question: &str, actions: &[Value], profiles: &[(String, String)]) -
         let id = a.get("id").and_then(Value::as_str).unwrap_or_default();
         return command("run_quick_action", json!({ "id": id }), tf("Azione rapida «{name}»", &[("name", &name_of(a))]));
     }
-    if let Some(rest) = after(&q, &["passa al profilo", "attiva il profilo", "attiva profilo", "usa il profilo", "profilo"]) {
-        if let Some((id, name)) = profiles.iter().find(|(_, n)| plain(n) == plain(rest)) {
-            return command("switch_profile", json!({ "id": id }), tf("Profilo «{name}»", &[("name", name)]));
-        }
-    }
     // A reminder: the words of the user, as written (not lowercased).
     let raw = question.trim().trim_end_matches(['.', '!']);
     let low = raw.to_lowercase();
@@ -109,19 +104,14 @@ mod tests {
         vec![json!({ "id": "a1", "name": "Teams", "kind": "app" }), json!({ "id": "a2", "name": "Posta in arrivo", "kind": "url" })]
     }
 
-    fn profiles() -> Vec<(String, String)> {
-        vec![("p1".into(), "Ufficio".into()), ("p2".into(), "Casa".into())]
-    }
-
     fn tool(q: &str) -> Option<(String, Value)> {
-        parse(q, &actions(), &profiles()).map(|c| (c.tool, c.args))
+        parse(q, &actions()).map(|c| (c.tool, c.args))
     }
 
     #[test]
     fn orders_become_commands() {
         assert_eq!(tool("Apri Teams"), Some(("run_quick_action".into(), json!({ "id": "a1" }))));
         assert_eq!(tool("posta in arrivo!"), Some(("run_quick_action".into(), json!({ "id": "a2" }))));
-        assert_eq!(tool("passa al profilo casa"), Some(("switch_profile".into(), json!({ "id": "p2" }))));
         assert_eq!(tool("Metti in pausa"), Some(("media_control".into(), json!({ "command": "toggle" }))));
         assert_eq!(tool("prossima canzone"), Some(("media_control".into(), json!({ "command": "next" }))));
         assert_eq!(tool("Ricordami di chiamare Rossi domani."), Some(("todo_add".into(), json!({ "title": "chiamare Rossi domani" }))));

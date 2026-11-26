@@ -158,13 +158,11 @@ Nel browser la fascia non si disegna: la disegna la finestra del personaggio sol
 | `dailyAi` | `""`, `memory`, `chat` o id di un motore | `""` |
 | `dailyTelegram` | `true`/`false` | `false` |
 
-### Integrazioni, profili e abitudini
+### Integrazioni e abitudini
 
 | Chiave | Valori | Di serie |
 |---|---|---|
 | `activeIntegrations` | elenco di id (`integration_media`, `integration_weather`, `integration_claude_usage`…; vedi `src/integrations/`) | `integration_resend,integration_n8n,integration_vercel,integration_github` |
-| `activeProfile` | id di un profilo | `""` |
-| `autoProfile` | `true`/`false` | `false` |
 | `habitsEnabled` | `true`/`false` | `false` |
 | `habitsExcluded` | elenco di eseguibili | vuoto |
 
@@ -198,7 +196,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `integrationTabIcons`, `integrationColors` | oggetto |
 | `reactions` | oggetto |
 | `suggestionsSnoozed` | oggetto |
-| `actions`, `widgets`, `mcpServers`, `profiles`, `automations`, `chatAssistants`, `suggestionsDismissed` | elenchi di oggetti |
+| `actions`, `widgets`, `mcpServers`, `automations`, `chatAssistants`, `suggestionsDismissed` | elenchi di oggetti |
 | `news`, `fixedBarLook`, `engineModels`, `engineUrls` | oggetti senza valore di serie |
 | `alertsOpen`, `toolsAllowed` | senza valore di serie |
 

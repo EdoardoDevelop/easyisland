@@ -116,7 +116,7 @@ Un `/qualcosa` che non è un comando va al motore come testo.
 In **Impostazioni → Chat → Istruzioni e memoria** crei assistenti con **nome, emoji, motore e istruzioni** (per esempio «Revisore SQL» o «Traduttore tecnico»). Nella chat li chiami con `/nome`: parte una conversazione nuova sul loro motore, con il chip 🤖.
 
 ## Istruzioni
-**Impostazioni → Chat → Istruzioni**: un testo detto alla chat all'inizio di ogni conversazione («Rispondi breve. Sono un tecnico, i miei clienti sono piccoli uffici…»). Fa parte del profilo, così ogni profilo può avere le sue.
+**Impostazioni → Chat → Istruzioni**: un testo detto alla chat all'inizio di ogni conversazione («Rispondi breve. Sono un tecnico, i miei clienti sono piccoli uffici…»).
 
 ## Dettatura
 🎤 nel campo: clic per iniziare e per finire. Con un servizio di trascrizione scelto in Impostazioni → Telegram → Vocali, registra e trascrive con quello; senza, apre la dettatura di Windows (<kbd>Win</kbd>+<kbd>H</kbd>), locale e gratuita.

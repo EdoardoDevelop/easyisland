@@ -76,7 +76,7 @@ export async function refreshConfigured() {
 
 /**
  * A widget check came back. Going from fine to not fine badges the pill, plays
- * a sound and shows the island (within the profile's notification rules);
+ * a sound and shows the island (within the notification rules);
  * recovering clears the badge. Sound and island only when the check's
  * reaction is "show" (Impostazioni → Notifiche → Reazioni del personaggio);
  * the badge stays in any case.

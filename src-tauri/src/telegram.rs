@@ -161,15 +161,11 @@ pub fn restart() {
 
 // ── Polling ───────────────────────────────────────────────────────────────────
 
-/// On in the current profile or in any other: an automatic profile (away from
-/// the PC, in front of a client) must not stop the bot the user is writing to.
+/// Telegram is on in Impostazioni → Integrazioni.
 fn active(app: &AppHandle) -> bool {
     app.try_state::<crate::Shared>().is_some_and(|s| {
         let s = s.settings.lock().unwrap();
         s.active_integrations.iter().any(|a| a == ID)
-            || s.profiles.iter().any(|p| {
-                p.values.get("activeIntegrations").and_then(Value::as_array).is_some_and(|a| a.iter().any(|v| v.as_str() == Some(ID)))
-            })
     })
 }
 

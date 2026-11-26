@@ -1343,11 +1343,11 @@ mod tests {
             let model = std::env::var("OPENCODE_TEST_MODEL").unwrap_or_else(|_| "opencode/big-pickle".into());
             let o = with_agent(&Options { agent: true, ..Default::default() });
             assert!(o.config.as_deref().unwrap_or_default().contains("easyisland"));
-            let r = run_turn(&chat, &model, "Usa lo strumento easyisland_list_profiles e dimmi i nomi dei profili.".into(), None, &|_: &str| {}, Fixed("allow"), &o).await;
+            let r = run_turn(&chat, &model, "Usa lo strumento easyisland_list_quick_actions e dimmi i nomi delle mie azioni rapide.".into(), None, &|_: &str| {}, Fixed("allow"), &o).await;
             println!("{:?}", r.as_ref().map(|x| &x.text));
             let text = r.expect("turn").text;
             // opencode 2 often calls tools from its "code mode" (a step "Esegue uno
-            // script"); the profiles' names can only come from EasyIsland.
+            // script"); the actions' names can only come from EasyIsland.
             assert!(text.contains("> ⚙"), "a step: {text}");
         });
     }

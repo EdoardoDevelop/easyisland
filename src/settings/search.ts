@@ -43,7 +43,7 @@ const results = h("div", { class: "settings-results", role: "listbox", "aria-lab
 
 const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
 
-/** A title's own words, without its chips («Posizione», not «PosizioneLavoro»: the profile's chip). */
+/** A title's own words, without its chips («Posizione», not «Posizione» and the chip's text). */
 function ownText(el: Element | null | undefined): string {
   if (!el) return "";
   const copy = el.cloneNode(true) as Element;

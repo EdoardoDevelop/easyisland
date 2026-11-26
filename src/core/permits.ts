@@ -44,7 +44,6 @@ const OTHERS: Record<string, string> = {
   custom_call: t("Usare un'integrazione personale"),
   custom_add_record: t("Aggiungere una scheda a un'integrazione personale"),
   task_create: t("Creare un compito"),
-  switch_profile: t("Cambiare profilo"),
 };
 
 /** A tool of EasyIsland in words; unknown ones keep their name. */

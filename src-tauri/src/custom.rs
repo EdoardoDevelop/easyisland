@@ -1652,9 +1652,8 @@ fn rename_check(new_id: &str) -> Result<(), String> {
 
 /// Moves an integration to a new id (Edoardo, 11 Nov 2026: «Clienti» still
 /// called `clienti-ddt`): its description, records and folder; the links of
-/// the other integrations that pick from it; and in the settings, every
-/// profile too, each place that names `custom:<old>` (order, groups, icons,
-/// colours). Returns how many links of other integrations it changed.
+/// the other integrations that pick from it; and in the settings each place
+/// that names `custom:<old>` (order, groups, icons, colours). Returns how many links of other integrations it changed.
 fn rename_id(app: &AppHandle, old_id: &str, new_id: &str) -> Result<usize, String> {
     rename_check(new_id)?;
     let mut c = get(old_id).ok_or(t("Integrazione non trovata."))?;
@@ -1705,7 +1704,7 @@ fn rename_id(app: &AppHandle, old_id: &str, new_id: &str) -> Result<usize, Strin
     Ok(moved)
 }
 
-/// Every string equal to `from`, and every key, become `to` (the settings, profiles included).
+/// Every string equal to `from`, and every key, become `to` (the settings, at any depth).
 fn renamed_task(v: Value, from: &str, to: &str) -> Value {
     match v {
         Value::String(s) if s == from => Value::String(to.to_string()),
@@ -2209,14 +2208,14 @@ mod tests {
             "pillOrder": ["integration_weather", "custom:clienti-ddt"],
             "menuGroups": [{ "id": "g1", "items": ["custom:clienti-ddt"] }],
             "integrationColors": { "custom:clienti-ddt": "#22c55e" },
-            "profiles": [{ "values": { "pillOrder": ["custom:clienti-ddt"] } }],
+            "nested": [{ "values": { "pillOrder": ["custom:clienti-ddt"] } }],
             "other": "custom:clienti-ddt-2"
         });
         let r = renamed_task(s, "custom:clienti-ddt", "custom:clienti");
         assert_eq!(r["pillOrder"][1], "custom:clienti");
         assert_eq!(r["menuGroups"][0]["items"][0], "custom:clienti");
         assert_eq!(r["integrationColors"]["custom:clienti"], "#22c55e");
-        assert_eq!(r["profiles"][0]["values"]["pillOrder"][0], "custom:clienti");
+        assert_eq!(r["nested"][0]["values"]["pillOrder"][0], "custom:clienti");
         assert_eq!(r["other"], "custom:clienti-ddt-2", "only the whole name");
     }
 

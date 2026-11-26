@@ -108,7 +108,7 @@ mod permits;
 mod pipe;
 mod presence;
 mod probes;
-mod profiles;
+mod wifi;
 mod screenshot;
 mod session_reply;
 mod secrets;
@@ -248,9 +248,7 @@ fn save_settings(app: AppHandle, settings: Settings) {
 /// with Windows, the island's place, shortcuts).
 pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let Some(shared) = app.try_state::<Shared>() else { return };
-    // Whatever was edited belongs to the active profile.
     let mut settings = settings.migrated();
-    settings.commit_active();
     i18n::set(&settings.language);
     cc_memory::set_on(settings.memory_claude_code);
     let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
@@ -317,36 +315,14 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     hotkeys::reload();
 }
 
-/// Makes `id` the active profile: its values replace the current ones, the
-/// island and the settings window follow, the tray menu ticks it.
-pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
-    let Some(shared) = app.try_state::<Shared>() else { return };
-    let settings = {
-        let mut s = shared.settings.lock().unwrap();
-        if s.active_profile == id || !s.switch_profile(id) {
-            return;
-        }
-        s.clone()
-    };
-    if let Err(err) = settings::save(&settings) {
-        eprintln!("[easyisland] could not save settings: {err}");
+/// «Non disturbare» from the tray menu: only permission requests open the
+/// island and sound (what the «Concentrazione» profile was for), back to the
+/// level before when turned off. Saved like a change in Impostazioni.
+pub(crate) fn set_quiet(app: &AppHandle, on: bool) {
+    if let Err(e) = agent::update_settings(app, |s| s.set_quiet(on)) {
+        log::line(format!("non disturbare: {e}"));
     }
-    log::line(format!("profile → {id} ({why})"));
-    // Chosen by hand: something the habits may learn from.
-    if matches!(why, "impostazioni" | "menu") {
-        habits::note("profile", id);
-    }
-    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
-    crate::threecx::settings_saved(&settings);
-    let _ = app.emit("settings-changed", settings);
     tray::refresh(app);
-    hotkeys::reload();
-}
-
-#[tauri::command]
-fn switch_profile(app: AppHandle, id: String) {
-    activate_profile(&app, &id, "impostazioni");
 }
 
 /// Writes the settings (no secrets) to Documents and shows the file in Explorer.
@@ -564,12 +540,6 @@ fn hotkey_failures() -> Vec<String> {
 #[tauri::command]
 fn hotkeys_suspend(on: bool) {
     hotkeys::suspend(on);
-}
-
-/// Wi-Fi network this PC is on, to fill in a profile rule.
-#[tauri::command]
-async fn current_network() -> Option<String> {
-    tauri::async_runtime::spawn_blocking(profiles::current_ssid).await.ok().flatten()
 }
 
 /// Hidden island → shrink the window to the rest icon (or the invisible wake
@@ -832,7 +802,7 @@ struct DragEnd {
     path: Option<String>,
 }
 
-/// The drag is over: remember where the character was left, in the active profile.
+/// The drag is over: remember where the character was left.
 /// Dropped on a folder, it goes back home instead and the folder goes to the chat.
 #[tauri::command]
 fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
@@ -855,7 +825,6 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
             (screen != s.screen).then(|| {
                 log::line(format!("open island moved to screen {screen}"));
                 s.screen = screen;
-                s.commit_active();
                 s.clone()
             })
         });
@@ -913,7 +882,6 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
         s.anchor_v = v;
         s.offset_x = ox;
         s.offset_y = oy;
-        s.commit_active();
         s.clone()
     };
     if let Err(err) = settings::save(&settings) {
@@ -1938,11 +1906,10 @@ fn light_restart(chat: &Chat) {
     chat.set_light_from(Some(used));
 }
 
-/// A short order of the island's chat (commands.rs), with the user's actions and profiles.
+/// A short order of the island's chat (commands.rs), with the user's quick actions.
 fn island_command(shared: &Shared, query: &str) -> Option<commands::Command> {
     let s = shared.settings.lock().unwrap();
-    let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
-    commands::parse(query, &s.actions, &profiles)
+    commands::parse(query, &s.actions)
 }
 
 pub(crate) async fn chat_turn(
@@ -2081,7 +2048,7 @@ pub(crate) async fn chat_turn(
     // how to look further (memory_search) when the engine has the tools.
     let (remember, instructions) = {
         let s = shared.settings.lock().unwrap();
-        // The profile's instructions, then the assistant picked for this conversation.
+        // The user's instructions, then the assistant picked for this conversation.
         let mut text = s.chat_instructions.trim().to_string();
         if let Some(p) = chat.persona().filter(|_| channel == Channel::Island) {
             if !text.is_empty() {
@@ -2175,7 +2142,7 @@ pub(crate) async fn chat_turn(
         Some(s) => format!("{s}{query}"),
         None => query,
     };
-    // Impostazioni → Chat → Istruzioni (of the active profile), first of all.
+    // Impostazioni → Chat → Istruzioni, first of all.
     let query = if fresh && !instructions.is_empty() {
         format!("{}\n\n{query}", tf("[Istruzioni dell'utente per questa chat:\n{text}]", &[("text", &instructions)]))
     } else {
@@ -3747,7 +3714,7 @@ fn flow_run(id: String) -> Result<flows::Run, String> {
 /// The flow editor's "Prova da qui": a run from that step.
 #[tauri::command]
 fn flow_try_from(app: AppHandle, id: String, node: String) -> Result<(), String> {
-    let (autos, _, actions) = automations::list(&app);
+    let (autos, actions) = automations::list(&app);
     let flow = autos.into_iter().find(|a| a.id == id).ok_or_else(|| i18n::t("Automazione non trovata (salvata?)").to_string())?;
     flows::try_from(&app, flow, &node, actions)
 }
@@ -3755,7 +3722,7 @@ fn flow_try_from(app: AppHandle, id: String, node: String) -> Result<(), String>
 /// "Riprendi da qui".
 #[tauri::command]
 fn flow_rerun(app: AppHandle, id: String, node: String) -> Result<(), String> {
-    flows::rerun(&app, &id, &node, automations::list(&app).2)
+    flows::rerun(&app, &id, &node, automations::list(&app).1)
 }
 
 /// Proposte dalle abitudini: how much was recorded.
@@ -5707,10 +5674,8 @@ pub fn run() {
             chat_history_clear,
             claude_cli_status,
             mcp_servers_configured,
-            switch_profile,
             settings_export,
             settings_import,
-            current_network,
             action_open_app,
             action_run_script,
             action_kill,
@@ -6114,7 +6079,6 @@ pub fn run() {
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.
             std::thread::spawn(files::clear_inbox);
-            profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             clipboard::spawn(handle.clone());
             downloads::spawn(handle.clone());

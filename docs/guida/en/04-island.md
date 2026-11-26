@@ -10,7 +10,7 @@ At rest the character sits in the corner you picked (top centre by default) and 
 | Hover over the character | It grows, hops, looks at you and waves |
 | Click, or stay over it for a moment | The character hops and stays where it is; the island opens beside it (below, if it sits at the top) with a wave of light, and a copy of it appears in the menu |
 | Click the character (in the fixed bar too) with the island open | If the island is behind another window it comes to the front; if it is already in front it closes |
-| Drag the character | It moves where you drop it, even to another screen; the position is saved in the profile |
+| Drag the character | It moves where you drop it, even to another screen; the position is saved |
 | Drag the bottom corner of the open island | Width and height change up to the screen edges. Double-click: default sizes |
 | Drag the open island by its top bar | It stays there while open, then goes back to the character |
 | Click the character several times | It gets annoyed; three in a row and it gets dizzy |
@@ -56,7 +56,7 @@ With **Quick replies** on, next to the closed character you get:
 Next to the closed character a bar can show actions for **the app you're using** (like a Touch Bar): your quick actions for that program and **Keys** actions that press shortcuts for you. Set it up in Settings → Quick actions.
 
 ## Cards that come by themselves
-The island opens on its own when needed, following the profile's notification rules:
+The island opens on its own when needed, following the notification rules:
 - agents' **permissions and questions** (they stay until you answer; "Later" or <kbd>Esc</kbd> fold them away);
 - **session finished** with the last message and **Continue**;
 - incoming **calls**, starting **meetings**, **alerts** from integrations and widgets;
@@ -81,4 +81,4 @@ The island opens on its own when needed, following the profile's notification ru
 Every shortcut can be changed in Settings → Quick actions. With the mouse the island doesn't take the keyboard, so it never steals it from the app you're using.
 
 ## The notification area icon
-Open, Settings…, **Profile ▸**, **In front of a client**, Weekly recap, **Pause** (stops checks, automations and alerts) and Quit.
+Open, Settings…, **Do not disturb** (only permission requests open the island and sound), **In front of a client**, Weekly recap, **Pause** (stops checks, automations and alerts) and Quit.

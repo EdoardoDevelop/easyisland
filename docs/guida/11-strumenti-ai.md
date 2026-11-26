@@ -14,7 +14,7 @@ Con **Impostazioni → Chat → Può usare il PC** acceso (predefinito), i motor
 | Musica | Stato e comandi del lettore | Comandi sì |
 | Isola | Mostrare un avviso | No |
 | File | Il Vassoio, la cartella di lavoro (leggere), spostare file nella cartella | Spostare sì |
-| Profili e impostazioni | Leggere le impostazioni, cambiarne una, cambiare profilo | Cambiare sì |
+| Impostazioni | Leggere le impostazioni, cambiarne una | Cambiare sì |
 | Automazioni | Elencarle, crearle, accenderle e spegnerle | Creare e cambiare sì |
 | Notion | Mappa, ricerca, lettura, righe di database; aggiungere, cambiare, eliminare righe | Scrivere sì; eliminare solo dopo il sì in chat |
 | Microsoft To Do | Elencare, aggiungere e aggiornare attività (Outlook classico) | Scrivere sì |
@@ -89,7 +89,7 @@ In **Impostazioni → Chat → Voti** vedi i conteggi; **Riprova** rifà tutte l
 Nel menu del motore della chat scegli **📒 Solo EasyIsland, senza motore**: per quella conversazione non parte nessun motore e non si consuma niente. Rispondono i comandi, le risposte dirette e la memoria; quando EasyIsland non ha una risposta sicura mostra le righe più vicine e **⚡ Chiedi al motore**, che manda quella sola domanda al motore. È il modo più rapido per allenarlo con 👍 e 👎. Scegli un motore nello stesso menu per tornare alle risposte del motore.
 
 ## Comandi senza motore
-Gli ordini brevi non passano dal motore: «apri Teams» (se è una tua azione rapida), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland risponde subito con **▶ Esegui**: niente parte finché non premi. Se intendevi altro premi **⚡ Chiedi al motore**.
+Gli ordini brevi non passano dal motore: «apri Teams» (se è una tua azione rapida), «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland risponde subito con **▶ Esegui**: niente parte finché non premi. Se intendevi altro premi **⚡ Chiedi al motore**.
 
 ## Modalità terminale
 **Impostazioni → Chat → Modalità terminale**, insieme alla **cartella di lavoro**: la chat lavora come Claude Code o opencode da terminale.

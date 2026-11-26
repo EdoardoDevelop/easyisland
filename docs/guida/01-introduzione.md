@@ -14,7 +14,7 @@ EasyIsland è un'**isola sempre a portata di mano** in cima allo schermo di Wind
 | Parte | Pagine |
 |---|---|
 | **Per iniziare** | [Installazione](02-installazione.md), [Primi passi](03-primi-passi.md), [L'isola](04-isola.md) |
-| **Personalizzare** | [Posizione e aspetto](05-aspetto.md), [Profili e notifiche](06-profili.md) |
+| **Personalizzare** | [Posizione e aspetto](05-aspetto.md), [Notifiche](06-notifiche.md) |
 | **Agenti di programmazione** | [Agenti di codice](07-agenti.md) |
 | **Intelligenza artificiale** | [La chat](08-chat.md), [Motori AI](09-motori.md), [Modalità terminale e strumenti](11-strumenti-ai.md), [Memoria e secondo cervello](12-memoria.md), [Notizie](13-notizie.md), [Compiti, Battito e Abilità](14-compiti.md) |
 | **Fare le cose** | [Azioni rapide e scorciatoie](15-azioni.md), [Automazioni](16-automazioni.md), [File e schermo](17-file-e-schermo.md) |

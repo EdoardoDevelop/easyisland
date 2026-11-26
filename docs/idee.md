@@ -154,7 +154,6 @@ Parla solo con EasyIsland via native messaging (niente rete); rivede la decision
 ## Notion, seconda parte
 - «Manda a Notion» da Appunti e dalla risposta della chat (dal testo selezionato c'è).
 - **Clienti:** database clienti con proprietà telefono; su chiamata 3CX o ticket Zammad la scheda del cliente con «Apri in Notion».
-- Viste legate ai profili (profilo «Ufficio» → vista «Ufficio»).
 - Attività assegnate a me: serve scegliere la persona (l'API vede il bot).
 
 ## Remote Desktop Manager, dopo le prove
@@ -227,7 +226,13 @@ Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scr
 ## Modello integrato (27/10)
 Ripreso il 15/11 come «Modello sul PC» sul ramo `claude/llm-interno` (`docs/chat.md` → Motori): controllo della scheda grafica, consiglio, Vulkan, Modalità terminale, risposte dalla memoria. Il ramo `claude/modello-integrato` non serve più.
 
-## EasyIsland collegati: memoria condivisa (31/10, da decidere)
+## Memoria master (26/11, da progettare)
+Decisioni di Edoardo (`decisioni.md` → Memoria condivisa): master in cloud + copia per PC, end-to-end, condivisione a scelta nelle Impostazioni, non su Agent Chat, un solo utente per ora.
+- **Da ragionare:** dove sta la master (servizio nuovo sulla VPS o archivio a oggetti), formato (righe con autore e data, solo aggiunte, archivio al posto delle cancellazioni), conflitti (unione riga per riga con versione per pagina), copia completa sul PC per offline e ricerca, cosa resta solo sul PC (diario, preferenze, righe `secret_like`).
+- **Agent Chat** da togliere e trasformare in un'integrazione dedicata: cosa deve fare è da decidere con Edoardo.
+- **Solo chat o tutto EasyIsland:** poter usare EasyIsland come sola chat oppure intero; da ragionare.
+
+## EasyIsland collegati: memoria condivisa (31/10, superata dalla Memoria master)
 Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un secondo EasyIsland usato da Telegram. Si condivide solo la memoria, anche con due EasyIsland al lavoro insieme (nessun custode). (Agent Chat ha poi aggiunto una memoria condivisa via server: `memshare.rs`.)
 - **Collegamento:** un indirizzo raggiungibile, scelta **Tailscale** (nel Windows del container); vale anche VPN aziendale, LAN, porta aperta. Sul notebook DNS di Tailscale spento, indirizzo `100.x.y.z`, niente exit node; sulla VPS chiave senza scadenza. Prima qualche giorno di prova con le VPN dei clienti.
 - **Abbinamento** (Impostazioni → «EasyIsland collegati»): codice temporaneo, scambio di chiave (Gestione credenziali), nome per EasyIsland, ascolto solo sull'indirizzo scelto, alla pari e per più di due; stato e «Scollega».

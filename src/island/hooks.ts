@@ -195,13 +195,11 @@ function describeAutomation(input: Record<string, unknown>): string {
   if (str(input, "repeat") === "every") ifs.push(t("al massimo ogni {n} minuti", { n: Number(input.every ?? 60) || 60 }));
   if (str(input, "repeat") === "day") ifs.push(t("una volta al giorno"));
   const actions = State.settings.actions ?? [];
-  const profiles = State.settings.profiles ?? [];
   const steps = (Array.isArray(input.steps) ? input.steps : []) as Record<string, unknown>[];
   const what = steps.map((st) => {
     switch (str(st, "kind")) {
       case "quick": return t("esegue «{name}»", { name: actions.find((a) => a.id === str(st, "id"))?.name ?? str(st, "id") });
       case "notice": return t("mostra l'avviso «{title}»", { title: str(st, "title") || str(st, "text") });
-      case "profile": return t("passa al profilo «{name}»", { name: profiles.find((p) => p.id === str(st, "id"))?.name ?? str(st, "id") });
       case "app": return t("apre {target}", { target: `${str(st, "target")}${str(st, "args") ? ` ${str(st, "args")}` : ""}` });
       case "url": return t("apre {target}", { target: str(st, "url") });
       case "chat": return t("chiede alla chat «{text}»", { text: str(st, "text") });
@@ -235,10 +233,9 @@ function describeAutomation(input: Record<string, unknown>): string {
   ${i + 1}. [${nameOf(st, i)}] ${w}` + (ways.length ? ` (${ways.join("; ")})` : next ? ` → ${label(next)}` : "");
     });
   }
-  const profile = profiles.find((p) => p.id === str(input, "profile"))?.name;
   return [
     t("Creare l'automazione «{name}»", { name: str(input, "name") }),
-    t("Quando: {when}", { when: (when[str(trig, "kind")] ?? str(trig, "kind")) + (filter ? t(" (solo «{filter}»)", { filter }) : "") + (profile ? t(" (solo nel profilo {profile})", { profile }) : "") }),
+    t("Quando: {when}", { when: (when[str(trig, "kind")] ?? str(trig, "kind")) + (filter ? t(" (solo «{filter}»)", { filter }) : "") }),
     ...(ifs.length ? [t("Se: {ifs}", { ifs: ifs.join(t(" e ")) })] : []),
     t("Allora: {what}", { what: (linked ? what.join("") : what.join(t(", poi "))) || t("niente") }),
   ].join("\n");
@@ -346,10 +343,6 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
       return t("Leggere il testo negli appunti");
     case "write_clipboard":
       return t("Mettere negli appunti: {text}", { text: short(s("text")) });
-    case "switch_profile": {
-      const p = (State.settings.profiles ?? []).find((x) => x.id === s("id"));
-      return t("Passare al profilo «{name}»", { name: p?.name ?? s("id") });
-    }
     case "create_automation":
       return describeAutomation(input);
     case "notion_add_row":
@@ -532,8 +525,8 @@ const PROJECT_ALIASES: Record<string, string> = {
 };
 
 /**
- * Only permission requests may take the screen: over a full-screen app, or in a
- * profile that asked for permissions only (e.g. "Concentrazione").
+ * Only permission requests may take the screen: over a full-screen app, or with
+ * «Solo richieste di permesso» (also «Non disturbare» in the tray menu).
  */
 function quietNow(): boolean {
   return State.quiet ||

@@ -5,6 +5,7 @@ _26 novembre 2026. **1.0.57** in `main` (tag `v1.0.57`): modifiche ai file come 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
+- [ ] **Via i profili** (26/11, `docs/integrazioni.md` → Niente profili, `decisioni.md`): test Rust (anche il passaggio di un file con i profili e «Concentrazione» attivo), tipi, guida e smoke passati; da provare nell'app al primo avvio dopo l'aggiornamento: impostazioni rimaste quelle del profilo attivo, `settings-con-profili.json` accanto a `settings.json`, «Non disturbare» nel menu dell'area di notifica. Poi: Memoria master, Agent Chat come integrazione dedicata e «solo chat» da ragionare con Edoardo (`idee.md` → Memoria master).
 - [ ] **Isola da JSON, tappe 1–3 e Panoramica** (23/11, unita in `claude/sviluppo`, `docs/architettura.md` → Isola da JSON): tappa 1 provata da Edoardo dalla chat. Tappe 2 (blocchi: app installate, finestre, azioni rapide, cartella, valori del PC, testo) e 3 (ordine e parti nascoste di menu e testata) provate con test e nell'anteprima (`?scene=isola&tab=app`, `&tab=stato`, `&moved`); da provare nell'app: «crea una scheda con tutte le app installate», «metti la Chat in cima al menu e nascondi Notizie», Impostazioni → Aggiunti dalla chat → Rimetti come di serie; Panoramica: «metti la musica in cima alla panoramica», Impostazioni → Isola aperta → Panoramica (scena `&ov`).
 - [ ] **Isola da JSON, fonti, grafici e piede** (23/11, unito in `claude/sviluppo`, `docs/architettura.md` → Isola da JSON → Fonti, grafici, piede): test e anteprima (`?scene=isola&more&tab=altro`, `&ov`) passati; da provare nell'app: «crea una scheda con i file recenti e i progetti di VS Code», «una scheda con le schede dei clienti», «aggiungi alla panoramica il grafico del processore», footer in tre zone («metti a destra del footer un pulsante per bloccare il PC»). Primo tentativo dalla chat fallito per l'hook vecchio rimesso all'avvio (corretto, `docs/sviluppo.md` → Prova veloce); il footer di Edoardo (CPU, RAM, disco C e D) ora sta al centro.
 - [ ] **Isola da JSON, aspetto e condizioni** (24/11, anteprima approvata, unito in `claude/sviluppo` e installato qui con `npm run prova`; scene `?scene=isola&look`, `&look=caldo`; `docs/architettura.md` → Isola da JSON → Aspetto e condizioni): test Rust, build, smoke delle scene dell'isola passati. Da provare nell'app: «fai l'isola blu notte con una sfumatura viola e angoli più tondi», «font monospaziato e testo più grande», «la CPU nel footer rossa sopra l'80%», «il pulsante Notte solo dalle 20 alle 6», «i progetti di VS Code solo con VS Code davanti», poi «Rimetti come di serie».
@@ -73,6 +74,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Via i profili, «Non disturbare»
+- Profili tolti dappertutto (impostazioni, area di notifica, chat, automazioni, abitudini, Impostazioni, guida: «Profili e notifiche» → «Notifiche»); `profiles.rs` → `wifi.rs`. Un file con i profili porta i valori in uso (schema 7) e ne lascia una copia. Decisioni su memoria master e Agent Chat in `decisioni.md`/`idee.md`.
+
 ### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
 - Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
 
@@ -84,6 +88,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 26/11 — Chat vuota: 17 disegni nuovi, aurora rifatta, «Tutti»
 - `chat-empty-more.ts`: aurora tenue solo in alto e altri 17 disegni; «Tutti» ne sceglie uno diverso per ogni conversazione nuova (`docs/architettura.md` → Aspetto della chat). Fotografati in Edge senza finestra (`?scene=chat&vuota=<nome>`).
-
-### 26/11 — Chat: risposta fluida, riquadri, tabelle, passi con icona
-- Parole nuove in dissolvenza e scorrimento morbido (`chat-flow.ts`), avvisi in cinque tipi con icona e titolo, tabelle con numeri a destra, barre, stati colorati e intestazione ferma (`md-rich.ts`), passo in corso con icona e spunte sui passi finiti (`docs/chat.md`). Scena `?scene=chat&vivace`; provati in Edge senza finestra, smoke ok; da vedere nell'app con risposte vere.

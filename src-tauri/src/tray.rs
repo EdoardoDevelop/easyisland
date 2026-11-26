@@ -1,7 +1,7 @@
-// Notification-area icon: Open, Profile ▸, Settings, Pause, Quit. The same
-// menu opens with a right click on the resting character (`popup`) and on the
-// fixed bar, there with «Personalizza la barra…» first (`popup_bar_context`).
-// The menu is rebuilt whenever profiles change (names, the active one).
+// Notification-area icon: Open, recaps, Non disturbare, Davanti al cliente,
+// Settings, Pause, Quit. The same menu opens with a right click on the resting
+// character (`popup`) and on the fixed bar, there with «Personalizza la
+// barra…» first (`popup_bar_context`). Rebuilt when its ticks change (`refresh`).
 
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, IconMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -12,21 +12,11 @@ use crate::island::WINDOW_LABEL;
 use crate::i18n::{t, tf};
 
 const TRAY_ID: &str = "easyisland";
-const PROFILE_PREFIX: &str = "profile:";
 /// «Personalizza la barra…» of the fixed bar's menu: Impostazioni → Aspetto → Barra fissa.
 const BAR_SETTINGS: &str = "bar-settings";
 
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
-    let (profiles, active) = app
-        .try_state::<crate::Shared>()
-        .map(|s| {
-            let s = s.settings.lock().unwrap();
-            (
-                s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect::<Vec<_>>(),
-                s.active_profile.clone(),
-            )
-        })
-        .unwrap_or_default();
+    let quiet = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().quiet());
 
     let open = MenuItem::with_id(app, "open", t("Apri EasyIsland"), true, None::<&str>)?;
     // Handled by the island (src/main.ts, "tray" event).
@@ -46,24 +36,10 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
 
-    let items = profiles
-        .iter()
-        .map(|(id, name)| {
-            CheckMenuItem::with_id(
-                app,
-                format!("{PROFILE_PREFIX}{id}"),
-                name,
-                true,
-                *id == active,
-                None::<&str>,
-            )
-        })
-        .collect::<tauri::Result<Vec<_>>>()?;
-    let refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
-    let profile = Submenu::with_items(app, t("Profilo"), !refs.is_empty(), &refs)?;
+    // Only permission requests open the island and sound (what «Concentrazione» was).
+    let quiet = CheckMenuItem::with_id(app, "quiet", t("Non disturbare"), true, quiet, None::<&str>)?;
 
-
-    Menu::with_items(app, &[&open, &profile, &recap, &daily, &sep1, &presence, &settings, &pause, &sep2, &quit])
+    Menu::with_items(app, &[&open, &recap, &daily, &sep1, &quiet, &presence, &settings, &pause, &sep2, &quit])
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
@@ -90,8 +66,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 refresh(app);
             }
             id if id.starts_with(crate::barapps::MENU_PREFIX) => crate::barapps::menu_pick(app, &id[crate::barapps::MENU_PREFIX.len()..]),
-            id if id.starts_with(PROFILE_PREFIX) => {
-                crate::activate_profile(app, &id[PROFILE_PREFIX.len()..], "menu");
+            "quiet" => {
+                let on = app.try_state::<crate::Shared>().is_some_and(|s| !s.settings.lock().unwrap().quiet());
+                crate::set_quiet(app, on);
             }
             id => {
                 let _ = app.emit_to(WINDOW_LABEL, "tray", id.to_string());
@@ -241,7 +218,7 @@ pub fn popup_entries(app: &AppHandle, entries: &[MenuEntry]) {
     crate::island::set_activating(&win, false);
 }
 
-/// Re-reads profiles into the menu (after a rename, a switch, an import…).
+/// Builds the menu again (its ticks: Non disturbare, Davanti al cliente).
 pub fn refresh(app: &AppHandle) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
     if let Ok(menu) = build_menu(app) {

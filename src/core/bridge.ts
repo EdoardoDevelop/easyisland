@@ -1027,11 +1027,9 @@ export const Bridge = {
   dailyShow: () => call<void>("daily_show"),
   /** Lingua: the windows are rebuilt in the new language. */
   restartApp: () => call<void>("restart_app"),
-  /** Profiles, backup. */
-  switchProfile: (id: string) => call<void>("switch_profile", { id }),
+  /** Backup. */
   settingsExport: () => callOrThrow<string>("settings_export"),
   settingsImport: (text: string) => callOrThrow<{ settings: Settings; note: string }>("settings_import", { text }),
-  currentNetwork: () => call<string | null>("current_network"),
   /** Settings window: MCP servers configured in Claude Code (names only). */
   mcpServersConfigured: () => call<string[]>("mcp_servers_configured"),
   /** Settings window: is Claude Code installed and signed in? */

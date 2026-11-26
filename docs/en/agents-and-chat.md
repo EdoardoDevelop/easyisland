@@ -100,7 +100,7 @@ disagree, the Italian files are the reference.
   (`action`, `resources`, `save`); the answer is
   `POST /api/session/{id}/permission/{rid}/reply` with `{"decision"}`.
 - **Connectors (MCP)**: with the subscription, the MCP servers configured in Claude
-  Code (and those of enabled plugins) can be chosen per profile; by default every call
+  Code (and those of enabled plugins) can be chosen; by default every call
   asks Allow / Deny in the island.
 
 ## Terminal mode (`chatTerminal`, `chatFolder`)

@@ -6750,5 +6750,17 @@
   "Segna cosa guardare: riquadro, freccia, oscura": "Mark what to look at: box, arrow, cover",
   "Questa conversazione non ha un motore per il riassunto.": "This conversation has no engine for the summary.",
   "Immagine non ricevuta": "Picture not received",
-  "Immagine segnata": "Marked picture"
+  "Immagine segnata": "Marked picture",
+  "dette alla chat all'inizio di ogni conversazione": "told to the chat at the start of every conversation",
+  "I tempi di chiusura sono in Aspetto → Isola aperta.": "The closing times are in Appearance → Open island.",
+  "Acceso, EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette collegate e le azioni rapide (massimo 45 giorni di storico locale).": "When on, EasyIsland notes when you open programs (only the name, never titles or content), when you turn on or unlock the PC, the Wi-Fi network, the USB sticks plugged in and the quick actions (at most 45 days of local history).",
+  "«Non disturbare» nel menu dell'icona nell'area di notifica passa a «Solo richieste di permesso» e poi torna a questa scelta": "\"Do not disturb\" in the notification-area icon's menu switches to \"Only permission requests\" and then back to this choice",
+  "impostazioni, memoria della chat, abilità, compiti, integrazioni personali, cronologia chat e abitudini.": "settings, chat memory, skills, tasks, personal integrations, chat history and habits.",
+  "Suono, avvio con Windows e aggiornamenti.": "Sound, start with Windows and updates.",
+  "Motori AI, strumenti e cartella di lavoro, istruzioni, memoria e permessi.": "AI engines, tools and working folder, instructions, memory and permissions.",
+  "L'azione rapida non c'è più.": "The quick action is no longer there.",
+  "passo saltato": "step skipped",
+  "Sulla rete {net} apro {list}?": "On the {net} network, open {list}?",
+  "Quando ti colleghi a {net} apri quasi sempre {list}.": "When you join {net} you almost always open {list}.",
+  "Programmi su {net}": "Programs on {net}"
 }

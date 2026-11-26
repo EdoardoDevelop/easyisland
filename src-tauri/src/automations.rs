@@ -9,11 +9,11 @@
 // a Teams meeting starting or ending (teams.rs).
 // Most of them can be narrowed with a filter (".pdf", a caller, a project).
 // Conditions ("se", all of them must hold, each one can be turned into "non"):
-// a profile, hours and days, a Wi-Fi network, a program open or in front, on
+// hours and days, a Wi-Fi network, a program open or in front, on
 // battery or below N %, away for N minutes, microphone or webcam in use, "davanti
 // al cliente". Plus how often: every time, at most every N minutes, once a day.
-// Actions, in order: a quick action of the user's, a notice in the island, a
-// profile switch, opening a program/folder or a link, a question to the chat,
+// Actions, in order: a quick action of the user's, a notice in the island,
+// opening a program/folder or a link, a question to the chat,
 // a task, waiting N minutes, asking first (a card: Continua / Annulla). After a
 // step that failed the rest is skipped, unless "keepGoing".
 // The trigger's data ({file}, {chiamante}, {progetto}…) fill notices, links,
@@ -99,10 +99,10 @@ pub struct Condition {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Step {
-    /// quick | notice | profile | app | url | chat (`text` is the question) | task
+    /// quick | notice | app | url | chat (`text` is the question) | task
     /// | wait (`minutes`) | confirm (a card with `title` / `text`: Continua or Annulla)
     pub kind: String,
-    /// quick: action id · profile: profile id.
+    /// quick: action id.
     pub id: String,
     pub title: String,
     pub text: String,
@@ -157,8 +157,6 @@ pub struct Automation {
     pub name: String,
     pub enabled: bool,
     pub trigger: Trigger,
-    /// Only while this profile is active; "" = any.
-    pub profile: String,
     /// More "se", all of them must hold.
     pub conditions: Vec<Condition>,
     /// "" = every time · "every" = at most once every `every` minutes · "day" = once a day.
@@ -399,22 +397,15 @@ pub fn on_widget(id: &str, prev: Option<&str>, level: &str, summary: &str, event
     q.truncate(50);
 }
 
-pub(crate) fn list(app: &AppHandle) -> (Vec<Automation>, String, Vec<Value>) {
-    let Some(shared) = app.try_state::<crate::Shared>() else { return (Vec::new(), String::new(), Vec::new()) };
+pub(crate) fn list(app: &AppHandle) -> (Vec<Automation>, Vec<Value>) {
+    let Some(shared) = app.try_state::<crate::Shared>() else { return (Vec::new(), Vec::new()) };
     let s = shared.settings.lock().unwrap();
     let autos = s
         .automations
         .iter()
         .filter_map(|v| serde_json::from_value::<Automation>(v.clone()).ok())
         .collect();
-    // Quick actions belong to profiles: look in the active one first, then in all.
-    let mut actions = s.actions.clone();
-    for p in &s.profiles {
-        if let Some(Value::Array(a)) = p.values.get("actions") {
-            actions.extend(a.iter().cloned());
-        }
-    }
-    (autos, s.active_profile.clone(), actions)
+    (autos, s.actions.clone())
 }
 
 pub(crate) fn notice(app: &AppHandle, title: &str, text: &str, level: &str) {
@@ -481,10 +472,8 @@ pub(crate) async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ct
             notice(app, &fill(&step.title, ctx, &plain), &fill(&step.text, ctx, &plain), level);
             Ok(t("avviso mostrato").into())
         }
-        "profile" => {
-            crate::activate_profile(app, &step.id, "automazione");
-            Ok(t("profilo cambiato").into())
-        }
+        // A profile switch of an automation made before the profiles went (26 Nov 2026): nothing to do.
+        "profile" => Ok(t("passo saltato").into()),
         "app" => {
             let target = fill(step.target.trim(), ctx, &plain);
             let target = target.trim();
@@ -557,7 +546,6 @@ pub(crate) fn step_words(st: &Step) -> String {
     match st.kind.as_str() {
         "quick" => t("un'azione rapida").to_string(),
         "notice" => tf("avviso «{t}»", &[("t", &st.title)]),
-        "profile" => t("cambio di profilo").to_string(),
         "app" => tf("apro {x}", &[("x", &st.target)]),
         "url" => tf("apro {x}", &[("x", &st.url)]),
         "chat" => t("domanda alla chat").to_string(),
@@ -573,7 +561,7 @@ pub(crate) fn step_words(st: &Step) -> String {
 
 /// Settings → "Prova ora".
 pub fn run_now(app: &AppHandle, id: &str) -> Result<(), String> {
-    let (autos, _, actions) = list(app);
+    let (autos, actions) = list(app);
     let auto = autos.into_iter().find(|a| a.id == id).ok_or(t("Automazione non trovata (salvata?)"))?;
     let app = app.clone();
     // No event behind it: the placeholders stay as they are, so they show.
@@ -587,7 +575,7 @@ const TRIGGER_KINDS: &[&str] = &[
     "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
     "server", "back", "teams",
 ];
-const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task", "wait", "confirm", "agent", "decide", "ask", "foreach"];
+const STEP_KINDS: &[&str] = &["quick", "notice", "app", "url", "chat", "task", "wait", "confirm", "agent", "decide", "ask", "foreach"];
 const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
 
 /// "HH:MM" → minutes since midnight.
@@ -655,9 +643,6 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     if t.delay == 0 {
         t.delay = 30;
     }
-    if !a.profile.is_empty() && !s.profiles.iter().any(|p| p.id == a.profile) {
-        return Err("profile: l'id di un profilo (vedi list_profiles), oppure vuoto.".into());
-    }
     if a.conditions.len() > 8 {
         return Err("Al massimo 8 condizioni.".into());
     }
@@ -692,12 +677,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     if a.steps.len() > 30 {
         return Err("Al massimo 30 passi.".into());
     }
-    let mut actions = s.actions.clone();
-    for p in &s.profiles {
-        if let Some(Value::Array(x)) = p.values.get("actions") {
-            actions.extend(x.iter().cloned());
-        }
-    }
+    let actions = &s.actions;
     for st in &mut a.steps {
         if !STEP_KINDS.contains(&st.kind.as_str()) {
             return Err(format!("steps[].kind deve essere uno di: {}", STEP_KINDS.join(", ")));
@@ -705,9 +685,6 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
         match st.kind.as_str() {
             "quick" if !actions.iter().any(|x| x.get("id").and_then(Value::as_str) == Some(st.id.as_str())) => {
                 return Err(format!("Nessuna azione rapida con id «{}» (vedi list_quick_actions).", st.id));
-            }
-            "profile" if !s.profiles.iter().any(|p| p.id == st.id) => {
-                return Err(format!("Nessun profilo con id «{}» (vedi list_profiles).", st.id));
             }
             "notice" if st.title.trim().is_empty() && st.text.trim().is_empty() => {
                 return Err("Un avviso ha bisogno almeno di un titolo.".into());
@@ -778,7 +755,7 @@ fn describe_condition(c: &Condition) -> String {
 }
 
 /// One line per automation for the chat: "Mattina (accesa): alle 09:00 L-V → …".
-pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
+pub fn describe(a: &Automation) -> String {
     let t = &a.trigger;
     let mut when = match t.kind.as_str() {
         "time" => format!("alle {} ({})", t.time, day_names(&t.days)),
@@ -807,9 +784,6 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
         when.push_str(&format!(" (solo «{}»)", t.filter));
     }
     let mut ifs: Vec<String> = a.conditions.iter().map(describe_condition).collect();
-    if !a.profile.is_empty() {
-        ifs.insert(0, format!("solo nel profilo {}", a.profile));
-    }
     match a.repeat.as_str() {
         "every" => ifs.push(format!("al massimo ogni {} minuti", a.every)),
         "day" => ifs.push("una volta al giorno".into()),
@@ -822,7 +796,6 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
         .map(|st| match st.kind.as_str() {
             "quick" => format!("azione rapida {}", st.id),
             "notice" => format!("avviso «{}»", st.title),
-            "profile" => format!("profilo {}", s.profiles.iter().find(|p| p.id == st.id).map(|p| p.name.as_str()).unwrap_or(&st.id)),
             "app" => format!("apri {}", st.target),
             "url" => format!("apri {}", st.url),
             "chat" => format!("chiedi alla chat «{}»", st.text),
@@ -878,7 +851,7 @@ impl Look {
         self.procs.get_or_insert_with(|| crate::presence::processes().into_iter().collect())
     }
     fn ssid(&mut self) -> Option<String> {
-        self.ssid.get_or_insert_with(crate::profiles::current_ssid).clone()
+        self.ssid.get_or_insert_with(crate::wifi::current_ssid).clone()
     }
     fn foreground(&mut self) -> String {
         self.fg.get_or_insert_with(|| crate::context::foreground().map(|f| f.exe).unwrap_or_default()).clone()
@@ -1026,7 +999,7 @@ fn spawn_unlock_watch() {
 
 pub fn spawn(app: AppHandle) {
     spawn_unlock_watch();
-    crate::flows::resume(&app, list(&app).2);
+    crate::flows::resume(&app, list(&app).1);
     std::thread::spawn(move || {
         let started = Instant::now();
         let mut fired_startup: HashSet<String> = HashSet::new();
@@ -1043,11 +1016,8 @@ pub fn spawn(app: AppHandle) {
         let mut ticks: u64 = 0;
 
         loop {
-            let (autos, profile, actions) = list(&app);
-            let on: Vec<&Automation> = autos
-                .iter()
-                .filter(|a| a.enabled && (a.profile.is_empty() || a.profile == profile))
-                .collect();
+            let (autos, actions) = list(&app);
+            let on: Vec<&Automation> = autos.iter().filter(|a| a.enabled).collect();
             WANTED.store(on.iter().fold(0, |m, a| m | kind_bit(&a.trigger.kind)), Ordering::Relaxed);
             let paused = crate::integrations::PAUSED.load(Ordering::Relaxed);
             let unlocked = UNLOCKED.swap(false, Ordering::Relaxed);
@@ -1118,7 +1088,7 @@ pub fn spawn(app: AppHandle) {
             // Wi-Fi network joined: asked every 30 s (netsh is a process).
             if wants("wifi") && ssid_checked.is_none_or(|t| t.elapsed() >= Duration::from_secs(30)) {
                 ssid_checked = Some(Instant::now());
-                let now = crate::profiles::current_ssid();
+                let now = crate::wifi::current_ssid();
                 if let Some(prev) = &ssid {
                     if *prev != now {
                         if let Some(name) = &now {
@@ -1283,7 +1253,6 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(a.trigger.days.len(), 5);
-        assert!(a.profile.is_empty());
         assert!(!a.notify);
         assert_eq!(a.steps[0].kind, "url");
     }
@@ -1300,7 +1269,7 @@ mod tests {
         assert_eq!(ok.trigger.days, vec![1, 5]);
         assert!(ok.enabled && ok.id.starts_with('a'));
         assert_eq!(ok.steps[1].level, "info");
-        assert!(describe(&ok, &s).contains("alle 08:30"));
+        assert!(describe(&ok).contains("alle 08:30"));
 
         let bad = |v: Value| validate(&v, &s).is_err();
         assert!(bad(json!({ "name": "x", "trigger": { "kind": "time", "time": "25:00" }, "steps": [{ "kind": "notice", "title": "a" }] })));
@@ -1392,7 +1361,7 @@ mod tests {
         assert_eq!(ok.trigger.filter, ".pdf");
         assert_eq!(ok.conditions[2].minutes, 10);
         assert_eq!(ok.every, 60);
-        let line = describe(&ok, &s);
+        let line = describe(&ok);
         assert!(line.contains("download finito (solo «.pdf»)") && line.contains("non in riunione"), "{line}");
 
         let agent = validate(&json!({ "name": "x", "trigger": { "kind": "agent", "when": "boh" }, "steps": [{ "kind": "notice", "title": "a" }] }), &s).unwrap();

@@ -2,7 +2,7 @@
 > section: Make it yours
 > summary: Style, light or dark mode, characters, where the island lives and how it behaves closed and open, sounds and language.
 
-Everything is in **Settings → Look**. Sections with the purple label are saved in the active [profile](06-profiles.md).
+Everything is in **Settings → Look**.
 
 ![Settings, Look page](../media/settings.png)
 
@@ -48,7 +48,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 
 The **Apps (open and pinned)** element, in the catalog's Windows group, does what the Windows taskbar does: one icon per app, with a mark under the open ones (blue for the one in front). Click: opens the app, brings it forward or minimizes it; with several windows, their previews show and you pick one. Resting the mouse on an open app shows the previews; middle click opens a new window; <kbd>Ctrl</kbd>+click or the wheel on the icon go through the app's windows; a file dragged onto an icon brings its window forward, and let go there it opens with that program; right click lists the windows, recent files, "Run as administrator", "Pin to the bar" or "Remove from the bar". The pinned apps are the Windows taskbar's; drag them along the bar or use **Apps in the bar** to order them; a program dragged onto the bar is added there. As on the Windows taskbar, <kbd>Shift</kbd>+click opens another window and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+click opens it as administrator. A minimized window goes down into its icon on the bar and comes back up from there (option **Minimize windows into their icon**, on by default); with **Magnify under the mouse** the icon under the mouse and its neighbours grow, as on a Mac.
 
-At the bottom of the tab, **Windows taskbar** → **Hidden** removes the Windows taskbar (for the PC, not the profile). Start stays on the <kbd>Windows</kbd> key, hidden icons on <kbd>Win</kbd>+<kbd>B</kbd> (or with the fixed bar's "Hidden icons" element) and open windows are found by typing their name in the island's field. It always comes back when EasyIsland closes, hangs or is uninstalled; **Bring it back now** restores it at once.
+At the bottom of the tab, **Windows taskbar** → **Hidden** removes the Windows taskbar (for the PC). Start stays on the <kbd>Windows</kbd> key, hidden icons on <kbd>Win</kbd>+<kbd>B</kbd> (or with the fixed bar's "Hidden icons" element) and open windows are found by typing their name in the island's field. It always comes back when EasyIsland closes, hangs or is uninstalled; **Bring it back now** restores it at once.
 - **In the bar:** what sits in the bar, even different from the island: as in the island, Ezzy (the EasyIsland logo animated), the still logo, your logo, the weather or one of the characters.
 - **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
 - **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.

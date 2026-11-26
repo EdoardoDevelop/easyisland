@@ -79,7 +79,7 @@ export function runLayoutAction(a: LayoutAction, actions: ViewActions) {
     case "quick": {
       const q = (State.settings.actions ?? []).find((x) => x.id === a.id);
       if (q) actions.runAction(q);
-      else fail(t("L'azione rapida non c'è più nel profilo attivo."));
+      else fail(t("L'azione rapida non c'è più."));
       break;
     }
     case "app":

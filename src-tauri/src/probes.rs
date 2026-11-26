@@ -552,7 +552,7 @@ pub async fn network(w: &Widget) -> WidgetResult {
     let local = tauri::async_runtime::spawn_blocking(|| {
         let list: Vec<Adapter> = adapters().into_iter().filter(|a| a.up).collect();
         let primary = primary_ipv4();
-        let ssid = if list.iter().any(|a| a.wireless) { crate::profiles::current_ssid() } else { None };
+        let ssid = if list.iter().any(|a| a.wireless) { crate::wifi::current_ssid() } else { None };
         let latency = icmp_ms(Ipv4Addr::new(1, 1, 1, 1), 1500);
         (list, primary, ssid, latency)
     })

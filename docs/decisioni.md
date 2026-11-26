@@ -2,6 +2,8 @@
 
 Da controllare prima di proporre o fare una funzione. Ciò che va contro una di queste si fa solo dopo averne parlato con Edoardo.
 
+- **Niente profili** (26/11/2026, Edoardo: «dobbiamo rimuovere i profili»): un solo insieme di impostazioni; al posto di «Concentrazione» c'è «Non disturbare» nel menu dell'area di notifica. Non riproporre profili, cambio automatico per luogo o impostazioni per profilo. Come è stato tolto: `integrazioni.md` → Niente profili.
+- **Memoria condivisa** (26/11/2026, da progettare): una memoria **master** in cloud e una copia per PC, cifrata end-to-end (chiave in Gestione credenziali), cosa condividere scelto nelle Impostazioni (a mano o in automatico). **Non** sul server di Agent Chat. Per ora un solo utente (Edoardo). `idee.md` → Memoria master.
 - **Integrazione o widget:** servizio/programma presente una volta sola = integrazione; widget solo per controlli ripetibili.
 - **Cursor e Copilot CLI solo in osservazione:** sui loro hook di permesso una risposta illeggibile o un errore bloccano lo strumento, e l'isola non deve mai bloccare un agente.
 - **Ricette della chat salvate da sole** (20/10/2026): poche righe mirate scelte da EasyIsland (`recipes.rs`, `docs/chat.md` → Velocità e ricette), non memoria libera del motore (crescerebbe e costerebbe token). Si contano e cancellano in Impostazioni → Chat.

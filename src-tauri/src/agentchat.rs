@@ -475,15 +475,11 @@ fn config(app: &AppHandle) -> Config {
     Config { listen: c.agentchat_listen, rooms: rooms_of(&c.agentchat_rooms), engines, per_hour: c.agentchat_per_hour.max(1), chain: c.agentchat_chain.max(1), synthesis: c.agentchat_synthesis, catchup: c.agentchat_catchup.clone(), memory: c.agentchat_memory }
 }
 
-/// On in the current profile or in any other, like Telegram: a profile that
-/// changes with the place must not cut EasyIsland out of the chat.
+/// Agent Chat is on in Impostazioni → Integrazioni.
 fn active(app: &AppHandle) -> bool {
     app.try_state::<crate::Shared>().is_some_and(|s| {
         let s = s.settings.lock().unwrap();
         s.active_integrations.iter().any(|a| a == ID)
-            || s.profiles.iter().any(|p| {
-                p.values.get("activeIntegrations").and_then(Value::as_array).is_some_and(|a| a.iter().any(|v| v.as_str() == Some(ID)))
-            })
     })
 }
 

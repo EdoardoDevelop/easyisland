@@ -1,10 +1,9 @@
 // Preferences, stored as plain JSON in %APPDATA%\EasyIsland\settings.json.
 // No secret ever lands here — API keys live in the Windows Credential Manager.
 //
-// Profiles: the top-level fields are always the *active* values, which is what
-// the rest of the app reads. Each profile keeps its own copy of the
-// profile-scoped fields (PROFILE_KEYS); switching copies them over the top
-// level, and every save writes the top level back into the active profile.
+// One set of values for the PC. Profiles (Lavoro, Casa, Concentrazione, each
+// with its own copy of about fifty fields) were taken away on 26 Nov 2026
+// (Edoardo): a file that still has them keeps the values in use, see `migrated`.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -15,7 +14,7 @@ use crate::i18n::{t, tf};
 /// 3–4: the character was renamed (Mochi → Ezzy → Slime), so were its values.
 /// 5: system / security / network / weather / outlook / zammad widgets became
 ///    integrations (`integration_<kind>`, options in `integrationConfig`).
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 7;
 
 /// Widget kinds that are integrations since schema 5: one per PC, switched on
 /// in Impostazioni → Integrazioni. Their checks still run through widgets.rs.
@@ -395,59 +394,9 @@ pub enum PendingSecret {
     Value { to: &'static str, value: String },
 }
 
-/// Fields that belong to a profile rather than to the machine.
-/// Integrations that stay the same in every profile (Edoardo, 24 Oct 2026:
-/// Telegram is one bot for the PC): kept on or off when the profile changes.
-pub const GLOBAL_INTEGRATIONS: &[&str] = &["integration_telegram", "integration_agentchat"];
-
-pub const PROFILE_KEYS: &[&str] = &[
-    "activeIntegrations",
-    "integrationTabs",
-    "integrationTabIcons",
-    "integrationColors",
-    "menuCharacter",
-    "characterBubble",
-    "pillOrder",
-    "tabOrder",
-    "menuGroups",
-    "anchorV",
-    "anchorH",
-    "offsetX",
-    "offsetY",
-    "glueEdges",
-    "overTaskbar",
-    "closeButton",
-    "followCursorCompact",
-    "presenceMeeting",
-    "presenceRemote",
-    "presenceApps",
-    "presenceMode",
-    "iconStyle",
-    "iconSize",
-    "hoverStyle",
-    "animations",
-    "hoverSize",
-    "compactStrip",
-    "appBar",
-    "chatInstructions",
-    "appBarLook",
-    "appBarMax",
-    "appBarName",
-    "openDelay",
-    "revealDuration",
-    "quietFullscreen",
-    "soundEnabled",
-    "soundVolume",
-    "autoCloseInterval",
-    "searchBarLine",
-    "searchBarLineMode",
-    "theme",
-    "notify",
-    "reactions",
-    "actions",
-    "widgets",
-    "mcpServers",
-];
+/// Integrations of the PC that profiles never switched (Telegram, Agent Chat):
+/// kept as they are when a file with profiles is brought over.
+const GLOBAL_INTEGRATIONS: &[&str] = &["integration_telegram", "integration_agentchat"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -583,58 +532,6 @@ fn one() -> f64 {
     1.0
 }
 
-/// When a profile switches itself on. All empty = never automatically.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProfileRules {
-    /// Wi-Fi network names; empty = any network.
-    #[serde(default)]
-    pub ssids: Vec<String>,
-    /// 1 = Monday … 7 = Sunday; empty = every day.
-    #[serde(default)]
-    pub days: Vec<u8>,
-    /// "HH:MM"; both empty = all day. `to` before `from` spans midnight.
-    #[serde(default)]
-    pub from: String,
-    #[serde(default)]
-    pub to: String,
-}
-
-impl ProfileRules {
-    pub fn is_empty(&self) -> bool {
-        self.ssids.is_empty() && self.days.is_empty() && self.from.is_empty() && self.to.is_empty()
-    }
-
-    /// `day` 1–7 (Monday first), `minutes` since midnight.
-    pub fn matches(&self, ssid: Option<&str>, day: u8, minutes: u32) -> bool {
-        if self.is_empty() {
-            return false;
-        }
-        if !self.ssids.is_empty() {
-            let Some(current) = ssid else { return false };
-            if !self.ssids.iter().any(|s| s.trim().eq_ignore_ascii_case(current.trim())) {
-                return false;
-            }
-        }
-        if !self.days.is_empty() && !self.days.contains(&day) {
-            return false;
-        }
-        match (parse_hm(&self.from), parse_hm(&self.to)) {
-            (Some(f), Some(t)) if f <= t => minutes >= f && minutes < t,
-            (Some(f), Some(t)) => minutes >= f || minutes < t,
-            (Some(f), None) => minutes >= f,
-            (None, Some(t)) => minutes < t,
-            (None, None) => true,
-        }
-    }
-}
-
-fn parse_hm(s: &str) -> Option<u32> {
-    let (h, m) = s.trim().split_once(':')?;
-    let (h, m): (u32, u32) = (h.parse().ok()?, m.parse().ok()?);
-    (h < 24 && m < 60).then_some(h * 60 + m)
-}
-
 /// An MCP server the chat may use. With `confirm`, every call to it waits for
 /// Consenti/Nega in the island.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -647,20 +544,8 @@ pub struct McpChoice {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Profile {
-    pub id: String,
-    pub name: String,
-    /// The profile's copy of PROFILE_KEYS.
-    #[serde(default)]
-    pub values: Map<String, Value>,
-    #[serde(default)]
-    pub rules: ProfileRules,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Settings {
-    /// 0/1 = a file written before profiles existed.
+    /// 0/1 = a file written before profiles existed; 7 = after they went.
     #[serde(default)]
     pub schema_version: u32,
     pub sound_enabled: bool,
@@ -997,13 +882,16 @@ pub struct Settings {
     /// MCP servers the chat may use (6.3).
     #[serde(default)]
     pub mcp_servers: Vec<McpChoice>,
+    /// The profiles of a file written before 26 Nov 2026: read to bring it
+    /// over (`migrated`), never written again.
+    #[serde(default, rename = "profiles", skip_serializing)]
+    legacy_profiles: Vec<Value>,
+    #[serde(default, rename = "activeProfile", skip_serializing)]
+    legacy_active: String,
+    /// «Non disturbare» (tray menu): `notify` becomes "permissions" and this
+    /// keeps the level to go back to.
     #[serde(default)]
-    pub profiles: Vec<Profile>,
-    #[serde(default)]
-    pub active_profile: String,
-    /// Switch profile on its own, from the profiles' rules.
-    #[serde(default)]
-    pub auto_profile: bool,
+    pub notify_before: String,
     /// Global shortcut that opens the island ("" = none). Belongs to the PC.
     #[serde(default = "default_hotkey_open")]
     pub hotkey_open: String,
@@ -1106,7 +994,6 @@ pub struct Settings {
     #[serde(default)]
     pub preview_width: f64,
     /// Impostazioni → Chat → Istruzioni: in front of every new conversation.
-    /// Of the profile (PROFILE_KEYS): "Cliente Rossi" can carry its own.
     #[serde(default)]
     pub chat_instructions: String,
     /// Impostazioni → Chat → Assistenti: named sets of engine and instructions
@@ -1118,8 +1005,7 @@ pub struct Settings {
     /// (opencode_agent.rs). Belongs to the PC; off by default.
     #[serde(default)]
     pub opencode_watch: bool,
-    /// "Quando… allora…" rules (automations.rs). Belong to the PC; each can be
-    /// limited to one profile.
+    /// "Quando… allora…" rules (automations.rs).
     #[serde(default)]
     pub automations: Vec<Value>,
     /// Record what happens on the PC to propose automations (habits.rs). Off
@@ -1405,9 +1291,9 @@ impl Default for Settings {
             actions: Vec::new(),
             widgets: Vec::new(),
             mcp_servers: Vec::new(),
-            profiles: Vec::new(),
-            active_profile: String::new(),
-            auto_profile: false,
+            legacy_profiles: Vec::new(),
+            legacy_active: String::new(),
+            notify_before: String::new(),
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
             hotkey_clipboard: default_hotkey_clipboard(),
@@ -1454,23 +1340,15 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// The profile-scoped part of the current values.
-    pub fn snapshot(&self) -> Map<String, Value> {
-        let Ok(Value::Object(all)) = serde_json::to_value(self) else { return Map::new() };
-        all.into_iter().filter(|(k, _)| PROFILE_KEYS.contains(&k.as_str())).collect()
-    }
-
-    /// Copies a profile's values over the current ones. Unknown or malformed
-    /// values are ignored rather than wiping the settings.
+    /// A profile's values over the current ones (bringing a file with profiles
+    /// over). Unknown or malformed values are ignored rather than wiping the settings.
     fn apply_values(&mut self, values: &Map<String, Value>) {
         let Ok(Value::Object(mut all)) = serde_json::to_value(&*self) else { return };
         let keep: Vec<&str> = GLOBAL_INTEGRATIONS.iter().copied().filter(|id| self.active_integrations.iter().any(|a| a == id)).collect();
         for (k, v) in values {
-            if PROFILE_KEYS.contains(&k.as_str()) {
-                all.insert(k.clone(), v.clone());
-            }
+            all.insert(k.clone(), v.clone());
         }
-        // Integrations of the PC, not of a profile: on or off whatever the profile says.
+        // Integrations of the PC, not of a profile: on or off as they were.
         if let Some(Value::Array(list)) = all.get_mut("activeIntegrations") {
             list.retain(|v| !v.as_str().is_some_and(|s| GLOBAL_INTEGRATIONS.contains(&s)));
             list.extend(keep.iter().map(|id| Value::String(id.to_string())));
@@ -1480,31 +1358,45 @@ impl Settings {
         }
     }
 
-    /// Writes the current values back into the active profile.
-    pub fn commit_active(&mut self) {
-        let snap = self.snapshot();
-        let active = self.active_profile.clone();
-        if let Some(p) = self.profiles.iter_mut().find(|p| p.id == active) {
-            p.values = snap;
-        }
+    /// «Non disturbare»: only permission requests open the island and sound.
+    pub fn quiet(&self) -> bool {
+        self.notify == "permissions"
     }
 
-    /// Saves the current profile, then loads `id`. False if it does not exist.
-    pub fn switch_profile(&mut self, id: &str) -> bool {
-        let Some(values) = self.profiles.iter().find(|p| p.id == id).map(|p| p.values.clone()) else {
-            return false;
-        };
-        self.commit_active();
-        self.active_profile = id.to_string();
-        let profiles = std::mem::take(&mut self.profiles);
-        self.apply_values(&values);
-        self.profiles = profiles;
-        self.active_profile = id.to_string();
-        true
+    /// Turns «Non disturbare» on or off, back to the level chosen before («Tutto» if none).
+    pub fn set_quiet(&mut self, on: bool) {
+        if on && !self.quiet() {
+            self.notify_before = std::mem::replace(&mut self.notify, "permissions".into());
+        } else if !on && self.quiet() {
+            let before = std::mem::take(&mut self.notify_before);
+            self.notify = if before.is_empty() || before == "permissions" { "all".into() } else { before };
+        }
     }
 
     /// Brings a file of any earlier layout up to SCHEMA_VERSION.
     pub fn migrated(mut self) -> Self {
+        // Schema 7: no profiles. The values on top are those of the active one;
+        // with «Concentrazione» active, those of the first other profile, with
+        // «Non disturbare» on instead (it was what Concentrazione was for).
+        let legacy = std::mem::take(&mut self.legacy_profiles);
+        let mut kept = std::mem::take(&mut self.legacy_active);
+        if kept == "concentrazione" {
+            let other = legacy.iter().find(|p| p.get("id").and_then(Value::as_str).is_some_and(|id| id != "concentrazione"));
+            kept = other.and_then(|p| p.get("id")).and_then(Value::as_str).unwrap_or_default().to_string();
+            if let Some(mut values) = other.and_then(|p| p.get("values")).and_then(Value::as_object).cloned() {
+                rename_legacy_values(&mut values);
+                self.apply_values(&values);
+            }
+            self.set_quiet(true);
+        }
+        // An automation limited to another profile than the one kept never ran
+        // in it: turned off. The limit goes, as the profiles did.
+        for a in self.automations.iter_mut().filter_map(Value::as_object_mut) {
+            let only = a.remove("profile").and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default();
+            if !only.is_empty() && !legacy.is_empty() && only != kept {
+                a.insert("enabled".into(), Value::Bool(false));
+            }
+        }
         // Schemas 3–4: values written while the character was Mochi or Ezzy.
         if LEGACY_CHARACTERS.contains(&self.icon_style.as_str()) {
             self.icon_style = default_icon_style();
@@ -1512,47 +1404,15 @@ impl Settings {
         if LEGACY_CHARACTERS.contains(&self.theme.character.as_str()) {
             self.theme.character = SLIME.into();
         }
-        for p in &mut self.profiles {
-            rename_legacy_values(&mut p.values);
-        }
         // Schema 6: Ctrl+Space opens the island; a shortcut the user chose stays.
         if self.schema_version < 6 && self.hotkey_open == OLD_HOTKEY_OPEN {
             self.hotkey_open = default_hotkey_open();
         }
-        // Schema 5: widgets that are integrations now, in every profile too.
+        // Schema 5: widgets that are integrations now.
         let mut moved = Vec::new();
         let widgets = std::mem::take(&mut self.widgets);
         self.widgets = take_probe_widgets(widgets, &mut self.active_integrations, &mut moved);
-        for p in &mut self.profiles {
-            let Some(Value::Array(list)) = p.values.remove("widgets") else { continue };
-            let mut active: Vec<String> = p
-                .values
-                .get("activeIntegrations")
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-                .unwrap_or_default();
-            let before = moved.len();
-            let kept = take_probe_widgets(list, &mut active, &mut moved);
-            p.values.insert("widgets".into(), Value::Array(kept));
-            if moved.len() > before {
-                p.values.insert("activeIntegrations".into(), Value::from(active));
-            }
-        }
         self.adopt_widget_options(&moved);
-        if self.profiles.is_empty() {
-            let snap = self.snapshot();
-            let mut focus = snap.clone();
-            focus.insert("notify".into(), Value::from("permissions"));
-            focus.insert("soundEnabled".into(), Value::from(false));
-            self.profiles = vec![
-                Profile { id: "lavoro".into(), name: t("Lavoro").into(), values: snap.clone(), rules: ProfileRules::default() },
-                Profile { id: "casa".into(), name: t("Casa").into(), values: snap, rules: ProfileRules::default() },
-                Profile { id: "concentrazione".into(), name: t("Concentrazione").into(), values: focus, rules: ProfileRules::default() },
-            ];
-            self.active_profile = "lavoro".into();
-        }
-        if !self.profiles.iter().any(|p| p.id == self.active_profile) {
-            self.active_profile = self.profiles[0].id.clone();
-        }
         self.schema_version = SCHEMA_VERSION;
         self
     }
@@ -1561,7 +1421,6 @@ impl Settings {
     /// makes sense on this machine. Secrets were never in here to begin with.
     pub fn export_json(&self) -> String {
         let mut copy = self.clone();
-        copy.commit_active();
         copy.hooks_installed = false;
         serde_json::to_string_pretty(&copy).unwrap_or_else(|_| "{}".into())
     }
@@ -1730,7 +1589,7 @@ const SLIME: &str = "slime";
 /// Earlier names of the slime ("character" for iconStyle) in settings files.
 const LEGACY_CHARACTERS: &[&str] = &["mochi", "ezzy"];
 
-/// A profile's stored values, brought from the Mochi/Ezzy names to the current ones.
+/// Stored values (a profile's, bringing a file over), from the Mochi/Ezzy names to the current ones.
 fn rename_legacy_values(values: &mut Map<String, Value>) {
     let legacy = |v: Option<&Value>| v.and_then(Value::as_str).is_some_and(|s| LEGACY_CHARACTERS.contains(&s));
     if legacy(values.get("iconStyle")) {
@@ -1781,7 +1640,7 @@ fn backup_path() -> PathBuf {
 /// flushed to disk, then renamed over it (an atomic replace on NTFS). A crash
 /// or a power cut in the middle used to leave a truncated file behind, and a
 /// truncated settings.json was read as "no settings": every action, automation,
-/// widget and profile went back to the defaults and was then saved over.
+/// widget and setting went back to the defaults and was then saved over.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -1838,6 +1697,13 @@ pub fn load() -> Settings {
     }
     let Some(old) = found else { return Settings::default() };
     let from = old.schema_version;
+    // The file with its profiles, kept once before it is written without them.
+    if from < 7 && !old.legacy_profiles.is_empty() {
+        let kept = config_dir().join("settings-con-profili.json");
+        if !kept.exists() {
+            let _ = std::fs::copy(settings_path(), &kept);
+        }
+    }
     let s = old.migrated();
     // A converted (or recovered) file is written back at once, so what is on
     // disk matches what the app shows.
@@ -1924,14 +1790,57 @@ mod tests {
     }
 
     #[test]
-    fn old_file_gets_three_profiles() {
-        let old = r#"{"soundEnabled":true,"soundVolume":0.1,"autoCloseInterval":15,"absenceInterval":180,
-            "activeIntegrations":["integration_github"],"screen":"primary","autostart":false,"hooksInstalled":true}"#;
-        let s = serde_json::from_str::<Settings>(old).unwrap().migrated();
+    fn profiles_are_brought_over_and_not_written_again() {
+        let base = r#""soundEnabled":true,"soundVolume":0.1,"autoCloseInterval":15,"absenceInterval":180,
+            "activeIntegrations":["integration_github","integration_telegram"],"screen":"primary","autostart":false,"hooksInstalled":true,"schemaVersion":6,"#;
+        let profiles = r#""profiles":[
+            {"id":"lavoro","name":"Lavoro","values":{"anchorH":"left","notify":"alerts","soundEnabled":true,"activeIntegrations":["integration_github"]}},
+            {"id":"casa","name":"Casa","values":{"anchorH":"right"}},
+            {"id":"concentrazione","name":"Concentrazione","values":{"notify":"permissions","soundEnabled":false}}]"#;
+        // Another profile active: its values (on top) stay.
+        let casa = format!(r#"{{{base}"anchorH":"right","notify":"all","activeProfile":"casa",{profiles},"automations":[{{"id":"a1","enabled":true,"profile":"lavoro"}},{{"id":"a2","enabled":true,"profile":"casa"}},{{"id":"a3","enabled":true}}]}}"#);
+        let s = serde_json::from_str::<Settings>(&casa).unwrap().migrated();
         assert_eq!(s.schema_version, SCHEMA_VERSION);
-        assert_eq!(s.profiles.len(), 3);
-        assert_eq!(s.active_profile, "lavoro");
-        assert_eq!(s.profiles[2].values["notify"], "permissions");
+        assert_eq!(s.anchor_h, "right");
+        assert!(!s.quiet());
+        // An automation of another profile is turned off; the limit goes.
+        assert_eq!(s.automations[0]["enabled"], false);
+        assert_eq!(s.automations[1]["enabled"], true);
+        assert_eq!(s.automations[2]["enabled"], true);
+        assert!(s.automations.iter().all(|a| a.get("profile").is_none()));
+        let written = serde_json::to_string(&s).unwrap();
+        assert!(!written.contains("\"profiles\"") && !written.contains("activeProfile"), "never written again");
+        // Concentrazione active: the work values, with «Non disturbare» on.
+        let focus = format!(r#"{{{base}"anchorH":"center","notify":"permissions","activeProfile":"concentrazione",{profiles}}}"#);
+        let s = serde_json::from_str::<Settings>(&focus).unwrap().migrated();
+        assert_eq!(s.anchor_h, "left");
+        assert!(s.sound_enabled);
+        assert!(s.quiet());
+        assert!(s.active_integrations.iter().any(|a| a == "integration_telegram"), "Telegram stays on");
+        let mut s = s;
+        s.set_quiet(false);
+        assert_eq!(s.notify, "alerts", "back to the work level");
+        // Running it again changes nothing.
+        let again = s.clone().migrated();
+        assert_eq!(again.anchor_h, "left");
+        assert_eq!(again.notify, "alerts");
+    }
+
+    #[test]
+    fn quiet_goes_back_to_the_level_before() {
+        let mut s = Settings::default();
+        s.notify = "alerts".into();
+        s.set_quiet(true);
+        assert_eq!(s.notify, "permissions");
+        s.set_quiet(true);
+        s.set_quiet(false);
+        assert_eq!(s.notify, "alerts");
+        // «Solo permessi» chosen by hand: off goes to «Tutto».
+        s.notify = "permissions".into();
+        s.notify_before.clear();
+        assert!(s.quiet());
+        s.set_quiet(false);
+        assert_eq!(s.notify, "all");
     }
 
     #[test]
@@ -1946,16 +1855,6 @@ mod tests {
         assert_eq!(s.icon_style, "character");
         assert_eq!(s.theme.character, "slime");
         assert_eq!(s.theme.slime_color, "#ff0000");
-        let v = &s.profiles[0].values;
-        assert_eq!(v["iconStyle"], "character");
-        assert_eq!(v["theme"]["character"], "cube");
-        assert_eq!(v["theme"]["slimeColor"], "#00ff00");
-        assert!(v["theme"].get("mochiColor").is_none());
-        let w = &s.profiles[1].values;
-        assert_eq!(w["iconStyle"], "character");
-        assert_eq!(w["theme"]["character"], "slime");
-        assert_eq!(w["theme"]["slimeColor"], "#0000ff");
-        assert!(w["theme"].get("ezzyColor").is_none());
         // A file saved by schema 3 (ezzyColor at the top level) still loads its colour.
         let t: Theme = serde_json::from_str(r##"{"character":"ezzy","ezzyColor":"#123456"}"##).unwrap();
         assert_eq!(t.slime_color, "#123456");
@@ -1993,7 +1892,6 @@ mod tests {
         assert_eq!(kinds(&s.widgets), vec!["ping"]);
         assert_eq!(s.active_integrations, vec!["integration_github", "integration_system", "integration_zammad"]);
         assert_eq!(s.integration_config.system_warn, 15);
-        assert_eq!(s.integration_config.weather_city, "Bologna");
         assert_eq!(
             s.pending_secrets,
             vec![
@@ -2001,66 +1899,10 @@ mod tests {
                 PendingSecret::From { to: "zammad-token", from: "widget:w3:token".into() },
             ]
         );
-        // Every profile is converted on its own.
-        let casa = &s.profiles[1].values;
-        assert_eq!(casa["widgets"], serde_json::json!([]));
-        assert_eq!(casa["activeIntegrations"], serde_json::json!(["integration_weather"]));
-        // Nothing moved: activeIntegrations is left as it was (absent here).
-        let focus = &s.profiles[2].values;
-        assert!(focus.get("activeIntegrations").is_none());
         // Running it again changes nothing.
         let again = s.clone().migrated();
         assert_eq!(again.active_integrations, s.active_integrations);
         assert!(again.pending_secrets.len() == s.pending_secrets.len());
-    }
-
-    #[test]
-    fn telegram_is_the_same_in_every_profile() {
-        let mut s = Settings::default();
-        s.active_integrations = vec!["integration_weather".into()];
-        s.switch_profile("casa");
-        s.active_integrations.push("integration_telegram".into());
-        s.switch_profile("lavoro");
-        assert!(s.active_integrations.iter().any(|a| a == "integration_telegram"), "still on in lavoro");
-        assert!(s.active_integrations.iter().any(|a| a == "integration_weather"), "lavoro keeps its own");
-        s.active_integrations.retain(|a| a != "integration_telegram");
-        s.switch_profile("casa");
-        assert!(!s.active_integrations.iter().any(|a| a == "integration_telegram"), "turned off everywhere");
-    }
-
-    #[test]
-    fn switching_keeps_each_profile_apart() {
-        let mut s = Settings::default();
-        s.anchor_h = "left".into();
-        s.switch_profile("casa");
-        assert_eq!(s.anchor_h, "center", "casa still has the original value");
-        s.anchor_h = "right".into();
-        s.switch_profile("lavoro");
-        assert_eq!(s.anchor_h, "left");
-        s.switch_profile("casa");
-        assert_eq!(s.anchor_h, "right");
-        assert_eq!(s.profiles.len(), 3);
-        assert!(!s.switch_profile("nope"));
-    }
-
-    #[test]
-    fn rules_match_network_days_and_hours() {
-        let r = ProfileRules {
-            ssids: vec!["Ufficio".into()],
-            days: vec![1, 2, 3, 4, 5],
-            from: "08:00".into(),
-            to: "18:30".into(),
-        };
-        assert!(r.matches(Some("ufficio"), 1, 9 * 60));
-        assert!(!r.matches(Some("Casa"), 1, 9 * 60));
-        assert!(!r.matches(None, 1, 9 * 60));
-        assert!(!r.matches(Some("Ufficio"), 6, 9 * 60));
-        assert!(!r.matches(Some("Ufficio"), 1, 19 * 60));
-        let night = ProfileRules { from: "22:00".into(), to: "07:00".into(), ..Default::default() };
-        assert!(night.matches(None, 3, 23 * 60));
-        assert!(night.matches(None, 3, 60));
-        assert!(!night.matches(None, 3, 12 * 60));
-        assert!(!ProfileRules::default().matches(Some("x"), 1, 0));
     }
 
     #[test]

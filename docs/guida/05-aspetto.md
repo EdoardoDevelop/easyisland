@@ -2,7 +2,7 @@
 > sezione: Personalizzare
 > in breve: Stile, modalità chiara o scura, personaggi, dove vive l'isola e come si comporta chiusa e aperta, suoni e lingua.
 
-Tutto in **Impostazioni → Aspetto**. Le sezioni con l'etichetta viola si salvano nel [profilo](06-profili.md) attivo.
+Tutto in **Impostazioni → Aspetto**.
 
 ![Impostazioni, pagina Aspetto](../media/settings.png)
 
@@ -48,7 +48,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
 
 L'elemento **App (aperte e fissate)**, nel gruppo Windows del catalogo, fa quello che fa la barra di Windows: un'icona per app, con un segno sotto quelle aperte (azzurro per quella davanti). Clic: apre l'app, la porta davanti o la riduce; se ha più finestre, mostra le loro anteprime e scegli. Fermando il mouse su un'app aperta compaiono le anteprime; clic centrale apre una nuova finestra; <kbd>Ctrl</kbd>+clic o la rotella sull'icona passano da una finestra all'altra dell'app; un file trascinato su un'icona porta davanti la sua finestra, e lasciato lì si apre con quel programma; col destro ci sono le finestre, i file recenti, «Esegui come amministratore», «Fissa alla barra» o «Togli dalla barra». Le app fissate sono le stesse della barra di Windows; si ordinano trascinandole nella barra o in **App nella barra**; un programma trascinato sulla barra si aggiunge lì. Come sulla barra di Windows, <kbd>Maiusc</kbd>+clic apre un'altra finestra e <kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+clic la apre come amministratore. Una finestra ridotta a icona scende nella sua icona della barra e risale da lì (opzione **Riduci le finestre nella loro icona**, accesa di serie); con **Ingrandisci al passaggio del mouse** l'icona sotto il mouse e le vicine crescono, come su un Mac.
 
-In fondo alla scheda, **Barra delle applicazioni di Windows** → **Nascosta** toglie la barra di Windows (vale per il PC, non per il profilo). Start resta sul tasto <kbd>Windows</kbd>, le icone nascoste su <kbd>Win</kbd>+<kbd>B</kbd> (o con l'elemento «Icone nascoste» della barra fissa) e le finestre aperte si trovano scrivendone il nome nel campo dell'isola. Torna sempre quando EasyIsland si chiude, si blocca o si disinstalla; **Rimetti adesso** la riporta subito.
+In fondo alla scheda, **Barra delle applicazioni di Windows** → **Nascosta** toglie la barra di Windows (vale per il PC). Start resta sul tasto <kbd>Windows</kbd>, le icone nascoste su <kbd>Win</kbd>+<kbd>B</kbd> (o con l'elemento «Icone nascoste» della barra fissa) e le finestre aperte si trovano scrivendone il nome nel campo dell'isola. Torna sempre quando EasyIsland si chiude, si blocca o si disinstalla; **Rimetti adesso** la riporta subito.
 - **Nella barra:** chi sta nella barra, anche diverso dall'isola: come nell'isola, il logo di EasyIsland animato o fermo, il tuo logo, il meteo o uno dei personaggi.
 - **Personaggio nella barra:** all'inizio, al centro o alla fine. Non si trascina; un clic apre l'isola subito sotto la barra (sopra, se la barra è in basso) e un altro la chiude. Da chiusa l'isola non c'è: c'è la barra.
 - **Altezza della barra:** automatica (alta quanto la vista compatta) o scelta da te; il personaggio, le icone e i testi si adattano.

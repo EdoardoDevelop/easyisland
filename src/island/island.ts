@@ -2268,7 +2268,7 @@ ${note}` : text };
   reveal() {
     // Over a full-screen app, or in front of a client, only real alerts may show up.
     if (State.quiet) return;
-    // Routine activity only surfaces when the profile wants everything.
+    // Routine activity only surfaces when the notifications want everything.
     if (State.settings.notify !== "all") return;
     this.fsm.reveal();
   }
