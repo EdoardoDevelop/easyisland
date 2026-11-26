@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.57** — **modifiche ai file come in un editor** (righe tolte e aggiunte, affiancate, anche nella richiesta Consenti/Nega); **versioni** delle domande modificate (‹ 2/2 ›); **Chiedi su questo** su un pezzo di risposta; **mappa** della conversazione; pulsanti con sfondo pieno e pannelli che si chiudono puliti.
 - **1.0.56** — **chat più bella**: risposte che entrano fluide, riquadri colorati, tabelle con barre e stati, **diagrammi**, **procedure da spuntare** e comandi con i campi, conversazioni a schede, Ctrl+F, avviso a risposta finita, bozze per conversazione; 23 disegni per la chat vuota; barra fissa con riduci nell'icona, download, unità rimovibili e cestino.
 - **1.0.55** — **l'isola costruita dalla chat**: schede, blocchi, grafici, Panoramica e footer, **aspetto a parole** (colori, sfumature, angoli, font, misure) e **condizioni** (ore, programma davanti, soglie che colorano), con anteprima e Annulla; orologio della barra più personalizzabile; «App» con icone da riordinare.
 - **1.0.54** — **il PC dal campo dell'isola** (file, finestre, pagine di Windows); la barra fissa fa da **barra delle applicazioni** con l'elemento **App** (fissate e aperte, anteprime, menu col destro) e la barra di Windows si può **nascondere**; cartelle e gruppo Windows nella barra; **chat a pannelli**, terminale a schede, blocchi di codice «Nel terminale» e «Salva»; «chiedi alla memoria».
-- **1.0.53** — corregge la **finestra degli avvisi** che restava trasparente davanti e prendeva i clic.
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
 ---

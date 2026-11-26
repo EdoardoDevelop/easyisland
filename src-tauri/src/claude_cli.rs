@@ -741,7 +741,11 @@ impl Progress {
                             crate::checkpoints::touching(self.chat, p);
                         }
                     }
-                    Some(step_line(name, input))
+                    // A change to a file: what it changes, under the step (steps::edit_block).
+                    Some(match crate::steps::edit_block(name, input) {
+                        Some(change) => format!("{}\n\n{change}", step_line(name, input)),
+                        None => step_line(name, input),
+                    })
                 }
                 _ => None,
             };

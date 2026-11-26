@@ -332,7 +332,10 @@ where
                 }
             };
 
-            steps_shown.push(step_line_for(name, &args));
+            steps_shown.push(match crate::steps::edit_block(name, &args) {
+                Some(change) => format!("{}\n\n{change}", step_line_for(name, &args)),
+                None => step_line_for(name, &args),
+            });
             on_text(&steps_shown.join("\n\n"));
 
             let output = execute_tool_call(

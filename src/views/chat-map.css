@@ -1,0 +1,65 @@
+/* The map of a long conversation (chat-map.ts): a strip on the right of the messages. */
+.chat-map {
+  position: absolute;
+  right: 10px;
+  z-index: 4;
+  width: 10px;
+  pointer-events: none;
+}
+.chat-map[hidden] { display: none; }
+.chat-map-band {
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  transition: top 0.08s linear;
+}
+.chat-map-marks { position: absolute; inset: 0; }
+.chat-map-mark {
+  position: absolute;
+  left: 2px;
+  width: 6px;
+  height: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--dim-3);
+  opacity: 0.8;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.12s;
+}
+/* A wider target than the mark itself. */
+.chat-map-mark::before { content: ""; position: absolute; inset: -4px -6px; }
+.chat-map-mark:hover { opacity: 1; transform: scaleX(1.7); }
+.chat-map-mark.q { left: 0; width: 10px; background: var(--dim); }
+.chat-map-mark.diagram { background: #a78bfa; }
+.chat-map-mark.table { background: #38bdf8; }
+.chat-map-mark.diff { background: #4ade80; }
+.chat-map-mark.warn { background: #f5a524; }
+.chat-map-tip {
+  position: absolute;
+  right: 16px;
+  max-width: 260px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: var(--cc-menu, #24262b);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: var(--ink-2);
+  font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+.chat-map-tip.on { opacity: 1; }
+html[data-scheme="light"] .chat-map-band { background: rgba(0, 0, 0, 0.04); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+html[data-scheme="light"] .chat-map-tip { background: #ffffff; color: #333740; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+html[data-scheme="light"] .chat-map-mark.diagram { background: #7c3aed; }
+html[data-scheme="light"] .chat-map-mark.table { background: #0284c7; }
+html[data-scheme="light"] .chat-map-mark.diff { background: #16a34a; }
+html[data-scheme="light"] .chat-map-mark.warn { background: #d97706; }

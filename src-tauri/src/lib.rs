@@ -3076,6 +3076,22 @@ fn chat_desktop_pull(chats: State<'_, Chats>, sid: String, done: bool) -> Vec<ch
     chats.find(&sid).map(|c| desktop::pull(&c, "subscription", done)).unwrap_or_default()
 }
 
+/// The versions of the questions changed with «Modifica» (chat_log::Alt), saved with the conversation.
+#[tauri::command]
+fn chat_alts(chats: State<'_, Chats>, sid: String, alts: Vec<chat_log::Alt>) {
+    let Ok(chat) = chats.get(&sid) else { return };
+    chat_log::set_alts(&chat, alts);
+}
+
+/// ‹ › on a question changed with «Modifica»: the conversation becomes that version.
+#[tauri::command]
+fn chat_switch(chats: State<'_, Chats>, sid: String, lines: Vec<chat_log::Line>, alts: Vec<chat_log::Alt>) {
+    let Ok(chat) = chats.get(&sid) else { return };
+    let before = chat.cli_session();
+    chat_log::switch(&chat, lines, alts);
+    opencode::forget(before);
+}
+
 /// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
 #[tauri::command]
 fn chat_fork(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
@@ -5645,6 +5661,8 @@ pub fn run() {
             custom_accept_extensions,
             webview_memory_low,
             chat_fork,
+            chat_alts,
+            chat_switch,
             chat_persona,
             chat_transcribe,
             chat_dictate_windows,

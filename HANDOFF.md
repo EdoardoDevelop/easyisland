@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_26 novembre 2026. **1.0.56** in `main` (tag `v1.0.56`): chat più bella (risposte fluide, riquadri, tabelle con barre e stati, diagrammi, procedure da spuntare, comandi con i campi, conversazioni a schede, Ctrl+F, 23 disegni della chat vuota) e barra fissa con le idee da WinMac-Dock. Installata qui la build di prova di questa versione. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
+_26 novembre 2026. **1.0.57** in `main` (tag `v1.0.57`): modifiche ai file come in un editor (anche nella card Consenti/Nega), versioni delle domande modificate, «Chiedi su questo», mappa della conversazione, pulsanti con sfondo pieno e pannelli che si chiudono puliti. Prima, nella 1.0.56: chat più bella (risposte fluide, riquadri, tabelle, diagrammi, procedure, schede, Ctrl+F, 23 disegni della chat vuota) e barra fissa con le idee da WinMac-Dock. Installata qui la build di prova della 1.0.56. **Dock e Top bar accantonate** (Edoardo, 20/11: troppi bug dal vivo): tutto sul ramo `claude/dock` (+ `claude/easytech-dock` 3fd45b1 con correzioni non ancora unite), piano in `docs/piano-dock.md` di quel ramo. `claude/modello-integrato` da riprendere per l'LLM interno. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -73,6 +73,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Chat: versioni, Chiedi su questo, mappa
+- «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).
+
+### 26/11 — Chat: modifiche ai file come in un editor
+- Dipendenza `diff` (`docs/decisioni.md`). Righe tolte e aggiunte sotto ogni passo che cambia un file, con tutti i motori della Modalità terminale, nei blocchi diff delle risposte e nella card Consenti/Nega (`docs/chat.md` → Modifiche ai file). Provato in Edge senza finestra (`?scene=chat&modifiche`), test Rust; da vedere nell'app con una modifica vera.
+
 ### 26/11 — Chat vuota: 17 disegni nuovi, aurora rifatta, «Tutti»
 - `chat-empty-more.ts`: aurora tenue solo in alto e altri 17 disegni; «Tutti» ne sceglie uno diverso per ogni conversazione nuova (`docs/architettura.md` → Aspetto della chat). Fotografati in Edge senza finestra (`?scene=chat&vuota=<nome>`).
 
@@ -82,13 +88,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 26/11 — Chat: procedure da spuntare, comandi con i campi, Ctrl+F
 - Ctrl+F nella conversazione (`chat-find.ts`), avviso quando una risposta lunga finisce fuori vista, bozze per conversazione anche dopo il riavvio (`docs/chat.md`). Ctrl+F provato nell'anteprima; avviso e bozze da provare nell'app.
 - `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
-
-### 25/11 — Chat: testo e bordo del campo, footer, diagrammi
-- Diagrammi Mermaid nelle risposte (`docs/chat.md` → Diagrammi; scena `?scene=chat&diagrammi`): provati con la CSP dell'app in Edge senza finestra, scuro e chiaro; da provare nell'app con i motori («fammi lo schema della rete di …»), finestra staccata e Copia.
-- Testo della conversazione grande come in Claude Desktop (letto dal suo CSS: risposte 15, resto 14, codice 13) e anello colorato animato sul campo (`.chat-glow` in `chat-cards.css`; `docs/architettura.md` → Aspetto della chat). Smoke rapido senza errori; da giudicare nell'app.
-- Con i pannelli della chat `.chat-dock` prende il posto di `#views` in `#body`: lo spazio per il footer (`.footed`, `style.css`) ora vale anche per lui. Prima conversazioni e chat coprivano il footer. Misurato nell'anteprima (`?scene=isola&more&wide`); da provare nell'app.
-
-### 24/11 — Dalle chat del portatile
-- Lette via WinRM le ultime 12 chat e il log del portatile (192.168.1.197). Ramo `claude/chat-portatile`: card dei grafici con stile e misure, larghezza `quarter`, «a linea» solo linea, grafici letti anche a isola chiusa (`chartKinds`), `preview_act` con i sinonimi dei motori (`act_alias`), memoria senza righe ripetute con altre parole (`brain::covered`), `memory_forget` anche su una riga di pagina.
-- Sera: condizione `view`/`not_view` (valori del footer nascosti nella Panoramica); pannello **Documenti** della chat (`chat-docs.ts`); percorsi con spazi cliccabili nelle risposte (`BARE_PATH`); barra di scorrimento delle conversazioni come quella della chat anche nel loro pannello. **Blocco all'avvio corretto:** `appbar::update_full_screen` prendeva il lucchetto delle impostazioni dentro l'avviso della shell sul thread principale (EasyIsland non rispondeva a ogni avvio, CPU 0); ora usa la copia `KEEP` fatta da `apply`.
-- Già a posto: i legami dedotti dalle parole (tolti il 21/11; sul portatile nessuna riga «(dedotto)»). Da fare forse: Telegram e 3CX che a rete caduta scrivono un errore ogni 30 s (132 in un'ora).

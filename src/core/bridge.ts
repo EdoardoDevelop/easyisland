@@ -5,7 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, IslandLayout, NewsItem, NewsProposal } from "./state";
+import type { AppMenuLine, ChatAlt, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, IslandLayout, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -448,7 +448,11 @@ export const Bridge = {
     callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
-  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null }>("chat_history_open", { sid, id }),
+  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null; alts?: ChatAlt[] }>("chat_history_open", { sid, id }),
+  /** The versions of the questions changed with «Modifica», saved with the conversation. */
+  chatAlts: (sid: string, alts: ChatAlt[]) => call<void>("chat_alts", { sid, alts }),
+  /** ‹ › on such a question: the conversation becomes that version, the engine goes on from it. */
+  chatSwitch: (sid: string, lines: { role: "user" | "assistant"; content: string }[], alts: ChatAlt[]) => call<void>("chat_switch", { sid, lines, alts }),
   chatHistoryDelete: (id: string) => call<void>("chat_history_delete", { id }),
   /** Claude Code's slash commands (its own, the user's, skills, plugins) for the «/» menu. */
   chatClaudeCommands: () => call<string[]>("chat_claude_commands"),

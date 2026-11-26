@@ -6712,5 +6712,18 @@
   "Costellazioni": "Constellations",
   "Foglie": "Leaves",
   "Lanterne": "Lanterns",
-  "Tutti, uno diverso a ogni nuova conversazione": "All, a different one for each new conversation"
+  "Tutti, uno diverso a ogni nuova conversazione": "All, a different one for each new conversation",
+  "{n} righe uguali": "{n} unchanged lines",
+  "Affiancate": "Side by side",
+  "Righe tolte e aggiunte una sotto l'altra": "Removed and added lines one under the other",
+  "Prima a sinistra, dopo a destra": "Before on the left, after on the right",
+  "contenuto scritto": "content written",
+  "Modifica lunga: qui solo l'inizio": "Long change: only its beginning here",
+  "Copiato": "Copied",
+  "Versione precedente di questa domanda": "Previous version of this question",
+  "Versione successiva di questa domanda": "Next version of this question",
+  "Questa domanda è stata modificata: ogni versione con le sue risposte": "This question was edited: each version with its answers",
+  "Chiedi su questo": "Ask about this",
+  "Mette il pezzo selezionato nel campo, come citazione: la domanda riguarda solo quello": "Puts the selected piece in the field as a quote: the question is about that only",
+  "Stai modificando la domanda: invia per ripartire da lì, la risposta di prima resta (‹ › sotto la domanda) · Esc annulla": "You are editing the question: send to start again from there, the earlier answer stays (‹ › beside the question) · Esc cancels"
 }

@@ -441,6 +441,8 @@ export interface ApprovalInfo {
   risks?: string[];
   /** ExitPlanMode: the plan to approve, in markdown. */
   plan?: string;
+  /** A change to a file asked about: its lines on the card (core/md-diff.ts editJson). */
+  change?: string;
   /** island_layout_set / _undo: the island as it would be, shown while the card is up. */
   layoutDraft?: IslandLayout;
   /** Tool and what it acts on, as first received: how hooks.ts recognises the same call ran. */
@@ -506,6 +508,8 @@ export interface ChatSessionState {
   agents: boolean;
   /** The «context is heavy» line was shown in this conversation (chat.ts HEAVY_CONTEXT). */
   heavyWarned?: boolean;
+  /** The versions of its questions changed with «Modifica» (chat_log.rs Alt): ‹ 1/2 › under them. */
+  alts?: ChatAlt[];
   /** «Multi motore» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];
@@ -589,6 +593,16 @@ export interface ChatMessage {
   memory?: string[];
   /** 👍 (1) or 👎 (-1) given to this answer (votes.rs). Never saved. */
   vote?: 1 | -1;
+}
+
+/** A question asked again with «Modifica»: every way the conversation went from it (chat_log.rs Alt). */
+export interface ChatAlt {
+  /** The line of the question (chat.ts `lines`): the lines before it are the same in every version. */
+  at: number;
+  /** Each version, its lines from `at` on; the one on screen is refreshed when the chat leaves it. */
+  versions: { role: "user" | "assistant"; content: string }[][];
+  /** The version on screen. */
+  shown: number;
 }
 
 /** commands.rs Command: the tool, its arguments, what it does in words. */

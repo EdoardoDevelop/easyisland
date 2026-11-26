@@ -117,11 +117,20 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
       // The folded line says what was done: the first different actions, then «…».
       const verbs = [...new Set(run.map((s) => stepVerb(s.title)).filter((v) => v && !v.startsWith("💭")))];
       const gist = verbs.slice(0, 3).join(", ") + (verbs.length > 3 ? "…" : "");
-      out.push(h("details", { class: "md-steps" },
+      // Changes to files in the run: their lines in the summary, and the run stays open to see them.
+      const sum = (sel: string) => run.reduce((n, s) => n + [...s.querySelectorAll(`.md-diff-edit .md-diff-stat ${sel}`)].reduce((k, e) => k + (parseInt((e.textContent ?? "").slice(1), 10) || 0), 0), 0);
+      const edits = run.some((s) => s.querySelector(".md-diff-edit"));
+      const plus = sum(".add"), minus = sum(".del");
+      const folded = h("details", { class: "md-steps" },
         h("summary", {},
           h("span", { class: "md-steps-n", text: t("{n} passi", { n: run.length }) }),
-          gist ? h("span", { class: "md-steps-gist", text: gist }) : null),
-        h("div", { class: "md-steps-list" }, ...run)));
+          gist ? h("span", { class: "md-steps-gist", text: gist }) : null,
+          edits ? h("span", { class: "md-steps-diff" },
+            plus ? h("span", { class: "add", text: `+${plus}` }) : null,
+            minus ? h("span", { class: "del", text: `−${minus}` }) : null) : null),
+        h("div", { class: "md-steps-list" }, ...run)) as HTMLDetailsElement;
+      folded.open = edits;
+      out.push(folded);
     } else out.push(...run);
     run = [];
   };
@@ -130,6 +139,13 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
     out.push(b);
   };
   for (const b of blocks) {
+    // A change to a file (core/md-diff.ts): under its step, open.
+    if (b.classList.contains("md-diff-edit")) {
+      const step = run[run.length - 1];
+      if (step) step.append(b);
+      else blocksOut(b);
+      continue;
+    }
     // A step's output (claude_cli.rs `result_block`): folded inside its step, as Claude Desktop opens a step.
     const lang = b.classList.contains("md-pre") ? b.querySelector(".md-lang")?.textContent ?? "" : "";
     if (lang === "esito" || lang === "errore") {

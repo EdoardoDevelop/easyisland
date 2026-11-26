@@ -1,0 +1,86 @@
+/* Changes to files (md-diff.ts): lines removed in red, added in green, changed words marked. */
+.md-diff {
+  --diff-del: rgba(244, 80, 94, 0.11);
+  --diff-del-mark: rgba(244, 80, 94, 0.34);
+  --diff-del-ink: #ffb3ba;
+  --diff-add: rgba(74, 222, 128, 0.1);
+  --diff-add-mark: rgba(74, 222, 128, 0.3);
+  --diff-add-ink: #b6f5cc;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 10px;
+  background: #121418;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.md-diff-head { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 6px 5px 11px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); }
+.md-diff-title { display: flex; align-items: baseline; gap: 7px; min-width: 0; overflow: hidden; }
+.md-diff-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; border: 0; background: none; color: var(--ink-2); font: 500 calc(12px + var(--fs-up, 0px)) var(--mono); }
+button.md-diff-file { cursor: pointer; }
+button.md-diff-file:hover { color: #7dd3fc; text-decoration: underline; }
+.md-diff-what { flex: none; color: var(--dim-2); }
+.md-diff-stat { display: flex; gap: 6px; flex: none; margin-right: auto; font: 500 calc(11.5px + var(--fs-up, 0px)) var(--mono); }
+.md-diff-stat .add { color: #4ade80; }
+.md-diff-stat .del { color: #ff8d97; }
+.md-diff-btn { flex: none; height: 22px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font: inherit; cursor: pointer; }
+.md-diff-btn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.md-diff-body { overflow: auto; padding: 4px 0; font: 400 calc(12px + var(--fs-up, 0px)) / 1.55 var(--mono); scrollbar-width: thin; }
+.md-diff.tall .md-diff-body { max-height: 340px; }
+.md-diff-line { display: flex; min-width: max-content; padding-right: 12px; color: var(--ink-2); }
+.md-diff-line.del { background: var(--diff-del); color: var(--diff-del-ink); }
+.md-diff-line.add { background: var(--diff-add); color: var(--diff-add-ink); }
+.md-diff-sign { flex: none; width: 22px; text-align: center; color: var(--dim-3); user-select: none; }
+.md-diff-line.del .md-diff-sign { color: #ff8d97; }
+.md-diff-line.add .md-diff-sign { color: #4ade80; }
+.md-diff-text { white-space: pre; }
+.md-diff-line.same .md-diff-text { opacity: 0.75; }
+.md-diff mark { color: inherit; border-radius: 3px; }
+.md-diff :is(.del, .md-diff-cell.del) mark { background: var(--diff-del-mark); }
+.md-diff :is(.add, .md-diff-cell.add) mark { background: var(--diff-add-mark); }
+.md-diff-gap { padding: 2px 12px; color: var(--dim-3); font-size: 0.92em; background: rgba(255, 255, 255, 0.025); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.md-diff-fold { display: block; width: 100%; padding: 2px 12px; border: 0; background: rgba(255, 255, 255, 0.03); color: var(--dim-2); font: inherit; font-size: 0.92em; text-align: left; cursor: pointer; }
+.md-diff-fold:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.md-diff-note { padding: 4px 12px 6px; color: var(--dim-2); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); }
+
+/* Side by side: two columns, removed and added lines facing. */
+.md-diff-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.md-diff-split > :is(.md-diff-gap, .md-diff-fold) { grid-column: 1 / -1; }
+.md-diff-cell { min-width: 0; padding: 0 10px; overflow: hidden; color: var(--ink-2); }
+.md-diff-cell .md-diff-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.md-diff-cell.old { border-right: 1px solid rgba(255, 255, 255, 0.06); }
+.md-diff-cell.same .md-diff-text { opacity: 0.75; }
+.md-diff-cell.del { background: var(--diff-del); color: var(--diff-del-ink); }
+.md-diff-cell.add { background: var(--diff-add); color: var(--diff-add-ink); }
+.md-diff-cell.empty { background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, 0.025) 6px 12px); }
+
+/* Under its step (typeline.ts foldSteps): across the row, under the words. */
+.md-quote.md-step > .md-diff-edit { grid-column: 2 / 4; margin: 2px 0 4px; font-style: normal; }
+
+html[data-scheme="light"] .md-diff {
+  --diff-del: rgba(225, 29, 72, 0.08);
+  --diff-del-mark: rgba(225, 29, 72, 0.22);
+  --diff-del-ink: #9f1239;
+  --diff-add: rgba(22, 163, 74, 0.09);
+  --diff-add-mark: rgba(22, 163, 74, 0.24);
+  --diff-add-ink: #166534;
+  background: #fbfbfc;
+  border-color: rgba(20, 22, 26, 0.1);
+}
+html[data-scheme="light"] .md-diff-head { border-bottom-color: rgba(20, 22, 26, 0.08); }
+html[data-scheme="light"] .md-diff-stat .add { color: #15803d; }
+html[data-scheme="light"] .md-diff-stat .del { color: #be123c; }
+html[data-scheme="light"] .md-diff-btn:hover { background: rgba(20, 22, 26, 0.07); }
+html[data-scheme="light"] :is(.md-diff-gap, .md-diff-fold) { background: rgba(20, 22, 26, 0.035); }
+html[data-scheme="light"] .md-diff-cell.old { border-right-color: rgba(20, 22, 26, 0.08); }
+html[data-scheme="light"] button.md-diff-file:hover { color: #0369a1; }
+
+/* A folded run of steps with changes (typeline.ts): their lines in the summary. */
+.md-steps-diff { display: inline-flex; gap: 6px; flex: none; font: 500 0.95em var(--mono); }
+.md-steps-diff .add { color: #4ade80; }
+.md-steps-diff .del { color: #ff8d97; }
+html[data-scheme="light"] .md-steps-diff .add { color: #15803d; }
+html[data-scheme="light"] .md-steps-diff .del { color: #be123c; }
+
+/* The permission card of the chat: the change asked about (chat.ts fillAsk). */
+.chat-ask-diff { display: flex; flex-direction: column; min-width: 0; margin: 2px 0; }

@@ -182,10 +182,77 @@ pub fn loading_tools() -> String {
     line(t("Prepara gli strumenti"), "")
 }
 
+/// The most of each text a change carries to the chat (old and new alike).
+const EDIT_CHARS: usize = 8_000;
+/// The most changes of one MultiEdit shown.
+const EDIT_MAX: usize = 12;
+
+/// A text cut to `EDIT_CHARS` characters; true when it was cut.
+fn clip(s: &str) -> (String, bool) {
+    if s.chars().count() <= EDIT_CHARS {
+        return (s.to_string(), false);
+    }
+    (s.chars().take(EDIT_CHARS).collect(), true)
+}
+
+/// A change to a file as a fenced «modifica» block (26 Nov 2026, Edoardo: the
+/// chat shows what an engine changes, as Claude Desktop does): one JSON line
+/// with the file, each change's old and new text, `write` for a whole file
+/// written. The chat draws it as lines removed and added under the step
+/// (core/md-diff.ts); None for any other tool. It reads the input of Claude
+/// Code (Edit, MultiEdit, Write), opencode (edit, write: camelCase) and the
+/// chat's own terminal (edit_file, write_file).
+pub fn edit_block(tool: &str, input: &Value) -> Option<String> {
+    let s = |k: &str| input.get(k).and_then(Value::as_str);
+    let file = s("file_path").or_else(|| s("filePath")).or_else(|| s("path"))?;
+    let mut cut = false;
+    let mut pair = |old: &str, new: &str| {
+        let (o, a) = clip(old);
+        let (n, b) = clip(new);
+        cut |= a || b;
+        serde_json::json!({ "old": o, "new": n })
+    };
+    let (edits, write) = match tool {
+        "Edit" | "edit" | "edit_file" => {
+            let old = s("old_string").or_else(|| s("oldString")).or_else(|| s("old_text"))?;
+            let new = s("new_string").or_else(|| s("newString")).or_else(|| s("new_text")).unwrap_or("");
+            (vec![pair(old, new)], false)
+        }
+        "MultiEdit" => {
+            let list = input.get("edits").and_then(Value::as_array)?;
+            let edits: Vec<Value> = list.iter().take(EDIT_MAX).map(|e| {
+                let g = |k: &str| e.get(k).and_then(Value::as_str).unwrap_or("");
+                pair(g("old_string"), g("new_string"))
+            }).collect();
+            cut |= list.len() > EDIT_MAX;
+            (edits, false)
+        }
+        "Write" | "write" | "write_file" => (vec![pair("", s("content")?)], true),
+        _ => return None,
+    };
+    let body = serde_json::json!({ "file": file, "edits": edits, "write": write, "cut": cut });
+    // One line of JSON: no line of it can close the fence.
+    Some(format!("```modifica\n{body}\n```"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn edits_as_blocks() {
+        let b = edit_block("Edit", &json!({ "file_path": "C:/a.txt", "old_string": "uno\n```\n", "new_string": "due" })).unwrap();
+        assert!(b.starts_with("```modifica\n{") && b.ends_with("}\n```") && b.lines().count() == 3, "{b}");
+        let v: Value = serde_json::from_str(b.lines().nth(1).unwrap()).unwrap();
+        assert_eq!((v["file"].as_str(), v["edits"][0]["old"].as_str(), v["write"].as_bool()), (Some("C:/a.txt"), Some("uno\n```\n"), Some(false)));
+        let w = edit_block("write", &json!({ "filePath": "a.md", "content": "x".repeat(9_000) })).unwrap();
+        let v: Value = serde_json::from_str(w.lines().nth(1).unwrap()).unwrap();
+        assert_eq!((v["write"].as_bool(), v["cut"].as_bool(), v["edits"][0]["new"].as_str().map(str::len)), (Some(true), Some(true), Some(8_000)));
+        assert!(edit_block("edit_file", &json!({ "path": "b.rs", "old_text": "a", "new_text": "b" })).is_some());
+        assert!(edit_block("Read", &json!({ "file_path": "C:/a.txt" })).is_none());
+        assert!(edit_block("Edit", &json!({ "old_string": "a" })).is_none());
+    }
 
     #[test]
     fn words_for_tools() {
