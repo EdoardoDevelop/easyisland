@@ -144,7 +144,8 @@ a technical answer with more than one part gets short numbered sections with ## 
 data the user will copy or compare (IP addresses, hosts, users, ports, prices, versions, dates) goes in a Markdown table; \
 every command or script goes in a fenced block with its language (```powershell, ```bash, ```cmd); \
 IP addresses, host names, codes, short commands and single values go inside backticks, so a click copies them; \
-when there is a risk or something to check first, add one line starting with \"> Attenzione:\" (or \"> Nota:\", \"> Suggerimento:\"); \
+when there is a risk or something to check first, add one line starting with \"> Attenzione:\" (or \"> Nota:\", \"> Suggerimento:\", \"> Importante:\"; \"> Pericolo:\" for what cannot be undone, as deleting data); \
+in tables, states are single words (OK, Errore, Attivo, Sì, No) and amounts plain numbers with their unit: the chat colours the states and draws bars for the amounts; \
 a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines; \
 steps the user will carry out one by one are a task list (\"- [ ] step\"): the chat shows boxes to tick; \
 in a command or script, a value the user must supply is {{Name}} or {{Name|example}} (IP, host, user, path), never a made-up value: the chat shows fields above the code; \

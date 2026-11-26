@@ -56,6 +56,11 @@ The files and folders the chat names in its replies become **links**: full paths
 
 When a long answer (over half a minute) ends while you are looking at something else, a **notice** with **Open** takes you to that conversation. What you were writing in a conversation stays with it: you find it again when you reopen it, even after restarting EasyIsland.
 
+### How the replies look
+The reply **flows in**: new words appear with a light fade and the conversation glides to the bottom. While the engine works, the line below shows the step in progress with its **icon** (file read, search, command, page…) in a turning ring; finished steps get a green **tick**, failed ones a red mark.
+
+Notices are **coloured boxes** with an icon and a title: **Note** (blue), **Tip** (green), **Important** (purple), **Warning** (orange), **Danger** (red, for what cannot be undone). In **tables** numbers sit on the right and amounts get a bar as long as their share of the largest; states (OK, Error, Active, Yes, No, Pending…) become coloured labels; a long table keeps its header in view while it scrolls. With **Settings → Appearance → Animations** set to off, replies appear without movement.
+
 ### Procedures and commands to complete
 When the reply is a procedure, its steps have a **box**: tick them as you go and see “3 of 7 done”; the ticks stay when you reopen the conversation (on this PC). **?** beside a step writes a question about it in the field; **Save to memory** prepares the request to save it in a client's or topic's page. Either way you complete and send it.
 

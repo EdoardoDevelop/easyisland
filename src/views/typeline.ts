@@ -64,6 +64,11 @@ const STEP_ICONS: [RegExp, string][] = [
 ];
 const STEP_DOT = "M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z";
 
+/** The icon of a step's text («⚙ Legge · …», «💭 …»). */
+function stepPath(text: string): string {
+  return STEP_ICONS.find(([re]) => re.test(text.startsWith("💭") ? text : stepVerb(text)))?.[1] ?? STEP_DOT;
+}
+
 /** What the step does, before its « · ». */
 function stepVerb(text: string): string {
   return text.replace(/^(⚙️?|💭)\s*/u, "").split(" · ")[0].trim();
@@ -76,8 +81,7 @@ function stepVerb(text: string): string {
 function dressStep(step: HTMLElement) {
   const line = step.querySelector(".md-p") ?? step;
   const text = line.textContent ?? "";
-  const verb = stepVerb(text);
-  const path = STEP_ICONS.find(([re]) => re.test(text.startsWith("💭") ? text : verb))?.[1] ?? STEP_DOT;
+  const path = stepPath(text);
   // Off with the emoji, in the first text node.
   const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
   const first = walker.nextNode();
@@ -151,7 +155,10 @@ export function foldSteps(blocks: HTMLElement[], done: boolean): HTMLElement[] {
 
 export class TypeLine {
   private text = h("span", { class: "type-text" });
-  readonly el = h("div", { class: "type-line" }, this.text, h("span", { class: "type-caret" }));
+  /** The kind of the step in progress, its icon in a turning ring (26 Nov 2026: «cosa sta facendo, con le icone»). */
+  private ico = h("span", { class: "type-ico" });
+  private icoFor: string | null | undefined = undefined;
+  readonly el = h("div", { class: "type-line" }, this.ico, this.text, h("span", { class: "type-caret" }));
   /** By code point: a step's emoji must not be cut in two. */
   private shown: string[] = [];
   /** The text being written; null = the waiting phrases. */
@@ -200,7 +207,15 @@ export class TypeLine {
 
   private draw(chars: string[]) {
     this.shown = chars;
-    this.text.textContent = chars.join("");
+    // The step's emoji is its icon, in front.
+    this.text.textContent = chars.join("").replace(/^(⚙️?|💭)\s*/u, "");
+    const kind = this.target === "" ? "" : this.target;
+    if (kind !== this.icoFor) {
+      this.icoFor = kind;
+      this.ico.replaceChildren(...(kind === "" ? [] : [svg(kind == null ? STEP_ICONS[0][1] : stepPath(kind), 11, { stroke: 1.8 })]));
+      this.ico.hidden = kind === "";
+      this.ico.classList.toggle("thought", kind == null || kind.startsWith("💭"));
+    }
     const height = this.el.offsetHeight;
     if (height !== this.height) {
       this.height = height;

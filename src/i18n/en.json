@@ -6696,5 +6696,7 @@
   "Successivo (Invio)": "Next (Enter)",
   "nessuno": "none",
   "Risposta pronta": "Answer ready",
-  "La risposta si è fermata con un errore": "The answer stopped with an error"
+  "La risposta si è fermata con un errore": "The answer stopped with an error",
+  "Importante": "Important",
+  "Pericolo": "Danger"
 }

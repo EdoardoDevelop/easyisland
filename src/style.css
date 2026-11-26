@@ -2317,11 +2317,6 @@ html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61
 .md-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
 .md-table tbody td:first-child { color: var(--ink); font-weight: 500; }
 
-/* Notices (markdown.ts calloutOf): «Attenzione» amber, «Nota» blue, «Suggerimento» green. */
-.md-quote.md-callout { padding: 9px 12px; border: 0; border-radius: 10px; color: var(--ink-2); background: rgba(245, 165, 36, 0.08); box-shadow: inset 3px 0 0 #f5a524; }
-.md-quote.md-callout-info { background: rgba(56, 189, 248, 0.08); box-shadow: inset 3px 0 0 #38bdf8; }
-.md-quote.md-callout-tip { background: rgba(74, 222, 128, 0.08); box-shadow: inset 3px 0 0 #4ade80; }
-
 /* «Sezioni» on top of a long reply (markdown.ts outline): a click goes to the section. */
 .md-outline { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: calc(11.5px + var(--fs-up, 0px)); }
 .md-outline-label { color: var(--dim-2); margin-right: 2px; }

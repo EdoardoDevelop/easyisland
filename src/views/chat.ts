@@ -18,6 +18,7 @@ import { ChatTerm } from "./chat-terminal";
 import { docsPanel } from "./chat-docs";
 import { ReplyBlocks } from "./chat-live";
 import { chatFind } from "./chat-find";
+import { FreshText, Glide } from "./chat-flow";
 import * as Notices from "../notices/notices";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
@@ -267,6 +268,9 @@ function usageMark(u: TurnUsage): HTMLElement {
   const text = `${u.light ? "⤓ " : ""}${t("{s} passi · {r} letti", { s: u.steps, r: k(u.read) })}`;
   return h("span", { class: "msg-usage", title: lines.join("\n"), text });
 }
+
+/** Messages just sent: their row comes in once with a short rise (chat-flow). */
+const entering = new WeakSet<ChatMessage>();
 
 function bubble(message: ChatMessage, live = false): HTMLElement {
   if (message.role === "user") {
@@ -646,6 +650,9 @@ export function buildPrompt(
   docs.el.addEventListener("dock-left", () => placeDocs());
   const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, docsBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
+  // The reply flowing in: its new words fade in, the log glides to them (chat-flow.ts).
+  const flowIn = new FreshText();
+  const glide = new Glide(log);
   // Ctrl+F: a field over the messages (chat-find.ts).
   const finder = chatFind(log);
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
@@ -1290,7 +1297,9 @@ export function buildPrompt(
     const attach = c.attach;
     c.attach = [];
     const first = c.history.length === 0;
-    c.history.push({ id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined });
+    const mine: ChatMessage = { id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined };
+    entering.add(mine);
+    c.history.push(mine);
     State.stateOverride = "thinking";
     State.notify();
     onHeightChange();
@@ -3645,6 +3654,7 @@ export function buildPrompt(
   });
 
   log.addEventListener("scroll", () => {
+    if (glide.gliding) return;
     stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     jumpBtn.style.display = stick ? "none" : "";
   });
@@ -3657,7 +3667,7 @@ export function buildPrompt(
     input.focus();
   });
   function toBottom() {
-    if (stick) log.scrollTop = log.scrollHeight;
+    if (stick) glide.to(State.chat.sending);
     else jumpBtn.style.display = "";
   }
   const lineShows = () => State.mode === "expanded" || isPopped("chat");
@@ -4064,7 +4074,11 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         clear(log);
         streamEl = null;
         const list = State.chatHistory;
-        list.forEach((m, i) => log.append(withActions(bubble(m), m, i, i === list.length - 1)));
+        list.forEach((m, i) => {
+          const row = withActions(bubble(m), m, i, i === list.length - 1);
+          if (entering.delete(m)) row.classList.add("enter");
+          log.append(row);
+        });
         if (!thinking && !sending && !asked && reviewable()) log.append(secondRow());
         if (thinking && streamed) {
           streamEl = h("div", { class: "chat-row" });
@@ -4081,8 +4095,10 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         streamEl.dataset.len = String(body.length);
         streamEl.style.display = body ? "" : "none";
         streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }, true).firstChild!] : []));
+        flowIn.drawn(streamEl);
         toBottom();
       }
+      if (!thinking) flowIn.reset();
       // What it is doing now types itself under the reply.
       if (thinking) typeLine.set(streamed ? status : null);
       else typeLine.reset();

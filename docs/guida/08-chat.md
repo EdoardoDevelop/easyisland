@@ -56,6 +56,11 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 
 Quando una risposta lunga (oltre mezzo minuto) finisce mentre guardi altro, compare un **avviso** con **Apri**, che ti porta a quella conversazione. Il testo che stavi scrivendo in una conversazione resta suo: lo ritrovi riaprendola, anche dopo aver riavviato EasyIsland.
 
+### Come appaiono le risposte
+La risposta **entra fluida**: le parole nuove compaiono con una leggera dissolvenza e la conversazione scorre morbida verso il fondo. Mentre il motore lavora, la riga sotto mostra il passo in corso con la sua **icona** (file letto, ricerca, comando, pagina…) in un anello che gira; i passi finiti hanno una **spunta** verde, quelli andati male un segno rosso.
+
+Gli avvisi sono **riquadri colorati** con icona e titolo: **Nota** (azzurro), **Suggerimento** (verde), **Importante** (viola), **Attenzione** (arancio), **Pericolo** (rosso, per ciò che non si può annullare). Nelle **tabelle** i numeri stanno a destra e le quantità hanno una barra lunga quanto il loro peso sul valore più alto; gli stati (OK, Errore, Attivo, Sì, No, In attesa…) diventano etichette colorate; una tabella lunga tiene ferma l'intestazione mentre scorre. Con **Impostazioni → Aspetto → Animazioni** «spente» le risposte compaiono senza movimenti.
+
 ### Procedure e comandi da completare
 Quando la risposta è una procedura, i passi hanno una **casella**: spunti man mano e vedi «3 di 7 fatti»; le spunte restano anche riaprendo la conversazione (su questo PC). **?** accanto a un passo scrive nel campo una domanda su quel passo; **Salva in memoria** prepara la richiesta di salvarla nella pagina di un cliente o di un argomento. In entrambi i casi completi e invii tu.
 

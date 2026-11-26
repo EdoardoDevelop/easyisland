@@ -350,6 +350,41 @@ export async function runScene(island: Island, scene: string) {
           { id: 2, role: "assistant", engine: "subscription", content: (only ? [kinds[Number(only)]] : kinds).map((x, i) => `Diagramma ${only || i}:\n\n${x}`).join("\n\n") },
         ];
         State.chatSideOpen = false;
+      } else if (new URLSearchParams(location.search).has("vivace")) {
+        // ?vivace: notices of the five kinds, a table with amounts and states, a long one (core/md-rich.ts).
+        const tall = Array.from({ length: 16 }, (_, i) => `| PC-${String(i + 1).padStart(2, "0")} | ${["OK", "Errore", "In attesa", "OK"][i % 4]} | ${(i * 37) % 90 + 5} GB |`);
+        State.chatHistory = [
+          { id: 1, role: "user", content: "stato dei backup dei clienti e spazio usato" },
+          { id: 2, role: "assistant", engine: "subscription", content: [
+            "## 1. Backup di stanotte",
+            "",
+            "| Cliente | Stato | Spazio | Durata | Anno |",
+            "|---|---|---|---|---|",
+            "| Rossi | ✅ OK | 1.240 GB | 42 min | 2024 |",
+            "| Bianchi | Errore | 380 GB | 3 min | 2023 |",
+            "| Verdi | In attesa | 2.915 GB | — | 2025 |",
+            "| Falchi | OK | 760 GB | 18 min | 2021 |",
+            "| Talenti | Sì | 95 GB | 6 min | 2026 |",
+            "",
+            "> Nota: i tempi sono quelli del job di Veeam, senza la verifica.",
+            "",
+            "> Suggerimento: sposta il backup di Verdi alle 23:00, quando il NAS è libero.",
+            "",
+            "> [!IMPORTANT]",
+            "> Il disco del NAS di Bianchi è al **94 %**.",
+            "",
+            "> Attenzione: il job di Bianchi si è fermato per spazio insufficiente.",
+            "",
+            "> Pericolo: `Remove-Item -Recurse` sulla cartella dei backup vecchi non si può annullare.",
+            "",
+            "## 2. Tutti i PC",
+            "",
+            "| PC | Stato | Spazio |",
+            "|---|---|---|",
+            ...tall,
+          ].join("\n") },
+        ];
+        State.chatSideOpen = false;
       } else if (new URLSearchParams(location.search).has("ricca")) {
         State.chatHistory = [
           { id: 1, role: "user", content: "come cambiare ip di proxmox da shell da 192.168.0.248 a 192.168.10.20 e riepilogami gli indirizzi Imec per RDM?" },

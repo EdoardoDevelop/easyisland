@@ -2,14 +2,6 @@
 
 Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
-## Mini-app nelle risposte (26/11/2026, Edoardo: «metti mini-app nelle idee importanti») — importante
-Il motore scrive una piccola pagina (HTML e JavaScript) che la chat apre in un riquadro chiuso: calcolatori (subnet, IVA e ricarico, banda), tabelle con filtri, simulatori, grafici da toccare. Pari agli artifact di Claude Desktop, con ogni motore.
-- **Isolamento:** iframe `sandbox="allow-scripts"` senza `allow-same-origin`, `srcdoc`, CSP propria `default-src 'none'` (niente rete, niente file, niente comandi di EasyIsland né dati delle altre pagine); niente stato salvato.
-- **Un solo ponte:** `postMessage` «Manda alla chat», che mette un testo nel campo, mai inviato da solo. Così scelte e moduli (es. modulo del preventivo) vengono dalla stessa cosa.
-- **Comandi:** ▢ a tutta isola, Salva come .html, Codice. Ai motori una riga in `REPLY_FORM` (blocco ```` ```app ````), mai su Telegram.
-- Da provare prima di installarla: rete bloccata davvero, nessun accesso a `window.parent` né a `__TAURI__`, popup e navigazione bloccati.
-- La regola «niente codice generato» di `decisioni.md` riguarda le integrazioni personali, non questo (26/11).
-
 ## Isola costruita da un JSON (23/11/2026, Edoardo)
 Obiettivo: **layout e contenuto** dell'isola da una sorgente JSON (`isola.json`), cambiati dalla chat. Il funzionamento dei pezzi esistenti (chat, terminale, Anteprima, schede di Claude Code, card, viste) non si tocca: il JSON decide cosa c'è, dove e in che ordine. Esempi di Edoardo: «aggiungi in basso a sinistra dell'isola un pulsante per spegnere il PC»; «crea una scheda con tutte le applicazioni di Windows installate».
 - **Layout:** zone dell'isola (barra in alto, menu e schede, corpo, angoli e piede), schede nuove e loro ordine, riquadri della Panoramica, pulsanti in una zona.

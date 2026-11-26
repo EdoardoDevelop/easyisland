@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24/11 — Isola da JSON: aspetto e condizioni
+- Ramo `claude/isola-stile`, unito in `claude/sviluppo` e installato con la build di prova: `style` dell'isola (colori, sfumatura, angoli, font, testo, bordo, alone, misure minime, sfondi di menu/testata/footer, spaziatura), aspetto di pulsanti, schede, blocchi e valori del footer, `when` (ore, giorni, programma davanti, valore del PC) e `levels` (soglie che colorano). `src/views/island-look.ts`, controlli in `island_layout.rs`.
+- Scelte di Edoardo (24/11): storico delle versioni escluso; prove dal vivo le fa lui man mano; barra fissa dalla chat «vedremo».
+
 ### 23/11 — Isola da JSON: fonti, grafici, piede
 - Ramo `claude/isola-fonti`, unito in `claude/sviluppo` il 23/11: fonti `recent`, `tray`, `clipboard`, `vscode`, `records` (integrazione personale), `notion`; blocco `chart` (ultimi 5 minuti, `bar.ts` `chartHistory`); footer dell'isola aperta in tre zone `left`, `center`, `right`, ognuna con pulsanti e valori del PC (`buildFoot`, 36 px in `island.ts`; il formato `foot` del primo giro si converte). Valori letti anche per Panoramica e footer.
 - Isola per profilo scartata: Edoardo non usa i profili.

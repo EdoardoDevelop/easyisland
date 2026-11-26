@@ -1,0 +1,70 @@
+/* A reply that flows in (chat-flow.ts, 26 Nov 2026). */
+
+/* The words just arrived: three steps from faint to full. */
+::highlight(chat-fresh-1) { color: rgba(245, 246, 248, 0.12); }
+::highlight(chat-fresh-2) { color: rgba(245, 246, 248, 0.38); }
+::highlight(chat-fresh-3) { color: rgba(245, 246, 248, 0.7); }
+html[data-scheme="light"] ::highlight(chat-fresh-1) { color: rgba(20, 22, 26, 0.12); }
+html[data-scheme="light"] ::highlight(chat-fresh-2) { color: rgba(20, 22, 26, 0.38); }
+html[data-scheme="light"] ::highlight(chat-fresh-3) { color: rgba(20, 22, 26, 0.7); }
+
+/* A message just sent rises into place. */
+.chat-row.enter { animation: chat-enter 0.38s cubic-bezier(0.23, 1, 0.32, 1) both; transform-origin: 100% 100%; }
+@keyframes chat-enter { from { opacity: 0; translate: 0 12px; scale: 0.97; } }
+@keyframes chat-enter-fade { from { opacity: 0; } }
+html[data-anim="sobrie"] .chat-row.enter { animation-name: chat-enter-fade; animation-duration: 0.2s; }
+html[data-anim="spente"] .chat-row.enter { animation: none; }
+
+/* The step in progress: its icon in a turning ring, before the line that writes itself. */
+.type-line:has(> .type-ico:not([hidden])) { position: relative; padding-left: 26px; }
+.type-ico {
+  position: absolute;
+  left: 0;
+  top: calc(0.725em - 9px);
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--win-accent, #4cc2ff);
+  background: #1d2026;
+}
+.type-ico[hidden] { display: none; }
+.type-ico.thought { color: #c4b5fd; }
+.type-ico::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: currentColor;
+  border-right-color: color-mix(in srgb, currentColor 35%, transparent);
+  animation: type-ico-turn 0.9s linear infinite;
+}
+@keyframes type-ico-turn { to { rotate: 1turn; } }
+#island:not(.open) .type-ico::after,
+html[data-anim="spente"] .type-ico::after { animation: none; }
+.team-row .type-ico { display: none; }
+html[data-scheme="light"] .type-ico { background: #eef0f3; color: #0369a1; }
+html[data-scheme="light"] .type-ico.thought { color: #7c3aed; }
+
+/* A step done: a small tick on its icon; one that failed, a red mark. */
+.md-step-ico { position: relative; }
+.md-quote.md-step:not(.md-step-thought) > .md-step-ico::after {
+  content: "✓";
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  font: 700 7px/1 var(--font);
+  color: #06210f;
+  background: #4ade80;
+  box-shadow: 0 0 0 1.5px var(--card, #141518);
+}
+.md-quote.md-step:has(> .md-step-out.failed) > .md-step-ico::after { content: "!"; color: #2a0509; background: #ff8d97; }
+html[data-scheme="light"] .md-quote.md-step:not(.md-step-thought) > .md-step-ico::after { background: #22c55e; color: #ffffff; box-shadow: 0 0 0 1.5px #ffffff; }
+html[data-scheme="light"] .md-quote.md-step:has(> .md-step-out.failed) > .md-step-ico::after { background: #e11d48; }

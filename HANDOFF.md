@@ -73,9 +73,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Chat: risposta fluida, riquadri, tabelle, passi con icona
+- Parole nuove in dissolvenza e scorrimento morbido (`chat-flow.ts`), avvisi in cinque tipi con icona e titolo, tabelle con numeri a destra, barre, stati colorati e intestazione ferma (`md-rich.ts`), passo in corso con icona e spunte sui passi finiti (`docs/chat.md`). Scena `?scene=chat&vivace`; provati in Edge senza finestra, smoke ok; da vedere nell'app con risposte vere.
+
 ### 26/11 — Chat: procedure da spuntare, comandi con i campi, Ctrl+F
 - Ctrl+F nella conversazione (`chat-find.ts`), avviso quando una risposta lunga finisce fuori vista, bozze per conversazione anche dopo il riavvio (`docs/chat.md`). Ctrl+F provato nell'anteprima; avviso e bozze da provare nell'app.
-- `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Mini-app nelle risposte tra le idee importanti (`docs/idee.md`); corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
+- `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
 
 ### 25/11 — Chat: testo e bordo del campo, footer, diagrammi
 - Diagrammi Mermaid nelle risposte (`docs/chat.md` → Diagrammi; scena `?scene=chat&diagrammi`): provati con la CSP dell'app in Edge senza finestra, scuro e chiaro; da provare nell'app con i motori («fammi lo schema della rete di …»), finestra staccata e Copia.
@@ -90,7 +93,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 24/11 — Barra fissa: idee da WinMac-Dock
 - Ramo `claude/barra-idee` (da `claude/sviluppo`), solo idee (WinMac-Dock è GPL-3.0, `docs/decisioni.md`): riduci nell'icona di «App» (`HSHELL_GETMINRECT` in `taskwin.rs`), ingrandimento al passaggio, Maiusc/Ctrl+Maiusc+clic, elementi «Download recenti» e «Unità rimovibili» (`drives.rs`, Espelli), file trascinati sul cestino, schermo intero anche con la barra di Windows nascosta ed eccezioni, pausa dei valori a schermo intero, Mica. `docs/architettura.md` → Barra fissa.
 - Provato dal vivo da Claude sul PC di Edoardo (con il suo permesso): log del rettangolo, menu e contatore dei download, cestino (file nel Cestino, recuperabile), Maiusc+clic, schermo intero con e senza eccezione, Mica, ingrandimento. Impostazioni di Edoardo rimesse com'erano dopo le prove.
-
-### 24/11 — Isola da JSON: aspetto e condizioni
-- Ramo `claude/isola-stile`, unito in `claude/sviluppo` e installato con la build di prova: `style` dell'isola (colori, sfumatura, angoli, font, testo, bordo, alone, misure minime, sfondi di menu/testata/footer, spaziatura), aspetto di pulsanti, schede, blocchi e valori del footer, `when` (ore, giorni, programma davanti, valore del PC) e `levels` (soglie che colorano). `src/views/island-look.ts`, controlli in `island_layout.rs`.
-- Scelte di Edoardo (24/11): storico delle versioni escluso; prove dal vivo le fa lui man mano; barra fissa dalla chat «vedremo».

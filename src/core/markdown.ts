@@ -1,6 +1,7 @@
 import { diagramBlock, isDiagram } from "./diagram";
 import { highlightInto } from "./highlight";
 import { checklist, codeFields, fieldsOf, TASK } from "./md-interactive";
+import { calloutBox, calloutOf, dressTable } from "./md-rich";
 import { t } from "./i18n";
 // Claude's replies in the chat, read as markdown (HANDOFF 6.6, point 4).
 //
@@ -25,6 +26,7 @@ export function plainText(md: string): string {
     // A diagram's code says nothing in a line of text.
     .replace(/^```(?:mermaid|mmd)[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, t("[diagramma]"))
     .replace(/^```.*$/gm, "")
+    .replace(/\[!(note|tip|important|warning|caution)\]\s*/gi, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
     // *italic*, but not a lone "*" or a "2 * 3".
@@ -308,20 +310,6 @@ function codeBlock(source: string, lang: string, hooks: MarkdownHooks): HTMLElem
 }
 
 /**
- * A quote that is a notice, by its first words: «warn» (attenzione, importante,
- * ⚠️, [!WARNING] [!CAUTION]), «tip» (suggerimento, consiglio, 💡, [!TIP]),
- * «info» (nota, ℹ️, [!NOTE] [!IMPORTANT]); null for a plain quote. Steps («⚙»)
- * are never notices.
- */
-function calloutOf(first: string): "warn" | "tip" | "info" | null {
-  const s = first.trim().replace(/^\*\*|\*\*/g, "").toLowerCase();
-  if (/^\[!(warning|caution)\]/.test(s) || /^(⚠️?|attenzione|importante|warning|caution)\b/.test(s)) return "warn";
-  if (/^\[!tip\]/.test(s) || /^(💡|suggerimento|consiglio|tip)\b/.test(s)) return "tip";
-  if (/^\[!(note|important)\]/.test(s) || /^(ℹ️?|nota|note)\b/.test(s)) return "info";
-  return null;
-}
-
-/**
  * Long replies with sections (at least three titles): a row of their names on
  * top that scrolls to each (Edoardo's concept, 24 Nov 2026: «Sezioni»).
  */
@@ -393,6 +381,7 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
     }
     if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
       flush();
+      const start = i;
       const table = el("table", "md-table");
       const thead = el("thead");
       const head = el("tr");
@@ -416,9 +405,10 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
         tbody.append(tr);
       }
       table.append(thead, tbody);
-      i--;
       const wrapEl = el("div", "md-table-wrap");
       wrapEl.append(table);
+      dressTable(table, wrapEl, rows, lines[start + 1]);
+      i--;
       if (hooks.openPath) {
         // «Copia tabella»: tab-separated, as Excel and RDM paste it.
         const plain = (s: string) => s.replace(/<br\s*\/?>/gi, " ").replace(/`([^`]*)`/g, "$1").replace(/\*\*(.+?)\*\*/g, "$1").trim();
@@ -437,10 +427,13 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
       const quoted: string[] = [];
       for (; i < lines.length && QUOTE.test(lines[i]); i++) quoted.push(QUOTE.exec(lines[i])![1]);
       i--;
-      // «Attenzione: …», «Nota: …», «⚠️ …», «[!WARNING]»: a coloured box, not a grey quote.
-      const kind = calloutOf(quoted[0] ?? "");
-      if (kind) quoted[0] = quoted[0].replace(/^\s*\[!\w+\]\s*/i, "");
-      const q = el("blockquote", kind ? `md-quote md-callout md-callout-${kind}` : "md-quote");
+      // «Attenzione: …», «Nota: …», «⚠️ …», «[!WARNING]»: a coloured box with its icon and title (md-rich.ts).
+      const notice = /^\s*(⚙|💭)/u.test(quoted[0] ?? "") ? null : calloutOf(quoted);
+      if (notice) {
+        blocks.push(calloutBox(notice.kind, renderBlocks(notice.lines.join("\n"), hooks)));
+        continue;
+      }
+      const q = el("blockquote", "md-quote");
       q.append(...renderBlocks(quoted.join("\n"), hooks));
       blocks.push(q);
       continue;
