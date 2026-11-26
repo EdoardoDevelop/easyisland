@@ -3437,6 +3437,11 @@ function appearanceSections(): HTMLElement[] {
     tabs.append(b);
   }
   const intro = (text: string) => h("div", { class: "hint tab-intro", text });
+  /** Hidden with the Launcher (settings.css .island-only). */
+  const islandOnly = <E extends HTMLElement>(el: E): E => {
+    el.classList.add("island-only");
+    return el;
+  };
   // With the fixed bar on, what no longer applies says so (settings.css → .bar-note).
   const barNote = (text: string) => h("div", { class: "hint bar-note", text });
 
@@ -3538,7 +3543,7 @@ function appearanceSections(): HTMLElement[] {
           toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
           h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
         )),
-        pictured("bubble", h("div", { class: "row island-only" },
+        pictured("bubble", h("div", { class: "row" },
           h("label", { text: t("Fumetto") }),
           toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
           h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
@@ -3552,27 +3557,27 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     posizione: () => [
-      intro(t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.")),
-      barNote(t("Con la barra fissa accesa il personaggio sta nella barra: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Barra fissa).")),
+      islandOnly(intro(t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo."))),
+      islandOnly(barNote(t("Con la barra fissa accesa il personaggio sta nella barra: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Barra fissa)."))),
       h("section", {},
         h("h2", {}, h("span", { text: t("Posizione") })),
-        pictured("screen", h("div", { class: "row" },
+        pictured("screen", h("div", { class: "row island-only" },
           h("label", { text: t("Schermo") }),
           screen,
           h("span", { class: "hint note", text: t("su quale schermo sta l'isola, se ne hai più di uno") }),
         )),
-        pictured(anchorPic, h("div", { class: "row free-row" },
+        pictured(anchorPic, h("div", { class: "row free-row island-only" },
           h("label", { text: t("Angolo dello schermo") }),
           vertical,
           horizontal,
           h("span", { class: "hint note", text: t("anche con un clic su un punto dello schermo in miniatura") }),
         )),
-        pictured("overTaskbar", h("div", { class: "row free-row" },
+        pictured("overTaskbar", h("div", { class: "row free-row island-only" },
           h("label", { text: t("Sopra la barra") }),
           toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
           h("span", { class: "hint note", text: t("in basso, il personaggio può stare anche sopra la barra delle applicazioni") }),
         )),
-        pictured("glue", h("div", { class: "row free-row" },
+        pictured("glue", h("div", { class: "row free-row island-only" },
           h("label", { text: t("Aggancia ai bordi") }),
           toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
           h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
@@ -3585,8 +3590,8 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     barra: () => [
-      intro(t("Una fascia sul bordo dello schermo, come la barra delle applicazioni: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto.")),
-      h("section", {},
+      islandOnly(intro(t("Una fascia sul bordo dello schermo, come la barra delle applicazioni: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto."))),
+      h("section", { class: "island-only" },
         h("h2", {}, h("span", { text: t("Barra fissa") })),
         pictured("bar", h("div", { class: "row" },
           h("label", { text: t("Barra fissa") }),
@@ -3647,15 +3652,15 @@ function appearanceSections(): HTMLElement[] {
         ),
       ),
       // «App» of the bar: its pinned apps (barapps.rs), of the PC.
-      h("section", {},
+      h("section", { class: "island-only" },
         h("h2", {}, h("span", { text: t("App nella barra") })),
         appsPinsBlock(),
       ),
-      h("section", { class: "bar-row-block" },
+      h("section", { class: "bar-row-block island-only" },
         h("h2", {}, h("span", { text: t("Aspetto della barra") })),
         ...barLookRows(commit),
       ),
-      h("section", { class: "bar-row-block" },
+      h("section", { class: "bar-row-block island-only" },
         h("h2", {}, h("span", { text: t("Widget della barra") })),
         h("div", { class: "row bar-row" },
           h("label", {},
@@ -3665,9 +3670,9 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     chiusa: () => [
-      intro(t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.")),
-      barNote(t("Con la barra fissa accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta nella barra. Queste voci valgono quando la spegni.")),
-      h("section", {},
+      islandOnly(intro(t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio."))),
+      islandOnly(barNote(t("Con la barra fissa accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta nella barra. Queste voci valgono quando la spegni."))),
+      h("section", { class: "island-only" },
         h("h2", {}, h("span", { text: t("A riposo") })),
         pictured("always", h("div", { class: "row" },
           h("label", { text: t("Sempre visibile") }),
@@ -3683,7 +3688,7 @@ function appearanceSections(): HTMLElement[] {
       ),
       h("section", {},
         h("h2", {}, h("span", { text: t("Accanto al personaggio") })),
-        pictured("strip", h("div", { class: "row" },
+        pictured("strip", h("div", { class: "row island-only" },
           h("label", { text: t("Risposte rapide") }),
           select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
             settings.compactStrip ?? "right",
@@ -3691,12 +3696,12 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
         )),
         pictured("appBar",
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Barra dell'app in uso") }),
             toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
             h("span", { class: "hint note", text: t("accanto al personaggio chiuso, le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con»). Nulla di predefinito: senza azioni per quel programma non compare. Ha la precedenza sulla riga dell'agente al lavoro, non su permessi e chiamate.") }),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Pulsanti") }),
             select<Settings["appBarLook"]>([["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
               settings.appBarLook ?? "both", (v) => { settings.appBarLook = v; commit(); }),
@@ -3707,7 +3712,7 @@ function appearanceSections(): HTMLElement[] {
               return n;
             })(),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Nome del programma") }),
             toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
           ),
@@ -4005,8 +4010,9 @@ const LOOK_TABS = (all = false): [LookTab, string][] => ([
   ["font", t("Font")],
   ["personaggio", t("Personaggio")],
   ["posizione", t("Posizione")],
-  ["barra", t("Barra fissa")],
-  ["chiusa", t("Isola chiusa")],
+  // With the Launcher only the Windows taskbar and «Permessi e chiamate» are left in these two.
+  ["barra", settings.launcher ? t("Barra delle applicazioni") : t("Barra fissa")],
+  ["chiusa", settings.launcher ? t("Permessi e chiamate") : t("Isola chiusa")],
   // With the Launcher what is left of «Isola aperta» is its window's.
   ["aperta", settings.launcher ? t("Finestra") : t("Isola aperta")],
   ["chat", t("Chat")],
@@ -4014,7 +4020,7 @@ const LOOK_TABS = (all = false): [LookTab, string][] => ([
 /** withLookTab is drawing a tab for the search's index: drawn even when the Launcher hides it. */
 let lookTabForced = false;
 /** Aspetto's tabs only for the island on the screen: none of it is there with the Launcher. */
-const ISLAND_ONLY_TABS: ReadonlySet<LookTab> = new Set<LookTab>(["posizione", "barra", "chiusa"]);
+const ISLAND_ONLY_TABS: ReadonlySet<LookTab> = new Set<LookTab>([]);
 const LOOK_TAB_KEY = "easyisland.settings.aspetto";
 let lookTabNow: LookTab | null = null;
 
@@ -4131,7 +4137,9 @@ function pictured(pic: PicKind | HTMLElement, ...rows: HTMLElement[]): HTMLEleme
   const outer = h("div", { class: "pictured" }, box, h("div", { class: "pic-body" }, ...rows));
   // Shown or hidden with the fixed bar or the Launcher as a whole (settings.css → .free-row, .bar-row, .island-only).
   for (const c of ["free-row", "bar-row", "island-only"]) {
-    if (!rows.some((r) => r.classList.contains(c))) continue;
+    // island-only: the block goes only when all its rows do (one row of the Tema block
+    // hid the whole theme with the Launcher, 26 Nov 2026).
+    if (c === "island-only" ? !rows.every((r) => r.classList.contains(c)) : !rows.some((r) => r.classList.contains(c))) continue;
     outer.classList.add(c);
     for (const r of rows) r.classList.remove(c);
   }

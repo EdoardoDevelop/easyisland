@@ -29,8 +29,8 @@ interface Stored {
   entries: SettingsEntry[];
 }
 
-// «.2»: the entries have `island` (26 Nov 2026); an older index is built again.
-const KEY = "easyisland.settings.index.2";
+// «.3»: `island` per row, no longer per whole tab (26 Nov 2026); an older index is built again.
+const KEY = "easyisland.settings.index.3";
 
 export function saveSettingsIndex(version: string, language: string, entries: SettingsEntry[]) {
   try {
