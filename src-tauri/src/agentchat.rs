@@ -1465,6 +1465,7 @@ fn is_assignment(text: &str) -> bool {
 pub(crate) fn clean_reply(text: &str) -> Option<String> {
     let mut kept: Vec<&str> = Vec::new();
     let mut in_result = false;
+    let mut in_choices = false;
     // A step was seen: the next words start the text over.
     let mut step = false;
     for l in text.lines() {
@@ -1480,6 +1481,11 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
         }
         if ["> ⚙", "> 💭", "> ✗"].iter().any(|m| s.starts_with(m)) {
             step = true;
+            continue;
+        }
+        // A question's options (claude_cli::REPLY_FORM): the lines, without the block around them.
+        if s == "```scelte" || (in_choices && s == "```") {
+            in_choices = !in_choices;
             continue;
         }
         if s.is_empty() {
@@ -2979,6 +2985,8 @@ ALLEGA: C:\Users\x\Vassoio\modello.docx
         // Two paragraphs after the last step stay; a step at the very end keeps the text before it.
         assert_eq!(clean_reply("> ⚙ Read\nUno.\n\n\nDue."), Some("Uno.\n\nDue.".into()));
         assert_eq!(clean_reply("FATTO: ok\n\n> ⚙ show_notice"), Some("FATTO: ok".into()));
+        // A question's options: the lines, without their block.
+        assert_eq!(clean_reply("Quale?\n\n```scelte\nA\nB\n```"), Some("Quale?\n\nA\nB".into()));
         assert_eq!(clean_reply("Cerco.\n\n> ⚙ Grep\n\nNIENTE"), None);
         assert_eq!(clean_reply(" NIENTE. "), None);
         assert_eq!(clean_reply(""), None);

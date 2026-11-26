@@ -448,7 +448,9 @@ export const Bridge = {
     callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
-  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null; alts?: ChatAlt[] }>("chat_history_open", { sid, id }),
+  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null; alts?: ChatAlt[]; updated?: number }>("chat_history_open", { sid, id }),
+  /** Three lines on where a conversation was, by its engine (lib.rs chat_recap). */
+  chatRecap: (engine: string, lines: { role: string; content: string }[]) => callOrThrow<string>("chat_recap", { engine, lines }),
   /** The versions of the questions changed with «Modifica», saved with the conversation. */
   chatAlts: (sid: string, alts: ChatAlt[]) => call<void>("chat_alts", { sid, alts }),
   /** ‹ › on such a question: the conversation becomes that version, the engine goes on from it. */
@@ -792,6 +794,11 @@ export const Bridge = {
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   /** Ctrl+V in the chat: every file and folder copied in Explorer, or a picture. */
   chatPaste: () => callOrThrow<ChatAttachment[]>("chat_paste"),
+  /** A picture marked in the chat (chat-mark.ts): a new PNG in the Vassoio. */
+  chatImageSave: async (name: string, png: Uint8Array): Promise<ChatAttachment> => {
+    if (!IS_TAURI) throw new Error("not running inside EasyIsland");
+    return invoke<ChatAttachment>("chat_image_save", png, { headers: { "x-name": encodeURIComponent(name) } });
+  },
   /** Paths dropped on the chat: files into the Vassoio, folders as they are. */
   chatAttach: (paths: string[]) => callOrThrow<ChatAttachment[]>("chat_attach", { paths }),
   /** 📎: Windows' dialog for several files, or several folders. */

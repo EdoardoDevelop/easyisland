@@ -485,6 +485,18 @@ export interface BgTask {
   description: string;
 }
 
+/** The card of a conversation reopened after hours. */
+export interface ChatRecap {
+  /** The conversation's last change, Unix milliseconds. */
+  since: number;
+  /** Its engine, for «Riassunto del motore». */
+  engine: string;
+  /** The engine's three lines; busy while it writes them. */
+  text?: string;
+  busy?: boolean;
+  error?: string;
+}
+
 export interface ChatSessionState {
   sid: string;
   history: ChatMessage[];
@@ -510,6 +522,8 @@ export interface ChatSessionState {
   heavyWarned?: boolean;
   /** The versions of its questions changed with «Modifica» (chat_log.rs Alt): ‹ 1/2 › under them. */
   alts?: ChatAlt[];
+  /** Reopened after hours (chat-recap.ts): the card on where it was, until the next question. */
+  recap?: ChatRecap | null;
   /** «Multi motore» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];

@@ -3143,6 +3143,51 @@ async fn chat_dictate_windows() -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+/// «Riassunto del motore» on the card of a conversation reopened after hours
+/// (views/chat-recap.ts): three lines, done / open / last step, written by the
+/// conversation's engine in a helper turn of its own (the conversation is not touched).
+#[tauri::command]
+async fn chat_recap(app: AppHandle, engine: String, lines: Vec<chat_log::Line>) -> Result<String, String> {
+    if engine.is_empty() || engine == "easyisland" {
+        return Err(t("Questa conversazione non ha un motore per il riassunto.").into());
+    }
+    // The end of the conversation counts most: the last lines, each clipped.
+    let mut parts: Vec<String> = Vec::new();
+    let mut size = 0;
+    for l in lines.iter().rev() {
+        let who = if l.role == "user" { "USER" } else { "ASSISTANT" };
+        let body: String = l.content.trim().chars().take(1500).collect();
+        size += body.len();
+        parts.push(format!("{who}: {body}"));
+        if size > 14_000 {
+            break;
+        }
+    }
+    parts.reverse();
+    let lang = if i18n::english() { "English" } else { "Italian" };
+    let prompt = format!(
+        "The user is coming back to the conversation below after some hours. Without tools and without titles, \
+         write exactly three short lines in {lang}: \"**{done}:** …\" what has been done, \
+         \"**{open}:** …\" what is still open or waits for the user (or \"{none}\"), \
+         \"**{last}:** …\" the last step and what comes next.\n\n{text}",
+        done = t("Fatto"),
+        open = t("Ancora aperto"),
+        none = t("niente"),
+        last = t("Ultimo passo"),
+        text = parts.join("\n\n"),
+    );
+    let chat = Chat::default();
+    let reply = chat_turn(&app, &chat, prompt, None, Some(engine.clone()), None, false, Channel::Helper, &|_| {}).await;
+    if engine == "opencode" {
+        opencode::forget(chat.cli_session());
+    }
+    let text = reply?.text.trim().to_string();
+    if text.is_empty() {
+        return Err(t("Il motore non ha risposto.").into());
+    }
+    Ok(text)
+}
+
 /// «Esporta»: the conversation as a Markdown file in the Vassoio.
 #[tauri::command]
 fn chat_export(title: String, lines: Vec<chat_log::Line>) -> Result<DroppedFile, String> {
@@ -3231,6 +3276,27 @@ async fn chat_paste() -> Result<Vec<files::ChatAttachment>, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// A picture marked in the chat (views/chat-mark.ts) as a new PNG in the inbox:
+/// raw bytes, its name percent-encoded in `x-name`. Only a PNG.
+#[tauri::command]
+async fn chat_image_save(request: tauri::ipc::Request<'_>) -> Result<files::ChatAttachment, String> {
+    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+        return Err(t("Immagine non ricevuta").into());
+    };
+    if !data.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err(t("Immagine non ricevuta").into());
+    }
+    let raw = request.headers().get("x-name").and_then(|v| v.to_str().ok()).unwrap_or("");
+    let decoded = news::url_decode(raw);
+    let mut name: String = decoded.chars().filter(|c| !r#"\/:*?"<>|"#.contains(*c) && !c.is_control()).take(120).collect();
+    if !name.to_lowercase().ends_with(".png") {
+        name = format!("{}.png", t("Immagine segnata"));
+    }
+    let data = data.clone();
+    let f = tauri::async_runtime::spawn_blocking(move || files::save_new(&name, &data)).await.map_err(|e| e.to_string())??;
+    Ok(files::ChatAttachment { name: f.name, path: f.path, folder: false })
 }
 
 /// Files and folders dropped on the chat: files into the Vassoio, folders as they are.
@@ -5656,6 +5722,8 @@ pub fn run() {
             widget_results,
             ingest_file,
             chat_paste,
+            chat_image_save,
+            chat_recap,
             chat_attach,
             chat_pick,
             custom_accept_extensions,

@@ -171,6 +171,30 @@ export class ChatDock {
 
   /** At every redraw: the panels as the chat has them, the page where its panel is. */
   sync() {
+    // Moving the chat's views into or out of a panel resets every scroll inside
+    // them to the top (26 Nov 2026, Edoardo: «la chat scorre tutta in alto»):
+    // each is put back, at the bottom if it was there.
+    const kept = [...this.doc.querySelectorAll<HTMLElement>(".chat-log, .chat-side, .chat-docs")]
+      .filter((e) => e.scrollTop > 0)
+      .map((e) => ({ e, top: e.scrollTop, end: e.scrollHeight - e.scrollTop - e.clientHeight < 4 }));
+    try {
+      this.syncNow();
+    } finally {
+      if (kept.length) {
+        const put = () => kept.forEach(({ e, top, end }) => {
+          const want = end ? e.scrollHeight : top;
+          if (Math.abs(e.scrollTop - want) > 1) e.scrollTop = want;
+        });
+        put();
+        // Dockview and the panels settle over the next frames: again then.
+        requestAnimationFrame(put);
+        window.setTimeout(put, 120);
+        window.setTimeout(put, 320);
+      }
+    }
+  }
+
+  private syncNow() {
     const want = this.wanted();
     const before = this.active ? this.api.panels.map((p) => p.id as DockPanelId).sort() : ["chat" as DockPanelId];
     const gone = before.filter((id) => !want.includes(id));

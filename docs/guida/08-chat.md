@@ -61,6 +61,11 @@ Quando una risposta lunga (oltre mezzo minuto) finisce mentre guardi altro, comp
 - **Chiedi su questo**: seleziona un pezzo di una risposta e clicca il pulsante che compare sopra. Il pezzo va nel campo come citazione e chiedi solo di quello («spiegami questo comando», «e se il NAS è un altro?»).
 - Nelle conversazioni lunghe, a destra dei messaggi c'è una **mappa**: un segno per ogni domanda e per diagrammi, tabelle, modifiche ai file e avvisi. Passandoci sopra vedi cos'è, con un clic ci vai.
 
+### Bentornato, scelte e screenshot segnati
+- Riaprendo dalla cronologia una conversazione ferma da qualche ora, sotto l'ultimo messaggio trovi **dove eravate**: cosa è stato fatto, cosa è rimasto aperto e l'ultimo passo. **✨ Riassunto del motore** lo fa scrivere in tre righe al motore della conversazione. Sparisce quando fai la domanda successiva.
+- Quando il motore ti chiede di scegliere («lo rilancio adesso o stanotte?»), le opzioni diventano **pulsanti** sotto la risposta: un clic e la risposta parte.
+- Incollato uno screenshot, il pulsante **✎** sull'allegato apre l'immagine: **Riquadro**, **Freccia** e **Penna** per segnare cosa guardare, **Oscura** per coprire password e dati. **Usa** allega la copia segnata; l'originale resta nel Vassoio.
+
 ### Modifiche ai file
 In **Modalità terminale**, quando il motore cambia un file, sotto il passo vedi **cosa cambia**: le righe tolte in rosso, quelle aggiunte in verde, le parole cambiate evidenziate e in alto «+N −M». **Affiancate** mette il prima a sinistra e il dopo a destra (la scelta resta), **Copia** copia le modifiche, un clic sul nome apre il file; le righe uguali sono piegate in «⋯ N righe uguali». Con **Manuale** la stessa vista è nella richiesta di **Consenti / Nega**, così decidi sapendo cosa cambierà. Anche i confronti che il motore scrive nella risposta si vedono così.
 

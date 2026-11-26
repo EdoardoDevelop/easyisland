@@ -105,6 +105,8 @@ pub struct Opened {
     pub context: Option<(u64, u64)>,
     /// The versions of its questions changed with «Modifica».
     pub alts: Vec<Alt>,
+    /// Its last change, Unix milliseconds: the chat greets a return after hours with a recap.
+    pub updated: i64,
 }
 
 static STORE: Mutex<Option<Store>> = Mutex::new(None);
@@ -609,11 +611,11 @@ pub fn open(chat: &Chat, id: &str, key: &str) -> Result<Opened, String> {
         chat.set_cli_session(Some(c.session.clone()));
         chat.set_resume_fallback(Some(preamble(&c.lines)));
         let context = crate::desktop::last_context(&c.session).map(|used| (used, c.context_size));
-        return Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context, alts: c.alts });
+        return Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context, alts: c.alts, updated: c.updated });
     }
     let preamble = if resends(&c.engine) && !c.messages.is_empty() { None } else { Some(preamble(&c.lines)) };
     chat.restore(key, c.messages, Some(c.id), preamble);
-    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None, alts: c.alts })
+    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None, alts: c.alts, updated: c.updated })
 }
 
 /// The versions of the questions of `chat`'s conversation, as the chat has them now.

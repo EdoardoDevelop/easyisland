@@ -1,6 +1,6 @@
 import { diagramBlock, isDiagram } from "./diagram";
 import { highlightInto } from "./highlight";
-import { checklist, codeFields, fieldsOf, TASK } from "./md-interactive";
+import { checklist, choicesBlock, choicesOf, codeFields, fieldsOf, TASK } from "./md-interactive";
 import { calloutBox, calloutOf, dressTable } from "./md-rich";
 import { editCard, unifiedCard } from "./md-diff";
 import { t } from "./i18n";
@@ -56,6 +56,8 @@ export interface MarkdownHooks {
   saveCode?(code: string, lang: string): void;
   /** A request written in the chat's field, never sent (a step asked about, a procedure to save). */
   ask?(text: string): void;
+  /** A button of a ```scelte block: that answer sent at once. */
+  reply?(text: string): void;
 }
 
 /** "C:\a\b.ts", "src/app.ts", "./x.md", "~/n.txt": a path, not a word or a command. */
@@ -365,6 +367,13 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
       if (fence[2] === "modifica") {
         const card = closed ? editCard(body.join("\n"), hooks.openPath) : null;
         if (card) blocks.push(card);
+        continue;
+      }
+      // A question's options (REPLY_FORM): buttons, once the block is closed.
+      if (fence[2] === "scelte") {
+        const options = closed ? choicesOf(body.join("\n")) : [];
+        if (options.length) blocks.push(choicesBlock(options, hooks.reply));
+        else if (closed) body.forEach((l) => l.trim() && blocks.push(el("p", "md-p", l.trim())));
         continue;
       }
       // A unified diff, once closed: the same card.

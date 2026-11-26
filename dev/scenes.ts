@@ -495,6 +495,58 @@ export async function runScene(island: Island, scene: string) {
         State.chat.alts = [{ at: 2, versions: [[{ role: "user", content: "Quanto occupa il backup di Rossi?" }, { role: "assistant", content: "Circa **1,2 TB**." }], []], shown: 1 }];
         State.chatSideOpen = false;
       }
+      // ?ritorno: a conversation reopened after 5 hours (chat-recap.ts), its last answer asking
+      // to pick with ```scelte buttons (md-interactive.ts choicesBlock); «Riassunto del motore» mocked.
+      if (new URLSearchParams(location.search).has("ritorno")) {
+        const msgs: { role: "user" | "assistant"; content: string }[] = [
+          { role: "user", content: "Il backup del NAS di Rossi è fallito stanotte, perché?" },
+          { role: "assistant", content: "## 1. Causa\nIl disco di destinazione era **pieno** (`/volume2`, 99 %).\n\n## 2. Cosa fare\n- [ ] Libera spazio sul volume 2\n- [ ] Rilancia il job\n- [ ] Controlla il log" },
+          { role: "user", content: "Sistema lo script perché usi il volume 1" },
+          { role: "assistant", content: "> ⚙ Modifica · `C:\\Script\\backup.ps1`\n\n```modifica\n" + JSON.stringify({ file: "C:\\Script\\backup.ps1", edits: [{ old: "volume2", new: "volume1" }], write: false }) + "\n```\n\n## 3. Script aggiornato\nOra scrive sul volume 1. Il job di stanotte però è ancora fallito: lo rilancio adesso o aspetto la finestra di stanotte?\n\n```scelte\nRilancialo adesso\nAspetta stanotte\nPrima controlla lo spazio sul volume 1\n```" },
+        ];
+        let n = 0;
+        State.chatHistory = msgs.map((m) => ({ id: ++n, role: m.role, content: m.content, ...(m.role === "assistant" ? { engine: "subscription" } : {}) }));
+        State.chat.recap = { since: Date.now() - 5 * 3600_000, engine: "subscription" };
+        State.chatSideOpen = false;
+        Bridge.chatRecap = async () => {
+          await new Promise((r) => setTimeout(r, 900));
+          return "**Fatto:** trovata la causa (volume 2 pieno) e corretto `backup.ps1` per usare il volume 1.\n**Ancora aperto:** il backup di stanotte va rilanciato.\n**Ultimo passo:** scegliere se rilanciarlo adesso o aspettare la finestra notturna.";
+        };
+      }
+      // ?segna: a pasted screenshot attached, with ✎ to mark it (chat-mark.ts); file reads and the save mocked.
+      if (new URLSearchParams(location.search).has("segna")) {
+        const shot = async (): Promise<ArrayBuffer> => {
+          const cv = document.createElement("canvas");
+          cv.width = 1280;
+          cv.height = 720;
+          const g = cv.getContext("2d")!;
+          g.fillStyle = "#f3f3f3";
+          g.fillRect(0, 0, 1280, 720);
+          g.fillStyle = "#0067c0";
+          g.fillRect(0, 0, 1280, 48);
+          g.fillStyle = "#222";
+          g.font = "28px Segoe UI";
+          g.fillText("Errore 0x80070005: accesso negato", 80, 160);
+          g.fillText("Utente: admin   Password: ••••••••", 80, 230);
+          g.fillStyle = "#c42b1c";
+          g.fillRect(80, 300, 300, 60);
+          const blob = await new Promise<Blob>((r) => cv.toBlob((b) => r(b!), "image/png"));
+          return blob.arrayBuffer();
+        };
+        State.chatHistory = [];
+        State.chatSideOpen = false;
+        State.chatAttach = [{ name: "Immagine incollata.png", path: "C:\\Temp\\EasyIsland\\Immagine incollata.png", folder: false }];
+        Bridge.fileBytes = shot;
+        Bridge.fileThumb = async () => {
+          const cv = document.createElement("canvas");
+          cv.width = cv.height = 32;
+          const g = cv.getContext("2d")!;
+          g.fillStyle = "#0067c0";
+          g.fillRect(0, 0, 32, 32);
+          return cv.toDataURL();
+        };
+        Bridge.chatImageSave = async (name: string) => ({ name, path: `C:\\Temp\\EasyIsland\\${name}`, folder: false });
+      }
       // ?vuota=<name>: an empty conversation with that drawing (views/chat-empty.ts; «tutti» one at random).
       const vuota = new URLSearchParams(location.search).get("vuota");
       if (vuota) {

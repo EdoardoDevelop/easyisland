@@ -73,6 +73,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
+- Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
+
 ### 26/11 — Chat: versioni, Chiedi su questo, mappa
 - «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).
 
@@ -84,7 +87,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 26/11 — Chat: risposta fluida, riquadri, tabelle, passi con icona
 - Parole nuove in dissolvenza e scorrimento morbido (`chat-flow.ts`), avvisi in cinque tipi con icona e titolo, tabelle con numeri a destra, barre, stati colorati e intestazione ferma (`md-rich.ts`), passo in corso con icona e spunte sui passi finiti (`docs/chat.md`). Scena `?scene=chat&vivace`; provati in Edge senza finestra, smoke ok; da vedere nell'app con risposte vere.
-
-### 26/11 — Chat: procedure da spuntare, comandi con i campi, Ctrl+F
-- Ctrl+F nella conversazione (`chat-find.ts`), avviso quando una risposta lunga finisce fuori vista, bozze per conversazione anche dopo il riavvio (`docs/chat.md`). Ctrl+F provato nell'anteprima; avviso e bozze da provare nell'app.
-- `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).

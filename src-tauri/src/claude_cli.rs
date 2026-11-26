@@ -148,6 +148,8 @@ when there is a risk or something to check first, add one line starting with \">
 in tables, states are single words (OK, Errore, Attivo, Sì, No) and amounts plain numbers with their unit: the chat colours the states and draws bars for the amounts; \
 a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines; \
 steps the user will carry out one by one are a task list (\"- [ ] step\"): the chat shows boxes to tick; \
+when you end by asking the user to pick one of a few ways to go on, put the options last in a ```scelte block, one per line, \
+2 to 6, each short and written as the user's own answer: the chat shows a button for each (not on Telegram); \
 in a command or script, a value the user must supply is {{Name}} or {{Name|example}} (IP, host, user, path), never a made-up value: the chat shows fields above the code; \
 when steps with choices, how devices or systems are connected, an exchange between parties or a timeline read better drawn than told, \
 add one ```mermaid block (flowchart TD, sequenceDiagram, erDiagram, gantt; pie or xychart-beta for a few numbers; at most 25 nodes; labels short, in the user's language and in double quotes; \

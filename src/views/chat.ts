@@ -22,6 +22,8 @@ import { chatFind } from "./chat-find";
 import { FreshText, Glide } from "./chat-flow";
 import { chatMap } from "./chat-map";
 import { quoteButton, quoted } from "./chat-quote";
+import { markable, markImage, type Attached } from "./chat-mark";
+import { recapCard, recapFor } from "./chat-recap";
 import * as Notices from "../notices/notices";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
@@ -316,13 +318,15 @@ const MD_HOOKS = {
   runCode: (code: string, lang: string) => codeHooks.run(code, lang),
   saveCode: (code: string, lang: string) => codeHooks.save(code, lang),
   ask: (text: string) => codeHooks.ask(text),
+  reply: (text: string) => codeHooks.reply(text),
 };
 
 /** What the chat's view does with a block of code (set by buildPrompt, which has the terminal). */
-const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; ask(text: string): void; wsl: boolean } = {
+const codeHooks: { run(code: string, lang: string): void; save(code: string, lang: string): void; ask(text: string): void; reply(text: string): void; wsl: boolean } = {
   run: () => {},
   save: () => {},
   ask: () => {},
+  reply: () => {},
   wsl: false,
 };
 
@@ -1365,6 +1369,7 @@ export function buildPrompt(
     const win = c.window;
     const attach = c.attach;
     c.attach = [];
+    c.recap = null;
     const first = c.history.length === 0;
     const mine: ChatMessage = { id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined };
     entering.add(mine);
@@ -2283,6 +2288,27 @@ export function buildPrompt(
     } catch (err) {
       flash(String(err).replace(/^Error:\s*/, ""));
     }
+  }
+
+  /**
+   * An attached picture: its thumbnail, and ✎ to mark what to look at before
+   * it goes (chat-mark.ts); the marked copy takes its place in the question.
+   */
+  function dressPicture(chip: HTMLElement, a: Attached) {
+    const open = async () => {
+      const marked = await markImage(chatBody, a);
+      if (marked) {
+        State.chatAttach = State.chatAttach.map((x) => (x === a ? marked : x));
+        Sound.play("approve");
+        State.notify();
+      }
+      input.focus();
+    };
+    const icon = chip.querySelector(".attach-icon");
+    void Bridge.fileThumb(a.path).then((src) => {
+      if (src && icon?.isConnected) icon.replaceWith(h("img", { class: "attach-thumb", src, alt: "" }));
+    });
+    chip.querySelector(".attach-del")?.before(h("button", { class: "attach-mark", title: t("Segna cosa guardare: riquadro, freccia, oscura"), text: "✎", onclick: () => void open() }));
   }
 
   /** Ctrl+V with files and folders copied in Explorer, or a picture: they all join the question. */
@@ -3296,6 +3322,8 @@ export function buildPrompt(
       const got = await Bridge.chatHistoryOpen(c.sid, id);
       c.history = toMessages(got.lines);
       c.alts = got.alts ?? [];
+      // Left for hours: a card on where it was, under its last message.
+      c.recap = recapFor(got.updated, got.engine, got.lines.length);
       c.logId = id;
       // What was being written in it, even before a restart.
       if (!c.draft.trim()) c.draft = draftsAll()[id] ?? "";
@@ -3631,6 +3659,13 @@ export function buildPrompt(
   codeHooks.run = (code, lang) => void codeToTerminal(code, lang);
   // A step asked about, a procedure to save (core/md-interactive.ts): in the field, its {{…}} selected.
   codeHooks.ask = (text) => useTip({ label: "", prompt: text });
+  // A button of a question's options: that answer, sent as if typed.
+  codeHooks.reply = (text) => {
+    const c = State.chat;
+    if (c.sending) c.queue.push(text);
+    else void submit(text, c);
+    State.notify();
+  };
   codeHooks.save = (code, lang) => {
     void Bridge.saveCodeAs(codeFileName(lang), code)
       .then((path) => { if (path) flash(t("Salvato in {path}", { path })); })
@@ -4057,12 +4092,14 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
           }));
         }
         for (const a of attach) {
-          attachRow.append(attachChip(a.folder ? "📁" : "📄", a.name, a.path, a.folder ? t("Togli la cartella") : t("Togli il file"), () => {
+          const chip = attachChip(a.folder ? "📁" : "📄", a.name, a.path, a.folder ? t("Togli la cartella") : t("Togli il file"), () => {
             State.chatAttach = State.chatAttach.filter((x) => x !== a);
             Sound.play("blip");
             State.notify();
             input.focus();
-          }));
+          });
+          if (markable(a)) dressPicture(chip, a);
+          attachRow.append(chip);
         }
         onHeightChange();
       }
@@ -4161,9 +4198,20 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         const list = State.chatHistory;
         list.forEach((m, i) => {
           const row = withActions(bubble(m), m, i, i === list.length - 1);
+          // Options to answer with: only under the last reply; under the others the one picked.
+          row.querySelectorAll<HTMLButtonElement>(".md-choice").forEach((b) => {
+            const next = list[i + 1];
+            b.disabled = i !== list.length - 1 || sending || !!asked;
+            b.classList.toggle("picked", next?.role === "user" && next.content.trim() === b.dataset.choice);
+          });
           if (entering.delete(m)) row.classList.add("enter");
           log.append(row);
         });
+        const recap = !thinking && !sending ? recapCard(State.chat, MD_HOOKS, () => {
+          renderedCount = -1;
+          State.notify();
+        }) : null;
+        if (recap) log.append(recap);
         if (!thinking && !sending && !asked && reviewable()) log.append(secondRow());
         if (thinking && streamed) {
           streamEl = h("div", { class: "chat-row" });

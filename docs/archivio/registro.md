@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Chat: procedure da spuntare, comandi con i campi, Ctrl+F
+- Ctrl+F nella conversazione (`chat-find.ts`), avviso quando una risposta lunga finisce fuori vista, bozze per conversazione anche dopo il riavvio (`docs/chat.md`). Ctrl+F provato nell'anteprima; avviso e bozze da provare nell'app.
+- `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
+
 ### 25/11 — Chat: testo e bordo del campo, footer, diagrammi
 - Diagrammi Mermaid nelle risposte (`docs/chat.md` → Diagrammi; scena `?scene=chat&diagrammi`): provati con la CSP dell'app in Edge senza finestra, scuro e chiaro; da provare nell'app con i motori («fammi lo schema della rete di …»), finestra staccata e Copia.
 - Testo della conversazione grande come in Claude Desktop (letto dal suo CSS: risposte 15, resto 14, codice 13) e anello colorato animato sul campo (`.chat-glow` in `chat-cards.css`; `docs/architettura.md` → Aspetto della chat). Smoke rapido senza errori; da giudicare nell'app.
