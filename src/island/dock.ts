@@ -68,6 +68,8 @@ export class ChatDock {
   private quiet = false;
   /** dockview's menu on a tab is open: the Anteprima's page would cover it. */
   private menuOpen = false;
+  /** The panels could show at the last sync (the island open on the chat): only then do they move. */
+  private wasEnabled = false;
   /**
    * Arrangements the user made with this set of panels, the last one now (the
    * tab's menu undoes and redoes them). dockview's own history is in its paid
@@ -173,8 +175,13 @@ export class ChatDock {
     const before = this.active ? this.api.panels.map((p) => p.id as DockPanelId).sort() : ["chat" as DockPanelId];
     const gone = before.filter((id) => !want.includes(id));
     const added = want.filter((id) => !before.includes(id));
-    // One panel closing: a picture of it, to slide away once the rest is laid out.
-    const leaving = this.active && gone.length === 1 && !added.length ? this.ghost(gone[0]) : null;
+    // Panels that go or come back with the island closing or opening (or the
+    // chat leaving the screen) do it at once: their own movement was seen over
+    // the island shutting (26 Nov 2026, Edoardo: «si intravedono le loro animazioni di chiusura»).
+    const steady = this.hooks.enabled() && this.wasEnabled;
+    this.wasEnabled = this.hooks.enabled();
+    // One panel closed with its ✕ or button: a picture of it, fading where it is once the rest is laid out.
+    const leaving = steady && this.active && gone.length === 1 && !added.length ? this.ghost(gone[0]) : null;
     // What the closed panels held: the chat takes it back once they are gone (chat.ts «dock-left»).
     const left = gone.map((id) => this.boxes.get(id)?.firstElementChild).filter((e): e is Element => !!e);
     const giveBack = () => left.forEach((e) => e.dispatchEvent(new CustomEvent("dock-left")));
@@ -193,7 +200,7 @@ export class ChatDock {
     const have = this.api.panels.map((p) => p.id as DockPanelId).sort();
     if (want.join() !== have.join()) {
       this.build(want);
-      if (added.length === 1) this.arrive(added[0]);
+      if (added.length === 1 && steady) this.arrive(added[0]);
     }
     giveBack();
     leaving?.();
@@ -410,7 +417,6 @@ export class ChatDock {
     const r = el.getBoundingClientRect();
     const d = this.el.getBoundingClientRect();
     if (r.width < 40 || r.height < 40) return null;
-    const exit = this.exitOf(el);
     const frame = this.doc.createElement("div");
     // The dock's classes: its theme's colours, borders and sizes on the picture too.
     frame.className = `${this.el.className} dock-ghost-frame`;
@@ -428,8 +434,10 @@ export class ChatDock {
     }
     return () => {
       this.doc.body.append(frame);
-      const opts: KeyframeAnimationOptions = { duration: 260, easing: "cubic-bezier(0.4, 0, 0.6, 1)", fill: "forwards" };
-      const done = parts.map((c) => c.animate([{ transform: "none", opacity: 1 }, { transform: exit, opacity: 0.4 }], opts).finished);
+      // Where it is, fading out and a little smaller (26 Nov 2026, Edoardo: sliding
+      // to the edge, half faded, looked like «sfumare verso il basso»).
+      const opts: KeyframeAnimationOptions = { duration: 150, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" };
+      const done = parts.map((c) => c.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(0.985)" }], opts).finished);
       Promise.all(done).then(() => frame.remove(), () => frame.remove());
     };
   }

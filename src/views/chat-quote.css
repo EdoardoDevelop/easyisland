@@ -1,0 +1,51 @@
+/* «Chiedi su questo» over a selection in an answer (chat-quote.ts). */
+.chat-quote-btn {
+  position: absolute;
+  z-index: 30;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--cc-menu, #24262b);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: var(--ink);
+  font: 500 calc(12px + var(--fs-up, 0px)) var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  animation: chat-quote-in 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.chat-quote-btn:hover { background: var(--win-accent, #4cc2ff); color: #06121a; }
+@keyframes chat-quote-in { from { opacity: 0; translate: 0 4px; } }
+html[data-anim="spente"] .chat-quote-btn { animation: none; }
+html[data-scheme="light"] .chat-quote-btn { background: #ffffff; color: #1b1d22; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14), inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+
+/* A question that quotes a piece of an answer: the quote on top, quieter, with its bar. */
+.bubble-quote {
+  margin: 0 0 6px;
+  padding: 2px 0 2px 9px;
+  border-left: 2px solid var(--win-accent, #4cc2ff);
+  color: var(--dim);
+  font-size: 0.93em;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ‹ 2/3 › beside a question changed with «Modifica» (chat.ts withActions). */
+.msg-alts {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 3px 0 0;
+  color: var(--dim-2);
+  font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.msg-alt-btn { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font: 500 14px/1 var(--font); cursor: pointer; }
+.msg-alt-btn:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.msg-alt-btn:disabled { opacity: 0.3; cursor: default; }
+html[data-scheme="light"] .msg-alt-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.07); }

@@ -56,6 +56,14 @@ The files and folders the chat names in its replies become **links**: full paths
 
 When a long answer (over half a minute) ends while you are looking at something else, a **notice** with **Open** takes you to that conversation. What you were writing in a conversation stays with it: you find it again when you reopen it, even after restarting EasyIsland.
 
+### Versions, quotes and map
+- **Edit** under one of your questions rewrites it and the conversation starts again from there, but **the earlier answer stays**: **‹ 2/2 ›** appears under the question and the arrows move between versions. Versions stay when you reopen the conversation from the history.
+- **Ask about this**: select a piece of an answer and click the button that appears above it. The piece goes into the field as a quote and you ask about that only ("explain this command", "what if the NAS is another one?").
+- In long conversations a **map** sits on the right of the messages: a mark for each question and for diagrams, tables, changes to files and warnings. Hover to see what it is, click to go there.
+
+### Changes to files
+In **Terminal mode**, when the engine changes a file, under the step you see **what changes**: removed lines in red, added lines in green, the changed words highlighted and "+N −M" on top. **Side by side** puts the before on the left and the after on the right (the choice is kept), **Copy** copies the changes, a click on the name opens the file; unchanged lines fold into "⋯ N unchanged lines". With **Manual** the same view is in the **Allow / Deny** request, so you decide knowing what will change. Comparisons the engine writes in its reply look the same.
+
 ### How the replies look
 The reply **flows in**: new words appear with a light fade and the conversation glides to the bottom. While the engine works, the line below shows the step in progress with its **icon** (file read, search, command, page…) in a turning ring; finished steps get a green **tick**, failed ones a red mark.
 

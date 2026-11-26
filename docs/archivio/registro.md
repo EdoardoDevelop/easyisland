@@ -2,6 +2,16 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 25/11 — Chat: testo e bordo del campo, footer, diagrammi
+- Diagrammi Mermaid nelle risposte (`docs/chat.md` → Diagrammi; scena `?scene=chat&diagrammi`): provati con la CSP dell'app in Edge senza finestra, scuro e chiaro; da provare nell'app con i motori («fammi lo schema della rete di …»), finestra staccata e Copia.
+- Testo della conversazione grande come in Claude Desktop (letto dal suo CSS: risposte 15, resto 14, codice 13) e anello colorato animato sul campo (`.chat-glow` in `chat-cards.css`; `docs/architettura.md` → Aspetto della chat). Smoke rapido senza errori; da giudicare nell'app.
+- Con i pannelli della chat `.chat-dock` prende il posto di `#views` in `#body`: lo spazio per il footer (`.footed`, `style.css`) ora vale anche per lui. Prima conversazioni e chat coprivano il footer. Misurato nell'anteprima (`?scene=isola&more&wide`); da provare nell'app.
+
+### 24/11 — Dalle chat del portatile
+- Lette via WinRM le ultime 12 chat e il log del portatile (192.168.1.197). Ramo `claude/chat-portatile`: card dei grafici con stile e misure, larghezza `quarter`, «a linea» solo linea, grafici letti anche a isola chiusa (`chartKinds`), `preview_act` con i sinonimi dei motori (`act_alias`), memoria senza righe ripetute con altre parole (`brain::covered`), `memory_forget` anche su una riga di pagina.
+- Sera: condizione `view`/`not_view` (valori del footer nascosti nella Panoramica); pannello **Documenti** della chat (`chat-docs.ts`); percorsi con spazi cliccabili nelle risposte (`BARE_PATH`); barra di scorrimento delle conversazioni come quella della chat anche nel loro pannello. **Blocco all'avvio corretto:** `appbar::update_full_screen` prendeva il lucchetto delle impostazioni dentro l'avviso della shell sul thread principale (EasyIsland non rispondeva a ogni avvio, CPU 0); ora usa la copia `KEEP` fatta da `apply`.
+- Già a posto: i legami dedotti dalle parole (tolti il 21/11; sul portatile nessuna riga «(dedotto)»). Da fare forse: Telegram e 3CX che a rete caduta scrivono un errore ogni 30 s (132 in un'ora).
+
 ### 24/11 — Barra fissa: idee da WinMac-Dock
 - Ramo `claude/barra-idee` (da `claude/sviluppo`), solo idee (WinMac-Dock è GPL-3.0, `docs/decisioni.md`): riduci nell'icona di «App» (`HSHELL_GETMINRECT` in `taskwin.rs`), ingrandimento al passaggio, Maiusc/Ctrl+Maiusc+clic, elementi «Download recenti» e «Unità rimovibili» (`drives.rs`, Espelli), file trascinati sul cestino, schermo intero anche con la barra di Windows nascosta ed eccezioni, pausa dei valori a schermo intero, Mica. `docs/architettura.md` → Barra fissa.
 - Provato dal vivo da Claude sul PC di Edoardo (con il suo permesso): log del rettangolo, menu e contatore dei download, cestino (file nel Cestino, recuperabile), Maiusc+clic, schermo intero con e senza eccezione, Mica, ingrandimento. Impostazioni di Edoardo rimesse com'erano dopo le prove.

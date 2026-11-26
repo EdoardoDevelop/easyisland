@@ -582,3 +582,21 @@ html[data-chat-look="cards"] .chat-card .chat-recent-item:hover .chat-recent-go 
 }
 /* «Vai in fondo»: a drawn arrow, centred. */
 html[data-chat-look="cards"] .chat-card .chat-jump { display: grid; place-items: center; }
+
+/* The buttons over the conversation (above the field, «Vai in fondo»): a solid
+   background, so the messages scrolling under them never show through
+   (26 Nov 2026, Edoardo: «si intrecciano i testi»). */
+html[data-chat-look="cards"] .chat-card { --cc-solid: #26272b; --cc-solid-hover: #303237; }
+html[data-chat-look="cards"][data-scheme="light"] .chat-card { --cc-solid: #eceef1; --cc-solid-hover: #e1e4e8; }
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar :is(.engine-pick, button:not(.on):not(.mode)),
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .chat-ctx-bar :is(.engine-pick, button:not(.on):not(.mode)),
+html[data-chat-look="cards"] .chat-card .chat-jump {
+  background: var(--cc-solid);
+}
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar :is(.engine-pick, button:not(.on):not(.mode)):hover,
+html[data-chat-look="cards"]:not([data-ui="classic"]) .chat-card .chat-ctx-bar :is(.engine-pick, button:not(.on):not(.mode)):hover,
+html[data-chat-look="cards"] .chat-card .chat-jump:hover {
+  background: var(--cc-solid-hover);
+}
+/* «Piano», «Accetta modifiche»: their tint over the solid background. */
+html[data-chat-look="cards"] .chat-card .chat-ctx-bar .auto-btn.mode { background: color-mix(in srgb, #818cf8 35%, var(--cc-solid)); }

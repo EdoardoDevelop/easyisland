@@ -64,6 +64,20 @@ struct Conversation {
     /// After each turn of Claude Code: how many lines the conversation had and
     /// the session's answer then (`--resume-session-at` for Modifica, Rigenera, Dirama).
     marks: Vec<(usize, String)>,
+    /// The versions of a question changed with «Modifica» (26 Nov 2026): ‹ 1/2 › in the chat.
+    alts: Vec<Alt>,
+}
+
+/// A question asked again with «Modifica»: every way the conversation went from it.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Alt {
+    /// The line of the question (lines before it are the same in every version).
+    pub at: usize,
+    /// Each version: its lines from `at` on. The one on screen is kept up to date by the chat when it leaves it.
+    pub versions: Vec<Vec<Line>>,
+    /// The version on screen.
+    pub shown: usize,
 }
 
 /// One row of the list in the chat.
@@ -89,6 +103,8 @@ pub struct Opened {
     pub folder: String,
     /// Tokens in the context and its size (0 = unknown), when the session is resumed.
     pub context: Option<(u64, u64)>,
+    /// The versions of its questions changed with «Modifica».
+    pub alts: Vec<Alt>,
 }
 
 static STORE: Mutex<Option<Store>> = Mutex::new(None);
@@ -569,6 +585,8 @@ pub fn rewind(chat: &Chat, keep: Vec<Line>) {
                 c.lines.truncate(n);
                 c.messages.clear();
                 c.marks.retain(|(at, _)| *at <= n);
+                // A version starting at the question asked again stays (the chat keeps it).
+                c.alts.retain(|a| a.at <= n);
             }
             s.save();
         });
@@ -591,11 +609,50 @@ pub fn open(chat: &Chat, id: &str, key: &str) -> Result<Opened, String> {
         chat.set_cli_session(Some(c.session.clone()));
         chat.set_resume_fallback(Some(preamble(&c.lines)));
         let context = crate::desktop::last_context(&c.session).map(|used| (used, c.context_size));
-        return Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context });
+        return Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context, alts: c.alts });
     }
     let preamble = if resends(&c.engine) && !c.messages.is_empty() { None } else { Some(preamble(&c.lines)) };
     chat.restore(key, c.messages, Some(c.id), preamble);
-    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None })
+    Ok(Opened { engine: c.engine, lines: c.lines, folder: c.folder, context: None, alts: c.alts })
+}
+
+/// The versions of the questions of `chat`'s conversation, as the chat has them now.
+pub fn set_alts(chat: &Chat, alts: Vec<Alt>) {
+    let Some(id) = chat.log_id() else { return };
+    with_store(|s| {
+        if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
+            let n = c.lines.len();
+            c.alts = alts.into_iter().filter(|a| a.at <= n && a.versions.len() > 1).collect();
+            s.save();
+        }
+    });
+}
+
+/// ‹ › on a question changed with «Modifica»: the conversation becomes `lines`
+/// (the same up to the question, then the version picked) and the engine goes
+/// on from it as text, in a new conversation of its own (the other version's
+/// session stays as it was).
+pub fn switch(chat: &Chat, lines: Vec<Line>, alts: Vec<Alt>) {
+    let key = chat.engine_key();
+    let id = chat.log_id();
+    let at = alts.iter().map(|a| a.at).min().unwrap_or(lines.len());
+    if let Some(i) = id.clone() {
+        with_store(|s| {
+            if let Some(c) = s.list.iter_mut().find(|c| c.id == i) {
+                c.lines = lines.clone();
+                c.messages.clear();
+                c.marks.retain(|(m, _)| *m <= at);
+                c.session.clear();
+                c.pending = false;
+                let n = c.lines.len();
+                c.alts = alts.into_iter().filter(|a| a.at <= n && a.versions.len() > 1).collect();
+                c.updated = now();
+                s.save();
+            }
+        });
+    }
+    let preamble = (!lines.is_empty()).then(|| preamble(&lines));
+    go_back(chat, &key, id, None, None, preamble);
 }
 
 /// A message that joined the turn in progress (lib.rs `chat_steer`): after the

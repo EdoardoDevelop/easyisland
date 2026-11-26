@@ -413,6 +413,88 @@ export async function runScene(island: Island, scene: string) {
         ];
         State.chatSideOpen = false;
       }
+      // ?modifiche: steps that change files (```modifica, Rust steps::edit_block) and a ```diff in the reply (core/md-diff.ts).
+      // =corso: the turn still going, the last change under the step being written.
+      const modifiche = new URLSearchParams(location.search).get("modifiche");
+      if (modifiche != null) {
+        const change = (file: string, edits: { old: string; new: string }[], write = false) =>
+          "```modifica\n" + JSON.stringify({ file, edits, write, cut: false }) + "\n```";
+        const reply = [
+          "Correggo lo script di backup e il file di configurazione.",
+          "",
+          "> ⚙ Legge · `C:\\Script\\backup.ps1`",
+          "",
+          "> ⚙ Modifica · `C:\\Script\\backup.ps1`",
+          "",
+          change("C:\\Script\\backup.ps1", [{
+            old: "$dest = \"\\\\NAS\\backup\"\n$giorni = 7\nRobocopy $src $dest /MIR /R:1\nWrite-Host \"Fatto\"\n",
+            new: "$dest = \"\\\\NAS-ROSSI\\backup\"\n$giorni = 14\nRobocopy $src $dest /MIR /R:3 /W:10 /LOG:C:\\Log\\backup.log\nWrite-Host \"Backup completato\"\n",
+          }]),
+          "",
+          "```esito\nThe file C:\\Script\\backup.ps1 has been updated successfully.\n```",
+          "",
+          "> ⚙ Modifica · `C:\\Script\\config.json`",
+          "",
+          change("C:\\Script\\config.json", [
+            { old: "  \"notifica\": false,\n", new: "  \"notifica\": true,\n  \"email\": \"it@rossi.it\",\n" },
+            { old: "  \"compressione\": \"nessuna\"\n", new: "  \"compressione\": \"zip\"\n" },
+          ]),
+          "",
+          "> ⚙ Scrive · `C:\\Script\\LEGGIMI.md`",
+          "",
+          change("C:\\Script\\LEGGIMI.md", [{ old: "", new: "# Backup Rossi\n\nOgni notte alle 2:00 verso NAS-ROSSI.\nLog in C:\\Log\\backup.log.\n" }], true),
+          "",
+          "Fatto. In sintesi le righe cambiate nel task pianificato:",
+          "",
+          "```diff",
+          "--- a/task.xml",
+          "+++ b/task.xml",
+          "@@ -3,4 +3,4 @@",
+          "   <Trigger>",
+          "-    <StartBoundary>2026-11-01T01:00:00</StartBoundary>",
+          "+    <StartBoundary>2026-11-01T02:00:00</StartBoundary>",
+          "   </Trigger>",
+          "```",
+        ].join("\n");
+        State.chatHistory = [{ id: 1, role: "user", content: "sistema lo script di backup di Rossi: NAS nuovo, 14 giorni, log e notifica" }];
+        if (modifiche === "permesso") {
+          // =permesso: «Manuale», the card asking to change a file, its lines on it.
+          State.chat.sending = true;
+          State.chat.streamed = "Correggo lo script di backup.\n\n> ⚙ Legge · `C:\\Script\\backup.ps1`";
+          State.pendingApproval = {
+            requestId: "scene", sessionId: "", tool: "Edit", command: "Edit · C:\\Script\\config.json", source: "chat", chatSid: State.chat.sid, deadline: Date.now() + 94_000,
+            change: JSON.stringify({ file: "C:\\Script\\config.json", edits: [{ old: "  \"notifica\": false,\n", new: "  \"notifica\": true,\n  \"email\": \"it@rossi.it\",\n" }], write: false }),
+          };
+        } else if (modifiche === "corso") {
+          State.chat.sending = true;
+          State.chat.streamed = reply.split("\n\n> ⚙ Modifica · `C:\\Script\\config.json`")[0];
+        } else State.chatHistory.push({ id: 2, role: "assistant", engine: "subscription", content: reply });
+        State.chatSideOpen = false;
+      }
+      // ?lunga: a long conversation for the map on the right (chat-map.ts), a question with two
+      // versions (‹ 1/2 ›, «Modifica») and one quoting an answer («Chiedi su questo», chat-quote.ts).
+      if (new URLSearchParams(location.search).has("lunga")) {
+        const filler = (n: number) => Array.from({ length: n }, (_, i) => `- **Passo ${i + 1}:** controlla il servizio e annota l'esito nel registro del cliente.`).join("\n");
+        const msgs: { role: "user" | "assistant"; content: string }[] = [
+          { role: "user", content: "Il backup del NAS di Rossi è fallito stanotte, perché?" },
+          { role: "assistant", content: `Il disco di destinazione era **pieno**.\n\n${filler(6)}\n\n> Attenzione: il job riparte solo dopo aver liberato spazio.` },
+          { role: "user", content: "Quanto spazio usano i backup dei clienti?" },
+          { role: "assistant", content: "| Cliente | Spazio | Stato |\n|---|---|---|\n| Rossi | 1.240 GB | Errore |\n| Bianchi | 380 GB | OK |\n| Verdi | 2.915 GB | OK |\n\n" + filler(5) },
+          { role: "user", content: "> Il disco di destinazione era pieno.\n\nQuale disco esattamente? Il volume 1 o il 2?" },
+          { role: "assistant", content: `Il **volume 2** (\`/volume2/backup\`), al 99 %.\n\n${filler(5)}` },
+          { role: "user", content: "Sistema lo script perché usi il volume 1" },
+          { role: "assistant", content: "> ⚙ Modifica · `C:\\Script\\backup.ps1`\n\n```modifica\n" + JSON.stringify({ file: "C:\\Script\\backup.ps1", edits: [{ old: "$dest = \"\\\\NAS\\volume2\\backup\"\n", new: "$dest = \"\\\\NAS\\volume1\\backup\"\n" }], write: false }) + "\n```\n\nFatto: ora scrive sul volume 1.\n\n" + filler(4) },
+          { role: "user", content: "Fammi lo schema della rete di Rossi" },
+          { role: "assistant", content: "```mermaid\nflowchart TD\n  A[\"Router\"] --> B[\"Switch\"]\n  B --> C[\"NAS\"]\n  B --> D[\"Server\"]\n```\n\n" + filler(4) },
+          { role: "user", content: "Riassumi cosa abbiamo fatto oggi" },
+          { role: "assistant", content: filler(8) + "\n\n> Pericolo: non cancellare i backup vecchi prima della verifica." },
+        ];
+        let n = 0;
+        State.chatHistory = msgs.map((m) => ({ id: ++n, role: m.role, content: m.content, ...(m.role === "assistant" ? { engine: "subscription" } : {}) }));
+        // The third question was changed once: the first version stays as ‹ 1/2 ›.
+        State.chat.alts = [{ at: 2, versions: [[{ role: "user", content: "Quanto occupa il backup di Rossi?" }, { role: "assistant", content: "Circa **1,2 TB**." }], []], shown: 1 }];
+        State.chatSideOpen = false;
+      }
       // ?vuota=<name>: an empty conversation with that drawing (views/chat-empty.ts; «tutti» one at random).
       const vuota = new URLSearchParams(location.search).get("vuota");
       if (vuota) {

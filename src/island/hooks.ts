@@ -18,6 +18,7 @@ import { plainText } from "../core/markdown";
 import { quickApproval } from "../views/strip";
 import { isReversible, toolWords } from "../core/permits";
 import * as Notices from "../notices/notices";
+import { editJson } from "../core/md-diff";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -1232,6 +1233,7 @@ function handle(island: Island, payload: HookPayload) {
       const risks = questions ? [] : risksOf(tool, input);
       // ExitPlanMode: the plan itself is what is being approved.
       const plan = tool === "ExitPlanMode" && typeof input.plan === "string" && input.plan.trim() ? input.plan : null;
+      const change = questions ? null : editJson(tool, input as Record<string, unknown>);
       State.pendingApproval = {
         requestId,
         taskId: tid,
@@ -1244,6 +1246,7 @@ function handle(island: Island, payload: HookPayload) {
         ...(always ? { always } : {}),
         ...(risks.length ? { risks } : {}),
         ...(plan ? { plan, command: t("Piano pronto: Consenti per iniziare a lavorarci") } : {}),
+        ...(change ? { change } : {}),
       };
       const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this

@@ -6,9 +6,10 @@ import { ICONS } from "./icons";
 import { ICON_PLAY_MS, clipIcon, lensIcon, planeIcon, playIcon } from "./anim-icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type AskQuestion, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage, type ChatCommand } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type AskQuestion, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill, type TeamRow, type BgTask, type TurnUsage, type ChatCommand, type ChatAlt } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
+import { editCard } from "../core/md-diff";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
 import { isPopped } from "../island/popout";
@@ -19,6 +20,8 @@ import { docsPanel } from "./chat-docs";
 import { ReplyBlocks } from "./chat-live";
 import { chatFind } from "./chat-find";
 import { FreshText, Glide } from "./chat-flow";
+import { chatMap } from "./chat-map";
+import { quoteButton, quoted } from "./chat-quote";
 import * as Notices from "../notices/notices";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
@@ -274,7 +277,13 @@ const entering = new WeakSet<ChatMessage>();
 
 function bubble(message: ChatMessage, live = false): HTMLElement {
   if (message.role === "user") {
-    const b = h("div", { class: "bubble", text: message.content });
+    // «Chiedi su questo» (chat-quote.ts): the quoted lines on top, apart from the question.
+    const lead = /^(?:>[^\n]*\n)+\n?/.exec(message.content);
+    const b = lead
+      ? h("div", { class: "bubble" },
+        h("div", { class: "bubble-quote", text: lead[0].trim().split("\n").map((l) => l.replace(/^>\s?/, "")).join("\n") }),
+        message.content.slice(lead[0].length))
+      : h("div", { class: "bubble", text: message.content });
     if (message.file) b.prepend(h("div", { class: "bubble-file" }, clipMark(), message.file));
     return h("div", { class: "chat-row user" }, b);
   }
@@ -653,6 +662,8 @@ export function buildPrompt(
   // The reply flowing in: its new words fade in, the log glides to them (chat-flow.ts).
   const flowIn = new FreshText();
   const glide = new Glide(log);
+  // The map of a long conversation, on the right of the messages (chat-map.ts).
+  const convMap = chatMap(log);
   // Ctrl+F: a field over the messages (chat-find.ts).
   const finder = chatFind(log);
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
@@ -668,14 +679,16 @@ export function buildPrompt(
   const askOpts = h("div", { class: "chat-ask-options" });
   // Its plan (ExitPlanMode), to read before «Procedi».
   const askPlan = h("div", { class: "chat-ask-plan" });
-  const askEl = h("div", { class: "chat-ask" }, askTitle, askQ, askOpts, askPlan, askWhat, askRisk, askAlways, askRow);
+  // A change to a file asked about: its lines removed and added (core/md-diff.ts).
+  const askDiff = h("div", { class: "chat-ask-diff" });
+  const askEl = h("div", { class: "chat-ask" }, askTitle, askQ, askOpts, askPlan, askWhat, askDiff, askRisk, askAlways, askRow);
   let askKey = "";
   // Which question of the request is on screen, and the answers so far.
   let qFor = "";
   let qIndex = 0;
   let qAnswers: Record<string, string> = {};
   function showOnly(...shown: HTMLElement[]) {
-    for (const el of [askQ, askOpts, askPlan, askWhat, askRisk, askAlways]) el.style.display = shown.includes(el) ? "" : "none";
+    for (const el of [askQ, askOpts, askPlan, askWhat, askDiff, askRisk, askAlways]) el.style.display = shown.includes(el) ? "" : "none";
   }
   /** One question at a time, as Claude Desktop shows them: a click answers, several with «Avanti». */
   function fillQuestion(req: NonNullable<typeof State.pendingApproval>, all: AskQuestion[]) {
@@ -754,6 +767,9 @@ export function buildPrompt(
       return;
     }
     askWhat.textContent = req.command || req.tool || "…";
+    const change = req.change ? editCard(req.change, MD_HOOKS.openPath) : null;
+    askDiff.replaceChildren(...(change ? [change] : []));
+    askDiff.style.display = change ? "" : "none";
     const risks = req.risks ?? [];
     askRisk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
     askRisk.style.display = risks.length ? "" : "none";
@@ -993,7 +1009,14 @@ export function buildPrompt(
       if (shown) placeRecent();
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, tabsRow, head, finder.el, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
+  const chatBody = h("div", { class: "chat-body" }, empty.el, recent, tabsRow, head, finder.el, log, convMap.el, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer);
+  const layout = h("div", { class: "chat-layout" }, side, chatBody);
+  // «Chiedi su questo»: words selected in an answer, quoted in the field (chat-quote.ts).
+  quoteButton(log, chatBody, (text) => {
+    setInput(quoted(text, input.value));
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
   const el = h(
     "div",
     { class: "view" },
@@ -1114,6 +1137,47 @@ export function buildPrompt(
   }
 
   /** What the conversation was so far, as chat_log.rs keeps it. */
+  /** Lines of the history (chat_log.rs) as messages: a turn's «↪» messages each a question again. */
+  function toMessages(ls: { role: "user" | "assistant"; content: string }[]): ChatMessage[] {
+    return ls.flatMap((l): ChatMessage[] => l.role !== "user"
+      ? [{ id: nextId++, role: l.role, content: l.content }]
+      : l.content.split("\n\n↪ ").map((content, i) => ({ id: nextId++, role: "user" as const, content, steered: i > 0 || undefined })));
+  }
+
+  /**
+   * «Modifica» on the question at line `at`: `tail` (what followed it) kept as
+   * a version, a new one on screen. Versions further down belong to the tail.
+   */
+  function withVersion(alts: ChatAlt[], at: number, tail: ChatAlt["versions"][number]): ChatAlt[] {
+    const out = alts.filter((a) => a.at <= at);
+    const a = out.find((x) => x.at === at);
+    if (a) {
+      a.versions[a.shown] = tail;
+      a.versions.push([]);
+      a.shown = a.versions.length - 1;
+    } else out.push({ at, versions: [tail, []], shown: 1 });
+    return out;
+  }
+
+  /** ‹ › under a question changed with «Modifica»: the conversation becomes version `k`. */
+  async function showVersion(alt: ChatAlt, k: number) {
+    const c = State.chat;
+    if (c.sending || k === alt.shown || k < 0 || k >= alt.versions.length) return;
+    const all = lines(c.history);
+    alt.versions[alt.shown] = all.slice(alt.at);
+    // The versions of questions further down belong to the version left.
+    c.alts = (c.alts ?? []).filter((a) => a.at <= alt.at);
+    alt.shown = k;
+    const next = [...all.slice(0, alt.at), ...alt.versions[k]];
+    c.history = toMessages(next);
+    editing = null;
+    renderedCount = -1;
+    stick = false;
+    Sound.play("blip");
+    State.notify();
+    await Bridge.chatSwitch(c.sid, next, c.alts);
+  }
+
   function lines(list: ChatMessage[]) {
     // A message taken into a turn joins its question («↪», chat_log::steered),
     // and the reply before it joins the rest of the answer.
@@ -1283,11 +1347,16 @@ export function buildPrompt(
     // «Modifica»: the conversation goes back to just before that question.
     if (editing != null && c === State.chat) {
       const keep = c.history.slice(0, editing);
+      // What followed stays as a version of this question: ‹ › under it goes back to it.
+      const at = lines(keep).length;
+      const tail = lines(c.history).slice(at);
+      if (tail.length) c.alts = withVersion(c.alts ?? [], at, tail);
       editing = null;
       flash("");
       c.history = keep;
       renderedCount = -1;
       await Bridge.chatRewind(c.sid, lines(keep));
+      if (c.alts?.length) void Bridge.chatAlts(c.sid, c.alts);
     }
     Sound.play("send");
 
@@ -1374,6 +1443,7 @@ export function buildPrompt(
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
       doneNotice(c, began, true);
+      if (c.alts?.length) void Bridge.chatAlts(c.sid, c.alts);
     } catch (err) {
       takeReplyHook()?.(null);
       if (c.stopping) {
@@ -1624,6 +1694,7 @@ export function buildPrompt(
     const keep = c.history.slice(0, index + 1);
     c.history = keep;
     c.logId = null;
+    c.alts = [];
     renderedCount = -1;
     await Bridge.chatFork(c.sid, lines(keep));
     flash(`⑂ ${t("Nuova conversazione da qui: quella di prima resta nella cronologia")}`);
@@ -1828,7 +1899,7 @@ export function buildPrompt(
     if (State.chat.sending) return;
     editing = index;
     setInput(State.chatHistory[index]?.content ?? "");
-    flash(`✎ ${t("Stai modificando la domanda: invia per ripartire da lì · Esc annulla")}`, true);
+    flash(`✎ ${t("Stai modificando la domanda: invia per ripartire da lì, la risposta di prima resta (‹ › sotto la domanda) · Esc annulla")}`, true);
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
@@ -1880,6 +1951,22 @@ export function buildPrompt(
 
   /** Copia under every message, Rigenera under the last answer, Modifica under a question. */
   function withActions(row: HTMLElement, m: ChatMessage, index: number, last: boolean): HTMLElement {
+    // A question changed with «Modifica»: its versions, ‹ 2/3 › beside it.
+    const alts = State.chat.alts;
+    if (alts?.length && m.role === "user" && !m.steered) {
+      const at = lines(State.chatHistory.slice(0, index)).length;
+      const alt = alts.find((a) => a.at === at && a.versions.length > 1);
+      if (alt) {
+        const busy = State.chat.sending;
+        const go = (k: number) => h("button", {
+          class: "msg-alt-btn", text: k < alt.shown ? "‹" : "›",
+          title: k < alt.shown ? t("Versione precedente di questa domanda") : t("Versione successiva di questa domanda"),
+          disabled: busy || k < 0 || k >= alt.versions.length, onclick: () => void showVersion(alt, k),
+        });
+        row.append(h("div", { class: "msg-alts", title: t("Questa domanda è stata modificata: ogni versione con le sue risposte") },
+          go(alt.shown - 1), h("span", { text: `${alt.shown + 1}/${alt.versions.length}` }), go(alt.shown + 1)));
+      }
+    }
     const bar = h("div", { class: `msg-actions${last ? " last" : ""}` });
     const copy = h("button", { class: "msg-act", text: t("Copia") }) as HTMLButtonElement;
     copy.addEventListener("click", () => void copyText(m.content, copy));
@@ -3207,10 +3294,8 @@ export function buildPrompt(
     const c = reuse ? State.chat : openNew();
     try {
       const got = await Bridge.chatHistoryOpen(c.sid, id);
-      c.history = got.lines.flatMap((l): ChatMessage[] => l.role !== "user"
-        ? [{ id: nextId++, role: l.role, content: l.content }]
-        // The messages taken into that turn, each a question of its own again.
-        : l.content.split("\n\n↪ ").map((content, i) => ({ id: nextId++, role: "user" as const, content, steered: i > 0 || undefined })));
+      c.history = toMessages(got.lines);
+      c.alts = got.alts ?? [];
       c.logId = id;
       // What was being written in it, even before a restart.
       if (!c.draft.trim()) c.draft = draftsAll()[id] ?? "";
@@ -4086,6 +4171,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         }
         if (thinking) log.append(h("div", { class: "chat-row" }, typeLine.el), teamEl);
         toBottom();
+        convMap.refresh();
       }
       // The growing reply: only its bubble is redrawn.
       const split = splitStatus(streamed);
@@ -4097,6 +4183,7 @@ ${t("Ogni passo rilegge tutto il contesto: clic per compattare la conversazione.
         streamEl.replaceChildren(...(body ? [bubble({ id: 0, role: "assistant", content: body }, true).firstChild!] : []));
         flowIn.drawn(streamEl);
         toBottom();
+        convMap.refresh();
       }
       if (!thinking) flowIn.reset();
       // What it is doing now types itself under the reply.

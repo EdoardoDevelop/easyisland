@@ -1473,7 +1473,7 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
             in_result = s != "```";
             continue;
         }
-        if s == "```esito" || s == "```errore" {
+        if s == "```esito" || s == "```errore" || s == "```modifica" {
             in_result = true;
             step = true;
             continue;

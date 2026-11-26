@@ -35,7 +35,8 @@ export function settledEnd(text: string): number {
       if (line.trim().startsWith(fence)) fence = "";
     } else if (FENCE_OPEN.test(line)) {
       fence = line.trim().slice(0, 3);
-      step = false;
+      // A step's change (```modifica) is part of it, as its «esito» after.
+      step = step && FENCE_OPEN.exec(line)?.[2] === "modifica";
     } else if (!line.trim()) {
       if (at > 0 && next <= text.length && !step) end = next;
       fresh = true;

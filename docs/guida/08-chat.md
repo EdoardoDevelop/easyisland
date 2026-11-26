@@ -56,6 +56,14 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 
 Quando una risposta lunga (oltre mezzo minuto) finisce mentre guardi altro, compare un **avviso** con **Apri**, che ti porta a quella conversazione. Il testo che stavi scrivendo in una conversazione resta suo: lo ritrovi riaprendola, anche dopo aver riavviato EasyIsland.
 
+### Versioni, citazioni e mappa
+- **Modifica** sotto una tua domanda la riscrive e la conversazione riparte da lì, ma **la risposta di prima resta**: sotto la domanda compare **‹ 2/2 ›** e con le frecce passi da una versione all'altra. Le versioni restano anche riaprendo la conversazione dalla cronologia.
+- **Chiedi su questo**: seleziona un pezzo di una risposta e clicca il pulsante che compare sopra. Il pezzo va nel campo come citazione e chiedi solo di quello («spiegami questo comando», «e se il NAS è un altro?»).
+- Nelle conversazioni lunghe, a destra dei messaggi c'è una **mappa**: un segno per ogni domanda e per diagrammi, tabelle, modifiche ai file e avvisi. Passandoci sopra vedi cos'è, con un clic ci vai.
+
+### Modifiche ai file
+In **Modalità terminale**, quando il motore cambia un file, sotto il passo vedi **cosa cambia**: le righe tolte in rosso, quelle aggiunte in verde, le parole cambiate evidenziate e in alto «+N −M». **Affiancate** mette il prima a sinistra e il dopo a destra (la scelta resta), **Copia** copia le modifiche, un clic sul nome apre il file; le righe uguali sono piegate in «⋯ N righe uguali». Con **Manuale** la stessa vista è nella richiesta di **Consenti / Nega**, così decidi sapendo cosa cambierà. Anche i confronti che il motore scrive nella risposta si vedono così.
+
 ### Come appaiono le risposte
 La risposta **entra fluida**: le parole nuove compaiono con una leggera dissolvenza e la conversazione scorre morbida verso il fondo. Mentre il motore lavora, la riga sotto mostra il passo in corso con la sua **icona** (file letto, ricerca, comando, pagina…) in un anello che gira; i passi finiti hanno una **spunta** verde, quelli andati male un segno rosso.
 
