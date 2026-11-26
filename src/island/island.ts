@@ -1036,6 +1036,19 @@ export class Island {
     if (ok && State.view === "overview" && State.focusId === key && !State.showsSummary) this.collapse();
   }
 
+  /**
+   * A shortcut of the Start menu (start-menu.ts): that integration, or the
+   * chat, in a window of its own. At a first start the integrations arrive a
+   * moment after the island: it waits for them up to 20 s.
+   */
+  popOutWhenReady(key: string, tries = 0) {
+    if (key === "chat" || State.tasks.some((x) => x.id === key)) {
+      this.popOut(key);
+      return;
+    }
+    if (tries < 40) window.setTimeout(() => this.popOutWhenReady(key, tries + 1), 500);
+  }
+
   /** «Rimetti nell'isola»: the window closes and the island opens on what it showed. */
   dockBack(key: string) {
     closePopped(key);
@@ -2182,6 +2195,9 @@ ${note}` : text };
     } else if (name.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === name.slice(7));
       if (a) await this.runAction(a);
+      return;
+    } else if (name.startsWith("integrazione:")) {
+      this.popOutWhenReady(name.slice("integrazione:".length));
       return;
     }
     // Opened from the keyboard: the island takes the keys until it closes

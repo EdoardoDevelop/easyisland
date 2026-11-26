@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Chat vuota: 17 disegni nuovi, aurora rifatta, «Tutti»
+- `chat-empty-more.ts`: aurora tenue solo in alto e altri 17 disegni; «Tutti» ne sceglie uno diverso per ogni conversazione nuova (`docs/architettura.md` → Aspetto della chat). Fotografati in Edge senza finestra (`?scene=chat&vuota=<nome>`).
+
 ### 26/11 — Chat: risposta fluida, riquadri, tabelle, passi con icona
 - Parole nuove in dissolvenza e scorrimento morbido (`chat-flow.ts`), avvisi in cinque tipi con icona e titolo, tabelle con numeri a destra, barre, stati colorati e intestazione ferma (`md-rich.ts`), passo in corso con icona e spunte sui passi finiti (`docs/chat.md`). Scena `?scene=chat&vivace`; provati in Edge senza finestra, smoke ok; da vedere nell'app con risposte vere.
 

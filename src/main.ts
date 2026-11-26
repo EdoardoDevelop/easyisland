@@ -25,6 +25,7 @@ import { refreshDone } from "./views/done";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
 import { barClockDelay, barPieces, barSysKinds, recordBarSys } from "./island/bar";
+import { watchStartMenu } from "./island/start-menu";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -257,6 +258,10 @@ async function main() {
   linkCharacterWindow(island);
   island.launch();
   if (boot?.openSearch) void island.onHotkey("search");
+  // Started from a Start menu shortcut (startmenu.rs) or the taskbar's menu.
+  if (boot?.launch) void island.onHotkey(boot.launch);
+  // The Start menu's folder follows the integrations that are on.
+  State.subscribe(() => watchStartMenu());
   // Monday from 8:00: last week's recap, once the greeting is over.
   window.setTimeout(() => void Recap.check(island), 12_000);
   // The morning and end-of-day recap: after the weekly one, then at its hours.

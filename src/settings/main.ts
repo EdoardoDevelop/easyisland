@@ -3108,6 +3108,14 @@ function integrationsSections(present: Record<string, boolean>): HTMLElement[] {
   drawGroups();
   const serviziPanel = [
     h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") })), note, catsBox, filterRow, list),
+    // startmenu.rs: a shortcut per integration that is on, each opening in its own window.
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Menu Start di Windows") })),
+      h("div", { class: "row" },
+        h("label", { text: t("Cartella EasyIsland nello Start") }),
+        toggle(settings.startMenu !== false, (v) => { settings.startMenu = v; void save(); }),
+        h("span", { class: "hint note", text: t("la chat e ogni integrazione accesa, ognuna in una finestra sua, separata dall'isola") })),
+    ),
     h("section", {},
       h("h2", {}, h("span", { text: t("Menu e gruppi dell'isola") })),
       orderRow,

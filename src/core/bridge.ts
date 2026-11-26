@@ -166,6 +166,8 @@ export interface BootInfo {
   version: string;
   hookPath: string;
   openSearch?: boolean;
+  /** `--do <what>` of the first start (a Start menu shortcut): handled like a second start's. */
+  launch?: string | null;
 }
 
 /** A newer EasyIsland on GitHub. */
@@ -794,6 +796,8 @@ export const Bridge = {
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   /** Ctrl+V in the chat: every file and folder copied in Explorer, or a picture. */
   chatPaste: () => callOrThrow<ChatAttachment[]>("chat_paste"),
+  /** The Start menu's «EasyIsland» folder (startmenu.rs): the integrations with their icons (base64 PNG). */
+  startMenuSync: (items: { id: string; name: string; png: string }[]) => call<number>("start_menu_sync", { items }),
   /** A picture marked in the chat (chat-mark.ts): a new PNG in the Vassoio. */
   chatImageSave: async (name: string, png: Uint8Array): Promise<ChatAttachment> => {
     if (!IS_TAURI) throw new Error("not running inside EasyIsland");

@@ -109,6 +109,7 @@ mod pipe;
 mod presence;
 mod probes;
 mod wifi;
+mod startmenu;
 mod screenshot;
 mod session_reply;
 mod secrets;
@@ -198,6 +199,9 @@ pub struct Shared {
 }
 
 static OPEN_SEARCH_ON_BOOT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// `--do <what>` of the very first start (a Start menu shortcut with EasyIsland
+/// not running): handed to the island once it is up (BootInfo.launch).
+static LAUNCH_DO: Mutex<Option<String>> = Mutex::new(None);
 
 fn is_search_arg(argv: &[String]) -> bool {
     argv.iter().any(|a| {
@@ -217,6 +221,7 @@ pub struct BootInfo {
     version: String,
     hook_path: String,
     open_search: bool,
+    launch: Option<String>,
 }
 
 #[tauri::command]
@@ -235,6 +240,7 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
         open_search: OPEN_SEARCH_ON_BOOT.swap(false, Ordering::Relaxed),
+        launch: LAUNCH_DO.lock().unwrap().take(),
     }
 }
 
@@ -3266,6 +3272,21 @@ async fn chat_image_save(request: tauri::ipc::Request<'_>) -> Result<files::Chat
     Ok(files::ChatAttachment { name: f.name, path: f.path, folder: false })
 }
 
+/// The «EasyIsland» folder of the Start menu (startmenu.rs): the integrations
+/// that are on, with the icons the island drew. Off in the settings: only what
+/// was made here goes. Returns how many integrations are there.
+#[tauri::command]
+async fn start_menu_sync(shared: State<'_, Shared>, items: Vec<startmenu::Item>) -> Result<usize, String> {
+    let on = shared.settings.lock().unwrap().start_menu;
+    let asked = items.len();
+    let done = tauri::async_runtime::spawn_blocking(move || startmenu::sync(&items, on)).await.map_err(|e| e.to_string())?;
+    log::line(match &done {
+        Ok(n) => format!("menu Start: {n} integrazioni (chieste {asked}, acceso {on})"),
+        Err(e) => format!("menu Start non aggiornato: {e}"),
+    });
+    done
+}
+
 /// Files and folders dropped on the chat: files into the Vassoio, folders as they are.
 #[tauri::command]
 async fn chat_attach(paths: Vec<String>) -> Result<Vec<files::ChatAttachment>, String> {
@@ -5475,6 +5496,8 @@ pub fn run() {
     let launch_args: Vec<String> = std::env::args().skip(1).collect();
     if is_search_arg(&launch_args) || jumplist::requested(&launch_args).as_deref() == Some("search") {
         OPEN_SEARCH_ON_BOOT.store(true, Ordering::Relaxed);
+    } else if let Some(what) = jumplist::requested(&launch_args).filter(|w| w != "open") {
+        *LAUNCH_DO.lock().unwrap() = Some(what);
     }
 
     tauri::Builder::default()
@@ -5689,6 +5712,7 @@ pub fn run() {
             chat_paste,
             chat_image_save,
             chat_recap,
+            start_menu_sync,
             chat_attach,
             chat_pick,
             custom_accept_extensions,

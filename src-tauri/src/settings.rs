@@ -1024,6 +1024,9 @@ pub struct Settings {
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
+    /// The «EasyIsland» folder in the Start menu with the integrations (startmenu.rs).
+    #[serde(default = "default_true")]
+    pub start_menu: bool,
     /// Options of the integrations that run as checks (PROBE_INTEGRATIONS).
     #[serde(default)]
     pub integration_config: IntegrationConfig,
@@ -1332,6 +1335,7 @@ impl Default for Settings {
             suggestions_snoozed: Map::new(),
             habits_excluded: Vec::new(),
             update_check: true,
+            start_menu: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),
         }

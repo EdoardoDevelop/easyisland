@@ -1029,6 +1029,8 @@ export interface Settings {
   habitsExcluded: string[];
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
+  /** The «EasyIsland» folder of the Start menu with the integrations (startmenu.rs). */
+  startMenu?: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
   integrationConfig: IntegrationConfig;
 }
@@ -1612,6 +1614,7 @@ export const DEFAULT_SETTINGS: Settings = {
   suggestionsSnoozed: {},
   habitsExcluded: [],
   updateCheck: true,
+  startMenu: true,
   integrationConfig: {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",

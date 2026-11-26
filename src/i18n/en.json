@@ -6762,5 +6762,11 @@
   "passo saltato": "step skipped",
   "Sulla rete {net} apro {list}?": "On the {net} network, open {list}?",
   "Quando ti colleghi a {net} apri quasi sempre {list}.": "When you join {net} you almost always open {list}.",
-  "Programmi su {net}": "Programs on {net}"
+  "Programmi su {net}": "Programs on {net}",
+  "Chat di EasyIsland": "EasyIsland chat",
+  "Menu Start di Windows": "Windows Start menu",
+  "Cartella EasyIsland nello Start": "EasyIsland folder in Start",
+  "la chat e ogni integrazione accesa, ognuna in una finestra sua, separata dall'isola": "the chat and every integration that is on, each in a window of its own, apart from the island",
+  "Impostazioni di EasyIsland": "EasyIsland settings",
+  "{name} in una finestra di EasyIsland": "{name} in an EasyIsland window"
 }

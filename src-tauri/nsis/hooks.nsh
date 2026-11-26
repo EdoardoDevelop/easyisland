@@ -16,4 +16,8 @@
   RMDir /r "$LOCALAPPDATA\EasyIsland\bin"
   RMDir /r "$LOCALAPPDATA\EasyIsland\inbox"
   Delete "$LOCALAPPDATA\EasyIsland\easyisland.log"
+  ; The Start menu folder with the integrations (startmenu.rs) and their icons.
+  RMDir /r "$SMPROGRAMS\EasyIsland"
+  RMDir /r "$LOCALAPPDATA\EasyIsland\start"
+  Delete "$LOCALAPPDATA\EasyIsland\start-menu.json"
 !macroend
