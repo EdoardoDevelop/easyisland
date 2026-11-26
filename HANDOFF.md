@@ -73,7 +73,8 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 26/11 — Chat: procedure da spuntare, comandi con i campi
+### 26/11 — Chat: procedure da spuntare, comandi con i campi, Ctrl+F
+- Ctrl+F nella conversazione (`chat-find.ts`), avviso quando una risposta lunga finisce fuori vista, bozze per conversazione anche dopo il riavvio (`docs/chat.md`). Ctrl+F provato nell'anteprima; avviso e bozze da provare nell'app.
 - `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Mini-app nelle risposte tra le idee importanti (`docs/idee.md`); corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
 
 ### 25/11 — Chat: testo e bordo del campo, footer, diagrammi

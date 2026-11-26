@@ -51,6 +51,11 @@ The files and folders the chat names in its replies become **links**: full paths
 - **Click**: a file the Preview can show (text, code, Markdown, PDF, images, HTML…) opens **in the Preview** beside the chat; the others, and with <kbd>Ctrl</kbd>+click, in their program. A **folder** 📁 opens in File Explorer.
 - **Right-click**: **Open** (in its program), **Preview**, **Download** (a copy in the Downloads folder, which opens with the file selected), **Open location** (File Explorer with the file selected), **Copy path**.
 
+### Searching the conversation
+<kbd>Ctrl</kbd>+<kbd>F</kbd> in the chat field opens the search above the messages: the words found are coloured, <kbd>Enter</kbd> and <kbd>Shift</kbd>+<kbd>Enter</kbd> move to the next and previous one, <kbd>Esc</kbd> closes. Case and accents do not matter; if you selected a word in the chat, it looks for that.
+
+When a long answer (over half a minute) ends while you are looking at something else, a **notice** with **Open** takes you to that conversation. What you were writing in a conversation stays with it: you find it again when you reopen it, even after restarting EasyIsland.
+
 ### Procedures and commands to complete
 When the reply is a procedure, its steps have a **box**: tick them as you go and see “3 of 7 done”; the ticks stay when you reopen the conversation (on this PC). **?** beside a step writes a question about it in the field; **Save to memory** prepares the request to save it in a client's or topic's page. Either way you complete and send it.
 

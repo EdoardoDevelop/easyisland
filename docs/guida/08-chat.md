@@ -51,6 +51,11 @@ I file e le cartelle che la chat nomina nelle risposte diventano **link**: perco
 - **Clic**: un file che l'Anteprima sa mostrare (testo, codice, Markdown, PDF, immagini, HTML…) si apre **nell'Anteprima** accanto alla chat; gli altri, e con <kbd>Ctrl</kbd>+clic, nel loro programma. Una **cartella** 📁 si apre in Esplora file.
 - **Clic destro**: **Apri** (nel suo programma), **Anteprima**, **Scarica** (una copia nella cartella Download, che si apre con il file selezionato), **Apri percorso** (Esplora file con il file selezionato), **Copia percorso**.
 
+### Cercare nella conversazione
+<kbd>Ctrl</kbd>+<kbd>F</kbd> nel campo della chat apre la ricerca sopra i messaggi: le parole trovate si colorano, <kbd>Invio</kbd> e <kbd>Maiusc</kbd>+<kbd>Invio</kbd> passano alla successiva e alla precedente, <kbd>Esc</kbd> chiude. Non conta maiuscole e accenti; se hai selezionato una parola nella chat, cerca quella.
+
+Quando una risposta lunga (oltre mezzo minuto) finisce mentre guardi altro, compare un **avviso** con **Apri**, che ti porta a quella conversazione. Il testo che stavi scrivendo in una conversazione resta suo: lo ritrovi riaprendola, anche dopo aver riavviato EasyIsland.
+
 ### Procedure e comandi da completare
 Quando la risposta è una procedura, i passi hanno una **casella**: spunti man mano e vedi «3 di 7 fatti»; le spunte restano anche riaprendo la conversazione (su questo PC). **?** accanto a un passo scrive nel campo una domanda su quel passo; **Salva in memoria** prepara la richiesta di salvarla nella pagina di un cliente o di un argomento. In entrambi i casi completi e invii tu.
 

@@ -6690,5 +6690,11 @@
   "Sul passo «{s}»: {{domanda}}": "About the step “{s}”: {{question}}",
   "Salva in memoria": "Save to memory",
   "Prepara nel campo la richiesta di salvare questa procedura nella memoria": "Writes in the field a request to save this procedure to the memory",
-  "Salva nella memoria questa procedura, nella pagina di {{cliente o argomento}}:\n{steps}": "Save this procedure to the memory, in the page of {{client or topic}}:\n{steps}"
+  "Salva nella memoria questa procedura, nella pagina di {{cliente o argomento}}:\n{steps}": "Save this procedure to the memory, in the page of {{client or topic}}:\n{steps}",
+  "Cerca nella conversazione": "Search the conversation",
+  "Precedente (Maiusc+Invio)": "Previous (Shift+Enter)",
+  "Successivo (Invio)": "Next (Enter)",
+  "nessuno": "none",
+  "Risposta pronta": "Answer ready",
+  "La risposta si è fermata con un errore": "The answer stopped with an error"
 }

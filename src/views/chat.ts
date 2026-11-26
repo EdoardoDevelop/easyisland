@@ -17,6 +17,8 @@ import { ChatEmpty, emptyArt } from "./chat-empty";
 import { ChatTerm } from "./chat-terminal";
 import { docsPanel } from "./chat-docs";
 import { ReplyBlocks } from "./chat-live";
+import { chatFind } from "./chat-find";
+import * as Notices from "../notices/notices";
 import { withFuzzy } from "../core/fuzzy";
 import { contextTips, helpGroups, memoryTips, pageKind, tipsKey, tipsText, type Tip } from "./chat-tips";
 import { locale, t, tn } from "../core/i18n";
@@ -204,6 +206,33 @@ function saveQueues(all: string[]) {
     else localStorage.removeItem(QUEUE_KEY);
   } catch {
     /* storage off: the queue just does not survive */
+  }
+}
+/** The drafts of the conversations in the history, by id: back when one is reopened, after a restart too. */
+const DRAFTS_KEY = "easyisland.chatDrafts";
+/** An answer longer than this, ended out of sight, says so (doneNotice). */
+const LONG_TURN = 30_000;
+const DRAFTS_KEPT = 60;
+function draftsAll(): Record<string, string> {
+  try {
+    const all: unknown = JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}");
+    return all && typeof all === "object" ? (all as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+/** What is written in `c`'s field, kept under its id in the history (none yet: only the field's own draft). */
+function keepDraft(c: ChatSessionState, text: string) {
+  if (!c.logId) return;
+  try {
+    const all = draftsAll();
+    delete all[c.logId];
+    if (text.trim()) all[c.logId] = text;
+    const keys = Object.keys(all);
+    for (const old of keys.slice(0, Math.max(0, keys.length - DRAFTS_KEPT))) delete all[old];
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+  } catch {
+    /* storage off: the draft lasts as long as the conversation stays open */
   }
 }
 function saveDraft(text: string) {
@@ -451,6 +480,8 @@ function slug(name: string): string {
 export function buildPrompt(
   onHeightChange: () => void,
   actions: {
+    /** The island on a view (opens it if shut). */
+    setView(v: "prompt"): void;
     runAction(a: QuickAction): void;
     decide(d: "allow" | "deny" | "always"): void;
     answerQuestions(answers: Record<string, string>): void;
@@ -615,6 +646,8 @@ export function buildPrompt(
   docs.el.addEventListener("dock-left", () => placeDocs());
   const head = h("div", { class: "chat-head" }, sideBtn, titleEl, headCrumb, chipRow, previewBtn, termBtn, docsBtn, moreBtn, moreMenu);
   const log = h("div", { class: "chat-log" });
+  // Ctrl+F: a field over the messages (chat-find.ts).
+  const finder = chatFind(log);
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
   // from the chat (asked by Edoardo on 27 Oct 2026).
@@ -953,7 +986,7 @@ export function buildPrompt(
       if (shown) placeRecent();
     }).finally(() => { recentBusy = false; });
   }
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, tabsRow, head, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, empty.el, recent, tabsRow, head, finder.el, log, jumpBtn, calcRow, tipsRow, hintRow, otherAsk, bgRow, queueRow, termRow, slashMenu, helpPanel, composer));
   const el = h(
     "div",
     { class: "view" },
@@ -1101,6 +1134,7 @@ export function buildPrompt(
     input.value = text;
     fit();
     saveDraft(text);
+    keepDraft(State.chat, text);
     updateCalc();
     updateSlash();
   }
@@ -1236,6 +1270,7 @@ export function buildPrompt(
     c.sending = true;
     c.stopping = false;
     c.at = Date.now();
+    const began = Date.now();
     if (c === State.chat) stick = true;
     if (overlay && c === State.chat) showSide(false);
     // «Modifica»: the conversation goes back to just before that question.
@@ -1329,6 +1364,7 @@ export function buildPrompt(
       c.history.push({ id: nextId++, role: "assistant", content: afterCut(reply.text, c.streamCut), engine: session ? undefined : sent, usage, direct: direct || undefined, command, meaning: meaning?.length ? meaning : undefined, memory: memory?.length ? memory : undefined });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
+      doneNotice(c, began, true);
     } catch (err) {
       takeReplyHook()?.(null);
       if (c.stopping) {
@@ -1346,6 +1382,7 @@ export function buildPrompt(
         c.history.push({ id: nextId++, role: "assistant", content: `⚠ ${message}` });
       }
       Sound.play("error");
+      doneNotice(c, began, false);
     } finally {
       c.sending = false;
       c.stopping = false;
@@ -2007,11 +2044,38 @@ export function buildPrompt(
     input.focus();
   }
 
+  /**
+   * A long answer (over LONG_TURN) ended where it is not seen (another tab,
+   * the island shut, the PC on something else): a notice that opens it.
+   */
+  function doneNotice(c: ChatSessionState, began: number, ok: boolean) {
+    if (Date.now() - began < LONG_TURN) return;
+    const seen = c === State.chat && (isPopped("chat") || (State.mode === "expanded" && State.view === "prompt" && document.hasFocus()));
+    if (seen) return;
+    const first = c.history.find((m) => m.role === "user")?.content ?? "";
+    const go = () => {
+      if (!State.chats.includes(c)) return;
+      actions.setView("prompt");
+      window.setTimeout(() => switchTo(c.sid), 60);
+    };
+    Notices.push({
+      key: `chat:${c.sid}`,
+      icon: ok ? "💬" : "⚠️",
+      title: ok ? t("Risposta pronta") : t("La risposta si è fermata con un errore"),
+      text: first ? shortTitle(first) : undefined,
+      level: ok ? "ok" : "warn",
+      actions: [{ label: t("Apri"), run: go }],
+      open: go,
+    });
+  }
+
   /** What stays of the conversation leaving the screen: the field's text. An empty one goes. */
   function leave() {
     const c = State.chat;
     c.draft = input.value;
-    if (!c.history.length && !c.sending && !c.text && !c.window && !c.attach.length && !c.session && !c.assistant && State.chats.length > 1) {
+    keepDraft(c, c.draft);
+    // A new conversation with only something written in the field stays open with it.
+    if (!c.draft.trim() && !c.history.length && !c.sending && !c.text && !c.window && !c.attach.length && !c.session && !c.assistant && State.chats.length > 1) {
       State.chats = State.chats.filter((x) => x !== c);
       void Bridge.chatClose(c.sid);
     }
@@ -3139,6 +3203,8 @@ export function buildPrompt(
         // The messages taken into that turn, each a question of its own again.
         : l.content.split("\n\n↪ ").map((content, i) => ({ id: nextId++, role: "user" as const, content, steered: i > 0 || undefined })));
       c.logId = id;
+      // What was being written in it, even before a restart.
+      if (!c.draft.trim()) c.draft = draftsAll()[id] ?? "";
       // Claude Code's session resumed: its context at once, read from the session's file.
       c.context = got.context ?? null;
       c.text = null;
@@ -3171,6 +3237,7 @@ export function buildPrompt(
         renderedCount = -1;
         stick = true;
         chipRow.dataset.label = "";
+        if (c.draft && !input.value.trim()) setInput(c.draft);
       }
       Sound.play("blip");
       State.notify();
@@ -3677,6 +3744,7 @@ export function buildPrompt(
     updateCalc();
     fit();
     saveDraft(input.value);
+    keepDraft(State.chat, input.value);
     slashSel = 0;
     updateSlash();
     refreshTips(true);
@@ -3692,6 +3760,11 @@ export function buildPrompt(
   input.addEventListener("keydown", (e) => {
     const k = e as KeyboardEvent;
     e.stopPropagation(); // Escape closes the island, not the chat
+    if (k.ctrlKey && !k.altKey && k.key.toLowerCase() === "f") {
+      e.preventDefault();
+      finder.open();
+      return;
+    }
     if (k.ctrlKey && !k.altKey && k.key.toLowerCase() === "b") {
       e.preventDefault();
       showSide(!(narrow ? overlay : sideOpen));
