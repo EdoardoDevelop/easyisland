@@ -234,13 +234,18 @@ Decisioni di Edoardo in `decisioni.md` → Memoria condivisa.
   - gli altri PC leggono la master.
 - **Formato (concordato tra i due Claude, 27/11):**
   - Unità = voce condivisa (una pagina o una riga di `MEMORIA.md`). La scrive solo il PC che l'ha condivisa, quindi niente conflitti.
-  - Oggetti nel secchio: `pc/<pc>/voci/<id>` cifrati (AES-256-GCM con CNG di Windows, nessuna dipendenza nuova) e `pc/<pc>/indice`. Gli altri PC fanno un `GET` condizionato (ETag) solo sugli indici. La cronologia la tiene il versioning di MinIO.
+  - **Un secchio per PC** (`mem-<pc>`): Garage dà i permessi per chiave e secchio, non per prefisso. La chiave del PC scrive solo nel suo, le altre leggono: «solo lettura» lo impone il server.
+  - Dentro: `voci/<id>/<versione>` cifrati (AES-256-GCM con CNG di Windows, nessuna dipendenza nuova), `indice`, e `note/<pc-autore>/<id-nota>` per le note lasciate agli altri (ognuno nel proprio secchio). Gli altri PC fanno un `GET` condizionato (ETag) solo sugli indici.
+  - Garage non tiene le versioni: le ultime 5 di ogni voce le teniamo noi. Ordine di scrittura: versione nuova, poi indice, poi cancellazione oltre la quinta; chi riceve 404 rilegge l'indice. Niente scritture condizionate (un autore per secchio).
+  - Firma SigV4 con la regione `s3_region` di Garage, indirizzi in stile percorso (`https://host/secchio/oggetto`).
+  - Copia altrove: unica protezione oltre le 5 versioni, quindi istantanee **tirate** dall'altra parte (la VPS non può cancellarle), scadenza 30 giorni.
+  - Garage non ha una console web ufficiale: secchi e chiavi si creano una volta con il comando `garage`.
 - **Scelte di Edoardo (27/11):**
   - pagina condivisa **collegata**: si aggiorna da sola finché non si toglie la condivisione;
   - gli altri PC **solo leggono** e possono lasciare una nota all'autore, che la unisce con un clic;
   - condivisione **solo a mano**, voce per voce, con l'anteprima (righe `secret_like` tolte); nessuna regola automatica per cartella.
 - **Lettura:** copia in sola lettura per PC di origine (`memoria-master/<pc>/`), separata dalla memoria propria. È lo schema di `memshare`. `memory_search` cerca prima nella propria memoria, poi nella copia, che entra anche nell'indice per significato.
-- **«Smetti di condividere»:** la voce esce dall'indice e l'oggetto si cancella. Il versioning tiene la copia vecchia finché scade, e va detto nell'interfaccia.
+- **«Smetti di condividere»:** la voce esce dall'indice; si cancellano tutte le versioni e le note. L'interfaccia dice «resta nella copia di sicurezza fino a <data>».
 - **Migrazione:**
   - le pagine di `memshare` diventano voci, dopo anteprima e conferma;
   - le note in attesa (`waiting_file`) si consegnano prima di togliere Agent Chat;
