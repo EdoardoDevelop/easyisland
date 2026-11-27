@@ -2401,5 +2401,9 @@ export interface Custom {
   titleField: string;
   sources?: CustomSource[];
   secrets?: string[];
+  /** Its own page, HTML with scripts, in place of the form (views/custom-page.ts). */
+  page?: string;
+  /** More hosts its page may call. */
+  hosts?: string[];
 }
 export interface CustomRecord { id: string; created: string; updated: string; values: Record<string, unknown> }

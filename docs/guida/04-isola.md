@@ -31,10 +31,8 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 
 ## Il menu a sinistra
 Nell'isola aperta, sotto il personaggio:
-- **Panoramica**: tutte le integrazioni e gli agenti a riquadri, ognuno con il suo stato. Un clic apre la scheda, trascinandoli li riordini.
-- **Agenti**: le sessioni degli agenti di programmazione e i compiti (vedi [Agenti di codice](07-agenti.md) e [Compiti](14-compiti.md)), con il numero di quelli al lavoro.
+- **Panoramica**: tutte le integrazioni e gli agenti a riquadri, ognuno con il suo stato. Un clic apre la scheda, trascinandoli li riordini. Ci sono anche le sessioni degli [agenti di codice](07-agenti.md) e i [compiti](14-compiti.md); accanto a «Panoramica» il numero di agenti al lavoro. Sotto ci sono le tue [azioni rapide](15-azioni.md).
 - **Chat**: la [chat](08-chat.md) con il motore AI.
-- **Azioni**: le tue [azioni rapide](15-azioni.md) e i suggerimenti per l'app in uso.
 - **File e schermo**: rilascio file, Vassoio, cartella di lavoro, Riquadra e chiedi, Registra (vedi [File e schermo](17-file-e-schermo.md)).
 - **Le tue integrazioni**, ognuna con il suo logo o un'emoji e un pallino quando ha novità; anche le [integrazioni personali](24-integrazioni-personali.md).
 

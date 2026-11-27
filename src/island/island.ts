@@ -2635,7 +2635,6 @@ ${note}` : text };
     const rail = el?.closest<HTMLElement>("[data-rail]")?.dataset.rail ?? "";
     let id = el?.closest<HTMLElement>("[data-id]")?.dataset.id ?? "";
     if (!id && !items.length && el?.closest(".view") && State.view === "overview" && !State.showsSummary) id = State.focusTask?.id ?? "";
-    if (!id && rail === "agenti") id = State.latestSessionTask?.id ?? "";
     const task = id ? State.tasks.find((x) => x.id === id) ?? null : null;
     if (task && !items.length) {
       const session = isSessionTask(task);

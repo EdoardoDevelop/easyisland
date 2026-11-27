@@ -6775,5 +6775,20 @@
   "EasyIsland si chiude e si riapre subito come finestra di Windows.": "EasyIsland closes and opens again right away as a Windows window.",
   "EasyIsland si chiude e si riapre subito come isola sullo schermo.": "EasyIsland closes and opens again right away as an island on the screen.",
   "Tema e colori, il personaggio nel menu e cosa mostra la finestra del Launcher.": "Theme and colours, the character in the menu and what the Launcher's window shows.",
-  "Il campo in alto, la Panoramica e quello che hai aggiunto dalla chat. Grandezza e posto sono quelli della finestra: li decidi trascinandola.": "The field at the top, the Overview and what you added from the chat. Size and place are the window's: you set them by dragging it."
+  "Il campo in alto, la Panoramica e quello che hai aggiunto dalla chat. Grandezza e posto sono quelli della finestra: li decidi trascinandola.": "The field at the top, the Overview and what you added from the chat. Size and place are the window's: you set them by dragging it.",
+  "Modulo": "Form",
+  "La pagina vuole eliminare la scheda «{name}». Eliminarla?": "The page wants to delete the record “{name}”. Delete it?",
+  "Eliminazione annullata.": "Deletion cancelled.",
+  "Azione non trovata: {id}": "Action not found: {id}",
+  "Richiesta sconosciuta: {op}": "Unknown request: {op}",
+  "fields, sources o page: almeno un campo, una fonte di dati o una pagina.": "fields, sources or page: at least one field, one data source or a page.",
+  "page: al massimo 300.000 caratteri.": "page: at most 300,000 characters.",
+  "hosts: «{h}» non è un indirizzo valido.": "hosts: “{h}” is not a valid address.",
+  "Pagina nuova con i suoi script ({b} caratteri): prende il posto del modulo.": "New page with its scripts ({b} characters): it takes the place of the form.",
+  "Tolta la pagina: torna il modulo.": "Page removed: the form is back.",
+  "Cambia la pagina e i suoi script ({a} → {b} caratteri).": "The page and its scripts change ({a} → {b} characters).",
+  "La pagina potrà chiamare anche {h}.": "The page will also be able to call {h}.",
+  "Nessuna pagina.": "No page.",
+  "({n} caratteri: custom_get con part \"page\" per leggerla)": "({n} characters: custom_get with part \"page\" to read it)",
+  "Ogni agente ha la sua sessione nella Panoramica dell'isola.": "Each agent has its session in the island's Overview."
 }

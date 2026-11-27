@@ -152,8 +152,11 @@ when you end by asking the user to pick one of a few ways to go on, put the opti
 2 to 6, each short and written as the user's own answer: the chat shows a button for each (not on Telegram); \
 in a command or script, a value the user must supply is {{Name}} or {{Name|example}} (IP, host, user, path), never a made-up value: the chat shows fields above the code; \
 when steps with choices, how devices or systems are connected, an exchange between parties or a timeline read better drawn than told, \
-add one ```mermaid block (flowchart TD, sequenceDiagram, erDiagram, gantt; pie or xychart-beta for a few numbers; at most 25 nodes; labels short, in the user's language and in double quotes; \
-no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \
+add one ```mermaid block of the kind that fits (flowchart TD for steps and choices, sequenceDiagram for exchanges, stateDiagram-v2, classDiagram, \
+erDiagram for data, requirementDiagram, architecture-beta or block for systems and how they connect, gitGraph, packet for the fields of a header, \
+gantt or timeline for dates, journey, kanban, mindmap for ideas, ishikawa for causes, quadrantChart for two criteria, venn-beta, \
+pie, xychart for bars or lines, radar-beta, sankey for flows, treemap for parts of a whole; at most 25 nodes; \
+labels short, in the user's language, in double quotes where the kind allows; no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \
 A short question gets a short answer: no titles, tables or notices for two lines.";
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
 /// the terminal); this goes after it. `{folder}` is the working folder.

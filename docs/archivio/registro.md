@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
+- Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
+
 ### 26/11 — Chat: versioni, Chiedi su questo, mappa
 - «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).
 

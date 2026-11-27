@@ -7271,6 +7271,12 @@ html[data-scheme="light"] .work-banner.danger { color: #ad1f2d; background: rgba
   padding-right: 6px;
   scrollbar-width: thin;
 }
+/* Its own page (custom-page.ts): the frame as tall as the page says, the card scrolls it. */
+.custom-page { display: block; width: 100%; height: 160px; border: 0; background: transparent; color-scheme: dark; }
+/* The same scheme as the page inside (the bridge sets it), or the frame paints its own ground. */
+html[data-scheme="light"] .custom-page { color-scheme: light; }
+.custom-page-extra:empty { display: none; }
+.custom-page-extra { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
 .custom-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; }
 .custom-row { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .custom-row.wide { grid-column: 1 / -1; }

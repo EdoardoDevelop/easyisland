@@ -5713,6 +5713,8 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        // An integration's own page (custom.rs `page_response`), in a sandboxed frame of the island.
+        .register_uri_scheme_protocol(custom::PAGE_SCHEME, |_ctx, req| custom::page_response(req.uri().path()))
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // `easyisland.exe /search` or `--search` or `--do search` opens the standalone search bar.
             if is_search_arg(&argv) || jumplist::requested(&argv).as_deref() == Some("search") {

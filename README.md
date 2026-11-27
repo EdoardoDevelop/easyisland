@@ -225,7 +225,7 @@ _Screenshots are generated from the preview with `node scripts/screenshots.mjs` 
 | Click the character, or rest the mouse on it if "Open after" allows it | The island opens, aligned to that side |
 | Drag the character with the left button (the resting icon too) | It moves where you drop it, even to another screen, and the position is saved |
 | Drag the bottom corner of the open island | Changes the island's width and height, up to the screen edges. Double-click the corner: default size |
-| The **menu on the left** of the open island | The character on top, then **Overview**, **Agents**, **Chat**, **Actions**, **Files and screen** and your integrations, each with its logo (or an emoji) and a dot when there is news. At the top, the character tells you in a speech bubble what is happening |
+| The **menu on the left** of the open island | The character on top, then **Overview** (with agents and quick actions), **Chat**, **Files and screen** and your integrations, each with its logo (or an emoji) and a dot when there is news. At the top, the character tells you in a speech bubble what is happening |
 | **Overview** | Every integration and agent as a tile with its status; a click opens one, dragging reorders them |
 | **Agents** | The coding agent's session (Claude Code, Codex…): progress, changes, permissions |
 | In the chat, drag the character onto another app's window | That window becomes the chat's context: an image of it, with the app's name and title, goes with your question |

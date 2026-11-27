@@ -138,7 +138,7 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   return h("section", {},
     h("h2", {}, h("span", { text: t("Collegamento degli agenti all'isola") })),
     moreHint(
-      t("Ogni agente ha la sua sessione nella voce Agenti dell'isola."),
+      t("Ogni agente ha la sua sessione nella Panoramica dell'isola."),
       t("«Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano."),
     ),
     relay,
@@ -247,11 +247,6 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
   return el;
 }
 
-/**
- * How the Agenti tab looks in the island's header: the terminal icon (the
- * default), Claude's logo, its name or an emoji. Kept in integrationTabIcons
- * like the other tabs: missing = the icon, "@logo", "@name", anything else = that emoji.
- */
 /** The weekly recap (recap.rs): on or off, show it now, forget it. */
 function recapSection(): HTMLElement {
   const done = h("span", { class: "hint note" });
@@ -335,7 +330,7 @@ function agentsSections(claudeStatus: HookStatus): HTMLElement[] {
     {
       id: "collegamento",
       label: t("Collegamento e strumenti"),
-      content: () => [agentsSection(claudeStatus), agentsTabSection(), mcpSection()],
+      content: () => [agentsSection(claudeStatus), mcpSection()],
     },
     {
       id: "riepiloghi",
@@ -391,37 +386,6 @@ function mcpStatus(agy: boolean): HTMLElement {
   };
   void draw();
   return body;
-}
-
-function agentsTabSection(): HTMLElement {
-  const id = "integration_claude";
-  const icons = () => (settings.integrationTabIcons ??= {});
-  const cur = icons()[id];
-  const place = h("select", {},
-    h("option", { value: "icon", text: t("Icona del terminale") }),
-    h("option", { value: "logo", text: t("Logo di Claude") }),
-    h("option", { value: "emoji", text: t("Emoji o lettere") })) as HTMLSelectElement;
-  // "@name" was the header tab with the word "Agenti": the menu always has the name.
-  place.value = !cur || cur === "@name" ? "icon" : cur === "@logo" ? "logo" : "emoji";
-  const emoji = h("input", {
-    type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
-    title: t("Un'emoji o una o due lettere"), placeholder: "✳",
-    value: cur && !cur.startsWith("@") ? cur : "",
-  }) as HTMLInputElement;
-  const apply = () => {
-    emoji.style.display = place.value === "emoji" ? "" : "none";
-    if (place.value === "icon") delete icons()[id];
-    else if (place.value === "logo") icons()[id] = "@logo";
-    else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
-  };
-  emoji.style.display = place.value === "emoji" ? "" : "none";
-  place.addEventListener("change", () => { apply(); void save(); });
-  emoji.addEventListener("change", () => { apply(); void save(); });
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Voce «Agenti» nel menu dell'isola") })),
-    h("div", { class: "row" },
-      h("label", { text: t("Icona") }), place, emoji,
-      h("span", { class: "hint note", text: t("la voce Agenti, con le sessioni degli agenti") })));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────

@@ -41,6 +41,11 @@ function chartColours(ground: string, ink: string, dim: string): Record<string, 
       xAxisLabelColor: dim, xAxisTitleColor: dim, xAxisTickColor: dim, xAxisLineColor: dim,
       yAxisLabelColor: dim, yAxisTitleColor: dim, yAxisTickColor: dim, yAxisLineColor: dim,
     },
+    // Sets, curves and fields: the same colours as the slices, the words over them readable.
+    ...Object.fromEntries(PALETTE.map((c, i) => [`venn${i + 1}`, c])),
+    vennTitleTextColor: ink, vennSetTextColor: ink,
+    radar: { axisColor: dim, graticuleColor: dim, graticuleOpacity: 0.25, curveOpacity: 0.35, axisLabelFontSize: 13, legendFontSize: 13 },
+    packet: { startByteColor: dim, endByteColor: dim, labelColor: ink, titleColor: ink, blockStrokeColor: dim, blockFillColor: ground },
   };
 }
 const VARS: Record<Scheme, Record<string, unknown>> = {
@@ -149,7 +154,9 @@ async function draw(code: string, look: Scheme): Promise<Drawing> {
     mermaid.initialize({
       startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, logLevel: "fatal",
       look: "classic", theme: "base", themeVariables: VARS[look], fontFamily: FONT, htmlLabels: false, maxTextSize: MAX_CODE,
-      themeCSS: `.node rect, .cluster rect, rect.actor, rect.note { rx: 6px; ry: 6px; } .grid .tick line { stroke: ${VARS[look].gridColor}; opacity: 1; }`,
+      themeCSS: `.node rect, .cluster rect, rect.actor, rect.note { rx: 6px; ry: 6px; } .grid .tick line { stroke: ${VARS[look].gridColor}; opacity: 1; }`
+        // A radar's curves take Mermaid's scale, made almost black on a dark ground: the slices' colours.
+        + PALETTE.map((c, i) => ` .radarCurve-${i}, .radarLegendBox-${i} { color: ${c}; fill: ${c}; stroke: ${c}; }`).join(""),
       flowchart: { nodeSpacing: 36, rankSpacing: 40, padding: 12 }, gantt: { useWidth: WIDE, fontSize: 12, sectionFontSize: 12, axisFormat: "%d/%m" },
       xyChart: { width: 640, height: 360, titleFontSize: 16 },
       secure: ["secure", "securityLevel", "startOnLoad", "maxTextSize", "suppressErrorRendering", "maxEdges", "theme", "themeCSS", "themeVariables", "htmlLabels", "fontFamily"],

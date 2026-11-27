@@ -236,7 +236,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Clicchi sul personaggio, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
 | Trascini il personaggio tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola, fino ai bordi dello schermo; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
-| Il **menu a sinistra** dell'isola aperta | In cima il personaggio, poi **Panoramica**, **Agenti**, **Chat**, **Azioni**, **File e schermo** e le tue integrazioni, ognuna con il suo logo (o un'emoji) e un pallino quando ha novità. In alto il personaggio ti dice in un fumetto cosa succede |
+| Il **menu a sinistra** dell'isola aperta | In cima il personaggio, poi **Panoramica** (con agenti e azioni rapide), **Chat**, **File e schermo** e le tue integrazioni, ognuna con il suo logo (o un'emoji) e un pallino quando ha novità. In alto il personaggio ti dice in un fumetto cosa succede |
 | **Panoramica** | Tutte le integrazioni e gli agenti a riquadri, con il loro stato; un clic ne apre uno, trascinandoli li riordini. Il personaggio mostra lo stato più urgente |
 | **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'icona (terminale, logo di Claude o emoji) si sceglie in Impostazioni → Agenti |
 | Trascini l'isola aperta dalla barra in alto | Resta lì finché è aperta; chiudendola torna al posto del personaggio |

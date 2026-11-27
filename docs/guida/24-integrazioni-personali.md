@@ -69,6 +69,14 @@ Una **fonte** legge un servizio ogni N minuti (o quando apri la scheda) e mostra
 
 ![Un cruscotto](../media/custom-dati.png)
 
+### Una pagina tutta sua
+Quando campi e pulsanti non bastano (un cruscotto con grafici, una tabella che si ordina, un calendario, un editor), chiedi alla chat **una pagina**: HTML con la sua grafica e i suoi script, mostrata al posto del modulo. Il modulo resta in **Modulo**.
+
+La pagina è **isolata**: non va in rete, non vede i file del PC né il resto di EasyIsland. Per salvare e leggere le schede, leggere le fonti, chiamare i servizi o eseguire le azioni lo chiede a EasyIsland, che lo fa come per i pulsanti:
+- i servizi sono solo quelli scritti nella descrizione, e le chiavi la pagina non le vede mai;
+- per eliminare una scheda la conferma la dai tu nell'isola;
+- uno script aspetta comunque il tuo **Esegui**.
+
 ### Chiavi
 Le chiavi e i token dei servizi si scrivono come `{{secret:nome}}` e si inseriscono in **Impostazioni → Integrazioni → Create da te**: vanno in Gestione credenziali, le legge solo EasyIsland al momento della chiamata e **né l'isola né la chat le vedono mai**.
 
@@ -79,7 +87,7 @@ La chat e i compiti possono **leggere le schede**, **aggiungerne** (con Consenti
 **Impostazioni → Integrazioni → Create da te**: accendi o spegni nel menu, modifica la descrizione JSON, inserisci le chiavi, elimina. I file stanno in `%APPDATA%\EasyIsland\integrazioni` (descrizione e schede, leggibili): se cambi a mano una descrizione, l'isola la rilegge da sola.
 
 ## Limiti, di proposito
-- **Niente codice**: un'azione fa solo quello che il suo tipo prevede.
+- **Azioni fisse**: un'azione fa solo quello che il suo tipo prevede; il codice gira solo nell'azione Script, dopo che l'hai visto, e nella pagina isolata.
 - Le chiamate vanno **solo ai servizi scritti nella descrizione** che hai approvato.
 - **Nessun dato «spinto» dai servizi** (webhook in arrivo), perché servirebbe una porta aperta sul PC: si usa una fonte letta ogni N minuti.
 - Funziona con il PC acceso.

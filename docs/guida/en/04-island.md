@@ -31,10 +31,8 @@ At rest the character sits in the corner you picked (top centre by default) and 
 
 ## The menu on the left
 In the open island, under the character:
-- **Overview**: every integration and agent as tiles, each with its state. A click opens the tab; drag to reorder.
-- **Agents**: coding agent sessions and tasks (see [Coding agents](07-agents.md) and [Tasks](14-tasks.md)), with how many are working.
+- **Overview**: every integration and agent as tiles, each with its state. A click opens the tab; drag to reorder. Coding [agent](07-agents.md) sessions and [tasks](14-tasks.md) are here too; next to «Overview», how many agents are working. Below are your [quick actions](15-actions.md).
 - **Chat**: the [chat](08-chat.md) with the AI engine.
-- **Actions**: your [quick actions](15-actions.md) and suggestions for the app in use.
 - **Files and screen**: file drop, Tray, working folder, Box and ask, Record (see [Files and screen](17-files-and-screen.md)).
 - **Your integrations**, each with its logo or an emoji and a dot when there's news; [custom integrations](24-custom-integrations.md) too.
 

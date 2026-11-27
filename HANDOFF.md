@@ -76,6 +76,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 27/11 — Integrazioni con una pagina, diagrammi di ogni tipo, menu più corto
+- `page` nelle integrazioni personali (Edoardo: «integrazioni migliori» con HTML e script): HTML con script al posto del modulo, in un iframe con sandbox servito da `eipage` (`custom::page_response`, CSP sua senza rete); passa da EasyIsland con `window.easyisland` (`custom_page_bridge.js` → `serve` in `custom.ts`). `hosts` per altri servizi. `docs/integrazioni.md` → Pagina.
+- Provata nell'app: rete e isola irraggiungibili, `invoke` di Tauri dal frame non eseguito (gli appunti non sono cambiati), schede lette e salvate, avviso, tastiera. Da provare: isola (non Launcher) con la tastiera, `action` con uno script, `remove`.
+- Diagrammi: `REPLY_FORM` elenca tutti i tipi di Mermaid 12.3 con quando usarli (C4 escluso); venn, radar e packet con i colori di `PALETTE`. Scena `diagrammi` con un esempio per tipo.
+- Menu: via «Azioni» e «Agenti» (stanno nella Panoramica; il numero degli agenti al lavoro sulla riga Panoramica). Tema chiaro: `light-css.mjs` non rigira più le regole già scritte per il chiaro (pannelli della chat neri, menu del terminale, ricerca delle Impostazioni…).
+
 ### 27/11 — Launcher = la finestra dell'isola
 - Il Launcher non sposta più il contenuto in un'altra finestra. È la finestra dell'isola stessa, costruita all'avvio come finestra di Windows (`island::launcher()`, fissa per tutta l'esecuzione), e il resto dell'isola è spento.
 - Aperta e chiusa sono la finestra mostrata e nascosta (`set_collapsed`). Gli avvisi la mostrano senza tastiera: `popplace::show` con `SW_SHOWNA`, nascosta con `popplace::hide`.
@@ -95,7 +101,4 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 26/11 — Via i profili, «Non disturbare»
 - Profili tolti dappertutto (impostazioni, area di notifica, chat, automazioni, abitudini, Impostazioni, guida: «Profili e notifiche» → «Notifiche»); `profiles.rs` → `wifi.rs`. Un file con i profili porta i valori in uso (schema 7) e ne lascia una copia. Decisioni su memoria master e Agent Chat in `decisioni.md`/`idee.md`.
-
-### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
-- Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
 
