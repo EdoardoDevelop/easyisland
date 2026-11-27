@@ -76,6 +76,12 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 27/11 — Pagine con l'aspetto dell'isola, grafici in chat, Launcher che parte chiuso
+- Pagine delle integrazioni: `custom_page_ui.css` entra da solo in ogni pagina (stile di HTML semplice e pezzi `ei-…`, peso zero); Chart.js prende colori, carattere e tema dal ponte; regole di UI/UX per i motori in `custom_create`/`custom_update`. Librerie `/lib/chart.js` e `/lib/preact.js`. `docs/integrazioni.md` → Pagina.
+- Chat: blocchi ```chart (solo JSON di dati) disegnati con Chart.js (`src/core/chart.ts`, Copia PNG su bianco, Dati); Mermaid resta per gli schemi. Diagramma ingrandito: l'anteprima agganciata si nasconde (`Bridge.previewCover`).
+- Launcher di serie per le installazioni nuove; all'avvio resta nell'area di notifica, «Apri la finestra all'avvio» in Generale (`launcher_open_at_start`). Da provare nell'app: avvio chiuso, grafici in chat, `previewCover` con l'anteprima vera.
+- Dalle chat del portatile (24–27/11): messaggio scritto a fine turno non più perso (`--replay-user-messages`, `live_turn` legge il turno in più; `docs/chat.md`); testo scritto con una domanda aperta = risposta (`answerOpenQuestion`); layout: `integration:<id>` nei pulsanti, `click` sui valori del footer, schede nascoste dal menu, `agents`/`actions` tolti; `mail_draft` (bozza in Outlook, mai inviata); Telegram senza rete con attese crescenti; `memory_page_write` rifiutato porta la pagina com'è ora. Da provare nell'app: `mail_draft` con Outlook aperto, messaggio a fine turno con Claude Code vero.
+
 ### 27/11 — Integrazioni con una pagina, diagrammi di ogni tipo, menu più corto
 - `page` nelle integrazioni personali (Edoardo: «integrazioni migliori» con HTML e script): HTML con script al posto del modulo, in un iframe con sandbox servito da `eipage` (`custom::page_response`, CSP sua senza rete); passa da EasyIsland con `window.easyisland` (`custom_page_bridge.js` → `serve` in `custom.ts`). `hosts` per altri servizi. `docs/integrazioni.md` → Pagina.
 - Provata nell'app: rete e isola irraggiungibili, `invoke` di Tauri dal frame non eseguito (gli appunti non sono cambiati), schede lette e salvate, avviso, tastiera. Da provare: isola (non Launcher) con la tastiera, `action` con uno script, `remove`.
@@ -98,7 +104,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
 ### 26/11 — Integrazioni nel menu Start
 - `startmenu.rs` + `src/island/start-menu.ts`: un collegamento per integrazione con la sua icona, `--do "integrazione:<id>"` apre la finestra separata (anche alla prima partenza, `BootInfo.launch`); interruttore in Impostazioni → Integrazioni; installer con `startMenuFolder`.
-
-### 26/11 — Via i profili, «Non disturbare»
-- Profili tolti dappertutto (impostazioni, area di notifica, chat, automazioni, abitudini, Impostazioni, guida: «Profili e notifiche» → «Notifiche»); `profiles.rs` → `wifi.rs`. Un file con i profili porta i valori in uso (schema 7) e ne lascia una copia. Decisioni su memoria master e Agent Chat in `decisioni.md`/`idee.md`.
-

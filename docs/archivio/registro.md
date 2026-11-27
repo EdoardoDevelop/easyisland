@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Via i profili, «Non disturbare»
+- Profili tolti dappertutto (impostazioni, area di notifica, chat, automazioni, abitudini, Impostazioni, guida: «Profili e notifiche» → «Notifiche»); `profiles.rs` → `wifi.rs`. Un file con i profili porta i valori in uso (schema 7) e ne lascia una copia. Decisioni su memoria master e Agent Chat in `decisioni.md`/`idee.md`.
+
 ### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
 - Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
 

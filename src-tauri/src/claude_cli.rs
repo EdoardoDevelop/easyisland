@@ -155,8 +155,12 @@ when steps with choices, how devices or systems are connected, an exchange betwe
 add one ```mermaid block of the kind that fits (flowchart TD for steps and choices, sequenceDiagram for exchanges, stateDiagram-v2, classDiagram, \
 erDiagram for data, requirementDiagram, architecture-beta or block for systems and how they connect, gitGraph, packet for the fields of a header, \
 gantt or timeline for dates, journey, kanban, mindmap for ideas, ishikawa for causes, quadrantChart for two criteria, venn-beta, \
-pie, xychart for bars or lines, radar-beta, sankey for flows, treemap for parts of a whole; at most 25 nodes; \
-labels short, in the user's language, in double quotes where the kind allows; no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \
+sankey for flows, treemap for parts of a whole; at most 25 nodes; \
+labels short, in the user's language, in double quotes where the kind allows; no colours, styles or init): the chat draws it. \
+When numbers read better as a chart (a trend, a comparison, shares, several series), add instead one ```chart block with JSON data only: \
+{\"type\": \"bar|line|area|pie|doughnut|radar|scatter|bubble\", \"title\": \"…\", \"labels\": [\"…\"], \"series\": [{\"name\": \"…\", \"values\": [1, 2], \"type\": \"line\"}], \"stacked\": false, \"horizontal\": false, \"unit\": \"€\"} \
+(series type only to mix bars and a line; scatter values [x, y], bubble [x, y, r]; real numbers only, never invented): the chat draws it with values on hover. \
+Never for lists or short answers, never in a conversation on Telegram. \
 A short question gets a short answer: no titles, tables or notices for two lines.";
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
 /// the terminal); this goes after it. `{folder}` is the working folder.
@@ -1054,6 +1058,13 @@ async fn read_lines(
                 if !line.trim_start().starts_with('{') {
                     continue;
                 }
+                // A message sent to it, back as it takes it (`--replay-user-messages`): counted, not shown.
+                if line.trim_start().starts_with("{\"type\":\"user\"") && line.contains("\"isReplay\":true") {
+                    if chat != 0 {
+                        *REPLAYED.lock().unwrap().entry(chat).or_default() += 1;
+                    }
+                    continue;
+                }
                 // A question or a plan waiting for the user (or its cancel): answered aside.
                 if line.trim_start().starts_with("{\"type\":\"control_") {
                     on_control(chat, &line);
@@ -1394,7 +1405,9 @@ pub fn shutdown() {
 
 fn spawn_live(mut cmd: Command, chat: usize, print: String) -> Result<Live, String> {
     // `stdio`: questions and plans come as control requests (`on_control`).
-    cmd.args(["--input-format", "stream-json", "--permission-prompt-tool", "stdio"]);
+    // `--replay-user-messages`: each message comes back on stdout as Claude Code
+    // takes it, so a turn knows whether one written meanwhile was read (`live_turn`).
+    cmd.args(["--input-format", "stream-json", "--permission-prompt-tool", "stdio", "--replay-user-messages"]);
     let mut child = cmd.spawn().map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
     let stdin = child.stdin.take().ok_or(t("Claude Code si è interrotto."))?;
     let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
@@ -1440,10 +1453,22 @@ async fn live_turn(
     }
     // While it answers, a message written in the chat goes to it at once (`steer`).
     let _steering = Steering::on(live.chat, live.stdin.clone());
+    STEERED.lock().unwrap().insert(live.chat, 0);
+    REPLAYED.lock().unwrap().insert(live.chat, 0);
     let deadline = std::time::Instant::now() + limit;
+    // What this turn said before a message written meanwhile started a turn of its own.
+    let mut before: Option<(String, String)> = None;
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
-        match read_lines(&mut live.lines, on_text, on_session, on_context, on_tasks, left, late, true, &[], live.chat).await {
+        let prefix = before.as_ref().map(|(_, shown)| shown.clone()).unwrap_or_default();
+        let joined = |text: &str| {
+            if prefix.is_empty() {
+                on_text(text)
+            } else {
+                on_text(&format!("{prefix}\n\n{text}"))
+            }
+        };
+        match read_lines(&mut live.lines, &joined, on_session, on_context, on_tasks, left, late, true, &[], live.chat).await {
             // A turn Claude Code started by itself for work that ended (a resumed
             // session reports one even for work stopped with its old process):
             // not the answer to this message; its text, if any, comes as an update.
@@ -1453,11 +1478,47 @@ async fn live_turn(
                     later(text);
                 }
             }
-            Ok((last, shown, true, tasks)) => return Ok((last, shown, tasks)),
+            Ok((last, shown, true, tasks)) => {
+                let (last, shown) = match before.take() {
+                    Some((text, was)) => (with_text_before(&last, &text), format!("{was}\n\n{shown}")),
+                    None => (last, shown),
+                };
+                // A message written when the turn was already ending: Claude Code
+                // answers it in a turn of its own after this one (tried on 27 Nov
+                // 2026), which belongs to this answer, not to the next message
+                // (27 Nov, on the laptop: «cercalo nei nostri fornitori» left
+                // unanswered). Only when the messages come back at all: a Claude
+                // Code without `--replay-user-messages` would never end the turn.
+                let sent = 1 + STEERED.lock().unwrap().get(&live.chat).copied().unwrap_or(0);
+                let taken = REPLAYED.lock().unwrap().get(&live.chat).copied().unwrap_or(0);
+                if taken > 0 && taken < sent && parse_output(&last).is_some_and(|o| !o.is_error) {
+                    crate::log::line(format!("claude: {} messaggi arrivati a fine turno, aspetto la loro risposta", sent - taken));
+                    let text = parse_output(&last).map(|o| o.text).unwrap_or_default();
+                    before = Some((text, shown));
+                    continue;
+                }
+                return Ok((last, shown, tasks));
+            }
             Ok((_, _, false, _)) => return Err(None),
             Err(e) => return Err(Some(e)),
         }
     }
+}
+
+/// Messages written into each conversation's turn in progress (`steer`), and
+/// the messages Claude Code gave back as it took them (`read_lines`).
+static STEERED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<usize, usize>>> = std::sync::LazyLock::new(Default::default);
+static REPLAYED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<usize, usize>>> = std::sync::LazyLock::new(Default::default);
+
+/// A result line with `text` before its own answer (a turn answered in two).
+fn with_text_before(line: &str, text: &str) -> String {
+    let Ok(mut v) = serde_json::from_str::<Value>(line.trim()) else { return line.to_string() };
+    if text.trim().is_empty() {
+        return line.to_string();
+    }
+    let own = v.get("result").and_then(Value::as_str).unwrap_or_default().to_string();
+    v["result"] = Value::String(if own.trim().is_empty() { text.to_string() } else { format!("{}\n\n{own}", text.trim_end()) });
+    v.to_string()
 }
 
 /// The processes answering a message now, by conversation: a message written
@@ -1501,6 +1562,7 @@ pub async fn steer(chat: usize, text: &str) -> bool {
     let mut w = stdin.lock().await;
     let ok = w.write_all(format!("{line}\n").as_bytes()).await.is_ok() && w.flush().await.is_ok();
     if ok {
+        *STEERED.lock().unwrap().entry(chat).or_default() += 1;
         crate::log::line("claude: messaggio aggiunto al turno in corso".to_string());
     }
     ok

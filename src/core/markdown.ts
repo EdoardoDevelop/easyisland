@@ -1,4 +1,5 @@
 import { diagramBlock, isDiagram } from "./diagram";
+import { chartBlock, isChart } from "./chart";
 import { highlightInto } from "./highlight";
 import { checklist, choicesBlock, choicesOf, codeFields, fieldsOf, TASK } from "./md-interactive";
 import { calloutBox, calloutOf, dressTable } from "./md-rich";
@@ -28,6 +29,7 @@ export function plainText(md: string): string {
     .replace(/^```modifica[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, "")
     // A diagram's code says nothing in a line of text.
     .replace(/^```(?:mermaid|mmd)[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, t("[diagramma]"))
+    .replace(/^```(?:chart|grafico)[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, t("[grafico]"))
     .replace(/^```.*$/gm, "")
     .replace(/\[!(note|tip|important|warning|caution)\]\s*/gi, "")
     .replace(/^#{1,6}\s+/gm, "")
@@ -383,7 +385,9 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
       }
       const block = codeBlock(body.join("\n"), fence[2], hooks);
       // A diagram only once its block is closed: while it streams in it is code.
-      blocks.push(isDiagram(fence[2]) && i < lines.length ? diagramBlock(body.join("\n"), block, hooks.saveCode) : block);
+      blocks.push(isDiagram(fence[2]) && i < lines.length ? diagramBlock(body.join("\n"), block, hooks.saveCode)
+        // A chart too: data only, drawn by Chart.js once closed (chart.ts).
+        : isChart(fence[2]) && i < lines.length ? chartBlock(body.join("\n"), block) : block);
       continue;
     }
     if (!line.trim()) {

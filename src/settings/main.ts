@@ -4131,6 +4131,12 @@ function generalSection(): HTMLElement {
     // Isola ⇄ Launcher restarts the app (27 Nov 2026: the island's own window
     // changes, and WebView2's transparency is chosen only when it is made): asked first.
     launcherRow(),
+    // Only with the Launcher (27 Nov 2026): off, EasyIsland starts in the notification area.
+    h("div", { class: "row launcher-only" },
+      h("label", { text: t("Apri la finestra all'avvio") }),
+      toggle(!!settings.launcherOpenAtStart, (v) => { settings.launcherOpenAtStart = v; void save(); }),
+      h("span", { class: "hint note", text: t("Spento: EasyIsland parte nell'area di notifica e la finestra si apre quando la chiedi o quando arriva un permesso.") }),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Suono") }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),

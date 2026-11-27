@@ -72,6 +72,8 @@ Una **fonte** legge un servizio ogni N minuti (o quando apri la scheda) e mostra
 ### Una pagina tutta sua
 Quando campi e pulsanti non bastano (un cruscotto con grafici, una tabella che si ordina, un calendario, un editor), chiedi alla chat **una pagina**: HTML con la sua grafica e i suoi script, mostrata al posto del modulo. Il modulo resta in **Modulo**.
 
+L'aspetto è curato da solo: ogni pagina prende i colori, i caratteri e il tema chiaro o scuro dell'isola, con schede, numeri in evidenza, etichette di stato e grafici già nello stile di EasyIsland. La chat segue le stesse regole ogni volta che crea o cambia una pagina, quindi non serve chiederlo.
+
 La pagina è **isolata**: non va in rete, non vede i file del PC né il resto di EasyIsland. Per salvare e leggere le schede, leggere le fonti, chiamare i servizi o eseguire le azioni lo chiede a EasyIsland, che lo fa come per i pulsanti:
 - i servizi sono solo quelli scritti nella descrizione, e le chiavi la pagina non le vede mai;
 - per eliminare una scheda la conferma la dai tu nell'isola;

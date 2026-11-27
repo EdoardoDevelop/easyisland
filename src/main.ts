@@ -270,10 +270,9 @@ async function main() {
   }
   void Bridge.log(`avvio della pagina: pronta (${island.isLauncher ? "Launcher" : "isola"})`).catch(() => {});
   if (boot?.openSearch) void island.onHotkey("search");
-  // The Launcher started by the user: Rust shows its window at once and the page
-  // opens to match (also with a Start shortcut, the window is there anyway).
-  // At sign-in only if it was open when EasyIsland last closed.
-  if (island.isLauncher && (!boot?.autostarted || island.launcherWasOpen())) island.openFromTaskbar();
+  // The Launcher with «Apri la finestra all'avvio»: Rust shows its window at once
+  // and the page opens to match. Without it EasyIsland waits in the notification area.
+  if (island.isLauncher && boot?.openLauncher) island.openFromTaskbar();
   // Started from a Start menu shortcut (startmenu.rs) or the taskbar's menu.
   if (boot?.launch) void island.onHotkey(boot.launch);
   // The Start menu's folder follows the integrations that are on.

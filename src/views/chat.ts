@@ -346,7 +346,7 @@ function codeFileName(lang: string): string {
   const ext: Record<string, string> = {
     powershell: "ps1", ps1: "ps1", ps: "ps1", pwsh: "ps1", cmd: "bat", bat: "bat", batch: "bat", dos: "bat",
     bash: "sh", sh: "sh", shell: "sh", zsh: "sh", javascript: "js", js: "js", typescript: "ts", ts: "ts",
-    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml", mermaid: "mmd", mmd: "mmd",
+    json: "json", jsonc: "json", python: "py", py: "py", rust: "rs", rs: "rs", sql: "sql", html: "html", xml: "xml", mermaid: "mmd", mmd: "mmd", chart: "json", grafico: "json",
     svg: "svg", css: "css", yaml: "yml", yml: "yml", ini: "ini", toml: "toml", csharp: "cs", cs: "cs", go: "go",
     java: "java", php: "php", cpp: "cpp", c: "c", markdown: "md", md: "md", diff: "diff", nginx: "conf", env: "env",
   };
@@ -1339,6 +1339,7 @@ export function buildPrompt(
     // own (17 Nov 2026: «.» or «?» typed just to send an image, 11 times).
     const query = raw.trim() || (override == null && c.attach.length ? t("Guarda l'allegato.") : "");
     if (!query || c.sending) return;
+    if (override == null && answerOpenQuestion(query)) return;
     if (override == null && runSlash(query)) return;
     if (override == null) setInput("");
     // Back from Claude Desktop: what was said there first, then the island takes the session again.
@@ -1497,10 +1498,29 @@ export function buildPrompt(
   }
 
   /** Written while it answers: the message waits for the end of the turn. */
+  /**
+   * A question of the chat on screen is open (its options above the field):
+   * what is written is the answer to it, not a message for later (27 Nov 2026,
+   * on the laptop: a note written with a question open stopped the question
+   * and the note was left unanswered). True when it went as the answer.
+   */
+  function answerOpenQuestion(text: string): boolean {
+    const req = State.pendingApproval;
+    const c = State.chat;
+    if (!text || req?.source !== "chat" || (req.chatSid && req.chatSid !== c.sid) || !req.questions?.length) return false;
+    const answers: Record<string, string> = {};
+    for (const q of req.questions) answers[q.question] = text;
+    setInput("");
+    actions.answerQuestions(answers);
+    Sound.play("blip");
+    return true;
+  }
+
   function enqueue() {
     const c = State.chat;
     const text = input.value.trim();
     if (!text) return;
+    if (answerOpenQuestion(text)) return;
     setInput("");
     // As in Claude Desktop: it waits in line, and «Invia subito» on its row has it read now.
     c.queue.push(text);
@@ -1534,6 +1554,10 @@ export function buildPrompt(
     const c = State.chat;
     const [text] = c.queue.splice(i, 1);
     if (text == null) return;
+    if (c.sending && answerOpenQuestion(text)) {
+      State.notify();
+      return;
+    }
     if (!c.sending) {
       void submit(text, c);
       return;

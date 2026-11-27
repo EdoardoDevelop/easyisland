@@ -912,6 +912,8 @@ export interface Settings {
    * on the screen when closed (no character, no fixed bar).
    */
   launcher?: boolean;
+  /** With the Launcher: its window opened when EasyIsland starts (off: it waits in the notification area). */
+  launcherOpenAtStart?: boolean;
   /** Opened by the user: it stays open as with 📌. */
   stayOpenByUser?: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -1564,6 +1566,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fixedBarFigure: "",
   closeButton: true,
   islandApp: false,
+  // Rust's default is the Launcher for a new install (settings.rs); here, before
+  // the settings arrive and in the browser preview, the island.
   launcher: false,
   stayOpenByUser: false,
   followCursorCompact: false,
@@ -2379,7 +2383,7 @@ export interface LayoutParts { order?: string[]; hidden?: string[] }
 /** The Panoramica: its parts' order and those hidden (`tile:<id>` too), the tiles named first, its own blocks. */
 export interface LayoutOverview extends LayoutParts { tiles?: string[]; blocks?: LayoutBlock[] }
 /** One thing of the footer: a button, or a value of the PC. */
-export type LayoutFooterItem = LayoutButton | (LayoutLook & { what: string; drive?: string; label?: string; color?: string; bg?: string });
+export type LayoutFooterItem = LayoutButton | (LayoutLook & { what: string; drive?: string; label?: string; color?: string; bg?: string; click?: LayoutAction });
 /** The open island's footer: three sides, each a row of buttons and values in the order given. */
 export interface LayoutFooter { left?: LayoutFooterItem[]; center?: LayoutFooterItem[]; right?: LayoutFooterItem[] }
 export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; footer?: LayoutFooter; style?: LayoutStyle }

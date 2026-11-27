@@ -8,6 +8,7 @@
 // script still waits for «Esegui»), notices.
 
 import { h } from "./dom";
+import { PALETTE } from "../core/diagram";
 import type { Custom } from "../core/state";
 
 /** What the card does for the page: one function per request. */
@@ -52,6 +53,8 @@ function theme(): { scheme: string; vars: Record<string, string> } {
       green: v("--green", "#22c55e"),
       amber: v("--amber", "#f5a524"),
       font: v("--font", "'Segoe UI', sans-serif"),
+      // The chat's chart colours (diagram.ts), for the page's series: --ei-c1 … --ei-c8.
+      ...Object.fromEntries(PALETTE.map((c, i) => [`c${i + 1}`, c])),
     },
   };
 }

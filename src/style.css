@@ -5264,12 +5264,13 @@ html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.12s ease;
 }
 
+/* Fades in; gone at once when the mouse leaves (tooltip.ts `hide`). */
 .tip.on {
   opacity: 1;
   visibility: visible;
+  transition: opacity 0.12s ease;
 }
 
 /* ── Oggi: every integration at a glance, one tile each ─────────────────── */
@@ -10436,6 +10437,9 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 #island-foot .own-btn:hover { background: color-mix(in srgb, var(--c, #fff) 24%, transparent); color: var(--c, var(--ink)); }
 #island-foot .foot-value { padding: 3px 10px; gap: 6px; border-radius: 9px; height: 28px; box-sizing: border-box; flex: 0 1 auto; min-width: 0; }
 #island-foot .foot-value .board-block-title { display: none; }
+#island-foot .foot-value.foot-click { cursor: pointer; transition: background 0.12s; }
+#island-foot .foot-value.foot-click:hover { background: rgba(255, 255, 255, 0.08); }
+#island-foot .foot-value.foot-click:focus-visible { outline: 2px solid var(--link, #38bdf8); outline-offset: 1px; }
 #island-foot .foot-value .board-value-text { font-size: calc(12px + var(--fs-up, 0px)); white-space: nowrap; }
 /* The middle keeps its room first (as before); on a side short of room a button's name shortens with dots. */
 #island-foot .own-btn:not(.own-labelled) { flex: none; }

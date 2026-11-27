@@ -1030,9 +1030,17 @@ pub struct Settings {
     /// «Launcher» instead of the island (26 Nov 2026, Edoardo): no resting
     /// island, character or fixed bar; the island's own window is an ordinary
     /// Windows window (island.rs `launcher`, 27 Nov 2026). Read at start: a
-    /// change restarts EasyIsland (lib.rs apply_settings).
+    /// change restarts EasyIsland (lib.rs apply_settings). On for a new
+    /// install (Edoardo, 27 Nov 2026: «come default il launcher»); a file
+    /// without the field (written before it) stays the island it was.
     #[serde(default)]
     pub launcher: bool,
+    /// The Launcher's window opened when EasyIsland starts (Impostazioni →
+    /// Generale, only with the Launcher). Off by default (Edoardo, 27 Nov 2026:
+    /// «di default parte ridotto a systemtray»): EasyIsland waits in the
+    /// notification area, at sign-in, after a restart and from its icon alike.
+    #[serde(default)]
+    pub launcher_open_at_start: bool,
     /// Options of the integrations that run as checks (PROBE_INTEGRATIONS).
     #[serde(default)]
     pub integration_config: IntegrationConfig,
@@ -1342,7 +1350,8 @@ impl Default for Settings {
             habits_excluded: Vec::new(),
             update_check: true,
             start_menu: true,
-            launcher: false,
+            launcher: true,
+            launcher_open_at_start: false,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),
         }
@@ -1642,7 +1651,7 @@ pub fn hook_exe_path() -> PathBuf {
     local_dir().join("bin").join("easyisland-hook.exe")
 }
 
-fn settings_path() -> PathBuf {
+pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
 
@@ -1749,7 +1758,7 @@ mod tests {
 
     #[test]
     fn the_fixed_bar_pins_the_island_and_sizes_the_band() {
-        let mut s = Settings { anchor_h: "left".into(), anchor_v: "top".into(), offset_x: 30.0, offset_y: 12.0, ..Default::default() };
+        let mut s = Settings { anchor_h: "left".into(), anchor_v: "top".into(), offset_x: 30.0, offset_y: 12.0, launcher: false, ..Default::default() };
         assert_eq!(s.home_anchor(), ("left", "top", 30.0, 12.0));
         s.fixed_bar = "bottom".into();
         s.fixed_bar_slot = "end".into();

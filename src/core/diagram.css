@@ -1,4 +1,5 @@
-/* Diagrams in the answers (diagram.ts). */
+/* Diagrams in the answers (diagram.ts), and the charts (chart.ts) in the same card. */
+.md-chart-body { position: relative; padding: 12px 14px; min-width: 0; }
 .md-diagram { min-width: 0; }
 .md-diagram-stage { position: fixed; left: -20000px; top: 0; width: 1200px; visibility: hidden; pointer-events: none; font: 400 14px 'Segoe UI Variable Text', 'Segoe UI', sans-serif; }
 .md-diagram-body { display: flex; padding: 14px 12px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }

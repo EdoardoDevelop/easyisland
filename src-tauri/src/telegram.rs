@@ -203,6 +203,7 @@ pub fn spawn(app: AppHandle) {
             if token != ready_for {
                 match hello(&token).await {
                     Ok(bot) => {
+                        retry.ok("telegram");
                         log::line(format!("telegram: collegato al bot @{bot}"));
                         set_status(|s| {
                             s.bot = bot;
@@ -217,8 +218,10 @@ pub fn spawn(app: AppHandle) {
                             s.error = Some(e.clone());
                             s.running = false;
                         });
-                        log::line(format!("telegram: {e}"));
-                        tokio::time::sleep(Duration::from_secs(30)).await;
+                        // The same error once, then longer waits (24 Nov 2026, on the
+                        // laptop offline: a line every 30 s, 131 in a day).
+                        let wait = retry.failed("telegram", &e).max(Duration::from_secs(30));
+                        tokio::time::sleep(wait).await;
                         continue;
                     }
                 }

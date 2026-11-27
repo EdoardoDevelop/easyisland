@@ -362,6 +362,15 @@ export async function runScene(island: Island, scene: string) {
           mm('radar-beta\n  axis a["Velocità"], b["Costo"], c["Sicurezza"]\n  curve x["NAS"]{4, 3, 5}\n  curve y["Cloud"]{3, 4, 4}'),
           mm("sankey\n  Internet,Firewall,100\n  Firewall,Server,60\n  Firewall,PC,40"),
           mm('treemap\n  "Disco"\n    "Documenti": 120\n    "Foto": 300\n    "Backup": 500'),
+          // ```chart blocks (chart.ts): data only, drawn by Chart.js; the last one cannot be read and stays code.
+          ...[
+            { type: "bar", title: "Ticket per cliente", labels: ["giu", "lug", "ago", "set", "ott", "nov"], series: [{ name: "Rossi", values: [12, 18, 9, 22, 17, 25] }, { name: "Bianchi", values: [8, 6, 11, 9, 14, 10] }, { name: "Verdi", values: [3, 5, 4, 7, 6, 9] }] },
+            { type: "line", title: "Spazio usato sul NAS", labels: ["1", "5", "10", "15", "20", "25", "27"], series: [{ name: "Usato", values: [61, 63, 66, 70, 74, 79, 82] }], unit: "%" },
+            { type: "doughnut", title: "Ticket per categoria", labels: ["Rete", "Stampanti", "Posta", "Altro"], series: [{ name: "Ticket", values: [14, 9, 6, 4] }] },
+            { type: "bar", horizontal: true, title: "Ore per tecnico", labels: ["Marco", "Luca", "Sara", "Paolo"], series: [{ name: "Ore", values: [38, 42, 29, 35] }], unit: "h" },
+            { type: "bar", stacked: true, title: "Interventi e importo", labels: ["Q1", "Q2", "Q3", "Q4"], series: [{ name: "Remoto", values: [20, 24, 18, 30] }, { name: "In sede", values: [10, 8, 12, 9] }, { name: "Media", values: [15, 16, 15, 19.5], type: "line" }] },
+          ].map((c) => "```chart\n" + JSON.stringify(c, null, 1) + "\n```"),
+          "```chart\n{ \"type\": \"bar\", \"labels\": [1, 2\n```",
         ];
         const only = new URLSearchParams(location.search).get("diagrammi");
         State.chatHistory = [
@@ -2026,41 +2035,75 @@ export async function runScene(island: Island, scene: string) {
       // stock list drawn by its scripts, records read and saved through easyisland.…
       if (new URLSearchParams(location.search).has("pagina")) {
         const bridge = (await import("../src-tauri/src/custom_page_bridge.js?raw")).default;
-        (window as unknown as { eiPageDev: (p: string) => string }).eiPageDev = (p: string) => `<!doctype html><meta charset="utf-8"><script>${bridge}</script>${p}`;
+        const ui = (await import("../src-tauri/src/custom_page_ui.css?raw")).default;
+        // The libraries put inside the page: a sandboxed srcdoc frame may not load from localhost (the app serves /lib/… itself).
+        const libs: Record<string, string> = {};
+        for (const name of ["chart.js", "preact.js"]) libs[name] = await fetch(`/lib/${name}`).then((r) => r.text());
+        (window as unknown as { eiPageDev: (p: string) => string }).eiPageDev = (p: string) =>
+          `<!doctype html><meta charset="utf-8"><style id="ei-ui">${ui}</style><script>${bridge}</script>${p.replace(/<script src="\/lib\/([\w.-]+)"><\/script>/g, (all, n: string) => (libs[n] ? `<script>${libs[n]}</script>` : all))}`;
         const page = `<style>
-  .top{display:flex;gap:8px;align-items:center;margin-bottom:10px}
-  input{background:transparent;border:1px solid var(--ei-line);border-radius:6px;padding:5px 8px;min-width:0}
-  button{background:var(--ei-accent);color:#000;border:0;border-radius:6px;padding:5px 10px;cursor:pointer}
-  .row{display:grid;grid-template-columns:1fr 60px 120px;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--ei-line)}
-  .bar{height:8px;border-radius:4px;background:var(--ei-green)}
-  .low .bar{background:var(--ei-red)} small{color:var(--ei-dim)}
+  .add{display:grid;grid-template-columns:1fr 90px auto;gap:8px;align-items:end}
+  .who{display:flex;align-items:center;gap:8px;min-width:0}
+  .bar{width:120px}
 </style>
-<div class="top"><input id="n" placeholder="Articolo"><input id="q" type="number" placeholder="Pezzi" style="width:70px"><button id="add">Aggiungi</button></div>
-<div id="list"></div><small id="tot"></small>
+<div class="ei-toolbar"><h2>Scorte</h2><span class="ei-badge info" id="count"></span></div>
+<div class="ei-grid">
+  <div class="ei-stat"><span>Articoli</span><b id="s-art">–</b></div>
+  <div class="ei-stat"><span>Pezzi in totale</span><b id="s-pz">–</b></div>
+  <div class="ei-stat"><span>Scorta bassa</span><b id="s-low">–</b><em id="s-low-n"></em></div>
+</div>
+<div class="ei-card ei-section">
+  <h3>Nuovo articolo</h3>
+  <form class="add" id="f">
+    <div class="ei-field"><label for="n">Articolo</label><input id="n" placeholder="Es. Toner HP 26A" required></div>
+    <div class="ei-field"><label for="q">Pezzi</label><input id="q" type="number" min="0" value="1"></div>
+    <button class="primary">Aggiungi</button>
+  </form>
+</div>
+<div class="ei-section ei-table"><table><thead><tr><th>Articolo</th><th>Stato</th><th class="num">Pezzi</th><th>Livello</th></tr></thead><tbody id="list"></tbody></table></div>
+<div class="ei-card ei-section"><h3>Pezzi per articolo</h3><div class="ei-chart"><canvas id="chart"></canvas></div></div>
+<script src="/lib/chart.js"></script>
 <script>
-  const list = document.getElementById("list");
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => n.toLocaleString("it-IT");
   async function draw() {
     const rs = await easyisland.records();
-    const max = Math.max(1, ...rs.map(r => +r.values.pezzi || 0));
-    list.innerHTML = "";
+    const qty = (r) => +r.values.pezzi || 0;
+    const max = Math.max(1, ...rs.map(qty));
+    const low = rs.filter((r) => qty(r) < 5);
+    $("count").textContent = rs.length + " articoli";
+    $("s-art").textContent = fmt(rs.length);
+    $("s-pz").textContent = fmt(rs.reduce((a, r) => a + qty(r), 0));
+    $("s-low").textContent = fmt(low.length);
+    $("s-low-n").textContent = low.length ? "da riordinare" : "tutto a posto";
+    $("s-low-n").className = low.length ? "down" : "up";
+    $("list").innerHTML = "";
     for (const r of rs) {
-      const q = +r.values.pezzi || 0;
-      const row = document.createElement("div");
-      row.className = "row" + (q < 5 ? " low" : "");
-      row.innerHTML = "<span></span><b></b><div class=bar></div>";
-      row.children[0].textContent = r.values.articolo;
-      row.children[1].textContent = q;
-      row.children[2].style.width = (q / max * 100) + "%";
-      list.append(row);
+      const q = qty(r), state = q < 5 ? "bad" : q < 10 ? "warn" : "ok";
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><span class="who"><span class="ei-dot"></span><span class="ei-truncate"></span></span></td><td><span class="ei-badge"></span></td><td class="num"></td><td><div class="ei-progress bar"><i></i></div></td>';
+      tr.querySelector(".ei-dot").classList.add(state);
+      tr.querySelector(".ei-truncate").textContent = r.values.articolo;
+      const b = tr.querySelector(".ei-badge"); b.classList.add(state); b.textContent = { ok: "Disponibile", warn: "In esaurimento", bad: "Scorta bassa" }[state];
+      tr.querySelector(".num").textContent = fmt(q);
+      const p = tr.querySelector(".ei-progress"); p.classList.add(state); p.firstChild.style.width = (q / max * 100) + "%";
+      $("list").append(tr);
     }
-    document.getElementById("tot").textContent = rs.length + " articoli";
+    window.pezzi?.destroy();
+    window.pezzi = new Chart($("chart"), {
+      type: "bar",
+      data: { labels: rs.map((r) => r.values.articolo), datasets: [{ label: "Pezzi", data: rs.map(qty) }] },
+      options: { plugins: { legend: { display: false } } },
+    });
   }
-  document.getElementById("add").onclick = async () => {
-    const articolo = document.getElementById("n").value.trim();
-    const pezzi = +document.getElementById("q").value || 0;
+  $("f").onsubmit = async (e) => {
+    e.preventDefault();
+    const articolo = $("n").value.trim();
+    const pezzi = +$("q").value || 0;
     if (!articolo) return;
     await easyisland.save({ articolo, pezzi });
-    if (pezzi < 5) easyisland.notice(articolo + ": scorta bassa");
+    $("n").value = ""; $("q").value = "1"; $("n").focus();
+    easyisland.notice(pezzi < 5 ? articolo + ": scorta bassa" : articolo + " aggiunto");
   };
   easyisland.on("records", draw);
   draw();

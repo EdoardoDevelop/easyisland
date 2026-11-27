@@ -12,6 +12,7 @@
 
 import "./diagram.css";
 import { t } from "./i18n";
+import { Bridge } from "./bridge";
 
 interface Drawing { svg: string; url: string; w: number; h: number }
 type Scheme = "dark" | "light";
@@ -29,7 +30,7 @@ const scheme = (): Scheme => (document.documentElement.dataset.scheme === "light
 
 const FONT = "'Segoe UI Variable Text', 'Segoe UI', sans-serif";
 /** Slices, bars and lines: apart from one another on both grounds, white reads on them. */
-const PALETTE = ["#3b7dbd", "#c27a12", "#2b8f6e", "#8463c9", "#b84a72", "#2f8ea3", "#6b7688", "#a4552f"];
+export const PALETTE = ["#3b7dbd", "#c27a12", "#2b8f6e", "#8463c9", "#b84a72", "#2f8ea3", "#6b7688", "#a4552f"];
 /** A chart's colours: the slices of a pie, the bars and lines with their axes. */
 function chartColours(ground: string, ink: string, dim: string): Record<string, unknown> {
   return {
@@ -199,7 +200,7 @@ function drawing(code: string, look: Scheme): Promise<Drawing> {
   return p;
 }
 
-function btn(cls: string, text: string, title: string, go: () => void): HTMLButtonElement {
+export function btn(cls: string, text: string, title: string, go: () => void): HTMLButtonElement {
   const b = document.createElement("button");
   b.className = cls;
   b.textContent = text;
@@ -209,7 +210,7 @@ function btn(cls: string, text: string, title: string, go: () => void): HTMLButt
 }
 
 /** A moment's word on a button. */
-function said(b: HTMLElement, text: string, back: string) {
+export function said(b: HTMLElement, text: string, back: string) {
   b.textContent = text;
   window.setTimeout(() => (b.textContent = back), 1600);
 }
@@ -272,7 +273,14 @@ function enlarge(from: HTMLElement, d: Drawing) {
   };
   const middle = (f: number) => zoom(f, layer.clientWidth / 2, layer.clientHeight / 2);
   const was = doc.activeElement as HTMLElement | null;
+  // The docked Anteprima is a browser over the island: out of the way while this is big.
+  void Bridge.previewCover(true);
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
+    void Bridge.previewCover(false);
+    gone.disconnect();
     win.removeEventListener("keydown", key, true);
     layer.remove();
     was?.focus?.();
@@ -280,7 +288,7 @@ function enlarge(from: HTMLElement, d: Drawing) {
   const key = (e: KeyboardEvent) => {
     // The island went away under it.
     if (!layer.isConnected) {
-      win.removeEventListener("keydown", key, true);
+      close();
       return;
     }
     if (e.key === "Escape") close();
@@ -331,6 +339,14 @@ function enlarge(from: HTMLElement, d: Drawing) {
   );
   layer.append(img, bar);
   home.append(layer);
+  // Taken away with the island (not by its ✕ or Esc): the Anteprima comes back all the same.
+  const gone = new MutationObserver(() => {
+    if (!layer.isConnected) {
+      gone.disconnect();
+      close();
+    }
+  });
+  gone.observe(doc.body, { childList: true, subtree: true });
   fit();
   layer.focus();
 }

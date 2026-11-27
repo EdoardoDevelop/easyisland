@@ -37,12 +37,67 @@
     for (const [k, v] of Object.entries(t.vars ?? {})) root.style.setProperty(`--ei-${k}`, String(v));
     root.style.colorScheme = t.scheme === "light" ? "light" : "dark";
     root.dataset.eiScheme = t.scheme;
+    dispatchEvent(new Event("ei-theme"));
   }
-  const base = document.createElement("style");
-  base.textContent = ":where(html){font-family:var(--ei-font,'Segoe UI',sans-serif);font-size:13px;color:var(--ei-text,#e4e5e8);background:transparent}"
-    + ":where(body){margin:0;padding:10px 12px}:where(a){color:var(--ei-accent,#4ea1ff)}"
-    + ":where(button,input,select,textarea){font:inherit;color:inherit}";
-  document.documentElement.prepend(base);
+  // The look comes with the page (custom_page_ui.css, before this script).
+
+  // Chart.js (/lib/chart.js) in the island's colours and font without the page
+  // asking: set as the library arrives, before the page's first chart; a series
+  // without colours takes the next of the palette; drawn again with the theme.
+  const cssVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  const palette = () => [1, 2, 3, 4, 5, 6, 7, 8].map((i) => cssVar(`--ei-c${i}`, "#3b7dbd"));
+  // Canvas and Chart.js's hover colours read #rrggbbaa, not every CSS colour.
+  const withAlpha = (c, a) => (/^#[0-9a-f]{6}$/i.test(c) ? c + Math.round(a * 255).toString(16).padStart(2, "0") : c);
+  function chartLook(C) {
+    if (!C || !C.defaults || C.__eiLook) return;
+    C.__eiLook = true;
+    const set = () => {
+      C.defaults.color = cssVar("--ei-dim", "#9398a1");
+      C.defaults.borderColor = cssVar("--ei-line", "rgba(127,127,127,0.2)");
+      C.defaults.font.family = cssVar("--ei-font", "'Segoe UI', sans-serif");
+      C.defaults.font.size = 12;
+      C.defaults.maintainAspectRatio = false;
+      if (C.defaults.plugins?.legend?.labels) { C.defaults.plugins.legend.labels.boxWidth = 10; C.defaults.plugins.legend.labels.color = cssVar("--ei-text", "#e4e5e8"); }
+      if (C.defaults.plugins?.colors) C.defaults.plugins.colors.enabled = false;
+      // Labels along the bottom need no lines of their own: only the values' grid.
+      const cat = C.defaults.scales?.category;
+      if (cat) cat.grid = { ...(cat.grid || {}), display: false };
+      if (C.defaults.plugins?.tooltip) { C.defaults.plugins.tooltip.cornerRadius = 6; C.defaults.plugins.tooltip.padding = 8; }
+    };
+    set();
+    C.register({
+      id: "eiPalette",
+      beforeUpdate(chart) {
+        const p = palette();
+        const round = ["pie", "doughnut", "polarArea"].includes(chart.config.type);
+        chart.data.datasets.forEach((d, i) => {
+          if (d.__eiOwn === undefined) d.__eiOwn = d.backgroundColor !== undefined || d.borderColor !== undefined;
+          if (d.__eiOwn) return;
+          const kind = d.type || chart.config.type;
+          if (round) {
+            d.backgroundColor = (d.data || []).map((_, j) => p[j % p.length]);
+            d.borderColor = cssVar("--ei-card", "#16181c");
+            d.borderWidth = 2;
+          } else {
+            const c = p[i % p.length];
+            d.borderColor = c;
+            d.backgroundColor = kind === "line" || kind === "radar" ? (d.fill ? withAlpha(c, 0.25) : c) : c;
+            if (kind === "bar" && d.borderRadius === undefined) d.borderRadius = 4;
+          }
+        });
+      },
+    });
+    addEventListener("ei-theme", () => {
+      set();
+      Object.values(C.instances || {}).forEach((c) => { try { c.update(); } catch { /* gone */ } });
+    });
+  }
+  let chartLib;
+  Object.defineProperty(window, "Chart", {
+    configurable: true,
+    get: () => chartLib,
+    set: (v) => { chartLib = v; try { chartLook(v); } catch (e) { console.error(e); } },
+  });
 
   // The frame as tall as the page (the island caps it and scrolls).
   let last = 0;

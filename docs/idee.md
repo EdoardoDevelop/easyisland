@@ -227,6 +227,22 @@ Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scr
 Ripreso il 15/11 come «Modello sul PC» sul ramo `claude/llm-interno` (`docs/chat.md` → Motori): controllo della scheda grafica, consiglio, Vulkan, Modalità terminale, risposte dalla memoria. Il ramo `claude/modello-integrato` non serve più.
 
 ## Memoria master (26/11, decisioni 27/11, da progettare)
+- **Gruppo e catalogo (Edoardo, 27/11, prevale su quanto sotto dove diverso):**
+  - pensata da subito per i **colleghi**: ognuno ha uno spazio suo su Garage (scrive solo lui, gli altri leggono); **tutti amministratori** (invitano, tolgono un collega, tolgono una voce dal catalogo), ogni azione registrata e visibile;
+  - **due memorie**: la **personale** (slave, sul PC) e la **condivisa** del gruppo (master); «Condividi» porta una voce della personale nella master, collegata, in sola lettura per gli altri;
+  - **catalogo**: abilità, ricette dei portali, integrazioni personali (descrizione, immagini, pagina; le schede solo se scelto) e server MCP; Impostazioni → Catalogo con Installa / Aggiorna (con le differenze, mai automatico) e «Condividi» accanto alle proprie. Installare = copia locale, modificabile;
+  - **chiavi mai pubblicate**: solo i nomi (`secrets`, variabili d'ambiente MCP), valori chiesti all'installazione e messi in Gestione credenziali; anteprima prima di pubblicare con quello che somiglia a una chiave segnato;
+  - prima di installare si vede cosa fa: comando MCP, host e script dell'integrazione, testo dell'abilità;
+  - **ognuno ha la sua chiave** (Edoardo, 27/11: «per poter scollegare in futuro il singolo utente»): chiave d'accesso a Garage per persona, revocabile da qualsiasi amministratore (non legge né scrive più nulla); per la cifratura una coppia di chiavi per PC e la chiave del gruppo consegnata a ciascuno chiusa con la sua; chi esce: accesso revocato e chiave del gruppo nuova per i dati da lì in poi, consegnata solo a chi resta (quanto aveva già scaricato non si riprende); ingresso con un **invito**;
+  - **Agent Chat** tolta senza migrare `memshare`.
+- **Due strade, stessa struttura (Edoardo, 27/11: «possiamo fare entrambi?»):** l'archivio del gruppo è una **cartella condivisa** (OneDrive, Dropbox, Google Drive, cartella di rete: EasyIsland legge e scrive file, membri e revoche li gestisce il servizio) oppure **Garage** (gli stessi file via HTTPS 443 dietro il reverse proxy, membri gestiti da EasyIsland). Stessi percorsi e formato, una sottocartella per persona con un solo autore. Ordine proposto: prima la cartella, poi Garage. Nel catalogo anche le **ricette** dei portali. Cifratura da decidere (proposta: leggibile nella cartella, cifrata su Garage).
+  - Firewall dei clienti: solo HTTPS in uscita sulla 443, come un sito; 3900/3903 restano interne alla VPS.
+- **Prima connessione a Garage (studiata il 27/11 sulla documentazione della v2.6.0):**
+  - VPS, una volta: container `dxflrs/garage:v2.6.0` con dati persistenti, `garage.toml` a nodo singolo (`db_engine = "lmdb"`, `replication_factor = 1`, `s3_region = "garage"`, `rpc_secret` casuale, niente `admin_token` nel file), avvio `--single-node`; HTTPS dal reverse proxy di aaPanel per S3 (3900) e per l'API di amministrazione (3903); primo gettone con `garage admin-token create` (mostrato una volta).
+  - Fondatore: Impostazioni → «Crea il gruppo» (indirizzo + gettone in Gestione credenziali); EasyIsland con l'API v2: `CreateKey` della persona, `CreateBucket` `mem-<persona>`, `AllowBucketKey` lettura/scrittura/proprietario, spazio `gruppo` (membri, registro, chiavi del gruppo consegnate); coppia di chiavi del PC, chiave del gruppo, chiave di recupero.
+  - Invito: `CreateKey` + spazio del collega + lettura su tutti gli spazi (e a tutti sul suo) + scrittura sul suo e su `gruppo` + `CreateAdminToken` suo; codice d'invito cifrato con un PIN detto a parte.
+  - Scollegare: `DeleteKey` + `DeleteAdminToken` + chiave del gruppo nuova per i dati da lì in poi; tutto nel registro.
+  - Limiti: gettoni limitabili solo per operazioni, non per spazio (chi è amministratore può darsi permessi altrui: fiducia tra colleghi); chi può fare `CreateAdminToken` ha di fatto tutti i poteri; niente versioning degli oggetti (versioni nostre); scritture condizionate non documentate (non servono). `AllowBucketKey`: i permessi a `false` restano com'erano, per togliere serve `DenyBucketKey`.
 Decisioni di Edoardo in `decisioni.md` → Memoria condivisa.
 - **Il modello:**
   - ogni PC ha la sua memoria;

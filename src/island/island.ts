@@ -151,15 +151,6 @@ function paneTermTop(pane: HTMLElement, r: DOMRect): number {
 
 /** Views that go to the notices' window when it is on (notices.ts) instead of opening the island. */
 const TOASTED: ReadonlySet<IslandViewName> = new Set<IslandViewName>(["notify", "moment", "recap", "daily"]);
-/** The Launcher was open when EasyIsland last closed (opened again at sign-in only then). */
-const LAUNCHER_OPEN_KEY = "easyisland.launcher.open";
-function rememberLauncherOpen(on: boolean) {
-  try {
-    localStorage.setItem(LAUNCHER_OPEN_KEY, on ? "1" : "0");
-  } catch {
-    /* no storage */
-  }
-}
 /**
  * Views an alert opens on, not the user: with the Launcher its window comes up
  * without taking the keyboard from the app being typed in (a key meant for it
@@ -1142,7 +1133,6 @@ export class Island {
    * key meant for it must never answer a card: N / Y / S in onIslandKey).
    */
   private showLauncher(activate: boolean) {
-    rememberLauncherOpen(true);
     void (async () => {
       await Bridge.focusWindow(activate).catch(() => undefined);
       await Bridge.setCollapsed(false).catch(() => undefined);
@@ -1151,17 +1141,7 @@ export class Island {
 
   /** Closed: Rust keeps its place and hides it (the page then costs nothing). */
   private hideLauncher() {
-    rememberLauncherOpen(false);
     void Bridge.setCollapsed(true).catch(() => undefined);
-  }
-
-  /** Started by Windows at sign-in: the Launcher opens only if it was open when EasyIsland closed. */
-  launcherWasOpen(): boolean {
-    try {
-      return localStorage.getItem(LAUNCHER_OPEN_KEY) === "1";
-    } catch {
-      return false;
-    }
   }
 
   get isLauncher(): boolean {

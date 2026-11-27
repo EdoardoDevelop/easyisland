@@ -32,6 +32,9 @@ const GROUPS: &[(&[&str], &[&str])] = &[
     // Microsoft To Do.
     (&["to do", "todo", "promemoria", "ricordami di"],
      &["todo_list", "todo_add", "todo_update"]),
+    // A mail to prepare in Outlook (sent by the user).
+    (&["mail", "e-mail", "outlook", "bozza", "scrivimi la risposta", "rispondi a"],
+     &["mail_draft"]),
     // Web pages.
     (&["sito", "pagina", "anteprima", "http", "www."],
      &["preview_open", "preview_find", "preview_extract", "preview_steps", "preview_snapshot"]),

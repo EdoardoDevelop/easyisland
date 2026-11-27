@@ -262,6 +262,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "skill_save" => crate::skills::tool_save(args),
         "todo_list" => crate::todo::list(args).await,
         "todo_add" => crate::todo::add(args).await,
+        "mail_draft" => crate::mail_draft::draft(app, args).await,
         "todo_update" => crate::todo::update(args).await,
 
         "list_status" => {

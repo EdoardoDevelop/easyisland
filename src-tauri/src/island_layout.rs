@@ -63,7 +63,10 @@ pub const SOURCES: &[&str] = &["apps", "windows", "quick", "folder", "recent", "
 pub const VALUES: &[&str] = &["cpu", "ram", "gpu", "disk", "battery", "net", "ip", "recycle", "updates"];
 
 /// The menu's sections, in their usual order, and the integrations' list (hide only).
-pub const MENU_PARTS: &[&str] = &["overview", "agents", "chat", "actions", "files", "news", "integrations"];
+pub const MENU_PARTS: &[&str] = &["overview", "chat", "files", "news", "integrations"];
+/// Menu entries that are gone (27 Nov 2026: Azioni and Agenti live in the
+/// Panoramica): left out where an older layout or an engine still names them.
+const LEGACY_MENU: &[&str] = &["agents", "actions"];
 /// The header's buttons, in their usual order: Consumo, the user's own, then the island's.
 pub const HEADER_PARTS: &[&str] = &["usage", "own", "pin", "memory", "settings", "sound"];
 /// Never hidden: the way to everything else.
@@ -536,7 +539,13 @@ fn action(v: &Value, what: &str, tabs: &[String]) -> Result<Value, String> {
         "view" => {
             let to = need("view")?;
             let tab_ok = to.strip_prefix("tab:").is_some_and(|id| tabs.iter().any(|x| x == id));
-            if !VIEWS.contains(&to.as_str()) && !tab_ok {
+            // An integration's card (26 Nov 2026, on the laptop: a button could not
+            // open «Rete» and a copy of it was made as a tab): `integration:<id>`,
+            // a built-in one (integration_network) or one of the user's (custom:<id>).
+            let integration_ok = to.strip_prefix("integration:").is_some_and(|id| {
+                !id.is_empty() && id.len() <= 80 && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
+            });
+            if !VIEWS.contains(&to.as_str()) && !tab_ok && !integration_ok {
                 return Err(bad(&to));
             }
             json!({ "kind": kind, "view": to })
@@ -875,6 +884,12 @@ fn footer(v: Option<&Value>, tabs: &[String], taken: &[String]) -> Result<Option
                     val[key] = x.clone();
                 }
             }
+            // A click on it (26 Nov 2026, on the laptop: «è possibile cliccarci sopra?»):
+            // `click`, an action as a button's, checked the same way.
+            if let Some(c) = x.get("click").filter(|c| c.is_object()) {
+                let checked = action(&json!({ "action": c }), &t("un valore del footer"), tabs)?;
+                val["click"] = checked;
+            }
             if !text(x, "label").is_empty() {
                 val["label"] = json!(label(x, "label", 20, &t("un valore del footer"))?);
             }
@@ -970,6 +985,9 @@ fn parts(v: Option<&Value>, what: &str, known: &[&str], tabs: &[String]) -> Resu
     let list = known.join(", ");
     let mut order: Vec<String> = Vec::new();
     for id in strings("order") {
+        if LEGACY_MENU.contains(&id.as_str()) {
+            continue;
+        }
         let tab_ok = id.strip_prefix("tab:").is_some_and(|t| tabs.iter().any(|x| x == t));
         // The integrations' list keeps its place (it scrolls): hidden or shown only.
         if !(known.contains(&id.as_str()) && id != "integrations") && !tab_ok {
@@ -981,6 +999,18 @@ fn parts(v: Option<&Value>, what: &str, known: &[&str], tabs: &[String]) -> Resu
     }
     let mut hidden: Vec<String> = Vec::new();
     for id in strings("hidden") {
+        // A tab of the user's: hidden from the menu, still opened by a button
+        // (26 Nov 2026: «puoi rimuovere banda dal menu?» could not be done).
+        let tab_ok = what == "menu" && id.strip_prefix("tab:").is_some_and(|t| tabs.iter().any(|x| x == t));
+        if LEGACY_MENU.contains(&id.as_str()) {
+            continue;
+        }
+        if tab_ok {
+            if !hidden.contains(&id) {
+                hidden.push(id);
+            }
+            continue;
+        }
         if !known.contains(&id.as_str()) || id == "own" {
             return Err(tf("«{id}» non si può nascondere in «{what}»: {list}.", &[("id", &id), ("what", &what), ("list", &list)]));
         }
@@ -1976,9 +2006,27 @@ mod tests {
     }
 
     #[test]
+    fn a_button_opens_an_integration_a_value_clicks_a_tab_hides() {
+        let base = normalize(&json!({ "tabs": [{ "id": "banda", "name": "Banda" }] })).unwrap();
+        // A button to an integration's card; a bad id is refused.
+        let b = apply(&base, &json!({ "footer": { "right": [{ "id": "rete", "label": "Rete", "action": { "kind": "view", "view": "integration:integration_network" } }] } })).unwrap();
+        assert_eq!(b["footer"]["right"][0]["action"]["view"], "integration:integration_network");
+        assert!(apply(&base, &json!({ "footer": { "right": [{ "id": "x", "label": "X", "action": { "kind": "view", "view": "integration:a b" } }] } })).is_err());
+        // A value with a click of its own, checked as a button's action.
+        let v = apply(&base, &json!({ "footer": { "right": [{ "what": "ip", "click": { "kind": "view", "view": "integration:custom:rete" } }] } })).unwrap();
+        assert_eq!(v["footer"]["right"][0]["click"]["view"], "integration:custom:rete");
+        assert!(apply(&base, &json!({ "footer": { "right": [{ "what": "ip", "click": { "kind": "shell", "cmd": "x" } }] } })).is_err());
+        // The user's tab hidden from the menu; the old Azioni and Agenti are left out, not refused.
+        let h = apply(&base, &json!({ "menu": { "order": ["agents", "chat"], "hidden": ["tab:banda", "actions"] } })).unwrap();
+        assert_eq!(hidden_of(&h, "menu"), ["tab:banda"]);
+        assert!(!shown_order(&h, "menu").contains(&"agents".to_string()));
+        assert!(apply(&base, &json!({ "menu": { "hidden": ["tab:nessuna"] } })).is_err());
+    }
+
+    #[test]
     fn the_islands_own_parts_move_and_hide() {
         let base = normalize(&json!({ "tabs": [{ "id": "app", "name": "App" }] })).unwrap();
-        assert_eq!(shown_order(&base, "menu"), ["overview", "agents", "chat", "actions", "files", "news", "tab:app"]);
+        assert_eq!(shown_order(&base, "menu"), ["overview", "chat", "files", "news", "tab:app"]);
         let moved = apply(&base, &json!({ "menu": { "order": ["tab:app", "chat"], "hidden": ["news", "integrations"] } })).unwrap();
         assert_eq!(shown_order(&moved, "menu")[..3], ["tab:app", "chat", "overview"]);
         let lines = changes(&base, &moved);

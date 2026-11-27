@@ -85,6 +85,7 @@ mod commands;
 mod periods;
 mod portals;
 mod todo;
+mod mail_draft;
 mod second;
 mod notion_page;
 mod rdm;
@@ -258,6 +259,8 @@ const LAUNCHER_MIN_H: f64 = 420.0;
 const LAUNCHER_KEY: &str = "launcher";
 /// The Launcher's window got its remembered place (done once, when first shown).
 static LAUNCHER_PLACED: AtomicBool = AtomicBool::new(false);
+/// `launcher_open_at_start` as this run started (a later change waits for the next start).
+static LAUNCHER_OPEN_AT_START: AtomicBool = AtomicBool::new(false);
 
 /// The Launcher (island.rs `launcher`) open: its window shown where it was,
 /// taking the keyboard only when the page asked for it (`focus_window(true)`,
@@ -319,6 +322,8 @@ pub struct BootInfo {
     /// The Launcher as this run built the island's window (island.rs
     /// `launcher`): the page follows it, not `settings.launcher`.
     launcher: bool,
+    /// The Launcher opens as this run starts (`launcher_open_at_start`).
+    open_launcher: bool,
 }
 
 #[tauri::command]
@@ -340,6 +345,7 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         launch: LAUNCH_DO.lock().unwrap().take(),
         autostarted: std::env::args().any(|a| a == AUTOSTART_ARG),
         launcher: island::launcher(),
+        open_launcher: island::launcher() && LAUNCHER_OPEN_AT_START.load(Ordering::Relaxed),
     }
 }
 
@@ -5695,6 +5701,8 @@ pub fn run() {
     let webview_dir = webview_profile::free();
     // First launch after the rename: bring Coucou's settings and keys over.
     let _moved = legacy::migrate();
+    // No settings yet: a new install, which starts as the Launcher (settings.rs).
+    let first_run = !settings::settings_path().exists();
     let mut loaded = settings::load();
     i18n::set(&loaded.language);
     cc_memory::set_on(loaded.memory_claude_code);
@@ -5702,7 +5710,12 @@ pub fn run() {
     settings::apply_pending_secrets(&mut loaded);
     // Island or Launcher: fixed for this run (a change restarts the app).
     island::init_launcher(loaded.launcher);
+    LAUNCHER_OPEN_AT_START.store(loaded.launcher_open_at_start, Ordering::Relaxed);
     log::line(format!("modalità: {}", if loaded.launcher { "Launcher" } else { "isola" }));
+    // The Launcher of a new install: its icon on the desktop, as when it is chosen.
+    if first_run && loaded.launcher {
+        startmenu::desktop_icon();
+    }
     let gate = Arc::new(PollGate::new());
 
     let launch_args: Vec<String> = std::env::args().skip(1).collect();
@@ -6329,9 +6342,10 @@ pub fn run() {
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);
                 if island::launcher() {
-                    // Opened at once where it was (the page draws into it as it loads),
-                    // not when Windows starts EasyIsland: then the page decides.
-                    if !std::env::args().any(|a| a == AUTOSTART_ARG) {
+                    // Opened at once where it was (the page draws into it as it loads)
+                    // only with «Apri la finestra all'avvio»; else EasyIsland waits in
+                    // the notification area (27 Nov 2026), at sign-in and after a restart too.
+                    if LAUNCHER_OPEN_AT_START.load(Ordering::Relaxed) {
                         island::set_want_focus(true);
                         launcher_show(&handle);
                     }

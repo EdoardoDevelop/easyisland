@@ -172,6 +172,8 @@ export interface BootInfo {
   autostarted?: boolean;
   /** The Launcher as Rust made the island's window for this run (island::launcher()): the page follows it, not the settings. */
   launcher?: boolean;
+  /** The Launcher opens as EasyIsland starts («Apri la finestra all'avvio»). */
+  openLauncher?: boolean;
 }
 
 /** A newer EasyIsland on GitHub. */
@@ -237,6 +239,18 @@ export function inIslandPage(from: Event | Node): boolean {
 export interface PcFile { name: string; path: string; folder: string; dir: boolean; recent: boolean }
 /** An open window of another program (pcfind.rs). */
 export interface PcWindow { id: number; appName: string; title: string }
+
+/**
+ * The docked Anteprima is a browser laid over this window (preview.rs pane):
+ * nothing of the page can be drawn above it. While something must be (a
+ * diagram at full size, diagram.ts), it is hidden and comes back where the
+ * page last placed it.
+ */
+const paneLast = { x: 0, y: 0, w: 0, h: 0 };
+let paneCovers = 0;
+const paneSend = () => (paneCovers > 0
+  ? call<void>("preview_pane", { x: 0, y: 0, w: 0, h: 0 })
+  : call<void>("preview_pane", { ...paneLast }));
 
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
@@ -784,7 +798,15 @@ export const Bridge = {
   previewShow: () => call<void>("preview_show"),
   previewHide: () => call<void>("preview_hide"),
   previewDock: (docked: boolean) => call<void>("preview_dock", { docked }),
-  previewPane: (x: number, y: number, w: number, h: number) => call<void>("preview_pane", { x, y, w, h }),
+  previewPane: (x: number, y: number, w: number, h: number) => {
+    Object.assign(paneLast, { x, y, w, h });
+    return paneSend();
+  },
+  /** Something of the page over the docked Anteprima: hidden while `on` (counted), then back. */
+  previewCover: (on: boolean) => {
+    paneCovers = Math.max(0, paneCovers + (on ? 1 : -1));
+    return paneSend().catch(() => undefined);
+  },
   previewState: () => call<import("../preview/types").PreviewState>("preview_state"),
   /** What the Anteprima's active tab shows, for the chat's tips (preview.rs page_kind). */
   previewPageKind: () => call<import("../views/chat-tips").PageKind>("preview_page_kind"),

@@ -1345,14 +1345,42 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
 /// What the frame of a page may do: its own scripts and styles, pictures and
 /// sounds made in the page; no request anywhere (EasyIsland makes them,
 /// custom-page.ts), no forms sent, no other page.
-const PAGE_CSP: &str = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; \
+const PAGE_CSP: &str = "default-src 'none'; script-src 'unsafe-inline' http://eipage.localhost; style-src 'unsafe-inline'; img-src data: blob:; \
 media-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'; frame-src 'none'; worker-src 'none'";
 
 /// The bridge the page's scripts use (`easyisland.…`): messages to the island, answered by id.
 const PAGE_BRIDGE: &str = include_str!("custom_page_bridge.js");
+/// The look every page gets by itself (Edoardo, 27 Nov 2026: «aspetto grafico
+/// bello in automatico»): plain HTML styled like EasyIsland and the ei-…
+/// pieces (cards, key numbers, badges, empty states), all at zero weight so
+/// the page's own CSS wins.
+const PAGE_UI: &str = include_str!("custom_page_ui.css");
+
+/// Libraries the pages may load from EasyIsland itself (Edoardo, 27 Nov 2026:
+/// pages as rich as the chat's artifacts, still without network):
+/// `<script src="/lib/chart.js">` (Chart.js, global `Chart`) and
+/// `<script src="/lib/preact.js">` (Preact with htm, global `htmPreact`:
+/// html, render, useState…, no build step, no eval). Fixed versions in
+/// package.json; taken from node_modules when EasyIsland is built.
+const PAGE_LIBS: &[(&str, &[u8])] = &[
+    ("chart.js", include_bytes!("../../node_modules/chart.js/dist/chart.umd.min.js")),
+    ("preact.js", include_bytes!("../../node_modules/htm/preact/standalone.umd.js")),
+];
 
 /// eipage://<id>: the page of that integration, the bridge put in before its own scripts.
 pub fn page_response(path: &str) -> tauri::http::Response<Vec<u8>> {
+    // A library of PAGE_LIBS: the same for every page, kept by the frame.
+    if let Some(name) = path.strip_prefix("/lib/") {
+        let lib = PAGE_LIBS.iter().find(|(n, _)| *n == name);
+        let builder = tauri::http::Response::builder()
+            .header("Content-Type", "text/javascript; charset=utf-8")
+            .header("Cache-Control", "max-age=86400")
+            .header("X-Content-Type-Options", "nosniff");
+        return match lib {
+            Some((_, bytes)) => builder.status(200).body(bytes.to_vec()).unwrap_or_default(),
+            None => builder.status(404).body(Vec::new()).unwrap_or_default(),
+        };
+    }
     let id = path.trim_matches('/').split(['/', '?', '#']).next().unwrap_or_default();
     let page = if valid_id(id) { get(id).map(|c| c.page).unwrap_or_default() } else { String::new() };
     let builder = tauri::http::Response::builder()
@@ -1369,7 +1397,7 @@ pub fn page_response(path: &str) -> tauri::http::Response<Vec<u8>> {
 /// The page with the bridge's script as the first thing in it (after `<head>`
 /// when there is one, so a doctype stays first).
 pub fn with_bridge(page: &str) -> String {
-    let script = format!("<script>{PAGE_BRIDGE}</script>");
+    let script = format!("<style id=\"ei-ui\">{PAGE_UI}</style><script>{PAGE_BRIDGE}</script>");
     let lower = page.to_ascii_lowercase();
     if let Some(at) = lower.find("<head").and_then(|i| lower.get(i..).and_then(|r| r.find('>')).map(|j| i + j + 1)) {
         let (a, b) = (page.get(..at).unwrap_or_default(), page.get(at..).unwrap_or_default());
@@ -2086,12 +2114,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_pages_libraries_are_served_and_nothing_else() {
+        let chart = page_response("/lib/chart.js");
+        assert_eq!(chart.status(), 200);
+        assert!(chart.body().len() > 100_000);
+        assert_eq!(page_response("/lib/preact.js").status(), 200);
+        assert_eq!(page_response("/lib/../custom.rs").status(), 404);
+        assert_eq!(page_response("/lib/").status(), 404);
+    }
+
+    #[test]
     fn the_bridge_goes_first_in_a_page() {
         let full = with_bridge("<!doctype html><html><head><title>x</title></head><body><script>easyisland.records()</script></body></html>");
-        assert!(full.starts_with("<!doctype html><html><head><script>"));
+        // The look first, then the bridge, both before the page's own head.
+        assert!(full.starts_with("<!doctype html><html><head><style id=\"ei-ui\">"));
+        assert!(full.find("</style><script>").unwrap() < full.find("<title>").unwrap());
         assert!(full.find("Object.defineProperty(window, \"easyisland\"").unwrap() < full.find("easyisland.records()").unwrap());
         let bare = with_bridge("<div id=a></div><script>1</script>");
-        assert!(bare.starts_with("<!doctype html><meta charset=\"utf-8\"><script>"));
+        assert!(bare.starts_with("<!doctype html><meta charset=\"utf-8\"><style id=\"ei-ui\">"));
         assert!(bare.ends_with("<div id=a></div><script>1</script>"));
     }
 

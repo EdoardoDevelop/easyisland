@@ -56,6 +56,7 @@ fn phrase(tool: &str) -> Option<&'static str> {
         "memory_forget" => t("Toglie un ricordo"),
         "todo_list" => t("Legge le attività di To Do"),
         "todo_add" => t("Aggiunge un'attività a To Do"),
+        "mail_draft" => t("Prepara una mail in Outlook, da inviare tu"),
         "todo_update" => t("Aggiorna un'attività di To Do"),
         "list_automations" => t("Guarda le automazioni"),
         "create_automation" => t("Crea un'automazione"),

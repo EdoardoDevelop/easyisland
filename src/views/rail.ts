@@ -405,6 +405,9 @@ export function buildRail(actions: ViewActions): ViewHost {
         orderKey = ordk;
         fixed.replaceChildren(...order.map((id) => (SECTION_OF[id] ? sections[SECTION_OF[id]] : tabRows.get(id))).filter((x): x is HTMLElement => !!x));
       }
+      // A tab hidden from the menu (`menu.hidden`, 27 Nov 2026) is still opened by
+      // its button: its row shows only while it is the one open.
+      for (const [id, r] of tabRows) r.style.display = partHidden("menu", id) && on !== id ? "none" : "";
       const fk = zoneKey("menu-bottom");
       if (fk !== footKey) {
         footKey = fk;
