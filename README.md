@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.58** — **Launcher mode** (the island as a Windows window, starts closed); **integrations in the Start menu** with a page that looks after itself; **charts** in the chat and every Mermaid diagram; **Outlook mail drafts**; a single set of settings instead of profiles; tips that vanish at once.
 - **1.0.57** — **changes to files as in an editor** (removed and added lines, side by side, also in the Allow/Deny request); **versions** of edited questions (‹ 2/2 ›); **Ask about this** on a piece of an answer; a conversation **map**; solid buttons and panels that close cleanly.
 - **1.0.56** — **a nicer chat**: replies that flow in, coloured boxes, tables with bars and states, **diagrams**, **procedures to tick** and commands with fields, conversations as tabs, Ctrl+F, a notice when an answer ends, drafts per conversation; 23 drawings for the empty chat; fixed bar with minimise into the icon, downloads, removable drives and recycle bin.
 - **1.0.55** — **the island built from the chat**: tabs, blocks, charts, Overview and footer, **looks in words** (colours, gradients, corners, font, sizes) and **conditions** (hours, program in front, thresholds that colour), with preview and Undo; a more customisable bar clock; "Apps" with icons to reorder.
-- **1.0.54** — **the PC from the island's field** (files, windows, Windows pages); the fixed bar works as a **taskbar** with the **Apps** element (pinned and open, previews, right-click menu) and the Windows taskbar can be **hidden**; folders and the Windows group in the bar; **chat in panels**, tabbed terminal, code blocks "In the terminal" and "Save"; "ask the memory".
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
 ---
