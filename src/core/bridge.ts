@@ -170,6 +170,8 @@ export interface BootInfo {
   launch?: string | null;
   /** Started by Windows at sign-in: the Launcher stays closed. */
   autostarted?: boolean;
+  /** The Launcher as Rust made the island's window for this run (island::launcher()): the page follows it, not the settings. */
+  launcher?: boolean;
 }
 
 /** A newer EasyIsland on GitHub. */

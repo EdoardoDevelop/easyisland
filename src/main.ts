@@ -262,12 +262,20 @@ async function main() {
   });
 
   linkCharacterWindow(island);
-  island.launch();
+  try {
+    island.launch(boot?.launcher);
+  } catch (e) {
+    // Seen nowhere else: the start stopped here (27 Nov 2026, after Launcher → Isola).
+    void Bridge.log(`avvio della pagina: ${(e as Error)?.stack ?? e}`).catch(() => {});
+  }
+  void Bridge.log(`avvio della pagina: pronta (${island.isLauncher ? "Launcher" : "isola"})`).catch(() => {});
   if (boot?.openSearch) void island.onHotkey("search");
+  // The Launcher started by the user: Rust shows its window at once and the page
+  // opens to match (also with a Start shortcut, the window is there anyway).
+  // At sign-in only if it was open when EasyIsland last closed.
+  if (island.isLauncher && (!boot?.autostarted || island.launcherWasOpen())) island.openFromTaskbar();
   // Started from a Start menu shortcut (startmenu.rs) or the taskbar's menu.
   if (boot?.launch) void island.onHotkey(boot.launch);
-  // The Launcher started by the user: its window at once (at sign-in it waits in the tray).
-  else if (State.settings.launcher && !boot?.autostarted) window.setTimeout(() => island.openFromTaskbar(), 600);
   // The Start menu's folder follows the integrations that are on.
   State.subscribe(() => watchStartMenu());
   // Monday from 8:00: last week's recap, once the greeting is over.

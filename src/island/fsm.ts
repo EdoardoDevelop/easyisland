@@ -162,7 +162,14 @@ export class IslandStateMachine {
     this.clear("greetCollapse");
   }
 
+  /** The Launcher: no compact island, closing hides at once. */
+  noPetit = false;
+
   private transition(next: FsmState) {
+    if (next === "petit" && this.noPetit) {
+      this.cancelTimers();
+      next = "hidden";
+    }
     if (next === this.state) return;
     const from = this.state;
     this.state = next;

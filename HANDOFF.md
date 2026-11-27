@@ -76,6 +76,13 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 27/11 — Launcher = la finestra dell'isola
+- Il Launcher non sposta più il contenuto in un'altra finestra. È la finestra dell'isola stessa, costruita all'avvio come finestra di Windows (`island::launcher()`, fissa per tutta l'esecuzione), e il resto dell'isola è spento.
+- Aperta e chiusa sono la finestra mostrata e nascosta (`set_collapsed`). Gli avvisi la mostrano senza tastiera: `popplace::show` con `SW_SHOWNA`, nascosta con `popplace::hide`.
+- Cambio Isola ⇄ Launcher: l'app esce e l'aiutante `--relaunch` aspetta il vecchio processo e i suoi browser WebView2, poi riapre da Esplora file. Partendo mentre il vecchio WebView2 chiudeva, l'app restava appesa.
+- Timer della pagina non rallentati con la finestra nascosta (`BROWSER_ARGS`).
+- Provati dal vivo: apertura, ✕, posto ricordato, avvisi e card senza tastiera, Isola ⇄ Launcher (3 giri). Da provare: Riquadra dal Launcher, permesso + ✕, avvio da Windows, timer dopo più di 5 minuti chiuso.
+
 ### 26/11 — Launcher
 - `launcher` nelle impostazioni: l'isola come finestra di Windows (app e tenuta aperta), niente isola chiusa, personaggio, barra né saluto; aperta da `openFromTaskbar`, all'avvio se non da Windows (`--autostart`).
 - Finestre staccate al posto in cui erano chiuse (`popplace.rs`), in primo piano anche da Start; personaggio nel menu del Launcher; chat dello Start in finestra sua.
@@ -92,5 +99,3 @@ Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 ### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
 - Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
 
-### 26/11 — Chat: versioni, Chiedi su questo, mappa
-- «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).

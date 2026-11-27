@@ -240,6 +240,10 @@ pub static CAPTURING: AtomicBool = AtomicBool::new(false);
 /// the work area, so the island never jumps when the window grows or shrinks,
 /// and nothing ever sits on the taskbar.
 pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, collapsed: bool) {
+    // The Launcher: the user's window, sized and placed by them (popplace.rs).
+    if launcher() {
+        return;
+    }
     // Covering a frozen screen (screenshot.rs): nothing moves it until that ends.
     if CAPTURING.load(Ordering::Relaxed) {
         return;
@@ -249,19 +253,6 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
 
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
-
-    // The Launcher (26 Nov 2026): the island is never on the screen, but its
-    // window stays shown, 1×1 in the work area's corner and click-through.
-    // Hidden, WebView2 stopped drawing its page (no frames, no ResizeObserver,
-    // timers slowed down), and the menu, the views and the chat's panels
-    // (dockview) shown in the Launcher's window run on that page: the panels
-    // came out twice and did not close. Its content is transparent.
-    if settings.launcher {
-        let _ = win.set_size(PhysicalSize::new(1, 1));
-        let _ = win.set_position(PhysicalPosition::new(work.0, work.1));
-        let _ = win.set_ignore_cursor_events(true);
-        return;
-    }
 
     let (pw, ph) = if collapsed {
         let (lw, lh) = *gate.collapsed_size.lock().unwrap();
@@ -439,6 +430,9 @@ pub fn stop_glide() {
 /// the character's place along the closing curve while the island shrinks,
 /// instead of jumping there first.
 pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
+    if launcher() {
+        return;
+    }
     let Some(win) = window(app) else { return };
     let Some(m) = target_monitor(app, &settings.screen) else { return };
     let scale = m.scale_factor();
@@ -635,6 +629,10 @@ pub fn work_area(app: &AppHandle, settings: &Settings) -> Option<((i32, i32, u32
 /// Every two seconds: is a full-screen app in front? Cheap (one shell call),
 /// and it only runs while the user has asked for quiet in full screen.
 pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
+    // The Launcher is an ordinary window: a full-screen app simply covers it.
+    if launcher() {
+        return;
+    }
     use windows::Win32::UI::Shell::{
         SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE,
         QUNS_RUNNING_D3D_FULL_SCREEN,
@@ -677,8 +675,7 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
         crate::log::line(format!("full screen: {busy}"));
         // Only the resting icon goes away; an open island (a permission request)
         // stays where it is.
-        let launcher = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().launcher);
-        if gate.collapsed.load(Ordering::Relaxed) && !launcher {
+        if gate.collapsed.load(Ordering::Relaxed) {
             if let Some(win) = window(&app) {
                 let _ = if busy { win.hide() } else { win.show() };
             }
@@ -694,6 +691,9 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
 /// the island takes the front back every 100 ms. One GetAsyncKeyState per tick,
 /// and only while the user wants the island over the taskbar.
 pub fn spawn_drag_raise(app: AppHandle, gate: Arc<PollGate>) {
+    if launcher() {
+        return;
+    }
     let _ = RAISE_ON_FOREGROUND.set((app.clone(), gate.clone()));
     std::thread::spawn(move || {
         let mut over = false;
@@ -803,6 +803,17 @@ pub(crate) fn is_shell(hwnd: HWND) -> bool {
             | "NotifyIconOverflowWindow" | "TopLevelWindowForOverflowXamlIsland" | "XamlExplorerHostIslandWindow"
             | "MultitaskingViewFrame" | "ForegroundStaging" | "TaskListThumbnailWnd"
     )
+}
+
+/// An ordinary window (the Launcher) brought above the windows covering it,
+/// without taking the keyboard from the app in use.
+pub fn to_top_quietly(win: &tauri::Window) {
+    let Some(hwnd) = hwnd_of(win) else { return };
+    let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
+    unsafe {
+        let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(hwnd, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
+    }
 }
 
 /// Back on top after `step_aside_for`: a click on the island, a permission, a
@@ -1155,13 +1166,16 @@ pub fn keep_out_of_alt_tab(win: &tauri::Window) {
 
 /// `set_ignore_cursor_events`, keeping the island out of Alt+Tab.
 pub fn ignore_cursor(win: &tauri::Window, ignore: bool) {
-    let _ = win.set_ignore_cursor_events(ignore);
+    let _ = win.set_ignore_cursor_events(ignore && !launcher());
     keep_out_of_alt_tab(win);
 }
 
 /// WS_EX_NOACTIVATE keeps clicks from stealing focus; WS_EX_TOOLWINDOW keeps the
 /// island out of Alt-Tab.
 pub fn make_non_activating(win: &tauri::Window) {
+    if launcher() {
+        return;
+    }
     let Some(hwnd) = hwnd_of(win) else { return };
     unsafe {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
@@ -1248,8 +1262,26 @@ pub fn set_activating(win: &tauri::Window, activating: bool) {
 static APP_MODE: AtomicBool = AtomicBool::new(false);
 static WANT_APP_MODE: AtomicBool = AtomicBool::new(false);
 
+/// The Launcher (settings.rs `launcher`, 27 Nov 2026): the island's own window
+/// is an ordinary Windows window (frame, taskbar, Alt+Tab, not on top), built so
+/// at start and the same for the whole run: a change of the setting restarts
+/// the app (lib.rs apply_settings), WebView2 transparency is fixed at creation.
+/// Everything that shapes, moves or hides the island is off; open/closed is
+/// shown/hidden (lib.rs set_collapsed).
+static LAUNCHER: AtomicBool = AtomicBool::new(false);
+
+/// Called once, before the windows are built.
+pub fn init_launcher(on: bool) {
+    LAUNCHER.store(on, Ordering::Relaxed);
+}
+
+pub fn launcher() -> bool {
+    LAUNCHER.load(Ordering::Relaxed)
+}
+
+/// An ordinary window: pinned as an app, or the Launcher.
 pub fn app_mode() -> bool {
-    APP_MODE.load(Ordering::Relaxed)
+    launcher() || APP_MODE.load(Ordering::Relaxed)
 }
 
 pub fn wants_app_mode() -> bool {
@@ -1273,7 +1305,7 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
 
 /// Applies `app_mode` immediately without overwriting `WANT_APP_MODE` (used when collapsing/expanding).
 pub fn apply_app_mode(app: &AppHandle, on: bool) {
-    if APP_MODE.swap(on, Ordering::Relaxed) == on {
+    if launcher() || APP_MODE.swap(on, Ordering::Relaxed) == on {
         return;
     }
     let Some(win) = window(app) else { return };
@@ -1368,6 +1400,10 @@ fn current_screen_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
 /// Emits `cursor` (window-logical coordinates) at ~60 Hz while the island is
 /// visible. Parked on a condvar the rest of the time.
 pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
+    // The Launcher: no click-through, no opening on hover, nothing to watch.
+    if launcher() {
+        return;
+    }
     std::thread::spawn(move || {
         // Remembered across wakes so a display change while hidden is noticed the
         // moment the island comes back.

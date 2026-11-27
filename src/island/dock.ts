@@ -70,6 +70,8 @@ export class ChatDock {
   private menuOpen = false;
   /** The panels could show at the last sync (the island open on the chat): only then do they move. */
   private wasEnabled = false;
+  /** Counts what moved the chat's elements (sync puts their scroll back only then). */
+  private moves = 0;
   /**
    * Arrangements the user made with this set of panels, the last one now (the
    * tab's menu undoes and redoes them). dockview's own history is in its paid
@@ -185,13 +187,17 @@ export class ChatDock {
     // Moving the chat's views into or out of a panel resets every scroll inside
     // them to the top (26 Nov 2026, Edoardo: «la chat scorre tutta in alto»):
     // each is put back, at the bottom if it was there.
+    // Only when something really moved: the Launcher's window redraws at every
+    // frame, and putting back the scroll of 120–320 ms before threw the
+    // conversation up and down while the user scrolled (27 Nov 2026).
     const kept = [...this.doc.querySelectorAll<HTMLElement>(".chat-log, .chat-side, .chat-docs")]
       .filter((e) => e.scrollTop > 0)
       .map((e) => ({ e, top: e.scrollTop, end: e.scrollHeight - e.scrollTop - e.clientHeight < 4 }));
+    const moves = this.moves;
     try {
       this.syncNow();
     } finally {
-      if (kept.length) {
+      if (kept.length && this.moves !== moves) {
         const put = () => kept.forEach(({ e, top, end }) => {
           const want = end ? e.scrollHeight : top;
           if (Math.abs(e.scrollTop - want) > 1) e.scrollTop = want;
@@ -237,9 +243,13 @@ export class ChatDock {
       leaving?.();
       return;
     }
-    if (!this.views.isConnected || this.views.parentElement !== this.boxes.get("chat")) this.box("chat").append(this.views);
+    if (!this.views.isConnected || this.views.parentElement !== this.boxes.get("chat")) {
+      this.box("chat").append(this.views);
+      this.moves++;
+    }
     const have = this.api.panels.map((p) => p.id as DockPanelId).sort();
     if (want.join() !== have.join()) {
+      this.moves++;
       this.build(want);
       if (kept) {
         this.restoreSizes(kept);
@@ -295,6 +305,7 @@ export class ChatDock {
   }
 
   private show() {
+    this.moves++;
     this.active = true;
     this.el.style.display = "";
     this.box("chat").append(this.views);
@@ -304,6 +315,7 @@ export class ChatDock {
 
   /** The chat alone again: its views back where they were, the conversations and terminal into the chat. */
   private hide() {
+    this.moves++;
     this.active = false;
     this.home();
     this.el.parentElement?.insertBefore(this.views, this.el);
@@ -328,14 +340,23 @@ export class ChatDock {
     const doc = this.views.ownerDocument;
     const side = doc.querySelector<HTMLElement>(".chat-side");
     const term = doc.querySelector<HTMLElement>(".chat-term");
-    if (side && side.parentElement !== layout) layout.prepend(side);
-    if (term && term.parentElement !== layout && !term.parentElement?.id) layout.append(term);
+    if (side && side.parentElement !== layout) {
+      layout.prepend(side);
+      this.moves++;
+    }
+    if (term && term.parentElement !== layout && !term.parentElement?.id) {
+      layout.append(term);
+      this.moves++;
+    }
   }
 
   private adopt(selector: string, id: DockPanelId, want: DockPanelId[]) {
     const el = this.doc.querySelector<HTMLElement>(selector);
     const home = this.boxes.get(id);
-    if (el && home && want.includes(id) && el.parentElement !== home) home.append(el);
+    if (el && home && want.includes(id) && el.parentElement !== home) {
+      home.append(el);
+      this.moves++;
+    }
   }
 
   private box(id: DockPanelId): HTMLElement {

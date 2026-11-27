@@ -98,8 +98,6 @@ export function popOut(
     named?: (name: string, placed: boolean) => void;
     /** false: shown without taking the keyboard (opened by a notice, not by the user). */
     activate?: boolean;
-    /** `host.el` is the island's whole content (header, menu, views): no wrappers of the window's own (the Launcher). */
-    whole?: boolean;
   } = {},
 ): boolean {
   const at = extra.at;
@@ -197,18 +195,14 @@ export function popOut(
     island.className = "open railed popwin";
     island.style.background = background;
     doc.body.style.background = background;
-    if (extra.whole) {
-      island.append(host.el);
-    } else {
-      host.el.classList.add("on");
-      views.append(host.el);
-      body.append(views);
-      content.append(body);
-      island.append(content);
-    }
+    host.el.classList.add("on");
+    views.append(host.el);
+    body.append(views);
+    content.append(body);
+    island.append(content);
     doc.body.replaceChildren(island);
     frame = 0;
-    decorated = extra.decorate?.(doc, extra.whole ? island : body) ?? null;
+    decorated = extra.decorate?.(doc, body) ?? null;
     room(win, island);
     // A click outside a menu of the view closes it: the view listens on the island's page.
     doc.addEventListener("pointerdown", (e) => forward(e));
@@ -368,7 +362,7 @@ export function forward(e: PointerEvent) {
 }
 
 function remembered(key: string): { w: number; h: number; x: number | null; y: number | null } {
-  const fallback = key === "launcher" ? { w: 1100, h: 760 } : key === "chat" ? { w: 760, h: 720 } : { w: 520, h: 620 };
+  const fallback = key === "chat" ? { w: 760, h: 720 } : { w: 520, h: 620 };
   try {
     const v = JSON.parse(localStorage.getItem(PLACE_KEY + key) ?? "null") as { w: number; h: number; x: number; y: number } | null;
     if (v && v.w >= 360 && v.h >= 300) return v;
@@ -398,13 +392,4 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
 #island.popwin #content:has(.chat-card) { padding: 0; }
 #island.popwin .chat-card { border: 0; border-radius: 0; }
 html[data-chat-look="cards"] #island.popwin #content:has(.chat-card) { padding: 8px; }
-/* The Launcher: the island's whole content in a window of Windows (launcher in island.ts). */
-#island.popwin.launcher-win > #content { position: absolute; inset: 0; opacity: 1 !important; pointer-events: auto !important; display: flex; flex-direction: column; }
-#island.popwin.launcher-win > #content > #body { flex: 1; min-height: 0; position: relative; }
-/* Every view of the island is here: only the one on screen (.on) shows. */
-#island.popwin.launcher-win #views > .view:not(.on) { opacity: 0 !important; pointer-events: none !important; visibility: hidden; }
-/* The header moves the island; the Launcher's window moves by its title bar. */
-#island.popwin.launcher-win #header { cursor: default; }
-/* The character at the menu's head, drawn by the island (openLauncher). */
-#island.popwin.launcher-win > #launcher-bot { position: absolute; pointer-events: none; z-index: 5; }
 `;

@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Chat: versioni, Chiedi su questo, mappa
+- «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).
+
 ### 26/11 — Chat: modifiche ai file come in un editor
 - Dipendenza `diff` (`docs/decisioni.md`). Righe tolte e aggiunte sotto ogni passo che cambia un file, con tutti i motori della Modalità terminale, nei blocchi diff delle risposte e nella card Consenti/Nega (`docs/chat.md` → Modifiche ai file). Provato in Edge senza finestra (`?scene=chat&modifiche`), test Rust; da vedere nell'app con una modifica vera.
 

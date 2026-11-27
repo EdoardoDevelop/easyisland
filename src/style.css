@@ -10527,3 +10527,17 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 #island[data-spacing="wide"] .board-blocks { row-gap: 20px; --bgap: 14px; }
 #island[data-spacing="wide"] .qa-grid { gap: 12px; }
 #island[data-spacing="wide"] .board-block { gap: 10px; }
+
+/* ── The Launcher (island.ts startLauncher): the island is the whole window of Windows ── */
+/* Nothing of the island at rest: closed, the window hides. */
+body.launcher-mode #rest-icon,
+body.launcher-mode #wake-strip,
+body.launcher-mode #mini-grid,
+body.launcher-mode #countdown,
+body.launcher-mode .pop-ear { display: none !important; }
+/* The window moves by Windows' title bar, not by the header. */
+body.launcher-mode #header { cursor: default; }
+/* No shadow nor outline at the window's edges (Windows draws its frame). */
+body.launcher-mode #island { box-shadow: none !important; outline: none !important; }
+/* The whole window (the browser's preview frames #root as the island's usual window). */
+body.launcher-mode #root { inset: 0 !important; transform: none !important; width: auto !important; height: auto !important; }

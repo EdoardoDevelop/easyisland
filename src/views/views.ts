@@ -382,8 +382,10 @@ ${b}` : a;
         actionsRow.replaceChildren(...top, winSep, winGroup);
       }
       for (const id of ["pin", "memory", "sound"]) headerParts[id].style.display = partHidden("header", id) ? "none" : "";
-      // The Launcher is a window of Windows: it stays open and has its own ✕.
-      if (State.settings.launcher) headerParts.pin.style.display = "none";
+      // The Launcher is a window of Windows: it stays open and has its own ✕
+      // (chosen at start for the whole run: island.ts startLauncher).
+      const launcher = document.body.classList.contains("launcher-mode");
+      if (launcher) headerParts.pin.style.display = "none";
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
       tip(pinBtn, State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)"));
@@ -392,10 +394,10 @@ ${b}` : a;
       tip(soundBtn, State.settings.soundEnabled ? t("Silenzia") : t("Riattiva i suoni"));
       soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
-      closeBtn.style.display = State.settings.closeButton && !State.settings.launcher ? "" : "none";
+      closeBtn.style.display = State.settings.closeButton && !launcher ? "" : "none";
       minBtn.style.display = State.appWindow ? "" : "none";
       maxBtn.style.display = State.appWindow ? "" : "none";
-      const hasWinControls = State.appWindow || State.settings.closeButton;
+      const hasWinControls = State.appWindow || (State.settings.closeButton && !launcher);
       winGroup.style.display = hasWinControls ? "" : "none";
       winSep.style.display = hasWinControls ? "" : "none";
       if (maxShown !== State.maximized) {

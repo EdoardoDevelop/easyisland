@@ -1028,8 +1028,9 @@ pub struct Settings {
     #[serde(default = "default_true")]
     pub start_menu: bool,
     /// «Launcher» instead of the island (26 Nov 2026, Edoardo): no resting
-    /// island, character or fixed bar; a window of its own (src/island/launcher.ts)
-    /// with the chat and the integrations. Requests still open the island.
+    /// island, character or fixed bar; the island's own window is an ordinary
+    /// Windows window (island.rs `launcher`, 27 Nov 2026). Read at start: a
+    /// change restarts EasyIsland (lib.rs apply_settings).
     #[serde(default)]
     pub launcher: bool,
     /// Options of the integrations that run as checks (PROBE_INTEGRATIONS).

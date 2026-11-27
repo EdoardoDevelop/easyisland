@@ -113,8 +113,20 @@ export class FreshText {
  * listener that the move is its own, not the user's.
  */
 export class Glide {
-  gliding = false;
   private frame = 0;
+  /** The window the frame was asked of, and when the glide last moved. */
+  private frameWin: Window | null = null;
+  private lastTick = 0;
+
+  /**
+   * Moving now. A frame asked of a window that went (the log moved to the
+   * Launcher or the chat's window, WebView2 swapped the page) never comes:
+   * without this the glide stayed «on» for ever, the log stopped following the
+   * reply and the user's scrolling was taken for the glide's own (27 Nov 2026).
+   */
+  get gliding() {
+    return this.frame !== 0 && performance.now() - this.lastTick < 250;
+  }
 
   constructor(private log: HTMLElement) {
     // The user's wheel or finger stops it at once.
@@ -130,10 +142,12 @@ export class Glide {
       this.log.scrollTop = this.log.scrollHeight;
       return;
     }
-    if (this.frame) return;
-    this.gliding = true;
     const view = this.log.ownerDocument.defaultView ?? window;
+    if (this.frameWin === view && this.gliding) return;
+    this.stop();
+    this.lastTick = performance.now();
     const tick = () => {
+      this.lastTick = performance.now();
       const target = this.log.scrollHeight - this.log.clientHeight;
       const gap = target - this.log.scrollTop;
       if (gap <= 1 || !this.log.isConnected) {
@@ -145,12 +159,19 @@ export class Glide {
       this.log.scrollTop += Math.max(1, Math.ceil(gap * 0.22));
       this.frame = view.requestAnimationFrame(tick);
     };
+    this.frameWin = view;
     this.frame = view.requestAnimationFrame(tick);
   }
 
   stop() {
-    if (this.frame) (this.log.ownerDocument.defaultView ?? window).cancelAnimationFrame(this.frame);
+    if (this.frame) {
+      try {
+        this.frameWin?.cancelAnimationFrame(this.frame);
+      } catch {
+        /* its window is gone */
+      }
+    }
     this.frame = 0;
-    this.gliding = false;
+    this.frameWin = null;
   }
 }

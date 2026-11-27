@@ -1729,3 +1729,7 @@ html[data-scheme="light"] .settings-hit-path {
 
 /* «App nella barra» (main.ts appsPinsBlock): apps found to add. */
 .apps-pins-found { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+
+/* Isola ⇄ Launcher: the restart asked before it happens (main.ts launcherRow). */
+.launcher-confirm { flex-basis: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.launcher-confirm[hidden] { display: none; }

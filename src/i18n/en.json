@@ -6771,7 +6771,9 @@
   "{name} in una finestra di EasyIsland": "{name} in an EasyIsland window",
   "Come usi EasyIsland": "How you use EasyIsland",
   "Launcher": "Launcher",
-  "Launcher: niente personaggio né barra sullo schermo; EasyIsland è una finestra di Windows che apri dalla barra delle applicazioni, dallo Start, dall'area di notifica o con la scorciatoia, con tutto quello che ha l'isola": "Launcher: no character or bar on the screen; EasyIsland is a Windows window you open from the taskbar, Start, the notification area or the shortcut, with everything the island has",
+  "Launcher: niente personaggio né barra sullo schermo; EasyIsland è una finestra di Windows che apri dalla barra delle applicazioni, dallo Start, dall'area di notifica o con la scorciatoia, con tutto quello che ha l'isola. Cambiare modalità riavvia EasyIsland.": "Launcher: no character or bar on the screen; EasyIsland is a Windows window you open from the taskbar, Start, the notification area or the shortcut, with everything the island has. Changing mode restarts EasyIsland.",
+  "EasyIsland si chiude e si riapre subito come finestra di Windows.": "EasyIsland closes and opens again right away as a Windows window.",
+  "EasyIsland si chiude e si riapre subito come isola sullo schermo.": "EasyIsland closes and opens again right away as an island on the screen.",
   "Tema e colori, il personaggio nel menu e cosa mostra la finestra del Launcher.": "Theme and colours, the character in the menu and what the Launcher's window shows.",
   "Il campo in alto, la Panoramica e quello che hai aggiunto dalla chat. Grandezza e posto sono quelli della finestra: li decidi trascinandola.": "The field at the top, the Overview and what you added from the chat. Size and place are the window's: you set them by dragging it."
 }

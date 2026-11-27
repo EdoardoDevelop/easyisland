@@ -4164,17 +4164,9 @@ function generalSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Generale") })),
     h("div", { class: "hint island-only", text: t("I tempi di chiusura sono in Aspetto → Isola aperta.") }),
     // The Launcher (26 Nov 2026): the island as a window of Windows, nothing on the screen when closed.
-    h("div", { class: "row" },
-      h("label", { text: t("Come usi EasyIsland") }),
-      choice([["isola", t("Isola")], ["launcher", t("Launcher")]], settings.launcher ? "launcher" : "isola", (v) => {
-        settings.launcher = v === "launcher";
-        void save();
-        // What is only for the island on the screen hides or comes back (Aspetto's tabs too).
-        paintLauncher();
-        render();
-      }),
-      h("span", { class: "hint note", text: t("Launcher: niente personaggio né barra sullo schermo; EasyIsland è una finestra di Windows che apri dalla barra delle applicazioni, dallo Start, dall'area di notifica o con la scorciatoia, con tutto quello che ha l'isola") }),
-    ),
+    // Isola ⇄ Launcher restarts the app (27 Nov 2026: the island's own window
+    // changes, and WebView2's transparency is chosen only when it is made): asked first.
+    launcherRow(),
     h("div", { class: "row" },
       h("label", { text: t("Suono") }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),
@@ -4466,6 +4458,49 @@ function paintFixedBar() {
  */
 function paintLauncher() {
   document.body.classList.toggle("mode-launcher", !!settings.launcher);
+}
+
+/**
+ * Generale → «Come usi EasyIsland». Isola ⇄ Launcher restarts EasyIsland (lib.rs
+ * apply_settings, 27 Nov 2026): the choice waits for «Riavvia ora», and saving
+ * then is what restarts it; «Annulla» puts the choice back.
+ */
+function launcherRow(): HTMLElement {
+  const now = settings.launcher ? "launcher" : "isola";
+  const confirmRow = h("div", { class: "launcher-confirm", hidden: true });
+  const pick = choice([["isola", t("Isola")], ["launcher", t("Launcher")]], now, (v) => {
+    if (v === now) {
+      confirmRow.hidden = true;
+      return;
+    }
+    const go = h("button", { class: "btn primary", text: t("Riavvia ora") });
+    const cancel = h("button", { class: "btn", text: t("Annulla") });
+    go.addEventListener("click", () => {
+      go.setAttribute("disabled", "");
+      cancel.setAttribute("disabled", "");
+      settings.launcher = v === "launcher";
+      // What is only for the island on the screen hides or comes back (Aspetto's tabs too).
+      paintLauncher();
+      void save();
+    });
+    cancel.addEventListener("click", () => {
+      (pick as HTMLSelectElement).value = now;
+      confirmRow.hidden = true;
+    });
+    confirmRow.replaceChildren(
+      h("span", { class: "hint", text: v === "launcher"
+        ? t("EasyIsland si chiude e si riapre subito come finestra di Windows.")
+        : t("EasyIsland si chiude e si riapre subito come isola sullo schermo.") }),
+      go, cancel,
+    );
+    confirmRow.hidden = false;
+  });
+  return h("div", { class: "row launcher-row" },
+    h("label", { text: t("Come usi EasyIsland") }),
+    pick,
+    h("span", { class: "hint note", text: t("Launcher: niente personaggio né barra sullo schermo; EasyIsland è una finestra di Windows che apri dalla barra delle applicazioni, dallo Start, dall'area di notifica o con la scorciatoia, con tutto quello che ha l'isola. Cambiare modalità riavvia EasyIsland.") }),
+    confirmRow,
+  );
 }
 
 // ── Quick actions ─────────────────────────────────────────────────────────────

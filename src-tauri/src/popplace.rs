@@ -83,8 +83,48 @@ fn fit(app: &AppHandle, mut p: Place) -> Place {
 /// front. `activate` false (opened by a notice or a permission, not by the
 /// user): shown without taking the keyboard from the app being typed in.
 pub fn place(app: &AppHandle, name: &str, key: &str, at: Option<(f64, f64)>, activate: bool) -> bool {
-    KEYS.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert(name.to_string(), key.to_string());
+    let Some(placed) = restore(app, name, key, at) else { return false };
     let Some(w) = app.get_window(name) else { return false };
+    show(&w, activate);
+    placed
+}
+
+/// Shown in front, taking the keyboard or (`activate` false) leaving it to the
+/// app being typed in; back from the taskbar if it was minimized.
+pub fn show(w: &tauri::Window, activate: bool) {
+    if activate {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        if let Ok(h) = w.hwnd() {
+            crate::search_window::bring_hwnd_forward(h.0);
+        }
+    } else if let Ok(h) = w.hwnd() {
+        // As it is (maximized stays so); minimized, back from the taskbar.
+        // Neither takes the keyboard. Tauri does not see this show: hide the
+        // window with `hide` below, or Tauri's own hide does nothing.
+        use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNA, SW_SHOWNOACTIVATE};
+        let how = if w.is_minimized().unwrap_or(false) { SW_SHOWNOACTIVATE } else { SW_SHOWNA };
+        let _ = unsafe { ShowWindow(windows::Win32::Foundation::HWND(h.0), how) };
+    }
+}
+
+/// Hidden for Tauri and for Windows: a window shown by `show` without the
+/// keyboard is visible behind Tauri's back, and Tauri's hide alone left the
+/// Launcher on the screen with its page closed (27 Nov 2026).
+pub fn hide(w: &tauri::Window) {
+    let _ = w.hide();
+    if let Ok(h) = w.hwnd() {
+        use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
+        let _ = unsafe { ShowWindow(windows::Win32::Foundation::HWND(h.0), SW_HIDE) };
+    }
+}
+
+/// The window `name` sized and placed for `key`, not shown: `Some(true)` when
+/// a remembered place was used, `None` without the window.
+pub fn restore(app: &AppHandle, name: &str, key: &str, at: Option<(f64, f64)>) -> Option<bool> {
+    KEYS.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert(name.to_string(), key.to_string());
+    let w = app.get_window(name)?;
     let saved = with_places(|m| m.get(key).copied()).filter(|p| p.w >= 300 && p.h >= 240 && on_screen(app, p));
     if let Some((x, y)) = at {
         let _ = w.set_position(tauri::LogicalPosition::new(x - 80.0, y - 16.0));
@@ -101,18 +141,7 @@ pub fn place(app: &AppHandle, name: &str, key: &str, at: Option<(f64, f64)>, act
     } else {
         let _ = w.center();
     }
-    if activate {
-        let _ = w.show();
-        let _ = w.unminimize();
-        let _ = w.set_focus();
-        if let Ok(h) = w.hwnd() {
-            crate::search_window::bring_hwnd_forward(h.0);
-        }
-    } else if let Ok(h) = w.hwnd() {
-        use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
-        let _ = unsafe { ShowWindow(windows::Win32::Foundation::HWND(h.0), SW_SHOWNOACTIVATE) };
-    }
-    saved.is_some() && at.is_none()
+    Some(saved.is_some() && at.is_none())
 }
 
 /// The window `name` is closing: where it is now, kept for its key.
