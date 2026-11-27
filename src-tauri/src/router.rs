@@ -26,7 +26,7 @@ use crate::i18n::{t, tf};
 /// What the smistatore may run by itself: reads of the user's own data.
 pub const READS: &[&str] = &[
     "list_status", "list_quick_actions", "media_status", "list_work_folder", "list_uploaded_files",
-    "notion_query", "notion_read", "remote_status", "pc_check", "todo_list", "list_profiles",
+    "notion_query", "notion_read", "remote_status", "pc_check", "todo_list",
     "list_automations", "task_list", "skill_list", "document_templates", "custom_list",
     "custom_records", "portal_list", "memory_check",
 ];

@@ -35,7 +35,7 @@ Gli aggiornamenti si installano **solo dopo un clic**, con la **firma verificata
 | Log | `%LOCALAPPDATA%\EasyIsland\easyisland.log` | Eventi tecnici, senza contenuti |
 
 ## Davanti al cliente
-Durante chiamate, riunioni e assistenza remota il personaggio si nasconde e nessun nome, titolo o testo compare sullo schermo. Vedi [Profili e notifiche](06-profili.md#davanti-al-cliente).
+Durante chiamate, riunioni e assistenza remota il personaggio si nasconde e nessun nome, titolo o testo compare sullo schermo. Vedi [Notifiche](06-notifiche.md#davanti-al-cliente).
 
 ## Modelli AI
 Quello che scrivi in chat va al motore che scegli. Con i modelli gratuiti online i dati possono essere usati per l'addestramento: per i dati dei clienti usa un piano a pagamento o un modello locale (Ollama, LM Studio), che non esce dalla rete.

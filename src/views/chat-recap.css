@@ -1,0 +1,38 @@
+/* A conversation reopened after hours: where it was (chat-recap.ts). */
+.chat-recap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--win-accent, #4cc2ff) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--win-accent, #4cc2ff) 28%, transparent);
+  animation: chat-recap-in 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes chat-recap-in { from { opacity: 0; translate: 0 6px; } }
+html[data-anim="spente"] .chat-recap { animation: none; }
+.chat-recap-head { display: flex; align-items: center; gap: 7px; color: var(--dim); font: 500 calc(12px + var(--fs-up, 0px)) var(--font); }
+.chat-recap-head > span:nth-child(2) { flex: 1; }
+.chat-recap-ico { color: var(--win-accent, #4cc2ff); font-size: 14px; }
+.chat-recap-x { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--dim); cursor: pointer; }
+.chat-recap-x:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.chat-recap-body { display: flex; flex-direction: column; gap: 3px; color: var(--ink); font: 400 calc(13px + var(--fs-up, 0px)) / 1.45 var(--font); }
+.chat-recap-body .md-p { margin: 0; }
+.chat-recap-line b, .chat-recap-body strong { color: var(--win-accent, #4cc2ff); font-weight: 600; }
+.chat-recap-ask {
+  align-self: flex-start;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  font: 500 calc(12px + var(--fs-up, 0px)) var(--font);
+  cursor: pointer;
+}
+.chat-recap-ask:hover:not(:disabled) { background: rgba(255, 255, 255, 0.13); }
+.chat-recap-ask:disabled { opacity: 0.6; cursor: default; }
+.chat-recap-err { color: #ff8a80; font: 400 calc(12px + var(--fs-up, 0px)) var(--font); }
+html[data-scheme="light"] .chat-recap-ask { background: rgba(0, 0, 0, 0.06); }
+html[data-scheme="light"] .chat-recap-x:hover { background: rgba(0, 0, 0, 0.07); }

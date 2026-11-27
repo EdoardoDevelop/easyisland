@@ -25,6 +25,7 @@ import { refreshDone } from "./views/done";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
 import { barClockDelay, barPieces, barSysKinds, recordBarSys } from "./island/bar";
+import { watchStartMenu } from "./island/start-menu";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -37,7 +38,13 @@ function logPageErrors() {
     seen.add(text);
     void Bridge.log(`errore nella pagina · ${text}`).catch(() => {});
   };
-  window.addEventListener("error", (e) => report(`${e.message} (${e.filename}:${e.lineno})${e.error?.stack ? ` ${e.error.stack}` : ""}`));
+  window.addEventListener("error", (e) => {
+    // Chromium's notice that a ResizeObserver changed the layout and its next
+    // round waits a frame (the chat's panels laid out again as the Launcher's
+    // window opens): no error, nothing is lost.
+    if (/^ResizeObserver loop/.test(e.message ?? "")) return;
+    report(`${e.message} (${e.filename}:${e.lineno})${e.error?.stack ? ` ${e.error.stack}` : ""}`);
+  });
   window.addEventListener("unhandledrejection", (e) => report(`promessa rifiutata: ${(e.reason as Error)?.stack ?? String(e.reason)}`));
 }
 
@@ -255,8 +262,21 @@ async function main() {
   });
 
   linkCharacterWindow(island);
-  island.launch();
+  try {
+    island.launch(boot?.launcher);
+  } catch (e) {
+    // Seen nowhere else: the start stopped here (27 Nov 2026, after Launcher → Isola).
+    void Bridge.log(`avvio della pagina: ${(e as Error)?.stack ?? e}`).catch(() => {});
+  }
+  void Bridge.log(`avvio della pagina: pronta (${island.isLauncher ? "Launcher" : "isola"})`).catch(() => {});
   if (boot?.openSearch) void island.onHotkey("search");
+  // The Launcher with «Apri la finestra all'avvio»: Rust shows its window at once
+  // and the page opens to match. Without it EasyIsland waits in the notification area.
+  if (island.isLauncher && boot?.openLauncher) island.openFromTaskbar();
+  // Started from a Start menu shortcut (startmenu.rs) or the taskbar's menu.
+  if (boot?.launch) void island.onHotkey(boot.launch);
+  // The Start menu's folder follows the integrations that are on.
+  State.subscribe(() => watchStartMenu());
   // Monday from 8:00: last week's recap, once the greeting is over.
   window.setTimeout(() => void Recap.check(island), 12_000);
   // The morning and end-of-day recap: after the weekly one, then at its hours.

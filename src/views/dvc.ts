@@ -11,6 +11,7 @@ import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { Bridge, type DvcBrowse, type DvcDetails, type DvcItem, type DvcOutcome } from "../core/bridge";
 import { t } from "../core/i18n";
+import { frameFor } from "../core/motion";
 import { Sound } from "../core/sound";
 import { openClientCard } from "./clientcard";
 import {
@@ -120,7 +121,7 @@ export function dvcToggleTieInput() {
   dv.tieOpen = !dv.tieOpen;
   draw();
   if (dv.tieOpen) {
-    requestAnimationFrame(() => dv.ws?.querySelector<HTMLInputElement>('.dvc-tie input')?.focus());
+    frameFor(dv.ws, () => dv.ws?.querySelector<HTMLInputElement>('.dvc-tie input')?.focus());
   }
 }
 

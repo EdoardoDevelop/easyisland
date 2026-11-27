@@ -218,6 +218,9 @@ function lightRules(css) {
       }
       continue;
     }
+    // Already written for the light scheme by hand: turning it again would make it
+    // dark (the chat's panels, a white veil became black at 69 %, 27 Nov 2026).
+    if (/data-scheme\s*=\s*["']?light/.test(r.sel)) continue;
     const ds = decls(r.body);
     const onColour = paintsColour(ds);
     const changed = [];

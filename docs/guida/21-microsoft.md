@@ -19,6 +19,9 @@ Con l'account Microsoft: il tuo **stato** e le **riunioni online** di oggi e dom
 ## Microsoft To Do
 Gli strumenti della chat leggono e scrivono le tue attività di **To Do** attraverso **Outlook classico** (che deve essere aperto): «cosa ho da fare questa settimana?», «aggiungi chiamare Rossi domani alle 10 nella lista Clienti», «segna fatta la fattura di Bianchi». Aggiungere e cambiare chiedono Consenti / Nega. Le modifiche arrivano in To Do con la sincronizzazione di Outlook.
 
+## Mail preparate in Outlook
+Chiedi alla chat di preparare una mail («scrivi a info@cliente.it con l'offerta allegata»): la apre in **Outlook classico** (che deve essere aperto) con destinatari, oggetto, testo, allegati e la tua firma, e la lascia lì. **Non la invia mai**: la controlli e premi tu Invia. Prima di aprirla chiede Consenti / Nega. Gli allegati possono essere file del PC, del Vassoio o della cartella di lavoro, mai quelli delle chiavi e delle password.
+
 ## Account Microsoft (API)
 Nelle righe di Outlook e Teams, il blocco **Account Microsoft (API)** collega il tuo account di lavoro con **Microsoft Graph**:
 1. registra un'applicazione in **Microsoft Entra** (ID applicazione pubblico, nessun segreto);

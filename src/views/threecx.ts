@@ -16,6 +16,7 @@ import {
   type ThreecxMessage, type ThreecxVoicemail,
 } from "../core/bridge";
 import { locale, t } from "../core/i18n";
+import { frameFor } from "../core/motion";
 import { rdmActive, rdmLookFor } from "./rdm";
 import { openClientCard } from "./clientcard";
 import {
@@ -134,7 +135,7 @@ function initials(name: unknown): string {
 
 /** The card is on screen (not just built): new messages count as read. */
 function onScreen(el: HTMLElement): boolean {
-  return el.isConnected && State.mode === "expanded" && State.focusId === THREECX && !document.hidden;
+  return el.isConnected && State.mode === "expanded" && State.focusId === THREECX && !el.ownerDocument.hidden;
 }
 
 /** The device chosen in the card ("" = let EasyIsland pick, "pc" = this PC). */
@@ -902,7 +903,8 @@ let dialer: Dialer | null = null;
 
 /** The card grew or shrank without new data: let the island fit it again. */
 function refit() {
-  window.requestAnimationFrame(() => State.notify());
+  // A frame of the window the card is in (the Launcher's: the island's page is hidden then).
+  frameFor(dialer?.el, () => State.notify());
 }
 let statusOpen = false;
 let devicesOpen = false;

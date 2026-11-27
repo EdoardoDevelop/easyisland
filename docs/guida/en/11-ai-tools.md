@@ -14,7 +14,7 @@ With **Settings → Chat → Can use the PC** on (default), engines with tools (
 | Music | Player status and controls | Controls yes |
 | Island | Show a notice | No |
 | Files | The Tray, the working folder (read), moving files into it | Moving yes |
-| Profiles and settings | Read settings, change one, switch profile | Changing yes |
+| Settings | Read settings, change one | Changing yes |
 | Automations | List, create, turn on and off | Creating and changing yes |
 | Notion | Map, search, reading, database rows; add, change, delete rows | Writing yes; deleting only after your yes in chat |
 | Microsoft To Do | List, add and update tasks (classic Outlook) | Writing yes |
@@ -89,7 +89,7 @@ Under every answer of the chat there are **👍** and **👎**; pressed again, t
 In the chat's engine menu pick **📒 Only EasyIsland, no engine**: for that conversation no engine starts and nothing is spent. Commands, direct answers and the memory answer; when EasyIsland has no sure answer it shows the closest lines and **⚡ Ask the engine**, which sends that one question to the engine. It is the quickest way to train it with 👍 and 👎. Pick an engine in the same menu to go back to the engine's answers.
 
 ## Commands with no engine
-Short orders skip the engine: «apri Teams» (when it is one of your quick actions), «profilo Ufficio», «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland answers at once with **▶ Run**: nothing starts until you press it. If you meant something else press **⚡ Ask the engine**.
+Short orders skip the engine: «apri Teams» (when it is one of your quick actions), «pausa», «prossima canzone», «ricordami di chiamare Rossi». EasyIsland answers at once with **▶ Run**: nothing starts until you press it. If you meant something else press **⚡ Ask the engine**.
 
 ## Terminal mode
 **Settings → Chat → Terminal mode**, together with the **working folder**: the chat works like Claude Code or opencode in a terminal.

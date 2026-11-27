@@ -43,4 +43,4 @@ Con un servizio di trascrizione scelto in **Impostazioni → Telegram → Vocali
 Se mandi un vocale, sotto la risposta scritta arriva anche la **risposta a voce** (a un messaggio scritto risponde solo per iscritto). Funziona con Google AI e OpenAI, non con OpenRouter; si spegne con **Rispondi a voce**. Le risposte lunghe vengono lette fino a circa un minuto e mezzo: il resto è nel messaggio scritto.
 
 ## Compiti e avvisi
-Con Telegram collegato ricevi un messaggio quando un compito finisce, non riesce, va in pausa o ti fa una domanda, e puoi rispondere con i pulsanti. Telegram resta in ascolto anche se il profilo attivo lo ha spento, se è acceso in un profilo qualsiasi.
+Con Telegram collegato ricevi un messaggio quando un compito finisce, non riesce, va in pausa o ti fa una domanda, e puoi rispondere con i pulsanti.

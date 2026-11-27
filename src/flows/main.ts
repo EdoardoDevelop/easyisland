@@ -11,7 +11,7 @@ import "../settings/settings-windows.css";
 import "../settings/settings-light.css";
 import "./flows.css";
 import { Bridge, IS_TAURI, onEvent, type FlowRun, type FlowRunInfo } from "../core/bridge";
-import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type QuickAction, type Settings } from "../core/state";
+import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type Settings } from "../core/state";
 import { h, clear } from "../views/dom";
 import { locale, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle } from "../core/uistyle";
@@ -313,8 +313,6 @@ function triggerCard(f: Automation): HTMLElement {
     const what = CONDITIONS.find(([k]) => k === c.kind)?.[1] ?? c.kind;
     return c.not ? t("non {what}", { what }) : what;
   });
-  const prof = settings.profiles.find((p) => p.id === f.profile)?.name;
-  if (prof) conds.unshift(t("profilo {x}", { x: prof }));
   const card = h("div", { class: `fl-card trigger${picked === "trigger" ? " picked" : ""}` },
     h("div", { class: "fl-card-head" },
       h("span", { class: "fl-ico", style: "background:#4cc2ff22;color:#4cc2ff", text: "⏰" }),
@@ -441,10 +439,6 @@ function palette(): HTMLElement {
 function quickActions(): [string, string][] {
   const seen = new Map<string, string>();
   for (const a of settings.actions ?? []) seen.set(a.id, a.name || t("Senza nome"));
-  for (const p of settings.profiles) {
-    const acts = (p.values as Record<string, unknown>).actions;
-    if (Array.isArray(acts)) for (const a of acts as QuickAction[]) if (!seen.has(a.id)) seen.set(a.id, `${a.name || t("Senza nome")} (${p.name})`);
-  }
   return [...seen.entries()];
 }
 
@@ -495,7 +489,6 @@ function triggerPanel(f: Automation): HTMLElement {
     }
   }
   p.append(h("h3", { text: t("Solo se") }));
-  p.append(line(t("Profilo"), select<string>([["", t("Qualsiasi")], ...settings.profiles.map((x): [string, string] => [x.id, x.name])], f.profile, (v) => { f.profile = v; commit(true); })));
   const conds = (f.conditions ??= []);
   conds.forEach((c, ci) => {
     const row = h("div", { class: "fl-cond" },
@@ -554,10 +547,6 @@ function stepPanel(f: Automation, s: AutomationStep, i: number): HTMLElement {
       p.append(line(t("Azione"), opts.length ? select<string>(opts, s.id, (v) => { s.id = v; commit(true); }) : note(t("Crea prima un'azione rapida in Impostazioni."))));
       break;
     }
-    case "profile":
-      if (!s.id && settings.profiles[0]) s.id = settings.profiles[0].id;
-      p.append(line(t("Profilo"), select<string>(settings.profiles.map((x): [string, string] => [x.id, x.name]), s.id, (v) => { s.id = v; commit(true); })));
-      break;
     case "chat": p.append(line(t("Domanda alla chat"), text(s.text, t("es. Riassumi {percorso}"), (v) => { s.text = v; }, true))); break;
     case "task":
       p.append(line(t("Titolo"), text(s.title, t("facoltativo"), (v) => { s.title = v; })),

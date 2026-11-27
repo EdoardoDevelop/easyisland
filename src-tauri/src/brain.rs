@@ -599,7 +599,15 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
                 return Err(t("La pagina esiste già: leggila con memory_page e riscrivila partendo da quella, con la sua versione.").into());
             }
             if expected != version(current) {
-                return Err(t("La pagina è cambiata dopo che l'hai letta (forse l'ha modificata l'utente): rileggila con memory_page e riscrivila partendo da quella.").into());
+                // The page as it is now goes with the refusal: the engine puts its
+                // change on it and writes once more, without reading it again (24 Nov
+                // 2026, on the laptop: the memory after the previous answer had added
+                // a line, and the write failed twice).
+                let now: String = current.chars().take(MAX_PAGE).collect();
+                return Err(tf(
+                    "La pagina è cambiata dopo che l'hai letta (l'utente o la memoria dopo una risposta). Rifai la modifica su com'è ora e riscrivila con version: {v}, tenendo le righe nuove che non contraddicono la tua modifica.\n\n{text}",
+                    &[("v", &version(current)), ("text", &now)],
+                ).into());
             }
             (page.slug.clone(), page.source.clone(), page.title.clone())
         }

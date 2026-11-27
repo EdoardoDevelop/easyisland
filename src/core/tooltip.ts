@@ -9,6 +9,8 @@ const GAP = 6;
 let tip: HTMLDivElement | null = null;
 let target: Element | null = null;
 let timer: number | null = null;
+/** While a tooltip shows: checks that the mouse is still on its element. */
+let watch: number | null = null;
 
 function el(): HTMLDivElement {
   if (!tip) {
@@ -23,8 +25,20 @@ function el(): HTMLDivElement {
 function hide() {
   if (timer != null) window.clearTimeout(timer);
   timer = null;
+  if (watch != null) window.clearInterval(watch);
+  watch = null;
   target = null;
   if (tip) tip.classList.remove("on");
+}
+
+/**
+ * Shown only while the mouse is on its element (Edoardo, 27 Nov 2026: «se si
+ * visualizza un tip rimane in vista inutilmente»). Mouse events alone missed
+ * an element redrawn or gone under a still mouse, a view that changed, the
+ * mouse leaving the window: then no event came and the tip stayed.
+ */
+function stillOver(anchor: Element): boolean {
+  return anchor.isConnected && anchor.matches(":hover") && document.visibilityState === "visible";
 }
 
 function show(anchor: Element) {
@@ -46,6 +60,10 @@ function show(anchor: Element) {
   const left = Math.min(Math.max(2, r.left + r.width / 2 - w / 2), Math.max(2, vw - w - 2));
   t.style.left = `${Math.round(left)}px`;
   t.style.top = `${Math.round(top)}px`;
+  if (watch != null) window.clearInterval(watch);
+  watch = window.setInterval(() => {
+    if (target !== anchor || !stillOver(anchor)) hide();
+  }, 120);
 }
 
 /** Clicked or scrolled: no tooltip for it until the mouse goes somewhere else. */
@@ -74,14 +92,19 @@ function hover(e: Event) {
   target = anchor;
   timer = window.setTimeout(() => {
     timer = null;
-    if (target === anchor) show(anchor);
+    if (target === anchor && stillOver(anchor)) show(anchor);
   }, DELAY_MS);
 }
 
 export function installTooltips() {
   document.addEventListener("mouseover", hover);
   document.addEventListener("mousemove", hover, { passive: true });
-  document.addEventListener("mouseleave", () => { quiet = null; hide(); });
+  // Out of the page: `mouseleave` on the document never fired; these do.
+  const away = () => { quiet = null; hide(); };
+  document.documentElement.addEventListener("mouseleave", away);
+  document.addEventListener("mouseout", (e) => { if (!e.relatedTarget) away(); });
+  window.addEventListener("blur", away);
+  document.addEventListener("visibilitychange", away);
   document.addEventListener("pointerdown", dismiss, true);
   document.addEventListener("wheel", dismiss, { passive: true, capture: true });
   document.addEventListener("keydown", dismiss, true);

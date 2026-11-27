@@ -194,3 +194,39 @@ export function codeFields(code: string, changed: (filled: string, complete: boo
   queueMicrotask(update);
   return row;
 }
+
+/**
+ * The options of a ```scelte block (one per line, «- » or «1. » allowed),
+ * at most 6, each at most 120 characters; none when fewer than two.
+ */
+export function choicesOf(body: string): string[] {
+  const out = body
+    .split("\n")
+    .map((l) => l.trim().replace(/^(?:[-*•]|\d{1,2}[.)])\s+/, "").trim())
+    .filter((l) => l && l.length <= 120);
+  return out.length >= 2 ? out.slice(0, 6) : [];
+}
+
+/**
+ * A question with options (26 Nov 2026): a button each, which sends that
+ * answer at once. The chat (views/chat.ts) turns them off under older replies
+ * and marks the one picked.
+ */
+export function choicesBlock(options: string[], reply?: (text: string) => void): HTMLElement {
+  const box = el("div", "md-choices");
+  for (const o of options) {
+    const b = el("button", "md-choice", o);
+    b.type = "button";
+    b.dataset.choice = o;
+    b.title = reply ? t("Rispondi così") : "";
+    b.disabled = !reply;
+    b.addEventListener("click", () => {
+      if (b.disabled) return;
+      box.querySelectorAll("button").forEach((x) => (x.disabled = true));
+      b.classList.add("picked");
+      reply?.(o);
+    });
+    box.append(b);
+  }
+  return box;
+}

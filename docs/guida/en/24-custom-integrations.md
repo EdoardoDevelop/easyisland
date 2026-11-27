@@ -69,6 +69,16 @@ A **source** reads a service every N minutes (or when you open the tab) and show
 
 ![A dashboard](../media/custom-dati.png)
 
+### A page of its own
+When fields and buttons are not enough (a dashboard with charts, a table you can sort, a calendar, an editor), ask the chat for **a page**: HTML with its own look and scripts, shown in place of the form. The form stays under **Form**.
+
+The look takes care of itself: every page gets the island's colours, fonts and light or dark theme, with cards, key numbers, status labels and charts already in EasyIsland's style. The chat follows the same rules whenever it creates or changes a page, so you don't need to ask.
+
+The page is **isolated**: it has no network and sees neither the PC's files nor the rest of EasyIsland. To save and read records, read sources, call services or run actions it asks EasyIsland, which does it as for the buttons:
+- the services are only those written in the description, and the page never sees the keys;
+- deleting a record waits for your yes in the island;
+- a script still waits for your **Run**.
+
 ### Keys
 Services' keys and tokens are written as `{{secret:name}}` and entered in **Settings → Integrations → Made by you**: they go into the Credential Manager, only EasyIsland reads them at call time and **neither the island nor the chat ever sees them**.
 
@@ -79,7 +89,7 @@ The chat and tasks can **read records**, **add them** (with Allow / Deny), **rea
 **Settings → Integrations → Made by you**: show or hide in the menu, edit the JSON description, enter keys, delete. Files live in `%APPDATA%\EasyIsland\integrazioni` (description and records, readable).
 
 ## Limits, on purpose
-- **Fixed actions**: an action does only what its kind provides; commands run only in a Script action, after you see them and click.
+- **Fixed actions**: an action does only what its kind provides; code runs only in a Script action, after you see it and click, and in the isolated page.
 - Calls go **only to the services written in the description** you approved.
 - **No data "pushed" by services** (incoming webhooks), because that would need an open port on the PC: a source read every N minutes is used instead.
 - It works with the PC on.

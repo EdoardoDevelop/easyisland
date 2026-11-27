@@ -62,6 +62,46 @@ fn processes() -> Vec<(u32, String)> {
     out
 }
 
+/// The WebView2 browser processes started by run `parent` (its direct
+/// children; their renderers and GPU process are theirs and end with them).
+pub fn browsers_of(parent: u32) -> Vec<u32> {
+    let mut out = Vec::new();
+    unsafe {
+        let Ok(snap) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return out };
+        let mut e = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut ok = Process32FirstW(snap, &mut e).is_ok();
+        while ok {
+            let len = e.szExeFile.iter().position(|c| *c == 0).unwrap_or(e.szExeFile.len());
+            let exe = String::from_utf16_lossy(e.szExeFile.get(..len).unwrap_or_default()).to_lowercase();
+            if e.th32ParentProcessID == parent && exe == "msedgewebview2.exe" {
+                out.push(e.th32ProcessID);
+            }
+            ok = Process32NextW(snap, &mut e).is_ok();
+        }
+        let _ = CloseHandle(snap);
+    }
+    out
+}
+
+/// Waits up to `limit` for each of `pids` to end, then ends what is left.
+/// Restarting (lib.rs `restart`): a new run on a profile whose old browser was
+/// still closing hung at start now and then (27 Nov 2026).
+pub fn wait_ended(pids: &[u32], limit: Duration) {
+    use windows::Win32::System::Threading::{WaitForSingleObject, PROCESS_SYNCHRONIZE};
+    let start = Instant::now();
+    for pid in pids {
+        unsafe {
+            let Ok(h) = OpenProcess(PROCESS_SYNCHRONIZE | PROCESS_TERMINATE, false, *pid) else { continue };
+            let left = limit.saturating_sub(start.elapsed()).as_millis() as u32;
+            if WaitForSingleObject(h, left).0 != 0 {
+                let _ = TerminateProcess(h, 1);
+                let _ = WaitForSingleObject(h, 3_000);
+            }
+            let _ = CloseHandle(h);
+        }
+    }
+}
+
 /// The command line of `pid`, if we may read it.
 fn command_line(pid: u32) -> Option<String> {
     unsafe {

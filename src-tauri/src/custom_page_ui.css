@@ -1,0 +1,150 @@
+/* The look every integration page gets by itself (custom.rs `with_bridge`,
+   Edoardo 27 Nov 2026: «aspetto grafico bello, UI e UX al top, in automatico»).
+   Plain HTML already looks like EasyIsland; the ei-… classes are the pieces a
+   page is built from. All in :where(): no weight, the page's own CSS wins.
+   Colours only from the island's --ei-… variables (custom-page.ts `theme`). */
+
+:where(:root) {
+  --ei-text: #e4e5e8; --ei-dim: #9398a1; --ei-card: #16181c; --ei-line: rgba(255,255,255,0.10);
+  --ei-accent: #4ea1ff; --ei-accent-text: #0b0d10; --ei-red: #f4505e; --ei-green: #22c55e; --ei-amber: #f5a524;
+  --ei-font: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  --ei-c1: #3b7dbd; --ei-c2: #c27a12; --ei-c3: #2b8f6e; --ei-c4: #8463c9; --ei-c5: #b84a72; --ei-c6: #2f8ea3; --ei-c7: #6b7688; --ei-c8: #a4552f;
+  --ei-raise: color-mix(in srgb, var(--ei-text) 5%, transparent);
+  --ei-raise-2: color-mix(in srgb, var(--ei-text) 9%, transparent);
+  --ei-ring: color-mix(in srgb, var(--ei-accent) 55%, transparent);
+  --ei-radius: 10px; --ei-radius-s: 7px;
+  --ei-gap: 10px;
+  color-scheme: dark;
+}
+:where(*, *::before, *::after) { box-sizing: border-box; }
+:where(html) {
+  font-family: var(--ei-font); font-size: 13px; line-height: 1.45; color: var(--ei-text);
+  background: transparent; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  scrollbar-width: thin; scrollbar-color: var(--ei-raise-2) transparent;
+}
+:where(body) { margin: 0; padding: 12px 14px 14px; }
+
+/* Text */
+:where(h1, h2, h3, h4) { margin: 0 0 8px; line-height: 1.25; font-weight: 600; letter-spacing: -0.005em; }
+:where(h1) { font-size: 18px; }
+:where(h2) { font-size: 15px; }
+:where(h3) { font-size: 13px; }
+:where(h4) { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ei-dim); }
+:where(p) { margin: 0 0 8px; }
+:where(small, .ei-dim) { color: var(--ei-dim); }
+:where(a) { color: var(--ei-accent); text-decoration: none; }
+:where(a:hover) { text-decoration: underline; }
+:where(hr) { border: 0; border-top: 1px solid var(--ei-line); margin: 12px 0; }
+:where(code, kbd, pre) { font-family: 'Cascadia Mono', Consolas, monospace; font-size: 12px; }
+:where(code) { background: var(--ei-raise); padding: 1px 5px; border-radius: 5px; }
+:where(pre) { background: var(--ei-raise); padding: 10px 12px; border-radius: var(--ei-radius-s); overflow: auto; }
+:where(.num, td.num, th.num) { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Fields */
+:where(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea) {
+  font: inherit; color: inherit; min-width: 0;
+  background: var(--ei-raise); border: 1px solid var(--ei-line); border-radius: var(--ei-radius-s);
+  padding: 6px 10px; min-height: 32px; outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+}
+:where(textarea) { min-height: 72px; resize: vertical; line-height: 1.4; }
+:where(input:hover, select:hover, textarea:hover) { border-color: color-mix(in srgb, var(--ei-text) 22%, transparent); }
+:where(input:focus, select:focus, textarea:focus) { border-color: var(--ei-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ei-accent) 22%, transparent); }
+input::placeholder, textarea::placeholder { color: var(--ei-dim); opacity: 0.8; }
+:where(input[type=checkbox], input[type=radio], input[type=range], progress) { accent-color: var(--ei-accent); }
+:where(input[type=checkbox], input[type=radio]) { width: 15px; height: 15px; margin: 0; vertical-align: -2px; }
+:where(label) { display: inline-flex; align-items: center; gap: 6px; }
+:where(.ei-field) { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+:where(.ei-field > label, .ei-label) { font-size: 11.5px; color: var(--ei-dim); font-weight: 500; }
+:where(fieldset) { border: 1px solid var(--ei-line); border-radius: var(--ei-radius); padding: 10px 12px; margin: 0; }
+:where(legend) { padding: 0 4px; color: var(--ei-dim); font-size: 11.5px; }
+
+/* Buttons: plain = secondary; .primary for the one main action, .danger, .ghost */
+:where(button, .ei-btn) {
+  font: inherit; font-weight: 500; color: var(--ei-text); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 32px; padding: 6px 12px; border-radius: var(--ei-radius-s);
+  background: var(--ei-raise-2); border: 1px solid var(--ei-line);
+  transition: background 0.12s, border-color 0.12s, transform 0.06s, opacity 0.12s;
+  white-space: nowrap; user-select: none;
+}
+:where(button:hover, .ei-btn:hover) { background: color-mix(in srgb, var(--ei-text) 14%, transparent); }
+:where(button:active, .ei-btn:active) { transform: translateY(1px); }
+:where(button:focus-visible, .ei-btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible) { outline: 2px solid var(--ei-ring); outline-offset: 2px; }
+:where(button.primary, .ei-btn.primary, button[type=submit]) { background: var(--ei-accent); color: var(--ei-accent-text); border-color: transparent; }
+:where(button.primary:hover, .ei-btn.primary:hover, button[type=submit]:hover) { background: color-mix(in srgb, var(--ei-accent) 86%, var(--ei-text)); }
+:where(button.danger, .ei-btn.danger) { color: var(--ei-red); border-color: color-mix(in srgb, var(--ei-red) 40%, transparent); background: color-mix(in srgb, var(--ei-red) 10%, transparent); }
+:where(button.ghost, .ei-btn.ghost) { background: transparent; border-color: transparent; color: var(--ei-dim); }
+:where(button.ghost:hover, .ei-btn.ghost:hover) { color: var(--ei-text); background: var(--ei-raise); }
+:where(button.small, .ei-btn.small) { min-height: 26px; padding: 3px 8px; font-size: 12px; }
+:where(button:disabled, .ei-btn[aria-disabled=true]) { opacity: 0.45; cursor: default; transform: none; }
+
+/* Tables */
+:where(table) { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+:where(th) { text-align: left; font-weight: 500; font-size: 11.5px; color: var(--ei-dim); padding: 6px 10px; border-bottom: 1px solid var(--ei-line); white-space: nowrap; }
+:where(td) { padding: 7px 10px; border-bottom: 1px solid color-mix(in srgb, var(--ei-line) 60%, transparent); vertical-align: middle; }
+:where(tbody tr) { transition: background 0.1s; }
+:where(tbody tr:hover) { background: var(--ei-raise); }
+:where(tbody tr:last-child td) { border-bottom: 0; }
+:where(.ei-table) { border: 1px solid var(--ei-line); border-radius: var(--ei-radius); overflow: auto; }
+
+/* Layout */
+:where(.ei-card) { background: var(--ei-raise); border: 1px solid var(--ei-line); border-radius: var(--ei-radius); padding: 12px 14px; min-width: 0; }
+:where(.ei-card > h3:first-child, .ei-card > h2:first-child) { margin-bottom: 10px; }
+:where(.ei-grid) { display: grid; gap: var(--ei-gap); grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); }
+:where(.ei-grid.wide) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+:where(.ei-row) { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
+:where(.ei-stack) { display: flex; flex-direction: column; gap: var(--ei-gap); min-width: 0; }
+:where(.ei-spacer) { flex: 1; }
+:where(* + .ei-section) { margin-top: 14px; }
+:where(.ei-toolbar) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+:where(.ei-toolbar > h1, .ei-toolbar > h2) { margin: 0; flex: 1; min-width: 0; }
+
+/* A key number: <div class="ei-stat"><span>Ticket aperti</span><b>12</b><em class="up">+3</em></div> */
+:where(.ei-stat) { display: flex; flex-direction: column; gap: 2px; background: var(--ei-raise); border: 1px solid var(--ei-line); border-radius: var(--ei-radius); padding: 10px 12px; min-width: 0; }
+:where(.ei-stat > span) { font-size: 11.5px; color: var(--ei-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.ei-stat > b) { font-size: 22px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+:where(.ei-stat > em) { font-style: normal; font-size: 11.5px; color: var(--ei-dim); }
+:where(.ei-stat > em.up, .ei-up) { color: var(--ei-green); }
+:where(.ei-stat > em.down, .ei-down) { color: var(--ei-red); }
+
+/* States */
+:where(.ei-badge) { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 500; line-height: 18px; background: var(--ei-raise-2); color: var(--ei-text); white-space: nowrap; }
+:where(.ei-badge.ok) { background: color-mix(in srgb, var(--ei-green) 16%, transparent); color: var(--ei-green); }
+:where(.ei-badge.warn) { background: color-mix(in srgb, var(--ei-amber) 18%, transparent); color: var(--ei-amber); }
+:where(.ei-badge.bad) { background: color-mix(in srgb, var(--ei-red) 16%, transparent); color: var(--ei-red); }
+:where(.ei-badge.info) { background: color-mix(in srgb, var(--ei-accent) 16%, transparent); color: var(--ei-accent); }
+:where(.ei-dot) { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ei-dim); flex: none; }
+:where(.ei-dot.ok) { background: var(--ei-green); } :where(.ei-dot.warn) { background: var(--ei-amber); } :where(.ei-dot.bad) { background: var(--ei-red); }
+:where(.ei-note) { padding: 8px 12px; border-radius: var(--ei-radius-s); background: var(--ei-raise); border-left: 3px solid var(--ei-accent); }
+:where(.ei-note.ok) { border-left-color: var(--ei-green); } :where(.ei-note.warn) { border-left-color: var(--ei-amber); } :where(.ei-note.bad) { border-left-color: var(--ei-red); }
+:where(.ei-empty) { text-align: center; color: var(--ei-dim); padding: 28px 16px; border: 1px dashed var(--ei-line); border-radius: var(--ei-radius); }
+:where(.ei-empty > b) { display: block; color: var(--ei-text); font-weight: 600; margin-bottom: 4px; }
+:where(.ei-progress) { height: 6px; border-radius: 999px; background: var(--ei-raise-2); overflow: hidden; }
+:where(.ei-progress > i) { display: block; height: 100%; border-radius: inherit; background: var(--ei-accent); transition: width 0.3s; }
+:where(.ei-progress.ok > i) { background: var(--ei-green); } :where(.ei-progress.warn > i) { background: var(--ei-amber); } :where(.ei-progress.bad > i) { background: var(--ei-red); }
+:where(.ei-skeleton) { border-radius: var(--ei-radius-s); min-height: 14px; background: linear-gradient(90deg, var(--ei-raise) 0%, var(--ei-raise-2) 50%, var(--ei-raise) 100%); background-size: 200% 100%; animation: ei-shimmer 1.2s linear infinite; }
+:where(.ei-spinner) { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ei-raise-2); border-top-color: var(--ei-accent); animation: ei-spin 0.7s linear infinite; vertical-align: -2px; }
+@keyframes ei-shimmer { to { background-position: -200% 0; } }
+@keyframes ei-spin { to { transform: rotate(360deg); } }
+
+/* Lists and tabs */
+:where(.ei-list) { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ei-line); border-radius: var(--ei-radius); overflow: hidden; }
+:where(.ei-list > li) { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid color-mix(in srgb, var(--ei-line) 60%, transparent); min-width: 0; }
+:where(.ei-list > li:last-child) { border-bottom: 0; }
+:where(.ei-list > li[data-click], .ei-list > li.click) { cursor: pointer; }
+:where(.ei-list > li[data-click]:hover, .ei-list > li.click:hover) { background: var(--ei-raise); }
+:where(.ei-tabs) { display: flex; gap: 2px; padding: 3px; background: var(--ei-raise); border-radius: var(--ei-radius-s); width: fit-content; max-width: 100%; overflow-x: auto; margin-bottom: 12px; }
+:where(.ei-tabs > button) { background: transparent; border: 0; min-height: 28px; padding: 4px 12px; color: var(--ei-dim); }
+:where(.ei-tabs > button[aria-selected=true], .ei-tabs > button.on) { background: var(--ei-card); color: var(--ei-text); box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+:where(.ei-chart) { position: relative; height: 240px; min-width: 0; }
+:where(.ei-truncate) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+:where(html[data-ei-scheme=light]) {
+  color-scheme: light;
+  --ei-raise: color-mix(in srgb, var(--ei-text) 4%, transparent);
+  --ei-raise-2: color-mix(in srgb, var(--ei-text) 7%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(*, *::before, *::after) { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

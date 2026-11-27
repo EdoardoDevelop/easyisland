@@ -166,6 +166,14 @@ export interface BootInfo {
   version: string;
   hookPath: string;
   openSearch?: boolean;
+  /** `--do <what>` of the first start (a Start menu shortcut): handled like a second start's. */
+  launch?: string | null;
+  /** Started by Windows at sign-in: the Launcher stays closed. */
+  autostarted?: boolean;
+  /** The Launcher as Rust made the island's window for this run (island::launcher()): the page follows it, not the settings. */
+  launcher?: boolean;
+  /** The Launcher opens as EasyIsland starts («Apri la finestra all'avvio»). */
+  openLauncher?: boolean;
 }
 
 /** A newer EasyIsland on GitHub. */
@@ -231,6 +239,18 @@ export function inIslandPage(from: Event | Node): boolean {
 export interface PcFile { name: string; path: string; folder: string; dir: boolean; recent: boolean }
 /** An open window of another program (pcfind.rs). */
 export interface PcWindow { id: number; appName: string; title: string }
+
+/**
+ * The docked Anteprima is a browser laid over this window (preview.rs pane):
+ * nothing of the page can be drawn above it. While something must be (a
+ * diagram at full size, diagram.ts), it is hidden and comes back where the
+ * page last placed it.
+ */
+const paneLast = { x: 0, y: 0, w: 0, h: 0 };
+let paneCovers = 0;
+const paneSend = () => (paneCovers > 0
+  ? call<void>("preview_pane", { x: 0, y: 0, w: 0, h: 0 })
+  : call<void>("preview_pane", { ...paneLast }));
 
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
@@ -448,7 +468,9 @@ export const Bridge = {
     callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
-  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null; alts?: ChatAlt[] }>("chat_history_open", { sid, id }),
+  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; folder: string; lines: { role: "user" | "assistant"; content: string }[]; context: [number, number] | null; alts?: ChatAlt[]; updated?: number }>("chat_history_open", { sid, id }),
+  /** Three lines on where a conversation was, by its engine (lib.rs chat_recap). */
+  chatRecap: (engine: string, lines: { role: string; content: string }[]) => callOrThrow<string>("chat_recap", { engine, lines }),
   /** The versions of the questions changed with «Modifica», saved with the conversation. */
   chatAlts: (sid: string, alts: ChatAlt[]) => call<void>("chat_alts", { sid, alts }),
   /** ‹ › on such a question: the conversation becomes that version, the engine goes on from it. */
@@ -747,6 +769,8 @@ export const Bridge = {
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
   popoutFocus: (window: string) => call<void>("popout_focus", { window }),
   popoutTake: () => call<string | null>("popout_take"),
+  /** The window just made for `key`: where it was last time (or at `at`), shown in front; true when it went back there (popplace.rs). */
+  popoutPlace: (window: string, key: string, at: [number, number] | null, activate = true) => call<boolean>("popout_place", { window, key, at, activate }),
   /** The next window.open is a window of its own kind: "ricerca" (search_window.rs), "avvisi" (notices_window.rs). */
   popoutKind: (kind: "ricerca" | "avvisi") => call<void>("popout_kind", { kind }),
   /** The search on its own: shown `height` (logical px) tall where the mouse is, with the keyboard; false when its window is not there. */
@@ -774,7 +798,15 @@ export const Bridge = {
   previewShow: () => call<void>("preview_show"),
   previewHide: () => call<void>("preview_hide"),
   previewDock: (docked: boolean) => call<void>("preview_dock", { docked }),
-  previewPane: (x: number, y: number, w: number, h: number) => call<void>("preview_pane", { x, y, w, h }),
+  previewPane: (x: number, y: number, w: number, h: number) => {
+    Object.assign(paneLast, { x, y, w, h });
+    return paneSend();
+  },
+  /** Something of the page over the docked Anteprima: hidden while `on` (counted), then back. */
+  previewCover: (on: boolean) => {
+    paneCovers = Math.max(0, paneCovers + (on ? 1 : -1));
+    return paneSend().catch(() => undefined);
+  },
   previewState: () => call<import("../preview/types").PreviewState>("preview_state"),
   /** What the Anteprima's active tab shows, for the chat's tips (preview.rs page_kind). */
   previewPageKind: () => call<import("../views/chat-tips").PageKind>("preview_page_kind"),
@@ -792,6 +824,13 @@ export const Bridge = {
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   /** Ctrl+V in the chat: every file and folder copied in Explorer, or a picture. */
   chatPaste: () => callOrThrow<ChatAttachment[]>("chat_paste"),
+  /** The Start menu's «EasyIsland» folder (startmenu.rs): the integrations with their icons (base64 PNG). */
+  startMenuSync: (items: { id: string; name: string; png: string }[]) => call<number>("start_menu_sync", { items }),
+  /** A picture marked in the chat (chat-mark.ts): a new PNG in the Vassoio. */
+  chatImageSave: async (name: string, png: Uint8Array): Promise<ChatAttachment> => {
+    if (!IS_TAURI) throw new Error("not running inside EasyIsland");
+    return invoke<ChatAttachment>("chat_image_save", png, { headers: { "x-name": encodeURIComponent(name) } });
+  },
   /** Paths dropped on the chat: files into the Vassoio, folders as they are. */
   chatAttach: (paths: string[]) => callOrThrow<ChatAttachment[]>("chat_attach", { paths }),
   /** 📎: Windows' dialog for several files, or several folders. */
@@ -1020,11 +1059,9 @@ export const Bridge = {
   dailyShow: () => call<void>("daily_show"),
   /** Lingua: the windows are rebuilt in the new language. */
   restartApp: () => call<void>("restart_app"),
-  /** Profiles, backup. */
-  switchProfile: (id: string) => call<void>("switch_profile", { id }),
+  /** Backup. */
   settingsExport: () => callOrThrow<string>("settings_export"),
   settingsImport: (text: string) => callOrThrow<{ settings: Settings; note: string }>("settings_import", { text }),
-  currentNetwork: () => call<string | null>("current_network"),
   /** Settings window: MCP servers configured in Claude Code (names only). */
   mcpServersConfigured: () => call<string[]>("mcp_servers_configured"),
   /** Settings window: is Claude Code installed and signed in? */

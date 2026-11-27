@@ -5,6 +5,7 @@
 
 import { h } from "./dom";
 import { t } from "../core/i18n";
+import { winOf } from "../core/motion";
 import { KIND_COLOR, alpha, fit, kindName, type MemNode, type Model } from "../memory/data";
 
 const RING = 7;
@@ -75,6 +76,8 @@ export class Constellation {
   private pulse = 0;
   private hover = "";
   private frame = 0;
+  /** The window `frame` was asked of: the canvas's (the island's page, or the Launcher's window). */
+  private frameWin: Window | null = null;
   private until = 0;
   private done: (() => void) | null = null;
   private dust: [number, number, number][] = [];
@@ -150,8 +153,7 @@ export class Constellation {
     if (now || !wasOn || this.calm) {
       this.stars.clear();
       this.lines.clear();
-      cancelAnimationFrame(this.frame);
-      this.frame = 0;
+      this.stopFrame();
       after?.();
       return;
     }
@@ -283,7 +285,29 @@ export class Constellation {
   /** Frames for `ms` more; 0: only one, for the mouse. */
   private play(ms: number) {
     this.until = Math.max(this.until, performance.now() + (this.calm ? 0 : ms));
-    if (!this.frame) this.frame = requestAnimationFrame((now) => this.tick(now));
+    this.askFrame();
+  }
+
+  /** The next frame, of the window the canvas is in now (a frame asked of a hidden page never comes). */
+  private askFrame() {
+    const win = winOf(this.canvas);
+    if (this.frame && this.frameWin === win) return;
+    this.stopFrame();
+    this.frameWin = win;
+    // Its own clock, not the frame's: another window's frame times start from its own opening.
+    this.frame = win.requestAnimationFrame(() => this.tick(performance.now()));
+  }
+
+  private stopFrame() {
+    if (this.frame) {
+      try {
+        this.frameWin?.cancelAnimationFrame(this.frame);
+      } catch {
+        // Its window is gone already.
+      }
+    }
+    this.frame = 0;
+    this.frameWin = null;
   }
 
   private tick(now: number) {
@@ -291,7 +315,7 @@ export class Constellation {
     this.step(now);
     this.draw(now);
     if (now < this.until) {
-      this.frame = requestAnimationFrame((n) => this.tick(n));
+      this.askFrame();
     } else if (this.done) {
       const done = this.done;
       this.done = null;

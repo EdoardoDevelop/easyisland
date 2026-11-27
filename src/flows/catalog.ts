@@ -41,7 +41,6 @@ export const GROUPS: { name: string; blocks: Block[] }[] = [
       { kind: "app", label: t("Apri"), icon: "📂", color: "#38bdf8", hint: t("Un programma, una cartella o un file") },
       { kind: "url", label: t("Link"), icon: "🔗", color: "#38bdf8", hint: t("Apre un sito") },
       { kind: "quick", label: t("Azione rapida"), icon: "⚡", color: "#facc15", hint: t("Una delle tue azioni rapide") },
-      { kind: "profile", label: t("Profilo"), icon: "👤", color: "#38bdf8", hint: t("Passa a un profilo") },
     ],
   },
   {
@@ -118,7 +117,6 @@ export function blankFlow(name = t("Nuovo flusso")): Automation {
     name,
     enabled: false,
     trigger: { kind: "time", time: "09:00", days: [1, 2, 3, 4, 5], delay: 30, ssid: "", exe: "", folder: "", source: "", when: "problem", filter: "", minutes: 15 },
-    profile: "",
     conditions: [],
     repeat: "",
     every: 60,
@@ -172,7 +170,7 @@ export function missing(s: AutomationStep): string {
     case "notice": return s.title?.trim() || s.text?.trim() ? "" : t("scrivi l'avviso");
     case "app": return s.target?.trim() ? "" : t("scegli cosa aprire");
     case "url": return /^https?:\/\/|^\{/.test(s.url?.trim() ?? "") ? "" : t("scrivi un link che inizia con https://");
-    case "quick": case "profile": return s.id ? "" : t("scegline uno");
+    case "quick": return s.id ? "" : t("scegline uno");
     case "foreach": return !s.text?.trim() ? t("scrivi l'elenco") : !s.body ? t("scegli da dove parte ogni voce") : "";
     case "decide": return (s.branches?.length ?? 0) === 0 ? t("aggiungi una strada") : "";
     default: return "";

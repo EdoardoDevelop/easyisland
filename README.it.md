@@ -19,7 +19,7 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 <img src="screenshots/overview.png" width="700" alt="EasyIsland aperta: Panoramica con agenti, integrazioni e il personaggio Jarvis Sfera">
 
-**Capitoli:** [Cosa fa](#cosa-fa) · [Ultime versioni](#ultime-versioni) · [Installazione](#installazione) · [Come si usa](#come-si-usa) · [Posizione e aspetto](#posizione-e-aspetto) · [Azioni rapide e scorciatoie](#azioni-rapide-e-scorciatoie) · [Integrazioni](#integrazioni) · [Widget](#widget) · [Davanti al cliente](#davanti-al-cliente) · [Messaggi dagli script](#messaggi-dagli-script) · [Profili, tema e backup](#profili-tema-e-backup) · [Claude Code](#claude-code) · [Chat con Claude](#chat-con-claude) · [Automazioni](#automazioni) · [Compilarlo da te](#compilarlo-da-te) · [Licenza](#licenza)
+**Capitoli:** [Cosa fa](#cosa-fa) · [Ultime versioni](#ultime-versioni) · [Installazione](#installazione) · [Come si usa](#come-si-usa) · [Posizione e aspetto](#posizione-e-aspetto) · [Azioni rapide e scorciatoie](#azioni-rapide-e-scorciatoie) · [Integrazioni](#integrazioni) · [Widget](#widget) · [Davanti al cliente](#davanti-al-cliente) · [Messaggi dagli script](#messaggi-dagli-script) · [Tema e backup](#tema-e-backup) · [Claude Code](#claude-code) · [Chat con Claude](#chat-con-claude) · [Automazioni](#automazioni) · [Compilarlo da te](#compilarlo-da-te) · [Licenza](#licenza)
 
 ## Cosa fa
 
@@ -65,8 +65,8 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
   parla, solo quelli che scegli tu.
 - **Integrazioni personali**: chiedi alla chat la funzione che ti manca e diventa
   un modulo, un cruscotto o un collegamento alle API di un tuo servizio.
-- **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
-  **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
+- **Non disturbare**, modalità **davanti al cliente**, messaggi da qualsiasi
+  script, backup delle impostazioni.
 - **Undici personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
   Pietra, Roccia, Foglia, **Jarvis**, **Jarvis Sfera** e **Jarvis Plasma**), oppure al loro posto il
   **logo di EasyIsland, il tuo logo PNG o il meteo**; posizione libera,
@@ -234,9 +234,9 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 |---|---|
 | Porti il mouse sull'icona del personaggio (in alto al centro, o nell'angolo che hai scelto) | Il personaggio si ingrandisce (o resta sempre così, con **Sempre visibile**), fa un balzo, ti guarda e alza una mano |
 | Clicchi sul personaggio, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
-| Trascini il personaggio tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
+| Trascini il personaggio tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola, fino ai bordi dello schermo; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
-| Il **menu a sinistra** dell'isola aperta | In cima il personaggio, poi **Panoramica**, **Agenti**, **Chat**, **Azioni**, **File e schermo** e le tue integrazioni, ognuna con il suo logo (o un'emoji) e un pallino quando ha novità. In alto il personaggio ti dice in un fumetto cosa succede |
+| Il **menu a sinistra** dell'isola aperta | In cima il personaggio, poi **Panoramica** (con agenti e azioni rapide), **Chat**, **File e schermo** e le tue integrazioni, ognuna con il suo logo (o un'emoji) e un pallino quando ha novità. In alto il personaggio ti dice in un fumetto cosa succede |
 | **Panoramica** | Tutte le integrazioni e gli agenti a riquadri, con il loro stato; un clic ne apre uno, trascinandoli li riordini. Il personaggio mostra lo stato più urgente |
 | **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'icona (terminale, logo di Claude o emoji) si sceglie in Impostazioni → Agenti |
 | Trascini l'isola aperta dalla barra in alto | Resta lì finché è aperta; chiudendola torna al posto del personaggio |
@@ -284,7 +284,7 @@ modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
 - **Posizione**: in alto o in basso, a sinistra, al centro o a destra. Quando si
   apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel
   lato. Puoi anche **trascinare il personaggio** con il mouse dove vuoi: al rilascio la
-  posizione resta salvata nel profilo, e il lato da cui si apre l'isola viene
+  posizione resta salvata, e il lato da cui si apre l'isola viene
   scelto da solo (il terzo e la metà dello schermo in cui lo lasci), così il
   pannello cresce verso l'interno. Vicino a un bordo o al centro si aggancia.
   Scegliere di nuovo una posizione qui lo riporta al bordo. Si trascina anche
@@ -410,7 +410,6 @@ Per cambiarne una basta un clic sul campo e premere la combinazione: il campo la
 registra da solo (Esc annulla, Canc la toglie, ✕ la svuota). Mentre il campo è in
 ascolto le altre scorciatoie sono sospese, così i tasti arrivano lì.
 Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
-Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 
 ## Integrazioni
 
@@ -419,7 +418,7 @@ compaiono nel menu a sinistra dell'isola e nei riquadri della **Panoramica**. Ch
 indirizzi stanno in Gestione credenziali di Windows.
 
 Le integrazioni si **riordinano trascinandole** nel menu o nella Panoramica (un clic senza
-trascinare le apre come sempre). L'ordine vale per il profilo attivo; in
+trascinare le apre come sempre). In
 Integrazioni c'è **Blocca lo spostamento**, per non spostarle per sbaglio, e
 **Ripristina l'ordine**.
 
@@ -441,8 +440,6 @@ Integrazioni c'è **Blocca lo spostamento**, per non spostarle per sbaglio, e
 Nel menu ogni integrazione mostra il suo logo (o il pallino del suo colore) oppure
 un'emoji a scelta ("Nel menu"), e ha un **colore** a scelta, che il personaggio
 indossa quando la sua scheda è aperta.
-
-Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
 
 <img src="screenshots/meteo.png" width="640" alt="Meteo: il cielo di adesso animato, umidità, vento, alba e tramonto, le prossime ore e i prossimi giorni">
 <img src="screenshots/threecx.png" width="640" alt="3CX: una chiamata in arrivo con Rispondi e Rifiuta, una chiamata in linea e la ricerca in rubrica">
@@ -506,9 +503,9 @@ ricollega da solo se il collegamento cade. Numeri e nomi restano in memoria.
 
 Quando un controllo (widget o integrazione come Stato del PC, Rete, Outlook…)
 passa da OK a problema, la sua voce nel menu prende un pallino, il personaggio suona e l'isola si fa
-vedere (secondo le regole di notifica del profilo). Il pulsante ▶ prova un widget
+vedere (secondo le regole di notifica). Il pulsante ▶ prova un widget
 subito. I controlli si fermano con EasyIsland in pausa e diventano tre volte più
-radi a batteria. I widget appartengono al profilo.
+radi a batteria.
 
 ## Davanti al cliente
 
@@ -536,27 +533,17 @@ messaggio sull'isola:
 `--stato` è `ok`, `avviso`, `errore` o `info`; `--apri https://…` aggiunge un
 pulsante con un link; `--help` mostra l'aiuto. Esce con 0 se il messaggio è
 arrivato e con 2 se EasyIsland non è in esecuzione, quindi uno script non resta mai
-bloccato. Valgono le regole di notifica del profilo. In **Impostazioni… →
+bloccato. Valgono le regole di notifica. In **Impostazioni… →
 Notifiche** c'è il comando pronto da copiare e un pulsante **Prova**.
 
-## Profili, tema e backup
+## Tema e backup
 
 **Lingua** (Impostazioni → Generale): come Windows, italiano o inglese. Vale
 dal riavvio, offerto con **Riavvia ora**; anche la chat risponde in quella lingua.
 
-**Impostazioni… → Profilo**: ogni profilo (di partenza *Lavoro*, *Casa* e
-*Concentrazione*) ha le sue integrazioni, posizione, aspetto, suoni, tema e
-regole di notifica. Le sezioni con l'etichetta viola si salvano nel profilo
-attivo.
-
-- Si cambia profilo dalle Impostazioni o dal menu dell'icona nell'area di
-  notifica (**Profilo ▸**).
-- **Cambio automatico**: ogni profilo può avere regole su rete Wi-Fi, giorni e
-  orario (es. *Lavoro* sulla Wi-Fi dell'ufficio, lun–ven 8–18). Ogni minuto
-  EasyIsland attiva il primo profilo che corrisponde; una scelta fatta a mano resta
-  finché la situazione non cambia.
-- **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
-  (com'è *Concentrazione* all'inizio).
+- **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso.
+  **Non disturbare**, nel menu dell'icona nell'area di notifica, passa a solo
+  le richieste di permesso e poi torna alla scelta di prima.
 - **Tema**: il personaggio (**Goccia**, la predefinita, **Slime**, **Geco**,
   **Fiamma**, **Magma**, **Pietra**, **Roccia**, **Foglia**, **Jarvis**, **Jarvis Sfera** o **Jarvis Plasma**), il suo
   colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
@@ -573,8 +560,7 @@ attivo.
   un permesso, rosso per un errore…); i due Jarvis cambiano anche ritmo. Anteprima senza
   compilare: `npm run ui`, poi aggiungi `?character=drop` o `?character=jarvis`
   all'indirizzo.
-- **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
-  compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
+- **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni in un file JSON nella cartella Documenti; *Importa…* le carica su un
   altro PC. Le chiavi API non sono mai nel file: vanno reinserite.
 
 ## Claude Code
@@ -699,7 +685,7 @@ nel messaggio; i PDF solo con Claude.
 
 **Connettori** (Impostazioni → Chat, solo con "Abbonamento Claude"): la chat può usare i
 server MCP che hai configurato in Claude Code per l'utente
-(`claude mcp add --scope user …`), scegliendo quali profilo per profilo. Con
+(`claude mcp add --scope user …`), scegliendo quali. Con
 "chiedi conferma" (predefinito) ogni operazione su quel connettore compare
 nell'isola con **Consenti / Nega**; disattivala solo per i connettori di sola
 lettura. EasyIsland legge solo i nomi dei server, mai la loro configurazione. I
@@ -747,7 +733,7 @@ qualcosa per te.
 | Quando | Esempio |
 |---|---|
 | a un orario, nei giorni scelti | alle 9 dei giorni feriali apri Outlook e il gestionale |
-| all'avvio (con il PC) | dopo 30 secondi passa al profilo Lavoro |
+| all'avvio (con il PC) | dopo 30 secondi apre la posta e il gestionale |
 | quando sblocchi il PC | mostra un avviso con il promemoria del giorno |
 | quando ti colleghi a una rete Wi-Fi | in ufficio apri la cartella condivisa |
 | quando parte un programma | quando apri Teams, esegui l'azione "Silenzia" |
@@ -760,9 +746,9 @@ Si possono anche **chiedere a Claude a parole** nella chat (con l'abbonamento):
 chiavetta lancia il backup". Claude prepara l'automazione e l'isola te la mostra
 (Quando… / Allora…) con **Consenti / Nega**: confermando, viene creata e accesa.
 
-**Allora** è una sequenza di passi: un'azione rapida, un avviso nell'isola, il
-cambio di profilo, aprire un programma o una cartella, aprire un link. Ogni
-automazione si può limitare a un profilo e provare subito con **Prova ora**;
+**Allora** è una sequenza di passi: un'azione rapida, un avviso nell'isola,
+aprire un programma o una cartella, aprire un link. Ogni automazione si può
+provare subito con **Prova ora**;
 il **Registro** mostra le ultime esecuzioni. Partono senza chiedere, perché
 le hai create tu, tranne gli script con "Chiedi conferma" e le domande a
 Claude, che si aprono nell'isola. Con EasyIsland in pausa non parte niente.
@@ -771,8 +757,8 @@ Claude, che si aprono nell'isola. Con EasyIsland in pausa non parte niente.
 
 Se lo attivi (**Automazioni → Proponimi automazioni**, spento di serie),
 EasyIsland annota quando apri i programmi (solo il nome, mai titoli o
-contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette, le
-azioni rapide e i profili scelti a mano. Tutto resta su questo PC, al massimo
+contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette e le
+azioni rapide. Tutto resta su questo PC, al massimo
 45 giorni, e si cancella con un clic. Dopo qualche settimana propone
 automazioni, per esempio *"Apro Outlook alle 8:50?"* perché lo apri sempre a
 quell'ora nei giorni feriali: **Crea**, **Non ora** (te la ripropone tra un
@@ -790,7 +776,7 @@ Con l'abbonamento (motore Claude Code), nella chat Claude può anche agire su
 questo PC tramite EasyIsland: aprire programmi, cartelle e link, eseguire le
 tue **azioni rapide** (anche gli script, di cui legge l'output), leggere lo
 stato di PC, rete, meteo, posta e ticket, leggere o riempire gli appunti,
-controllare la musica, mostrare un avviso, cambiare profilo. Esempi: "apri
+controllare la musica, mostrare un avviso. Esempi: "apri
 Outlook e il portale fornitori", "com'è messo il PC?", "lancia il backup".
 
 Tutto ciò che apre, esegue o cambia qualcosa chiede prima **Consenti / Nega**

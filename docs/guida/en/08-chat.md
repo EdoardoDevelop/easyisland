@@ -61,6 +61,11 @@ When a long answer (over half a minute) ends while you are looking at something 
 - **Ask about this**: select a piece of an answer and click the button that appears above it. The piece goes into the field as a quote and you ask about that only ("explain this command", "what if the NAS is another one?").
 - In long conversations a **map** sits on the right of the messages: a mark for each question and for diagrams, tables, changes to files and warnings. Hover to see what it is, click to go there.
 
+### Welcome back, choices and marked screenshots
+- When you reopen from the history a conversation idle for some hours, under the last message you find **where you were**: what was done, what is still open and the last step. **✨ Engine's summary** has the conversation's engine write it in three lines. It goes away with your next question.
+- When the engine asks you to choose ("restart it now or tonight?"), the options become **buttons** under the answer: one click and the answer goes.
+- After pasting a screenshot, the **✎** button on the attachment opens the picture: **Box**, **Arrow** and **Pen** to mark what to look at, **Cover** to hide passwords and data. **Use** attaches the marked copy; the original stays in the Vassoio.
+
 ### Changes to files
 In **Terminal mode**, when the engine changes a file, under the step you see **what changes**: removed lines in red, added lines in green, the changed words highlighted and "+N −M" on top. **Side by side** puts the before on the left and the after on the right (the choice is kept), **Copy** copies the changes, a click on the name opens the file; unchanged lines fold into "⋯ N unchanged lines". With **Manual** the same view is in the **Allow / Deny** request, so you decide knowing what will change. Comparisons the engine writes in its reply look the same.
 
@@ -111,7 +116,7 @@ A `/something` that is not a command goes to the engine as text. (Command names 
 In **Settings → Chat and AI engines → Instructions and memory** you create assistants with **name, emoji, engine and instructions** (for example "SQL reviewer" or "Technical translator"). In the chat you call them with `/name`: a new conversation starts on their engine, with the 🤖 chip.
 
 ## Instructions
-**Settings → Chat and AI engines → Instructions**: a text told to the chat at the start of every conversation ("Answer briefly. I'm a technician, my clients are small offices…"). It belongs to the profile, so each profile can have its own.
+**Settings → Chat and AI engines → Instructions**: a text told to the chat at the start of every conversation ("Answer briefly. I'm a technician, my clients are small offices…").
 
 ## Dictation
 🎤 in the field: click to start and to finish. With a transcription service chosen in Settings → Telegram → Voice messages, it records and transcribes with it; without one, it opens Windows dictation (<kbd>Win</kbd>+<kbd>H</kbd>), local and free.

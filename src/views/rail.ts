@@ -5,11 +5,11 @@
 // header's tabs and of the overview's pills: one way to get anywhere.
 // What shows and how is chosen in Impostazioni, never in the island.
 
-import { h, svg, dot, brandIcon, markIcon, tip } from "./dom";
+import { h, svg, dot, markIcon, tip } from "./dom";
 import { ICONS, LINE_SECTIONS } from "./icons";
 import { studioLook, windowsLook } from "../core/uistyle";
 import { isRailDragging, railDrag } from "./rail-drag";
-import { State, CLAUDE_TASK, isSessionTask, type AgentTask, type MenuGroup } from "../core/state";
+import { State, isSessionTask, type AgentTask, type MenuGroup } from "../core/state";
 import * as Groups from "../core/menu-groups";
 import { Bridge } from "../core/bridge";
 import { RAIL_BOT, RAIL_COMPACT_W, railHead, type IslandViewName } from "../core/layout";
@@ -19,9 +19,11 @@ import { actionIcon, actionIconSvg, renderActionIcon } from "./action-icons";
 import { unreadNews } from "./news";
 import { layoutIconButton, layoutTabs, partHidden, partsOrder, zoneButtons, zoneKey } from "./island-layout";
 
-type Section = "oggi" | "agenti" | "chat" | "azioni" | "file" | "notizie";
+// No rows for the quick actions and the agents (27 Nov 2026, Edoardo: «lasciale solo nella
+// panoramica», «inutile avere una tab dedicata»): both are in the Panoramica.
+type Section = "oggi" | "chat" | "file" | "notizie";
 /** isola.json's names of the sections (island_layout.rs `MENU_PARTS`). */
-const SECTION_OF: Record<string, Section> = { overview: "oggi", agents: "agenti", chat: "chat", actions: "azioni", files: "file", news: "notizie" };
+const SECTION_OF: Record<string, Section> = { overview: "oggi", chat: "chat", files: "file", news: "notizie" };
 
 /** The character's diameter at the head of the menu (0 in Studio themes, where the optical core sits in the header). */
 export function railBotSize(): number {
@@ -54,7 +56,8 @@ const BADGE: Record<string, string> = { approval: "#F5A524", finished: "#22C55E"
 function sectionOf(view: IslandViewName): Section | null {
   switch (view) {
     case "prompt": return "chat";
-    case "actions": case "run": case "rewrite": return "azioni";
+    // Reached from the Panoramica's quick actions: it stays lit.
+    case "actions": case "run": case "rewrite": return "oggi";
     case "files": case "unzip": return "file";
     case "news": return "notizie";
     default: return null;
@@ -78,7 +81,7 @@ export function current(): string {
   if (NOWHERE.has(State.view)) return "";
   if (State.showsSummary && (State.view === "overview" || State.view === "empty")) return "oggi";
   const task = State.focusTask;
-  if (isSessionTask(task)) return "agenti";
+  if (isSessionTask(task)) return "oggi";
   return task?.id ?? "oggi";
 }
 
@@ -108,14 +111,6 @@ function glyph(name: keyof typeof LINE_SECTIONS): SVGSVGElement {
 
 /** The width of an icon in the menu: an emoji's at 13 px. */
 const ICON_W = 16;
-
-/** The Agenti row's icon: terminal (default), Claude's logo, or the user's emoji (Impostazioni → Agenti). */
-function agentsIcon(): Element {
-  const look = State.settings.integrationTabIcons?.[CLAUDE_TASK]?.trim() ?? "";
-  if (look === "@logo") return brandIcon(CLAUDE_TASK, 15) ?? svg(ICONS.terminal, 15);
-  if (look && look !== "@name") return h("span", { class: "rail-emoji", text: look });
-  return glyph("terminal");
-}
 
 /** The group whose name is being written (just made, or «Rinomina» from its right click). */
 let renaming = "";
@@ -200,16 +195,9 @@ export function buildRail(actions: ViewActions): ViewHost {
       State.summary = true;
       actions.setView("overview");
     }),
-    agenti: row("agenti", agentsIcon(), t("Agenti"), () => {
-      // The agent heard from last (Claude Code, opencode, Codex…); its card switches between them.
-      const agent = State.latestSessionTask;
-      if (agent) actions.setFocus(agent.id);
-      actions.setView("overview");
-    }),
     chat: tearable(row("chat", glyph("bubble"), t("Chat"), () => {
       if (!actions.popped("chat")) actions.setView("prompt");
     }), (at) => actions.popOut("chat", at)),
-    azioni: row("azioni", glyph("bolt"), t("Azioni"), () => actions.setView("actions")),
     file: row("file", glyph("stack"), t("File e schermo"), () => actions.openFiles()),
     notizie: row("notizie", actionIconSvg(actionIcon("i:globe")!, 15), t("Notizie"), () => actions.setView("news")),
   };
@@ -345,7 +333,6 @@ export function buildRail(actions: ViewActions): ViewHost {
   let ownKey = "";
   let orderKey = "";
   let footKey = "";
-  let agentsLook: string | null = null;
   let uiSeen = document.documentElement.dataset.ui;
   // The Agenti count once that row was opened: it comes back only when more start.
   let agentsSeen = 0;
@@ -369,21 +356,13 @@ export function buildRail(actions: ViewActions): ViewHost {
       // The look changed in Impostazioni: the sections' glyphs follow.
       if (document.documentElement.dataset.ui !== uiSeen) {
         uiSeen = document.documentElement.dataset.ui;
-        const glyphs: [Section, keyof typeof LINE_SECTIONS][] = [["oggi", "house"], ["chat", "bubble"], ["azioni", "bolt"], ["file", "stack"]];
+        const glyphs: [Section, keyof typeof LINE_SECTIONS][] = [["oggi", "house"], ["chat", "bubble"], ["file", "stack"]];
         for (const [id, name] of glyphs) sections[id].querySelector(".rail-icon")!.replaceChildren(glyph(name));
-        agentsLook = null;
-      }
-      const look = State.settings.integrationTabIcons?.[CLAUDE_TASK] ?? "";
-      if (look !== agentsLook) {
-        agentsLook = look;
-        sections.agenti.querySelector(".rail-icon")!.replaceChildren(agentsIcon());
       }
       // Hidden from the chat (isola.json `menu.hidden`), never Panoramica.
       for (const [id, sec] of Object.entries(SECTION_OF)) {
-        if (sec !== "agenti" && sec !== "notizie") sections[sec].style.display = partHidden("menu", id) ? "none" : "";
+        if (sec !== "notizie") sections[sec].style.display = partHidden("menu", id) ? "none" : "";
       }
-      // No agent to show (Claude Code off, nothing followed): no row.
-      sections.agenti.style.display = State.latestSessionTask && !partHidden("menu", "agents") ? "" : "none";
       // Notizie: a tab of its own, off in Impostazioni → Notizie; the count of news not seen yet.
       sections.notizie.style.display = State.settings.news?.tab === false || partHidden("menu", "news") ? "none" : "";
       const unread = current() === "notizie" ? 0 : unreadNews();
@@ -392,9 +371,11 @@ export function buildRail(actions: ViewActions): ViewHost {
       newsMeta.className = unread ? "rail-meta count" : "rail-meta";
       const on = current();
       const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished").length;
-      if (on === "agenti" || busy < agentsSeen) agentsSeen = busy;
+      // The agents at work, on the Panoramica's row (it had the Agenti row's count):
+      // seen when the Panoramica is opened, back only when more start.
+      if (on === "oggi" || busy < agentsSeen) agentsSeen = busy;
       const news = busy > agentsSeen;
-      const agentsMeta = sections.agenti.querySelector<HTMLElement>(".rail-meta")!;
+      const agentsMeta = sections.oggi.querySelector<HTMLElement>(".rail-meta")!;
       agentsMeta.textContent = news ? String(busy) : "";
       agentsMeta.className = news ? "rail-meta count" : "rail-meta";
 
@@ -424,6 +405,9 @@ export function buildRail(actions: ViewActions): ViewHost {
         orderKey = ordk;
         fixed.replaceChildren(...order.map((id) => (SECTION_OF[id] ? sections[SECTION_OF[id]] : tabRows.get(id))).filter((x): x is HTMLElement => !!x));
       }
+      // A tab hidden from the menu (`menu.hidden`, 27 Nov 2026) is still opened by
+      // its button: its row shows only while it is the one open.
+      for (const [id, r] of tabRows) r.style.display = partHidden("menu", id) && on !== id ? "none" : "";
       const fk = zoneKey("menu-bottom");
       if (fk !== footKey) {
         footKey = fk;

@@ -485,6 +485,18 @@ export interface BgTask {
   description: string;
 }
 
+/** The card of a conversation reopened after hours. */
+export interface ChatRecap {
+  /** The conversation's last change, Unix milliseconds. */
+  since: number;
+  /** Its engine, for «Riassunto del motore». */
+  engine: string;
+  /** The engine's three lines; busy while it writes them. */
+  text?: string;
+  busy?: boolean;
+  error?: string;
+}
+
 export interface ChatSessionState {
   sid: string;
   history: ChatMessage[];
@@ -510,6 +522,8 @@ export interface ChatSessionState {
   heavyWarned?: boolean;
   /** The versions of its questions changed with «Modifica» (chat_log.rs Alt): ‹ 1/2 › under them. */
   alts?: ChatAlt[];
+  /** Reopened after hours (chat-recap.ts): the card on where it was, until the next question. */
+  recap?: ChatRecap | null;
   /** «Multi motore» on, for this conversation. */
   team: boolean;
   teamRows: TeamRow[];
@@ -744,11 +758,11 @@ export interface Settings {
   integrationTabIcons: Record<string, string>;
   /** Colour chosen for an integration (pill, card, the character on its tab): id → "#rrggbb". */
   integrationColors: Record<string, string>;
-  /** Order of the pills, as dragged in the island (per profile). */
+  /** Order of the pills, as dragged in the island. */
   pillOrder: string[];
-  /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged (per profile). */
+  /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged. */
   tabOrder: string[];
-  /** Groups of the island's menu, made by dropping an integration on another (per profile, src/core/menu-groups.ts). */
+  /** Groups of the island's menu, made by dropping an integration on another (src/core/menu-groups.ts). */
   menuGroups: MenuGroup[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
@@ -852,7 +866,7 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
-  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
+  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. */
   fixedBar?: "" | "top" | "bottom";
   /** The Windows taskbar hidden (taskbar_hide.rs); off by default. */
   hideWindowsTaskbar?: boolean;
@@ -892,6 +906,14 @@ export interface Settings {
   closeButton: boolean;
   /** The island as an app: taskbar button always, Alt+Tab, — and ▢ in the header. */
   islandApp?: boolean;
+  /**
+   * «Launcher» (Impostazioni → Generale): the island is a window of Windows,
+   * opened from the taskbar, the Start menu, the tray or the shortcut, and not
+   * on the screen when closed (no character, no fixed bar).
+   */
+  launcher?: boolean;
+  /** With the Launcher: its window opened when EasyIsland starts (off: it waits in the notification area). */
+  launcherOpenAtStart?: boolean;
   /** Opened by the user: it stays open as with 📌. */
   stayOpenByUser?: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -944,10 +966,9 @@ export interface Settings {
   widgets: WidgetDef[];
   /** MCP servers the chat may use (6.3); `confirm` = ask before every call. */
   mcpServers: { name: string; confirm: boolean }[];
-  profiles: Profile[];
-  activeProfile: string;
-  autoProfile: boolean;
-  /** Global shortcuts ("" = none); they belong to the PC, not to a profile. */
+  /** «Non disturbare» (tray menu): the `notify` level to go back to. */
+  notifyBefore?: string;
+  /** Global shortcuts ("" = none). */
   hotkeyOpen: string;
   hotkeyAsk: string;
   /** Opens the clipboard history (Appunti). */
@@ -998,7 +1019,7 @@ export interface Settings {
   previewDocked?: boolean;
   /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */
   previewWidth?: number;
-  /** In front of every new conversation; of the profile (PROFILE_KEYS). */
+  /** In front of every new conversation. */
   chatInstructions?: string;
   /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
   chatAssistants?: ChatAssistant[];
@@ -1016,6 +1037,8 @@ export interface Settings {
   habitsExcluded: string[];
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
+  /** The «EasyIsland» folder of the Start menu with the integrations (startmenu.rs). */
+  startMenu?: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
   integrationConfig: IntegrationConfig;
 }
@@ -1275,8 +1298,8 @@ export interface AutomationCondition {
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask" | "foreach";
-  /** quick: action id · profile: profile id. */
+  kind: "quick" | "notice" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask" | "foreach";
+  /** quick: action id. */
   id: string;
   title: string;
   text: string;
@@ -1329,8 +1352,6 @@ export interface Automation {
   name: string;
   enabled: boolean;
   trigger: AutomationTrigger;
-  /** Only while this profile is active; "" = any. */
-  profile: string;
   conditions?: AutomationCondition[];
   /** "" = every time · "every" = at most every `every` minutes · "day" = once a day. */
   repeat?: "" | "every" | "day";
@@ -1458,21 +1479,6 @@ export interface Theme {
   fonts?: ThemeFonts;
 }
 
-export interface ProfileRules {
-  ssids: string[];
-  /** 1 = Monday … 7 = Sunday. */
-  days: number[];
-  from: string;
-  to: string;
-}
-
-export interface Profile {
-  id: string;
-  name: string;
-  values: Record<string, unknown>;
-  rules: ProfileRules;
-}
-
 export const DEFAULT_THEME: Theme = {
   character: "jarvis-sfera",
   slimeColor: "",
@@ -1560,6 +1566,9 @@ export const DEFAULT_SETTINGS: Settings = {
   fixedBarFigure: "",
   closeButton: true,
   islandApp: false,
+  // Rust's default is the Launcher for a new install (settings.rs); here, before
+  // the settings arrive and in the browser preview, the island.
+  launcher: false,
   stayOpenByUser: false,
   followCursorCompact: false,
   presenceMeeting: true,
@@ -1586,9 +1595,6 @@ export const DEFAULT_SETTINGS: Settings = {
   actions: [],
   widgets: [],
   mcpServers: [],
-  profiles: [],
-  activeProfile: "",
-  autoProfile: false,
   hotkeyOpen: "Ctrl+Space",
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",
@@ -1619,6 +1625,7 @@ export const DEFAULT_SETTINGS: Settings = {
   suggestionsSnoozed: {},
   habitsExcluded: [],
   updateCheck: true,
+  startMenu: true,
   integrationConfig: {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
@@ -2376,7 +2383,7 @@ export interface LayoutParts { order?: string[]; hidden?: string[] }
 /** The Panoramica: its parts' order and those hidden (`tile:<id>` too), the tiles named first, its own blocks. */
 export interface LayoutOverview extends LayoutParts { tiles?: string[]; blocks?: LayoutBlock[] }
 /** One thing of the footer: a button, or a value of the PC. */
-export type LayoutFooterItem = LayoutButton | (LayoutLook & { what: string; drive?: string; label?: string; color?: string; bg?: string });
+export type LayoutFooterItem = LayoutButton | (LayoutLook & { what: string; drive?: string; label?: string; color?: string; bg?: string; click?: LayoutAction });
 /** The open island's footer: three sides, each a row of buttons and values in the order given. */
 export interface LayoutFooter { left?: LayoutFooterItem[]; center?: LayoutFooterItem[]; right?: LayoutFooterItem[] }
 export interface IslandLayout { buttons: LayoutButton[]; tabs: LayoutTab[]; menu?: LayoutParts; header?: LayoutParts; overview?: LayoutOverview; footer?: LayoutFooter; style?: LayoutStyle }
@@ -2398,5 +2405,9 @@ export interface Custom {
   titleField: string;
   sources?: CustomSource[];
   secrets?: string[];
+  /** Its own page, HTML with scripts, in place of the form (views/custom-page.ts). */
+  page?: string;
+  /** More hosts its page may call. */
+  hosts?: string[];
 }
 export interface CustomRecord { id: string; created: string; updated: string; values: Record<string, unknown> }

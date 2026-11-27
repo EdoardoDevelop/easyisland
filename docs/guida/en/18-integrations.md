@@ -11,10 +11,10 @@
 - Each row: switch, colour, name and state (Off, Active, or **Missing: key** when a credential is needed). A click opens the explanation, fields, options, icon and colour.
 - In the menu each integration shows its **logo** or an **emoji**, and a **colour** the character wears when its tab is open.
 - **Reorder them by dragging** in the menu or the Overview; **Lock moving** and **Reset order** at the bottom.
+- **From the Windows Start menu**: the **EasyIsland** folder in Start holds the chat and every integration that is on, with its icon. A click opens it in a **window of its own**, apart from the island, even if EasyIsland was not running; integrations you turn on or off appear and disappear by themselves. Turn it off in **Settings → Integrations → Windows Start menu**.
 - **Groups in the menu**, like a phone's folders: drag an integration **onto** another (the row lights up) and a group of the two is made; type its name right away and press <kbd>Enter</kbd>. Drag more integrations onto the group to add them, out of it to remove them (or right-click → **Remove from the group**). A click opens or closes the group; it shows a dot when something inside has news. Right-click on the group: **Rename**, **Colour…** (the folder's colour) and **Ungroup**. Also in Settings → Integrations → **Menu groups**. Groups belong to the profile. In the Overview every tile stays in sight, and those in a group have a strip along the bottom in the folder's colour.
 - **In a window:** drag the integration out of the island, or press the arrow at the top right of its card, or right-click → **Open in a window**. The card goes into a separate Windows window, updated as in the island; the menu entry brings the window forward, and the button in the window puts it back in the island.
-- Which ones are on depends on the **profile**.
-- When a check goes from OK to a problem, the entry gets a dot, the character makes a sound and the island shows up (following the profile's notifications). Checks become three times rarer on battery and stop when paused.
+- When a check goes from OK to a problem, the entry gets a dot, the character makes a sound and the island shows up (following the notifications). Checks become three times rarer on battery and stop when paused.
 
 ## Work and clients
 | Integration | What it does | Needs |

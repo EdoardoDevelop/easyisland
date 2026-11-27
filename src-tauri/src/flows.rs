@@ -51,7 +51,7 @@ const MAX_ITEMS: usize = 30;
 /// Steps that call an engine (agents, the model's choices) in one run.
 const MAX_ENGINE_STEPS: u32 = 20;
 /// Steps that change something: never done again after a restart caught them halfway.
-const EFFECTS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task"];
+const EFFECTS: &[&str] = &["quick", "notice", "app", "url", "chat", "task"];
 /// Steps that wait for the user or only look at the data: no point in trying again.
 const NO_RETRY: &[&str] = &["wait", "confirm", "ask", "foreach"];
 /// An "ask" card waits this long; without an answer the flow stops.

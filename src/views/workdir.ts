@@ -13,6 +13,7 @@ import { Bridge, type WorkEntry, type WorkListing } from "../core/bridge";
 import { State } from "../core/state";
 import type { ViewActions } from "./views";
 import { t } from "../core/i18n";
+import { frameFor } from "../core/motion";
 import { size } from "./upload";
 import { fileBadge } from "./filekind";
 
@@ -156,7 +157,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     });
     input.addEventListener("click", (e) => e.stopPropagation());
     actions.holdOpen(true);
-    requestAnimationFrame(() => {
+    frameFor(input, () => {
       input.focus();
       // The name without its extension, ready to be typed over.
       const dot = value.lastIndexOf(".");

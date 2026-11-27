@@ -11,6 +11,13 @@
 // Files in %APPDATA%\EasyIsland\integrazioni: `<id>.json` the description,
 // `<id>.schede.json` its saved records, `<id>\` its own files ({{file:nome}}).
 // All readable and editable: a change by hand is seen by `watch`.
+//
+// A page (Edoardo, 27 Nov 2026: «diamo la possibilità di creare integrazioni
+// migliori» with HTML and scripts): `page` is HTML with its own scripts, shown
+// in place of the form in a sandboxed frame served by `page_response`
+// (eipage://, its own CSP: no network, no Tauri). It talks to EasyIsland only
+// through messages (src/views/custom-page.ts): records, sources, calls to the
+// declared hosts (keys put in here), its actions, notices.
 
 use std::path::{Path, PathBuf};
 
@@ -24,6 +31,10 @@ const MAX_FIELDS: usize = 60;
 const MAX_ACTIONS: usize = 12;
 const MAX_RECORDS: usize = 2000;
 const MAX_TEMPLATE: usize = 40_000;
+/// A page with its scripts (`page`).
+const MAX_PAGE: usize = 300_000;
+/// The scheme of the pages' frames: http://eipage.localhost/<id> on Windows.
+pub const PAGE_SCHEME: &str = "eipage";
 const MAX_SCRIPT: usize = 20_000;
 /// A record's title and a file's name, with their {{campi}}.
 const MAX_NAME: usize = 200;
@@ -307,6 +318,11 @@ pub struct Custom {
     pub sources: Vec<Source>,
     /// The names of its keys ({{secret:nome}}), kept in Windows' Credential Manager.
     pub secrets: Vec<String>,
+    /// Its own page, HTML with scripts, in place of the form (see the top of the file).
+    pub page: String,
+    /// More services its page may call ("https://api.example.com"), besides the
+    /// hosts of its actions and sources.
+    pub hosts: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -360,9 +376,22 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         c.color = "#0EA5E9".into();
     }
     c.icon = c.icon.trim().chars().take(4).collect();
-    if c.fields.is_empty() && c.sources.is_empty() {
-        return Err(t("fields o sources: almeno un campo o una fonte di dati.").into());
+    if c.fields.is_empty() && c.sources.is_empty() && c.page.trim().is_empty() {
+        return Err(t("fields, sources o page: almeno un campo, una fonte di dati o una pagina.").into());
     }
+    if c.page.len() > MAX_PAGE {
+        return Err(t("page: al massimo 300.000 caratteri.").into());
+    }
+    let mut hosts = Vec::new();
+    for raw in &c.hosts {
+        let raw = raw.trim().trim_end_matches('/');
+        let url = if raw.contains("://") { raw.to_string() } else { format!("https://{raw}") };
+        let host = host_of(&url).filter(|h| !h.contains(['?', '#', ' '])).ok_or(tf("hosts: «{h}» non è un indirizzo valido.", &[("h", &raw.to_string())]))?;
+        if !hosts.contains(&host) {
+            hosts.push(host);
+        }
+    }
+    c.hosts = hosts;
     if c.fields.len() > MAX_FIELDS {
         return Err(tf("fields: al massimo {n} campi.", &[("n", &MAX_FIELDS.to_string())]));
     }
@@ -1272,7 +1301,7 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
     let c = get(id).ok_or(t("Integrazione non trovata."))?;
     let allowed: Vec<String> = c.actions.iter().filter(|a| a.kind == "http").map(|a| a.url.as_str())
         .chain(c.sources.iter().map(|s| s.url.as_str()))
-        .filter_map(host_of).collect();
+        .filter_map(host_of).chain(c.hosts.iter().cloned()).collect();
     let host = host_of(url).ok_or(t("Indirizzo non valido."))?;
     if !allowed.contains(&host) {
         return Err(tf("{h} non è tra i servizi di questa integrazione.", &[("h", &host)]));
@@ -1311,6 +1340,70 @@ pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value
     let text = String::from_utf8_lossy(cut).to_string();
     let data = serde_json::from_str::<Value>(&text).unwrap_or(Value::String(text));
     Ok(Reply { status: status.as_u16(), ok: status.is_success(), data, file: None })
+}
+
+/// What the frame of a page may do: its own scripts and styles, pictures and
+/// sounds made in the page; no request anywhere (EasyIsland makes them,
+/// custom-page.ts), no forms sent, no other page.
+const PAGE_CSP: &str = "default-src 'none'; script-src 'unsafe-inline' http://eipage.localhost; style-src 'unsafe-inline'; img-src data: blob:; \
+media-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'; frame-src 'none'; worker-src 'none'";
+
+/// The bridge the page's scripts use (`easyisland.…`): messages to the island, answered by id.
+const PAGE_BRIDGE: &str = include_str!("custom_page_bridge.js");
+/// The look every page gets by itself (Edoardo, 27 Nov 2026: «aspetto grafico
+/// bello in automatico»): plain HTML styled like EasyIsland and the ei-…
+/// pieces (cards, key numbers, badges, empty states), all at zero weight so
+/// the page's own CSS wins.
+const PAGE_UI: &str = include_str!("custom_page_ui.css");
+
+/// Libraries the pages may load from EasyIsland itself (Edoardo, 27 Nov 2026:
+/// pages as rich as the chat's artifacts, still without network):
+/// `<script src="/lib/chart.js">` (Chart.js, global `Chart`) and
+/// `<script src="/lib/preact.js">` (Preact with htm, global `htmPreact`:
+/// html, render, useState…, no build step, no eval). Fixed versions in
+/// package.json; taken from node_modules when EasyIsland is built.
+const PAGE_LIBS: &[(&str, &[u8])] = &[
+    ("chart.js", include_bytes!("../../node_modules/chart.js/dist/chart.umd.min.js")),
+    ("preact.js", include_bytes!("../../node_modules/htm/preact/standalone.umd.js")),
+];
+
+/// eipage://<id>: the page of that integration, the bridge put in before its own scripts.
+pub fn page_response(path: &str) -> tauri::http::Response<Vec<u8>> {
+    // A library of PAGE_LIBS: the same for every page, kept by the frame.
+    if let Some(name) = path.strip_prefix("/lib/") {
+        let lib = PAGE_LIBS.iter().find(|(n, _)| *n == name);
+        let builder = tauri::http::Response::builder()
+            .header("Content-Type", "text/javascript; charset=utf-8")
+            .header("Cache-Control", "max-age=86400")
+            .header("X-Content-Type-Options", "nosniff");
+        return match lib {
+            Some((_, bytes)) => builder.status(200).body(bytes.to_vec()).unwrap_or_default(),
+            None => builder.status(404).body(Vec::new()).unwrap_or_default(),
+        };
+    }
+    let id = path.trim_matches('/').split(['/', '?', '#']).next().unwrap_or_default();
+    let page = if valid_id(id) { get(id).map(|c| c.page).unwrap_or_default() } else { String::new() };
+    let builder = tauri::http::Response::builder()
+        .header("Content-Type", "text/html; charset=utf-8")
+        .header("Content-Security-Policy", PAGE_CSP)
+        .header("Cache-Control", "no-store")
+        .header("X-Content-Type-Options", "nosniff");
+    if page.trim().is_empty() {
+        return builder.status(404).body(Vec::new()).unwrap_or_default();
+    }
+    builder.status(200).body(with_bridge(&page).into_bytes()).unwrap_or_default()
+}
+
+/// The page with the bridge's script as the first thing in it (after `<head>`
+/// when there is one, so a doctype stays first).
+pub fn with_bridge(page: &str) -> String {
+    let script = format!("<style id=\"ei-ui\">{PAGE_UI}</style><script>{PAGE_BRIDGE}</script>");
+    let lower = page.to_ascii_lowercase();
+    if let Some(at) = lower.find("<head").and_then(|i| lower.get(i..).and_then(|r| r.find('>')).map(|j| i + j + 1)) {
+        let (a, b) = (page.get(..at).unwrap_or_default(), page.get(at..).unwrap_or_default());
+        return format!("{a}{script}{b}");
+    }
+    format!("<!doctype html><meta charset=\"utf-8\">{script}{page}")
 }
 
 /// A source read now.
@@ -1442,7 +1535,7 @@ pub fn tool_create(app: &AppHandle, args: &Value) -> Result<String, String> {
 /// (Edoardo, 11 Nov 2026: a 5.000-character template sent again to rename a field).
 const PATCH_KEYS: &[&str] = &[
     "name", "description", "icon", "color", "title", "titleField", "template", "templateFrom", "field", "fields", "remove_fields", "action",
-    "actions", "remove_actions", "source", "remove_sources", "secrets",
+    "actions", "remove_actions", "source", "remove_sources", "secrets", "page", "hosts",
 ];
 
 /// The description after a `custom_update`: `definition` whole, or the old one
@@ -1477,6 +1570,10 @@ fn patched(old: &Custom, args: &Value) -> Result<Custom, String> {
     if let Some(v) = text("titleField") { c.title_field = v; }
     if let Some(v) = text("template") { c.template = v; }
     if let Some(v) = text("templateFrom") { c.template_from = v; }
+    if let Some(v) = text("page") { c.page = v; }
+    if let Some(v) = args.get("hosts").and_then(Value::as_array) {
+        c.hosts = v.iter().filter_map(Value::as_str).map(str::to_string).collect();
+    }
     if let Some(v) = args.get("secrets").and_then(Value::as_array) {
         c.secrets = v.iter().filter_map(Value::as_str).map(str::to_string).collect();
     }
@@ -1536,6 +1633,9 @@ fn shortened(text: &str) -> bool {
 fn keep_shortened(old: &Custom, c: &mut Custom) {
     if shortened(&c.template) {
         c.template = old.template.clone();
+    }
+    if shortened(&c.page) {
+        c.page = old.page.clone();
     }
     for (i, a) in c.actions.iter_mut().enumerate() {
         if shortened(&a.script) {
@@ -1652,9 +1752,8 @@ fn rename_check(new_id: &str) -> Result<(), String> {
 
 /// Moves an integration to a new id (Edoardo, 11 Nov 2026: «Clienti» still
 /// called `clienti-ddt`): its description, records and folder; the links of
-/// the other integrations that pick from it; and in the settings, every
-/// profile too, each place that names `custom:<old>` (order, groups, icons,
-/// colours). Returns how many links of other integrations it changed.
+/// the other integrations that pick from it; and in the settings each place
+/// that names `custom:<old>` (order, groups, icons, colours). Returns how many links of other integrations it changed.
 fn rename_id(app: &AppHandle, old_id: &str, new_id: &str) -> Result<usize, String> {
     rename_check(new_id)?;
     let mut c = get(old_id).ok_or(t("Integrazione non trovata."))?;
@@ -1705,7 +1804,7 @@ fn rename_id(app: &AppHandle, old_id: &str, new_id: &str) -> Result<usize, Strin
     Ok(moved)
 }
 
-/// Every string equal to `from`, and every key, become `to` (the settings, profiles included).
+/// Every string equal to `from`, and every key, become `to` (the settings, at any depth).
 fn renamed_task(v: Value, from: &str, to: &str) -> Value {
     match v {
         Value::String(s) if s == from => Value::String(to.to_string()),
@@ -1817,6 +1916,17 @@ pub fn changes(old: &Custom, new: &Custom, saved: &[Record]) -> Vec<String> {
             tf("Cambia il modello del documento ({a} → {b} caratteri).", &[("a", &a.to_string()), ("b", &b.to_string())])
         });
     }
+    if new.page != old.page {
+        let (a, b) = (old.page.chars().count(), new.page.chars().count());
+        out.push(match (a, b) {
+            (0, _) => tf("Pagina nuova con i suoi script ({b} caratteri): prende il posto del modulo.", &[("b", &b.to_string())]),
+            (_, 0) => t("Tolta la pagina: torna il modulo.").into(),
+            _ => tf("Cambia la pagina e i suoi script ({a} → {b} caratteri).", &[("a", &a.to_string()), ("b", &b.to_string())]),
+        });
+    }
+    for h in new.hosts.iter().filter(|h| !old.hosts.contains(h)) {
+        out.push(tf("La pagina potrà chiamare anche {h}.", &[("h", h)]));
+    }
     for a in &old.actions {
         match new.actions.iter().find(|n| n.label == a.label) {
             None => out.push(tf("Tolta l'azione «{label}».", &[("label", &a.label)])),
@@ -1844,6 +1954,7 @@ pub fn tool_get(id: &str, part: &str) -> Result<String, String> {
     let c = get(id).ok_or(t("Integrazione non trovata."))?;
     match part.trim() {
         "template" => return Ok(if c.template.trim().is_empty() { t("Nessun template.").into() } else { c.template.clone() }),
+        "page" => return Ok(if c.page.trim().is_empty() { t("Nessuna pagina.").into() } else { c.page.clone() }),
         "all" => return serde_json::to_string(&c).map_err(|e| e.to_string()),
         _ => {}
     }
@@ -1851,6 +1962,10 @@ pub fn tool_get(id: &str, part: &str) -> Result<String, String> {
     let n = c.template.chars().count();
     if n > LONG {
         v["template"] = json!(tf("({n} caratteri: custom_get con part \"template\" per leggerlo)", &[("n", &n.to_string())]));
+    }
+    let n = c.page.chars().count();
+    if n > LONG {
+        v["page"] = json!(tf("({n} caratteri: custom_get con part \"page\" per leggerla)", &[("n", &n.to_string())]));
     }
     if let Some(actions) = v.get_mut("actions").and_then(Value::as_array_mut) {
         for a in actions {
@@ -1997,6 +2112,41 @@ pub fn tool_add_record(app: &AppHandle, args: &Value) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_pages_libraries_are_served_and_nothing_else() {
+        let chart = page_response("/lib/chart.js");
+        assert_eq!(chart.status(), 200);
+        assert!(chart.body().len() > 100_000);
+        assert_eq!(page_response("/lib/preact.js").status(), 200);
+        assert_eq!(page_response("/lib/../custom.rs").status(), 404);
+        assert_eq!(page_response("/lib/").status(), 404);
+    }
+
+    #[test]
+    fn the_bridge_goes_first_in_a_page() {
+        let full = with_bridge("<!doctype html><html><head><title>x</title></head><body><script>easyisland.records()</script></body></html>");
+        // The look first, then the bridge, both before the page's own head.
+        assert!(full.starts_with("<!doctype html><html><head><style id=\"ei-ui\">"));
+        assert!(full.find("</style><script>").unwrap() < full.find("<title>").unwrap());
+        assert!(full.find("Object.defineProperty(window, \"easyisland\"").unwrap() < full.find("easyisland.records()").unwrap());
+        let bare = with_bridge("<div id=a></div><script>1</script>");
+        assert!(bare.starts_with("<!doctype html><meta charset=\"utf-8\"><style id=\"ei-ui\">"));
+        assert!(bare.ends_with("<div id=a></div><script>1</script>"));
+    }
+
+    #[test]
+    fn a_page_alone_is_an_integration_and_its_hosts_are_origins() {
+        let c: Custom = serde_json::from_value(json!({
+            "name": "Cruscotto", "page": "<div>ciao</div>", "hosts": ["api.example.com/", "http://LAN.example.com", "api.example.com"]
+        })).unwrap();
+        let c = normalize(c).unwrap();
+        assert_eq!(c.hosts, vec!["https://api.example.com", "http://lan.example.com"]);
+        let bad: Custom = serde_json::from_value(json!({ "name": "X", "page": "<p>", "hosts": ["https://{{x}}.com"] })).unwrap();
+        assert!(normalize(bad).is_err());
+        let empty: Custom = serde_json::from_value(json!({ "name": "Vuota" })).unwrap();
+        assert!(normalize(empty).is_err());
+    }
 
     #[test]
     fn a_shortened_template_sent_back_keeps_the_real_one() {
@@ -2209,14 +2359,14 @@ mod tests {
             "pillOrder": ["integration_weather", "custom:clienti-ddt"],
             "menuGroups": [{ "id": "g1", "items": ["custom:clienti-ddt"] }],
             "integrationColors": { "custom:clienti-ddt": "#22c55e" },
-            "profiles": [{ "values": { "pillOrder": ["custom:clienti-ddt"] } }],
+            "nested": [{ "values": { "pillOrder": ["custom:clienti-ddt"] } }],
             "other": "custom:clienti-ddt-2"
         });
         let r = renamed_task(s, "custom:clienti-ddt", "custom:clienti");
         assert_eq!(r["pillOrder"][1], "custom:clienti");
         assert_eq!(r["menuGroups"][0]["items"][0], "custom:clienti");
         assert_eq!(r["integrationColors"]["custom:clienti"], "#22c55e");
-        assert_eq!(r["profiles"][0]["values"]["pillOrder"][0], "custom:clienti");
+        assert_eq!(r["nested"][0]["values"]["pillOrder"][0], "custom:clienti");
         assert_eq!(r["other"], "custom:clienti-ddt-2", "only the whole name");
     }
 

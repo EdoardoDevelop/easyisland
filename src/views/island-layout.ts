@@ -33,6 +33,15 @@ function openView(to: string, actions: ViewActions) {
     actions.setView("board");
     return;
   }
+  // An integration's card, as from the menu: a built-in one by its id, one of the user's as custom:<id> (or its bare id).
+  if (to.startsWith("integration:")) {
+    const id = to.slice("integration:".length);
+    const own = !id.startsWith("custom:") && State.customs.some((c) => c.id === id);
+    State.summary = false;
+    actions.setFocus(own ? `custom:${id}` : id);
+    actions.setView("overview");
+    return;
+  }
   switch (to) {
     case "overview":
       State.summary = true;
@@ -79,7 +88,7 @@ export function runLayoutAction(a: LayoutAction, actions: ViewActions) {
     case "quick": {
       const q = (State.settings.actions ?? []).find((x) => x.id === a.id);
       if (q) actions.runAction(q);
-      else fail(t("L'azione rapida non c'è più nel profilo attivo."));
+      else fail(t("L'azione rapida non c'è più."));
       break;
     }
     case "app":
@@ -727,6 +736,20 @@ export function buildFoot(actions: ViewActions): { el: HTMLElement; sync(): bool
     if ("action" in it) return layoutIconButton(it, actions, 15);
     const p = valueBlock({ what: it.what, drive: it.drive, color: it.color, levels: it.levels });
     p.el.classList.add("foot-value");
+    // A value with `click` (26 Nov 2026): the same actions as a button.
+    const click = it.click;
+    if (click) {
+      p.el.classList.add("foot-click");
+      p.el.setAttribute("role", "button");
+      p.el.tabIndex = 0;
+      p.el.addEventListener("click", () => runLayoutAction(click, actions));
+      p.el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          runLayoutAction(click, actions);
+        }
+      });
+    }
     // A name before the value (isola.json `label`), a background of its own.
     if (it.label) p.el.prepend(h("span", { class: "foot-label", text: it.label }));
     if (it.bg) {

@@ -14,7 +14,7 @@ EasyIsland is an **island always at hand** at the top of your Windows screen, wi
 | Part | Pages |
 |---|---|
 | **Getting started** | [Installation](02-installation.md), [First steps](03-getting-started.md), [The island](04-island.md) |
-| **Make it yours** | [Position and look](05-appearance.md), [Profiles and notifications](06-profiles.md) |
+| **Make it yours** | [Position and look](05-appearance.md), [Notifications](06-notifications.md) |
 | **Coding agents** | [Coding agents](07-agents.md) |
 | **Artificial intelligence** | [The chat](08-chat.md), [AI engines](09-engines.md), [Terminal mode and tools](11-ai-tools.md), [Memory and second brain](12-memory.md), [News](13-news.md), [Tasks, Heartbeat and Skills](14-tasks.md) |
 | **Getting things done** | [Quick actions and shortcuts](15-actions.md), [Automations](16-automations.md), [Files and screen](17-files-and-screen.md) |

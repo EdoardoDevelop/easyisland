@@ -262,6 +262,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "skill_save" => crate::skills::tool_save(args),
         "todo_list" => crate::todo::list(args).await,
         "todo_add" => crate::todo::add(args).await,
+        "mail_draft" => crate::mail_draft::draft(app, args).await,
         "todo_update" => crate::todo::update(args).await,
 
         "list_status" => {
@@ -371,16 +372,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             }
         }
 
-        // In the active profile, as the settings window does; update_settings
-        // saves and tells both windows, so nothing overwrites it afterwards.
+        // As the settings window does: update_settings saves and tells both
+        // windows, so nothing overwrites it afterwards.
         "quick_action_create" => {
             let id = format!("a{}", crate::msgraph::random(6).iter().map(|b| format!("{b:02x}")).collect::<String>());
             let action = crate::actions::quick_from_args(crate::actions::quick_blank(id.clone()), args)?;
             let name = action.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
-            update_settings(app, |s| {
-                s.actions.push(action);
-                s.commit_active();
-            })?;
+            update_settings(app, |s| s.actions.push(action))?;
             Ok(format!("Azione rapida «{name}» creata (id {id})."))
         }
 
@@ -394,7 +392,6 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                 if let Some(a) = s.actions.iter_mut().find(|a| same(a)) {
                     *a = action;
                 }
-                s.commit_active();
             })?;
             Ok(format!("Azione rapida «{name}» aggiornata."))
         }
@@ -405,10 +402,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             if !settings(app)?.actions.iter().any(same) {
                 return Err(format!("Nessuna azione rapida con id «{id}»."));
             }
-            update_settings(app, |s| {
-                s.actions.retain(|a| !same(a));
-                s.commit_active();
-            })?;
+            update_settings(app, |s| s.actions.retain(|a| !same(a)))?;
             Ok(format!("Azione rapida {id} eliminata."))
         }
 
@@ -590,32 +584,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(crate::workdir::describe(&l))
         }
 
-        "list_profiles" => {
-            let s = settings(app)?;
-            let list: Vec<Value> = s
-                .profiles
-                .iter()
-                .map(|p| json!({ "id": p.id, "nome": p.name, "attivo": p.id == s.active_profile }))
-                .collect();
-            Ok(pretty(&Value::Array(list)))
-        }
-
-        "switch_profile" => {
-            let id = arg(args, "id");
-            let s = settings(app)?;
-            let p = s.profiles.iter().find(|p| p.id == id).ok_or_else(|| format!("Nessun profilo con id «{id}»."))?;
-            let name = p.name.clone();
-            crate::activate_profile(app, id, "chat");
-            Ok(format!("Profilo «{name}» attivo."))
-        }
-
         "list_automations" => {
             let s = settings(app)?;
             let list: Vec<String> = s
                 .automations
                 .iter()
                 .filter_map(|v| serde_json::from_value::<crate::automations::Automation>(v.clone()).ok())
-                .map(|a| crate::automations::describe(&a, &s))
+                .map(|a| crate::automations::describe(&a))
                 .collect();
             if list.is_empty() {
                 return Ok("Nessuna automazione.".into());
@@ -626,7 +601,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "create_automation" => {
             let s = settings(app)?;
             let auto = crate::automations::validate(args, &s)?;
-            let text = crate::automations::describe(&auto, &s);
+            let text = crate::automations::describe(&auto);
             let value = serde_json::to_value(&auto).map_err(|e| e.to_string())?;
             update_settings(app, |s| s.automations.push(value))?;
             Ok(format!("Creata e accesa: {text}. Si vede e si modifica nella finestra Flussi (Impostazioni → Flussi → Modifica)."))

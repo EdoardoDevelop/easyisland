@@ -343,6 +343,34 @@ export async function runScene(island: Island, scene: string) {
           mm("flowchart TD\n  A --> --> B ]["),
           mm('pie title Ticket per cliente\n  "Rossi" : 18\n  "Bianchi" : 11\n  "Verdi" : 7\n  "Altri" : 4'),
           mm('xychart-beta\n  title "Ticket al mese"\n  x-axis [lug, ago, set, ott, nov]\n  y-axis "Ticket" 0 --> 60\n  bar [32, 18, 41, 55, 47]\n  line [30, 25, 35, 45, 48]'),
+          // The other kinds the engines are told about (claude_cli::REPLY_FORM).
+          mm("stateDiagram-v2\n  [*] --> Aperto\n  Aperto --> InCorso : assegnato\n  InCorso --> Chiuso : risolto\n  Chiuso --> [*]"),
+          mm("classDiagram\n  class Cliente {\n    +nome\n    +piva\n  }\n  class Contratto\n  Cliente \"1\" --> \"*\" Contratto"),
+          mm("requirementDiagram\n  requirement backup {\n    id: 1\n    text: \"Backup ogni notte\"\n    risk: high\n    verifymethod: test\n  }\n  element nas {\n    type: \"NAS\"\n  }\n  nas - satisfies -> backup"),
+          mm('C4Context\n  title "Sistema clienti"\n  Person(u, "Utente")\n  System(g, "Gestionale")\n  System_Ext(m, "Posta")\n  Rel(u, g, "Usa")\n  Rel(g, m, "Invia")'),
+          mm("architecture-beta\n  group rete(cloud)[Ufficio]\n  service fw(internet)[Firewall] in rete\n  service srv(server)[Server] in rete\n  service db(database)[Database] in rete\n  fw:R --> L:srv\n  srv:R --> L:db"),
+          mm('block\n  columns 3\n  a["Router"] b["Switch"] c["NAS"]'),
+          mm("gitGraph\n  commit\n  branch prova\n  commit\n  checkout main\n  merge prova\n  commit"),
+          mm('packet\n  0-15: "Porta sorgente"\n  16-31: "Porta destinazione"\n  32-63: "Numero di sequenza"'),
+          mm("timeline\n  title Migrazione\n  Dicembre : Backup : Nuovo server\n  Gennaio : Passaggio\n  Febbraio : Verifica"),
+          mm("journey\n  title Apertura ticket\n  section Cliente\n    Scrive la mail: 3: Cliente\n    Riceve risposta: 5: Cliente, Tecnico"),
+          mm("kanban\n  Da fare\n    t1[Backup Rossi]\n  In corso\n    t2[Firewall Bianchi]\n  Fatto\n    t3[Stampante Verdi]"),
+          mm("mindmap\n  root((Rete ufficio))\n    Server\n      DC01\n      NAS\n    Client\n      PC\n      Stampanti"),
+          mm("ishikawa\n  Backup lento\n    Rete\n      Switch a 100 Mb\n    Disco\n      NAS pieno\n    Software\n      Versione vecchia"),
+          mm('quadrantChart\n  title "Priorità"\n  x-axis "Poco urgente" --> "Urgente"\n  y-axis "Poco importante" --> "Importante"\n  "Backup": [0.8, 0.9]\n  "Stampante": [0.6, 0.2]'),
+          mm('venn-beta\n  set A["Clienti"]\n  set B["Contratti"]\n  union A,B["Attivi"]'),
+          mm('radar-beta\n  axis a["Velocità"], b["Costo"], c["Sicurezza"]\n  curve x["NAS"]{4, 3, 5}\n  curve y["Cloud"]{3, 4, 4}'),
+          mm("sankey\n  Internet,Firewall,100\n  Firewall,Server,60\n  Firewall,PC,40"),
+          mm('treemap\n  "Disco"\n    "Documenti": 120\n    "Foto": 300\n    "Backup": 500'),
+          // ```chart blocks (chart.ts): data only, drawn by Chart.js; the last one cannot be read and stays code.
+          ...[
+            { type: "bar", title: "Ticket per cliente", labels: ["giu", "lug", "ago", "set", "ott", "nov"], series: [{ name: "Rossi", values: [12, 18, 9, 22, 17, 25] }, { name: "Bianchi", values: [8, 6, 11, 9, 14, 10] }, { name: "Verdi", values: [3, 5, 4, 7, 6, 9] }] },
+            { type: "line", title: "Spazio usato sul NAS", labels: ["1", "5", "10", "15", "20", "25", "27"], series: [{ name: "Usato", values: [61, 63, 66, 70, 74, 79, 82] }], unit: "%" },
+            { type: "doughnut", title: "Ticket per categoria", labels: ["Rete", "Stampanti", "Posta", "Altro"], series: [{ name: "Ticket", values: [14, 9, 6, 4] }] },
+            { type: "bar", horizontal: true, title: "Ore per tecnico", labels: ["Marco", "Luca", "Sara", "Paolo"], series: [{ name: "Ore", values: [38, 42, 29, 35] }], unit: "h" },
+            { type: "bar", stacked: true, title: "Interventi e importo", labels: ["Q1", "Q2", "Q3", "Q4"], series: [{ name: "Remoto", values: [20, 24, 18, 30] }, { name: "In sede", values: [10, 8, 12, 9] }, { name: "Media", values: [15, 16, 15, 19.5], type: "line" }] },
+          ].map((c) => "```chart\n" + JSON.stringify(c, null, 1) + "\n```"),
+          "```chart\n{ \"type\": \"bar\", \"labels\": [1, 2\n```",
         ];
         const only = new URLSearchParams(location.search).get("diagrammi");
         State.chatHistory = [
@@ -494,6 +522,58 @@ export async function runScene(island: Island, scene: string) {
         // The third question was changed once: the first version stays as ‹ 1/2 ›.
         State.chat.alts = [{ at: 2, versions: [[{ role: "user", content: "Quanto occupa il backup di Rossi?" }, { role: "assistant", content: "Circa **1,2 TB**." }], []], shown: 1 }];
         State.chatSideOpen = false;
+      }
+      // ?ritorno: a conversation reopened after 5 hours (chat-recap.ts), its last answer asking
+      // to pick with ```scelte buttons (md-interactive.ts choicesBlock); «Riassunto del motore» mocked.
+      if (new URLSearchParams(location.search).has("ritorno")) {
+        const msgs: { role: "user" | "assistant"; content: string }[] = [
+          { role: "user", content: "Il backup del NAS di Rossi è fallito stanotte, perché?" },
+          { role: "assistant", content: "## 1. Causa\nIl disco di destinazione era **pieno** (`/volume2`, 99 %).\n\n## 2. Cosa fare\n- [ ] Libera spazio sul volume 2\n- [ ] Rilancia il job\n- [ ] Controlla il log" },
+          { role: "user", content: "Sistema lo script perché usi il volume 1" },
+          { role: "assistant", content: "> ⚙ Modifica · `C:\\Script\\backup.ps1`\n\n```modifica\n" + JSON.stringify({ file: "C:\\Script\\backup.ps1", edits: [{ old: "volume2", new: "volume1" }], write: false }) + "\n```\n\n## 3. Script aggiornato\nOra scrive sul volume 1. Il job di stanotte però è ancora fallito: lo rilancio adesso o aspetto la finestra di stanotte?\n\n```scelte\nRilancialo adesso\nAspetta stanotte\nPrima controlla lo spazio sul volume 1\n```" },
+        ];
+        let n = 0;
+        State.chatHistory = msgs.map((m) => ({ id: ++n, role: m.role, content: m.content, ...(m.role === "assistant" ? { engine: "subscription" } : {}) }));
+        State.chat.recap = { since: Date.now() - 5 * 3600_000, engine: "subscription" };
+        State.chatSideOpen = false;
+        Bridge.chatRecap = async () => {
+          await new Promise((r) => setTimeout(r, 900));
+          return "**Fatto:** trovata la causa (volume 2 pieno) e corretto `backup.ps1` per usare il volume 1.\n**Ancora aperto:** il backup di stanotte va rilanciato.\n**Ultimo passo:** scegliere se rilanciarlo adesso o aspettare la finestra notturna.";
+        };
+      }
+      // ?segna: a pasted screenshot attached, with ✎ to mark it (chat-mark.ts); file reads and the save mocked.
+      if (new URLSearchParams(location.search).has("segna")) {
+        const shot = async (): Promise<ArrayBuffer> => {
+          const cv = document.createElement("canvas");
+          cv.width = 1280;
+          cv.height = 720;
+          const g = cv.getContext("2d")!;
+          g.fillStyle = "#f3f3f3";
+          g.fillRect(0, 0, 1280, 720);
+          g.fillStyle = "#0067c0";
+          g.fillRect(0, 0, 1280, 48);
+          g.fillStyle = "#222";
+          g.font = "28px Segoe UI";
+          g.fillText("Errore 0x80070005: accesso negato", 80, 160);
+          g.fillText("Utente: admin   Password: ••••••••", 80, 230);
+          g.fillStyle = "#c42b1c";
+          g.fillRect(80, 300, 300, 60);
+          const blob = await new Promise<Blob>((r) => cv.toBlob((b) => r(b!), "image/png"));
+          return blob.arrayBuffer();
+        };
+        State.chatHistory = [];
+        State.chatSideOpen = false;
+        State.chatAttach = [{ name: "Immagine incollata.png", path: "C:\\Temp\\EasyIsland\\Immagine incollata.png", folder: false }];
+        Bridge.fileBytes = shot;
+        Bridge.fileThumb = async () => {
+          const cv = document.createElement("canvas");
+          cv.width = cv.height = 32;
+          const g = cv.getContext("2d")!;
+          g.fillStyle = "#0067c0";
+          g.fillRect(0, 0, 32, 32);
+          return cv.toDataURL();
+        };
+        Bridge.chatImageSave = async (name: string) => ({ name, path: `C:\\Temp\\EasyIsland\\${name}`, folder: false });
       }
       // ?vuota=<name>: an empty conversation with that drawing (views/chat-empty.ts; «tutti» one at random).
       const vuota = new URLSearchParams(location.search).get("vuota");
@@ -1951,11 +2031,100 @@ export async function runScene(island: Island, scene: string) {
         const fails = new URLSearchParams(location.search).has("errore");
         Bridge.customHttp = async () => (fails ? { status: 503, ok: false, data: "servizio non raggiungibile" } : { status: 200, ok: true, data: { ok: true } });
       }
+      // &pagina: an integration with its own page (custom-page.ts, 27 Nov 2026): a small
+      // stock list drawn by its scripts, records read and saved through easyisland.…
+      if (new URLSearchParams(location.search).has("pagina")) {
+        const bridge = (await import("../src-tauri/src/custom_page_bridge.js?raw")).default;
+        const ui = (await import("../src-tauri/src/custom_page_ui.css?raw")).default;
+        // The libraries put inside the page: a sandboxed srcdoc frame may not load from localhost (the app serves /lib/… itself).
+        const libs: Record<string, string> = {};
+        for (const name of ["chart.js", "preact.js"]) libs[name] = await fetch(`/lib/${name}`).then((r) => r.text());
+        (window as unknown as { eiPageDev: (p: string) => string }).eiPageDev = (p: string) =>
+          `<!doctype html><meta charset="utf-8"><style id="ei-ui">${ui}</style><script>${bridge}</script>${p.replace(/<script src="\/lib\/([\w.-]+)"><\/script>/g, (all, n: string) => (libs[n] ? `<script>${libs[n]}</script>` : all))}`;
+        const page = `<style>
+  .add{display:grid;grid-template-columns:1fr 90px auto;gap:8px;align-items:end}
+  .who{display:flex;align-items:center;gap:8px;min-width:0}
+  .bar{width:120px}
+</style>
+<div class="ei-toolbar"><h2>Scorte</h2><span class="ei-badge info" id="count"></span></div>
+<div class="ei-grid">
+  <div class="ei-stat"><span>Articoli</span><b id="s-art">–</b></div>
+  <div class="ei-stat"><span>Pezzi in totale</span><b id="s-pz">–</b></div>
+  <div class="ei-stat"><span>Scorta bassa</span><b id="s-low">–</b><em id="s-low-n"></em></div>
+</div>
+<div class="ei-card ei-section">
+  <h3>Nuovo articolo</h3>
+  <form class="add" id="f">
+    <div class="ei-field"><label for="n">Articolo</label><input id="n" placeholder="Es. Toner HP 26A" required></div>
+    <div class="ei-field"><label for="q">Pezzi</label><input id="q" type="number" min="0" value="1"></div>
+    <button class="primary">Aggiungi</button>
+  </form>
+</div>
+<div class="ei-section ei-table"><table><thead><tr><th>Articolo</th><th>Stato</th><th class="num">Pezzi</th><th>Livello</th></tr></thead><tbody id="list"></tbody></table></div>
+<div class="ei-card ei-section"><h3>Pezzi per articolo</h3><div class="ei-chart"><canvas id="chart"></canvas></div></div>
+<script src="/lib/chart.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => n.toLocaleString("it-IT");
+  async function draw() {
+    const rs = await easyisland.records();
+    const qty = (r) => +r.values.pezzi || 0;
+    const max = Math.max(1, ...rs.map(qty));
+    const low = rs.filter((r) => qty(r) < 5);
+    $("count").textContent = rs.length + " articoli";
+    $("s-art").textContent = fmt(rs.length);
+    $("s-pz").textContent = fmt(rs.reduce((a, r) => a + qty(r), 0));
+    $("s-low").textContent = fmt(low.length);
+    $("s-low-n").textContent = low.length ? "da riordinare" : "tutto a posto";
+    $("s-low-n").className = low.length ? "down" : "up";
+    $("list").innerHTML = "";
+    for (const r of rs) {
+      const q = qty(r), state = q < 5 ? "bad" : q < 10 ? "warn" : "ok";
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><span class="who"><span class="ei-dot"></span><span class="ei-truncate"></span></span></td><td><span class="ei-badge"></span></td><td class="num"></td><td><div class="ei-progress bar"><i></i></div></td>';
+      tr.querySelector(".ei-dot").classList.add(state);
+      tr.querySelector(".ei-truncate").textContent = r.values.articolo;
+      const b = tr.querySelector(".ei-badge"); b.classList.add(state); b.textContent = { ok: "Disponibile", warn: "In esaurimento", bad: "Scorta bassa" }[state];
+      tr.querySelector(".num").textContent = fmt(q);
+      const p = tr.querySelector(".ei-progress"); p.classList.add(state); p.firstChild.style.width = (q / max * 100) + "%";
+      $("list").append(tr);
+    }
+    window.pezzi?.destroy();
+    window.pezzi = new Chart($("chart"), {
+      type: "bar",
+      data: { labels: rs.map((r) => r.values.articolo), datasets: [{ label: "Pezzi", data: rs.map(qty) }] },
+      options: { plugins: { legend: { display: false } } },
+    });
+  }
+  $("f").onsubmit = async (e) => {
+    e.preventDefault();
+    const articolo = $("n").value.trim();
+    const pezzi = +$("q").value || 0;
+    if (!articolo) return;
+    await easyisland.save({ articolo, pezzi });
+    $("n").value = ""; $("q").value = "1"; $("n").focus();
+    easyisland.notice(pezzi < 5 ? articolo + ": scorta bassa" : articolo + " aggiunto");
+  };
+  easyisland.on("records", draw);
+  draw();
+</script>`;
+        State.customs.push({
+          id: "magazzino", name: "Magazzino", icon: "📦", color: "#22C55E", description: "Scorte", enabled: true, titleField: "articolo",
+          fields: [field({ id: "articolo", label: "Articolo" }), field({ id: "pezzi", label: "Pezzi", kind: "number" })],
+          template: "", actions: [], page,
+        } as unknown as (typeof State.customs)[number]);
+        const stock: Record<string, unknown>[] = [{ articolo: "Toner HP 26A", pezzi: 12 }, { articolo: "Cavo HDMI 2 m", pezzi: 3 }, { articolo: "SSD 1 TB", pezzi: 7 }];
+        Bridge.customRecords = async () => stock.map((values, i) => ({ id: `m${i}`, created: "", updated: "", values }));
+        Bridge.customRecordSave = async (_id: string, _r: string, values: Record<string, unknown>) => {
+          stock.push(values);
+          return { id: `m${stock.length}`, created: "", updated: "", values };
+        };
+      }
       // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
       (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
       const q = new URLSearchParams(location.search);
-      State.setFocus(q.has("controlli") ? "custom:sala" : q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
+      State.setFocus(q.has("pagina") ? "custom:magazzino" : q.has("controlli") ? "custom:sala" : q.has("opzioni") ? "custom:ttspeak" : q.has("media") ? "custom:voce" : q.has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

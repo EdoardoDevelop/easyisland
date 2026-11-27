@@ -106,7 +106,7 @@ open programs, folders and links, run the user's quick actions (list_quick_actio
 read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
 browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), read Word and PDF documents, one or a whole folder of them a page of files at a time (document_read: faster and cheaper than extracting the text with other programs), write new Word documents, also from the user's own templates, with the lines of a quote whose totals and VAT EasyIsland computes (document_templates, document_template_add, document_create), turn them into PDF with Word (document_pdf), merge, extract and split PDF pages into new files (pdf_merge, pdf_split), \
 read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), look a PC over in one call, this one or another of the network through WinRM, read only: network, Wi-Fi, slowness, startup, errors in the logs, printing, domain (pc_check: use it first when a PC is slow, offline, freezes or does not print, instead of many commands one at a time), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), show files and web pages in EasyIsland's preview window next to the chat — the user's local dev server, a page you built, a file you changed — and check them: open a tab (preview_open: a URL, localhost:port or a file path; back, forward, reload), see the page as a tree of headings, texts and controls with refs (preview_snapshot), find the elements with some words and their refs (preview_find: much cheaper on a big page), read the products of a page or of a site's search as compact JSON with code, price, availability, link and photos, without knowing the site (preview_extract: the cheapest way to compare products and prices for a quote), read its text (preview_read), wait for something to appear (preview_wait), read the requests and the content of their answers, often the clean data of a search (preview_network with data_only, then body), take a screenshot (preview_screenshot, then read the PNG), read the console errors (preview_console), try it at phone or tablet size or in dark mode (preview_resize), and click or type in it by ref (preview_click, preview_type, which the user confirms), scroll it or hover (preview_scroll), and use a real mouse and keyboard: keys like Enter or Escape, typing that triggers suggestions, drop-downs, checkboxes, double and right clicks, drags (preview_act, confirmed); a click on something hidden or covered (a cookie banner, a modal) is not made and the answer says what covers it: close that first; put files from the Vassoio or named by the user into a page's file field (preview_upload, confirmed each time); a confirm or «leave the page?» of a site goes to the user as a card: wait, do not insist; when the Anteprima is closed the tools work on hidden tabs and it stays closed: never ask the user to open it; never buy, order or fill a cart; chain several of these in one call (preview_steps: far fewer steps and tokens); use the user's Windows programs that have no integration (a management program, a control panel, Outlook, File Explorer) without screenshots and without moving their mouse: list the windows (desktop_windows), read one as a tree of controls with refs (desktop_snapshot, or desktop_find for a few words), press, tick, choose or expand by ref (desktop_click) and fill a field (desktop_type), both confirmed; never in terminals, system settings or the Run box, never a control that sends, deletes, pays or buys; search the suppliers' portals the user taught for products and prices, each in its own tab, without reading pages (portal_search, portal_list), download product photos into the Vassoio by their addresses, for a quote (preview_save_images), sign in to a site in the preview with a Devolutions Cloud entry, the password going straight into the page and never to you (preview_login, confirmed), and teach a new portal with the user: open it, search, see what preview_extract or preview_network give, then save its recipe (portal_save, tested); after changing a web page, open or reload it in the preview and check it before saying it works, keep the chat's memory (memory_search to look into notes, linked pages and past conversations, memory_note to remember something for next time, memory_page and memory_page_write for the pages about people, customers, projects and concepts, linked with [[Title]]), add the buttons and tabs the user asks for to the open island — a button at the foot of the menu or in the header, a tab of buttons in the menu, doing only things from a fixed list: lock, sleep, restart or shut down the PC, a Windows settings page, a quick action, a program, a site, a section of the island, text in the chat; a tab may also show blocks: a grid or list of the installed apps, the open windows, the quick actions, a folder's files, the recent files, the Vassoio, the clipboard's history, VS Code's projects, an own integration's records or Notion pages, a value or a chart of the PC, a text; existing pieces too (an integration's card, the news, the quick actions); the island's own sections, header buttons and the Panoramica's parts and tiles can be moved or hidden, and the Panoramica can hold blocks; the open island's footer has three sides (left, center, right), each with buttons and values of the PC (island_layout first, then island_layout_set; island_layout_undo goes back) — build the user's own integrations — forms with fields, tables and formulas, dashboards of data read from their services, calls to their APIs with keys they keep in Windows, documents and actions — when they ask for one (custom_create, custom_update, custom_get, custom_records, custom_add_record), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
-(\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
+(\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
 You cannot run arbitrary commands: only the user's quick actions. \
 While you work, before each group of tool calls write one short plain sentence in the user's language that says what you are doing and why \
@@ -148,10 +148,19 @@ when there is a risk or something to check first, add one line starting with \">
 in tables, states are single words (OK, Errore, Attivo, Sì, No) and amounts plain numbers with their unit: the chat colours the states and draws bars for the amounts; \
 a label then its explanation in lists reads \"- **Label:** text\"; keep paragraphs to two or three lines; \
 steps the user will carry out one by one are a task list (\"- [ ] step\"): the chat shows boxes to tick; \
+when you end by asking the user to pick one of a few ways to go on, put the options last in a ```scelte block, one per line, \
+2 to 6, each short and written as the user's own answer: the chat shows a button for each (not on Telegram); \
 in a command or script, a value the user must supply is {{Name}} or {{Name|example}} (IP, host, user, path), never a made-up value: the chat shows fields above the code; \
 when steps with choices, how devices or systems are connected, an exchange between parties or a timeline read better drawn than told, \
-add one ```mermaid block (flowchart TD, sequenceDiagram, erDiagram, gantt; pie or xychart-beta for a few numbers; at most 25 nodes; labels short, in the user's language and in double quotes; \
-no colours, styles or init): the chat draws it. Never for lists or short answers, never in a conversation on Telegram. \
+add one ```mermaid block of the kind that fits (flowchart TD for steps and choices, sequenceDiagram for exchanges, stateDiagram-v2, classDiagram, \
+erDiagram for data, requirementDiagram, architecture-beta or block for systems and how they connect, gitGraph, packet for the fields of a header, \
+gantt or timeline for dates, journey, kanban, mindmap for ideas, ishikawa for causes, quadrantChart for two criteria, venn-beta, \
+sankey for flows, treemap for parts of a whole; at most 25 nodes; \
+labels short, in the user's language, in double quotes where the kind allows; no colours, styles or init): the chat draws it. \
+When numbers read better as a chart (a trend, a comparison, shares, several series), add instead one ```chart block with JSON data only: \
+{\"type\": \"bar|line|area|pie|doughnut|radar|scatter|bubble\", \"title\": \"…\", \"labels\": [\"…\"], \"series\": [{\"name\": \"…\", \"values\": [1, 2], \"type\": \"line\"}], \"stacked\": false, \"horizontal\": false, \"unit\": \"€\"} \
+(series type only to mix bars and a line; scatter values [x, y], bubble [x, y, r]; real numbers only, never invented): the chat draws it with values on hover. \
+Never for lists or short answers, never in a conversation on Telegram. \
 A short question gets a short answer: no titles, tables or notices for two lines.";
 /// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
 /// the terminal); this goes after it. `{folder}` is the working folder.
@@ -1049,6 +1058,13 @@ async fn read_lines(
                 if !line.trim_start().starts_with('{') {
                     continue;
                 }
+                // A message sent to it, back as it takes it (`--replay-user-messages`): counted, not shown.
+                if line.trim_start().starts_with("{\"type\":\"user\"") && line.contains("\"isReplay\":true") {
+                    if chat != 0 {
+                        *REPLAYED.lock().unwrap().entry(chat).or_default() += 1;
+                    }
+                    continue;
+                }
                 // A question or a plan waiting for the user (or its cancel): answered aside.
                 if line.trim_start().starts_with("{\"type\":\"control_") {
                     on_control(chat, &line);
@@ -1389,7 +1405,9 @@ pub fn shutdown() {
 
 fn spawn_live(mut cmd: Command, chat: usize, print: String) -> Result<Live, String> {
     // `stdio`: questions and plans come as control requests (`on_control`).
-    cmd.args(["--input-format", "stream-json", "--permission-prompt-tool", "stdio"]);
+    // `--replay-user-messages`: each message comes back on stdout as Claude Code
+    // takes it, so a turn knows whether one written meanwhile was read (`live_turn`).
+    cmd.args(["--input-format", "stream-json", "--permission-prompt-tool", "stdio", "--replay-user-messages"]);
     let mut child = cmd.spawn().map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
     let stdin = child.stdin.take().ok_or(t("Claude Code si è interrotto."))?;
     let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
@@ -1435,10 +1453,22 @@ async fn live_turn(
     }
     // While it answers, a message written in the chat goes to it at once (`steer`).
     let _steering = Steering::on(live.chat, live.stdin.clone());
+    STEERED.lock().unwrap().insert(live.chat, 0);
+    REPLAYED.lock().unwrap().insert(live.chat, 0);
     let deadline = std::time::Instant::now() + limit;
+    // What this turn said before a message written meanwhile started a turn of its own.
+    let mut before: Option<(String, String)> = None;
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
-        match read_lines(&mut live.lines, on_text, on_session, on_context, on_tasks, left, late, true, &[], live.chat).await {
+        let prefix = before.as_ref().map(|(_, shown)| shown.clone()).unwrap_or_default();
+        let joined = |text: &str| {
+            if prefix.is_empty() {
+                on_text(text)
+            } else {
+                on_text(&format!("{prefix}\n\n{text}"))
+            }
+        };
+        match read_lines(&mut live.lines, &joined, on_session, on_context, on_tasks, left, late, true, &[], live.chat).await {
             // A turn Claude Code started by itself for work that ended (a resumed
             // session reports one even for work stopped with its old process):
             // not the answer to this message; its text, if any, comes as an update.
@@ -1448,11 +1478,47 @@ async fn live_turn(
                     later(text);
                 }
             }
-            Ok((last, shown, true, tasks)) => return Ok((last, shown, tasks)),
+            Ok((last, shown, true, tasks)) => {
+                let (last, shown) = match before.take() {
+                    Some((text, was)) => (with_text_before(&last, &text), format!("{was}\n\n{shown}")),
+                    None => (last, shown),
+                };
+                // A message written when the turn was already ending: Claude Code
+                // answers it in a turn of its own after this one (tried on 27 Nov
+                // 2026), which belongs to this answer, not to the next message
+                // (27 Nov, on the laptop: «cercalo nei nostri fornitori» left
+                // unanswered). Only when the messages come back at all: a Claude
+                // Code without `--replay-user-messages` would never end the turn.
+                let sent = 1 + STEERED.lock().unwrap().get(&live.chat).copied().unwrap_or(0);
+                let taken = REPLAYED.lock().unwrap().get(&live.chat).copied().unwrap_or(0);
+                if taken > 0 && taken < sent && parse_output(&last).is_some_and(|o| !o.is_error) {
+                    crate::log::line(format!("claude: {} messaggi arrivati a fine turno, aspetto la loro risposta", sent - taken));
+                    let text = parse_output(&last).map(|o| o.text).unwrap_or_default();
+                    before = Some((text, shown));
+                    continue;
+                }
+                return Ok((last, shown, tasks));
+            }
             Ok((_, _, false, _)) => return Err(None),
             Err(e) => return Err(Some(e)),
         }
     }
+}
+
+/// Messages written into each conversation's turn in progress (`steer`), and
+/// the messages Claude Code gave back as it took them (`read_lines`).
+static STEERED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<usize, usize>>> = std::sync::LazyLock::new(Default::default);
+static REPLAYED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<usize, usize>>> = std::sync::LazyLock::new(Default::default);
+
+/// A result line with `text` before its own answer (a turn answered in two).
+fn with_text_before(line: &str, text: &str) -> String {
+    let Ok(mut v) = serde_json::from_str::<Value>(line.trim()) else { return line.to_string() };
+    if text.trim().is_empty() {
+        return line.to_string();
+    }
+    let own = v.get("result").and_then(Value::as_str).unwrap_or_default().to_string();
+    v["result"] = Value::String(if own.trim().is_empty() { text.to_string() } else { format!("{}\n\n{own}", text.trim_end()) });
+    v.to_string()
 }
 
 /// The processes answering a message now, by conversation: a message written
@@ -1496,6 +1562,7 @@ pub async fn steer(chat: usize, text: &str) -> bool {
     let mut w = stdin.lock().await;
     let ok = w.write_all(format!("{line}\n").as_bytes()).await.is_ok() && w.flush().await.is_ok();
     if ok {
+        *STEERED.lock().unwrap().entry(chat).or_default() += 1;
         crate::log::line("claude: messaggio aggiunto al turno in corso".to_string());
     }
     ok

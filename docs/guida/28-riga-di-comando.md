@@ -15,7 +15,7 @@ Qualsiasi script, attività pianificata, flusso n8n o programma può mostrare un
 | `--apri https://…` | Aggiunge un pulsante con un link |
 | `--help` | L'aiuto |
 
-Esce con **0** se il messaggio è arrivato e con **2** se EasyIsland non è in esecuzione, quindi uno script non resta mai bloccato. Valgono le regole di notifica del profilo. In **Impostazioni → Notifiche** c'è il comando pronto da copiare e **Prova**.
+Esce con **0** se il messaggio è arrivato e con **2** se EasyIsland non è in esecuzione, quindi uno script non resta mai bloccato. Valgono le regole di notifica. In **Impostazioni → Notifiche** c'è il comando pronto da copiare e **Prova**.
 
 ## Domande alla chat
 Uno script, un'attività pianificata o una sessione remota (WinRM, sempre con il tuo utente) può fare una domanda alla chat di EasyIsland e leggerne la risposta:

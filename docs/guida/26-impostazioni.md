@@ -2,15 +2,15 @@
 > sezione: Riferimento
 > in breve: Dove si trova ogni impostazione.
 
-Le Impostazioni si aprono dall'icona nell'area di notifica, da `easyisland.exe --settings`, o chiedendo alla chat di cambiarne una. Restano sopra l'isola mentre le usi. Le sezioni con l'etichetta viola si salvano nel **profilo** attivo; le altre valgono per il PC. In fondo al menu: **Guida**, **Sito**, **GitHub**.
+Le Impostazioni si aprono dall'icona nell'area di notifica, da `easyisland.exe --settings`, o chiedendo alla chat di cambiarne una. Restano sopra l'isola mentre le usi. In fondo al menu: **Guida**, **Sito**, **GitHub**.
 
 **Cercare un'impostazione:** il campo in cima al menu (anche **Ctrl+F**) cerca in tutte le pagine e schede, per nome, descrizione e scelte. Scrivi qualche parola («davanti al cliente», «tema scuro», «telegram token»): un clic o **Invio** apre la pagina giusta e il controllo si illumina; le frecce scelgono, **Esc** torna alla pagina. Lo stesso dal campo in alto dell'isola: scrivendo il nome di un'impostazione compare la riga **Impostazioni**, che apre direttamente quel controllo.
 
 | Pagina | Cosa contiene |
 |---|---|
-| **Generale** | Lingua, avvio con Windows, profili e cambio automatico, aggiornamenti (versione, Controlla ora, controllo giornaliero), pausa |
+| **Generale** | Lingua, avvio con Windows, aggiornamenti (versione, Controlla ora, controllo giornaliero), pausa |
 | **Aspetto** | Stile Windows 11, Classico, Monolite, Titanio o Vetro, personaggio, tema, posizione, schermo, dimensioni, vista compatta, risposte rapide, icona a riposo, tempi, suoni, campo di ricerca. Vedi [Posizione e aspetto](05-aspetto.md) |
-| **Notifiche** | Cosa apre l'isola e cosa suona, davanti al cliente, messaggi dagli script (comando pronto e **Prova**). Vedi [Profili e notifiche](06-profili.md) |
+| **Notifiche** | Cosa apre l'isola e cosa suona, davanti al cliente, messaggi dagli script (comando pronto e **Prova**). Vedi [Notifiche](06-notifiche.md) |
 | **Chat e motori AI** | Motore e modello predefiniti, chiavi, server locali, Istruzioni, Assistenti, **Memoria** (con **Mappa**), Ricette, Risposte dirette e Registro dei turni, Cronologia, Connettori, Può usare il PC, Modalità terminale, cartella di lavoro. Vedi [La chat](08-chat.md) e [Motori AI](09-motori.md) |
 | **Agenti di codice** | Installa / Disinstalla per Claude Code, Codex, opencode, Antigravity, Gemini CLI, Cursor, Copilot; Strumenti di EasyIsland in Claude Code; icona degli agenti; riepiloghi. Vedi [Agenti di codice](07-agenti.md) |
 | **Azioni rapide** | Le azioni, le cartelle, i suggerimenti per l'app in uso, la barra dell'app in uso, le scorciatoie globali. Vedi [Azioni rapide](15-azioni.md) |

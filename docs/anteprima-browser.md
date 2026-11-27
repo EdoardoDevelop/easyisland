@@ -1,6 +1,6 @@
 # Anteprima nel browser: tutte le query string
 
-Con `npm run dev` l'app gira nel browser, all'indirizzo `http://localhost:1420/`, senza Rust. L'URL decide la scena, la lingua, il tema e qualsiasi impostazione che sia un valore semplice. I parametri senza valore vanno scritti da soli: `?scene=chat&terminal&pane`. `wide` dà all'isola tutta la finestra del browser come area di lavoro (per vedere la chat larga, con `islandWidth`).
+Con `npm run dev` l'app gira nel browser, all'indirizzo `http://localhost:1420/`, senza Rust. L'URL decide la scena, la lingua, il tema e qualsiasi impostazione che sia un valore semplice. I parametri senza valore vanno scritti da soli: `?scene=chat&terminal&pane`. `wide` dà all'isola tutta la finestra del browser come area di lavoro (per vedere la chat larga, con `islandWidth`). `launcher=true`: il Launcher, l'isola aperta a tutta la finestra del browser (anche con una scena, es. `?scene=chat&launcher=true`).
 
 Dove si leggono:
 - `src/main.ts`: parametri generali e sovrascrittura delle impostazioni;
@@ -158,13 +158,11 @@ Nel browser la fascia non si disegna: la disegna la finestra del personaggio sol
 | `dailyAi` | `""`, `memory`, `chat` o id di un motore | `""` |
 | `dailyTelegram` | `true`/`false` | `false` |
 
-### Integrazioni, profili e abitudini
+### Integrazioni e abitudini
 
 | Chiave | Valori | Di serie |
 |---|---|---|
 | `activeIntegrations` | elenco di id (`integration_media`, `integration_weather`, `integration_claude_usage`…; vedi `src/integrations/`) | `integration_resend,integration_n8n,integration_vercel,integration_github` |
-| `activeProfile` | id di un profilo | `""` |
-| `autoProfile` | `true`/`false` | `false` |
 | `habitsEnabled` | `true`/`false` | `false` |
 | `habitsExcluded` | elenco di eseguibili | vuoto |
 
@@ -198,7 +196,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `integrationTabIcons`, `integrationColors` | oggetto |
 | `reactions` | oggetto |
 | `suggestionsSnoozed` | oggetto |
-| `actions`, `widgets`, `mcpServers`, `profiles`, `automations`, `chatAssistants`, `suggestionsDismissed` | elenchi di oggetti |
+| `actions`, `widgets`, `mcpServers`, `automations`, `chatAssistants`, `suggestionsDismissed` | elenchi di oggetti |
 | `news`, `fixedBarLook`, `engineModels`, `engineUrls` | oggetti senza valore di serie |
 | `alertsOpen`, `toolsAllowed` | senza valore di serie |
 
@@ -212,7 +210,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `overview` | la panoramica | `news`, con `look=thumbs\|cards` e `many`; `gruppi` (due gruppi nel menu, uno aperto e uno chiuso) |
 | `files` | il Vassoio | `fresh`: una zona appena aggiunta |
 | `approval` | il permesso con il tempo rimasto | — |
-| `chat` | la chat | `procedura` (procedura da spuntare e comandi con i campi `{{…}}`), `lunga` (conversazione lunga con la mappa a destra, una domanda con due versioni «‹ 2/2 ›» e una che cita una risposta), `modifiche` (passi che cambiano file con le righe tolte e aggiunte e un blocco diff; `modifiche=corso` durante il turno, `modifiche=permesso` con la card Consenti/Nega), `vuota=<nome>` (conversazione vuota con quel disegno, `tutti` uno a caso), `vivace` (avvisi nei cinque tipi, tabella con barre e stati colorati, tabella lunga con l'intestazione ferma), `diagrammi` (risposte con blocchi Mermaid disegnati; `diagrammi=0`…`7` uno solo, il 5 non si può disegnare), `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi motore al lavoro, `pensa=squadra-fine` con la risposta controllata, `pensa=diretta` con una risposta diretta dello smistatore e «Chiedi al motore», `pensa=comando` con un comando e «Esegui», `pensa=significato` con le note trovate per significato sotto la risposta, `pensa=solo` con «Solo EasyIsland», una risposta dalla memoria e il 👍 dato) |
+| `chat` | la chat | `procedura` (procedura da spuntare e comandi con i campi `{{…}}`), `ritorno` (conversazione riaperta dopo 5 ore con il riquadro «Bentornato» e la risposta con i pulsanti di scelta; «Riassunto del motore» finto), `segna` (screenshot allegato con ✎ per segnarlo), `lunga` (conversazione lunga con la mappa a destra, una domanda con due versioni «‹ 2/2 ›» e una che cita una risposta), `modifiche` (passi che cambiano file con le righe tolte e aggiunte e un blocco diff; `modifiche=corso` durante il turno, `modifiche=permesso` con la card Consenti/Nega), `vuota=<nome>` (conversazione vuota con quel disegno, `tutti` uno a caso), `vivace` (avvisi nei cinque tipi, tabella con barre e stati colorati, tabella lunga con l'intestazione ferma), `diagrammi` (risposte con blocchi Mermaid disegnati; `diagrammi=0`…`31` uno solo, il 5 non si può disegnare; dall'8 un esempio per ogni altro tipo; 26–30 grafici ```chart, il 31 illeggibile), `terminal` (modalità terminale), `project` con `terminal` (progetto con branch), `context=<percento>` con `terminal` (contesto), `auto` (⚡ Automatica accesa), `pane`, `remote` (`linked` per il PC remoto collegato), `second`, `long`, `history` (`progetti` per i gruppi di progetto; barra laterale con tre conversazioni aperte: una sullo schermo, una che risponde, una con risposta nuova; con l'area di prova a 720 px galleggia sopra la chat), `window` (finestra allegata), `pick` (personaggio trascinato su una finestra), `pensa` (turno in corso con la riga che si scrive; `pensa=passo`, `pensa=testo`, `pensa=fine` con i passi piegati, `pensa=corsa` con ragionamento e passi più veloci della riga, `pensa=squadra` con Multi motore al lavoro, `pensa=squadra-fine` con la risposta controllata, `pensa=diretta` con una risposta diretta dello smistatore e «Chiedi al motore», `pensa=comando` con un comando e «Esegui», `pensa=significato` con le note trovate per significato sotto la risposta, `pensa=solo` con «Solo EasyIsland», una risposta dalla memoria e il 👍 dato) |
 | `clipboard` | gli appunti | `long` |
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |
@@ -234,7 +232,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `diff` | le modifiche di Claude Code, dal gestore vero degli hook | — |
 | `agents` | Codex e Gemini CLI come li manda il relay | — |
 | `agenti` | la scheda Agenti | `claude`: l'altro pulsante |
-| `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`); `media` («Messaggi vocali»: campo file con un'immagine e «Genera la voce» che risponde con un audio, salvato con `filename`); `opzioni` («TTSpeak»: Motore e Voce da una fonte finta con `optionsFrom`, 97 voci in «Molte voci», prezzo e nota compilati) |
+| `custom` | un'integrazione personale | `dati`; `collegato` (Cliente cercato in «Clienti» e servizio delle righe in «Listino», con `fill` e `remember`; i salvataggi in `window.savedRecords`); `media` («Messaggi vocali»: campo file con un'immagine e «Genera la voce» che risponde con un audio, salvato con `filename`); `opzioni` («TTSpeak»: Motore e Voce da una fonte finta con `optionsFrom`, 97 voci in «Molte voci», prezzo e nota compilati); `pagina` («Magazzino» con la sua pagina HTML fatta con il kit `ei-…`: numeri chiave, modulo, tabella con stati e livelli, grafico Chart.js coi colori dell'isola; «Aggiungi» salva e avvisa sotto i 5 pezzi; ponte e kit in `srcdoc`, senza Rust: dopo averli cambiati riavviare `npm run dev`) |
 | `documento` | la chat chiede di creare un documento Word (card Consenti/Nega di `document_create`) | — |
 | `pdf` | la chat chiede di unire dei PDF (card Consenti/Nega di `pdf_merge`) | — |
 | `domanda` | Claude Code nella chat fa una domanda con le scelte (`AskUserQuestion`) | `multi` (due domande, la seconda a più scelte); `piano` (il piano da approvare, `ExitPlanMode`); `agy` con `chatEngine=antigravity` (il piano di Antigravity in «Piano») |
@@ -259,7 +257,7 @@ Le scene scrivono `scene ready` nel titolo quando sono pronte (lo aspetta `scrip
 
 | Pagina | Query |
 |---|---|
-| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto`; `importa` (con `page=compiti`: import di abilità con file e motore finti) |
+| `settings.html` | `page=generale\|aspetto\|notifiche\|chat\|claude\|azioni\|compiti\|integrazioni\|widget\|notizie\|backup`; `tab=tema\|font\|personaggio\|posizione\|barra\|chiusa\|aperta` (solo in `page=aspetto`); `lang`, `ui=classic`, `scheme=light\|auto`; `launcher=1` (le voci come con il Launcher); `importa` (con `page=compiti`: import di abilità con file e motore finti) |
 | `memoria.html` | senza `tab` la Panoramica; `tab=timeline\|graph\|graph3d\|mind\|concept\|…`, `few` (una pagina e tre note), `select=<id del nodo>`, `ui=classic`, `scheme=light\|auto`, `many=<n>` (memoria finta grande, fino a 3000 nodi, per provare le etichette) |
 | `anteprima.html` | `tab=<numero>` (di serie 2) |
 | `dev/icons-preview.html` | solo le icone animate |

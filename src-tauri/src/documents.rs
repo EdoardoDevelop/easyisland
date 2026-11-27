@@ -15,7 +15,7 @@ fn arg<'a>(args: &'a Value, key: &str) -> &'a str {
 }
 
 /// A path, the name of a file in the Vassoio, or a path in the work folder.
-fn locate(app: &AppHandle, given: &str) -> Result<PathBuf, String> {
+pub(crate) fn locate(app: &AppHandle, given: &str) -> Result<PathBuf, String> {
     let given = given.trim().trim_matches('"');
     if given.is_empty() {
         return Err("Manca path: il percorso del documento.".into());

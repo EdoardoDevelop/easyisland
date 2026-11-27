@@ -19,6 +19,7 @@ import { State } from "../core/state";
 import { Bridge, onEvent } from "../core/bridge";
 import { renderMarkdown } from "../core/markdown";
 import { t } from "../core/i18n";
+import { frameFor } from "../core/motion";
 import { Sound } from "../core/sound";
 import { timeAgo } from "./integrations";
 
@@ -249,7 +250,7 @@ function logBox(): HTMLElement {
 
 function placeLog() {
   const box = logBox();
-  requestAnimationFrame(() => { box.scrollTop = logStick ? box.scrollHeight : logTop; });
+  frameFor(box, () => { box.scrollTop = logStick ? box.scrollHeight : logTop; });
 }
 
 function drawLog(x: LiveTurn) {
@@ -374,7 +375,7 @@ let sendBtn: HTMLButtonElement | null = null;
 let errorLine: HTMLElement | null = null;
 
 function focusField() {
-  requestAnimationFrame(() => field?.focus());
+  frameFor(field, () => field?.focus());
 }
 
 /** «@li» typed just before the cursor: what to complete, or null. */
@@ -643,6 +644,6 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
   if (d.last) body.append(h("div", { class: "hint rec-hint", text: d.last }));
   body.append(note);
   // The newest message in view.
-  if (acView === "chat") requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+  if (acView === "chat") frameFor(box, () => { box.scrollTop = box.scrollHeight; });
   return h("div", { class: "int-card notion-card ac-card" }, head, body);
 }

@@ -475,15 +475,11 @@ fn config(app: &AppHandle) -> Config {
     Config { listen: c.agentchat_listen, rooms: rooms_of(&c.agentchat_rooms), engines, per_hour: c.agentchat_per_hour.max(1), chain: c.agentchat_chain.max(1), synthesis: c.agentchat_synthesis, catchup: c.agentchat_catchup.clone(), memory: c.agentchat_memory }
 }
 
-/// On in the current profile or in any other, like Telegram: a profile that
-/// changes with the place must not cut EasyIsland out of the chat.
+/// Agent Chat is on in Impostazioni → Integrazioni.
 fn active(app: &AppHandle) -> bool {
     app.try_state::<crate::Shared>().is_some_and(|s| {
         let s = s.settings.lock().unwrap();
         s.active_integrations.iter().any(|a| a == ID)
-            || s.profiles.iter().any(|p| {
-                p.values.get("activeIntegrations").and_then(Value::as_array).is_some_and(|a| a.iter().any(|v| v.as_str() == Some(ID)))
-            })
     })
 }
 
@@ -1465,6 +1461,7 @@ fn is_assignment(text: &str) -> bool {
 pub(crate) fn clean_reply(text: &str) -> Option<String> {
     let mut kept: Vec<&str> = Vec::new();
     let mut in_result = false;
+    let mut in_choices = false;
     // A step was seen: the next words start the text over.
     let mut step = false;
     for l in text.lines() {
@@ -1480,6 +1477,11 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
         }
         if ["> ⚙", "> 💭", "> ✗"].iter().any(|m| s.starts_with(m)) {
             step = true;
+            continue;
+        }
+        // A question's options (claude_cli::REPLY_FORM): the lines, without the block around them.
+        if s == "```scelte" || (in_choices && s == "```") {
+            in_choices = !in_choices;
             continue;
         }
         if s.is_empty() {
@@ -2979,6 +2981,8 @@ ALLEGA: C:\Users\x\Vassoio\modello.docx
         // Two paragraphs after the last step stay; a step at the very end keeps the text before it.
         assert_eq!(clean_reply("> ⚙ Read\nUno.\n\n\nDue."), Some("Uno.\n\nDue.".into()));
         assert_eq!(clean_reply("FATTO: ok\n\n> ⚙ show_notice"), Some("FATTO: ok".into()));
+        // A question's options: the lines, without their block.
+        assert_eq!(clean_reply("Quale?\n\n```scelte\nA\nB\n```"), Some("Quale?\n\nA\nB".into()));
         assert_eq!(clean_reply("Cerco.\n\n> ⚙ Grep\n\nNIENTE"), None);
         assert_eq!(clean_reply(" NIENTE. "), None);
         assert_eq!(clean_reply(""), None);

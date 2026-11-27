@@ -154,7 +154,6 @@ Parla solo con EasyIsland via native messaging (niente rete); rivede la decision
 ## Notion, seconda parte
 - «Manda a Notion» da Appunti e dalla risposta della chat (dal testo selezionato c'è).
 - **Clienti:** database clienti con proprietà telefono; su chiamata 3CX o ticket Zammad la scheda del cliente con «Apri in Notion».
-- Viste legate ai profili (profilo «Ufficio» → vista «Ufficio»).
 - Attività assegnate a me: serve scegliere la persona (l'API vede il bot).
 
 ## Remote Desktop Manager, dopo le prove
@@ -227,7 +226,56 @@ Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scr
 ## Modello integrato (27/10)
 Ripreso il 15/11 come «Modello sul PC» sul ramo `claude/llm-interno` (`docs/chat.md` → Motori): controllo della scheda grafica, consiglio, Vulkan, Modalità terminale, risposte dalla memoria. Il ramo `claude/modello-integrato` non serve più.
 
-## EasyIsland collegati: memoria condivisa (31/10, da decidere)
+## Memoria master (26/11, decisioni 27/11, da progettare)
+- **Gruppo e catalogo (Edoardo, 27/11, prevale su quanto sotto dove diverso):**
+  - pensata da subito per i **colleghi**: ognuno ha uno spazio suo su Garage (scrive solo lui, gli altri leggono); **tutti amministratori** (invitano, tolgono un collega, tolgono una voce dal catalogo), ogni azione registrata e visibile;
+  - **due memorie**: la **personale** (slave, sul PC) e la **condivisa** del gruppo (master); «Condividi» porta una voce della personale nella master, collegata, in sola lettura per gli altri;
+  - **catalogo**: abilità, ricette dei portali, integrazioni personali (descrizione, immagini, pagina; le schede solo se scelto) e server MCP; Impostazioni → Catalogo con Installa / Aggiorna (con le differenze, mai automatico) e «Condividi» accanto alle proprie. Installare = copia locale, modificabile;
+  - **chiavi mai pubblicate**: solo i nomi (`secrets`, variabili d'ambiente MCP), valori chiesti all'installazione e messi in Gestione credenziali; anteprima prima di pubblicare con quello che somiglia a una chiave segnato;
+  - prima di installare si vede cosa fa: comando MCP, host e script dell'integrazione, testo dell'abilità;
+  - **ognuno ha la sua chiave** (Edoardo, 27/11: «per poter scollegare in futuro il singolo utente»): chiave d'accesso a Garage per persona, revocabile da qualsiasi amministratore (non legge né scrive più nulla); per la cifratura una coppia di chiavi per PC e la chiave del gruppo consegnata a ciascuno chiusa con la sua; chi esce: accesso revocato e chiave del gruppo nuova per i dati da lì in poi, consegnata solo a chi resta (quanto aveva già scaricato non si riprende); ingresso con un **invito**;
+  - **Agent Chat** tolta senza migrare `memshare`.
+- **Due strade, stessa struttura (Edoardo, 27/11: «possiamo fare entrambi?»):** l'archivio del gruppo è una **cartella condivisa** (OneDrive, Dropbox, Google Drive, cartella di rete: EasyIsland legge e scrive file, membri e revoche li gestisce il servizio) oppure **Garage** (gli stessi file via HTTPS 443 dietro il reverse proxy, membri gestiti da EasyIsland). Stessi percorsi e formato, una sottocartella per persona con un solo autore. Ordine proposto: prima la cartella, poi Garage. Nel catalogo anche le **ricette** dei portali. Cifratura da decidere (proposta: leggibile nella cartella, cifrata su Garage).
+  - Firewall dei clienti: solo HTTPS in uscita sulla 443, come un sito; 3900/3903 restano interne alla VPS.
+- **Prima connessione a Garage (studiata il 27/11 sulla documentazione della v2.6.0):**
+  - VPS, una volta: container `dxflrs/garage:v2.6.0` con dati persistenti, `garage.toml` a nodo singolo (`db_engine = "lmdb"`, `replication_factor = 1`, `s3_region = "garage"`, `rpc_secret` casuale, niente `admin_token` nel file), avvio `--single-node`; HTTPS dal reverse proxy di aaPanel per S3 (3900) e per l'API di amministrazione (3903); primo gettone con `garage admin-token create` (mostrato una volta).
+  - Fondatore: Impostazioni → «Crea il gruppo» (indirizzo + gettone in Gestione credenziali); EasyIsland con l'API v2: `CreateKey` della persona, `CreateBucket` `mem-<persona>`, `AllowBucketKey` lettura/scrittura/proprietario, spazio `gruppo` (membri, registro, chiavi del gruppo consegnate); coppia di chiavi del PC, chiave del gruppo, chiave di recupero.
+  - Invito: `CreateKey` + spazio del collega + lettura su tutti gli spazi (e a tutti sul suo) + scrittura sul suo e su `gruppo` + `CreateAdminToken` suo; codice d'invito cifrato con un PIN detto a parte.
+  - Scollegare: `DeleteKey` + `DeleteAdminToken` + chiave del gruppo nuova per i dati da lì in poi; tutto nel registro.
+  - Limiti: gettoni limitabili solo per operazioni, non per spazio (chi è amministratore può darsi permessi altrui: fiducia tra colleghi); chi può fare `CreateAdminToken` ha di fatto tutti i poteri; niente versioning degli oggetti (versioni nostre); scritture condizionate non documentate (non servono). `AllowBucketKey`: i permessi a `false` restano com'erano, per togliere serve `DenyBucketKey`.
+Decisioni di Edoardo in `decisioni.md` → Memoria condivisa.
+- **Il modello:**
+  - ogni PC ha la sua memoria;
+  - «Condividi» manda un dato alla master;
+  - gli altri PC leggono la master.
+- **Formato (concordato tra i due Claude, 27/11):**
+  - Unità = voce condivisa (una pagina o una riga di `MEMORIA.md`). La scrive solo il PC che l'ha condivisa, quindi niente conflitti.
+  - **Un secchio per PC** (`mem-<pc>`): Garage dà i permessi per chiave e secchio, non per prefisso. La chiave del PC scrive solo nel suo, le altre leggono: «solo lettura» lo impone il server.
+  - Dentro: `voci/<id>/<versione>` cifrati (AES-256-GCM con CNG di Windows, nessuna dipendenza nuova), `indice`, e `note/<pc-autore>/<id-nota>` per le note lasciate agli altri (ognuno nel proprio secchio). Gli altri PC fanno un `GET` condizionato (ETag) solo sugli indici.
+  - Garage non tiene le versioni: le ultime 5 di ogni voce le teniamo noi. Ordine di scrittura: versione nuova, poi indice, poi cancellazione oltre la quinta; chi riceve 404 rilegge l'indice. Niente scritture condizionate (un autore per secchio).
+  - Firma SigV4 con la regione `s3_region` di Garage, indirizzi in stile percorso (`https://host/secchio/oggetto`).
+  - Copia altrove: unica protezione oltre le 5 versioni, quindi istantanee **tirate** dall'altra parte (la VPS non può cancellarle), scadenza 30 giorni.
+  - Garage non ha una console web ufficiale: secchi e chiavi si creano una volta con il comando `garage`.
+- **Scelte di Edoardo (27/11):**
+  - pagina condivisa **collegata**: si aggiorna da sola finché non si toglie la condivisione;
+  - gli altri PC **solo leggono** e possono lasciare una nota all'autore, che la unisce con un clic;
+  - condivisione **solo a mano**, voce per voce, con l'anteprima (righe `secret_like` tolte); nessuna regola automatica per cartella.
+- **Lettura:** copia in sola lettura per PC di origine (`memoria-master/<pc>/`), separata dalla memoria propria. È lo schema di `memshare`. `memory_search` cerca prima nella propria memoria, poi nella copia, che entra anche nell'indice per significato.
+- **«Smetti di condividere»:** la voce esce dall'indice; si cancellano tutte le versioni e le note. L'interfaccia dice «resta nella copia di sicurezza fino a <data>».
+- **Migrazione:**
+  - le pagine di `memshare` diventano voci, dopo anteprima e conferma;
+  - le note in attesa (`waiting_file`) si consegnano prima di togliere Agent Chat;
+  - `memoria-condivise/` si cancella dopo il primo scaricamento riuscito dalla master.
+- **Chiave di recupero:** mostrata una volta, testo «Conservala in un posto sicuro fuori da questo PC», verifica di due gruppi prima di proseguire.
+- **Ordine:**
+  1. condivisione su richiesta e lettura dagli altri PC;
+  2. note per l'autore;
+  3. migrazione di `memshare.rs`;
+  4. via Agent Chat.
+- **Da verificare:** Gestione credenziali nel Windows in Docker della VPS (persiste al riavvio?).
+- **Solo chat o tutto EasyIsland:** è indipendente, ancora da ragionare. Serve un inventario di cosa parte all'avvio in `lib.rs`.
+
+## EasyIsland collegati: memoria condivisa (31/10, superata dalla Memoria master)
 Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un secondo EasyIsland usato da Telegram. Si condivide solo la memoria, anche con due EasyIsland al lavoro insieme (nessun custode). (Agent Chat ha poi aggiunto una memoria condivisa via server: `memshare.rs`.)
 - **Collegamento:** un indirizzo raggiungibile, scelta **Tailscale** (nel Windows del container); vale anche VPN aziendale, LAN, porta aperta. Sul notebook DNS di Tailscale spento, indirizzo `100.x.y.z`, niente exit node; sulla VPS chiave senza scadenza. Prima qualche giorno di prova con le VPN dei clienti.
 - **Abbinamento** (Impostazioni → «EasyIsland collegati»): codice temporaneo, scambio di chiave (Gestione credenziali), nome per EasyIsland, ascolto solo sull'indirizzo scelto, alla pari e per più di due; stato e «Scollega».

@@ -16,14 +16,14 @@
 | Claude Code sessions don't arrive | Settings → Coding agents → Install…, then open a **new** session |
 | Codex sends nothing | After installing, open `/hooks` in Codex and approve EasyIsland's hooks |
 | opencode doesn't show | With opencode 2 turn on **Connect opencode**; with 1.x restart opencode after installing |
-| The permission doesn't reach the island | EasyIsland has a time limit: if it doesn't answer, the agent asks in the terminal. Check Pause and the profile's notifications |
+| The permission doesn't reach the island | EasyIsland has a time limit: if it doesn't answer, the agent asks in the terminal. Check Pause and the notifications |
 
 ## Chat
 | Problem | Solution |
 |---|---|
 | "Claude subscription" is red | You need Claude Code on the command line, signed in: `irm https://claude.ai/install.ps1 \| iex`, then `claude` and sign in; then **Check again** |
 | "Sign-in expired" | EasyIsland tries to renew it by itself; otherwise open `claude` and sign in again |
-| An MCP connector doesn't show | It must be configured for the user (`--scope user`) and chosen in the profile; claude.ai's aren't available |
+| An MCP connector doesn't show | It must be configured for the user (`--scope user`) and chosen in Settings → Chat; claude.ai's aren't available |
 | The chat doesn't use tools | Settings → Chat → **Can use the PC** on, and an engine with tools (subscription, Anthropic key, opencode, Antigravity) |
 | Slow answers | The log writes the seconds of every turn and tool: look there for what weighs |
 

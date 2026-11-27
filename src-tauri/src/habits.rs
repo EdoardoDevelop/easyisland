@@ -5,14 +5,14 @@
 // a program coming to the front for the first time in two hours (name and
 // path of the executable — never window titles or content), EasyIsland
 // starting, the PC being unlocked, the Wi-Fi network changing, a drive being
-// plugged in, a quick action used, a profile chosen by hand. 45 days are kept;
+// plugged in, a quick action used. 45 days are kept;
 // "Cancella lo storico" deletes the file.
 //
 // The analysis is plain counting, no AI, and proposes only whole routines,
 // never "open one program at a time" (Edoardo, 24 Oct 2026): the programs
-// opened together at the start of the day or of a slot (with the profile and,
-// in the morning, the day's summary), a profile with its programs after
-// joining a network, a group of programs that follow another one, a quick
+// opened together at the start of the day or of a slot (in the morning with
+// the day's summary), the programs opened after joining a network, a group of
+// programs that follow another one, a quick
 // action used after plugging in a drive. A pattern becomes a proposal only above a threshold, never when an
 // automation already does the same, never when it was refused ("No, mai",
 // kept in the settings and in the backup, and can be undone), and not before
@@ -49,9 +49,9 @@ const IGNORED: &[&str] = &[
 pub struct Event {
     /// ms since 1970.
     pub t: u64,
-    /// app | start | unlock | wifi | drive | quick | profile
+    /// app | start | unlock | wifi | drive | quick (| profile, until 26 Nov 2026: skipped)
     pub k: String,
-    /// exe name, network, drive letter, action id, profile id.
+    /// exe name, network, drive letter, action id.
     #[serde(default)]
     pub v: String,
     /// app: full path of the executable.
@@ -206,12 +206,11 @@ fn median(v: &mut [u32]) -> u32 {
 /// Facts about the user's settings the analysis needs.
 pub struct Context<'a> {
     /// (trigger kind, trigger value, step value) of the existing automations,
-    /// e.g. ("time", "", "c:\\…\\outlook.exe"), ("wifi", "ufficio", "lavoro").
+    /// e.g. ("time", "", "c:\\…\\outlook.exe"), ("wifi", "ufficio", "c:\\…\\gestionale.exe").
     pub existing: Vec<(String, String, String)>,
-    pub profile_name: &'a dyn Fn(&str) -> Option<String>,
     pub action_name: &'a dyn Fn(&str) -> Option<String>,
     /// Automations created from a proposal and still on: (id, name, what they
-    /// open — an exe path for "app" steps, a profile id for "profile" steps).
+    /// open — ("app", exe path) for each "app" step).
     pub adopted: Vec<(String, String, Vec<(String, String)>)>,
     /// Programs the user asked not to watch (lower-case exe names).
     pub excluded: Vec<String>,
@@ -220,9 +219,10 @@ pub struct Context<'a> {
 /// The habits found in `events` (newest last), up to `now_ms`.
 pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
     let since = now.saturating_sub(WINDOW_DAYS * 86_400_000);
+    // Profiles chosen by hand (until 26 Nov 2026) are not looked at any more.
     let ev: Vec<&Event> = events
         .iter()
-        .filter(|e| e.t >= since && !(e.k == "app" && ctx.excluded.iter().any(|x| x == &e.v)))
+        .filter(|e| e.t >= since && e.k != "profile" && !(e.k == "app" && ctx.excluded.iter().any(|x| x == &e.v)))
         .collect();
     let mut out = Vec::new();
     let exists = |kind: &str, trig: &str, step: &str| {
@@ -240,8 +240,8 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
     // 1. A routine: two or more programs first opened at about the same time
     // on most days (asked by Edoardo on 24 Oct 2026: never "open Chrome at 12",
     // only something complete). One automation for the whole moment: the
-    // profile usually chosen then, the programs in their usual order, and in
-    // the morning the day's summary from the chat. It starts when the user
+    // programs in their usual order, and in the morning the day's summary
+    // from the chat. It starts when the user
     // sits at the PC in that slot (start or unlock), once a day — not at a time
     // the PC may be empty.
     let mut first: HashMap<&str, HashMap<&str, &Event>> = HashMap::new();
@@ -299,20 +299,10 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
         } else {
             json!({ "kind": "unlock" })
         };
-        // The profile chosen by hand in that slot on most of those days.
-        let mut picked: HashMap<&str, usize> = HashMap::new();
-        for e in ev.iter().filter(|e| e.k == "profile" && days_seen.contains(e.y.as_str()) && e.m >= from && e.m <= to) {
-            *picked.entry(&e.v).or_default() += 1;
-        }
-        let profile = picked.into_iter().filter(|(_, n)| (*n as f64) >= 0.6 * days_seen.len() as f64).max_by_key(|(_, n)| *n).map(|(p, _)| p);
         let morning = start.0 < 11 * 60;
         let names: Vec<String> = g.iter().map(|u| pretty_exe(u.1)).collect();
         let mut steps = Vec::new();
         let mut lines = Vec::new();
-        if let Some(p) = profile {
-            steps.push(json!({ "kind": "profile", "id": p }));
-            lines.push(tf("passo al profilo {p}", &[("p", &(ctx.profile_name)(p).unwrap_or_else(|| p.to_string()))]));
-        }
         for u in g {
             steps.push(json!({ "kind": "app", "target": u.2 }));
         }
@@ -348,22 +338,16 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
         });
     }
 
-    // 3. A profile chosen by hand after joining a network.
-    let mut by_net: HashMap<&str, (usize, HashMap<&str, usize>)> = HashMap::new();
+    // 3. Programs opened after joining a network, most times.
+    let mut joins: HashMap<&str, usize> = HashMap::new();
     for w in ev.iter().filter(|e| e.k == "wifi" && !e.v.is_empty()) {
-        let entry = by_net.entry(&w.v).or_default();
-        entry.0 += 1;
-        if let Some(p) = ev.iter().find(|e| e.k == "profile" && e.t >= w.t && e.t <= w.t + 600_000) {
-            *entry.1.entry(&p.v).or_default() += 1;
-        }
+        *joins.entry(&w.v).or_default() += 1;
     }
-    for (net, (joins, profiles)) in by_net {
-        let Some((profile, n)) = profiles.into_iter().max_by_key(|(_, n)| *n) else { continue };
-        if n < 3 || (n as f64) < 0.6 * joins as f64 || exists("wifi", net, profile) {
+    for (net, joins) in joins {
+        if joins < 3 {
             continue;
         }
-        let pname = (ctx.profile_name)(profile).unwrap_or_else(|| profile.to_string());
-        // The programs opened within 10 minutes of joining, most times: they come along.
+        // The programs opened within 10 minutes of joining, most times.
         let mut after: HashMap<&str, (usize, &str)> = HashMap::new();
         for w in ev.iter().filter(|e| e.k == "wifi" && e.v == net) {
             let mut seen = HashSet::new();
@@ -380,16 +364,19 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
             .map(|(exe, (_, p))| (exe, if p.is_empty() { exe } else { p }))
             .collect();
         apps.sort();
-        let mut steps = vec![json!({ "kind": "profile", "id": profile })];
-        steps.extend(apps.iter().map(|(_, p)| json!({ "kind": "app", "target": p })));
+        // One program alone is never proposed (Edoardo, 24 Oct 2026).
+        if apps.len() < 2 || apps.iter().all(|(_, p)| exists("wifi", net, p)) {
+            continue;
+        }
+        let steps: Vec<Value> = apps.iter().map(|(_, p)| json!({ "kind": "app", "target": p })).collect();
         let names: Vec<String> = apps.iter().map(|(exe, _)| pretty_exe(exe)).collect();
-        let extra = if names.is_empty() { String::new() } else { tf(" e apro {list}", &[("list", &names.join(", "))]) };
+        let list = names.join(", ");
         out.push(Suggestion {
-            fp: format!("wifi|{}|{profile}", net.to_lowercase()),
-            title: tf("Sulla rete {net} passo al profilo {pname}{extra}?", &[("pname", &pname), ("net", &net), ("extra", &extra)]),
-            text: tf("Quando ti colleghi a {net} passi quasi sempre a {pname} ({n} volte su {joins}).", &[("net", &net), ("pname", &pname), ("n", &n), ("joins", &joins)]),
+            fp: format!("wifi|{}|{}", net.to_lowercase(), apps.iter().map(|(exe, _)| *exe).collect::<Vec<_>>().join("+")),
+            title: tf("Sulla rete {net} apro {list}?", &[("net", &net), ("list", &list)]),
+            text: tf("Quando ti colleghi a {net} apri quasi sempre {list}.", &[("net", &net), ("list", &list)]),
             automation: json!({
-                "name": format!("{pname} su {net}"),
+                "name": tf("Programmi su {net}", &[("net", &net)]),
                 "trigger": { "kind": "wifi", "ssid": net },
                 "steps": steps,
             }),
@@ -479,7 +466,7 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
 
     // 6. Automations created from a proposal that are no longer used: after
     // most of their last runs the program they open was not used within 30
-    // minutes, or another profile was chosen by hand within 10 minutes.
+    // minutes.
     for (id, name, opens_what) in &ctx.adopted {
         let runs: Vec<&&Event> = ev.iter().filter(|e| e.k == "auto" && &e.v == id).collect();
         if runs.len() < 5 {
@@ -494,7 +481,6 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
                         let exe = what.rsplit('\\').next().unwrap_or(what).to_lowercase();
                         !ev.iter().any(|e| e.k == "app" && e.v == exe && e.t >= r.t && e.t <= r.t + 1_800_000)
                     }
-                    "profile" => ev.iter().any(|e| e.k == "profile" && &e.v != what && e.t >= r.t && e.t <= r.t + 600_000),
                     _ => false,
                 })
             })
@@ -569,15 +555,8 @@ pub fn refresh(app: &AppHandle) -> Vec<Suggestion> {
     }
     let events = load();
     prune(&events);
-    let profile_name = |id: &str| s.profiles.iter().find(|p| p.id == id).map(|p| p.name.clone());
-    let mut actions = s.actions.clone();
-    for p in &s.profiles {
-        if let Some(Value::Array(a)) = p.values.get("actions") {
-            actions.extend(a.iter().cloned());
-        }
-    }
     let action_name = |id: &str| {
-        actions
+        s.actions
             .iter()
             .find(|a| a.get("id").and_then(Value::as_str) == Some(id))
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
@@ -593,7 +572,6 @@ pub fn refresh(app: &AppHandle) -> Vec<Suggestion> {
                 .iter()
                 .filter_map(|st| match st.kind.as_str() {
                     "app" => Some(("app".to_string(), st.target.clone())),
-                    "profile" => Some(("profile".to_string(), st.id.clone())),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
@@ -603,7 +581,6 @@ pub fn refresh(app: &AppHandle) -> Vec<Suggestion> {
         .collect();
     let ctx = Context {
         existing: existing(&s),
-        profile_name: &profile_name,
         action_name: &action_name,
         adopted,
         excluded: excluded(&s),
@@ -755,7 +732,7 @@ pub fn spawn(app: AppHandle) {
             drives = Some(now);
             if last_ssid.is_none_or(|t| t.elapsed() >= Duration::from_secs(600)) {
                 last_ssid = Some(Instant::now());
-                let cur = crate::profiles::current_ssid();
+                let cur = crate::wifi::current_ssid();
                 if ssid.as_ref().is_some_and(|p| *p != cur) {
                     if let Some(n) = &cur {
                         note("wifi", n);
@@ -795,8 +772,8 @@ mod tests {
         }
     }
 
-    fn ctx_none() -> (Box<dyn Fn(&str) -> Option<String>>, Box<dyn Fn(&str) -> Option<String>>) {
-        (Box::new(|id: &str| Some(format!("P-{id}"))), Box::new(|id: &str| Some(format!("A-{id}"))))
+    fn ctx_none() -> Box<dyn Fn(&str) -> Option<String>> {
+        Box::new(|id: &str| Some(format!("A-{id}")))
     }
 
     #[test]
@@ -807,16 +784,17 @@ mod tests {
             let d = (day % 7 + 1) as u8;
             events.push(ev(day, d, 720 + (day % 3) as u32 * 5, "app", "chrome.exe"));
         }
-        let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
+        let a = ctx_none();
+        let ctx = Context { existing: Vec::new(), action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         assert!(analyse(&events, 21 * DAY, &ctx).is_empty());
     }
 
     #[test]
     fn finds_a_weekday_morning_routine() {
         let mut events = Vec::new();
-        // Three weeks: on workdays the PC is unlocked at 8:45, the profile
-        // "lavoro" chosen, Outlook ~8:50 and Teams ~9:05; Excel at random times.
+        // Three weeks: on workdays the PC is unlocked at 8:45 (a profile chosen
+        // then, as before 26 Nov 2026: not looked at), Outlook ~8:50 and Teams
+        // ~9:05; Excel at random times.
         for day in 0..21u64 {
             let d = (day % 7 + 1) as u8;
             if d <= 5 {
@@ -829,8 +807,8 @@ mod tests {
                 events.push(ev(day, d, 700, "app", "steam.exe"));
             }
         }
-        let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
+        let a = ctx_none();
+        let ctx = Context { existing: Vec::new(), action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         let out = analyse(&events, 21 * DAY, &ctx);
         let r = out.iter().find(|g| g.fp.starts_with("routine|wd|")).expect("routine proposed");
         let auto = &r.automation;
@@ -838,9 +816,9 @@ mod tests {
         assert_eq!(auto["repeat"], "day");
         assert_eq!(auto["conditions"][0]["days"], json!([1, 2, 3, 4, 5]));
         let kinds: Vec<&str> = auto["steps"].as_array().unwrap().iter().map(|s| s["kind"].as_str().unwrap()).collect();
-        assert_eq!(kinds, ["profile", "app", "app", "chat"]);
-        assert_eq!(auto["steps"][1]["target"], "C:\\Apps\\outlook.exe");
-        assert_eq!(auto["steps"][2]["target"], "C:\\Apps\\teams.exe");
+        assert_eq!(kinds, ["app", "app", "chat"]);
+        assert_eq!(auto["steps"][0]["target"], "C:\\Apps\\outlook.exe");
+        assert_eq!(auto["steps"][1]["target"], "C:\\Apps\\teams.exe");
         assert!(!out.iter().any(|g| g.fp.contains("excel") || g.fp.contains("steam")));
 
         // Same fingerprint every time, and nothing when automations already open them.
@@ -850,7 +828,6 @@ mod tests {
                 ("time".into(), String::new(), "C:\\Apps\\outlook.exe".into()),
                 ("unlock".into(), String::new(), "C:\\Apps\\teams.exe".into()),
             ],
-            profile_name: &*p,
             action_name: &*a,
             adopted: Vec::new(),
             excluded: Vec::new(),
@@ -866,16 +843,18 @@ mod tests {
             events.push(ev(day, 1, 485, "wifi", "Ufficio"));
             events.push(ev(day, 1, 487, "profile", "lavoro"));
             events.push(ev(day, 1, 489, "app", "gestionale.exe"));
+            events.push(ev(day, 1, 490, "app", "outlook.exe"));
             if day < 4 {
                 events.push(ev(day, 1, 700, "drive", "E:"));
                 events.push(ev(day, 1, 702, "quick", "backup"));
             }
         }
-        let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
+        let a = ctx_none();
+        let ctx = Context { existing: Vec::new(), action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         let out = analyse(&events, 6 * DAY, &ctx);
-        let wifi = out.iter().find(|g| g.fp == "wifi|ufficio|lavoro").expect("network proposed");
-        assert_eq!(wifi.automation["steps"][1]["target"], "C:\\Apps\\gestionale.exe");
+        let wifi = out.iter().find(|g| g.fp == "wifi|ufficio|gestionale.exe+outlook.exe").expect("network proposed");
+        assert_eq!(wifi.automation["steps"][0]["target"], "C:\\Apps\\gestionale.exe");
+        assert!(wifi.automation["steps"].as_array().unwrap().iter().all(|s| s["kind"] == "app"), "no profile");
         assert!(out.iter().any(|g| g.fp == "drive|backup"));
     }
 
@@ -889,10 +868,9 @@ mod tests {
             // An automation opened Teams at 9:00, but Teams was never used after.
             events.push(ev(day, 1, 540, "auto", "a1"));
         }
-        let (p, a) = ctx_none();
+        let a = ctx_none();
         let mut ctx = Context {
             existing: Vec::new(),
-            profile_name: &*p,
             action_name: &*a,
             adopted: vec![("a1".into(), "Teams alle 9".into(), vec![("app".into(), "C:\\Apps\\teams.exe".into())])],
             excluded: Vec::new(),
@@ -913,8 +891,8 @@ mod tests {
     #[test]
     fn too_little_data_proposes_nothing() {
         let events: Vec<Event> = (0..3u64).map(|d| ev(d, 1, 540, "app", "outlook.exe")).collect();
-        let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
+        let a = ctx_none();
+        let ctx = Context { existing: Vec::new(), action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         assert!(analyse(&events, 3 * DAY, &ctx).is_empty());
     }
 }

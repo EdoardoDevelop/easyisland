@@ -1,6 +1,6 @@
 // Groups of the island's menu (Edoardo, 10 Nov 2026: «trascini l'icona sopra
 // un'altra e crea la cartella, come su un telefono»). A group is a name and the
-// ids of its integrations, in `settings.menuGroups` (per profile, like the
+// ids of its integrations, in `settings.menuGroups` (like the
 // order). It stands in the menu where its first integration would; an
 // integration in no group stands alone. Only the menu: Panoramica and the
 // fixed bar show integrations as before.

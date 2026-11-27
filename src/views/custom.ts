@@ -21,6 +21,7 @@ import { Sound } from "../core/sound";
 import { forgetSource, linkPicker, sourceRecords, type LinkKit } from "./custom-link";
 import { fileViewer, viewKind } from "./file-viewer";
 import { dependsOn, optionsPicker } from "./custom-options";
+import { pageFrame, type PageFrame } from "./custom-page";
 
 export interface CustomHooks {
   askChat(question: string): void;
@@ -33,7 +34,7 @@ type Row = Record<string, unknown>;
 
 /** What the card keeps for each integration while EasyIsland runs. */
 interface Draft {
-  tab: "form" | "list" | "data";
+  tab: "page" | "form" | "list" | "data";
   record: string;
   values: Record<string, unknown>;
   records: CustomRecord[] | null;
@@ -92,7 +93,7 @@ function blank(c: Custom): Record<string, unknown> {
 function draftOf(c: Custom): Draft {
   let d = drafts.get(c.id);
   if (!d) {
-    const tab: Draft["tab"] = c.fields.length ? "form" : "data";
+    const tab: Draft["tab"] = c.page?.trim() ? "page" : c.fields.length ? "form" : "data";
     d = { tab, record: "", values: blank(c), records: null, query: "", note: null, answer: null, ask: null };
     drafts.set(c.id, d);
   }
@@ -559,6 +560,12 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
   const shownSources = (c.sources ?? []).filter((s) => !(c.fields.some((f) => f.optionsFrom?.source === s.id)
     && !s.alert && !s.title && !Object.keys(s.values ?? {}).length));
   const hasData = shownSources.length > 0;
+  // Its own page (custom-page.ts) in place of the form; «Modulo» goes back to the fields.
+  const hasPage = !!c.page?.trim();
+  let frame: PageFrame | null = null;
+  const pageExtra = h("div", { class: "custom-page-extra" });
+  /** A record the page asked to delete, waiting for the user's yes here. */
+  let removing: { title: string; done: (yes: boolean) => void } | null = null;
 
   const tab = (id: Draft["tab"], label: string) => {
     const b = h("button", { class: d.tab === id ? "chip-btn on" : "chip-btn", text: label }) as HTMLButtonElement;
@@ -572,6 +579,12 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
 
   function paint() {
     clear(tabs);
+    if (hasPage) tab("page", t("Pagina"));
+    if (hasPage && d.tab === "page") {
+      if (hasForm || hasData) tab(hasForm ? "form" : "data", t("Modulo"));
+      paintPage();
+      return;
+    }
     if (hasData) tab("data", t("Dati"));
     if (hasForm) {
       tab("form", d.record ? t("Scheda") : t("Nuova scheda"));
@@ -599,6 +612,120 @@ export function customCard(task: AgentTask, hooks: CustomHooks): HTMLElement {
     el.addEventListener("blur", () => hooks.holdOpen(false));
   };
   const kit: LinkKit = { titleOf, valueOf: linkValue, textOf: linkText, hold };
+
+  // ── Its own page ──
+  /** The frame stays while the card does (a repaint must not reload the page); under it the note and what waits for a click. */
+  function paintPage() {
+    frame ??= pageFrame(c!, serve, (on, el) => {
+      hooks.holdOpen(on);
+      if (on) void Bridge.focusWindow(true, el);
+    });
+    if (body.firstChild !== frame.el) {
+      clear(body);
+      body.append(frame.el, pageExtra);
+    }
+    clear(pageExtra);
+    if (d.note) pageExtra.append(h("div", { class: d.note.ok ? "custom-note ok" : "custom-note err", text: d.note.text }));
+    if (removing) {
+      const r = removing;
+      const yes = h("button", { class: "btn primary danger", text: t("Elimina") });
+      const no = h("button", { class: "btn secondary", text: t("Annulla") });
+      yes.addEventListener("click", () => r.done(true));
+      no.addEventListener("click", () => r.done(false));
+      pageExtra.append(h("div", { class: "custom-row wide" },
+        h("b", { text: t("La pagina vuole eliminare la scheda «{name}». Eliminarla?", { name: r.title }) }),
+        h("div", { class: "custom-actions" }, yes, no)));
+    }
+    if (d.ask) {
+      const ask = d.ask;
+      const go = h("button", { class: "btn primary", text: t("Esegui") });
+      const no = h("button", { class: "btn secondary", text: t("Annulla") });
+      go.addEventListener("click", () => ask.done(true));
+      no.addEventListener("click", () => ask.done(false));
+      pageExtra.append(h("div", { class: "custom-row wide" },
+        h("b", { text: t("Eseguire lo script «{name}»?", { name: ask.name }) }),
+        h("span", { class: "custom-label", text: t("Controlla i comandi prima di eseguirli ({shell}).", { shell: ask.shell === "cmd" ? t("Prompt dei comandi") : "PowerShell" }) }),
+        h("pre", { class: "custom-raw", text: ask.script }),
+        h("div", { class: "custom-actions" }, go, no)));
+    }
+  }
+
+  /** What the page's scripts ask (`easyisland.…`), done as the card's own buttons do it. */
+  async function serve(op: string, args: Record<string, unknown>): Promise<unknown> {
+    const text = (k: string) => String(args[k] ?? "");
+    switch (op) {
+      case "info":
+        return {
+          id: c!.id, name: c!.name,
+          fields: c!.fields.map((f) => ({ id: f.id, label: f.label, kind: f.kind, options: f.options })),
+          actions: c!.actions.map((a) => ({ label: a.label, kind: a.kind })),
+          sources: (c!.sources ?? []).map((s) => ({ id: s.id, label: s.label })),
+        };
+      case "records":
+        return (await Bridge.customRecords(c!.id)) ?? [];
+      case "save": {
+        const values = (args.values && typeof args.values === "object" ? args.values : {}) as Record<string, unknown>;
+        const r = await Bridge.customRecordSave(c!.id, text("id"), values);
+        d.records = null;
+        frame?.send("records", null);
+        return r;
+      }
+      case "remove": {
+        const all = (await Bridge.customRecords(c!.id)) ?? [];
+        const r = all.find((x) => x.id === text("id"));
+        if (!r) throw new Error(t("Scheda non trovata."));
+        const yes = await new Promise<boolean>((done) => {
+          removing = { title: titleOf(c!, r), done };
+          hooks.holdOpen(true);
+          paint();
+        });
+        removing = null;
+        hooks.holdOpen(false);
+        paint();
+        if (!yes) throw new Error(t("Eliminazione annullata."));
+        await Bridge.customRecordDelete(c!.id, r.id);
+        d.records = null;
+        frame?.send("records", null);
+        return true;
+      }
+      case "source":
+        return await Bridge.customFetch(c!.id, text("id"));
+      case "http": {
+        const headers: Record<string, string> = {};
+        for (const [k, v] of Object.entries((args.headers ?? {}) as Record<string, unknown>)) headers[k] = String(v);
+        const body = args.body == null ? "" : typeof args.body === "string" ? args.body : JSON.stringify(args.body);
+        return await Bridge.customHttp(c!.id, text("method") || "GET", text("url"), headers, body);
+      }
+      case "action": {
+        const a = c!.actions.find((x) => x.label.trim() === text("label").trim());
+        if (!a) throw new Error(t("Azione non trovata: {id}", { id: text("label") }));
+        const values = (args.values && typeof args.values === "object" ? args.values : {}) as Record<string, unknown>;
+        d.values = { ...blank(c!), ...values };
+        d.note = null;
+        const ok = await run(a, 0);
+        const note = d.note as { text: string; ok: boolean } | null;
+        paint();
+        return { ok, note: note?.text ?? "", answer: d.answer, record: d.record };
+      }
+      case "notice":
+        hooks.showNotice({ title: c!.name, text: text("text").slice(0, 500), level: "info", url: "" });
+        return true;
+      case "copy":
+        await Bridge.customCopy(text("text"));
+        return true;
+      case "ask":
+        hooks.askChat(text("text"));
+        return true;
+      case "open": {
+        const url = text("url");
+        if (!/^https?:\/\//i.test(url)) throw new Error(t("Indirizzo non valido."));
+        void Bridge.openUrl(url);
+        return true;
+      }
+      default:
+        throw new Error(t("Richiesta sconosciuta: {op}", { op }));
+    }
+  }
 
   // ── Data from services ──
   function dataView(): HTMLElement {

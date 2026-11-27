@@ -60,7 +60,6 @@ const ENTRIES: &[Entry] = &[
     Entry { key: "contextActions", section: CHAT, what: "scheda ⚡ con le azioni per l'app in primo piano", kind: Kind::Bool },
     Entry { key: "searchBar", section: CHAT, what: "barra di ricerca in alto nell'isola aperta", kind: Kind::Bool },
     Entry { key: "integrations", section: INTEGR, what: "integrations.<id> = true/false accende o spegne un'integrazione (id come integration_weather)", kind: Kind::Integration },
-    Entry { key: "autoProfile", section: INTEGR, what: "cambiare profilo da solo secondo le regole dei profili", kind: Kind::Bool },
     Entry { key: "habitsEnabled", section: INTEGR, what: "osservare le abitudini per proporre automazioni", kind: Kind::Bool },
     Entry { key: "language", section: ISLAND, what: "lingua: it, en, o vuoto = quella di Windows", kind: Kind::Choice(&["", "it", "en"]) },
     Entry { key: "theme.character", section: ISLAND, what: "personaggio: drop (Goccia), slime, cube (EasyTech), gecko, flame (Fiamma), magma, stone (Pietra), rock (Roccia), leaf (Foglia)", kind: Kind::Choice(CHARACTERS) },
@@ -136,7 +135,6 @@ pub fn get(s: &crate::settings::Settings) -> Value {
             "valori": allowed(e),
         }));
     }
-    out.insert("profilo attivo".into(), json!(s.active_profile));
     Value::Object(out)
 }
 

@@ -1,6 +1,7 @@
 import { diagramBlock, isDiagram } from "./diagram";
+import { chartBlock, isChart } from "./chart";
 import { highlightInto } from "./highlight";
-import { checklist, codeFields, fieldsOf, TASK } from "./md-interactive";
+import { checklist, choicesBlock, choicesOf, codeFields, fieldsOf, TASK } from "./md-interactive";
 import { calloutBox, calloutOf, dressTable } from "./md-rich";
 import { editCard, unifiedCard } from "./md-diff";
 import { t } from "./i18n";
@@ -28,6 +29,7 @@ export function plainText(md: string): string {
     .replace(/^```modifica[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, "")
     // A diagram's code says nothing in a line of text.
     .replace(/^```(?:mermaid|mmd)[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, t("[diagramma]"))
+    .replace(/^```(?:chart|grafico)[ \t]*\n[\s\S]*?(?:^```[ \t]*$|$(?![\s\S]))/gm, t("[grafico]"))
     .replace(/^```.*$/gm, "")
     .replace(/\[!(note|tip|important|warning|caution)\]\s*/gi, "")
     .replace(/^#{1,6}\s+/gm, "")
@@ -56,6 +58,8 @@ export interface MarkdownHooks {
   saveCode?(code: string, lang: string): void;
   /** A request written in the chat's field, never sent (a step asked about, a procedure to save). */
   ask?(text: string): void;
+  /** A button of a ```scelte block: that answer sent at once. */
+  reply?(text: string): void;
 }
 
 /** "C:\a\b.ts", "src/app.ts", "./x.md", "~/n.txt": a path, not a word or a command. */
@@ -367,6 +371,13 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
         if (card) blocks.push(card);
         continue;
       }
+      // A question's options (REPLY_FORM): buttons, once the block is closed.
+      if (fence[2] === "scelte") {
+        const options = closed ? choicesOf(body.join("\n")) : [];
+        if (options.length) blocks.push(choicesBlock(options, hooks.reply));
+        else if (closed) body.forEach((l) => l.trim() && blocks.push(el("p", "md-p", l.trim())));
+        continue;
+      }
       // A unified diff, once closed: the same card.
       if ((fence[2] === "diff" || fence[2] === "patch") && closed && body.some((l) => /^[-+]/.test(l))) {
         blocks.push(unifiedCard(body.join("\n")));
@@ -374,7 +385,9 @@ function renderBlocks(text: string, hooks: MarkdownHooks): HTMLElement[] {
       }
       const block = codeBlock(body.join("\n"), fence[2], hooks);
       // A diagram only once its block is closed: while it streams in it is code.
-      blocks.push(isDiagram(fence[2]) && i < lines.length ? diagramBlock(body.join("\n"), block, hooks.saveCode) : block);
+      blocks.push(isDiagram(fence[2]) && i < lines.length ? diagramBlock(body.join("\n"), block, hooks.saveCode)
+        // A chart too: data only, drawn by Chart.js once closed (chart.ts).
+        : isChart(fence[2]) && i < lines.length ? chartBlock(body.join("\n"), block) : block);
       continue;
     }
     if (!line.trim()) {

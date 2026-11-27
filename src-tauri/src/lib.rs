@@ -22,6 +22,7 @@ mod memory_answer;
 mod memory_chat;
 mod quick_answer;
 mod search_window;
+mod popplace;
 mod dvc_live;
 mod notices_window;
 mod votes;
@@ -84,6 +85,7 @@ mod commands;
 mod periods;
 mod portals;
 mod todo;
+mod mail_draft;
 mod second;
 mod notion_page;
 mod rdm;
@@ -108,7 +110,8 @@ mod permits;
 mod pipe;
 mod presence;
 mod probes;
-mod profiles;
+mod wifi;
+mod startmenu;
 mod screenshot;
 mod session_reply;
 mod secrets;
@@ -198,6 +201,102 @@ pub struct Shared {
 }
 
 static OPEN_SEARCH_ON_BOOT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// `--do <what>` of the very first start (a Start menu shortcut with EasyIsland
+/// not running): handed to the island once it is up (BootInfo.launch).
+static LAUNCH_DO: Mutex<Option<String>> = Mutex::new(None);
+/// What Windows passes when it starts EasyIsland at sign-in (the Launcher then
+/// stays in the notification area instead of opening).
+const AUTOSTART_ARG: &str = "--autostart";
+
+/// `--relaunch <pid>`: started by `restart`, this process is not EasyIsland
+/// but a helper that waits for run `<pid>` to end and starts EasyIsland again.
+const RELAUNCH_ARG: &str = "--relaunch";
+
+/// EasyIsland started again (Island ⇄ Launcher): this run ends for good and a
+/// helper starts it anew through Explorer, like a start from its icon. A new
+/// run spawned straight from this one hung now and then at its first focus
+/// change (it inherits the right to take the foreground; 27 Nov 2026).
+fn restart(app: &AppHandle) {
+    let Ok(exe) = std::env::current_exe() else { return };
+    let pid = std::process::id().to_string();
+    match std::process::Command::new(exe).args([RELAUNCH_ARG, pid.as_str()]).spawn() {
+        Ok(_) => app.exit(0),
+        Err(err) => log::line(format!("restart: {err}")),
+    }
+}
+
+/// The helper of `restart`: waits (at most 15 s) for the run to end, then
+/// starts EasyIsland through Explorer. True when this process was the helper.
+fn relaunch_helper() -> bool {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
+    let args: Vec<String> = std::env::args().collect();
+    let Some(i) = args.iter().position(|a| a == RELAUNCH_ARG) else { return false };
+    if let Some(pid) = args.get(i + 1).and_then(|p| p.parse::<u32>().ok()) {
+        // Its WebView2 browsers, read while it still runs: they outlive it for
+        // a moment, and the new run must not find them closing on its profile.
+        let browsers = webview_profile::browsers_of(pid);
+        unsafe {
+            if let Ok(h) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+                let _ = WaitForSingleObject(h, 15_000);
+                let _ = CloseHandle(h);
+            }
+        }
+        webview_profile::wait_ended(&browsers, std::time::Duration::from_secs(8));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = std::process::Command::new("explorer.exe").arg(exe).spawn();
+    }
+    true
+}
+
+/// The Launcher's window the first time (logical px), and its smallest size.
+const LAUNCHER_W: f64 = 1000.0;
+const LAUNCHER_H: f64 = 720.0;
+const LAUNCHER_MIN_W: f64 = 520.0;
+const LAUNCHER_MIN_H: f64 = 420.0;
+/// popplace.rs key of the Launcher's window.
+const LAUNCHER_KEY: &str = "launcher";
+/// The Launcher's window got its remembered place (done once, when first shown).
+static LAUNCHER_PLACED: AtomicBool = AtomicBool::new(false);
+/// `launcher_open_at_start` as this run started (a later change waits for the next start).
+static LAUNCHER_OPEN_AT_START: AtomicBool = AtomicBool::new(false);
+
+/// The Launcher (island.rs `launcher`) open: its window shown where it was,
+/// taking the keyboard only when the page asked for it (`focus_window(true)`,
+/// opened by the user); a notice or a permission shows it without.
+fn launcher_show(app: &AppHandle) {
+    let Some(win) = island::window(app) else { return };
+    if !LAUNCHER_PLACED.swap(true, Ordering::Relaxed) {
+        let _ = popplace::restore(app, island::WINDOW_LABEL, LAUNCHER_KEY, None);
+    }
+    let activate = island::wants_focus();
+    let shown = win.is_visible().unwrap_or(false) && !win.is_minimized().unwrap_or(false);
+    log::line(format!("launcher: mostra (tastiera {activate}, era visibile {shown})"));
+    if shown {
+        if activate {
+            island::activate_window(app, &win);
+        } else {
+            // Above the windows covering it, the keyboard left where it is.
+            island::to_top_quietly(&win);
+        }
+        return;
+    }
+    popplace::show(&win, activate);
+    if activate {
+        island::activate_window(app, &win);
+    }
+}
+
+/// The Launcher closed: its place kept, the window hidden (its page then rests).
+fn launcher_hide(app: &AppHandle) {
+    let Some(win) = island::window(app) else { return };
+    if win.is_visible().unwrap_or(false) {
+        popplace::remember(app, island::WINDOW_LABEL);
+    }
+    log::line("launcher: nascosto");
+    popplace::hide(&win);
+}
 
 fn is_search_arg(argv: &[String]) -> bool {
     argv.iter().any(|a| {
@@ -217,6 +316,14 @@ pub struct BootInfo {
     version: String,
     hook_path: String,
     open_search: bool,
+    launch: Option<String>,
+    /// Started by Windows at sign-in (`--autostart`), not by the user.
+    autostarted: bool,
+    /// The Launcher as this run built the island's window (island.rs
+    /// `launcher`): the page follows it, not `settings.launcher`.
+    launcher: bool,
+    /// The Launcher opens as this run starts (`launcher_open_at_start`).
+    open_launcher: bool,
 }
 
 #[tauri::command]
@@ -235,6 +342,10 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
         open_search: OPEN_SEARCH_ON_BOOT.swap(false, Ordering::Relaxed),
+        launch: LAUNCH_DO.lock().unwrap().take(),
+        autostarted: std::env::args().any(|a| a == AUTOSTART_ARG),
+        launcher: island::launcher(),
+        open_launcher: island::launcher() && LAUNCHER_OPEN_AT_START.load(Ordering::Relaxed),
     }
 }
 
@@ -248,13 +359,13 @@ fn save_settings(app: AppHandle, settings: Settings) {
 /// with Windows, the island's place, shortcuts).
 pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let Some(shared) = app.try_state::<Shared>() else { return };
-    // Whatever was edited belongs to the active profile.
     let mut settings = settings.migrated();
-    settings.commit_active();
     i18n::set(&settings.language);
     cc_memory::set_on(settings.memory_claude_code);
-    let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
+    let (screen_changed, autostart_changed, bar_changed, shadow_changed, launcher_on, mode_changed) = {
         let mut current = shared.settings.lock().unwrap();
+        let launcher_on = settings.launcher && !current.launcher;
+        let mode_changed = settings.launcher != current.launcher;
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
             || current.anchor_v != settings.anchor_v
@@ -263,6 +374,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
             || current.over_taskbar != settings.over_taskbar
             || current.fixed_bar_slot != settings.fixed_bar_slot;
         let bar_changed = current.fixed_bar != settings.fixed_bar
+            || current.launcher != settings.launcher
             || current.screen != settings.screen
             || current.bar_thickness() != settings.bar_thickness()
             || current.bar_auto_hide() != settings.bar_auto_hide()
@@ -277,10 +389,25 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
-        (screen_changed, autostart_changed, bar_changed, shadow_changed)
+        (screen_changed, autostart_changed, bar_changed, shadow_changed, launcher_on, mode_changed)
     };
+    // The Launcher just chosen: its icon on the desktop (startmenu.rs).
+    if launcher_on {
+        startmenu::desktop_icon();
+    }
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
+    }
+    // Island ⇄ Launcher: the island's window is built for one or the other
+    // (island.rs `launcher`), so EasyIsland starts again in the new one.
+    // A moment later, so the settings window gets its answer first.
+    if mode_changed {
+        log::line(format!("launcher: {} → restart", settings.launcher));
+        let h = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            restart(&h);
+        });
     }
     habits::apply(&settings);
     opencode_agent::apply(&settings);
@@ -299,8 +426,8 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     if bar_changed {
         appbar::apply(app);
         // The closed island: hidden while the bar stands for it, back when it goes.
-        if shared.gate.collapsed.load(Ordering::Relaxed) {
-            if let Some(win) = island::window(app) {
+        if let Some(win) = island::window(app) {
+            if !island::launcher() && shared.gate.collapsed.load(Ordering::Relaxed) {
                 let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
             }
         }
@@ -317,36 +444,14 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     hotkeys::reload();
 }
 
-/// Makes `id` the active profile: its values replace the current ones, the
-/// island and the settings window follow, the tray menu ticks it.
-pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
-    let Some(shared) = app.try_state::<Shared>() else { return };
-    let settings = {
-        let mut s = shared.settings.lock().unwrap();
-        if s.active_profile == id || !s.switch_profile(id) {
-            return;
-        }
-        s.clone()
-    };
-    if let Err(err) = settings::save(&settings) {
-        eprintln!("[easyisland] could not save settings: {err}");
+/// «Non disturbare» from the tray menu: only permission requests open the
+/// island and sound (what the «Concentrazione» profile was for), back to the
+/// level before when turned off. Saved like a change in Impostazioni.
+pub(crate) fn set_quiet(app: &AppHandle, on: bool) {
+    if let Err(e) = agent::update_settings(app, |s| s.set_quiet(on)) {
+        log::line(format!("non disturbare: {e}"));
     }
-    log::line(format!("profile → {id} ({why})"));
-    // Chosen by hand: something the habits may learn from.
-    if matches!(why, "impostazioni" | "menu") {
-        habits::note("profile", id);
-    }
-    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
-    crate::threecx::settings_saved(&settings);
-    let _ = app.emit("settings-changed", settings);
     tray::refresh(app);
-    hotkeys::reload();
-}
-
-#[tauri::command]
-fn switch_profile(app: AppHandle, id: String) {
-    activate_profile(&app, &id, "impostazioni");
 }
 
 /// Writes the settings (no secrets) to Documents and shows the file in Explorer.
@@ -566,12 +671,6 @@ fn hotkeys_suspend(on: bool) {
     hotkeys::suspend(on);
 }
 
-/// Wi-Fi network this PC is on, to fill in a profile rule.
-#[tauri::command]
-async fn current_network() -> Option<String> {
-    tauri::async_runtime::spawn_blocking(profiles::current_ssid).await.ok().flatten()
-}
-
 /// Hidden island → shrink the window to the rest icon (or the invisible wake
 /// strip) and park the cursor poll; anything else → full panel and 60 Hz polling.
 /// `width`/`height` are the collapsed box, which depends on the icon settings.
@@ -583,6 +682,18 @@ fn set_collapsed(
     width: Option<f64>,
     height: Option<f64>,
 ) {
+    // The Launcher: open is its window shown, closed is hidden; no shape, no size.
+    if island::launcher() {
+        shared.gate.collapsed.store(collapsed, Ordering::Relaxed);
+        shared.gate.set_active(!collapsed);
+        if collapsed {
+            island::set_want_focus(false);
+            launcher_hide(&app);
+        } else {
+            launcher_show(&app);
+        }
+        return;
+    }
     if let (Some(w), Some(h)) = (width, height) {
         *shared.gate.collapsed_size.lock().unwrap() = (w.max(1.0), h.max(1.0));
     }
@@ -811,6 +922,10 @@ fn presence_state() -> Option<String> {
 /// as soon as the drag crossed displays with a different scale.
 #[tauri::command]
 fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
+    // The Launcher moves by its title bar.
+    if island::launcher() {
+        return;
+    }
     shared.gate.dragging.store(true, Ordering::Relaxed);
     let Some(win) = island::window(&app) else { return };
     let Ok(pos) = win.outer_position() else { return };
@@ -832,7 +947,7 @@ struct DragEnd {
     path: Option<String>,
 }
 
-/// The drag is over: remember where the character was left, in the active profile.
+/// The drag is over: remember where the character was left.
 /// Dropped on a folder, it goes back home instead and the folder goes to the chat.
 #[tauri::command]
 fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
@@ -855,7 +970,6 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
             (screen != s.screen).then(|| {
                 log::line(format!("open island moved to screen {screen}"));
                 s.screen = screen;
-                s.commit_active();
                 s.clone()
             })
         });
@@ -913,7 +1027,6 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
         s.anchor_v = v;
         s.offset_x = ox;
         s.offset_y = oy;
-        s.commit_active();
         s.clone()
     };
     if let Err(err) = settings::save(&settings) {
@@ -1938,11 +2051,10 @@ fn light_restart(chat: &Chat) {
     chat.set_light_from(Some(used));
 }
 
-/// A short order of the island's chat (commands.rs), with the user's actions and profiles.
+/// A short order of the island's chat (commands.rs), with the user's quick actions.
 fn island_command(shared: &Shared, query: &str) -> Option<commands::Command> {
     let s = shared.settings.lock().unwrap();
-    let profiles: Vec<(String, String)> = s.profiles.iter().map(|p| (p.id.clone(), p.name.clone())).collect();
-    commands::parse(query, &s.actions, &profiles)
+    commands::parse(query, &s.actions)
 }
 
 pub(crate) async fn chat_turn(
@@ -2081,7 +2193,7 @@ pub(crate) async fn chat_turn(
     // how to look further (memory_search) when the engine has the tools.
     let (remember, instructions) = {
         let s = shared.settings.lock().unwrap();
-        // The profile's instructions, then the assistant picked for this conversation.
+        // The user's instructions, then the assistant picked for this conversation.
         let mut text = s.chat_instructions.trim().to_string();
         if let Some(p) = chat.persona().filter(|_| channel == Channel::Island) {
             if !text.is_empty() {
@@ -2175,7 +2287,7 @@ pub(crate) async fn chat_turn(
         Some(s) => format!("{s}{query}"),
         None => query,
     };
-    // Impostazioni → Chat → Istruzioni (of the active profile), first of all.
+    // Impostazioni → Chat → Istruzioni, first of all.
     let query = if fresh && !instructions.is_empty() {
         format!("{}\n\n{query}", tf("[Istruzioni dell'utente per questa chat:\n{text}]", &[("text", &instructions)]))
     } else {
@@ -2611,6 +2723,19 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
         .skip_taskbar(false)
         .always_on_top(false)
         .min_inner_size(360.0, 300.0)
+        // Shown by popout_place once it is where it was last time (popplace.rs),
+        // not first where window.open put it; shown anyway if that never comes.
+        .visible(false)
+        // A page loaded (WebView2 may swap the blank one): the island lays the view in it now (popout.ts).
+        .on_page_load({
+            let app = app.clone();
+            let label = label.clone();
+            move |_, payload| {
+                if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                    let _ = app.emit_to(island::WINDOW_LABEL, "popout-page", label.clone());
+                }
+            }
+        })
         // The blank page's own title ("about:blank") never shows: the island sets the real one.
         .on_document_title_changed(|w, title| {
             let title = title.trim();
@@ -2624,6 +2749,13 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
             // On the bar's «App», under EasyIsland's icon.
             taskwin::own_window(&window);
             *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.clone());
+            let shown = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                if !shown.is_visible().unwrap_or(true) {
+                    let _ = shown.show();
+                }
+            });
             // Closed with its ✕ while the Anteprima is docked in it: the preview goes back to the island first.
             // Gone: the island is told (popout-closed, with the window's name), so its
             // view comes home even when the page cannot see that its window closed.
@@ -2638,6 +2770,7 @@ fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindow
                 // handlers of what is in it. Closed anyway 2 s later.
                 tauri::WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
+                    popplace::remember(&closing, &name);
                     *title.lock().unwrap_or_else(|e| e.into_inner()) = seen.title().unwrap_or_default();
                     preview::window_closing(&closing, &name);
                     let _ = closing.emit_to(island::WINDOW_LABEL, "popout-closing", name.clone());
@@ -2772,6 +2905,7 @@ fn popout_maximize(app: AppHandle, window: String) {
 #[tauri::command]
 fn popout_close(app: AppHandle, window: String) {
     let Some(w) = popout_find(&app, &window) else { return };
+    popplace::remember(&app, &window);
     preview::window_closing(&app, &window);
     if let Err(e) = w.destroy() {
         log::line(format!("finestra staccata non chiusa: {e}"));
@@ -2785,7 +2919,20 @@ fn popout_focus(app: AppHandle, window: String) {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
+        // Asked from the Start menu or the tray, another app has the keyboard:
+        // Windows lets the window only blink in the bar without this.
+        if let Ok(h) = w.hwnd() {
+            search_window::bring_hwnd_forward(h.0);
+        }
     }
+}
+
+/// The window `window` just made for `key` (popout.ts): where it was last
+/// time, or at `at` (logical screen px), then shown in front (popplace.rs);
+/// true when it went back where it was.
+#[tauri::command]
+fn popout_place(app: AppHandle, window: String, key: String, at: Option<(f64, f64)>, activate: Option<bool>) -> bool {
+    popout_find(&app, &window).is_some() && popplace::place(&app, &window, &key, at, activate.unwrap_or(true))
 }
 
 /// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
@@ -3143,6 +3290,51 @@ async fn chat_dictate_windows() -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+/// «Riassunto del motore» on the card of a conversation reopened after hours
+/// (views/chat-recap.ts): three lines, done / open / last step, written by the
+/// conversation's engine in a helper turn of its own (the conversation is not touched).
+#[tauri::command]
+async fn chat_recap(app: AppHandle, engine: String, lines: Vec<chat_log::Line>) -> Result<String, String> {
+    if engine.is_empty() || engine == "easyisland" {
+        return Err(t("Questa conversazione non ha un motore per il riassunto.").into());
+    }
+    // The end of the conversation counts most: the last lines, each clipped.
+    let mut parts: Vec<String> = Vec::new();
+    let mut size = 0;
+    for l in lines.iter().rev() {
+        let who = if l.role == "user" { "USER" } else { "ASSISTANT" };
+        let body: String = l.content.trim().chars().take(1500).collect();
+        size += body.len();
+        parts.push(format!("{who}: {body}"));
+        if size > 14_000 {
+            break;
+        }
+    }
+    parts.reverse();
+    let lang = if i18n::english() { "English" } else { "Italian" };
+    let prompt = format!(
+        "The user is coming back to the conversation below after some hours. Without tools and without titles, \
+         write exactly three short lines in {lang}: \"**{done}:** …\" what has been done, \
+         \"**{open}:** …\" what is still open or waits for the user (or \"{none}\"), \
+         \"**{last}:** …\" the last step and what comes next.\n\n{text}",
+        done = t("Fatto"),
+        open = t("Ancora aperto"),
+        none = t("niente"),
+        last = t("Ultimo passo"),
+        text = parts.join("\n\n"),
+    );
+    let chat = Chat::default();
+    let reply = chat_turn(&app, &chat, prompt, None, Some(engine.clone()), None, false, Channel::Helper, &|_| {}).await;
+    if engine == "opencode" {
+        opencode::forget(chat.cli_session());
+    }
+    let text = reply?.text.trim().to_string();
+    if text.is_empty() {
+        return Err(t("Il motore non ha risposto.").into());
+    }
+    Ok(text)
+}
+
 /// «Esporta»: the conversation as a Markdown file in the Vassoio.
 #[tauri::command]
 fn chat_export(title: String, lines: Vec<chat_log::Line>) -> Result<DroppedFile, String> {
@@ -3233,6 +3425,42 @@ async fn chat_paste() -> Result<Vec<files::ChatAttachment>, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// A picture marked in the chat (views/chat-mark.ts) as a new PNG in the inbox:
+/// raw bytes, its name percent-encoded in `x-name`. Only a PNG.
+#[tauri::command]
+async fn chat_image_save(request: tauri::ipc::Request<'_>) -> Result<files::ChatAttachment, String> {
+    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+        return Err(t("Immagine non ricevuta").into());
+    };
+    if !data.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err(t("Immagine non ricevuta").into());
+    }
+    let raw = request.headers().get("x-name").and_then(|v| v.to_str().ok()).unwrap_or("");
+    let decoded = news::url_decode(raw);
+    let mut name: String = decoded.chars().filter(|c| !r#"\/:*?"<>|"#.contains(*c) && !c.is_control()).take(120).collect();
+    if !name.to_lowercase().ends_with(".png") {
+        name = format!("{}.png", t("Immagine segnata"));
+    }
+    let data = data.clone();
+    let f = tauri::async_runtime::spawn_blocking(move || files::save_new(&name, &data)).await.map_err(|e| e.to_string())??;
+    Ok(files::ChatAttachment { name: f.name, path: f.path, folder: false })
+}
+
+/// The «EasyIsland» folder of the Start menu (startmenu.rs): the integrations
+/// that are on, with the icons the island drew. Off in the settings: only what
+/// was made here goes. Returns how many integrations are there.
+#[tauri::command]
+async fn start_menu_sync(shared: State<'_, Shared>, items: Vec<startmenu::Item>) -> Result<usize, String> {
+    let on = shared.settings.lock().unwrap().start_menu;
+    let asked = items.len();
+    let done = tauri::async_runtime::spawn_blocking(move || startmenu::sync(&items, on)).await.map_err(|e| e.to_string())?;
+    log::line(match &done {
+        Ok(n) => format!("menu Start: {n} integrazioni (chieste {asked}, acceso {on})"),
+        Err(e) => format!("menu Start non aggiornato: {e}"),
+    });
+    done
+}
+
 /// Files and folders dropped on the chat: files into the Vassoio, folders as they are.
 #[tauri::command]
 async fn chat_attach(paths: Vec<String>) -> Result<Vec<files::ChatAttachment>, String> {
@@ -3294,6 +3522,19 @@ fn capture_frame() -> tauri::ipc::Response {
 fn capture_show(app: AppHandle) -> Result<(), String> {
     let s = screenshot::frozen_screen().ok_or(i18n::t("La cattura è già chiusa"))?;
     let win = island::window(&app).ok_or("no island window")?;
+    // The Launcher's window covers the screen as the island's does: frameless and
+    // on top for the capture, its own window again after (capture_end).
+    if island::launcher() {
+        let shown = win.is_visible().unwrap_or(false);
+        LAUNCHER_BEFORE_CAPTURE.store(shown, Ordering::Relaxed);
+        if shown {
+            popplace::remember(&app, island::WINDOW_LABEL);
+        }
+        let _ = win.unmaximize();
+        let _ = win.set_decorations(false);
+        let _ = win.set_always_on_top(true);
+        let _ = win.set_skip_taskbar(true);
+    }
     island::CAPTURING.store(true, Ordering::Relaxed);
     let _ = win.show();
     let _ = win.set_position(tauri::PhysicalPosition::new(s.x, s.y));
@@ -3308,6 +3549,9 @@ fn capture_show(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// The Launcher's window was shown when a capture began (capture_show).
+static LAUNCHER_BEFORE_CAPTURE: AtomicBool = AtomicBool::new(false);
+
 /// The overlay is gone: the window goes back to the island, the frozen screen is dropped.
 #[tauri::command]
 fn capture_end(app: AppHandle, shared: State<Shared>) {
@@ -3317,6 +3561,20 @@ fn capture_end(app: AppHandle, shared: State<Shared>) {
     }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     let settings = shared.settings.lock().unwrap().clone();
+    if island::launcher() {
+        if let Some(win) = island::window(&app) {
+            let _ = win.set_always_on_top(false);
+            let _ = win.set_skip_taskbar(false);
+            let _ = win.set_decorations(true);
+            // Back where it was; hidden again if it was closed (or closed meanwhile).
+            let _ = popplace::restore(&app, island::WINDOW_LABEL, LAUNCHER_KEY, None);
+            if collapsed || !LAUNCHER_BEFORE_CAPTURE.load(Ordering::Relaxed) {
+                popplace::hide(&win);
+            }
+        }
+        shared.gate.forget_ignore_state();
+        return;
+    }
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     if let Some(win) = island::window(&app) {
         island::set_activating(&win, false);
@@ -3681,7 +3939,7 @@ fn flow_run(id: String) -> Result<flows::Run, String> {
 /// The flow editor's "Prova da qui": a run from that step.
 #[tauri::command]
 fn flow_try_from(app: AppHandle, id: String, node: String) -> Result<(), String> {
-    let (autos, _, actions) = automations::list(&app);
+    let (autos, actions) = automations::list(&app);
     let flow = autos.into_iter().find(|a| a.id == id).ok_or_else(|| i18n::t("Automazione non trovata (salvata?)").to_string())?;
     flows::try_from(&app, flow, &node, actions)
 }
@@ -3689,7 +3947,7 @@ fn flow_try_from(app: AppHandle, id: String, node: String) -> Result<(), String>
 /// "Riprendi da qui".
 #[tauri::command]
 fn flow_rerun(app: AppHandle, id: String, node: String) -> Result<(), String> {
-    flows::rerun(&app, &id, &node, automations::list(&app).2)
+    flows::rerun(&app, &id, &node, automations::list(&app).1)
 }
 
 /// Proposte dalle abitudini: how much was recorded.
@@ -4187,7 +4445,13 @@ fn log_line(message: String) {
 /// WebView2 took the Memoria window for covered (the island's transparent
 /// window over it) and stopped presenting frames, so the map's animations moved
 /// only with the mouse (Edoardo, 4 Nov 2026). The island draws nothing at rest anyway.
-pub(crate) const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --autoplay-policy=no-user-gesture-required";
+///
+/// Timer throttling off (`--disable-background-timer-throttling`,
+/// `IntensiveWakeUpThrottling`, `--disable-renderer-backgrounding`): the closed
+/// Launcher is a hidden window, and its page's timers (closing a note, waits,
+/// the integrations, the detached windows that run on that page) must keep
+/// time; animation frames still stop there, so the CPU stays ~0 (27 Nov 2026).
+pub(crate) const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion,IntensiveWakeUpThrottling --disable-backgrounding-occluded-windows --disable-background-timer-throttling --disable-renderer-backgrounding --autoplay-policy=no-user-gesture-required";
 
 /// In a dev build the pages are served by Vite, so the second window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
@@ -4485,7 +4749,8 @@ pub(crate) fn sync_character(app: &AppHandle) {
     barshadow::sync(app, None);
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
+    // The Launcher: no character on the screen (it is drawn in the window's menu).
+    let island = island::window(app).filter(|w| !island::launcher() && w.is_visible().unwrap_or(false));
     let spot = *CHARACTER_SPOT.lock().unwrap();
     let open = !collapsed && spot.is_some_and(|(_, open)| open);
     let place = island.and_then(|win| {
@@ -5419,6 +5684,10 @@ pub fn run() {
     if taskbar_hide::handle_args() {
         return;
     }
+    // Started by `restart`: only starts EasyIsland again once the old run is gone.
+    if relaunch_helper() {
+        return;
+    }
     jumplist::set_app_id();
     // The release build aborts on a panic (panic = "abort"): without this the
     // reason is lost and Windows only reports 0xc0000409.
@@ -5431,20 +5700,34 @@ pub fn run() {
     // then this run uses a spare one (see webview_profile.rs).
     let webview_dir = webview_profile::free();
     // First launch after the rename: bring Coucou's settings and keys over.
-    let moved = legacy::migrate();
+    let _moved = legacy::migrate();
+    // No settings yet: a new install, which starts as the Launcher (settings.rs).
+    let first_run = !settings::settings_path().exists();
     let mut loaded = settings::load();
     i18n::set(&loaded.language);
     cc_memory::set_on(loaded.memory_claude_code);
     // Zammad's address and token, when a widget became the integration (schema 5).
     settings::apply_pending_secrets(&mut loaded);
+    // Island or Launcher: fixed for this run (a change restarts the app).
+    island::init_launcher(loaded.launcher);
+    LAUNCHER_OPEN_AT_START.store(loaded.launcher_open_at_start, Ordering::Relaxed);
+    log::line(format!("modalità: {}", if loaded.launcher { "Launcher" } else { "isola" }));
+    // The Launcher of a new install: its icon on the desktop, as when it is chosen.
+    if first_run && loaded.launcher {
+        startmenu::desktop_icon();
+    }
     let gate = Arc::new(PollGate::new());
 
     let launch_args: Vec<String> = std::env::args().skip(1).collect();
     if is_search_arg(&launch_args) || jumplist::requested(&launch_args).as_deref() == Some("search") {
         OPEN_SEARCH_ON_BOOT.store(true, Ordering::Relaxed);
+    } else if let Some(what) = jumplist::requested(&launch_args).filter(|w| w != "open") {
+        *LAUNCH_DO.lock().unwrap() = Some(what);
     }
 
     tauri::Builder::default()
+        // An integration's own page (custom.rs `page_response`), in a sandboxed frame of the island.
+        .register_uri_scheme_protocol(custom::PAGE_SCHEME, |_ctx, req| custom::page_response(req.uri().path()))
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // `easyisland.exe /search` or `--search` or `--do search` opens the standalone search bar.
             if is_search_arg(&argv) || jumplist::requested(&argv).as_deref() == Some("search") {
@@ -5464,10 +5747,14 @@ pub fn run() {
                 if let Some(win) = island::window(app) {
                     let _ = win.unminimize();
                 }
+                // The Launcher opened by the user (icon, Start, second start): it takes the keyboard.
+                if island::launcher() {
+                    island::set_want_focus(true);
+                }
                 let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
             }
         }))
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![AUTOSTART_ARG])))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Shared {
             settings: Mutex::new(loaded.clone()),
@@ -5641,10 +5928,8 @@ pub fn run() {
             chat_history_clear,
             claude_cli_status,
             mcp_servers_configured,
-            switch_profile,
             settings_export,
             settings_import,
-            current_network,
             action_open_app,
             action_run_script,
             action_kill,
@@ -5656,6 +5941,9 @@ pub fn run() {
             widget_results,
             ingest_file,
             chat_paste,
+            chat_image_save,
+            chat_recap,
+            start_menu_sync,
             chat_attach,
             chat_pick,
             custom_accept_extensions,
@@ -5673,6 +5961,7 @@ pub fn run() {
             memory_open,
             memory_graph,
             popout_focus,
+            popout_place,
             popout_take,
             popout_kind,
             search_window::search_window_show,
@@ -5977,6 +6266,25 @@ pub fn run() {
                 if let Some(dir) = &webview_dir {
                     builder = builder.data_directory(dir.clone());
                 }
+                // The Launcher: the same page in an ordinary window (island.rs `launcher`),
+                // hidden until the page opens it (set_collapsed), where it was last time.
+                if island::launcher() {
+                    builder = builder
+                        .decorations(true)
+                        .transparent(false)
+                        .shadow(true)
+                        .always_on_top(false)
+                        .skip_taskbar(false)
+                        .resizable(true)
+                        .maximizable(true)
+                        .minimizable(true)
+                        .closable(true)
+                        .focused(false)
+                        .visible(false)
+                        .background_color(tauri::window::Color(17, 19, 23, 255))
+                        .inner_size(LAUNCHER_W, LAUNCHER_H)
+                        .min_inner_size(LAUNCHER_MIN_W, LAUNCHER_MIN_H);
+                }
                 // «Apri in una finestra» (src/island/popout.ts): the chat or an
                 // integration's card drawn by the island in a window of its own.
                 let opener = handle.clone();
@@ -6001,6 +6309,10 @@ pub fn run() {
                 win.on_window_event(move |event| match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
+                        // The Launcher's ✕: kept where it is, hidden at once (the page closes too).
+                        if island::launcher() {
+                            launcher_hide(&closing);
+                        }
                         let _ = closing.emit_to(island::WINDOW_LABEL, "tray", "close");
                     }
                     // Dragged, moved to another screen or resized: the resting character follows.
@@ -6029,7 +6341,17 @@ pub fn run() {
                 });
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);
-                let _ = win.show();
+                if island::launcher() {
+                    // Opened at once where it was (the page draws into it as it loads)
+                    // only with «Apri la finestra all'avvio»; else EasyIsland waits in
+                    // the notification area (27 Nov 2026), at sign-in and after a restart too.
+                    if LAUNCHER_OPEN_AT_START.load(Ordering::Relaxed) {
+                        island::set_want_focus(true);
+                        launcher_show(&handle);
+                    }
+                } else {
+                    let _ = win.show();
+                }
             }
             island::apply_taskbar(&handle);
             jumplist::update(&loaded);
@@ -6046,7 +6368,6 @@ pub fn run() {
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.
             std::thread::spawn(files::clear_inbox);
-            profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             clipboard::spawn(handle.clone());
             downloads::spawn(handle.clone());
@@ -6074,8 +6395,9 @@ pub fn run() {
             std::thread::spawn(log::scrub_once);
             std::thread::spawn(checkpoints::prune);
             hooks::ensure_hook_exe(&handle);
-            // Coucou's autostart entry starts Coucou, not this app.
-            if moved && loaded.autostart {
+            // Coucou's autostart entry starts Coucou, not this app; an entry
+            // written before 26 Nov 2026 has no `--autostart`: written again.
+            if loaded.autostart {
                 if let Err(err) = handle.autolaunch().enable() {
                     log::line(format!("autostart: {err}"));
                 }
@@ -6090,9 +6412,17 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while running EasyIsland")
-        .run(|_, event| {
+        .run(|app_handle, event| {
             // The chat's private opencode server goes with the app.
             if let tauri::RunEvent::Exit = event {
+                // The Launcher open as EasyIsland quits (restart, Windows shutting down): its place kept.
+                if island::launcher() {
+                    if let Some(win) = island::window(app_handle) {
+                        if win.is_visible().unwrap_or(false) {
+                            popplace::remember(app_handle, island::WINDOW_LABEL);
+                        }
+                    }
+                }
                 tasks::on_exit();
                 appbar::shutdown();
                 taskbar_hide::shutdown();

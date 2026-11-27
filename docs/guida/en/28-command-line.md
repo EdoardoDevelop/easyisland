@@ -15,7 +15,7 @@ Any script, scheduled task, n8n flow or program can show a message on the island
 | `--apri https://…` | Adds a button with a link |
 | `--help` | The help |
 
-It exits with **0** if the message arrived and **2** if EasyIsland isn't running, so a script never hangs. The profile's notification rules apply. In **Settings → Notifications** there's the ready-to-copy command and **Try**.
+It exits with **0** if the message arrived and **2** if EasyIsland isn't running, so a script never hangs. The notification rules apply. In **Settings → Notifications** there's the ready-to-copy command and **Try**.
 
 ## Questions to the chat
 A script, a scheduled task or a remote session (WinRM, always as your own user) can ask EasyIsland's chat a question and read the answer:

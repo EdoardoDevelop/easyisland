@@ -19,6 +19,9 @@ With the Microsoft account: your **presence** and today's and tomorrow's **onlin
 ## Microsoft To Do
 The chat's tools read and write your **To Do** tasks through **classic Outlook** (which must be open): "what do I have to do this week?", "add call Rossi tomorrow at 10 to the Clients list", "mark Bianchi's invoice done". Adding and changing ask Allow / Deny. Changes reach To Do with Outlook's sync.
 
+## Mails prepared in Outlook
+Ask the chat to prepare a mail (“write to info@customer.com with the offer attached”): it opens it in **classic Outlook** (which must be open) with recipients, subject, text, attachments and your signature, and leaves it there. **It never sends it**: you check it and press Send. It asks Allow / Deny before opening it. Attachments can be files of the PC, the Tray or the work folder, never those of keys and passwords.
+
 ## Microsoft account (API)
 In the Outlook and Teams rows, the **Microsoft account (API)** block connects your work account with **Microsoft Graph**:
 1. register an application in **Microsoft Entra** (public application ID, no secret);

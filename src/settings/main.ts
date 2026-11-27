@@ -1,6 +1,5 @@
 // Settings window — the place where anything that writes to disk is confirmed.
-// Sections marked with the profile chip are saved into the active profile;
-// the rest belongs to this PC.
+// One set of values for the PC (the profiles went on 26 Nov 2026).
 
 import "./settings.css";
 import { applyMotion, viewEnter, watchWindow } from "../core/motion";
@@ -139,7 +138,7 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   return h("section", {},
     h("h2", {}, h("span", { text: t("Collegamento degli agenti all'isola") })),
     moreHint(
-      t("Ogni agente ha la sua sessione nella voce Agenti dell'isola."),
+      t("Ogni agente ha la sua sessione nella Panoramica dell'isola."),
       t("«Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano."),
     ),
     relay,
@@ -248,11 +247,6 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
   return el;
 }
 
-/**
- * How the Agenti tab looks in the island's header: the terminal icon (the
- * default), Claude's logo, its name or an emoji. Kept in integrationTabIcons
- * like the other tabs: missing = the icon, "@logo", "@name", anything else = that emoji.
- */
 /** The weekly recap (recap.rs): on or off, show it now, forget it. */
 function recapSection(): HTMLElement {
   const done = h("span", { class: "hint note" });
@@ -336,7 +330,7 @@ function agentsSections(claudeStatus: HookStatus): HTMLElement[] {
     {
       id: "collegamento",
       label: t("Collegamento e strumenti"),
-      content: () => [agentsSection(claudeStatus), agentsTabSection(), mcpSection()],
+      content: () => [agentsSection(claudeStatus), mcpSection()],
     },
     {
       id: "riepiloghi",
@@ -392,37 +386,6 @@ function mcpStatus(agy: boolean): HTMLElement {
   };
   void draw();
   return body;
-}
-
-function agentsTabSection(): HTMLElement {
-  const id = "integration_claude";
-  const icons = () => (settings.integrationTabIcons ??= {});
-  const cur = icons()[id];
-  const place = h("select", {},
-    h("option", { value: "icon", text: t("Icona del terminale") }),
-    h("option", { value: "logo", text: t("Logo di Claude") }),
-    h("option", { value: "emoji", text: t("Emoji o lettere") })) as HTMLSelectElement;
-  // "@name" was the header tab with the word "Agenti": the menu always has the name.
-  place.value = !cur || cur === "@name" ? "icon" : cur === "@logo" ? "logo" : "emoji";
-  const emoji = h("input", {
-    type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
-    title: t("Un'emoji o una o due lettere"), placeholder: "✳",
-    value: cur && !cur.startsWith("@") ? cur : "",
-  }) as HTMLInputElement;
-  const apply = () => {
-    emoji.style.display = place.value === "emoji" ? "" : "none";
-    if (place.value === "icon") delete icons()[id];
-    else if (place.value === "logo") icons()[id] = "@logo";
-    else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
-  };
-  emoji.style.display = place.value === "emoji" ? "" : "none";
-  place.addEventListener("change", () => { apply(); void save(); });
-  emoji.addEventListener("change", () => { apply(); void save(); });
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Voce «Agenti» nel menu dell'isola") })),
-    h("div", { class: "row" },
-      h("label", { text: t("Icona") }), place, emoji,
-      h("span", { class: "hint note", text: t("la voce Agenti, con le sessioni degli agenti") })));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────
@@ -907,7 +870,7 @@ function chatSections(hasKey: boolean): HTMLElement[] {
       label: t("Istruzioni e memoria"),
       content: () => [
         h("section", { "data-item": "istruzioni" },
-          h("h2", {}, h("span", { text: t("Istruzioni e assistenti") }), profileChip()),
+          h("h2", {}, h("span", { text: t("Istruzioni e assistenti") })),
           instructionsRow(),
           assistantsBlock()),
         h("section", { "data-item": "memoria" },
@@ -2454,7 +2417,7 @@ function assistantsBlock(): HTMLElement {
     list);
 }
 
-/** Chat → "Istruzioni": what every new conversation is told first; of the active profile. */
+/** Chat → "Istruzioni": what every new conversation is told first. */
 function instructionsRow(): HTMLElement {
   const area = h("textarea", {
     class: "instructions",
@@ -2473,7 +2436,7 @@ function instructionsRow(): HTMLElement {
   return h("div", { style: "display:flex;flex-direction:column;gap:4px" },
     h("div", { class: "row" },
       h("label", { text: t("Istruzioni") }),
-      h("span", { class: "hint note", text: t("dette alla chat all'inizio di ogni conversazione. Valgono per il profilo attivo: ogni profilo (es. un cliente) può avere le sue") })),
+      h("span", { class: "hint note", text: t("dette alla chat all'inizio di ogni conversazione") })),
     area);
 }
 
@@ -3108,7 +3071,15 @@ function integrationsSections(present: Record<string, boolean>): HTMLElement[] {
   };
   drawGroups();
   const serviziPanel = [
-    h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, catsBox, filterRow, list),
+    h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") })), note, catsBox, filterRow, list),
+    // startmenu.rs: a shortcut per integration that is on, each opening in its own window.
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Menu Start di Windows") })),
+      h("div", { class: "row" },
+        h("label", { text: t("Cartella EasyIsland nello Start") }),
+        toggle(settings.startMenu !== false, (v) => { settings.startMenu = v; void save(); }),
+        h("span", { class: "hint note", text: t("la chat e ogni integrazione accesa, ognuna in una finestra sua, separata dall'isola") })),
+    ),
     h("section", {},
       h("h2", {}, h("span", { text: t("Menu e gruppi dell'isola") })),
       orderRow,
@@ -3430,6 +3401,11 @@ function appearanceSections(): HTMLElement[] {
     tabs.append(b);
   }
   const intro = (text: string) => h("div", { class: "hint tab-intro", text });
+  /** Hidden with the Launcher (settings.css .island-only). */
+  const islandOnly = <E extends HTMLElement>(el: E): E => {
+    el.classList.add("island-only");
+    return el;
+  };
   // With the fixed bar on, what no longer applies says so (settings.css → .bar-note).
   const barNote = (text: string) => h("div", { class: "hint bar-note", text });
 
@@ -3450,7 +3426,7 @@ function appearanceSections(): HTMLElement[] {
     tema: () => [
       intro(t("I colori dell'isola e di questa finestra.")),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Tema") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Tema") })),
         pictured(pictureBox("look", settings, undefined, true),
           h("div", { class: "row" },
             h("label", { text: t("Stile") }),
@@ -3480,7 +3456,7 @@ function appearanceSections(): HTMLElement[] {
             h("label", { text: t("Colore dell'isola") }),
             colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, t("Quello del tema")),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Opacità dell'isola") }),
             slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
             h("span", { class: "hint note", text: t("sotto l'isola si intravede quello che c'è dietro") }),
@@ -3491,14 +3467,14 @@ function appearanceSections(): HTMLElement[] {
             h("span", { class: "hint note", text: t("i pannelli dentro l'isola, come la chat: più bassa, più si vede il colore dell'isola e più sono scuri (o chiari, in modalità chiara); per scurire ancora scegli un colore dell'isola più scuro") }),
           ),
         ),
-        pictured("compactBg", h("div", { class: "row" },
+        pictured("compactBg", h("div", { class: "row island-only" },
           h("label", { text: t("Sfondo a isola chiusa") }),
           toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
           h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
         )),
       ),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Animazioni") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Animazioni") })),
         h("div", { class: "row" },
           h("label", { text: t("Animazioni") }),
           select<Settings["animations"]>(
@@ -3514,19 +3490,19 @@ function appearanceSections(): HTMLElement[] {
     personaggio: () => [
       intro(t("Chi sta nell'isola e come si comporta.")),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Chi c'è nell'isola") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Chi c'è nell'isola") })),
         pictured(liveCharacter(settings, () => Bridge.logoLoad()), figureRow, logoRow, characterRow, colorRow),
       ),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Come si comporta") }), profileChip()),
-        pictured("greeting", h("div", { class: "row" },
+        h("h2", {}, h("span", { text: t("Come si comporta") })),
+        pictured("greeting", h("div", { class: "row island-only" },
           h("label", { text: t("Saluto all'avvio") }),
           greeting,
           greetingFigure,
           greetingPlace,
           h("span", { class: "hint note", text: t("l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto") }),
         )),
-        pictured("follow", h("div", { class: "row" },
+        pictured("follow", h("div", { class: "row island-only" },
           h("label", { text: t("Segue il mouse") }),
           toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
           h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
@@ -3545,27 +3521,27 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     posizione: () => [
-      intro(t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.")),
-      barNote(t("Con la barra fissa accesa il personaggio sta nella barra: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Barra fissa).")),
+      islandOnly(intro(t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo."))),
+      islandOnly(barNote(t("Con la barra fissa accesa il personaggio sta nella barra: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Barra fissa)."))),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
-        pictured("screen", h("div", { class: "row" },
+        h("h2", {}, h("span", { text: t("Posizione") })),
+        pictured("screen", h("div", { class: "row island-only" },
           h("label", { text: t("Schermo") }),
           screen,
           h("span", { class: "hint note", text: t("su quale schermo sta l'isola, se ne hai più di uno") }),
         )),
-        pictured(anchorPic, h("div", { class: "row free-row" },
+        pictured(anchorPic, h("div", { class: "row free-row island-only" },
           h("label", { text: t("Angolo dello schermo") }),
           vertical,
           horizontal,
           h("span", { class: "hint note", text: t("anche con un clic su un punto dello schermo in miniatura") }),
         )),
-        pictured("overTaskbar", h("div", { class: "row free-row" },
+        pictured("overTaskbar", h("div", { class: "row free-row island-only" },
           h("label", { text: t("Sopra la barra") }),
           toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
           h("span", { class: "hint note", text: t("in basso, il personaggio può stare anche sopra la barra delle applicazioni") }),
         )),
-        pictured("glue", h("div", { class: "row free-row" },
+        pictured("glue", h("div", { class: "row free-row island-only" },
           h("label", { text: t("Aggancia ai bordi") }),
           toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
           h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
@@ -3578,9 +3554,9 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     barra: () => [
-      intro(t("Una fascia sul bordo dello schermo, come la barra delle applicazioni: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto.")),
-      h("section", {},
-        h("h2", {}, h("span", { text: t("Barra fissa") }), profileChip()),
+      islandOnly(intro(t("Una fascia sul bordo dello schermo, come la barra delle applicazioni: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto."))),
+      h("section", { class: "island-only" },
+        h("h2", {}, h("span", { text: t("Barra fissa") })),
         pictured("bar", h("div", { class: "row" },
           h("label", { text: t("Barra fissa") }),
           select([["", t("Spenta")], ["top", t("In alto")], ["bottom", t("In basso")]], settings.fixedBar ?? "",
@@ -3621,7 +3597,6 @@ function appearanceSections(): HTMLElement[] {
           barBackground(commit),
         )),
       ),
-      // Of the PC, not of a profile (settings.rs PROFILE_KEYS).
       h("section", {},
         h("h2", {}, h("span", { text: t("Barra delle applicazioni di Windows") })),
         h("div", { class: "row" },
@@ -3641,16 +3616,16 @@ function appearanceSections(): HTMLElement[] {
         ),
       ),
       // «App» of the bar: its pinned apps (barapps.rs), of the PC.
-      h("section", {},
+      h("section", { class: "island-only" },
         h("h2", {}, h("span", { text: t("App nella barra") })),
         appsPinsBlock(),
       ),
-      h("section", { class: "bar-row-block" },
-        h("h2", {}, h("span", { text: t("Aspetto della barra") }), profileChip()),
+      h("section", { class: "bar-row-block island-only" },
+        h("h2", {}, h("span", { text: t("Aspetto della barra") })),
         ...barLookRows(commit),
       ),
-      h("section", { class: "bar-row-block" },
-        h("h2", {}, h("span", { text: t("Widget della barra") }), profileChip()),
+      h("section", { class: "bar-row-block island-only" },
+        h("h2", {}, h("span", { text: t("Widget della barra") })),
         h("div", { class: "row bar-row" },
           h("label", {},
             h("span", { text: t("Personalizza la barra") }),
@@ -3659,10 +3634,10 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     chiusa: () => [
-      intro(t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.")),
-      barNote(t("Con la barra fissa accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta nella barra. Queste voci valgono quando la spegni.")),
-      h("section", {},
-        h("h2", {}, h("span", { text: t("A riposo") }), profileChip()),
+      islandOnly(intro(t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio."))),
+      islandOnly(barNote(t("Con la barra fissa accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta nella barra. Queste voci valgono quando la spegni."))),
+      h("section", { class: "island-only" },
+        h("h2", {}, h("span", { text: t("A riposo") })),
         pictured("always", h("div", { class: "row" },
           h("label", { text: t("Sempre visibile") }),
           always,
@@ -3676,8 +3651,8 @@ function appearanceSections(): HTMLElement[] {
         ), hoverSize),
       ),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Accanto al personaggio") }), profileChip()),
-        pictured("strip", h("div", { class: "row" },
+        h("h2", {}, h("span", { text: t("Accanto al personaggio") })),
+        pictured("strip", h("div", { class: "row island-only" },
           h("label", { text: t("Risposte rapide") }),
           select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
             settings.compactStrip ?? "right",
@@ -3685,12 +3660,12 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
         )),
         pictured("appBar",
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Barra dell'app in uso") }),
             toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
             h("span", { class: "hint note", text: t("accanto al personaggio chiuso, le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con»). Nulla di predefinito: senza azioni per quel programma non compare. Ha la precedenza sulla riga dell'agente al lavoro, non su permessi e chiamate.") }),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Pulsanti") }),
             select<Settings["appBarLook"]>([["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
               settings.appBarLook ?? "both", (v) => { settings.appBarLook = v; commit(); }),
@@ -3701,7 +3676,7 @@ function appearanceSections(): HTMLElement[] {
               return n;
             })(),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Nome del programma") }),
             toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
           ),
@@ -3714,9 +3689,11 @@ function appearanceSections(): HTMLElement[] {
       ),
     ],
     aperta: () => [
-      intro(t("Quando e dove si apre, quanto è grande e quando si richiude.")),
-      h("section", {},
-        h("h2", {}, h("span", { text: t("Quando si apre") }), profileChip()),
+      intro(settings.launcher
+        ? t("Il campo in alto, la Panoramica e quello che hai aggiunto dalla chat. Grandezza e posto sono quelli della finestra: li decidi trascinandola.")
+        : t("Quando e dove si apre, quanto è grande e quando si richiude.")),
+      h("section", { class: "island-only" },
+        h("h2", {}, h("span", { text: t("Quando si apre") })),
         pictured("place", h("div", { class: "row" },
           h("label", { text: t("L'isola si apre") }),
           place,
@@ -3728,8 +3705,8 @@ function appearanceSections(): HTMLElement[] {
           h("span", { class: "hint note", text: t("quanto tenere il mouse sul personaggio prima che si apra; trascinare un file sopra il personaggio lo apre sempre") }),
         )),
       ),
-      h("section", {},
-        h("h2", {}, h("span", { text: t("Quando si richiude") }), profileChip()),
+      h("section", { class: "island-only" },
+        h("h2", {}, h("span", { text: t("Quando si richiude") })),
         pictured("autoClose",
           h("div", { class: "row" },
             h("label", { text: t("Pannello aperto") }),
@@ -3749,14 +3726,14 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
       h("section", {},
-        h("h2", {}, h("span", { text: t("Grandezza e comandi") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Grandezza e comandi") })),
         pictured("size",
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Larghezza") }),
             widthSlider,
             h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
           ),
-          h("div", { class: "row" },
+          h("div", { class: "row island-only" },
             h("label", { text: t("Altezza minima") }),
             heightSlider,
             h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
@@ -3835,7 +3812,7 @@ function appearanceSections(): HTMLElement[] {
             })(),
           ),
         ),
-        pictured("app", h("div", { class: "row" },
+        pictured("app", h("div", { class: "row island-only" },
           h("label", { text: t("Come un'app") }),
           toggle(settings.islandApp ?? false, (v) => { settings.islandApp = v; commit(); }),
           h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
@@ -3991,21 +3968,30 @@ function ownLayoutSection(): HTMLElement {
     h("div", { class: "row" }, undo, status));
 }
 
-const LOOK_TABS = (): [LookTab, string][] => [
+/** `all`: also those the Launcher hides (the search's index has them all, marked). */
+const LOOK_TABS = (all = false): [LookTab, string][] => ([
   ["tema", t("Tema")],
   ["font", t("Font")],
   ["personaggio", t("Personaggio")],
   ["posizione", t("Posizione")],
-  ["barra", t("Barra fissa")],
-  ["chiusa", t("Isola chiusa")],
-  ["aperta", t("Isola aperta")],
+  // With the Launcher only the Windows taskbar and «Permessi e chiamate» are left in these two.
+  ["barra", settings.launcher ? t("Barra delle applicazioni") : t("Barra fissa")],
+  ["chiusa", settings.launcher ? t("Permessi e chiamate") : t("Isola chiusa")],
+  // With the Launcher what is left of «Isola aperta» is its window's.
+  ["aperta", settings.launcher ? t("Finestra") : t("Isola aperta")],
   ["chat", t("Chat")],
-];
+] as [LookTab, string][]).filter(([id]) => all || !(settings.launcher && ISLAND_ONLY_TABS.has(id)));
+/** withLookTab is drawing a tab for the search's index: drawn even when the Launcher hides it. */
+let lookTabForced = false;
+/** Aspetto's tabs only for the island on the screen: none of it is there with the Launcher. */
+const ISLAND_ONLY_TABS: ReadonlySet<LookTab> = new Set<LookTab>([]);
 const LOOK_TAB_KEY = "easyisland.settings.aspetto";
 let lookTabNow: LookTab | null = null;
 
 /** The tab of Aspetto in view: ?tab= (screenshots, smoke), the last one used, or Tema. */
 function lookTab(): LookTab {
+  // A tab the Launcher hides (remembered from before): the first one instead.
+  if (lookTabNow && !lookTabForced && !LOOK_TABS().some(([id]) => id === lookTabNow)) lookTabNow = null;
   if (lookTabNow) return lookTabNow;
   const want = (v: string | null) => LOOK_TABS().find(([id]) => id === v)?.[0];
   let saved: string | null = null;
@@ -4077,7 +4063,7 @@ function fontSections(commit: () => void): HTMLElement[] {
     (v) => { p.weight = Number(v); changed(); },
   );
   const block = (title: string, what: string, p: FontPick) => h("section", {},
-    h("h2", {}, h("span", { text: title }), profileChip()),
+    h("h2", {}, h("span", { text: title })),
     h("div", { class: "row" },
       h("label", { text: t("Font") }),
       familySelect(p),
@@ -4113,9 +4099,11 @@ function fontSections(commit: () => void): HTMLElement[] {
 function pictured(pic: PicKind | HTMLElement, ...rows: HTMLElement[]): HTMLElement {
   const box = typeof pic === "string" ? pictureBox(pic, settings) : pic;
   const outer = h("div", { class: "pictured" }, box, h("div", { class: "pic-body" }, ...rows));
-  // Shown or hidden with the fixed bar as a whole (settings.css → .free-row, .bar-row).
-  for (const c of ["free-row", "bar-row"]) {
-    if (!rows.some((r) => r.classList.contains(c))) continue;
+  // Shown or hidden with the fixed bar or the Launcher as a whole (settings.css → .free-row, .bar-row, .island-only).
+  for (const c of ["free-row", "bar-row", "island-only"]) {
+    // island-only: the block goes only when all its rows do (one row of the Tema block
+    // hid the whole theme with the Launcher, 26 Nov 2026).
+    if (c === "island-only" ? !rows.every((r) => r.classList.contains(c)) : !rows.some((r) => r.classList.contains(c))) continue;
     outer.classList.add(c);
     for (const r of rows) r.classList.remove(c);
   }
@@ -4138,7 +4126,17 @@ function generalSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Generale") })),
-    h("div", { class: "hint", text: t("Il suono vale per il profilo attivo, l'avvio con Windows per questo PC. I tempi di chiusura sono in Aspetto → Isola aperta.") }),
+    h("div", { class: "hint island-only", text: t("I tempi di chiusura sono in Aspetto → Isola aperta.") }),
+    // The Launcher (26 Nov 2026): the island as a window of Windows, nothing on the screen when closed.
+    // Isola ⇄ Launcher restarts the app (27 Nov 2026: the island's own window
+    // changes, and WebView2's transparency is chosen only when it is made): asked first.
+    launcherRow(),
+    // Only with the Launcher (27 Nov 2026): off, EasyIsland starts in the notification area.
+    h("div", { class: "row launcher-only" },
+      h("label", { text: t("Apri la finestra all'avvio") }),
+      toggle(!!settings.launcherOpenAtStart, (v) => { settings.launcherOpenAtStart = v; void save(); }),
+      h("span", { class: "hint note", text: t("Spento: EasyIsland parte nell'area di notifica e la finestra si apre quando la chiedi o quando arriva un permesso.") }),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Suono") }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),
@@ -4184,8 +4182,6 @@ function languageRow(): HTMLElement {
   paint();
   return row;
 }
-
-// ── Profiles ──────────────────────────────────────────────────────────────────
 
 /** «Sfondo della barra»: the island's, none, colour, gradient, character glow, aurora or frosted glass. */
 function barBackground(commit: () => void): HTMLElement {
@@ -4426,140 +4422,54 @@ function paintFixedBar() {
   document.body.classList.toggle("fixed-bar", !!settings.fixedBar);
 }
 
-/** Chip shown on sections whose values belong to the active profile. */
-function profileChip(): HTMLElement {
-  const name = settings.profiles.find((p) => p.id === settings.activeProfile)?.name ?? "";
-  return h("span", { class: "chip", title: t("Questi valori valgono per il profilo attivo"), text: name });
+/**
+ * «Launcher» (Generale → Come usi EasyIsland): what is only for the island on
+ * the screen hides (settings.css → .island-only; Aspetto's tabs: LOOK_TABS).
+ */
+function paintLauncher() {
+  document.body.classList.toggle("mode-launcher", !!settings.launcher);
 }
 
-/** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
-const PROFILE_KEYS = [
-  "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
-  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle", "animations",
-  "hoverSize", "compactStrip", "appBar", "chatInstructions", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
-  "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
-] as const;
-
-function snapshot(): Record<string, unknown> {
-  const all = settings as unknown as Record<string, unknown>;
-  return Object.fromEntries(PROFILE_KEYS.map((k) => [k, structuredClone(all[k])]));
-}
-
-const DAYS: [number, string][] = [[1, "L"], [2, "M"], [3, "M"], [4, "G"], [5, "V"], [6, "S"], [7, "D"]];
-
-function profilesSection(): HTMLElement {
-  const active = () => settings.profiles.find((p) => p.id === settings.activeProfile);
-  const feedback = h("div", {});
-
-  const picker = select<string>(
-    settings.profiles.map((p) => [p.id, p.name]),
-    settings.activeProfile,
-    (id) => void Bridge.switchProfile(id),
-  );
-
-  const name = h("input", { type: "text", value: active()?.name ?? "", style: "width:160px" }) as HTMLInputElement;
-  name.addEventListener("change", () => {
-    const p = active();
-    if (!p || !name.value.trim()) return;
-    p.name = name.value.trim();
-    void save().then(render);
-  });
-
-  const add = h("button", { text: t("Nuovo profilo") });
-  add.addEventListener("click", async () => {
-    const id = `p${Date.now().toString(36)}`;
-    settings.profiles.push({
-      id, name: `Profilo ${settings.profiles.length + 1}`,
-      values: snapshot(), rules: { ssids: [], days: [], from: "", to: "" },
-    });
-    await save();
-    await Bridge.switchProfile(id);
-  });
-
-  const remove = h("button", { class: "danger", text: t("Elimina") });
-  remove.disabled = settings.profiles.length < 2;
-  remove.addEventListener("click", async () => {
-    const id = settings.activeProfile;
-    const next = settings.profiles.find((p) => p.id !== id);
-    if (!next) return;
-    await Bridge.switchProfile(next.id);
-    settings.profiles = settings.profiles.filter((p) => p.id !== id);
-    await save();
-    render();
-  });
-
-  // ── Automatic switching rules for the active profile ──
-  const p = active();
-  const rules = p?.rules ?? { ssids: [], days: [], from: "", to: "" };
-  const commitRules = () => {
-    if (!p) return;
-    p.rules = rules;
-    void save();
-  };
-
-  const ssids = h("input", {
-    type: "text", value: rules.ssids.join(", "), placeholder: t("es. Ufficio-WiFi, Cliente-Ospiti"),
-    style: "flex:1 1 auto;min-width:0",
-  }) as HTMLInputElement;
-  ssids.addEventListener("change", () => {
-    rules.ssids = ssids.value.split(",").map((x) => x.trim()).filter(Boolean);
-    commitRules();
-  });
-  const here = h("button", { text: t("Rete attuale") });
-  here.addEventListener("click", async () => {
-    const ssid = await Bridge.currentNetwork();
-    clear(feedback);
-    if (!ssid) {
-      feedback.append(h("div", { class: "notice warn", text: t("Nessuna rete Wi-Fi collegata.") }));
+/**
+ * Generale → «Come usi EasyIsland». Isola ⇄ Launcher restarts EasyIsland (lib.rs
+ * apply_settings, 27 Nov 2026): the choice waits for «Riavvia ora», and saving
+ * then is what restarts it; «Annulla» puts the choice back.
+ */
+function launcherRow(): HTMLElement {
+  const now = settings.launcher ? "launcher" : "isola";
+  const confirmRow = h("div", { class: "launcher-confirm", hidden: true });
+  const pick = choice([["isola", t("Isola")], ["launcher", t("Launcher")]], now, (v) => {
+    if (v === now) {
+      confirmRow.hidden = true;
       return;
     }
-    if (!rules.ssids.includes(ssid)) rules.ssids.push(ssid);
-    ssids.value = rules.ssids.join(", ");
-    commitRules();
-  });
-
-  const dayRow = h("div", { class: "days" });
-  for (const [d, label] of DAYS) {
-    const b = h("button", { class: rules.days.includes(d) ? "day on" : "day", text: label });
-    b.addEventListener("click", () => {
-      rules.days = rules.days.includes(d) ? rules.days.filter((x) => x !== d) : [...rules.days, d].sort();
-      b.classList.toggle("on", rules.days.includes(d));
-      commitRules();
+    const go = h("button", { class: "btn primary", text: t("Riavvia ora") });
+    const cancel = h("button", { class: "btn", text: t("Annulla") });
+    go.addEventListener("click", () => {
+      go.setAttribute("disabled", "");
+      cancel.setAttribute("disabled", "");
+      settings.launcher = v === "launcher";
+      // What is only for the island on the screen hides or comes back (Aspetto's tabs too).
+      paintLauncher();
+      void save();
     });
-    dayRow.append(b);
-  }
-
-  const from = h("input", { type: "time", value: rules.from }) as HTMLInputElement;
-  const to = h("input", { type: "time", value: rules.to }) as HTMLInputElement;
-  from.addEventListener("change", () => { rules.from = from.value; commitRules(); });
-  to.addEventListener("change", () => { rules.to = to.value; commitRules(); });
-
-  const auto = toggle(settings.autoProfile, (v) => { settings.autoProfile = v; void save(); });
-
-  return h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Profilo") })),
-    h("div", {
-      class: "hint",
-      text: t("Ogni profilo ha le sue integrazioni, posizione, aspetto, suoni, tema, notifiche e azioni. Le sezioni con l'etichetta del profilo si salvano nel profilo attivo. Si cambia anche dal menu dell'icona nell'area di notifica."),
-    }),
-    h("div", { class: "row" }, h("label", { text: t("Profilo attivo") }), picker, add),
-    h("div", { class: "row" }, h("label", { text: t("Nome") }), name, remove),
-    h("div", { class: "row" },
-      h("label", { text: t("Cambio automatico") }),
-      auto,
-      h("span", { class: "hint note", text: t("attiva il primo profilo le cui regole corrispondono") }),
-    ),
-    h("div", { class: "hint", text: t("Regole di questo profilo (vuote = solo a mano):") }),
-    h("div", { class: "row" }, h("label", { text: t("Reti Wi-Fi") }), ssids, here),
-    h("div", { class: "row" }, h("label", { text: t("Giorni") }), dayRow),
-    h("div", { class: "row" },
-      h("label", { text: t("Orario") }),
-      h("span", { class: "hint", text: "dalle" }), from,
-      h("span", { class: "hint", text: "alle" }), to,
-    ),
-    feedback,
+    cancel.addEventListener("click", () => {
+      (pick as HTMLSelectElement).value = now;
+      confirmRow.hidden = true;
+    });
+    confirmRow.replaceChildren(
+      h("span", { class: "hint", text: v === "launcher"
+        ? t("EasyIsland si chiude e si riapre subito come finestra di Windows.")
+        : t("EasyIsland si chiude e si riapre subito come isola sullo schermo.") }),
+      go, cancel,
+    );
+    confirmRow.hidden = false;
+  });
+  return h("div", { class: "row launcher-row" },
+    h("label", { text: t("Come usi EasyIsland") }),
+    pick,
+    h("span", { class: "hint note", text: t("Launcher: niente personaggio né barra sullo schermo; EasyIsland è una finestra di Windows che apri dalla barra delle applicazioni, dallo Start, dall'area di notifica o con la scorciatoia, con tutto quello che ha l'isola. Cambiare modalità riavvia EasyIsland.") }),
+    confirmRow,
   );
 }
 
@@ -5053,8 +4963,9 @@ function actionsSections(): HTMLElement[] {
         touch();
       });
       card.append(
-        h("div", { class: "row" }, h("label", { text: t("Nella barra con") }), appsField, addFront),
-        h("div", { class: "row" }, h("label", { text: "" }),
+        // Beside the closed character: not there with the Launcher (settings.css .island-only).
+        h("div", { class: "row island-only" }, h("label", { text: t("Nella barra con") }), appsField, addFront),
+        h("div", { class: "row island-only" }, h("label", { text: "" }),
           h("span", { class: "hint", text: t("Solo nella barra") }),
           toggle(a.barOnly === true, (v) => { if (v) a.barOnly = true; else delete a.barOnly; touch(); }),
           h("span", { class: "hint", text: t("Aspetto") }),
@@ -5143,7 +5054,7 @@ function actionsSections(): HTMLElement[] {
     h(
       "section",
       {},
-      h("h2", {}, h("span", { text: t("Azioni nella scheda ⚡") }), profileChip()),
+      h("h2", {}, h("span", { text: t("Azioni nella scheda ⚡") })),
       moreHint(
         t("Pulsanti della scheda ⚡: link, programmi, script e domande alla chat su testi o file."),
         t("Gli script partono solo dopo un clic nell'isola. Nessuna chiave o password viene salvata qui dentro."),
@@ -5254,7 +5165,7 @@ function automationsSections(): HTMLElement[] {
     if (!settings.habitsEnabled) {
       habitsBox.append(moreHint(
         t("Spento. Tutto resta su questo PC e propone al massimo un'automazione al giorno."),
-        t("Acceso, EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette collegate, le azioni rapide e i profili scelti a mano (massimo 45 giorni di storico locale)."),
+        t("Acceso, EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette collegate e le azioni rapide (massimo 45 giorni di storico locale)."),
       ));
     } else {
       const st = await Bridge.habitsStats();
@@ -5378,7 +5289,7 @@ function connectorsBlock(): HTMLElement {
   return h(
     "div",
     { class: "sub-block" },
-    h("h3", {}, h("span", { text: t("Connettori (server MCP)") }), profileChip()),
+    h("h3", {}, h("span", { text: t("Connettori (server MCP)") })),
     h("div", {
       class: "hint",
       text: t("I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…), anche quelli dei plugin di Claude Code. Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono."),
@@ -5636,7 +5547,7 @@ function widgetsSection(): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, h("span", { text: t("Widget") }), profileChip()),
+    h("h2", {}, h("span", { text: t("Widget") })),
     moreHint(
       t("Controlli periodici mostrati nel menu dell'isola: il personaggio avvisa quando un controllo passa da OK a problema."),
       t("Puoi creare controlli per calendari (ICS), scadenza domini, siti, certificati, server, porte, servizi Windows o API JSON; si fermano quando EasyIsland è in pausa. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni."),
@@ -5652,7 +5563,7 @@ function notifySection(): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, h("span", { text: t("Notifiche") }), profileChip()),
+    h("h2", {}, h("span", { text: t("Notifiche") })),
     h("div", { class: "row" },
       h("label", { text: t("Il personaggio si fa vedere per") }),
       select<Settings["notify"]>(
@@ -5664,19 +5575,31 @@ function notifySection(): HTMLElement {
         settings.notify,
         (v) => { settings.notify = v; void save(); },
       ),
+      h("span", { class: "hint note", text: t("«Non disturbare» nel menu dell'icona nell'area di notifica passa a «Solo richieste di permesso» e poi torna a questa scelta") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Avvisi") }),
-      choice(
-        [
-          ["isola", t("In una finestra sotto l'isola")],
-          ["alto-destra", t("In alto a destra")],
-          ["basso-destra", t("In basso a destra")],
-          ["dentro", t("Nell'isola (come prima)")],
-        ],
-        settings.noticesPlace ?? "isola",
-        (v) => { settings.noticesPlace = v; void save(); },
-      ),
+      // With the Launcher there is no island to show them under or in: they go
+      // bottom right (notices.ts place), so only the two corners are offered.
+      settings.launcher
+        ? choice(
+          [
+            ["alto-destra", t("In alto a destra")],
+            ["basso-destra", t("In basso a destra")],
+          ],
+          settings.noticesPlace === "alto-destra" ? "alto-destra" : "basso-destra",
+          (v) => { settings.noticesPlace = v; void save(); },
+        )
+        : choice(
+          [
+            ["isola", t("In una finestra sotto l'isola")],
+            ["alto-destra", t("In alto a destra")],
+            ["basso-destra", t("In basso a destra")],
+            ["dentro", t("Nell'isola (come prima)")],
+          ],
+          settings.noticesPlace ?? "isola",
+          (v) => { settings.noticesPlace = v; void save(); },
+        ),
       moreHint(
         t("Avvisi, download, fine degli agenti e riepiloghi in una piccola finestra che non apre l'isola e non prende la tastiera."),
         t("Gli avvisi compaiono in una piccola finestra sempre davanti, che non prende la tastiera e non apre né cambia l'isola: puoi continuare a lavorare dentro l'isola. Un clic sull'avviso apre l'isola su quella cosa. Restano un po' e spariscono da soli (gli errori finché non li chiudi; il mouse sopra ferma il tempo). Permessi e domande restano nell'isola e nella striscia, perché aspettano il tuo clic. «Sotto l'isola»: sotto l'isola a riposo, di fianco quando è aperta."),
@@ -5721,7 +5644,7 @@ function reactionsSection(): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, h("span", { text: t("Reazioni del personaggio") }), profileChip()),
+    h("h2", {}, h("span", { text: t("Reazioni del personaggio") })),
     moreHint(
       t("Per ogni situazione scegli se il personaggio appare con suono, cambia faccia in silenzio o resta tranquillo."),
       t("«Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo segnala solo il pallino nel menu. Permessi e domande degli agenti si fanno sempre vedere perché l'agente aspetta te."),
@@ -5770,7 +5693,7 @@ function presenceSection(): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, h("span", { text: t("Davanti al cliente") }), profileChip()),
+    h("h2", {}, h("span", { text: t("Davanti al cliente") })),
     h("div", { class: "hint", text: t("Il personaggio si fa da parte quando qualcuno può vedere lo schermo (anche a mano dall'icona nell'area di notifica → Davanti al cliente).") }),
     h("div", { class: "row" },
       h("label", { text: t("Durante le chiamate") }),
@@ -7168,7 +7091,7 @@ function backupSection(): HTMLElement {
     {},
     h("h2", {}, h("span", { text: t("Backup e trasferimento") })),
     h("ul", { class: "backup-points" },
-      h("li", {}, h("b", { text: t("Cosa viene esportato: ") }), h("span", { text: t("impostazioni e profili, memoria della chat, abilità, compiti, integrazioni personali, cronologia chat e abitudini.") })),
+      h("li", {}, h("b", { text: t("Cosa viene esportato: ") }), h("span", { text: t("impostazioni, memoria della chat, abilità, compiti, integrazioni personali, cronologia chat e abitudini.") })),
       h("li", {}, h("b", { text: t("Cosa resta protetto: ") }), h("span", { text: t("le chiavi API e le password restano in Gestione credenziali di Windows e vanno reinserite sul nuovo PC.") })),
       h("li", {}, h("b", { text: t("Importazione sicura: ") }), h("span", { text: t("la configurazione attuale viene messa da parte, mai sovrascritta o cancellata.") })),
     ),
@@ -7367,15 +7290,6 @@ async function main() {
     settings = { ...settings, ...info.settings };
     version = info.version;
     syncLanguage(settings.language);
-  } else if (settings.profiles.length === 0) {
-    // Plain browser preview (npm run ui): the profiles Rust would have created.
-    const rules = () => ({ ssids: [], days: [], from: "", to: "" });
-    settings.profiles = [
-      { id: "lavoro", name: t("Lavoro"), values: snapshot(), rules: rules() },
-      { id: "casa", name: t("Casa"), values: snapshot(), rules: rules() },
-      { id: "concentrazione", name: t("Concentrazione"), values: snapshot(), rules: rules() },
-    ];
-    settings.activeProfile = "lavoro";
   }
   // Preview: ?ui=classic|windows|monolith|titanium|editorial
   const askedUi = new URLSearchParams(location.search).get("ui");
@@ -7387,6 +7301,8 @@ async function main() {
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
   // ?animations=sobrie: the motion (motion.ts).
   for (const k of ["animations"] as const) { const v = new URLSearchParams(location.search).get(k); if (!info && v) (settings as unknown as Record<string, string>)[k] = v; }
+  // ?launcher=1: the settings as the Launcher has them (paintLauncher).
+  if (!info && new URLSearchParams(location.search).get("launcher") === "1") settings.launcher = true;
   applyUiStyle(settings.theme.style, settings.theme.scheme);
   applySearchLine(settings);
   applyFonts(settings.theme.fonts);
@@ -7407,14 +7323,18 @@ async function main() {
   boot = { status, hasKey, present };
   setupSearch({
     pages: () => (boot ? pages(boot) : []),
-    lookTabs: () => LOOK_TABS(),
+    lookTabs: () => LOOK_TABS(true),
+    islandOnlyTab: (tab) => ISLAND_ONLY_TABS.has(tab as LookTab),
+    launcher: () => !!settings.launcher,
     withLookTab: (tab, fn) => {
       const was = lookTabNow;
       lookTabNow = tab as LookTab;
+      lookTabForced = true;
       try {
         return fn();
       } finally {
         lookTabNow = was;
+        lookTabForced = false;
       }
     },
     show: (page, tab, item) => {
@@ -7516,13 +7436,8 @@ async function main() {
     let redraw = false;
     for (const [k, v] of Object.entries(s)) {
       if (JSON.stringify(mine[k]) === JSON.stringify(v)) continue;
-      if (k === "profiles" && sameProfiles(settings.profiles, s.profiles)) {
-        // Rust writes the active values into the profile: refresh those in place.
-        s.profiles.forEach((p, i) => { settings.profiles[i].values = p.values; });
-        continue;
-      }
       mine[k] = v;
-      redraw = true; // changed elsewhere: a profile switch, a drag, the island
+      redraw = true; // changed elsewhere: «Non disturbare», a drag, the island
     }
     applyUiStyle(settings.theme.style, settings.theme.scheme);
     applySearchLine(settings);
@@ -7532,12 +7447,6 @@ async function main() {
     // redrawing: a redraw closed the open integration and the page jumped up.
     if (redraw && Date.now() - savedAt > 2000) render();
   });
-}
-
-/** Same profiles, same order, same names and rules: only their values may differ. */
-function sameProfiles(a: Settings["profiles"], b: Settings["profiles"]): boolean {
-  return a.length === b.length && a.every((p, i) =>
-    p.id === b[i].id && p.name === b[i].name && JSON.stringify(p.rules) === JSON.stringify(b[i].rules));
 }
 
 let boot: { status: HookStatus; hasKey: boolean; present: Record<string, boolean> } | null = null;
@@ -7558,12 +7467,14 @@ function pages(b: NonNullable<typeof boot>): Page[] {
   return [
     {
       id: "generale", label: t("Generale"), icon: "wrench", color: "#94A3B8", title: t("Generale"),
-      intro: t("Suono, avvio con Windows e i profili (lavoro, casa…): ogni profilo ha le sue impostazioni."),
-      sections: () => [generalSection(), updatesSection(), profilesSection()],
+      intro: t("Suono, avvio con Windows e aggiornamenti."),
+      sections: () => [generalSection(), updatesSection()],
     },
     {
       id: "aspetto", label: t("Aspetto"), icon: "image", color: "#F472B6", title: t("Aspetto"),
-      intro: t("Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta."),
+      intro: settings.launcher
+        ? t("Tema e colori, il personaggio nel menu e cosa mostra la finestra del Launcher.")
+        : t("Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta."),
       sections: () => appearanceSections(),
     },
     {
@@ -7573,7 +7484,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "chat", label: t("Chat e motori AI"), icon: "chat", color: "#A78BFA", title: t("Chat dell'isola e motori AI"),
-      intro: t("Motori AI, strumenti e cartella di lavoro, istruzioni del profilo, memoria e permessi."),
+      intro: t("Motori AI, strumenti e cartella di lavoro, istruzioni, memoria e permessi."),
       sections: () => chatSections(b.hasKey),
     },
     {
@@ -7634,6 +7545,7 @@ function currentPage(list: Page[]): Page {
 /** Builds the whole window from `settings`; safe to call again after a switch. */
 function render() {
   if (!boot) return;
+  paintLauncher();
   const list = pages(boot);
   const page = currentPage(list);
   activePageId = page.id;

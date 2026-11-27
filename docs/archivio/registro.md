@@ -2,6 +2,28 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26/11 — Via i profili, «Non disturbare»
+- Profili tolti dappertutto (impostazioni, area di notifica, chat, automazioni, abitudini, Impostazioni, guida: «Profili e notifiche» → «Notifiche»); `profiles.rs` → `wifi.rs`. Un file con i profili porta i valori in uso (schema 7) e ne lascia una copia. Decisioni su memoria master e Agent Chat in `decisioni.md`/`idee.md`.
+
+### 26/11 — Chat: Bentornato, risposte a scelta, screenshot segnati
+- Riquadro su dove era una conversazione riaperta dopo ore (dal testo; «Riassunto del motore» con `chat_recap`), blocco ```scelte → pulsanti (in `REPLY_FORM`), editor degli screenshot allegati (`chat_image_save`); la chat non torna più in cima aprendo e chiudendo i pannelli (`dock.ts` sync). `docs/chat.md`. Scene `ritorno`, `segna`, provate nel browser; da provare nell'app: invio dai pulsanti e riassunto con un motore vero.
+
+### 26/11 — Chat: versioni, Chiedi su questo, mappa
+- «Modifica» tiene le versioni della domanda (‹ › salvate con la conversazione), «Chiedi su questo» su una selezione, mappa della conversazione lunga (`docs/chat.md`). Scena `?scene=chat&lunga`, provati in Edge senza finestra (scambio di versione nei due sensi, citazione, segni e anteprime); da provare nell'app con un motore vero (sessione che riparte dopo il cambio di versione).
+
+### 26/11 — Chat: modifiche ai file come in un editor
+- Dipendenza `diff` (`docs/decisioni.md`). Righe tolte e aggiunte sotto ogni passo che cambia un file, con tutti i motori della Modalità terminale, nei blocchi diff delle risposte e nella card Consenti/Nega (`docs/chat.md` → Modifiche ai file). Provato in Edge senza finestra (`?scene=chat&modifiche`), test Rust; da vedere nell'app con una modifica vera.
+
+### 26/11 — Chat vuota: 17 disegni nuovi, aurora rifatta, «Tutti»
+- `chat-empty-more.ts`: aurora tenue solo in alto e altri 17 disegni; «Tutti» ne sceglie uno diverso per ogni conversazione nuova (`docs/architettura.md` → Aspetto della chat). Fotografati in Edge senza finestra (`?scene=chat&vuota=<nome>`).
+
+### 26/11 — Chat: risposta fluida, riquadri, tabelle, passi con icona
+- Parole nuove in dissolvenza e scorrimento morbido (`chat-flow.ts`), avvisi in cinque tipi con icona e titolo, tabelle con numeri a destra, barre, stati colorati e intestazione ferma (`md-rich.ts`), passo in corso con icona e spunte sui passi finiti (`docs/chat.md`). Scena `?scene=chat&vivace`; provati in Edge senza finestra, smoke ok; da vedere nell'app con risposte vere.
+
+### 26/11 — Chat: procedure da spuntare, comandi con i campi, Ctrl+F
+- Ctrl+F nella conversazione (`chat-find.ts`), avviso quando una risposta lunga finisce fuori vista, bozze per conversazione anche dopo il riavvio (`docs/chat.md`). Ctrl+F provato nell'anteprima; avviso e bozze da provare nell'app.
+- `- [ ]` come procedura con spunte e «Salva in memoria», `{{Nome}}` nei comandi come campi (`docs/chat.md` → Procedure da spuntare). Scena `?scene=chat&procedura`; smoke ok; da provare con risposte vere. Corretta in `decisioni.md` la regola «niente codice generato» (solo integrazioni personali, non tua).
+
 ### 25/11 — Chat: testo e bordo del campo, footer, diagrammi
 - Diagrammi Mermaid nelle risposte (`docs/chat.md` → Diagrammi; scena `?scene=chat&diagrammi`): provati con la CSP dell'app in Edge senza finestra, scuro e chiaro; da provare nell'app con i motori («fammi lo schema della rete di …»), finestra staccata e Copia.
 - Testo della conversazione grande come in Claude Desktop (letto dal suo CSS: risposte 15, resto 14, codice 13) e anello colorato animato sul campo (`.chat-glow` in `chat-cards.css`; `docs/architettura.md` → Aspetto della chat). Smoke rapido senza errori; da giudicare nell'app.

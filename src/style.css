@@ -3260,14 +3260,19 @@ html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61
 }
 .nc-seg button.on { background: #2f333d; color: var(--ink); }
 .nc-seg button:disabled { opacity: 0.35; }
+.nc-card { container-type: inline-size; }
+/* Label columns as wide as their text (uppercase mono labels, any language). */
 .nc-grid {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 64px minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
   align-items: center;
   gap: 5px 8px;
   padding-left: 72px;
 }
 .nc-grid > .nc-label { text-align: right; }
+@container (max-width: 440px) {
+  .nc-grid { grid-template-columns: max-content minmax(0, 1fr); }
+}
 .nc-foot { padding-top: 4px; }
 .nc-foot .nc-note { flex: 1 1 auto; }
 .nc-hint { font: 400 calc(10px + var(--fs-up, 0px)) var(--font); color: var(--dim-3); }
@@ -5259,12 +5264,13 @@ html[data-scheme="light"] .md-run { color: #15803d; background: rgba(21, 128, 61
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.12s ease;
 }
 
+/* Fades in; gone at once when the mouse leaves (tooltip.ts `hide`). */
 .tip.on {
   opacity: 1;
   visibility: visible;
+  transition: opacity 0.12s ease;
 }
 
 /* ── Oggi: every integration at a glance, one tile each ─────────────────── */
@@ -7266,6 +7272,12 @@ html[data-scheme="light"] .work-banner.danger { color: #ad1f2d; background: rgba
   padding-right: 6px;
   scrollbar-width: thin;
 }
+/* Its own page (custom-page.ts): the frame as tall as the page says, the card scrolls it. */
+.custom-page { display: block; width: 100%; height: 160px; border: 0; background: transparent; color-scheme: dark; }
+/* The same scheme as the page inside (the bridge sets it), or the frame paints its own ground. */
+html[data-scheme="light"] .custom-page { color-scheme: light; }
+.custom-page-extra:empty { display: none; }
+.custom-page-extra { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
 .custom-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; }
 .custom-row { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .custom-row.wide { grid-column: 1 / -1; }
@@ -10425,6 +10437,9 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 #island-foot .own-btn:hover { background: color-mix(in srgb, var(--c, #fff) 24%, transparent); color: var(--c, var(--ink)); }
 #island-foot .foot-value { padding: 3px 10px; gap: 6px; border-radius: 9px; height: 28px; box-sizing: border-box; flex: 0 1 auto; min-width: 0; }
 #island-foot .foot-value .board-block-title { display: none; }
+#island-foot .foot-value.foot-click { cursor: pointer; transition: background 0.12s; }
+#island-foot .foot-value.foot-click:hover { background: rgba(255, 255, 255, 0.08); }
+#island-foot .foot-value.foot-click:focus-visible { outline: 2px solid var(--link, #38bdf8); outline-offset: 1px; }
 #island-foot .foot-value .board-value-text { font-size: calc(12px + var(--fs-up, 0px)); white-space: nowrap; }
 /* The middle keeps its room first (as before); on a side short of room a button's name shortens with dots. */
 #island-foot .own-btn:not(.own-labelled) { flex: none; }
@@ -10522,3 +10537,17 @@ html[data-scheme="light"] .chat-dock .dv-context-menu-separator { background: rg
 #island[data-spacing="wide"] .board-blocks { row-gap: 20px; --bgap: 14px; }
 #island[data-spacing="wide"] .qa-grid { gap: 12px; }
 #island[data-spacing="wide"] .board-block { gap: 10px; }
+
+/* ── The Launcher (island.ts startLauncher): the island is the whole window of Windows ── */
+/* Nothing of the island at rest: closed, the window hides. */
+body.launcher-mode #rest-icon,
+body.launcher-mode #wake-strip,
+body.launcher-mode #mini-grid,
+body.launcher-mode #countdown,
+body.launcher-mode .pop-ear { display: none !important; }
+/* The window moves by Windows' title bar, not by the header. */
+body.launcher-mode #header { cursor: default; }
+/* No shadow nor outline at the window's edges (Windows draws its frame). */
+body.launcher-mode #island { box-shadow: none !important; outline: none !important; }
+/* The whole window (the browser's preview frames #root as the island's usual window). */
+body.launcher-mode #root { inset: 0 !important; transform: none !important; width: auto !important; height: auto !important; }
