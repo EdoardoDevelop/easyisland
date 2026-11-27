@@ -207,6 +207,8 @@ export class Island {
   private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
   /** The panels on the chat (dock.ts), made the first time they are asked for. */
   private dock: ChatDock | null = null;
+  /** The page the panels were made in (syncDock): the island's or the Launcher's. */
+  private dockDoc: Document | null = null;
   private dockFailed = false;
   private dockGen = -1;
   private paneSent = { x: 0, y: 0, w: 0, h: 0 };
@@ -1021,7 +1023,14 @@ export class Island {
     this.stopSequenceIfLeaving(view);
     State.view = view;
     if (State.mode !== "expanded") this.setMode("expanded");
-    else this.animateGeometry(false);
+    else {
+      this.animateGeometry(false);
+      // Open with no Launcher window (it closed while the island stayed open): the window again.
+      if (State.settings.launcher && IS_TAURI && !isPopped("launcher")) {
+        const byUser = this.openedByUser;
+        queueMicrotask(() => this.openLauncher(byUser || !ALERT_VIEWS.has(view) || this.keyboard));
+      }
+    }
     State.lastActivity = performance.now();
     this.homeCollapseAt = null;
     State.notify();
@@ -1124,7 +1133,13 @@ export class Island {
       // The docked Anteprima back to the island (Rust also does it as the window closes).
       if (!isPopped("chat")) void Bridge.popoutChat(null);
       this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
-      if (State.mode === "expanded") this.collapse();
+      // A request waiting kept the island open with no window to show it, and
+      // nothing opened the Launcher again (27 Nov 2026): closing the window is
+      // «Più tardi», the request waits with its badge.
+      if (State.mode === "expanded") {
+        if (State.pendingApproval) this.foldCard();
+        else this.collapse();
+      }
     }, {
       whole: true,
       activate,
@@ -3717,10 +3732,6 @@ ${note}` : text };
   private dockInWindow(doc: Document, body: HTMLElement): () => void {
     const views = body.querySelector<HTMLElement>("#views");
     if (!views) return this.paneInWindow(doc, body);
-    // With the Launcher the island's page is hidden, and dockview runs on its
-    // frames and timers: the conversations' panel came out twice and did not
-    // close in the chat's window too (26 Nov 2026). The panel of before then.
-    if (State.settings.launcher && IS_TAURI) return this.paneInWindow(doc, body);
     let gen = this.paneGen;
     let dock: ChatDock;
     try {
@@ -3768,31 +3779,32 @@ ${note}` : text };
    * share it as the user arranged them.
    */
   private syncDock(): boolean {
-    // The Launcher: no panels. dockview and the dock run on the island's page,
-    // hidden then (no frames, the chat's conversations looked for in the wrong
-    // page): the conversations' panel came out twice and did not close
-    // (26 Nov 2026). The chat keeps its own sidebar there; back in the island
-    // the panels are made again.
-    if (isPopped("launcher")) {
-      if (this.dock) {
-        this.dock.drop();
-        this.dock = null;
-        this.islandEl.classList.remove("docked");
-        this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
-      }
-      return false;
+    // The panels belong to the page the chat is in: the Launcher's window while
+    // it is open, the island's otherwise. Made on the island's page while the
+    // chat was in the Launcher, they looked for the conversations in the wrong
+    // page: the panel came out twice and did not close (26 Nov 2026). Moved
+    // between the two, they are made again there.
+    const doc = this.viewsEl.ownerDocument;
+    if (this.dock && this.dockDoc !== doc) {
+      this.dock.drop();
+      this.dock = null;
+      this.islandEl.classList.remove("docked");
+      this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
     }
     if (!this.dock) {
       try {
-        this.dock = new ChatDock(document, this.viewsEl, this.dockHooks(document, "isola",
+        this.dockDoc = doc;
+        this.dock = new ChatDock(doc, this.viewsEl, this.dockHooks(doc, "isola",
           () => State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !State.searchOnly && !isPopped("chat"),
           // Only where the island makes room for them (the chat itself, not a permission's card).
           () => this.chatSideWanted,
           (r) => {
             // Never out of the island nor of the window (a webview there is cut by the screen).
-            const box = this.islandEl.getBoundingClientRect();
-            const right = Math.min(r.x + r.w, box.right - 10, window.innerWidth);
-            const bottom = Math.min(r.y + r.h, box.bottom - 10, window.innerHeight);
+            // The island of the page the chat is in (the Launcher's window has its own #island).
+            const box = (this.viewsEl.closest<HTMLElement>("#island") ?? this.islandEl).getBoundingClientRect();
+            const win = winOf(this.viewsEl);
+            const right = Math.min(r.x + r.w, box.right - 10, win.innerWidth);
+            const bottom = Math.min(r.y + r.h, box.bottom - 10, win.innerHeight);
             const next = r.w > 0 && right - r.x > 40 && bottom - r.y > 40 ? { x: r.x, y: r.y, w: Math.round(right - r.x), h: Math.round(bottom - r.y) } : { x: 0, y: 0, w: 0, h: 0 };
             this.paneSent = next;
             void Bridge.previewPane(next.x, next.y, next.w, next.h).catch(() => undefined);
@@ -4380,6 +4392,9 @@ ${note}` : text };
       this.openedByUser = true;
       this.alert(State.defaultView());
       this.openedByUser = false;
+    } else if (State.settings.launcher && IS_TAURI) {
+      // Open already: its window to the front, or again if it was closed.
+      this.openLauncher(true);
     }
     this.stayIfAsked();
     this.focusSearchSoon();

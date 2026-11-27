@@ -250,6 +250,19 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
 
+    // The Launcher (26 Nov 2026): the island is never on the screen, but its
+    // window stays shown, 1×1 in the work area's corner and click-through.
+    // Hidden, WebView2 stopped drawing its page (no frames, no ResizeObserver,
+    // timers slowed down), and the menu, the views and the chat's panels
+    // (dockview) shown in the Launcher's window run on that page: the panels
+    // came out twice and did not close. Its content is transparent.
+    if settings.launcher {
+        let _ = win.set_size(PhysicalSize::new(1, 1));
+        let _ = win.set_position(PhysicalPosition::new(work.0, work.1));
+        let _ = win.set_ignore_cursor_events(true);
+        return;
+    }
+
     let (pw, ph) = if collapsed {
         let (lw, lh) = *gate.collapsed_size.lock().unwrap();
         ((lw * scale).round().max(1.0) as u32, (lh * scale).round().max(1.0) as u32)

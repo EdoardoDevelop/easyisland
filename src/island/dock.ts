@@ -148,6 +148,17 @@ export class ChatDock {
     this.api.onDidActivePanelChange(() => this.placeSoon());
     this.api.onDidRemovePanel((p) => {
       if (this.quiet) return;
+      // Those that stay back at their sizes (as saved with the panel still there),
+      // the chat takes the room freed: dockview gave it to a neighbour, and the
+      // conversations grew to half the window (26 Nov 2026, the Launcher's window
+      // and the chat's do not shrink as the island does). Once laid out.
+      const before = [...this.api.panels.map((x) => x.id), p.id];
+      (this.doc.defaultView ?? window).requestAnimationFrame(() => {
+        if (!this.active) return;
+        const saved = load(this.key(before));
+        if (saved) this.restoreSizes(saved);
+        this.tameSide();
+      });
       // The tab's ✕: the thing itself closes (the next sync would bring it back otherwise).
       // Told on its own element: with «onlyWhenVisible» dockview has already taken
       // it out of the page, where island.ts looked for it (25/11/2026: ✕ did nothing).
@@ -208,6 +219,12 @@ export class ChatDock {
     const leaving = steady && this.active && gone.length === 1 && !added.length ? this.ghost(gone[0]) : null;
     // What the closed panels held: the chat takes it back once they are gone (chat.ts «dock-left»).
     const left = gone.map((id) => this.boxes.get(id)?.firstElementChild).filter((e): e is Element => !!e);
+    // Panels only closing: those that stay keep the sizes they had (saved with the
+    // set of before), the chat takes the room freed. dockview gave it to the
+    // neighbour, the conversations grew to half the window, and that was saved as
+    // the user's arrangement (26 Nov 2026, in the Launcher's window, which does
+    // not shrink as the island does).
+    const kept = this.active && gone.length && !added.length ? load(this.key(before)) : null;
     const giveBack = () => left.forEach((e) => e.dispatchEvent(new CustomEvent("dock-left")));
     const on = want.length > 1;
     if (on !== this.active) {
@@ -224,6 +241,10 @@ export class ChatDock {
     const have = this.api.panels.map((p) => p.id as DockPanelId).sort();
     if (want.join() !== have.join()) {
       this.build(want);
+      if (kept) {
+        this.restoreSizes(kept);
+        this.tameSide();
+      }
       if (added.length === 1 && steady) this.arrive(added[0]);
     }
     giveBack();
@@ -377,6 +398,7 @@ export class ChatDock {
       // The chat stays the one in front where it shares a group.
       this.api.getPanel("chat")?.api.setActive();
       this.prioritize();
+      this.tameSide();
       this.hooks.log(`pannelli (${this.hooks.place}): ${want.join(", ")}${done ? " come li avevi messi" : ""}`);
     } finally {
       this.quiet = false;
@@ -394,6 +416,23 @@ export class ChatDock {
   // frame late: empty frames, contents pushed, text a word a line at 30 px),
   // and the island widening for the conversations (Windows resized the window:
   // the island black and at the old size for some frames).
+
+  /**
+   * The conversations on their own beside the chat never wider than their own
+   * sidebar can be (chat.ts SIDE_MAX_W): arrangements saved while a closing
+   * panel gave them its room had them at half the window (26 Nov 2026).
+   */
+  private tameSide() {
+    const g = this.api.getPanel("cronologia")?.group;
+    if (!g || g.panels.length !== 1 || g.api.width <= SIDE_MAX_W) return;
+    // Beside the chat (a column as tall as the dock), not a row under it.
+    if (g.api.height < this.el.clientHeight - 2 * GAP - 4) return;
+    try {
+      g.api.setSize({ width: this.hooks.sideWidth() });
+    } catch {
+      // Left as it is.
+    }
+  }
 
   /** Whether the user asked the system for less motion. */
   private still(): boolean {
@@ -655,6 +694,9 @@ export class ChatDock {
     }, 400);
   }
 }
+
+/** The conversations' widest, as their own sidebar's grip allows (chat.ts SIDE_MAX_W). */
+const SIDE_MAX_W = 480;
 
 const TITLES: Record<DockPanelId, () => string> = {
   chat: () => t("Chat"),

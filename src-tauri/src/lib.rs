@@ -319,9 +319,18 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         // (the Launcher: open too, its window shows it).
         if let Some(win) = island::window(app) {
             if settings.launcher {
-                let _ = win.hide();
-            } else if shared.gate.collapsed.load(Ordering::Relaxed) {
-                let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
+                // Shown, parked 1×1 (island.rs apply_geometry): its page must keep drawing.
+                let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+                island::apply_geometry(app, &shared.gate, &settings, collapsed);
+                let _ = win.show();
+            } else {
+                // Back from the Launcher (or never in it): the cursor reaches it again
+                // (apply_geometry parked it click-through); the cursor poll decides anew.
+                let _ = win.set_ignore_cursor_events(false);
+                shared.gate.forget_ignore_state();
+                if shared.gate.collapsed.load(Ordering::Relaxed) {
+                    let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
+                }
             }
         }
         sync_character(app);
@@ -594,8 +603,11 @@ fn set_collapsed(
         }
         // With the fixed bar the closed island is not there at all: the bar is
         // (appbar.rs); with the Launcher, its window is (launcher.ts).
-        // The Launcher: never, open or closed (the open island is drawn in its window).
-        let quiet = ((collapsed && (shared.gate.fullscreen.load(Ordering::Relaxed) || settings.bar_edge().is_some())) || settings.launcher)
+        // The Launcher: always shown, parked 1×1 by apply_geometry (its page must keep
+        // drawing: the Launcher's window runs on it), never on the screen.
+        let quiet = !settings.launcher
+            && collapsed
+            && (shared.gate.fullscreen.load(Ordering::Relaxed) || settings.bar_edge().is_some())
             && !island::CAPTURING.load(Ordering::Relaxed);
         let _ = if quiet { win.hide() } else { win.show() };
         island::keep_out_of_alt_tab(&win);
@@ -3426,8 +3438,8 @@ fn capture_end(app: AppHandle, shared: State<Shared>) {
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     if let Some(win) = island::window(&app) {
         island::set_activating(&win, false);
-        // The Launcher: the island's window stays hidden, its window shows it.
-        if (collapsed && shared.gate.fullscreen.load(Ordering::Relaxed)) || settings.launcher {
+        // The Launcher: parked 1×1 again by apply_geometry above, shown (its page keeps drawing).
+        if collapsed && shared.gate.fullscreen.load(Ordering::Relaxed) && !settings.launcher {
             let _ = win.hide();
         }
     }
@@ -4592,7 +4604,9 @@ pub(crate) fn sync_character(app: &AppHandle) {
     barshadow::sync(app, None);
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
+    // The Launcher: the island's window is only parked (1×1), no character on the screen.
+    let launcher = shared.settings.lock().unwrap().launcher;
+    let island = island::window(app).filter(|w| !launcher && w.is_visible().unwrap_or(false));
     let spot = *CHARACTER_SPOT.lock().unwrap();
     let open = !collapsed && spot.is_some_and(|(_, open)| open);
     let place = island.and_then(|win| {
@@ -6141,8 +6155,9 @@ pub fn run() {
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);
                 // The Launcher: the island is never on the screen (its window shows
-                // it); the window is born visible (tauri.conf.json).
-                let _ = if loaded.launcher { win.hide() } else { win.show() };
+                // it) but its window stays shown, parked 1×1 by apply_geometry, so
+                // that its page keeps drawing.
+                let _ = win.show();
             }
             island::apply_taskbar(&handle);
             jumplist::update(&loaded);

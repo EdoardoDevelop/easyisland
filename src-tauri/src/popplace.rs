@@ -50,6 +50,34 @@ fn on_screen(app: &AppHandle, p: &Place) -> bool {
     })
 }
 
+/// `p` made to fit the work area of the screen its title bar is on: smaller if
+/// it must, then moved in. Maximized ones are left to Windows.
+fn fit(app: &AppHandle, mut p: Place) -> Place {
+    if p.max {
+        return p;
+    }
+    let (x, y) = (p.x + 120, p.y + 12);
+    let Some(m) = app.available_monitors().unwrap_or_default().into_iter().find(|m| {
+        let (mx, my) = (m.position().x, m.position().y);
+        let (mw, mh) = (m.size().width as i32, m.size().height as i32);
+        x >= mx && x < mx + mw && y >= my && y < my + mh
+    }) else {
+        return p;
+    };
+    let area = m.work_area();
+    let (ax, ay) = (area.position.x, area.position.y);
+    let (aw, ah) = (area.size.width.max(1) as i32, area.size.height.max(1) as i32);
+    // `w`/`h` are the inside (inner_size), `x`/`y` the frame's corner
+    // (outer_position): the frame's title bar and borders count too.
+    let k = m.scale_factor();
+    let (fw, fh) = ((16.0 * k).round() as i32, (40.0 * k).round() as i32);
+    p.w = (p.w as i32).min(aw - fw).max(300) as u32;
+    p.h = (p.h as i32).min(ah - fh).max(240) as u32;
+    p.x = p.x.clamp(ax, (ax + aw - p.w as i32 - fw).max(ax));
+    p.y = p.y.clamp(ay, (ay + ah - p.h as i32 - fh).max(ay));
+    p
+}
+
 /// The window `name` is the one of `key`: placed where it was last time (or
 /// at `at`, logical screen px, where it was dropped; or centred), then shown in
 /// front. `activate` false (opened by a notice or a permission, not by the
@@ -61,6 +89,10 @@ pub fn place(app: &AppHandle, name: &str, key: &str, at: Option<(f64, f64)>, act
     if let Some((x, y)) = at {
         let _ = w.set_position(tauri::LogicalPosition::new(x - 80.0, y - 16.0));
     } else if let Some(p) = saved {
+        // Inside the work area of its screen: a place kept from another screen
+        // layout (a second monitor gone, another resolution) had the Launcher
+        // out past the right and bottom edges (26 Nov 2026).
+        let p = fit(app, p);
         let _ = w.set_size(tauri::PhysicalSize::new(p.w, p.h));
         let _ = w.set_position(tauri::PhysicalPosition::new(p.x, p.y));
         if p.max {
