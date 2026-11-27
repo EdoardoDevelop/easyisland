@@ -226,11 +226,33 @@ Edoardo: Potion cerca (`memory_meaning.rs`, non si tocca), un modulo a parte scr
 ## Modello integrato (27/10)
 Ripreso il 15/11 come «Modello sul PC» sul ramo `claude/llm-interno` (`docs/chat.md` → Motori): controllo della scheda grafica, consiglio, Vulkan, Modalità terminale, risposte dalla memoria. Il ramo `claude/modello-integrato` non serve più.
 
-## Memoria master (26/11, da progettare)
-Decisioni di Edoardo (`decisioni.md` → Memoria condivisa): master in cloud + copia per PC, end-to-end, condivisione a scelta nelle Impostazioni, non su Agent Chat, un solo utente per ora.
-- **Da ragionare:** dove sta la master (servizio nuovo sulla VPS o archivio a oggetti), formato (righe con autore e data, solo aggiunte, archivio al posto delle cancellazioni), conflitti (unione riga per riga con versione per pagina), copia completa sul PC per offline e ricerca, cosa resta solo sul PC (diario, preferenze, righe `secret_like`).
-- **Agent Chat** da togliere e trasformare in un'integrazione dedicata: cosa deve fare è da decidere con Edoardo.
-- **Solo chat o tutto EasyIsland:** poter usare EasyIsland come sola chat oppure intero; da ragionare.
+## Memoria master (26/11, decisioni 27/11, da progettare)
+Decisioni di Edoardo in `decisioni.md` → Memoria condivisa.
+- **Il modello:**
+  - ogni PC ha la sua memoria;
+  - «Condividi» manda un dato alla master;
+  - gli altri PC leggono la master.
+- **Formato (concordato tra i due Claude, 27/11):**
+  - Unità = voce condivisa (una pagina o una riga di `MEMORIA.md`). La scrive solo il PC che l'ha condivisa, quindi niente conflitti.
+  - Oggetti nel secchio: `pc/<pc>/voci/<id>` cifrati (AES-256-GCM con CNG di Windows, nessuna dipendenza nuova) e `pc/<pc>/indice`. Gli altri PC fanno un `GET` condizionato (ETag) solo sugli indici. La cronologia la tiene il versioning di MinIO.
+- **Scelte di Edoardo (27/11):**
+  - pagina condivisa **collegata**: si aggiorna da sola finché non si toglie la condivisione;
+  - gli altri PC **solo leggono** e possono lasciare una nota all'autore, che la unisce con un clic;
+  - condivisione **solo a mano**, voce per voce, con l'anteprima (righe `secret_like` tolte); nessuna regola automatica per cartella.
+- **Lettura:** copia in sola lettura per PC di origine (`memoria-master/<pc>/`), separata dalla memoria propria. È lo schema di `memshare`. `memory_search` cerca prima nella propria memoria, poi nella copia, che entra anche nell'indice per significato.
+- **«Smetti di condividere»:** la voce esce dall'indice e l'oggetto si cancella. Il versioning tiene la copia vecchia finché scade, e va detto nell'interfaccia.
+- **Migrazione:**
+  - le pagine di `memshare` diventano voci, dopo anteprima e conferma;
+  - le note in attesa (`waiting_file`) si consegnano prima di togliere Agent Chat;
+  - `memoria-condivise/` si cancella dopo il primo scaricamento riuscito dalla master.
+- **Chiave di recupero:** mostrata una volta, testo «Conservala in un posto sicuro fuori da questo PC», verifica di due gruppi prima di proseguire.
+- **Ordine:**
+  1. condivisione su richiesta e lettura dagli altri PC;
+  2. note per l'autore;
+  3. migrazione di `memshare.rs`;
+  4. via Agent Chat.
+- **Da verificare:** Gestione credenziali nel Windows in Docker della VPS (persiste al riavvio?).
+- **Solo chat o tutto EasyIsland:** è indipendente, ancora da ragionare. Serve un inventario di cosa parte all'avvio in `lib.rs`.
 
 ## EasyIsland collegati: memoria condivisa (31/10, superata dalla Memoria master)
 Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un secondo EasyIsland usato da Telegram. Si condivide solo la memoria, anche con due EasyIsland al lavoro insieme (nessun custode). (Agent Chat ha poi aggiunto una memoria condivisa via server: `memshare.rs`.)
